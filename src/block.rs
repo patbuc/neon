@@ -59,12 +59,9 @@ impl BlockDbg for Block {
         print!("{:02x} ", offset);
 
         let instruction = OpCode::try_from(self.op_codes[offset]).unwrap();
-        return match instruction
-        {
-            OpCode::Return => {
-                self.simple_instruction(OpCode::Return, offset)
-            }
-        }
+        return match instruction {
+            OpCode::Return => self.simple_instruction(OpCode::Return, offset),
+        };
     }
 
     fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize {
@@ -73,14 +70,13 @@ impl BlockDbg for Block {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn new_block_is_empty() {
-        let block= Block::new("origin");
+        let block = Block::new("origin");
 
         assert_eq!("origin", block.name);
         assert_eq!(0, block.op_codes.len());
