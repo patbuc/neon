@@ -1,10 +1,11 @@
-mod block;
+pub mod vm;
 
-use crate::block::{Block, OpCode};
+use crate::vm::block::{Block, OpCode};
+
 use colored::Colorize;
 
 #[cfg(feature = "disassemble")]
-use crate::block::BlockDbg;
+use crate::vm::block::BlockDbg;
 
 fn main() {
     println!(
@@ -13,6 +14,15 @@ fn main() {
     );
 
     let mut block = Block::new("ZeBlock");
+
+    let constant_index = block.push_constant(1234.56);
+    block.push_op_code(OpCode::Constant);
+    block.write_byte(constant_index);
+
+    let constant_index = block.push_constant(789.10);
+    block.push_op_code(OpCode::Constant);
+    block.write_byte(constant_index);
+
     block.push_op_code(OpCode::Return);
 
     #[cfg(feature = "disassemble")]
