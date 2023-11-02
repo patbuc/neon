@@ -1,22 +1,13 @@
 use crate::vm::constants::Constants;
-use std::convert::TryFrom;
 
-#[derive(Debug)]
+use enum_primitive_derive::Primitive;
+use num_traits::FromPrimitive;
+
+#[repr(u8)]
+#[derive(Debug, Primitive)]
 pub enum OpCode {
-    Constant,
-    Return,
-}
-
-impl TryFrom<u8> for OpCode {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(OpCode::Constant),
-            1 => Ok(OpCode::Return),
-            _ => Err(()),
-        }
-    }
+    Constant = 0x00,
+    Return = 0x01,
 }
 
 #[allow(dead_code)]
@@ -64,7 +55,7 @@ impl BlockDbg for Block {
 
         let mut offset: usize = 0;
         while offset < self.instructions.len() {
-            offset += self.disassemble_instruction(offset);
+            offset = self.disassemble_instruction(offset);
         }
 
         println!("=== </{}> ===", self.name);
@@ -73,7 +64,7 @@ impl BlockDbg for Block {
     fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
-        let instruction = OpCode::try_from(self.instructions[offset]).unwrap();
+        let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();
         return match instruction {
             OpCode::Constant => self.constant_instruction(OpCode::Constant, offset),
             OpCode::Return => self.simple_instruction(OpCode::Return, offset),
