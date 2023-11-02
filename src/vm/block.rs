@@ -13,24 +13,28 @@ pub enum OpCode {
 #[allow(dead_code)]
 pub struct Block {
     name: String,
-    instructions: Vec<u8>,
     constants: Constants,
+    instructions: Vec<u8>,
+    lines: Vec<usize>,
 }
 
 impl Block {
     pub fn new(name: &str) -> Self {
         Block {
             name: String::from(name),
-            instructions: Vec::new(),
             constants: Constants::new(),
+            instructions: Vec::new(),
+            lines: Vec::new(),
         }
     }
 
-    pub fn push_op_code(&mut self, op_code: OpCode) {
+    pub fn push_op_code(&mut self, op_code: OpCode, line: usize) {
+        self.lines.push(line);
         self.instructions.push(op_code as u8)
     }
 
-    pub fn push_constant(&mut self, value: f64) -> i8 {
+    pub fn push_constant(&mut self, value: f64, line: usize) -> i8 {
+        self.lines.push(line);
         self.constants.push_value(value)
     }
 
@@ -63,6 +67,12 @@ impl BlockDbg for Block {
 
     fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
+
+        if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
+            print!("     | ");
+        } else {
+            print!("{:6} ", self.lines[offset]);
+        }
 
         let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();
         return match instruction {
@@ -100,7 +110,7 @@ mod tests {
     #[test]
     fn op_code_can_be_pushed_to_an_block() {
         let mut block = Block::new("jenny");
-        block.push_op_code(OpCode::Return);
+        block.push_op_code(OpCode::Return, 123);
 
         assert_eq!(1, block.instructions.len());
         assert_eq!(OpCode::Return as u8, block.instructions[0]);
