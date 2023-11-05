@@ -9,9 +9,13 @@ impl Constants {
         Constants { values: Vec::new() }
     }
 
-    pub fn push_value(&mut self, value: Value) -> i8 {
+    pub fn push_value(&mut self, value: Value) -> u32 {
         self.values.push(value);
-        self.values.len() as i8 - 1
+        (self.values.len() - 1) as u32
+    }
+
+    pub fn get_value(&self, index: u32) -> Value {
+        self.values[index as usize]
     }
 }
 
