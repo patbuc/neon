@@ -63,12 +63,30 @@ impl Block {
         self.instructions.push((value >> 16) as u8);
         self.instructions.push((value >> 24) as u8);
     }
+
+    pub fn read_u8(&mut self, offset: usize) -> u8 {
+        self.instructions[offset]
+    }
+
+    pub fn read_u16(&mut self, offset: usize) -> u16 {
+        let byte1 = self.instructions[offset] as u16;
+        let byte2 = self.instructions[offset + 1] as u16;
+        (byte2 << 8) | byte1
+    }
+
+    pub fn read_u32(&mut self, offset: usize) -> u32 {
+        let byte1 = self.instructions[offset] as u32;
+        let byte2 = self.instructions[offset + 1] as u32;
+        let byte3 = self.instructions[offset + 2] as u32;
+        let byte4 = self.instructions[offset + 3] as u32;
+        (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
+    }
 }
 
 #[cfg(feature = "disassemble")]
 pub trait BlockDbg {
     fn disassemble_block(&self);
-    fn disassemble_instruction(&self, offset: usize) -> usize;
+    fn disassemble_instruction(&self, offset: usize, line: usize) -> usize;
     fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize;
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize;
 }
@@ -80,20 +98,22 @@ impl BlockDbg for Block {
         println!("=== <{}>  ===", self.name);
 
         let mut offset: usize = 0;
+        let mut line: usize = 0;
         while offset < self.instructions.len() {
-            offset = self.disassemble_instruction(offset);
+            offset = self.disassemble_instruction(offset, line);
+            line += 1;
         }
 
         println!("=== </{}> ===", self.name);
     }
 
-    fn disassemble_instruction(&self, offset: usize) -> usize {
+    fn disassemble_instruction(&self, offset: usize, line: usize) -> usize {
         print!("{:04x} ", offset);
 
-        if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
+        if line > 0 && self.lines[line] == self.lines[line - 1] {
             print!("     | ");
         } else {
-            print!("{:6} ", self.lines[offset]);
+            print!("{:6} ", self.lines[line]);
         }
 
         let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();
@@ -153,20 +173,14 @@ mod tests {
             OpCode::from_u8(block.instructions[2 * 256]).unwrap()
         );
 
-        let byte1 = block.instructions[2 * 256 + 1] as u16;
-        let byte2 = block.instructions[2 * 256 + 2] as u16;
-        let constant_index: u16 = (byte2 << 8) | byte1;
-        assert_eq!(256, constant_index);
+        assert_eq!(256, block.read_u16(2 * 256 + 1));
 
         assert_eq!(
             OpCode::Constant2,
             OpCode::from_u8(block.instructions[2 * 256 + 3]).unwrap()
         );
-        let byte1 = block.instructions[2 * 256 + 4] as u16;
-        let byte2 = block.instructions[2 * 256 + 5] as u16;
-        let constant_index: u16 = (byte2 << 8) | byte1;
+        let constant_index = block.read_u16(2 * 256 + 4);
         assert_eq!(257, constant_index);
-
         assert_eq!(257f64, block.constants.get_value(constant_index as u32));
     }
 }

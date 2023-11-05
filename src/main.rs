@@ -17,8 +17,10 @@ fn main() {
 
     block.write_constant(1234.56, 2);
     block.write_constant(789.10, 4);
-
     block.write_op_code(OpCode::Return, 4);
+    block.write_op_code(OpCode::Return, 4);
+    block.write_op_code(OpCode::Return, 5);
+    block.write_op_code(OpCode::Return, 6);
 
     #[cfg(feature = "disassemble")]
     block.disassemble_block();
