@@ -1,8 +1,9 @@
-pub(crate) mod constants;
+mod constants;
+
 #[cfg(feature = "disassemble")]
-pub(crate) mod disassemble;
-#[cfg(test)]
-mod tests;
+mod disassemble;
+#[cfg(feature = "disassemble")]
+pub(crate) use crate::vm::block::disassemble::Disassembler;
 
 use crate::vm::block::constants::Constants;
 use enum_primitive_derive::Primitive;
@@ -86,3 +87,6 @@ impl Block {
         (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
     }
 }
+
+#[cfg(test)]
+mod tests;

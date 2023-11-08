@@ -1,10 +1,11 @@
 mod vm;
 
-#[cfg(feature = "disassemble")]
-use crate::vm::block::disassemble::BlockDbg;
+use colored::Colorize;
 
 use crate::vm::block::{Block, OpCode};
-use colored::Colorize;
+
+#[cfg(feature = "disassemble")]
+use crate::vm::block::Disassembler;
 
 fn main() {
     println!(
