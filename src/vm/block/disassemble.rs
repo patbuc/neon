@@ -1,14 +1,14 @@
 use crate::vm::block::{Block, OpCode};
 use num_traits::FromPrimitive;
 
-pub trait BlockDbg {
+pub trait Disassembler {
     fn disassemble_block(&self);
     fn disassemble_instruction(&self, offset: usize, line: usize) -> usize;
     fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize;
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize;
 }
 
-impl BlockDbg for Block {
+impl Disassembler for Block {
     fn disassemble_block(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
