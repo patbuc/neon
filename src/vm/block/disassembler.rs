@@ -47,18 +47,18 @@ impl Disassembler for Block {
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_constant_index(block: &Block, op_code: &OpCode, offset: usize) -> usize {
+        fn get_constant_index(block: &Block, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::Constant => block.read_u8(offset) as usize,
-                OpCode::Constant2 => block.read_u16(offset) as usize,
-                OpCode::Constant4 => block.read_u32(offset) as usize,
+                OpCode::Constant => (block.read_u8(offset) as usize, 1),
+                OpCode::Constant2 => (block.read_u16(offset) as usize, 2),
+                OpCode::Constant4 => (block.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }
 
-        let constant_index = get_constant_index(self, &op_code, offset);
-        let constant = self.constants.read_value(constant_index as u32);
-        println!("{:?} {:02} '{}'", op_code, constant_index, constant);
-        offset + 2
+        let (index, offset_shift) = get_constant_index(self, &op_code, offset + 1);
+        let constant = self.constants.read_value(index);
+        println!("{:?} {:02} '{}'", op_code, index, constant);
+        offset + 1 + offset_shift
     }
 }

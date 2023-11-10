@@ -1,4 +1,5 @@
-use crate::vm::block::{Block, OpCode};
+use crate::vm::block::opcodes::OpCode;
+use crate::vm::block::Block;
 use num_traits::FromPrimitive;
 
 #[test]
@@ -38,9 +39,9 @@ fn can_write_more_then_256_constants() {
         OpCode::Constant2,
         OpCode::from_u8(block.instructions[2 * 256 + 3]).unwrap()
     );
-    let constant_index = block.read_u16(2 * 256 + 4);
+    let constant_index = block.read_u16(2 * 256 + 4) as usize;
     assert_eq!(257, constant_index);
-    assert_eq!(257f64, block.constants.read_value(constant_index as u32));
+    assert_eq!(257f64, block.constants.read_value(constant_index));
 }
 
 #[test]
