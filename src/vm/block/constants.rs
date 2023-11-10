@@ -1,8 +1,4 @@
-type Value = f64;
-
-pub(super) struct Constants {
-    values: Vec<Value>,
-}
+use crate::vm::block::{Constants, Value};
 
 impl Constants {
     pub fn new() -> Self {
@@ -20,8 +16,8 @@ impl Constants {
         (self.values.len() - 1) as u32
     }
 
-    pub fn read_value(&self, index: u32) -> Value {
-        self.values[index as usize]
+    pub fn read_value(&self, index: usize) -> Value {
+        self.values[index]
     }
 }
 

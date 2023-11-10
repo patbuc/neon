@@ -1,1 +1,2 @@
-pub(super) mod block;
+pub mod block;
+pub mod vm;

@@ -4,8 +4,7 @@ use colored::Colorize;
 
 use crate::vm::block::{Block, OpCode};
 
-#[cfg(feature = "disassemble")]
-use crate::vm::block::Disassembler;
+use crate::vm::vm::VirtualMachine;
 
 fn main() {
     println!(
@@ -23,5 +22,8 @@ fn main() {
     block.write_op_code(OpCode::Return, 6);
 
     #[cfg(feature = "disassemble")]
-    block.disassemble_block();
+    block.disassemble();
+
+    let mut vm = VirtualMachine::new(block);
+    vm.interpret();
 }
