@@ -32,6 +32,11 @@ impl Block {
             OpCode::Constant => self.constant_instruction(instruction, offset),
             OpCode::Constant2 => self.constant_instruction(instruction, offset),
             OpCode::Constant4 => self.constant_instruction(instruction, offset),
+            OpCode::Negate => self.simple_instruction(OpCode::Negate, offset),
+            OpCode::Add => self.simple_instruction(OpCode::Add, offset),
+            OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset),
+            OpCode::Multiply => self.simple_instruction(OpCode::Multiply, offset),
+            OpCode::Divide => self.simple_instruction(OpCode::Divide, offset),
         };
     }
 
