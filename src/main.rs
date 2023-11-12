@@ -7,8 +7,6 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
-use crate::vm::block::{Block, OpCode};
-
 use crate::vm::vm::VirtualMachine;
 
 fn main() {
@@ -18,7 +16,7 @@ fn main() {
 
     if args.len() == 1 {
         run_repl();
-    } else if args.len() == 2 {
+    } else if args.len() >= 2 {
         run_file(&args[1]);
     } else {
         exit(64);
@@ -84,18 +82,4 @@ fn read_file(path: &str) -> String {
     file.read_to_string(&mut contents)
         .expect(format!("Failed to read the file {}", path).as_str());
     contents
-}
-
-fn write_block() -> Block {
-    let mut block = Block::new("ZeBlock");
-
-    block.write_constant(1234.56, 2);
-    block.write_op_code(OpCode::Negate, 3);
-    block.write_constant(345.67, 4);
-    block.write_op_code(OpCode::Add, 4);
-    block.write_constant(1.2, 5);
-    block.write_op_code(OpCode::Multiply, 6);
-    block.write_op_code(OpCode::Return, 8);
-
-    block
 }

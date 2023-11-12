@@ -292,7 +292,8 @@ impl Scanner {
     }
 
     fn skip_whitespace(&mut self) {
-        while let c = self.peek() {
+        loop {
+            let c = self.peek();
             match c {
                 ' ' | '\r' | '\t' => {
                     self.advance();
