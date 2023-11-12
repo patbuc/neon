@@ -1,9 +1,12 @@
 use crate::vm::block::{Block, OpCode};
 use num_traits::FromPrimitive;
 
+pub(in crate::vm) type Value = f64;
+
 pub struct VirtualMachine {
-    block: Block,
     ip: usize,
+    block: Block,
+    stack: Vec<Value>,
 }
 
 pub enum Result {
@@ -14,7 +17,11 @@ pub enum Result {
 
 impl VirtualMachine {
     pub fn new(block: Block) -> Self {
-        VirtualMachine { block, ip: 0 }
+        VirtualMachine {
+            ip: 0,
+            block,
+            stack: Vec::new(),
+        }
     }
     pub fn interpret(&mut self) -> Result {
         return self.run();
@@ -23,6 +30,8 @@ impl VirtualMachine {
     #[inline(always)]
     fn run(&mut self) -> Result {
         loop {
+            #[cfg(feature = "disassemble")]
+            self.block.disassemble_instruction(self.ip);
             match OpCode::from_u8(self.block.read_u8(self.ip)).unwrap() {
                 OpCode::Return => return Result::Ok,
                 OpCode::Constant => {

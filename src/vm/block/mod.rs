@@ -1,23 +1,28 @@
 pub(self) mod block;
 mod constants;
+mod lines;
 mod opcodes;
 
 #[cfg(feature = "disassemble")]
-mod disassembler;
+pub(super) mod disassembler;
 
 pub(crate) use crate::vm::block::opcodes::OpCode;
+use crate::vm::vm::Value;
 
-#[allow(dead_code)]
 pub struct Block {
     name: String,
     constants: Constants,
     instructions: Vec<u8>,
-    lines: Vec<usize>,
+    lines: Vec<Line>,
 }
 
-type Value = f64;
-pub struct Constants {
+struct Constants {
     values: Vec<Value>,
+}
+
+struct Line {
+    pub line: usize,
+    pub offset: usize,
 }
 
 #[cfg(test)]

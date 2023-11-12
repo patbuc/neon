@@ -1,5 +1,3 @@
-#[cfg(feature = "disassemble")]
-use crate::vm::block::disassembler::Disassembler;
 use crate::vm::block::opcodes::OpCode;
 use crate::vm::block::{Block, Constants};
 
@@ -12,9 +10,11 @@ impl Block {
             lines: Vec::new(),
         }
     }
+}
 
+impl Block {
     pub fn write_op_code(&mut self, op_code: OpCode, line: usize) {
-        self.lines.push(line);
+        self.add_line(self.instructions.len(), line);
         self.instructions.push(op_code as u8)
     }
 
@@ -67,10 +67,5 @@ impl Block {
         let byte3 = self.instructions[offset + 2] as u32;
         let byte4 = self.instructions[offset + 3] as u32;
         (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
-    }
-
-    #[cfg(feature = "disassemble")]
-    pub fn disassemble(&self) {
-        self.disassemble_block();
     }
 }
