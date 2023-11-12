@@ -64,3 +64,16 @@ fn can_write_u32() {
     block.write_u32(12345678);
     assert_eq!(12345678, block.read_u32(0));
 }
+
+#[test]
+fn can_write_block() {
+    let mut block = Block::new("ZeBlock");
+
+    block.write_constant(1234.56, 2);
+    block.write_op_code(OpCode::Negate, 3);
+    block.write_constant(345.67, 4);
+    block.write_op_code(OpCode::Add, 4);
+    block.write_constant(1.2, 5);
+    block.write_op_code(OpCode::Multiply, 6);
+    block.write_op_code(OpCode::Return, 8);
+}
