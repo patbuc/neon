@@ -21,9 +21,6 @@ fn main() {
     block.write_op_code(OpCode::Return, 5);
     block.write_op_code(OpCode::Return, 6);
 
-    #[cfg(feature = "disassemble")]
-    block.disassemble();
-
     let mut vm = VirtualMachine::new(block);
     vm.interpret();
 }

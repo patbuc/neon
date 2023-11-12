@@ -1,35 +1,29 @@
 use crate::vm::block::{Block, OpCode};
 use num_traits::FromPrimitive;
 
-pub trait Disassembler {
-    fn disassemble_block(&self);
-    fn disassemble_instruction(&self, offset: usize, line: usize) -> usize;
-    fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize;
-    fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize;
-}
-
-impl Disassembler for Block {
-    fn disassemble_block(&self) {
+#[cfg(feature = "disassemble")]
+impl Block {
+    #[allow(dead_code)]
+    pub(crate) fn disassemble_block(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 
         let mut offset: usize = 0;
-        let mut line: usize = 0;
         while offset < self.instructions.len() {
-            offset = self.disassemble_instruction(offset, line);
-            line += 1;
+            offset = self.disassemble_instruction(offset);
         }
 
         println!("=== </{}> ===", self.name);
     }
 
-    fn disassemble_instruction(&self, offset: usize, line: usize) -> usize {
+    pub(crate) fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
-        if line > 0 && self.lines[line] == self.lines[line - 1] {
+        let line = self.get_line(offset);
+        if offset > 0 && line == self.get_line(offset - 1) {
             print!("     | ");
         } else {
-            print!("{:6} ", self.lines[line]);
+            print!("{:6} ", line);
         }
 
         let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();

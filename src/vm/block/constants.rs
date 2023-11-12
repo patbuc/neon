@@ -1,4 +1,5 @@
-use crate::vm::block::{Constants, Value};
+use crate::vm::block::Constants;
+use crate::vm::vm::Value;
 
 impl Constants {
     pub fn new() -> Self {
@@ -20,10 +21,6 @@ impl Constants {
         self.values[index]
     }
 }
-
-// pub fn print_value(value: Value) {
-//     print!("{}", value);
-// }
 
 #[cfg(test)]
 mod tests {
