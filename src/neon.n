@@ -1,0 +1,9 @@
+var x = 123;
+
+if (x == 123 and x > 3) {
+    print("x is 123");
+}
+
+fun test() {
+
+}
