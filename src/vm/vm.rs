@@ -1,4 +1,5 @@
 use crate::vm::block::{Block, OpCode};
+use crate::vm::compiler::Compiler;
 use num_traits::FromPrimitive;
 
 pub(in crate::vm) type Value = f64;
@@ -11,20 +12,23 @@ pub struct VirtualMachine {
 
 pub enum Result {
     Ok,
-    // CompileError,
-    // RuntimeError,
+    CompileError,
+    RuntimeError,
 }
 
 impl VirtualMachine {
-    pub fn new(block: Block) -> Self {
+    pub fn new() -> Self {
         VirtualMachine {
             ip: 0,
-            block,
+            block: Block::new("ZeBlock"),
             stack: Vec::new(),
         }
     }
-    pub fn interpret(&mut self) -> Result {
-        return self.run();
+
+    pub fn interpret(&mut self, source: String) -> Result {
+        let compiler = Compiler {};
+        compiler.compile(source);
+        return Result::Ok;
     }
 
     #[inline(always)]
