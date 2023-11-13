@@ -1,53 +1,8 @@
-#[derive(Debug)]
-enum TokenType {
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    Comma,
-    Dot,
-    Minus,
-    Plus,
-    Semicolon,
-    Slash,
-    Star,
-
-    Bang,
-    BangEqual,
-    Equal,
-    EqualEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-
-    Identifier,
-    String,
-    Number,
-
-    And,
-    Class,
-    Else,
-    False,
-    For,
-    Fun,
-    If,
-    Nil,
-    Or,
-    Print,
-    Return,
-    Super,
-    This,
-    True,
-    Var,
-    While,
-
-    Error,
-    Eof,
-}
+use crate::compiler::tokens::TokenType;
+use crate::compiler::Scanner;
 
 #[derive(Debug)]
-pub(crate) struct Token {
+pub(in crate::compiler) struct Token {
     token_type: TokenType,
     start: usize,
     length: usize,
@@ -65,15 +20,13 @@ impl Token {
     }
 }
 
-pub(crate) struct Scanner {
-    source: Vec<char>,
-    start: usize,
-    current: usize,
-    line: u32,
+pub(in crate::compiler) struct ScannerIterator<'a> {
+    scanner: &'a mut Scanner,
+    index: usize,
 }
 
 impl Scanner {
-    pub(crate) fn new(source: String) -> Scanner {
+    pub(in crate::compiler) fn new(source: String) -> Scanner {
         Scanner {
             source: source.chars().collect(),
             start: 0,
@@ -81,12 +34,31 @@ impl Scanner {
             line: 1,
         }
     }
+
+    pub fn tokens(&mut self) -> ScannerIterator {
+        ScannerIterator {
+            scanner: self,
+            index: 0,
+        }
+    }
 }
 
-impl Iterator for Scanner {
+impl<'a> Iterator for ScannerIterator<'a> {
     type Item = Token;
 
-    fn next(&mut self) -> Option<Token> {
+    fn next(&mut self) -> Option<Self::Item> {
+        let token = self.scanner.scan();
+        if token.is_some() {
+            self.index += 1;
+            token
+        } else {
+            None
+        }
+    }
+}
+
+impl Scanner {
+    fn scan(&mut self) -> Option<Token> {
         self.skip_whitespace();
         self.start = self.current;
 
@@ -149,7 +121,7 @@ impl Iterator for Scanner {
                     while self.peek_next() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
-                    return self.next();
+                    return self.scan();
                 } else {
                     return Option::from(self.make_token(TokenType::Slash));
                 }
@@ -187,7 +159,7 @@ impl Scanner {
             self.advance();
         }
 
-        return Option::from(self.make_token(self.identifier_type()));
+        return Option::from(self.make_token(self.make_identifier_type()));
     }
 
     fn make_number(&mut self) -> Token {
@@ -215,7 +187,7 @@ impl Scanner {
         self.make_token(TokenType::Number)
     }
 
-    fn identifier_type(&self) -> TokenType {
+    fn make_identifier_type(&self) -> TokenType {
         let chr = self.source[self.start];
         return match chr {
             'a' => self.check_keyword(1, 2, "nd", TokenType::And),
@@ -284,6 +256,7 @@ impl Scanner {
         }
         return self.source[self.current + 1];
     }
+
     fn peek(&self) -> char {
         if self.is_at_end() {
             return '\0';
@@ -308,6 +281,7 @@ impl Scanner {
             }
         }
     }
+
     fn matches(&mut self, chr: char) -> bool {
         if self.is_at_end() {
             return false;
@@ -320,13 +294,10 @@ impl Scanner {
         self.current += 1;
         return true;
     }
+
     fn advance(&mut self) -> char {
         self.current += 1;
         self.source[self.current - 1]
-    }
-
-    fn has_more(&self) -> bool {
-        self.current < self.source.len()
     }
 
     fn is_at_end(&self) -> bool {
@@ -343,5 +314,36 @@ impl Scanner {
 
     fn make_token(&self, token_type: TokenType) -> Token {
         Token::new(token_type, self.start, self.current - self.start, self.line)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compiler::scanner::Token;
+    use crate::compiler::tokens::TokenType;
+
+    #[test]
+    fn can_scan_simple_instruction() {
+        let script = "var a = 1;".to_string();
+
+        let mut scanner = super::Scanner::new(script);
+        let x: Vec<Token> = scanner.tokens().collect();
+
+        assert_eq!(x.len(), 6);
+
+        assert_eq!(x[0].token_type, TokenType::Var);
+        assert_eq!(x[0].start, 0);
+        assert_eq!(x[0].length, 3);
+        assert_eq!(x[0].line, 1);
+
+        assert_eq!(x[1].token_type, TokenType::Identifier);
+        assert_eq!(x[1].start, 4);
+        assert_eq!(x[1].length, 1);
+        assert_eq!(x[1].line, 1);
+
+        assert_eq!(x[2].token_type, TokenType::Equal);
+        assert_eq!(x[3].token_type, TokenType::Number);
+        assert_eq!(x[4].token_type, TokenType::Semicolon);
+        assert_eq!(x[5].token_type, TokenType::Eof);
     }
 }
