@@ -1,10 +1,11 @@
-use crate::vm::block::{Block, OpCode};
+use crate::vm::opcodes::OpCode;
+use crate::vm::Block;
 use num_traits::FromPrimitive;
 
 #[cfg(feature = "disassemble")]
 impl Block {
     #[allow(dead_code)]
-    pub(crate) fn disassemble_block(&self) {
+    pub(in crate::vm) fn disassemble_block(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 
@@ -16,7 +17,7 @@ impl Block {
         println!("=== </{}> ===", self.name);
     }
 
-    pub(crate) fn disassemble_instruction(&self, offset: usize) -> usize {
+    pub(in crate::vm) fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
         let line = self.get_line(offset);

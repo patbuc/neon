@@ -1,3 +1,4 @@
+mod compiler;
 mod vm;
 
 use colored::Colorize;
@@ -7,7 +8,7 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
-use crate::vm::vm::VirtualMachine;
+use crate::vm::VirtualMachine;
 
 fn main() {
     print_tagline();
@@ -66,11 +67,11 @@ fn run_file(path: &String) {
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
-    let result: vm::vm::Result = vm.interpret(source);
+    let result: vm::Result = vm.interpret(source);
     match result {
-        vm::vm::Result::Ok => return,
-        vm::vm::Result::CompileError => exit(65),
-        vm::vm::Result::RuntimeError => exit(70),
+        vm::Result::Ok => return,
+        vm::Result::CompileError => exit(65),
+        vm::Result::RuntimeError => exit(70),
     }
 }
 

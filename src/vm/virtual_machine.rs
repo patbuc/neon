@@ -1,20 +1,7 @@
-use crate::vm::block::{Block, OpCode};
-use crate::vm::compiler::Compiler;
+use crate::compiler::Compiler;
+use crate::vm::opcodes::OpCode;
+use crate::vm::{Block, Result, Value, VirtualMachine};
 use num_traits::FromPrimitive;
-
-pub(in crate::vm) type Value = f64;
-
-pub struct VirtualMachine {
-    ip: usize,
-    block: Block,
-    stack: Vec<Value>,
-}
-
-pub enum Result {
-    Ok,
-    CompileError,
-    RuntimeError,
-}
 
 impl VirtualMachine {
     pub fn new() -> Self {
@@ -39,7 +26,7 @@ impl VirtualMachine {
             match OpCode::from_u8(self.block.read_u8(self.ip)).unwrap() {
                 OpCode::Return => {
                     let value = self.pop();
-                    VirtualMachine::print_value(value);
+                    VirtualMachine::print(value);
                     return Result::Ok;
                 }
                 OpCode::Constant => {
@@ -97,7 +84,7 @@ impl VirtualMachine {
         self.push(a / b);
     }
 
-    fn print_value(value: Value) {
+    fn print(value: Value) {
         print!("{}", value);
     }
 

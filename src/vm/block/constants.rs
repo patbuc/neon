@@ -1,5 +1,4 @@
-use crate::vm::block::Constants;
-use crate::vm::vm::Value;
+use crate::vm::{Constants, Value};
 
 impl Constants {
     pub fn new() -> Self {
@@ -7,7 +6,6 @@ impl Constants {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.values.len()
     }
