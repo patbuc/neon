@@ -96,3 +96,45 @@ impl VirtualMachine {
         self.stack.pop().unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use colored::Color::Black;
+
+    #[test]
+    fn can_create_vm() {
+        let vm = super::VirtualMachine::new();
+        assert_eq!(0, vm.ip);
+        assert_eq!(0, vm.stack.len());
+    }
+
+    #[test]
+    fn can_execute_simple_arithmetics() {
+        let mut block = super::Block::new("ZeBlock");
+
+        block.write_constant(1.0, 0);
+        block.write_constant(2.0, 0);
+        block.write_op_code(super::OpCode::Add, 0);
+        block.write_constant(3.0, 0);
+        block.write_op_code(super::OpCode::Multiply, 0);
+        block.write_constant(2.0, 0);
+        block.write_op_code(super::OpCode::Subtract, 0);
+        block.write_constant(2.0, 0);
+        block.write_op_code(super::OpCode::Divide, 0);
+
+        // Pushing throw away value to the stack.
+        // This is needed because the Return OpCode will pop a value from the stack and print it.
+        block.write_constant(0.0, 0);
+        block.write_op_code(super::OpCode::Return, 0);
+
+        let mut vm = super::VirtualMachine {
+            ip: 0,
+            block,
+            stack: Vec::new(),
+        };
+
+        let result = vm.run();
+        assert_eq!(super::Result::Ok, result);
+        assert_eq!(3.5, vm.pop());
+    }
+}

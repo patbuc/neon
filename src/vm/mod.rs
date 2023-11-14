@@ -4,6 +4,7 @@ mod virtual_machine;
 
 pub type Value = f64;
 
+#[derive(Debug, PartialEq)]
 pub enum Result {
     Ok,
     CompileError,
