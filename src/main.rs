@@ -35,14 +35,10 @@ fn run_repl() {
     println!("Running REPL");
 
     let mut vm = VirtualMachine::new();
-
     loop {
         print_prompt();
-
         let line = read_line();
-
         vm.interpret(line);
-
         println!();
     }
 }
