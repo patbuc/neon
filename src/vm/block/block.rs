@@ -75,10 +75,14 @@ impl Block {
         self.lines.push(Line { offset, line });
     }
 
-    pub(in crate::vm) fn get_line(&self, offset: usize) -> usize {
+    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<usize> {
         let mut line = 0;
         let mut low = 0;
         let mut high = self.lines.len() - 1;
+
+        if offset >= self.instructions.len() {
+            return None;
+        }
 
         while low <= high {
             let mid = (low + high) / 2;
@@ -90,7 +94,7 @@ impl Block {
                 low = mid + 1;
             }
         }
-        line
+        Option::from(line)
     }
 }
 
@@ -174,5 +178,31 @@ mod tests {
         block.write_constant(1.2, 5);
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
+    }
+
+    #[test]
+    fn can_read_line_information() {
+        let mut block = Block::new("ZeBlock");
+
+        block.write_constant(1234.56, 2);
+        block.write_op_code(OpCode::Negate, 3);
+        block.write_constant(345.67, 4);
+        block.write_op_code(OpCode::Add, 4);
+        block.write_constant(1.2, 5);
+        block.write_op_code(OpCode::Multiply, 6);
+        block.write_op_code(OpCode::Return, 8);
+
+        assert_eq!(2, block.get_line(0).unwrap());
+        assert_eq!(2, block.get_line(1).unwrap());
+        assert_eq!(3, block.get_line(2).unwrap());
+        assert_eq!(4, block.get_line(3).unwrap());
+        assert_eq!(4, block.get_line(4).unwrap());
+        assert_eq!(4, block.get_line(5).unwrap());
+        assert_eq!(5, block.get_line(6).unwrap());
+        assert_eq!(5, block.get_line(7).unwrap());
+        assert_eq!(6, block.get_line(8).unwrap());
+        assert_eq!(8, block.get_line(9).unwrap());
+
+        assert_eq!(None, block.get_line(10));
     }
 }
