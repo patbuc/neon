@@ -24,7 +24,7 @@ impl Block {
         if offset > 0 && line == self.get_line(offset - 1) {
             print!("     | ");
         } else {
-            print!("{:6} ", line);
+            print!("{:6} ", line.unwrap());
         }
 
         let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();

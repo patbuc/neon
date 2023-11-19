@@ -99,12 +99,12 @@ impl VirtualMachine {
 
 #[cfg(test)]
 mod tests {
-    use colored::Color::Black;
-
     #[test]
     fn can_create_vm() {
         let vm = super::VirtualMachine::new();
         assert_eq!(0, vm.ip);
+        assert_eq!(0, vm.block.instructions.len());
+        assert_eq!(0, vm.block.constants.len());
         assert_eq!(0, vm.stack.len());
     }
 
