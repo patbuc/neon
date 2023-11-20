@@ -23,6 +23,7 @@ pub(in crate::compiler) enum TokenType {
 
     Identifier,
     String,
+    InterpolatedString,
     Number,
 
     And,

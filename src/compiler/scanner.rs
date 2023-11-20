@@ -133,6 +133,8 @@ impl Scanner {
     }
 
     fn make_string(&mut self) -> Option<Token> {
+        let mut placeholders: Vec<(usize, usize)> = Vec::new();
+        let mut placeholder_start = None;
         loop {
             if self.is_at_end() {
                 return Option::from(self.make_error_token("Unterminated string."));
@@ -140,12 +142,21 @@ impl Scanner {
             if self.peek() == '"' {
                 break;
             }
+            if self.peek() == '$' && self.peek_next() == '{' {
+                placeholder_start = Some(self.current);
+            }
+            if self.peek() == '}' && placeholder_start.is_some() {
+                placeholders.push((placeholder_start.unwrap(), self.current));
+            }
             if self.peek() == '\n' {
                 self.line += 1;
             }
             self.advance();
         }
         self.advance();
+        if placeholders.len() > 0 {
+            return Option::from(self.make_token(TokenType::InterpolatedString));
+        }
         Option::from(self.make_token(TokenType::String))
     }
 
@@ -314,7 +325,7 @@ mod tests {
     use crate::compiler::tokens::TokenType;
 
     #[test]
-    fn can_scan_simple_instruction() {
+    fn can_scan_simple_statement() {
         let script = "var a = 1;".to_string();
 
         let mut scanner = super::Scanner::new(script);
@@ -334,6 +345,31 @@ mod tests {
 
         assert_eq!(x[2].token_type, TokenType::Equal);
         assert_eq!(x[3].token_type, TokenType::Number);
+        assert_eq!(x[4].token_type, TokenType::Semicolon);
+        assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_interpolated_string() {
+        let script = "var a = \"This is an ${interpolated} string\";".to_string();
+
+        let mut scanner = super::Scanner::new(script);
+        let x: Vec<Token> = scanner.tokens().collect();
+
+        assert_eq!(x.len(), 6);
+
+        assert_eq!(x[0].token_type, TokenType::Var);
+        assert_eq!(x[0].start, 0);
+        assert_eq!(x[0].length, 3);
+        assert_eq!(x[0].line, 1);
+
+        assert_eq!(x[1].token_type, TokenType::Identifier);
+        assert_eq!(x[1].start, 4);
+        assert_eq!(x[1].length, 1);
+        assert_eq!(x[1].line, 1);
+
+        assert_eq!(x[2].token_type, TokenType::Equal);
+        assert_eq!(x[3].token_type, TokenType::InterpolatedString);
         assert_eq!(x[4].token_type, TokenType::Semicolon);
         assert_eq!(x[5].token_type, TokenType::Eof);
     }
