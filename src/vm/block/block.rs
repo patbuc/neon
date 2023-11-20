@@ -47,20 +47,24 @@ impl Block {
         self.instructions.push((value >> 24) as u8);
     }
 
+    #[inline(always)]
     pub(in crate::vm) fn read_constant(&mut self, index: usize) -> f64 {
         self.constants.read_value(index)
     }
 
+    #[inline(always)]
     pub(in crate::vm) fn read_u8(&self, offset: usize) -> u8 {
         self.instructions[offset]
     }
 
+    #[inline(always)]
     pub(in crate::vm) fn read_u16(&self, offset: usize) -> u16 {
         let byte1 = self.instructions[offset] as u16;
         let byte2 = self.instructions[offset + 1] as u16;
         (byte2 << 8) | byte1
     }
 
+    #[inline(always)]
     pub(in crate::vm) fn read_u32(&self, offset: usize) -> u32 {
         let byte1 = self.instructions[offset] as u32;
         let byte2 = self.instructions[offset + 1] as u32;
