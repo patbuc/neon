@@ -7,3 +7,6 @@ if (x == 123 and x > 3) {
 fun test() {
 
 }
+
+var result = 1 + 2 * 3 - (2 / 2);
+var str = "Hello World: ${result}";
