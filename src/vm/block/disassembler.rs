@@ -1,6 +1,5 @@
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
-use num_traits::FromPrimitive;
 
 #[cfg(feature = "disassemble")]
 impl Block {
@@ -27,7 +26,7 @@ impl Block {
             print!("{:6} ", line.unwrap());
         }
 
-        let instruction = OpCode::from_u8(self.instructions[offset]).unwrap();
+        let instruction = OpCode::from_u8(self.instructions[offset]);
         return match instruction {
             OpCode::Return => self.simple_instruction(OpCode::Return, offset),
             OpCode::Constant => self.constant_instruction(instruction, offset),

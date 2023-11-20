@@ -106,7 +106,6 @@ impl Block {
 mod tests {
     use crate::vm::opcodes::OpCode;
     use crate::vm::Block;
-    use num_traits::FromPrimitive;
 
     #[test]
     fn new_block_is_empty() {
@@ -136,14 +135,13 @@ mod tests {
         assert_eq!(2 * 256 + 6, block.instructions.len());
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(block.instructions[2 * 256]).unwrap()
+            OpCode::from_u8(block.instructions[2 * 256])
         );
 
         assert_eq!(256, block.read_u16(2 * 256 + 1));
-
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(block.instructions[2 * 256 + 3]).unwrap()
+            OpCode::from_u8(block.instructions[2 * 256 + 3])
         );
         let constant_index = block.read_u16(2 * 256 + 4) as usize;
         assert_eq!(257, constant_index);

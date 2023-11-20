@@ -1,7 +1,7 @@
-use enum_primitive_derive::Primitive;
+use std::mem::transmute;
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Primitive)]
+#[derive(Debug, PartialEq)]
 pub(in crate::vm) enum OpCode {
     Return = 0x00,
     Constant = 0x01,
@@ -12,4 +12,11 @@ pub(in crate::vm) enum OpCode {
     Subtract = 0x06,
     Multiply = 0x07,
     Divide = 0x08,
+}
+
+impl OpCode {
+    #[inline(always)]
+    pub(in crate::vm) fn from_u8(value: u8) -> OpCode {
+        unsafe { transmute(value) }
+    }
 }

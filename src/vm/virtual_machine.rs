@@ -1,7 +1,6 @@
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Result, Value, VirtualMachine};
-use num_traits::FromPrimitive;
 
 impl VirtualMachine {
     pub fn new() -> Self {
@@ -23,7 +22,7 @@ impl VirtualMachine {
         loop {
             #[cfg(feature = "disassemble")]
             self.block.disassemble_instruction(self.ip);
-            match OpCode::from_u8(self.block.read_u8(self.ip)).unwrap() {
+            match OpCode::from_u8(self.block.read_u8(self.ip)) {
                 OpCode::Return => {
                     let value = self.pop();
                     VirtualMachine::print(value);
