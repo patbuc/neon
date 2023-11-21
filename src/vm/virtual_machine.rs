@@ -6,43 +6,46 @@ impl VirtualMachine {
     pub fn new() -> Self {
         VirtualMachine {
             ip: 0,
-            block: Block::new("ZeBlock"),
             stack: Vec::new(),
         }
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
-        let compiler = Compiler {};
-        compiler.compile(source);
-        return Result::Ok;
+        let compiler = Compiler::new();
+        let block = compiler.compile(source);
+        return if let Some(block) = block {
+            self.run(block)
+        } else {
+            Result::CompileError
+        };
     }
 
     #[inline(always)]
-    fn run(&mut self) -> Result {
+    fn run(&mut self, mut block: Block) -> Result {
         loop {
             #[cfg(feature = "disassemble")]
-            self.block.disassemble_instruction(self.ip);
-            match OpCode::from_u8(self.block.read_u8(self.ip)) {
+            block.disassemble_instruction(self.ip);
+            match OpCode::from_u8(block.read_u8(self.ip)) {
                 OpCode::Return => {
                     let value = self.pop();
                     VirtualMachine::print(value);
                     return Result::Ok;
                 }
                 OpCode::Constant => {
-                    let constant_index = self.block.read_u8(self.ip + 1) as usize;
-                    let constant = self.block.read_constant(constant_index);
+                    let constant_index = block.read_u8(self.ip + 1) as usize;
+                    let constant = block.read_constant(constant_index);
                     self.push(constant);
                     self.ip += 1;
                 }
                 OpCode::Constant2 => {
-                    let constant_index = self.block.read_u16(self.ip + 1) as usize;
-                    let constant = self.block.read_constant(constant_index);
+                    let constant_index = block.read_u16(self.ip + 1) as usize;
+                    let constant = block.read_constant(constant_index);
                     self.push(constant);
                     self.ip += 2;
                 }
                 OpCode::Constant4 => {
-                    let constant_index = self.block.read_u32(self.ip + 1) as usize;
-                    let constant = self.block.read_constant(constant_index);
+                    let constant_index = block.read_u32(self.ip + 1) as usize;
+                    let constant = block.read_constant(constant_index);
                     self.push(constant);
                     self.ip += 4;
                 }
@@ -102,8 +105,8 @@ mod tests {
     fn can_create_vm() {
         let vm = super::VirtualMachine::new();
         assert_eq!(0, vm.ip);
-        assert_eq!(0, vm.block.instructions.len());
-        assert_eq!(0, vm.block.constants.len());
+        // assert_eq!(0, vm.block.instructions.len());
+        // assert_eq!(0, vm.block.constants.len());
         assert_eq!(0, vm.stack.len());
     }
 
@@ -128,11 +131,10 @@ mod tests {
 
         let mut vm = super::VirtualMachine {
             ip: 0,
-            block,
             stack: Vec::new(),
         };
 
-        let result = vm.run();
+        let result = vm.run(block);
         assert_eq!(super::Result::Ok, result);
         assert_eq!(3.5, vm.pop());
     }

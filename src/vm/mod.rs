@@ -13,11 +13,10 @@ pub enum Result {
 
 pub struct VirtualMachine {
     ip: usize,
-    block: Block,
     stack: Vec<Value>,
 }
 
-struct Block {
+pub(crate) struct Block {
     name: String,
     constants: Constants,
     instructions: Vec<u8>,

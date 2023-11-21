@@ -10,6 +10,13 @@ impl Block {
             lines: Vec::new(),
         }
     }
+
+    pub(crate) fn new_no_opt() -> Self {
+        let mut block = Block::new("NO OPT BLOCK");
+        block.write_constant(0.0, 0);
+        block.write_op_code(OpCode::Return, 0);
+        block
+    }
 }
 
 impl Block {
