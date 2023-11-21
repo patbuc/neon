@@ -1,29 +1,5 @@
-use crate::compiler::tokens::TokenType;
-use crate::compiler::Scanner;
-
-#[derive(Debug)]
-pub(in crate::compiler) struct Token {
-    token_type: TokenType,
-    start: usize,
-    length: usize,
-    line: u32,
-}
-
-impl Token {
-    fn new(token_type: TokenType, start: usize, length: usize, line: u32) -> Token {
-        Token {
-            token_type,
-            start,
-            length,
-            line,
-        }
-    }
-}
-
-pub(in crate::compiler) struct ScannerIterator<'a> {
-    scanner: &'a mut Scanner,
-    index: usize,
-}
+use crate::compiler::token::TokenType;
+use crate::compiler::{Scanner, Token};
 
 impl Scanner {
     pub(in crate::compiler) fn new(source: String) -> Scanner {
@@ -35,86 +11,63 @@ impl Scanner {
         }
     }
 
-    pub fn tokens(&mut self) -> ScannerIterator {
-        ScannerIterator {
-            scanner: self,
-            index: 0,
-        }
-    }
-}
-
-impl<'a> Iterator for ScannerIterator<'a> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let token = self.scanner.scan();
-        if token.is_some() {
-            self.index += 1;
-            token
-        } else {
-            None
-        }
-    }
-}
-
-impl Scanner {
     //noinspection DuplicatedCode
-    fn scan(&mut self) -> Option<Token> {
+    pub(in crate::compiler) fn scan_token(&mut self) -> Token {
         self.skip_whitespace();
         self.start = self.current;
 
         if self.is_at_end() {
             if self.is_after_end() {
-                return None;
+                panic!("Scanner is after end of source.");
             }
             self.current += 1;
-            return Option::from(self.make_token(TokenType::Eof));
+            return self.make_token(TokenType::Eof);
         }
         let c = self.advance();
         if Scanner::is_alpha(c) {
-            return Option::from(self.make_identifier());
+            return self.make_identifier();
         }
         if Scanner::is_digit(c) {
-            return Option::from(self.make_number());
+            return self.make_number();
         }
 
-        match c {
-            '(' => return Option::from(self.make_token(TokenType::LeftParen)),
-            ')' => return Option::from(self.make_token(TokenType::RightParen)),
-            '{' => return Option::from(self.make_token(TokenType::LeftBrace)),
-            '}' => return Option::from(self.make_token(TokenType::RightBrace)),
-            ',' => return Option::from(self.make_token(TokenType::Comma)),
-            '.' => return Option::from(self.make_token(TokenType::Dot)),
-            '-' => return Option::from(self.make_token(TokenType::Minus)),
-            '+' => return Option::from(self.make_token(TokenType::Plus)),
-            ';' => return Option::from(self.make_token(TokenType::Semicolon)),
-            '*' => return Option::from(self.make_token(TokenType::Star)),
+        return match c {
+            '(' => return self.make_token(TokenType::LeftParen),
+            ')' => return self.make_token(TokenType::RightParen),
+            '{' => return self.make_token(TokenType::LeftBrace),
+            '}' => return self.make_token(TokenType::RightBrace),
+            ',' => return self.make_token(TokenType::Comma),
+            '.' => return self.make_token(TokenType::Dot),
+            '-' => return self.make_token(TokenType::Minus),
+            '+' => return self.make_token(TokenType::Plus),
+            ';' => return self.make_token(TokenType::Semicolon),
+            '*' => return self.make_token(TokenType::Star),
             '!' => {
                 return if self.matches('=') {
-                    Option::from(self.make_token(TokenType::BangEqual))
+                    self.make_token(TokenType::BangEqual)
                 } else {
-                    Option::from(self.make_token(TokenType::Bang))
+                    self.make_token(TokenType::Bang)
                 }
             }
             '=' => {
                 return if self.matches('=') {
-                    Option::from(self.make_token(TokenType::EqualEqual))
+                    self.make_token(TokenType::EqualEqual)
                 } else {
-                    Option::from(self.make_token(TokenType::Equal))
+                    self.make_token(TokenType::Equal)
                 }
             }
             '<' => {
                 return if self.matches('=') {
-                    Option::from(self.make_token(TokenType::LessEqual))
+                    self.make_token(TokenType::LessEqual)
                 } else {
-                    Option::from(self.make_token(TokenType::Less))
+                    self.make_token(TokenType::Less)
                 }
             }
             '>' => {
                 return if self.matches('=') {
-                    Option::from(self.make_token(TokenType::GreaterEqual))
+                    self.make_token(TokenType::GreaterEqual)
                 } else {
-                    Option::from(self.make_token(TokenType::Greater))
+                    self.make_token(TokenType::Greater)
                 }
             }
             '/' => {
@@ -122,22 +75,22 @@ impl Scanner {
                     while self.peek_next() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
-                    self.scan()
+                    self.scan_token()
                 } else {
-                    Option::from(self.make_token(TokenType::Slash))
+                    return self.make_token(TokenType::Slash);
                 }
             }
             '"' => return self.make_string(),
-            _ => Option::from(self.make_error_token("Unexpected character.")),
-        }
+            _ => self.make_error_token("Unexpected character."),
+        };
     }
 
-    fn make_string(&mut self) -> Option<Token> {
+    fn make_string(&mut self) -> Token {
         let mut placeholders: Vec<(usize, usize)> = Vec::new();
         let mut placeholder_start = None;
         loop {
             if self.is_at_end() {
-                return Option::from(self.make_error_token("Unterminated string."));
+                return self.make_error_token("Unterminated string.");
             }
             if self.peek() == '"' {
                 break;
@@ -155,9 +108,9 @@ impl Scanner {
         }
         self.advance();
         if placeholders.len() > 0 {
-            return Option::from(self.make_token(TokenType::InterpolatedString));
+            return self.make_token(TokenType::InterpolatedString);
         }
-        Option::from(self.make_token(TokenType::String))
+        self.make_token(TokenType::String)
     }
 
     fn make_identifier(&mut self) -> Token {
@@ -322,14 +275,15 @@ impl Scanner {
 #[cfg(test)]
 mod tests {
     use crate::compiler::scanner::Token;
-    use crate::compiler::tokens::TokenType;
+    use crate::compiler::token::TokenType;
+    use crate::compiler::Scanner;
 
     #[test]
     fn can_scan_simple_statement() {
         let script = "var a = 1;".to_string();
 
         let mut scanner = super::Scanner::new(script);
-        let x: Vec<Token> = scanner.tokens().collect();
+        let x: Vec<Token> = collect_tokens(scanner);
 
         assert_eq!(x.len(), 6);
 
@@ -354,7 +308,7 @@ mod tests {
         let script = "var a = \"This is an ${interpolated} string\";".to_string();
 
         let mut scanner = super::Scanner::new(script);
-        let x: Vec<Token> = scanner.tokens().collect();
+        let x: Vec<Token> = collect_tokens(scanner);
 
         assert_eq!(x.len(), 6);
 
@@ -372,5 +326,18 @@ mod tests {
         assert_eq!(x[3].token_type, TokenType::InterpolatedString);
         assert_eq!(x[4].token_type, TokenType::Semicolon);
         assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
+        let mut tokens: Vec<Token> = Vec::new();
+        loop {
+            let token = scanner.scan_token();
+            if token.token_type == TokenType::Eof {
+                tokens.push(token);
+                break;
+            }
+            tokens.push(token);
+        }
+        tokens
     }
 }

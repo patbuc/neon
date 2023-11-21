@@ -1,3 +1,5 @@
+use crate::compiler::Token;
+
 #[derive(Debug, PartialEq)]
 pub(in crate::compiler) enum TokenType {
     LeftParen,
@@ -45,4 +47,27 @@ pub(in crate::compiler) enum TokenType {
 
     Error,
     Eof,
+}
+
+impl Token {
+    pub(in crate::compiler) const INVALID: Token = Token {
+        token_type: TokenType::Eof,
+        start: 0,
+        length: 0,
+        line: 0,
+    };
+
+    pub(in crate::compiler) fn new(
+        token_type: TokenType,
+        start: usize,
+        length: usize,
+        line: u32,
+    ) -> Token {
+        Token {
+            token_type,
+            start,
+            length,
+            line,
+        }
+    }
 }
