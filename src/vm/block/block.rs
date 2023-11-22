@@ -87,7 +87,7 @@ impl Block {
     }
 
     pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<usize> {
-        let mut line = 0;
+        let mut result = 0;
         let mut low = 0;
         let mut high = self.lines.len() - 1;
 
@@ -97,15 +97,15 @@ impl Block {
 
         while low <= high {
             let mid = (low + high) / 2;
-            let l = self.lines.get(mid).unwrap();
-            if l.offset > offset {
+            let line = self.lines.get(mid).unwrap();
+            if line.offset > offset {
                 high = mid - 1;
             } else {
-                line = l.line;
+                result = line.line;
                 low = mid + 1;
             }
         }
-        Option::from(line)
+        Option::from(result)
     }
 }
 
