@@ -2,7 +2,7 @@ use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Constants, Line};
 
 impl Block {
-    pub(in crate::vm) fn new(name: &str) -> Self {
+    pub(crate) fn new(name: &str) -> Self {
         Block {
             name: String::from(name),
             constants: Constants::new(),
@@ -20,12 +20,12 @@ impl Block {
 }
 
 impl Block {
-    pub(in crate::vm) fn write_op_code(&mut self, op_code: OpCode, line: usize) {
+    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: usize) {
         self.add_line(self.instructions.len(), line);
         self.instructions.push(op_code as u8)
     }
 
-    pub(in crate::vm) fn write_constant(&mut self, value: f64, line: usize) {
+    pub(crate) fn write_constant(&mut self, value: f64, line: usize) {
         let constant_index = self.constants.write_value(value);
 
         if constant_index <= 0xFF {
@@ -40,14 +40,14 @@ impl Block {
         }
     }
 
-    fn write_u8(&mut self, value: u8) {
+    pub(crate) fn write_u8(&mut self, value: u8) {
         self.instructions.push(value)
     }
-    fn write_u16(&mut self, value: u16) {
+    pub(crate) fn write_u16(&mut self, value: u16) {
         self.instructions.push((value) as u8);
         self.instructions.push((value >> 8) as u8);
     }
-    fn write_u32(&mut self, value: u32) {
+    pub(crate) fn write_u32(&mut self, value: u32) {
         self.instructions.push((value) as u8);
         self.instructions.push((value >> 8) as u8);
         self.instructions.push((value >> 16) as u8);

@@ -1,6 +1,6 @@
 use crate::compiler::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub(in crate::compiler) enum TokenType {
     LeftParen,
     RightParen,
@@ -46,27 +46,22 @@ pub(in crate::compiler) enum TokenType {
     While,
 
     Error,
+
+    #[default]
     Eof,
 }
 
 impl Token {
-    pub(in crate::compiler) const INVALID: Token = Token {
-        token_type: TokenType::Eof,
-        start: 0,
-        length: 0,
-        line: 0,
-    };
-
     pub(in crate::compiler) fn new(
         token_type: TokenType,
+        token: String,
         start: usize,
-        length: usize,
         line: u32,
     ) -> Token {
         Token {
             token_type,
+            token,
             start,
-            length,
             line,
         }
     }

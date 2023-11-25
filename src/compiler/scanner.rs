@@ -17,11 +17,7 @@ impl Scanner {
         self.start = self.current;
 
         if self.is_at_end() {
-            if self.is_after_end() {
-                panic!("Scanner is after end of source.");
-            }
-            self.current += 1;
-            return self.make_token(TokenType::Eof);
+            return self.make_eof_token();
         }
         let c = self.advance();
         if Scanner::is_alpha(c) {
@@ -81,7 +77,7 @@ impl Scanner {
                 }
             }
             '"' => return self.make_string(),
-            _ => self.make_error_token("Unexpected character."),
+            _ => self.make_error_token("Unexpected character"),
         };
     }
 
@@ -90,7 +86,7 @@ impl Scanner {
         let mut placeholder_start = None;
         loop {
             if self.is_at_end() {
-                return self.make_error_token("Unterminated string.");
+                return self.make_error_token("Unterminated string");
             }
             if self.peek() == '"' {
                 break;
@@ -264,11 +260,20 @@ impl Scanner {
     }
 
     fn make_error_token(&self, message: &str) -> Token {
-        Token::new(TokenType::Error, self.start, message.len(), self.line)
+        Token::new(
+            TokenType::Error,
+            String::from(message),
+            self.start,
+            self.line,
+        )
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-        Token::new(token_type, self.start, self.current - self.start, self.line)
+        let token = String::from_iter(&self.source[self.start..self.current]);
+        Token::new(token_type, token, self.start, self.line)
+    }
+    fn make_eof_token(&self) -> Token {
+        Token::new(TokenType::Eof, String::new(), self.start, self.line)
     }
 }
 

@@ -11,7 +11,7 @@ impl VirtualMachine {
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
-        let compiler = Compiler::new();
+        let mut compiler = Compiler::new();
         let block = compiler.compile(source);
         return if let Some(block) = block {
             self.run(block)

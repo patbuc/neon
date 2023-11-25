@@ -2,7 +2,7 @@ use std::mem::transmute;
 
 #[repr(u8)]
 #[derive(Debug, PartialEq)]
-pub(in crate::vm) enum OpCode {
+pub(crate) enum OpCode {
     Return = 0x00,
     Constant = 0x01,
     Constant2 = 0x02,
