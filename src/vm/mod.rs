@@ -1,5 +1,5 @@
 mod block;
-mod opcodes;
+pub(crate) mod opcodes;
 mod virtual_machine;
 
 pub type Value = f64;

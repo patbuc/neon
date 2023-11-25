@@ -14,7 +14,6 @@ fn main() {
     print_tagline();
 
     let args: Vec<String> = env::args().collect();
-
     if args.len() == 1 {
         run_repl();
     } else if args.len() >= 2 {
