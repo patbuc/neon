@@ -294,12 +294,12 @@ mod tests {
 
         assert_eq!(x[0].token_type, TokenType::Var);
         assert_eq!(x[0].start, 0);
-        assert_eq!(x[0].length, 3);
+        assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
         assert_eq!(x[1].start, 4);
-        assert_eq!(x[1].length, 1);
+        assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
         assert_eq!(x[2].token_type, TokenType::Equal);
@@ -319,12 +319,12 @@ mod tests {
 
         assert_eq!(x[0].token_type, TokenType::Var);
         assert_eq!(x[0].start, 0);
-        assert_eq!(x[0].length, 3);
+        assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
         assert_eq!(x[1].start, 4);
-        assert_eq!(x[1].length, 1);
+        assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
         assert_eq!(x[2].token_type, TokenType::Equal);
