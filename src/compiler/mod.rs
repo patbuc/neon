@@ -23,6 +23,7 @@ struct Scanner {
 
 struct Parser {
     scanner: Scanner,
+    blocks: Vec<Block>,
     previous_token: Token,
     current_token: Token,
     had_error: bool,
@@ -30,6 +31,5 @@ struct Parser {
 }
 
 pub(crate) struct Compiler {
-    blocks: Vec<Block>,
     parser: Option<Parser>,
 }
