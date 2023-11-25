@@ -1,6 +1,6 @@
 use crate::compiler::Token;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, Default)]
 pub(in crate::compiler) enum TokenType {
     LeftParen,
     RightParen,
