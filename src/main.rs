@@ -13,6 +13,9 @@ use crate::vm::VirtualMachine;
 fn main() {
     print_tagline();
 
+    #[cfg(feature = "disassemble")]
+    setup_tracing();
+
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
         run_repl();
@@ -21,6 +24,16 @@ fn main() {
     } else {
         exit(64);
     }
+}
+
+#[cfg(feature = "disassemble")]
+fn setup_tracing() {
+    tracing_subscriber::fmt()
+        .with_span_events(
+            tracing_subscriber::fmt::format::FmtSpan::ENTER
+                | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
+        )
+        .init()
 }
 
 fn print_tagline() {

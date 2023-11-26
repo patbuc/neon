@@ -11,6 +11,8 @@ impl VirtualMachine {
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
+        self.reset();
+
         let mut compiler = Compiler::new();
         let block = compiler.compile(source);
         return if let Some(block) = block {
@@ -20,11 +22,16 @@ impl VirtualMachine {
         };
     }
 
+    fn reset(&mut self) {
+        self.ip = 0;
+        self.stack.clear();
+    }
+
     #[inline(always)]
     fn run(&mut self, mut block: Block) -> Result {
         loop {
-            #[cfg(feature = "disassemble")]
-            block.disassemble_instruction(self.ip);
+            // #[cfg(feature = "disassemble")]
+            // block.disassemble_instruction(self.ip);
             match OpCode::from_u8(block.read_u8(self.ip)) {
                 OpCode::Return => {
                     let value = self.pop();
@@ -105,8 +112,6 @@ mod tests {
     fn can_create_vm() {
         let vm = super::VirtualMachine::new();
         assert_eq!(0, vm.ip);
-        // assert_eq!(0, vm.block.instructions.len());
-        // assert_eq!(0, vm.block.constants.len());
         assert_eq!(0, vm.stack.len());
     }
 
