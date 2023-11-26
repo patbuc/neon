@@ -16,6 +16,7 @@ pub struct VirtualMachine {
     stack: Vec<Value>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Block {
     name: String,
     constants: Constants,
@@ -23,10 +24,12 @@ pub(crate) struct Block {
     lines: Vec<Line>,
 }
 
+#[derive(Debug)]
 struct Constants {
     values: Vec<Value>,
 }
 
+#[derive(Debug)]
 struct Line {
     pub line: usize,
     pub offset: usize,

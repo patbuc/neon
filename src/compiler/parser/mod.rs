@@ -4,6 +4,7 @@ use crate::compiler::{Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Value};
 use rules::{ParseRule, Precedence};
+use tracing_attributes::instrument;
 
 mod rules;
 
@@ -19,6 +20,7 @@ impl Parser {
         }
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(in crate::compiler) fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
         loop {
@@ -30,10 +32,12 @@ impl Parser {
         }
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(in crate::compiler) fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self, precedence)))]
     fn parse_precedence(&mut self, precedence: Precedence) {
         self.advance();
         let prefix_rule = self.get_rule(self.previous_token.token_type.clone()).prefix;
@@ -54,16 +58,19 @@ impl Parser {
         }
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn number(&mut self) {
         let value = self.previous_token.token.parse::<f64>().unwrap();
         self.emit_constant(value);
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn grouping(&mut self) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect end of expression");
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn binary(&mut self) {
         let operator_type = self.previous_token.token_type.clone();
         let rule = self.get_rule(operator_type.clone());
@@ -78,6 +85,7 @@ impl Parser {
         }
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn unary(&mut self) {
         let operator_type = self.previous_token.token_type.clone();
 

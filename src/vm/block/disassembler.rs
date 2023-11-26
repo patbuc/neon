@@ -4,7 +4,7 @@ use crate::vm::Block;
 #[cfg(feature = "disassemble")]
 impl Block {
     #[allow(dead_code)]
-    pub(in crate::vm) fn disassemble_block(&self) {
+    pub(crate) fn disassemble_block(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 

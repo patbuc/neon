@@ -14,6 +14,7 @@ struct Token {
     line: u32,
 }
 
+#[derive(Debug)]
 struct Scanner {
     source: Vec<char>,
     start: usize,
@@ -21,6 +22,7 @@ struct Scanner {
     line: u32,
 }
 
+#[derive(Debug)]
 struct Parser {
     scanner: Scanner,
     blocks: Vec<Block>,
@@ -30,6 +32,7 @@ struct Parser {
     panic_mode: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct Compiler {
     parser: Option<Parser>,
 }
