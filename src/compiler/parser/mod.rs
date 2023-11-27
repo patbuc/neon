@@ -4,6 +4,7 @@ use crate::compiler::{Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Value};
 use rules::{ParseRule, Precedence};
+use std::str::FromStr;
 use tracing_attributes::instrument;
 
 mod rules;
@@ -60,8 +61,8 @@ impl Parser {
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn number(&mut self) {
-        let value = self.previous_token.token.parse::<f64>().unwrap();
-        self.emit_constant(value);
+        let value = f64::from_str(&*self.previous_token.token).unwrap();
+        self.emit_constant(Value::from_number(value));
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
@@ -77,10 +78,19 @@ impl Parser {
         self.parse_precedence(Precedence::from_u8(rule.precedence as u8 + 1));
 
         match operator_type {
-            token_type if token_type == TokenType::Plus => self.emit_byte(OpCode::Add as u8),
-            token_type if token_type == TokenType::Minus => self.emit_byte(OpCode::Subtract as u8),
-            token_type if token_type == TokenType::Star => self.emit_byte(OpCode::Multiply as u8),
-            token_type if token_type == TokenType::Slash => self.emit_byte(OpCode::Divide as u8),
+            token_type if token_type == TokenType::Plus => self.emit_op_code(OpCode::Add),
+            token_type if token_type == TokenType::Minus => self.emit_op_code(OpCode::Subtract),
+            token_type if token_type == TokenType::Star => self.emit_op_code(OpCode::Multiply),
+            token_type if token_type == TokenType::Slash => self.emit_op_code(OpCode::Divide),
+            _ => return, // Unreachable.
+        }
+    }
+
+    fn literal(&mut self) {
+        match self.previous_token.token_type {
+            TokenType::False => self.emit_op_code(OpCode::False),
+            TokenType::Nil => self.emit_op_code(OpCode::Nil),
+            TokenType::True => self.emit_op_code(OpCode::True),
             _ => return, // Unreachable.
         }
     }
@@ -94,7 +104,7 @@ impl Parser {
 
         // Emit the operator instruction.
         match operator_type {
-            TokenType::Minus => self.emit_byte(OpCode::Negate as u8),
+            TokenType::Minus => self.emit_op_code(OpCode::Negate),
             _ => return, // Unreachable.
         }
     }
@@ -120,6 +130,7 @@ impl Parser {
         if self.panic_mode {
             return;
         }
+
         self.had_error = true;
         self.panic_mode = true;
 
@@ -149,19 +160,15 @@ impl Parser {
     }
 
     fn emit_return(&mut self) {
-        self.emit_byte(OpCode::Return as u8);
+        self.emit_op_code(OpCode::Return);
     }
 
     fn emit_constant(&mut self, value: Value) {
         self.current_block().write_constant(value, 0)
     }
 
-    fn emit_byte(&mut self, byte: u8) {
-        self.current_block().write_u8(byte);
-    }
-
-    fn emit_bytes(&mut self, byte1: u8, byte2: u8) {
-        self.current_block().write_u8(byte1);
-        self.current_block().write_u8(byte2);
+    fn emit_op_code(&mut self, op_code: OpCode) {
+        let line = self.previous_token.line;
+        self.current_block().write_op_code(op_code, line);
     }
 }

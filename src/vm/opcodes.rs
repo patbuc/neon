@@ -12,6 +12,9 @@ pub(crate) enum OpCode {
     Subtract = 0x06,
     Multiply = 0x07,
     Divide = 0x08,
+    Nil = 0x09,
+    True = 0x0A,
+    False = 0x0B,
 }
 
 impl OpCode {

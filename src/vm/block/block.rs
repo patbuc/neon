@@ -1,5 +1,5 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, Line};
+use crate::vm::{Block, Constants, Line, Value};
 
 impl Block {
     pub(crate) fn new(name: &str) -> Self {
@@ -13,21 +13,20 @@ impl Block {
 
     pub(crate) fn new_no_opt() -> Self {
         let mut block = Block::new("NO OPT BLOCK");
-        block.write_constant(0.0, 0);
+        block.write_constant(Value::from_number(0.0), 0);
         block.write_op_code(OpCode::Return, 0);
         block
     }
 }
 
 impl Block {
-    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: usize) {
+    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32) {
         self.add_line(self.instructions.len(), line);
         self.instructions.push(op_code as u8)
     }
 
-    pub(crate) fn write_constant(&mut self, value: f64, line: usize) {
+    pub(crate) fn write_constant(&mut self, value: Value, line: u32) {
         let constant_index = self.constants.write_value(value);
-
         if constant_index <= 0xFF {
             self.write_op_code(OpCode::Constant, line);
             self.write_u8(constant_index as u8)
@@ -55,7 +54,7 @@ impl Block {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_constant(&mut self, index: usize) -> f64 {
+    pub(in crate::vm) fn read_constant(&mut self, index: usize) -> Value {
         self.constants.read_value(index)
     }
 
@@ -82,11 +81,11 @@ impl Block {
 }
 
 impl Block {
-    fn add_line(&mut self, offset: usize, line: usize) {
+    fn add_line(&mut self, offset: usize, line: u32) {
         self.lines.push(Line { offset, line });
     }
 
-    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<usize> {
+    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<u32> {
         let mut result = 0;
         let mut low = 0;
         let mut high = self.lines.len() - 1;
@@ -112,7 +111,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use crate::vm::opcodes::OpCode;
-    use crate::vm::Block;
+    use crate::vm::{Block, Value};
 
     #[test]
     fn new_block_is_empty() {
@@ -136,7 +135,7 @@ mod tests {
     fn can_write_more_then_256_constants() {
         let mut block = Block::new("maggie");
         for i in 0..258 {
-            block.write_constant(i as f64, i);
+            block.write_constant(Value::from_number(i as f64), i);
         }
 
         assert_eq!(2 * 256 + 6, block.instructions.len());
@@ -152,7 +151,12 @@ mod tests {
         );
         let constant_index = block.read_u16(2 * 256 + 4) as usize;
         assert_eq!(257, constant_index);
-        assert_eq!(257f64, block.constants.read_value(constant_index));
+        unsafe {
+            assert_eq!(
+                257f64,
+                block.constants.read_value(constant_index).value.number
+            );
+        }
     }
 
     #[test]
@@ -180,11 +184,11 @@ mod tests {
     fn can_write_block() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(1234.56, 2);
+        block.write_constant(Value::from_number(1234.56), 2);
         block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(345.67, 4);
+        block.write_constant(Value::from_number(345.67), 4);
         block.write_op_code(OpCode::Add, 4);
-        block.write_constant(1.2, 5);
+        block.write_constant(Value::from_number(1.2), 5);
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
     }
@@ -193,11 +197,11 @@ mod tests {
     fn can_read_line_information() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(1234.56, 2);
+        block.write_constant(Value::from_number(1234.56), 2);
         block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(345.67, 4);
+        block.write_constant(Value::from_number(345.67), 4);
         block.write_op_code(OpCode::Add, 4);
-        block.write_constant(1.2, 5);
+        block.write_constant(Value::from_number(1.2), 5);
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
 

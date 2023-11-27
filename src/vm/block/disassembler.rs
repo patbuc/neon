@@ -37,6 +37,9 @@ impl Block {
             OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset),
             OpCode::Multiply => self.simple_instruction(OpCode::Multiply, offset),
             OpCode::Divide => self.simple_instruction(OpCode::Divide, offset),
+            OpCode::Nil => self.simple_instruction(OpCode::Nil, offset),
+            OpCode::True => self.simple_instruction(OpCode::True, offset),
+            OpCode::False => self.simple_instruction(OpCode::False, offset),
         };
     }
 
@@ -57,7 +60,9 @@ impl Block {
 
         let (index, offset_shift) = get_constant_index(self, &op_code, offset + 1);
         let constant = self.constants.read_value(index);
-        println!("{:?} {:02} '{}'", op_code, index, constant);
+        unsafe {
+            println!("{:?} {:02} '{}'", op_code, index, constant.value.number);
+        }
         offset + 1 + offset_shift
     }
 }

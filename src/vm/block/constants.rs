@@ -27,18 +27,22 @@ mod tests {
     #[test]
     fn value_can_be_written_to_constants() {
         let mut constants = Constants::new();
-        constants.write_value(123.45);
+        constants.write_value(Value::from_number(123.45));
 
         assert_eq!(1, constants.len());
-        assert_eq!(123.45, constants.read_value(0));
+        unsafe {
+            assert_eq!(123.45, constants.read_value(0).value.number);
+        }
     }
 
     #[test]
     fn value_can_be_read_to_constants() {
         let mut constants = Constants::new();
-        constants.write_value(123.45);
+        constants.write_value(Value::from_number(123.45));
 
         assert_eq!(1, constants.len());
-        assert_eq!(123.45, constants.read_value(0));
+        unsafe {
+            assert_eq!(123.45, constants.read_value(0).value.number);
+        }
     }
 }
