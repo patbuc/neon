@@ -249,7 +249,7 @@ impl Scanner {
                 if self.current - self.start > 1 {
                     return match self.source[self.start + 1] {
                         'h' => self.check_keyword(2, 2, "is", TokenType::This),
-                        'r' => self.check_keyword(2, 1, "ue", TokenType::True),
+                        'r' => self.check_keyword(2, 2, "ue", TokenType::True),
                         _ => TokenType::Identifier,
                     };
                 }
