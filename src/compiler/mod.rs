@@ -33,6 +33,4 @@ struct Parser {
 }
 
 #[derive(Debug)]
-pub(crate) struct Compiler {
-    parser: Option<Parser>,
-}
+pub(crate) struct Compiler {}

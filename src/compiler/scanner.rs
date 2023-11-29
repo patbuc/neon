@@ -216,10 +216,6 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    fn is_after_end(&self) -> bool {
-        self.current > self.source.len()
-    }
-
     fn make_identifier_type(&self) -> TokenType {
         let chr = self.source[self.start];
         return match chr {
@@ -287,7 +283,7 @@ mod tests {
     fn can_scan_simple_statement() {
         let script = "var a = 1;".to_string();
 
-        let mut scanner = super::Scanner::new(script);
+        let scanner = super::Scanner::new(script);
         let x: Vec<Token> = collect_tokens(scanner);
 
         assert_eq!(x.len(), 6);
@@ -312,7 +308,7 @@ mod tests {
     fn can_scan_interpolated_string() {
         let script = "var a = \"This is an ${interpolated} string\";".to_string();
 
-        let mut scanner = super::Scanner::new(script);
+        let scanner = super::Scanner::new(script);
         let x: Vec<Token> = collect_tokens(scanner);
 
         assert_eq!(x.len(), 6);

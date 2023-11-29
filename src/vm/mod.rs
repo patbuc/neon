@@ -1,38 +1,19 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
+
+#[macro_use]
+mod value;
 
 mod block;
 pub(crate) mod opcodes;
-mod value;
+
 mod virtual_machine;
 
-// pub type Value = f64;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ValueType {
-    Number,
-    Bool,
-    String,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    Number(f64),
+    Boolean(bool),
+    String(String),
     Nil,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union ValueUnion {
-    number: f64,
-    boolean: bool,
-    string: *const String,
-}
-
-impl Debug for ValueUnion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ValueUnion")
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Value {
-    pub value_type: ValueType,
-    pub value: ValueUnion,
 }
 
 #[derive(Debug, PartialEq)]

@@ -10,13 +10,6 @@ impl Block {
             lines: Vec::new(),
         }
     }
-
-    pub(crate) fn new_no_opt() -> Self {
-        let mut block = Block::new("NO OPT BLOCK");
-        block.write_constant(Value::from_number(0.0), 0);
-        block.write_op_code(OpCode::Return, 0);
-        block
-    }
 }
 
 impl Block {
@@ -135,7 +128,7 @@ mod tests {
     fn can_write_more_then_256_constants() {
         let mut block = Block::new("maggie");
         for i in 0..258 {
-            block.write_constant(Value::from_number(i as f64), i);
+            block.write_constant(number!(i as f64), i);
         }
 
         assert_eq!(2 * 256 + 6, block.instructions.len());
@@ -151,12 +144,10 @@ mod tests {
         );
         let constant_index = block.read_u16(2 * 256 + 4) as usize;
         assert_eq!(257, constant_index);
-        unsafe {
-            assert_eq!(
-                257f64,
-                block.constants.read_value(constant_index).value.number
-            );
-        }
+        assert_eq!(
+            257f64,
+            as_number!(block.constants.read_value(constant_index))
+        );
     }
 
     #[test]
@@ -184,11 +175,11 @@ mod tests {
     fn can_write_block() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(Value::from_number(1234.56), 2);
+        block.write_constant(number!(1234.56), 2);
         block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(Value::from_number(345.67), 4);
+        block.write_constant(number!(345.67), 4);
         block.write_op_code(OpCode::Add, 4);
-        block.write_constant(Value::from_number(1.2), 5);
+        block.write_constant(number!(1.2), 5);
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
     }
@@ -197,11 +188,11 @@ mod tests {
     fn can_read_line_information() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(Value::from_number(1234.56), 2);
+        block.write_constant(number!(1234.56), 2);
         block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(Value::from_number(345.67), 4);
+        block.write_constant(number!(345.67), 4);
         block.write_op_code(OpCode::Add, 4);
-        block.write_constant(Value::from_number(1.2), 5);
+        block.write_constant(number!(1.2), 5);
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
 

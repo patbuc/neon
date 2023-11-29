@@ -4,7 +4,7 @@ use crate::vm::Block;
 
 impl Compiler {
     pub(crate) fn new() -> Compiler {
-        Compiler { parser: None }
+        Compiler {}
     }
 
     pub(crate) fn compile(&mut self, source: String) -> Option<Block> {
