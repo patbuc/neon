@@ -1,5 +1,6 @@
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
+use crate::vm::Value;
 
 #[cfg(feature = "disassemble")]
 impl Block {
@@ -60,9 +61,7 @@ impl Block {
 
         let (index, offset_shift) = get_constant_index(self, &op_code, offset + 1);
         let constant = self.constants.read_value(index);
-        unsafe {
-            println!("{:?} {:02} '{}'", op_code, index, constant.value.number);
-        }
+        println!("{:?} {:02} '{}'", op_code, index, as_number!(constant));
         offset + 1 + offset_shift
     }
 }

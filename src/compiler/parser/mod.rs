@@ -5,6 +5,9 @@ use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Value};
 use rules::{ParseRule, Precedence};
 use std::str::FromStr;
+
+use crate::number;
+#[cfg(feature = "disassemble")]
 use tracing_attributes::instrument;
 
 mod rules;
@@ -62,7 +65,7 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn number(&mut self) {
         let value = f64::from_str(&*self.previous_token.token).unwrap();
-        self.emit_constant(Value::from_number(value));
+        self.emit_constant(number!(value));
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
