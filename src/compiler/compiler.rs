@@ -16,13 +16,13 @@ impl Compiler {
         parser.consume(TokenType::Eof, "Expect end of expression");
         parser.end();
 
-        return if parser.had_error {
-            None
-        } else {
+        return if !(parser.had_error) {
             let block = parser.blocks.pop();
             #[cfg(feature = "disassemble")]
             block.as_ref()?.disassemble_block();
             block
+        } else {
+            None
         };
     }
 }

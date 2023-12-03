@@ -2,6 +2,8 @@ use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Result, Value, VirtualMachine};
 
+use log::info;
+
 impl VirtualMachine {
     pub fn new() -> Self {
         VirtualMachine {
@@ -13,10 +15,19 @@ impl VirtualMachine {
     pub fn interpret(&mut self, source: String) -> Result {
         self.reset();
 
+        let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
         let block = compiler.compile(source);
+
+        info!("Compile time: {}ms", start.elapsed().as_millis());
+
+        let start = std::time::Instant::now();
         return if let Some(block) = block {
-            self.run(block)
+            let result = self.run(block);
+
+            info!("Run time: {}ms", start.elapsed().as_millis());
+
+            result
         } else {
             Result::CompileError
         };
