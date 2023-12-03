@@ -28,6 +28,7 @@ impl Precedence {
 
 type ParserOp = fn(&mut Parser);
 
+#[derive(Debug, Clone)]
 pub(super) struct ParseRule {
     pub(super) prefix: Option<ParserOp>,
     pub(super) infix: Option<ParserOp>,
@@ -46,7 +47,7 @@ impl ParseRule {
 
 #[rustfmt::skip]
 lazy_static! {
-    pub(super) static ref PARSE_RULES: HashMap<TokenType, ParseRule> = vec![
+    pub(super) static ref PARSE_RULES: Vec<ParseRule> = vec![
         (TokenType::LeftParen, ParseRule::new(Some(Parser::grouping), None, Precedence::None)),
         (TokenType::RightParen, ParseRule::new(None, None, Precedence::None)),
         (TokenType::LeftBrace, ParseRule::new(None, None, Precedence::None)),
@@ -88,5 +89,5 @@ lazy_static! {
         (TokenType::While, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Error, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Eof, ParseRule::new(None, None, Precedence::None)),
-    ].into_iter().collect();
+    ].into_iter().map(|(_, v)| v).collect();
 }

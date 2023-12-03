@@ -122,7 +122,7 @@ impl Parser {
     }
 
     fn get_rule(&self, token_type: TokenType) -> &ParseRule {
-        PARSE_RULES.get(&token_type).unwrap().clone()
+        PARSE_RULES.get((token_type as u8) as usize).unwrap()
     }
 
     fn report_error_at_current(&mut self, message: &str) {

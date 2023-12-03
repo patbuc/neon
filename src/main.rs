@@ -11,10 +11,11 @@ use std::{env, io};
 use crate::vm::VirtualMachine;
 
 fn main() {
-    print_tagline();
-
+    env_logger::init();
     #[cfg(feature = "disassemble")]
     setup_tracing();
+
+    print_tagline();
 
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {

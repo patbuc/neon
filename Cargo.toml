@@ -11,6 +11,8 @@ lazy_static = "1.4.0"
 tracing = "0.1.40"
 tracing-attributes = { version = "0.1.27", features = [] }
 tracing-subscriber = "0.3.18"
+env_logger = "0.10.1"
+log = "0.4.20"
 
 [features]
 disassemble = []
