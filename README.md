@@ -13,6 +13,10 @@ Nobody needs another programming language. I just want to teach me two things.
 
 So, I'm building <span style="color:rgb(240,0,255)">**Neon**</span>.
 
+## State
+
+Neon is in a very early stage and basically only an over-engineered calculator for now.
+
 ## Goal
 
 The primary goal for me is to make Neon a self-hosted language. So want to get Neon to a state where I can rewrite the
