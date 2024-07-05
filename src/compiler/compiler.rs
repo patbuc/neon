@@ -17,10 +17,7 @@ impl Compiler {
         parser.end();
 
         return if !(parser.had_error) {
-            let block = parser.blocks.pop();
-            #[cfg(feature = "disassemble")]
-            block.as_ref()?.disassemble_block();
-            block
+            parser.blocks.pop()
         } else {
             None
         };
