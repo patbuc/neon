@@ -6,10 +6,10 @@ Hi, this is <span style="color:rgb(240,0,255)">**Neon**</span> - a toy language 
 
 ## Why
 
-Nobody needs another programming language. I just want to teach me two things.
+Nobody needs another programming language. I just want to teach me two things:
 
-- How to write a compiler and a virtual machine
-- How to use Rust
+- How to build a compiler and a virtual machine
+- How to use Rust doing this
 
 So, I'm building <span style="color:rgb(240,0,255)">**Neon**</span>.
 
