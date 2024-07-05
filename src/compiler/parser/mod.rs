@@ -179,7 +179,8 @@ impl Parser {
     }
 
     fn emit_constant(&mut self, value: Value) {
-        self.current_block().write_constant(value, 0)
+        let line = self.previous_token.line;
+        self.current_block().write_constant(value, line)
     }
 
     fn emit_op_code(&mut self, op_code: OpCode) {
