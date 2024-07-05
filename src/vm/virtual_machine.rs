@@ -38,9 +38,9 @@ impl VirtualMachine {
 
     #[inline(always)]
     fn run(&mut self, mut block: Block) -> Result {
+        #[cfg(feature = "disassemble")]
+        block.disassemble_block();
         loop {
-            // #[cfg(feature = "disassemble")]
-            // block.disassemble_instruction(self.ip);
             match OpCode::from_u8(block.read_u8(self.ip)) {
                 OpCode::Return => {
                     let value = self.pop();
