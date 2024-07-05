@@ -1,12 +1,1 @@
-var x = 123;
-
-if (x == 123 and x > 3) {
-    print("x is 123");
-}
-
-fun test() {
-
-}
-
-var result = 1 + 2 * 3 - (2 / 2);
-var str = "Hello World: ${result}";
+((10 + 2) * (6 / 2) - (5 - 3)) < 29
