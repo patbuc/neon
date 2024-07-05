@@ -24,9 +24,7 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
         return if let Some(block) = block {
             let result = self.run(block);
-
             info!("Run time: {}ms", start.elapsed().as_millis());
-
             result
         } else {
             Result::CompileError
@@ -46,7 +44,7 @@ impl VirtualMachine {
             match OpCode::from_u8(block.read_u8(self.ip)) {
                 OpCode::Return => {
                     let value = self.pop();
-                    VirtualMachine::print(value);
+                    println!("{}", value);
                     return Result::Ok;
                 }
                 OpCode::Constant => {
@@ -134,28 +132,6 @@ impl VirtualMachine {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) / as_number!(b)));
-    }
-
-    fn print(value: Value) {
-        pub(crate) fn print_nil() {
-            print!("nil")
-        }
-        pub(crate) fn print_string(value: String) {
-            print!("{}", value)
-        }
-        pub(crate) fn print_bool(value: bool) {
-            print!("{}", value);
-        }
-        pub(crate) fn print_number(value: f64) {
-            print!("{}", value);
-        }
-
-        match value {
-            Value::Number(val) => print_number(val),
-            Value::Boolean(val) => print_bool(val),
-            Value::String(val) => print_string(val),
-            Value::Nil => print_nil(),
-        }
     }
 
     fn push(&mut self, value: Value) {
