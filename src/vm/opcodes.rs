@@ -15,6 +15,10 @@ pub(crate) enum OpCode {
     Nil = 0x09,
     True = 0x0A,
     False = 0x0B,
+    Equal = 0x0C,
+    Greater = 0x0D,
+    Less = 0x0E,
+    Not = 0x0F,
 }
 
 impl OpCode {

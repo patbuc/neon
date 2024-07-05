@@ -72,6 +72,17 @@ macro_rules! as_nil {
     };
 }
 
+#[macro_export]
+macro_rules! is_falsey {
+    ($value: expr) => {
+        match $value {
+            Value::Nil => true,
+            Value::Boolean(value) => !value,
+            _ => false,
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

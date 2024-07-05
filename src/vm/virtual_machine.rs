@@ -88,6 +88,25 @@ impl VirtualMachine {
                 OpCode::False => {
                     self.push(boolean!(false));
                 }
+                OpCode::Equal => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(boolean!(a == b));
+                }
+                OpCode::Greater => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(boolean!(as_number!(a) > as_number!(b)));
+                }
+                OpCode::Less => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(boolean!(as_number!(a) < as_number!(b)));
+                }
+                OpCode::Not => {
+                    let value = self.pop();
+                    self.push(boolean!(is_falsey!(value)));
+                }
             }
             self.ip += 1;
         }

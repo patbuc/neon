@@ -41,6 +41,10 @@ impl Block {
             OpCode::Nil => self.simple_instruction(OpCode::Nil, offset),
             OpCode::True => self.simple_instruction(OpCode::True, offset),
             OpCode::False => self.simple_instruction(OpCode::False, offset),
+            OpCode::Equal => self.simple_instruction(OpCode::Equal, offset),
+            OpCode::Greater => self.simple_instruction(OpCode::Greater, offset),
+            OpCode::Less => self.simple_instruction(OpCode::Less, offset),
+            OpCode::Not => self.simple_instruction(OpCode::Not, offset),
         };
     }
 

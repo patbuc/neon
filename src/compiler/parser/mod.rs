@@ -81,6 +81,18 @@ impl Parser {
         self.parse_precedence(Precedence::from_u8(rule.precedence as u8 + 1));
 
         match operator_type {
+            token_type if token_type == TokenType::BangEqual => {
+                self.emit_op_codes(OpCode::Equal, OpCode::Not)
+            }
+            token_type if token_type == TokenType::EqualEqual => self.emit_op_code(OpCode::Equal),
+            token_type if token_type == TokenType::Greater => self.emit_op_code(OpCode::Greater),
+            token_type if token_type == TokenType::GreaterEqual => {
+                self.emit_op_codes(OpCode::Less, OpCode::Not)
+            }
+            token_type if token_type == TokenType::Less => self.emit_op_code(OpCode::Less),
+            token_type if token_type == TokenType::LessEqual => {
+                self.emit_op_codes(OpCode::Greater, OpCode::Not)
+            }
             token_type if token_type == TokenType::Plus => self.emit_op_code(OpCode::Add),
             token_type if token_type == TokenType::Minus => self.emit_op_code(OpCode::Subtract),
             token_type if token_type == TokenType::Star => self.emit_op_code(OpCode::Multiply),
@@ -173,5 +185,12 @@ impl Parser {
     fn emit_op_code(&mut self, op_code: OpCode) {
         let line = self.previous_token.line;
         self.current_block().write_op_code(op_code, line);
+    }
+
+    fn emit_op_codes(&mut self, op_code1: OpCode, op_code2: OpCode) {
+        let line = self.previous_token.line;
+        let current_block: &mut Block = self.current_block();
+        current_block.write_op_code(op_code1, line);
+        current_block.write_op_code(op_code2, line);
     }
 }
