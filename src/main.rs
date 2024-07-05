@@ -11,9 +11,7 @@ use std::{env, io};
 use crate::vm::VirtualMachine;
 
 fn main() {
-    env_logger::init();
-    #[cfg(feature = "disassemble")]
-    setup_tracing();
+    setup_logging();
 
     print_tagline();
 
@@ -25,6 +23,13 @@ fn main() {
     } else {
         exit(64);
     }
+}
+
+fn setup_logging() {
+    #[cfg(not(feature = "disassemble"))]
+    env_logger::init();
+    #[cfg(feature = "disassemble")]
+    setup_tracing();
 }
 
 #[cfg(feature = "disassemble")]
