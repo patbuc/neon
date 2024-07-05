@@ -1,7 +1,6 @@
 use crate::compiler::token::TokenType;
 use crate::compiler::Parser;
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use std::intrinsics::transmute;
 
 #[derive(Debug, Clone, Copy)]
@@ -60,13 +59,13 @@ lazy_static! {
         (TokenType::Slash, ParseRule::new(None, Some(Parser::binary), Precedence::Factor)),
         (TokenType::Star, ParseRule::new(None, Some(Parser::binary), Precedence::Factor)),
         (TokenType::Bang, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::BangEqual, ParseRule::new(None, None, Precedence::None)),
+        (TokenType::BangEqual, ParseRule::new(None, Some(Parser::binary), Precedence::Equality)),
         (TokenType::Equal, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::EqualEqual, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::Greater, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::GreaterEqual, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::Less, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::LessEqual, ParseRule::new(None, None, Precedence::None)),
+        (TokenType::EqualEqual, ParseRule::new(None, Some(Parser::binary), Precedence::Equality)),
+        (TokenType::Greater, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
+        (TokenType::GreaterEqual, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
+        (TokenType::Less, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
+        (TokenType::LessEqual, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
         (TokenType::Identifier, ParseRule::new(None, None, Precedence::None)),
         (TokenType::String, ParseRule::new(None, None, Precedence::None)),
         (TokenType::InterpolatedString, ParseRule::new(None, None, Precedence::None)),
