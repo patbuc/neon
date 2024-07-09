@@ -119,6 +119,7 @@ impl Parser {
 
         // Emit the operator instruction.
         match operator_type {
+            TokenType::Bang => self.emit_op_code(OpCode::Not),
             TokenType::Minus => self.emit_op_code(OpCode::Negate),
             _ => return, // Unreachable.
         }
