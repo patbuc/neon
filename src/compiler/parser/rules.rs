@@ -75,7 +75,7 @@ lazy_static! {
         (TokenType::Else, ParseRule::new(None, None, Precedence::None)),
         (TokenType::False, ParseRule::new(Some(Parser::literal), None, Precedence::None)),
         (TokenType::For, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::Fun, ParseRule::new(None, None, Precedence::None)),
+        (TokenType::Fn, ParseRule::new(None, None, Precedence::None)),
         (TokenType::If, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Nil, ParseRule::new(Some(Parser::literal), None, Precedence::None)),
         (TokenType::Or, ParseRule::new(None, None, Precedence::None)),

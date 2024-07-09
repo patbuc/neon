@@ -33,7 +33,7 @@ pub(in crate::compiler) enum TokenType {
     Else,
     False,
     For,
-    Fun,
+    Fn,
     If,
     Nil,
     Or,
