@@ -149,7 +149,7 @@ impl Parser {
         self.had_error = true;
         self.panic_mode = true;
 
-        eprint!("[line {}] Error", token.line);
+        eprint!("[line {}, pos {}] Error", token.line + 1, token.start + 1);
         if token.token_type == TokenType::Eof {
             eprint!(" at end");
         } else if token.token_type == TokenType::Error {
