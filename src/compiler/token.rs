@@ -42,6 +42,7 @@ pub(in crate::compiler) enum TokenType {
     Super,
     This,
     True,
+    Val,
     Var,
     While,
 

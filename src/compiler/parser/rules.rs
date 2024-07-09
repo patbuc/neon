@@ -84,6 +84,7 @@ lazy_static! {
         (TokenType::Super, ParseRule::new(None, None, Precedence::None)),
         (TokenType::This, ParseRule::new(None, None, Precedence::None)),
         (TokenType::True, ParseRule::new(Some(Parser::literal), None, Precedence::None)),
+        (TokenType::Val, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Var, ParseRule::new(None, None, Precedence::None)),
         (TokenType::While, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Error, ParseRule::new(None, None, Precedence::None)),
