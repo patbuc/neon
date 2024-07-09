@@ -110,41 +110,49 @@ impl VirtualMachine {
         }
     }
 
+    #[inline(always)]
     fn addition(&mut self) {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) + as_number!(b)));
     }
 
+    #[inline(always)]
     fn subtraction(&mut self) {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) - as_number!(b)));
     }
 
+    #[inline(always)]
     fn multiplication(&mut self) {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) * as_number!(b)));
     }
 
+    #[inline(always)]
     fn division(&mut self) {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) / as_number!(b)));
     }
 
+    #[inline(always)]
     fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
 
+    #[inline(always)]
     fn pop(&mut self) -> Value {
         self.stack.pop().unwrap()
     }
 
+    #[inline(always)]
     fn peek(&mut self, distance: usize) -> Value {
         self.stack[self.stack.len() - 1 - distance].clone()
     }
+
     fn runtime_error(&mut self, error: &str, block: Block) {
         eprint!("{} ", error);
         let line = block.get_line(self.ip).unwrap();
