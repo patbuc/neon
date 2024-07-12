@@ -1,6 +1,7 @@
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Result, Value, VirtualMachine};
+use std::rc::Rc;
 
 use log::info;
 
@@ -9,6 +10,7 @@ impl VirtualMachine {
         VirtualMachine {
             ip: 0,
             stack: Vec::new(),
+            block: None,
         }
     }
 
@@ -22,22 +24,21 @@ impl VirtualMachine {
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         let start = std::time::Instant::now();
-        return if let Some(block) = block {
-            let result = self.run(block);
-            info!("Run time: {}ms", start.elapsed().as_millis());
-            result
-        } else {
-            Result::CompileError
-        };
-    }
+        if let None = block {
+            return Result::CompileError;
+        }
 
-    fn reset(&mut self) {
-        self.ip = 0;
-        self.stack.clear();
+        let block = Rc::new(block.unwrap());
+        self.block = Option::from(block.clone());
+        let result = self.run(block.as_ref());
+        self.block = None;
+
+        info!("Run time: {}ms", start.elapsed().as_millis());
+        result
     }
 
     #[inline(always)]
-    fn run(&mut self, mut block: Block) -> Result {
+    fn run(&mut self, block: &Block) -> Result {
         #[cfg(feature = "disassemble")]
         block.disassemble_block();
         loop {
@@ -67,16 +68,32 @@ impl VirtualMachine {
                 }
                 OpCode::Negate => {
                     if let Value::Number(..) = self.peek(0) {
-                        self.runtime_error("Operand must be a number", block);
+                        self.runtime_error("Operand must be a number");
                         return Result::RuntimeError;
                     }
                     let value = self.pop();
                     self.push(number!(-as_number!(value)));
                 }
-                OpCode::Add => self.addition(),
-                OpCode::Subtract => self.subtraction(),
-                OpCode::Multiply => self.multiplication(),
-                OpCode::Divide => self.division(),
+                OpCode::Add => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Number(as_number!(a) + as_number!(b)));
+                }
+                OpCode::Subtract => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Number(as_number!(a) - as_number!(b)));
+                }
+                OpCode::Multiply => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Number(as_number!(a) * as_number!(b)));
+                }
+                OpCode::Divide => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Number(as_number!(a) / as_number!(b)));
+                }
                 OpCode::Nil => {
                     self.push(nil!());
                 }
@@ -111,34 +128,6 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    fn addition(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) + as_number!(b)));
-    }
-
-    #[inline(always)]
-    fn subtraction(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) - as_number!(b)));
-    }
-
-    #[inline(always)]
-    fn multiplication(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) * as_number!(b)));
-    }
-
-    #[inline(always)]
-    fn division(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) / as_number!(b)));
-    }
-
-    #[inline(always)]
     fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
@@ -149,14 +138,32 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    fn peek(&mut self, distance: usize) -> Value {
+    fn peek(&self, distance: usize) -> Value {
         self.stack[self.stack.len() - 1 - distance].clone()
     }
 
-    fn runtime_error(&mut self, error: &str, block: Block) {
-        eprint!("{} ", error);
-        let line = block.get_line(self.ip).unwrap();
-        eprintln!("[line {}] in script", line);
+    fn runtime_error(&mut self, error: &str) {
+        let line = self.get_current_execution_line();
+        eprintln!("[line {}] {}", line, error);
+    }
+
+    fn get_current_execution_line(&self) -> u32 {
+        self.block.as_ref().unwrap().get_line(self.ip).unwrap().line + 1
+    }
+
+    fn get_current_execution_offset(&self) -> usize {
+        self.block
+            .as_ref()
+            .unwrap()
+            .get_line(self.ip)
+            .unwrap()
+            .offset
+    }
+
+    fn reset(&mut self) {
+        self.ip = 0;
+        self.stack.clear();
+        self.block = None;
     }
 }
 
@@ -193,9 +200,10 @@ mod tests {
         let mut vm = super::VirtualMachine {
             ip: 0,
             stack: Vec::new(),
+            block: None,
         };
 
-        let result = vm.run(block);
+        let result = vm.run(&block);
         assert_eq!(super::Result::Ok, result);
         assert_eq!(3.5, as_number!(vm.pop()));
     }

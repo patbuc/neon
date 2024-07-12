@@ -20,11 +20,11 @@ impl Block {
     pub(in crate::vm) fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
-        let line = self.get_line(offset);
-        if offset > 0 && line == self.get_line(offset - 1) {
+        let line = self.get_line(offset).unwrap();
+        if offset > 0 && line.line == self.get_line(offset - 1).unwrap().line {
             print!("     | ");
         } else {
-            print!("{:6} ", line.unwrap());
+            print!("{:6} ", line.line);
         }
 
         let instruction = OpCode::from_u8(self.instructions[offset]);
