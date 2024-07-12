@@ -47,7 +47,7 @@ impl Block {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_constant(&mut self, index: usize) -> Value {
+    pub(in crate::vm) fn read_constant(&self, index: usize) -> Value {
         self.constants.read_value(index)
     }
 
@@ -78,8 +78,8 @@ impl Block {
         self.lines.push(Line { offset, line });
     }
 
-    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<u32> {
-        let mut result = 0;
+    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<Line> {
+        let mut result = Option::default();
         let mut low = 0;
         let mut high = self.lines.len() - 1;
 
@@ -93,11 +93,11 @@ impl Block {
             if line.offset > offset {
                 high = mid - 1;
             } else {
-                result = line.line;
+                result = Some(line);
                 low = mid + 1;
             }
         }
-        Option::from(result)
+        result.cloned()
     }
 }
 
@@ -196,17 +196,17 @@ mod tests {
         block.write_op_code(OpCode::Multiply, 6);
         block.write_op_code(OpCode::Return, 8);
 
-        assert_eq!(2, block.get_line(0).unwrap());
-        assert_eq!(2, block.get_line(1).unwrap());
-        assert_eq!(3, block.get_line(2).unwrap());
-        assert_eq!(4, block.get_line(3).unwrap());
-        assert_eq!(4, block.get_line(4).unwrap());
-        assert_eq!(4, block.get_line(5).unwrap());
-        assert_eq!(5, block.get_line(6).unwrap());
-        assert_eq!(5, block.get_line(7).unwrap());
-        assert_eq!(6, block.get_line(8).unwrap());
-        assert_eq!(8, block.get_line(9).unwrap());
+        assert_eq!(2, block.get_line(0).unwrap().line);
+        assert_eq!(2, block.get_line(1).unwrap().line);
+        assert_eq!(3, block.get_line(2).unwrap().line);
+        assert_eq!(4, block.get_line(3).unwrap().line);
+        assert_eq!(4, block.get_line(4).unwrap().line);
+        assert_eq!(4, block.get_line(5).unwrap().line);
+        assert_eq!(5, block.get_line(6).unwrap().line);
+        assert_eq!(5, block.get_line(7).unwrap().line);
+        assert_eq!(6, block.get_line(8).unwrap().line);
+        assert_eq!(8, block.get_line(9).unwrap().line);
 
-        assert_eq!(None, block.get_line(10));
+        assert_eq!(true, block.get_line(10).is_none());
     }
 }

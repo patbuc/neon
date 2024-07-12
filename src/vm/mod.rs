@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::rc::Rc;
 
 #[macro_use]
 mod value;
@@ -26,6 +27,7 @@ pub enum Result {
 pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
+    block: Option<Rc<Block>>,
 }
 
 #[derive(Debug)]
@@ -41,7 +43,7 @@ struct Constants {
     values: Vec<Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Line {
     pub offset: usize,
     pub line: u32,
