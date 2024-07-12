@@ -6,6 +6,7 @@ impl Block {
         Block {
             name: String::from(name),
             constants: Constants::new(),
+            strings: Constants::new(),
             instructions: Vec::new(),
             lines: Vec::new(),
         }
@@ -32,6 +33,12 @@ impl Block {
         }
     }
 
+    pub(crate) fn write_string(&mut self, value: Value, line: u32) {
+        let string_index = self.strings.write_value(value) as u8;
+        self.write_op_code(OpCode::String, line);
+        self.write_u8(string_index)
+    }
+
     pub(crate) fn write_u8(&mut self, value: u8) {
         self.instructions.push(value)
     }
@@ -49,6 +56,11 @@ impl Block {
     #[inline(always)]
     pub(in crate::vm) fn read_constant(&self, index: usize) -> Value {
         self.constants.read_value(index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn read_string(&self, index: usize) -> Value {
+        self.strings.read_value(index)
     }
 
     #[inline(always)]

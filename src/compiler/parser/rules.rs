@@ -67,7 +67,7 @@ lazy_static! {
         (TokenType::Less, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
         (TokenType::LessEqual, ParseRule::new(None, Some(Parser::binary), Precedence::Comparison)),
         (TokenType::Identifier, ParseRule::new(None, None, Precedence::None)),
-        (TokenType::String, ParseRule::new(None, None, Precedence::None)),
+        (TokenType::String, ParseRule::new(Some(Parser::string), None, Precedence::None)),
         (TokenType::InterpolatedString, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Number, ParseRule::new(Some(Parser::number), None, Precedence::None)),
         (TokenType::And, ParseRule::new(None, None, Precedence::None)),
