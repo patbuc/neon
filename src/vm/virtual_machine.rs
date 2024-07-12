@@ -77,7 +77,16 @@ impl VirtualMachine {
                 OpCode::Add => {
                     let b = self.pop();
                     let a = self.pop();
-                    self.push(Value::Number(as_number!(a) + as_number!(b)));
+                    match (a, b) {
+                        (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
+                        (Value::String(a), Value::String(b)) => {
+                            self.push(Value::String(format!("{a}{b}")))
+                        }
+                        _ => {
+                            self.runtime_error("Operands must be two numbers or two strings");
+                            return Result::RuntimeError;
+                        }
+                    }
                 }
                 OpCode::Subtract => {
                     let b = self.pop();
@@ -121,6 +130,12 @@ impl VirtualMachine {
                 OpCode::Not => {
                     let value = self.pop();
                     self.push(boolean!(is_falsey!(value)));
+                }
+                OpCode::String => {
+                    let string_index = block.read_u8(self.ip + 1) as usize;
+                    let string = block.read_string(string_index);
+                    self.push(string);
+                    self.ip += 1;
                 }
             }
             self.ip += 1;

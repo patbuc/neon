@@ -34,6 +34,7 @@ pub struct VirtualMachine {
 pub(crate) struct Block {
     name: String,
     constants: Constants,
+    strings: Constants,
     instructions: Vec<u8>,
     lines: Vec<Line>,
 }

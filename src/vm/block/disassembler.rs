@@ -45,6 +45,7 @@ impl Block {
             OpCode::Greater => self.simple_instruction(OpCode::Greater, offset),
             OpCode::Less => self.simple_instruction(OpCode::Less, offset),
             OpCode::Not => self.simple_instruction(OpCode::Not, offset),
+            OpCode::String => self.string_instruction(instruction, offset),
         };
     }
 
@@ -67,5 +68,12 @@ impl Block {
         let constant = self.constants.read_value(index);
         println!("{:?} {:02} '{}'", op_code, index, as_number!(constant));
         offset + 1 + offset_shift
+    }
+
+    fn string_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let index = self.read_u8(offset + 1) as usize;
+        let string = self.read_string(index);
+        println!("{:?} {:02} '{}'", op_code, index, as_string!(string));
+        offset + 2
     }
 }
