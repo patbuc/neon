@@ -143,7 +143,19 @@ impl Parser {
     }
 
     fn get_rule(&self, token_type: TokenType) -> &ParseRule {
-        PARSE_RULES.get((token_type as u8) as usize).unwrap()
+        #[cfg(feature = "disassemble")]
+        return self.get_rule_safe(token_type);
+        &(PARSE_RULES.get((token_type as u32) as usize).unwrap().1)
+    }
+
+    fn get_rule_safe(&self, token_type: TokenType) -> &ParseRule {
+        let parse_rule = PARSE_RULES
+            .get((token_type.clone() as u8) as usize)
+            .unwrap();
+        if parse_rule.0 != token_type {
+            panic!("Parsing rules are out of sync with token types.");
+        }
+        &parse_rule.1
     }
 
     fn report_error_at_current(&mut self, message: &str) {
