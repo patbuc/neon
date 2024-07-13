@@ -159,7 +159,8 @@ impl VirtualMachine {
 
     fn runtime_error(&mut self, error: &str) {
         let line = self.get_current_execution_line();
-        eprintln!("[line {}] {}", line, error);
+        let offset = self.get_current_execution_offset();
+        eprintln!("[line {} char {}] {}", line, offset, error);
     }
 
     fn get_current_execution_line(&self) -> u32 {
