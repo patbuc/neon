@@ -20,6 +20,8 @@ pub(crate) enum OpCode {
     Less = 0x0E,
     Not = 0x0F,
     String = 0x10,
+    Print = 0x11,
+    Pop = 0x12,
 }
 
 impl OpCode {

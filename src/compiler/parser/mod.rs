@@ -37,6 +37,32 @@ impl Parser {
         }
     }
 
+    pub(in crate::compiler) fn match_token(&mut self, token_type: TokenType) -> bool {
+        if !self.check(token_type) {
+            return false;
+        }
+        self.advance();
+        return true;
+    }
+
+    fn check(&mut self, token_type: TokenType) -> bool {
+        return self.current_token.token_type == token_type;
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(in crate::compiler) fn declaration(&mut self) {
+        self.statement();
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(in crate::compiler) fn statement(&mut self) {
+        if self.match_token(TokenType::Print) {
+            self.print_statement();
+        } else {
+            self.expression_statement();
+        }
+    }
+
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(in crate::compiler) fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
@@ -109,6 +135,7 @@ impl Parser {
         }
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     fn literal(&mut self) {
         match self.previous_token.token_type {
             TokenType::False => self.emit_op_code(OpCode::False),
@@ -195,4 +222,15 @@ impl Parser {
         self.blocks.last_mut().unwrap()
     }
 
+    fn print_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expecting ';' at end of statement.");
+        self.emit_op_code(OpCode::Print);
+    }
+
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expecting ';' at end of expression.");
+        self.emit_op_code(OpCode::Pop);
+    }
 }

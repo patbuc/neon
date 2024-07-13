@@ -12,7 +12,14 @@ impl Compiler {
 
         parser.start();
         parser.advance();
-        parser.expression();
+
+        loop {
+            if parser.match_token(TokenType::Eof) {
+                break;
+            }
+            parser.declaration();
+        }
+
         parser.consume(TokenType::Eof, "Expect end of expression");
         parser.end();
 
