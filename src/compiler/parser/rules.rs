@@ -46,7 +46,7 @@ impl ParseRule {
 
 #[rustfmt::skip]
 lazy_static! {
-    pub(super) static ref PARSE_RULES: Vec<ParseRule> = vec![
+    pub(super) static ref PARSE_RULES: Vec<(TokenType, ParseRule)> = vec![
         (TokenType::LeftParen, ParseRule::new(Some(Parser::grouping), None, Precedence::None)),
         (TokenType::RightParen, ParseRule::new(None, None, Precedence::None)),
         (TokenType::LeftBrace, ParseRule::new(None, None, Precedence::None)),
@@ -89,5 +89,5 @@ lazy_static! {
         (TokenType::While, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Error, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Eof, ParseRule::new(None, None, Precedence::None)),
-    ].into_iter().map(|(_, v)| v).collect();
+    ];
 }
