@@ -46,6 +46,8 @@ impl Block {
             OpCode::Less => self.simple_instruction(OpCode::Less, offset),
             OpCode::Not => self.simple_instruction(OpCode::Not, offset),
             OpCode::String => self.string_instruction(instruction, offset),
+            OpCode::Print => self.simple_instruction(OpCode::Print, offset),
+            OpCode::Pop => self.simple_instruction(OpCode::Pop, offset),
         };
     }
 
@@ -65,7 +67,7 @@ impl Block {
         }
 
         let (index, offset_shift) = get_constant_index(self, &op_code, offset + 1);
-        let constant = self.constants.read_value(index);
+        let constant = self.read_constant(index);
         println!("{:?} {:02} '{}'", op_code, index, as_number!(constant));
         offset + 1 + offset_shift
     }

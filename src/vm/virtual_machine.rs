@@ -44,8 +44,6 @@ impl VirtualMachine {
         loop {
             match OpCode::from_u8(block.read_u8(self.ip)) {
                 OpCode::Return => {
-                    let value = self.pop();
-                    println!("{}", value);
                     return Result::Ok;
                 }
                 OpCode::Constant => {
@@ -137,6 +135,13 @@ impl VirtualMachine {
                     self.push(string);
                     self.ip += 1;
                 }
+                OpCode::Print => {
+                    let value = self.pop();
+                    println!("{}", value);
+                }
+                OpCode::Pop => {
+                    self.pop();
+                }
             }
             self.ip += 1;
         }
@@ -207,10 +212,6 @@ mod tests {
         block.write_op_code(super::OpCode::Subtract, 0);
         block.write_constant(number!(2.0), 0);
         block.write_op_code(super::OpCode::Divide, 0);
-
-        // Pushing throw away value to the stack.
-        // This is needed because the Return OpCode will pop a value from the stack and print it.
-        block.write_constant(number!(0.0), 0);
         block.write_op_code(super::OpCode::Return, 0);
 
         let mut vm = super::VirtualMachine {
@@ -222,5 +223,41 @@ mod tests {
         let result = vm.run(&block);
         assert_eq!(super::Result::Ok, result);
         assert_eq!(3.5, as_number!(vm.pop()));
+    }
+
+    #[test]
+    fn can_print_hello_world() {
+        let program = r#"
+        print "Hello, World!";
+        "#;
+
+        let mut vm = super::VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+
+        assert_eq!(super::Result::Ok, result);
+    }
+
+    #[test]
+    fn can_print_the_answer_to_everything_times_pi() {
+        let program = r#"
+        print 42 * 3.14;
+        "#;
+
+        let mut vm = super::VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+
+        assert_eq!(super::Result::Ok, result);
+    }
+    #[test]
+    fn can_run_multi_line_statements() {
+        let program = r#"
+        print "Hello, World!";
+        print 42 * 3.14;
+        "#;
+
+        let mut vm = super::VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+
+        assert_eq!(super::Result::Ok, result);
     }
 }
