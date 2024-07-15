@@ -56,6 +56,7 @@ lazy_static! {
         (TokenType::Minus, ParseRule::new(Some(Parser::unary), Some(Parser::binary), Precedence::Term)),
         (TokenType::Plus, ParseRule::new(None, Some(Parser::binary), Precedence::Term)),
         (TokenType::Semicolon, ParseRule::new(None, None, Precedence::None)),
+        (TokenType::NewLine, ParseRule::new(None, None, Precedence::None)),
         (TokenType::Slash, ParseRule::new(None, Some(Parser::binary), Precedence::Factor)),
         (TokenType::Star, ParseRule::new(None, Some(Parser::binary), Precedence::Factor)),
         (TokenType::Bang, ParseRule::new(Some(Parser::unary), None, Precedence::None)),

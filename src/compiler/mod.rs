@@ -21,6 +21,7 @@ struct Scanner {
     current: usize,
     line: u32,
     pos: u32,
+    previous_token_type: TokenType,
 }
 
 #[derive(Debug)]
