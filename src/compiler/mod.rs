@@ -10,7 +10,7 @@ mod token;
 struct Token {
     pub(crate) token_type: TokenType,
     token: String,
-    start: usize,
+    pos: u32,
     line: u32,
 }
 
@@ -20,6 +20,7 @@ struct Scanner {
     start: usize,
     current: usize,
     line: u32,
+    pos: u32,
 }
 
 #[derive(Debug)]
