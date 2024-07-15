@@ -216,13 +216,13 @@ impl Parser {
         self.had_error = true;
         self.panic_mode = true;
 
-        eprint!("[line {}, pos {}] Error", token.line + 1, token.start + 1);
+        eprint!("[line {}, pos {}] Error", token.line + 1, token.pos + 1);
         if token.token_type == TokenType::Eof {
             eprint!(" at end");
         } else if token.token_type == TokenType::Error {
             // Nothing.
         } else {
-            eprint!(" at '{}'", token.token);
+            eprint!(" at {:?}", token.token);
         }
         eprintln!(": {}", message);
     }

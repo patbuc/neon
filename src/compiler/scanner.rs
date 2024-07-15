@@ -8,6 +8,7 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 0,
+            pos: 0,
         }
     }
 
@@ -183,6 +184,7 @@ impl Scanner {
             let c = self.peek();
             match c {
                 ' ' | '\r' | '\t' => {
+                    self.pos += 1;
                     self.advance();
                 }
                 '\n' => {
@@ -265,20 +267,18 @@ impl Scanner {
     }
 
     fn make_error_token(&self, message: &str) -> Token {
-        Token::new(
-            TokenType::Error,
-            String::from(message),
-            self.start,
-            self.line,
-        )
+        Token::new(TokenType::Error, String::from(message), self.pos, self.line)
     }
 
-    fn make_token(&self, token_type: TokenType) -> Token {
-        let token = String::from_iter(&self.source[self.start..self.current]);
-        Token::new(token_type, token, self.start, self.line)
+    fn make_token(&mut self, token_type: TokenType) -> Token {
+        let token_str = String::from_iter(&self.source[self.start..self.current]);
+        let token_str_len = token_str.len() as u32;
+        let token = Token::new(token_type, token_str, self.pos, self.line);
+        self.pos += token_str_len;
+        token
     }
     fn make_eof_token(&self) -> Token {
-        Token::new(TokenType::Eof, String::new(), self.start, self.line)
+        Token::new(TokenType::Eof, String::new(), self.pos, self.line)
     }
 }
 
@@ -298,12 +298,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].start, 0);
+        assert_eq!(x[0].pos, 0);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 0);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].start, 4);
+        assert_eq!(x[1].pos, 4);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 0);
 
@@ -323,12 +323,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].start, 0);
+        assert_eq!(x[0].pos, 0);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 0);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].start, 4);
+        assert_eq!(x[1].pos, 4);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 0);
 

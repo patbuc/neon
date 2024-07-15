@@ -56,13 +56,13 @@ impl Token {
     pub(in crate::compiler) fn new(
         token_type: TokenType,
         token: String,
-        start: usize,
+        pos: u32,
         line: u32,
     ) -> Token {
         Token {
             token_type,
             token,
-            start,
+            pos,
             line,
         }
     }
