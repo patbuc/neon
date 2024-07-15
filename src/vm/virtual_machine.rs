@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn can_print_hello_world() {
         let program = r#"
-        print "Hello, World!";
+        print "Hello, World!"
         "#;
 
         let mut vm = super::VirtualMachine::new();
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn can_print_the_answer_to_everything_times_pi() {
         let program = r#"
-        print 42 * 3.14;
+        print 42 * 3.14
         "#;
 
         let mut vm = super::VirtualMachine::new();
@@ -251,8 +251,8 @@ mod tests {
     #[test]
     fn can_run_multi_line_statements() {
         let program = r#"
-        print "Hello, World!";
-        print 42 * 3.14;
+        print "Hello, World!"
+        print 42 * 3.14
         "#;
 
         let mut vm = super::VirtualMachine::new();

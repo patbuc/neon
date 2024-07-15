@@ -71,19 +71,26 @@ impl Parser {
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
-    fn expression(&mut self) {
-        self.parse_precedence(Precedence::Assignment);
+    fn expression(&mut self, skip_new_lines: bool) {
+        self.parse_precedence(Precedence::Assignment, skip_new_lines);
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self, precedence)))]
-    fn parse_precedence(&mut self, precedence: Precedence) {
+    fn parse_precedence(&mut self, precedence: Precedence, skip_new_lines: bool) {
+        if skip_new_lines {
+            while self.check(TokenType::NewLine) {
+                self.advance();
+            }
+        }
+
         self.advance();
-        let prefix_rule = self.get_rule(self.previous_token.token_type.clone()).prefix;
-        if prefix_rule.is_none() {
+        let rule = self.get_rule(self.previous_token.token_type.clone());
+
+        if let None = rule.prefix {
             self.report_error_at_current("Expect expression");
             return;
         }
-        prefix_rule.unwrap()(self);
+        rule.prefix.unwrap()(self);
 
         while precedence as u8
             <= self
@@ -93,6 +100,12 @@ impl Parser {
             self.advance();
             let infix_rule = self.get_rule(self.previous_token.token_type.clone()).infix;
             infix_rule.unwrap()(self);
+        }
+
+        if skip_new_lines {
+            while self.check(TokenType::NewLine) {
+                self.advance();
+            }
         }
     }
 
@@ -111,7 +124,7 @@ impl Parser {
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn grouping(&mut self) {
-        self.expression();
+        self.expression(true);
         self.consume(TokenType::RightParen, "Expect end of expression");
     }
 
@@ -119,7 +132,7 @@ impl Parser {
     pub(super) fn binary(&mut self) {
         let operator_type = self.previous_token.token_type.clone();
         let rule = self.get_rule(operator_type.clone());
-        self.parse_precedence(Precedence::from_u8(rule.precedence as u8 + 1));
+        self.parse_precedence(Precedence::from_u8(rule.precedence as u8 + 1), false);
 
         match operator_type {
             token_type if token_type == TokenType::BangEqual => {
@@ -157,7 +170,7 @@ impl Parser {
         let operator_type = self.previous_token.token_type.clone();
 
         // Compile the operand.
-        self.parse_precedence(Precedence::Unary);
+        self.parse_precedence(Precedence::Unary, false);
 
         // Emit the operator instruction.
         match operator_type {
@@ -169,6 +182,23 @@ impl Parser {
 
     pub(in crate::compiler) fn consume(&mut self, token_type: TokenType, message: &str) {
         if self.current_token.token_type == token_type {
+            self.advance();
+            return;
+        }
+
+        self.report_error_at_current(message);
+    }
+
+    pub(in crate::compiler) fn consume_either(
+        &mut self,
+        token_type_1: TokenType,
+        token_type_2: TokenType,
+        message: &str,
+    ) {
+        if self.current_token.token_type == token_type_1 {
+            self.advance();
+            return;
+        } else if self.current_token.token_type == token_type_2 {
             self.advance();
             return;
         }
@@ -193,14 +223,22 @@ impl Parser {
     }
 
     fn print_statement(&mut self) {
-        self.expression();
-        self.consume(TokenType::Semicolon, "Expecting ';' at end of statement.");
+        self.expression(false);
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' at end of statement.",
+        );
         self.emit_op_code(OpCode::Print);
     }
 
     fn expression_statement(&mut self) {
-        self.expression();
-        self.consume(TokenType::Semicolon, "Expecting ';' at end of expression.");
+        self.expression(false);
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' at end of expression.",
+        );
         self.emit_op_code(OpCode::Pop);
     }
 

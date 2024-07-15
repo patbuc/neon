@@ -9,18 +9,26 @@ impl Scanner {
             current: 0,
             line: 0,
             pos: 0,
+            previous_token_type: TokenType::NewLine,
         }
     }
 
     //noinspection DuplicatedCode
     pub(in crate::compiler) fn scan_token(&mut self) -> Token {
-        self.skip_whitespace();
-        self.start = self.current;
+        let mut c;
+        loop {
+            self.skip_whitespace();
+            self.start = self.current;
 
-        if self.is_at_end() {
-            return self.make_eof_token();
+            if self.is_at_end() {
+                return self.make_eof_token();
+            }
+            c = self.advance();
+            if !(self.previous_token_type == TokenType::NewLine && c == '\n') {
+                break;
+            }
         }
-        let c = self.advance();
+
         if Scanner::is_alpha(c) {
             return self.make_identifier();
         }
@@ -76,6 +84,11 @@ impl Scanner {
                 } else {
                     return self.make_token(TokenType::Slash);
                 }
+            }
+            '\n' => {
+                self.line += 1;
+                self.pos = 0;
+                return self.make_token(TokenType::NewLine);
             }
             '"' => return self.make_string(),
             _ => self.make_error_token("Unexpected character"),
@@ -187,10 +200,6 @@ impl Scanner {
                     self.pos += 1;
                     self.advance();
                 }
-                '\n' => {
-                    self.line += 1;
-                    self.advance();
-                }
                 _ => {
                     break;
                 }
@@ -266,18 +275,21 @@ impl Scanner {
         };
     }
 
-    fn make_error_token(&self, message: &str) -> Token {
+    fn make_error_token(&mut self, message: &str) -> Token {
+        self.previous_token_type = TokenType::Error;
         Token::new(TokenType::Error, String::from(message), self.pos, self.line)
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
+        self.previous_token_type = token_type.clone();
         let token_str = String::from_iter(&self.source[self.start..self.current]);
         let token_str_len = token_str.len() as u32;
         let token = Token::new(token_type, token_str, self.pos, self.line);
         self.pos += token_str_len;
         token
     }
-    fn make_eof_token(&self) -> Token {
+    fn make_eof_token(&mut self) -> Token {
+        self.previous_token_type = TokenType::Eof;
         Token::new(TokenType::Eof, String::new(), self.pos, self.line)
     }
 }
@@ -345,6 +357,11 @@ mod tests {
             if token.token_type == TokenType::Eof {
                 tokens.push(token);
                 break;
+            }
+            if token.token_type == TokenType::NewLine
+                && (tokens.len() == 0 || tokens[tokens.len() - 1].token_type == TokenType::NewLine)
+            {
+                continue;
             }
             tokens.push(token);
         }
