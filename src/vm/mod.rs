@@ -1,3 +1,4 @@
+use crate::vm::utils::output_handler::OutputHandler;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -7,6 +8,7 @@ mod value;
 mod block;
 pub(crate) mod opcodes;
 
+mod utils;
 mod virtual_machine;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +30,7 @@ pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
     block: Option<Rc<Block>>,
+    output_handler: Box<dyn OutputHandler>,
 }
 
 #[derive(Debug)]
