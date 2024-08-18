@@ -1,5 +1,6 @@
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
+use crate::vm::utils::output_handler::ConsoleOutputHandler;
 use crate::vm::{Block, Result, Value, VirtualMachine};
 use std::rc::Rc;
 
@@ -11,6 +12,7 @@ impl VirtualMachine {
             ip: 0,
             stack: Vec::new(),
             block: None,
+            output_handler: Box::new(ConsoleOutputHandler {}),
         }
     }
 
@@ -137,7 +139,7 @@ impl VirtualMachine {
                 }
                 OpCode::Print => {
                     let value = self.pop();
-                    println!("{}", value);
+                    self.output_handler.println(value);
                 }
                 OpCode::Pop => {
                     self.pop();
@@ -214,11 +216,7 @@ mod tests {
         block.write_op_code(super::OpCode::Divide, 0);
         block.write_op_code(super::OpCode::Return, 0);
 
-        let mut vm = super::VirtualMachine {
-            ip: 0,
-            stack: Vec::new(),
-            block: None,
-        };
+        let mut vm = super::VirtualMachine::new();
 
         let result = vm.run(&block);
         assert_eq!(super::Result::Ok, result);
@@ -248,6 +246,7 @@ mod tests {
 
         assert_eq!(super::Result::Ok, result);
     }
+
     #[test]
     fn can_run_multi_line_statements() {
         let program = r#"
