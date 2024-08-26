@@ -137,6 +137,18 @@ impl VirtualMachine {
                     self.push(string);
                     self.ip += 1;
                 }
+                OpCode::String2 => {
+                    let string_index = block.read_u16(self.ip + 1) as usize;
+                    let string = block.read_string(string_index);
+                    self.push(string);
+                    self.ip += 2;
+                }
+                OpCode::String4 => {
+                    let string_index = block.read_u32(self.ip + 1) as usize;
+                    let string = block.read_string(string_index);
+                    self.push(string);
+                    self.ip += 4;
+                }
                 OpCode::Print => {
                     let value = self.pop();
                     self.output_handler.println(value);

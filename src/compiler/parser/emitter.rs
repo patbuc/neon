@@ -18,7 +18,7 @@ impl Parser {
 
     pub fn emit_string(&mut self, value: Value) {
         let line = self.previous_token.line;
-        self.current_block().write_string(value, line)
+        self.current_block().write_string(value, line);
     }
 
     pub fn emit_op_code(&mut self, op_code: OpCode) {

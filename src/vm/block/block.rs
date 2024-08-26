@@ -33,10 +33,19 @@ impl Block {
         }
     }
 
-    pub(crate) fn write_string(&mut self, value: Value, line: u32) {
-        let string_index = self.strings.write_value(value) as u8;
-        self.write_op_code(OpCode::String, line);
-        self.write_u8(string_index)
+    pub(crate) fn write_string(&mut self, value: Value, line: u32) -> u32 {
+        let string_index = self.strings.write_value(value);
+        if string_index <= 0xFF {
+            self.write_op_code(OpCode::String, line);
+            self.write_u8(string_index as u8)
+        } else if string_index <= 0xFFFF {
+            self.write_op_code(OpCode::String2, line);
+            self.write_u16(string_index as u16)
+        } else {
+            self.write_op_code(OpCode::String4, line);
+            self.write_u32(string_index)
+        }
+        string_index
     }
 
     pub(crate) fn write_u8(&mut self, value: u8) {

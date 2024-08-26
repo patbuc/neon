@@ -46,6 +46,8 @@ impl Block {
             OpCode::Less => self.simple_instruction(OpCode::Less, offset),
             OpCode::Not => self.simple_instruction(OpCode::Not, offset),
             OpCode::String => self.string_instruction(instruction, offset),
+            OpCode::String2 => self.string_instruction(instruction, offset),
+            OpCode::String4 => self.string_instruction(instruction, offset),
             OpCode::Print => self.simple_instruction(OpCode::Print, offset),
             OpCode::Pop => self.simple_instruction(OpCode::Pop, offset),
         };
