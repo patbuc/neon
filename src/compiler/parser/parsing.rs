@@ -58,7 +58,60 @@ impl Parser {
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(in crate::compiler) fn declaration(&mut self) {
-        self.statement();
+        if self.match_token(TokenType::Val) {
+            self.val_declaration();
+        } else if self.match_token(TokenType::Var) {
+            self.var_declaration();
+        } else {
+            self.statement();
+        }
+
+        if self.panic_mode {
+            self.exit_panic_mode();
+        }
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn val_declaration(&mut self) {
+        let name = self.parse_value();
+
+        if self.match_token(TokenType::Equal) {
+            self.expression(false);
+        } else {
+            self.emit_op_code(OpCode::Nil);
+        }
+
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after value declaration.",
+        );
+
+        self.emit_value(name);
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn var_declaration(&mut self) {
+        let name = self.parse_value();
+
+        if self.match_token(TokenType::Equal) {
+            self.expression(false);
+        } else {
+            self.emit_op_code(OpCode::Nil);
+        }
+
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after value declaration.",
+        );
+
+        self.emit_variable(name);
+    }
+
+    fn parse_value(&mut self) -> String {
+        self.consume(TokenType::Identifier, "Expecting variable name.");
+        self.previous_token.token.clone()
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
@@ -94,8 +147,8 @@ impl Parser {
 
         while precedence as u8
             <= self
-                .get_rule(self.current_token.token_type.clone())
-                .precedence as u8
+            .get_rule(self.current_token.token_type.clone())
+            .precedence as u8
         {
             self.advance();
             let infix_rule = self.get_rule(self.previous_token.token_type.clone()).infix;
@@ -106,6 +159,35 @@ impl Parser {
             while self.check(TokenType::NewLine) {
                 self.advance();
             }
+        }
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(super) fn variable(&mut self) {
+        let name = &*self.previous_token.token;
+        let is_value = self.is_value(name);
+        let index = self.add_constant(string!(name.to_string()));
+        if index <= 0xFF {
+            self.emit_op_code(if is_value {
+                OpCode::GetValue
+            } else {
+                OpCode::GetVariable
+            });
+            self.emit_u8(index as u8);
+        } else if index <= 0xFFFF {
+            self.emit_op_code(if is_value {
+                OpCode::GetValue2
+            } else {
+                OpCode::GetVariable2
+            });
+            self.emit_u16(index as u16);
+        } else {
+            self.emit_op_code(if is_value {
+                OpCode::GetValue4
+            } else {
+                OpCode::GetVariable4
+            });
+            self.emit_u32(index);
         }
     }
 
@@ -263,5 +345,29 @@ impl Parser {
             eprint!(" at {:?}", token.token);
         }
         eprintln!(": {}", message);
+    }
+
+    fn exit_panic_mode(&mut self) {
+        self.panic_mode = false;
+        loop {
+            if self.previous_token.token_type == TokenType::NewLine
+                || self.previous_token.token_type == TokenType::Eof
+            {
+                return;
+            }
+            match self.current_token.token_type {
+                TokenType::Class
+                | TokenType::Fn
+                | TokenType::Val
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+                _ => {}
+            }
+            self.advance();
+        }
     }
 }

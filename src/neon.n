@@ -1,2 +1,9 @@
-print "Hello" + " " + "World!"
+print "Hello" + " " + "World 🌍"
 print 42 * 3.14
+val x = 42.3
+var y = 3.14
+print x
+print y
+val z = "x + y"
+print z
+print x * y

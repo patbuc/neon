@@ -1,11 +1,12 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, Line, Value};
+use crate::vm::{Block, Constants, Line, Value, Variables};
 
 impl Block {
     pub(crate) fn new(name: &str) -> Self {
         Block {
             name: String::from(name),
             constants: Constants::new(),
+            variables: Variables::new(),
             strings: Constants::new(),
             instructions: Vec::new(),
             lines: Vec::new(),
@@ -14,13 +15,21 @@ impl Block {
 }
 
 impl Block {
+    pub(crate) fn is_value(&self, name: &str) -> bool {
+        self.variables.values.contains(&name.to_string())
+    }
+
     pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32) {
         self.add_line(self.instructions.len(), line);
         self.instructions.push(op_code as u8)
     }
 
-    pub(crate) fn write_constant(&mut self, value: Value, line: u32) {
-        let constant_index = self.constants.write_value(value);
+    pub(crate) fn add_constant(&mut self, value: Value) -> u32 {
+        self.constants.write_value(value)
+    }
+
+    pub(crate) fn write_constant(&mut self, value: Value, line: u32) -> u32 {
+        let constant_index = self.add_constant(value);
         if constant_index <= 0xFF {
             self.write_op_code(OpCode::Constant, line);
             self.write_u8(constant_index as u8)
@@ -31,6 +40,37 @@ impl Block {
             self.write_op_code(OpCode::Constant4, line);
             self.write_u32(constant_index)
         }
+        constant_index
+    }
+
+    pub(crate) fn write_value(&mut self, name: String, line: u32) -> u32 {
+        let value_index = self.variables.write_value(name);
+        if value_index <= 0xFF {
+            self.write_op_code(OpCode::SetValue, line);
+            self.write_u8(value_index as u8)
+        } else if value_index <= 0xFFFF {
+            self.write_op_code(OpCode::SetValue2, line);
+            self.write_u16(value_index as u16)
+        } else {
+            self.write_op_code(OpCode::SetValue4, line);
+            self.write_u32(value_index)
+        }
+        value_index
+    }
+
+    pub(crate) fn write_variable(&mut self, name: String, line: u32) -> u32 {
+        let variable_index = self.variables.write_variable(name);
+        if variable_index <= 0xFF {
+            self.write_op_code(OpCode::SetVariable, line);
+            self.write_u8(variable_index as u8)
+        } else if variable_index <= 0xFFFF {
+            self.write_op_code(OpCode::SetVariable2, line);
+            self.write_u16(variable_index as u16)
+        } else {
+            self.write_op_code(OpCode::SetVariable4, line);
+            self.write_u32(variable_index)
+        }
+        variable_index
     }
 
     pub(crate) fn write_string(&mut self, value: Value, line: u32) -> u32 {
@@ -70,6 +110,16 @@ impl Block {
     #[inline(always)]
     pub(in crate::vm) fn read_string(&self, index: usize) -> Value {
         self.strings.read_value(index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn read_value(&self, index: usize) -> String {
+        self.variables.values[index].clone()
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn read_variable(&self, index: usize) -> String {
+        self.variables.variables[index].clone()
     }
 
     #[inline(always)]
