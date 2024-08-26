@@ -2,6 +2,7 @@ use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::utils::output_handler::ConsoleOutputHandler;
 use crate::vm::{Block, Result, Value, VirtualMachine};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use log::info;
@@ -13,6 +14,8 @@ impl VirtualMachine {
             stack: Vec::new(),
             block: None,
             output_handler: Box::new(ConsoleOutputHandler {}),
+            values: HashMap::new(),
+            variables: HashMap::new(),
         }
     }
 
@@ -44,7 +47,8 @@ impl VirtualMachine {
         #[cfg(feature = "disassemble")]
         block.disassemble_block();
         loop {
-            match OpCode::from_u8(block.read_u8(self.ip)) {
+            let op_code = OpCode::from_u8(block.read_u8(self.ip));
+            match op_code {
                 OpCode::Return => {
                     return Result::Ok;
                 }
@@ -155,6 +159,84 @@ impl VirtualMachine {
                 }
                 OpCode::Pop => {
                     self.pop();
+                }
+                OpCode::SetValue => {
+                    let value_index = block.read_u8(self.ip + 1) as usize;
+                    let value_name = block.read_value(value_index);
+                    self.values.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 1;
+                }
+                OpCode::SetValue2 => {
+                    let value_index = block.read_u16(self.ip + 1) as usize;
+                    let value_name = block.read_value(value_index);
+                    self.values.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 2;
+                }
+                OpCode::SetValue4 => {
+                    let value_index = block.read_u32(self.ip + 1) as usize;
+                    let value_name = block.read_value(value_index);
+                    self.values.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 4;
+                }
+                OpCode::SetVariable => {
+                    let value_index = block.read_u8(self.ip + 1) as usize;
+                    let value_name = block.read_variable(value_index);
+                    self.variables.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 1;
+                }
+                OpCode::SetVariable2 => {
+                    let value_index = block.read_u16(self.ip + 1) as usize;
+                    let value_name = block.read_variable(value_index);
+                    self.variables.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 2;
+                }
+                OpCode::SetVariable4 => {
+                    let value_index = block.read_u32(self.ip + 1) as usize;
+                    let value_name = block.read_variable(value_index);
+                    self.variables.insert(value_name, self.peek(0));
+                    self.pop();
+                    self.ip += 4;
+                }
+                OpCode::GetValue => {
+                    let constant_index = block.read_u8(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.values[&name.to_string()].clone());
+                    self.ip += 1;
+                }
+                OpCode::GetValue2 => {
+                    let constant_index = block.read_u16(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.values[&name.to_string()].clone());
+                    self.ip += 2;
+                }
+                OpCode::GetValue4 => {
+                    let constant_index = block.read_u32(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.values[&name.to_string()].clone());
+                    self.ip += 4;
+                }
+                OpCode::GetVariable => {
+                    let constant_index = block.read_u8(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.variables[&name.to_string()].clone());
+                    self.ip += 1;
+                }
+                OpCode::GetVariable2 => {
+                    let constant_index = block.read_u16(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.variables[&name.to_string()].clone());
+                    self.ip += 2;
+                }
+                OpCode::GetVariable4 => {
+                    let constant_index = block.read_u32(self.ip + 1) as usize;
+                    let name = block.read_constant(constant_index);
+                    self.push(self.variables[&name.to_string()].clone());
+                    self.ip += 4;
                 }
             }
             self.ip += 1;

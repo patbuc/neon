@@ -1,4 +1,5 @@
 use crate::vm::utils::output_handler::OutputHandler;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -31,12 +32,15 @@ pub struct VirtualMachine {
     stack: Vec<Value>,
     block: Option<Rc<Block>>,
     output_handler: Box<dyn OutputHandler>,
+    values: HashMap<String, Value>,
+    variables: HashMap<String, Value>,
 }
 
 #[derive(Debug)]
 pub(crate) struct Block {
     name: String,
     constants: Constants,
+    variables: Variables,
     strings: Constants,
     instructions: Vec<u8>,
     lines: Vec<Line>,
@@ -45,6 +49,12 @@ pub(crate) struct Block {
 #[derive(Debug)]
 struct Constants {
     values: Vec<Value>,
+}
+
+#[derive(Debug)]
+struct Variables {
+    values: Vec<String>,
+    variables: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

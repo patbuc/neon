@@ -24,6 +24,18 @@ pub(crate) enum OpCode {
     String4 = 0x12,
     Print = 0x13,
     Pop = 0x14,
+    SetValue = 0x15,
+    SetValue2 = 0x16,
+    SetValue4 = 0x17,
+    SetVariable = 0x18,
+    SetVariable2 = 0x19,
+    SetVariable4 = 0x1A,
+    GetValue = 0x1B,
+    GetValue2 = 0x1C,
+    GetValue4 = 0x1D,
+    GetVariable = 0x1E,
+    GetVariable2 = 0x1F,
+    GetVariable4 = 0x20,
 }
 
 impl OpCode {
