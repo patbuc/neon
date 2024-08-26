@@ -80,6 +80,9 @@ impl Scanner {
                     while self.peek_next() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
+                    if !self.is_at_end() {
+                        self.advance();
+                    }
                     self.scan_token()
                 } else {
                     return self.make_token(TokenType::Slash);
