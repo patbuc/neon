@@ -8,7 +8,7 @@ mod token;
 
 #[derive(Debug, Clone, Default)]
 struct Token {
-    pub(crate) token_type: TokenType,
+    token_type: TokenType,
     token: String,
     pos: u32,
     line: u32,
