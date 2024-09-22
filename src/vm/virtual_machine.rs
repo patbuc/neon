@@ -1,3 +1,5 @@
+mod functions;
+
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::utils::output_handler::ConsoleOutputHandler;
@@ -5,6 +7,8 @@ use crate::vm::{Block, Result, Value, VirtualMachine};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::vm;
+use crate::vm::virtual_machine::functions::*;
 use log::info;
 
 impl VirtualMachine {
@@ -52,192 +56,48 @@ impl VirtualMachine {
                 OpCode::Return => {
                     return Result::Ok;
                 }
-                OpCode::Constant => {
-                    let constant_index = block.read_u8(self.ip + 1) as usize;
-                    let constant = block.read_constant(constant_index);
-                    self.push(constant);
-                    self.ip += 1;
-                }
-                OpCode::Constant2 => {
-                    let constant_index = block.read_u16(self.ip + 1) as usize;
-                    let constant = block.read_constant(constant_index);
-                    self.push(constant);
-                    self.ip += 2;
-                }
-                OpCode::Constant4 => {
-                    let constant_index = block.read_u32(self.ip + 1) as usize;
-                    let constant = block.read_constant(constant_index);
-                    self.push(constant);
-                    self.ip += 4;
-                }
+                OpCode::Constant => fn_constant(self, block),
+                OpCode::Constant2 => fn_constant2(self, block),
+                OpCode::Constant4 => fn_constant4(self, block),
                 OpCode::Negate => {
-                    if let Value::Number(..) = self.peek(0) {
-                        self.runtime_error("Operand must be a number");
-                        return Result::RuntimeError;
+                    if let Some(value) = fn_negate(self) {
+                        return value;
                     }
-                    let value = self.pop();
-                    self.push(number!(-as_number!(value)));
                 }
                 OpCode::Add => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    match (a, b) {
-                        (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
-                        (Value::String(a), Value::String(b)) => {
-                            self.push(Value::String(format!("{a}{b}")))
-                        }
-                        _ => {
-                            self.runtime_error("Operands must be two numbers or two strings");
-                            return Result::RuntimeError;
-                        }
+                    if let Some(value) = fn_add(self) {
+                        return value;
                     }
                 }
-                OpCode::Subtract => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(Value::Number(as_number!(a) - as_number!(b)));
-                }
-                OpCode::Multiply => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(Value::Number(as_number!(a) * as_number!(b)));
-                }
-                OpCode::Divide => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(Value::Number(as_number!(a) / as_number!(b)));
-                }
-                OpCode::Nil => {
-                    self.push(nil!());
-                }
-                OpCode::True => {
-                    self.push(boolean!(true));
-                }
-                OpCode::False => {
-                    self.push(boolean!(false));
-                }
-                OpCode::Equal => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(boolean!(a == b));
-                }
-                OpCode::Greater => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(boolean!(as_number!(a) > as_number!(b)));
-                }
-                OpCode::Less => {
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(boolean!(as_number!(a) < as_number!(b)));
-                }
-                OpCode::Not => {
-                    let value = self.pop();
-                    self.push(boolean!(is_falsey!(value)));
-                }
-                OpCode::String => {
-                    let string_index = block.read_u8(self.ip + 1) as usize;
-                    let string = block.read_string(string_index);
-                    self.push(string);
-                    self.ip += 1;
-                }
-                OpCode::String2 => {
-                    let string_index = block.read_u16(self.ip + 1) as usize;
-                    let string = block.read_string(string_index);
-                    self.push(string);
-                    self.ip += 2;
-                }
-                OpCode::String4 => {
-                    let string_index = block.read_u32(self.ip + 1) as usize;
-                    let string = block.read_string(string_index);
-                    self.push(string);
-                    self.ip += 4;
-                }
-                OpCode::Print => {
-                    let value = self.pop();
-                    self.output_handler.println(value);
-                }
+                OpCode::Subtract => fn_subtract(self),
+                OpCode::Multiply => fn_multiply(self),
+                OpCode::Divide => fn_divide(self),
+                OpCode::Nil => self.push(nil!()),
+                OpCode::True => self.push(boolean!(true)),
+                OpCode::False => self.push(boolean!(false)),
+                OpCode::Equal => fn_equal(self),
+                OpCode::Greater => fn_greater(self),
+                OpCode::Less => fn_less(self),
+                OpCode::Not => fn_not(self),
+                OpCode::String => fn_string(self, block),
+                OpCode::String2 => fn_string2(self, block),
+                OpCode::String4 => fn_string4(self, block),
+                OpCode::Print => fn_print(self),
                 OpCode::Pop => {
                     self.pop();
                 }
-                OpCode::SetValue => {
-                    let value_index = block.read_u8(self.ip + 1) as usize;
-                    let value_name = block.read_value(value_index);
-                    self.values.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 1;
-                }
-                OpCode::SetValue2 => {
-                    let value_index = block.read_u16(self.ip + 1) as usize;
-                    let value_name = block.read_value(value_index);
-                    self.values.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 2;
-                }
-                OpCode::SetValue4 => {
-                    let value_index = block.read_u32(self.ip + 1) as usize;
-                    let value_name = block.read_value(value_index);
-                    self.values.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 4;
-                }
-                OpCode::SetVariable => {
-                    let value_index = block.read_u8(self.ip + 1) as usize;
-                    let value_name = block.read_variable(value_index);
-                    self.variables.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 1;
-                }
-                OpCode::SetVariable2 => {
-                    let value_index = block.read_u16(self.ip + 1) as usize;
-                    let value_name = block.read_variable(value_index);
-                    self.variables.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 2;
-                }
-                OpCode::SetVariable4 => {
-                    let value_index = block.read_u32(self.ip + 1) as usize;
-                    let value_name = block.read_variable(value_index);
-                    self.variables.insert(value_name, self.peek(0));
-                    self.pop();
-                    self.ip += 4;
-                }
-                OpCode::GetValue => {
-                    let constant_index = block.read_u8(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.values[&name.to_string()].clone());
-                    self.ip += 1;
-                }
-                OpCode::GetValue2 => {
-                    let constant_index = block.read_u16(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.values[&name.to_string()].clone());
-                    self.ip += 2;
-                }
-                OpCode::GetValue4 => {
-                    let constant_index = block.read_u32(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.values[&name.to_string()].clone());
-                    self.ip += 4;
-                }
-                OpCode::GetVariable => {
-                    let constant_index = block.read_u8(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.variables[&name.to_string()].clone());
-                    self.ip += 1;
-                }
-                OpCode::GetVariable2 => {
-                    let constant_index = block.read_u16(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.variables[&name.to_string()].clone());
-                    self.ip += 2;
-                }
-                OpCode::GetVariable4 => {
-                    let constant_index = block.read_u32(self.ip + 1) as usize;
-                    let name = block.read_constant(constant_index);
-                    self.push(self.variables[&name.to_string()].clone());
-                    self.ip += 4;
-                }
+                OpCode::SetValue => fn_set_value(self, block),
+                OpCode::SetValue2 => fn_set_value2(self, block),
+                OpCode::SetValue4 => fn_set_value4(self, block),
+                OpCode::SetVariable => fn_set_variable(self, block),
+                OpCode::SetVariable2 => fn_set_variable2(self, block),
+                OpCode::SetVariable4 => fn_set_variable4(self, block),
+                OpCode::GetValue => fn_get_value(self, block),
+                OpCode::GetValue2 => fn_get_value2(self, block),
+                OpCode::GetValue4 => fn_get_value4(self, block),
+                OpCode::GetVariable => fn_get_variable(self, block),
+                OpCode::GetVariable2 => fn_get_variable2(self, block),
+                OpCode::GetVariable4 => fn_get_variable4(self, block),
             }
             self.ip += 1;
         }
@@ -320,7 +180,7 @@ mod tests {
     #[test]
     fn can_print_hello_world() {
         let program = r#"
-        print "Hello, World!"
+        print "Hello World 🌍"
         "#;
 
         let mut vm = super::VirtualMachine::new();
@@ -344,8 +204,8 @@ mod tests {
     #[test]
     fn can_run_multi_line_statements() {
         let program = r#"
-        print "Hello, World!"
-        print 42 * 3.14
+        print "Hello World 🌎"
+        print 13
         "#;
 
         let mut vm = super::VirtualMachine::new();
