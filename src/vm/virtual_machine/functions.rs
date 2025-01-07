@@ -33,7 +33,7 @@ pub(crate) fn fn_string(vm: &mut VirtualMachine, block: &Block) {
 #[inline(always)]
 pub(crate) fn fn_not(vm: &mut VirtualMachine) {
     let value = vm.pop();
-    vm.push(boolean!(is_falsey!(value)));
+    vm.push(boolean!(is_false_like!(value)));
 }
 
 #[inline(always)]
