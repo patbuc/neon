@@ -12,6 +12,23 @@ pub(crate) mod opcodes;
 mod utils;
 mod virtual_machine;
 
+#[repr(u8)]
+pub enum BitsSize {
+    Eight,
+    Sixteen,
+    ThirtyTwo,
+}
+
+impl BitsSize {
+    pub fn as_bytes(&self) -> usize {
+        match self {
+            BitsSize::Eight => 1,
+            BitsSize::Sixteen => 2,
+            BitsSize::ThirtyTwo => 4,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Number(f64),
@@ -31,16 +48,15 @@ pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
     block: Option<Rc<Block>>,
+    globals: HashMap<String, Value>,
     output_handler: Box<dyn OutputHandler>,
-    values: HashMap<String, Value>,
-    variables: HashMap<String, Value>,
 }
 
 #[derive(Debug)]
 pub(crate) struct Block {
     name: String,
     constants: Constants,
-    variables: Variables,
+    globals: Vec<String>,
     strings: Constants,
     instructions: Vec<u8>,
     lines: Vec<Line>,
@@ -49,12 +65,6 @@ pub(crate) struct Block {
 #[derive(Debug)]
 struct Constants {
     values: Vec<Value>,
-}
-
-#[derive(Debug)]
-struct Variables {
-    values: Vec<String>,
-    variables: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

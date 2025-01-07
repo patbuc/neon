@@ -4,10 +4,10 @@ use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::utils::output_handler::ConsoleOutputHandler;
 use crate::vm::{Block, Result, Value, VirtualMachine};
+use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::vm;
 use crate::vm::virtual_machine::functions::*;
 use log::info;
 
@@ -17,9 +17,7 @@ impl VirtualMachine {
             ip: 0,
             stack: Vec::new(),
             block: None,
-            output_handler: Box::new(ConsoleOutputHandler {}),
-            values: HashMap::new(),
-            variables: HashMap::new(),
+            globals: HashMap::new(),
         }
     }
 
@@ -53,9 +51,7 @@ impl VirtualMachine {
         loop {
             let op_code = OpCode::from_u8(block.read_u8(self.ip));
             match op_code {
-                OpCode::Return => {
-                    return Result::Ok;
-                }
+                OpCode::Return => return Result::Ok,
                 OpCode::Constant => fn_constant(self, block),
                 OpCode::Constant2 => fn_constant2(self, block),
                 OpCode::Constant4 => fn_constant4(self, block),
@@ -83,21 +79,13 @@ impl VirtualMachine {
                 OpCode::String2 => fn_string2(self, block),
                 OpCode::String4 => fn_string4(self, block),
                 OpCode::Print => fn_print(self),
-                OpCode::Pop => {
-                    self.pop();
-                }
-                OpCode::SetValue => fn_set_value(self, block),
-                OpCode::SetValue2 => fn_set_value2(self, block),
-                OpCode::SetValue4 => fn_set_value4(self, block),
-                OpCode::SetVariable => fn_set_variable(self, block),
-                OpCode::SetVariable2 => fn_set_variable2(self, block),
-                OpCode::SetVariable4 => fn_set_variable4(self, block),
-                OpCode::GetValue => fn_get_value(self, block),
-                OpCode::GetValue2 => fn_get_value2(self, block),
-                OpCode::GetValue4 => fn_get_value4(self, block),
-                OpCode::GetVariable => fn_get_variable(self, block),
-                OpCode::GetVariable2 => fn_get_variable2(self, block),
-                OpCode::GetVariable4 => fn_get_variable4(self, block),
+                OpCode::Pop => _ = self.pop(),
+                OpCode::DefineGlobal => fn_define_global(self, block, BitsSize::Eight),
+                OpCode::DefineGlobal2 => fn_define_global(self, block, BitsSize::Sixteen),
+                OpCode::DefineGlobal4 => fn_define_global(self, block, BitsSize::ThirtyTwo),
+                OpCode::GetGlobal => fn_get_global(self, block, BitsSize::Eight),
+                OpCode::GetGlobal2 => fn_get_global(self, block, BitsSize::Sixteen),
+                OpCode::GetGlobal4 => fn_get_global(self, block, BitsSize::ThirtyTwo),
             }
             self.ip += 1;
         }
