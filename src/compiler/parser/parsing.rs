@@ -61,7 +61,7 @@ impl Parser {
         if self.match_token(TokenType::Val) {
             self.val_declaration();
         } else if self.match_token(TokenType::Var) {
-            self.var_declaration();
+            self.val_declaration();
         } else {
             self.statement();
         }
@@ -87,26 +87,7 @@ impl Parser {
             "Expecting '\\n' or '\\0' after value declaration.",
         );
 
-        self.emit_value(name);
-    }
-
-    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
-    fn var_declaration(&mut self) {
-        let name = self.parse_value();
-
-        if self.match_token(TokenType::Equal) {
-            self.expression(false);
-        } else {
-            self.emit_op_code(OpCode::Nil);
-        }
-
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after value declaration.",
-        );
-
-        self.emit_variable(name);
+        self.define_global(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -147,8 +128,8 @@ impl Parser {
 
         while precedence as u8
             <= self
-            .get_rule(self.current_token.token_type.clone())
-            .precedence as u8
+                .get_rule(self.current_token.token_type.clone())
+                .precedence as u8
         {
             self.advance();
             let infix_rule = self.get_rule(self.previous_token.token_type.clone()).infix;
@@ -165,28 +146,15 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token;
-        let is_value = self.is_value(name);
         let index = self.add_constant(string!(name.to_string()));
         if index <= 0xFF {
-            self.emit_op_code(if is_value {
-                OpCode::GetValue
-            } else {
-                OpCode::GetVariable
-            });
+            self.emit_op_code(OpCode::GetGlobal);
             self.emit_u8(index as u8);
         } else if index <= 0xFFFF {
-            self.emit_op_code(if is_value {
-                OpCode::GetValue2
-            } else {
-                OpCode::GetVariable2
-            });
+            self.emit_op_code(OpCode::GetGlobal2);
             self.emit_u16(index as u16);
         } else {
-            self.emit_op_code(if is_value {
-                OpCode::GetValue4
-            } else {
-                OpCode::GetVariable4
-            });
+            self.emit_op_code(OpCode::GetGlobal4);
             self.emit_u32(index);
         }
     }

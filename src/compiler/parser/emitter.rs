@@ -24,14 +24,9 @@ impl Parser {
         self.current_block_mut().write_constant(value, line)
     }
 
-    pub fn emit_value(&mut self, name: String) -> u32 {
+    pub fn define_global(&mut self, name: String) {
         let line = self.previous_token.line;
-        self.current_block_mut().write_value(name, line)
-    }
-
-    pub fn emit_variable(&mut self, name: String) -> u32 {
-        let line = self.previous_token.line;
-        self.current_block_mut().write_variable(name, line)
+        self.current_block_mut().define_global(name, line)
     }
 
     pub fn emit_string(&mut self, value: Value) -> u32 {
@@ -42,10 +37,6 @@ impl Parser {
     pub fn emit_op_code(&mut self, op_code: OpCode) {
         let line = self.previous_token.line;
         self.current_block_mut().write_op_code(op_code, line);
-    }
-
-    pub fn is_value(&self, name: &str) -> bool {
-        self.current_block().is_value(name)
     }
 
     pub fn emit_u8(&mut self, value: u8) {
