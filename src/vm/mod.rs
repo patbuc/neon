@@ -52,6 +52,12 @@ pub struct VirtualMachine {
     output_handler: Box<dyn OutputHandler>,
 }
 
+impl VirtualMachine {
+    pub(crate) fn get_output(&self) -> String {
+        self.output_handler.get_output()
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct Block {
     name: String,
