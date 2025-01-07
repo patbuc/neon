@@ -2,8 +2,7 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
-use crate::vm::utils::output_handler::ConsoleOutputHandler;
-use crate::vm::{Block, Result, Value, VirtualMachine};
+use crate::vm::utils::output_handler::{ConsoleOutputHandler, StringBuffer};
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -18,6 +17,17 @@ impl VirtualMachine {
             stack: Vec::new(),
             block: None,
             globals: HashMap::new(),
+            output_handler: Box::new(ConsoleOutputHandler::new()),
+        }
+    }
+
+    pub fn new_with_string_buffer() -> Self {
+        VirtualMachine {
+            ip: 0,
+            stack: Vec::new(),
+            block: None,
+            globals: HashMap::new(),
+            output_handler: Box::new(StringBuffer::new()),
         }
     }
 
