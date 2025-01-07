@@ -89,7 +89,7 @@ macro_rules! as_nil {
 }
 
 #[macro_export]
-macro_rules! is_falsey {
+macro_rules! is_false_like {
     ($value: expr) => {
         match $value {
             Value::Nil => true,
