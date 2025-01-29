@@ -53,6 +53,7 @@ pub struct VirtualMachine {
 
 #[derive(Debug)]
 pub(crate) struct Block {
+    #[allow(dead_code)]
     name: String,
     constants: Constants,
     globals: Vec<String>,
