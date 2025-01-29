@@ -3,7 +3,10 @@ use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 #[inline(always)]
 pub(crate) fn fn_print(vm: &mut VirtualMachine) {
     let value = vm.pop();
-    vm.output_handler.println(value);
+    println!("{}", value);
+
+    #[cfg(test)]
+    vm.string_buffer.push_str(value.to_string().as_str());
 }
 
 #[inline(always)]
