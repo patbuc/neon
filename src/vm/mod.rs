@@ -1,4 +1,3 @@
-use crate::vm::utils::output_handler::OutputHandler;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -9,7 +8,6 @@ mod value;
 mod block;
 pub(crate) mod opcodes;
 
-mod utils;
 mod virtual_machine;
 
 #[repr(u8)]
@@ -49,13 +47,8 @@ pub struct VirtualMachine {
     stack: Vec<Value>,
     block: Option<Rc<Block>>,
     globals: HashMap<String, Value>,
-    output_handler: Box<dyn OutputHandler>,
-}
-
-impl VirtualMachine {
-    pub(crate) fn get_output(&self) -> String {
-        self.output_handler.get_output()
-    }
+    #[cfg(test)]
+    string_buffer: String,
 }
 
 #[derive(Debug)]

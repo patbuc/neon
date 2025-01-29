@@ -2,7 +2,6 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
-use crate::vm::utils::output_handler::{ConsoleOutputHandler, StringBuffer};
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -17,17 +16,8 @@ impl VirtualMachine {
             stack: Vec::new(),
             block: None,
             globals: HashMap::new(),
-            output_handler: Box::new(ConsoleOutputHandler::new()),
-        }
-    }
-
-    pub fn new_with_string_buffer() -> Self {
-        VirtualMachine {
-            ip: 0,
-            stack: Vec::new(),
-            block: None,
-            globals: HashMap::new(),
-            output_handler: Box::new(StringBuffer::new()),
+            #[cfg(test)]
+            string_buffer: String::new(),
         }
     }
 
@@ -133,6 +123,11 @@ impl VirtualMachine {
             .get_line(self.ip)
             .unwrap()
             .offset
+    }
+
+    #[cfg(test)]
+    fn get_output(&self) -> String {
+        self.string_buffer.clone()
     }
 
     fn reset(&mut self) {

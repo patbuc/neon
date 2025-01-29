@@ -74,7 +74,7 @@ fn can_define_a_global_value() {
         print greeting
         "#;
 
-    let mut vm = super::VirtualMachine::new_with_string_buffer();
+    let mut vm = super::VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
     assert_eq!(super::Result::Ok, result);
