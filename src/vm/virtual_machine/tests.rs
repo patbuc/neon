@@ -80,3 +80,216 @@ fn can_define_a_global_value() {
     assert_eq!(super::Result::Ok, result);
     assert_eq!("Hello World 🌎", vm.get_output())
 }
+
+#[test]
+fn can_compare_numbers_equal() {
+    let program = r#"
+        print 42 == 42
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_compare_numbers_not_equal() {
+    let program = r#"
+        print 42 == 43
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn can_compare_greater_than() {
+    let program = r#"
+        print 43 > 42
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_compare_less_than() {
+    let program = r#"
+        print 41 < 42
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_use_logical_not() {
+    let program = r#"
+        print !false
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_handle_nil() {
+    let program = r#"
+        val x = nil
+        print x
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("nil", vm.get_output());
+}
+
+#[test]
+fn can_handle_boolean_true() {
+    let program = r#"
+        val x = true
+        print x
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_handle_boolean_false() {
+    let program = r#"
+        val x = false
+        print x
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn can_handle_string_concatenation() {
+    let program = r#"
+        print "Hello" + " " + "World"
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("Hello World", vm.get_output());
+}
+
+#[test]
+fn can_handle_multiple_global_variables() {
+    let program = r#"
+        val x = 40
+        val y = 2
+        print x + y
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("42", vm.get_output());
+}
+
+#[test]
+fn can_handle_string_comparison() {
+    let program = r#"
+        print "hello" == "hello"
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+
+#[test]
+fn can_handle_multiple_boolean_operations() {
+    let program = r#"
+        print true == !false
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_handle_division_by_integers() {
+    let program = r#"
+        print 100 / 20
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("5", vm.get_output());
+}
+
+#[test]
+fn can_handle_float_division() {
+    let program = r#"
+        print 10.0 / 3.0
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("3.3333333333333335", vm.get_output());
+}
+
+#[test]
+fn can_handle_boolean_arithmetic() {
+    let program = r#"
+        print true == true == true
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_handle_complex_string_operations() {
+    let program = r#"
+        val greeting = "Hello"
+        val name = "World"
+        val punctuation = "!"
+        print greeting + " " + name + punctuation
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("Hello World!", vm.get_output());
+}
+
+#[test]
+fn can_handle_multiple_negations() {
+    let program = r#"
+        print !!true
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
