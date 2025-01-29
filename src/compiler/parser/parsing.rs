@@ -259,9 +259,11 @@ impl Parser {
     fn get_rule(&self, token_type: TokenType) -> &ParseRule {
         #[cfg(feature = "disassemble")]
         return self.get_rule_safe(token_type);
+        #[cfg(not(feature = "disassemble"))]
         &(PARSE_RULES.get((token_type as u32) as usize).unwrap().1)
     }
 
+    #[cfg(feature = "disassemble")]
     fn get_rule_safe(&self, token_type: TokenType) -> &ParseRule {
         let parse_rule = PARSE_RULES
             .get((token_type.clone() as u8) as usize)

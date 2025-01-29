@@ -3,10 +3,6 @@ use crate::vm::opcodes::OpCode;
 use crate::vm::{Block, Value};
 
 impl Parser {
-    fn current_block(&self) -> &Block {
-        self.blocks.last().unwrap()
-    }
-
     fn current_block_mut(&mut self) -> &mut Block {
         self.blocks.last_mut().unwrap()
     }

@@ -3,6 +3,7 @@ use crate::compiler::Parser;
 use lazy_static::lazy_static;
 use std::intrinsics::transmute;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Precedence {
     None,
