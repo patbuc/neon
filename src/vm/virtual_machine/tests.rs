@@ -82,6 +82,19 @@ fn can_define_a_global_value() {
 }
 
 #[test]
+fn can_negate_numbers() {
+    let program = r#"
+        val x = 42
+        print -x
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("-42", vm.get_output());
+}
+
+#[test]
 fn can_compare_numbers_equal() {
     let program = r#"
         print 42 == 42
