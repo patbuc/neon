@@ -1,7 +1,9 @@
 use crate::compiler::token::TokenType;
 use crate::vm::Block;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-mod compiler;
+pub(crate) mod compiler;
 mod parser;
 mod scanner;
 mod token;
@@ -26,6 +28,7 @@ struct Scanner {
 
 #[derive(Debug)]
 struct Parser {
+    compiler: Rc<RefCell<Compiler>>,
     scanner: Scanner,
     blocks: Vec<Block>,
     previous_token: Token,
@@ -35,4 +38,6 @@ struct Parser {
 }
 
 #[derive(Debug)]
-pub(crate) struct Compiler {}
+pub(crate) struct Compiler {
+    scope_depth: u32,
+}

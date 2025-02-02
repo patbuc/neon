@@ -2,12 +2,12 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
+use crate::vm::virtual_machine::functions::*;
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
+use log::info;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-use crate::vm::virtual_machine::functions::*;
-use log::info;
 
 impl VirtualMachine {
     pub fn new() -> Self {
@@ -25,8 +25,8 @@ impl VirtualMachine {
         self.reset();
 
         let start = std::time::Instant::now();
-        let mut compiler = Compiler::new();
-        let block = compiler.compile(source);
+        let compiler = Compiler::new();
+        let block = Compiler::compile(Rc::new(RefCell::new(compiler)), source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
