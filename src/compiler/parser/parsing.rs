@@ -49,11 +49,11 @@ impl Parser {
             return false;
         }
         self.advance();
-        return true;
+        true
     }
 
     fn check(&mut self, token_type: TokenType) -> bool {
-        return self.current_token.token_type == token_type;
+        self.current_token.token_type == token_type
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
