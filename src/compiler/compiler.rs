@@ -23,10 +23,10 @@ impl Compiler {
         parser.consume(TokenType::Eof, "Expect end of expression");
         parser.end();
 
-        return if !(parser.had_error) {
+        if !(parser.had_error) {
             parser.blocks.pop()
         } else {
             None
-        };
+        }
     }
 }
