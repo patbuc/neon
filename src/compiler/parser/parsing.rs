@@ -1,9 +1,11 @@
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
-use crate::compiler::{Parser, Scanner, Token};
+use crate::compiler::{Compiler, Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
 use crate::vm::Value;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::{number, string};
@@ -11,8 +13,9 @@ use crate::{number, string};
 use tracing_attributes::instrument;
 
 impl Parser {
-    pub(in crate::compiler) fn new(scanner: Scanner) -> Parser {
+    pub(in crate::compiler) fn new(compiler: Rc<RefCell<Compiler>>, scanner: Scanner) -> Parser {
         Parser {
+            compiler,
             scanner,
             blocks: Vec::default(),
             had_error: false,
@@ -99,6 +102,10 @@ impl Parser {
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else if self.match_token(TokenType::LeftBrace) {
+            self.begin_scope();
+            self.block();
+            self.end_scope();
         } else {
             self.expression_statement();
         }
@@ -337,6 +344,33 @@ impl Parser {
                 | TokenType::Return => return,
                 _ => {}
             }
+            self.advance();
+        }
+    }
+
+    fn begin_scope(&mut self) {
+        self.compiler.borrow_mut().scope_depth += 1;
+    }
+
+    fn end_scope(&mut self) {
+        self.compiler.borrow_mut().scope_depth -= 1;
+    }
+
+    fn block(&mut self) {
+        self.skip_new_lines();
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            self.declaration();
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after block.");
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' at end of statement.",
+        );
+    }
+
+    fn skip_new_lines(&mut self) {
+        while self.check(TokenType::NewLine) {
             self.advance();
         }
     }

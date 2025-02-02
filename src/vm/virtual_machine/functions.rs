@@ -7,6 +7,8 @@ pub(crate) fn fn_print(vm: &mut VirtualMachine) {
 
     #[cfg(test)]
     vm.string_buffer.push_str(value.to_string().as_str());
+    #[cfg(test)]
+    vm.string_buffer.push_str("\n");
 }
 
 #[inline(always)]
