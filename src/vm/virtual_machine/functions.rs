@@ -99,12 +99,12 @@ pub(crate) fn fn_add(vm: &mut VirtualMachine) -> Option<Result> {
 #[inline(always)]
 pub(crate) fn fn_negate(vm: &mut VirtualMachine) -> Option<Result> {
     if let Value::Number(..) = vm.peek(0) {
-        vm.runtime_error("Operand must be a number");
-        return Some(crate::vm::Result::RuntimeError);
+        let value = vm.pop();
+        vm.push(number!(-as_number!(value)));
+        return None;
     }
-    let value = vm.pop();
-    vm.push(number!(-as_number!(value)));
-    None
+    vm.runtime_error("Operand must be a number");
+    Some(Result::RuntimeError)
 }
 
 #[inline(always)]
