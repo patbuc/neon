@@ -220,6 +220,20 @@ fn can_handle_multiple_global_variables() {
 }
 
 #[test]
+fn can_handle_complex_arithmetic() {
+    let program = r#"
+        val x = 10
+        val y = 5
+        print (x + y) * (x - y)
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("75", vm.get_output());
+}
+
+#[test]
 fn can_handle_string_comparison() {
     let program = r#"
         print "hello" == "hello"
@@ -266,6 +280,19 @@ fn can_handle_float_division() {
     let result = vm.interpret(program.to_string());
     assert_eq!(super::Result::Ok, result);
     assert_eq!("3.3333333333333335", vm.get_output());
+}
+
+#[test]
+fn can_handle_negative_numbers() {
+    let program = r#"
+        val x = -42
+        print -x
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("42", vm.get_output());
 }
 
 #[test]
