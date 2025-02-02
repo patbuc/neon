@@ -86,6 +86,7 @@ impl VirtualMachine {
                 OpCode::GetGlobal => fn_get_global(self, block, BitsSize::Eight),
                 OpCode::GetGlobal2 => fn_get_global(self, block, BitsSize::Sixteen),
                 OpCode::GetGlobal4 => fn_get_global(self, block, BitsSize::ThirtyTwo),
+                OpCode::JumpIfFalse => fn_jump_if_false(self, block),
             }
             self.ip += 1;
         }
@@ -127,7 +128,7 @@ impl VirtualMachine {
 
     #[cfg(test)]
     fn get_output(&self) -> String {
-        self.string_buffer.clone()
+        self.string_buffer.trim().to_string()
     }
 
     fn reset(&mut self) {
