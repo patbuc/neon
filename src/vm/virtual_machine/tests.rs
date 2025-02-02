@@ -245,7 +245,6 @@ fn can_handle_string_comparison() {
     assert_eq!("true", vm.get_output());
 }
 
-
 #[test]
 fn can_handle_multiple_boolean_operations() {
     let program = r#"
@@ -332,4 +331,36 @@ fn can_handle_multiple_negations() {
     let result = vm.interpret(program.to_string());
     assert_eq!(super::Result::Ok, result);
     assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_handle_a_true_if_statement() {
+    let program = r#"
+        val x = 42
+        if (x == 42) {
+            print "The answer to everything"
+        }
+        print "The end"
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("The answer to everything\nThe end", vm.get_output());
+}
+
+#[test]
+fn can_handle_a_false_if_statement() {
+    let program = r#"
+        val x = 42
+        if (x != 42) {
+            print "The answer to everything"
+        }
+        print "The end"
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("The end", vm.get_output());
 }

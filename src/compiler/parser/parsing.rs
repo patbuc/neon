@@ -106,6 +106,8 @@ impl Parser {
             self.begin_scope();
             self.block();
             self.end_scope();
+        } else if self.match_token(TokenType::If) {
+            self.if_statement();
         } else {
             self.expression_statement();
         }
@@ -289,6 +291,16 @@ impl Parser {
             "Expecting '\\n' or '\\0' at end of statement.",
         );
         self.emit_op_code(OpCode::Print);
+    }
+
+    fn if_statement(&mut self) {
+        self.consume(TokenType::LeftParen, "Expecting '(' after 'if'.");
+        self.expression(false);
+        self.consume(TokenType::RightParen, "Expecting ')' after condition.");
+
+        let then_jump = self.emit_jump(OpCode::JumpIfFalse);
+        self.statement();
+        self.patch_jump(then_jump);
     }
 
     fn expression_statement(&mut self) {

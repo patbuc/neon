@@ -30,6 +30,7 @@ pub(crate) enum OpCode {
     GetGlobal,
     GetGlobal2,
     GetGlobal4,
+    JumpIfFalse,
 }
 
 impl OpCode {

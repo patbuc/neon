@@ -118,6 +118,21 @@ impl Block {
         let byte4 = self.instructions[offset + 3] as u32;
         (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
     }
+
+    pub(crate) fn emit_jump(&mut self, op_code: OpCode, line: u32) -> u32 {
+        self.write_op_code(op_code, line);
+        self.write_u32(0xFFFF_FFFF);
+        self.instructions.len() as u32 - 4
+    }
+
+    pub(crate) fn patch_jump(&mut self, offset: u32) {
+        let jump = self.instructions.len() as u32 - offset - 4;
+        let offset = offset as usize;
+        self.instructions[offset] = jump as u8;
+        self.instructions[offset + 1] = (jump >> 8) as u8;
+        self.instructions[offset + 2] = (jump >> 16) as u8;
+        self.instructions[offset + 3] = (jump >> 24) as u8;
+    }
 }
 
 impl Block {

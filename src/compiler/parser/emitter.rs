@@ -35,6 +35,15 @@ impl Parser {
         self.current_block_mut().write_op_code(op_code, line);
     }
 
+    pub fn emit_jump(&mut self, op_code: OpCode) -> u32 {
+        let line = self.previous_token.line;
+        self.current_block_mut().emit_jump(op_code, line)
+    }
+
+    pub fn patch_jump(&mut self, offset: u32) {
+        self.current_block_mut().patch_jump(offset);
+    }
+
     pub fn emit_u8(&mut self, value: u8) {
         self.current_block_mut().write_u8(value);
     }
