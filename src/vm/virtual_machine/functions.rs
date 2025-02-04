@@ -156,6 +156,10 @@ pub(crate) fn fn_get_global(vm: &mut VirtualMachine, block: &Block, bits: BitsSi
         BitsSize::ThirtyTwo => index = block.read_u32(vm.ip + 1) as usize,
     }
     let name = block.read_constant(index);
+    if !vm.globals.contains_key(&name.to_string()) {
+        vm.runtime_error(&format!("Undefined value '{}'", name));
+        return;
+    }
     vm.push(vm.globals[&name.to_string()].clone());
     vm.ip += bits.as_bytes()
 }
