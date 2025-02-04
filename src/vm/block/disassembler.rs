@@ -56,8 +56,8 @@ impl Block {
             OpCode::GetGlobal => self.variable_instruction(OpCode::GetGlobal, offset),
             OpCode::GetGlobal2 => self.variable_instruction(OpCode::GetGlobal2, offset),
             OpCode::GetGlobal4 => self.variable_instruction(OpCode::GetGlobal4, offset),
-            OpCode::JumpIfFalse => self.simple_instruction(instruction, offset),
-            OpCode::Jump => self.simple_instruction(instruction, offset),
+            OpCode::JumpIfFalse => self.jump_instruction(instruction, offset),
+            OpCode::Jump => self.jump_instruction(instruction, offset),
         }
     }
 
@@ -99,6 +99,17 @@ impl Block {
         let constant = self.read_constant(index);
         println!("{:?} {:02} '{}'", op_code, index, constant.to_string());
         offset + 1 + offset_shift
+    }
+
+    fn jump_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let jump = self.read_u32(offset + 1);
+        println!(
+            "{:?} {:04x} -> {:04x}",
+            op_code,
+            offset,
+            offset + 5 + jump as usize
+        );
+        offset + 5
     }
 
     fn string_instruction(&self, op_code: OpCode, offset: usize) -> usize {
