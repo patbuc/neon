@@ -165,6 +165,14 @@ pub(crate) fn fn_jump_if_false(vm: &mut VirtualMachine, block: &Block) {
     let offset = block.read_u32(vm.ip + 1);
     vm.ip += 4;
     if is_false_like!(vm.peek(0)) {
+        vm.pop();
         vm.ip += offset as usize;
     }
+}
+
+#[inline(always)]
+pub(crate) fn fn_jump(vm: &mut VirtualMachine, block: &Block) {
+    let offset = block.read_u32(vm.ip + 1);
+    vm.ip += 4;
+    vm.ip += offset as usize;
 }
