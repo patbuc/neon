@@ -12,16 +12,16 @@ fn can_create_vm() {
 fn can_execute_simple_arithmetics() {
     let mut block = super::Block::new("ZeBlock");
 
-    block.write_constant(crate::number!(1.0), 0);
-    block.write_constant(crate::number!(2.0), 0);
-    block.write_op_code(super::OpCode::Add, 0);
-    block.write_constant(crate::number!(3.0), 0);
-    block.write_op_code(super::OpCode::Multiply, 0);
-    block.write_constant(crate::number!(2.0), 0);
-    block.write_op_code(super::OpCode::Subtract, 0);
-    block.write_constant(crate::number!(2.0), 0);
-    block.write_op_code(super::OpCode::Divide, 0);
-    block.write_op_code(super::OpCode::Return, 0);
+    block.write_constant(crate::number!(1.0), 0, 0);
+    block.write_constant(crate::number!(2.0), 0, 0);
+    block.write_op_code(super::OpCode::Add, 0, 0);
+    block.write_constant(crate::number!(3.0), 0, 0);
+    block.write_op_code(super::OpCode::Multiply, 0, 0);
+    block.write_constant(crate::number!(2.0), 0, 0);
+    block.write_op_code(super::OpCode::Subtract, 0, 0);
+    block.write_constant(crate::number!(2.0), 0, 0);
+    block.write_op_code(super::OpCode::Divide, 0, 0);
+    block.write_op_code(super::OpCode::Return, 0, 0);
 
     let mut vm = super::VirtualMachine::new();
 

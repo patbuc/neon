@@ -110,21 +110,12 @@ impl VirtualMachine {
 
     fn runtime_error(&mut self, error: &str) {
         let line = self.get_current_execution_line();
-        let offset = self.get_current_execution_offset();
-        eprintln!("[line {} char {}] {}", line, offset, error);
+        eprintln!("[line {} char {}] {}", line.0, line.1, error);
     }
 
-    fn get_current_execution_line(&self) -> u32 {
-        self.block.as_ref().unwrap().get_line(self.ip).unwrap().line + 1
-    }
-
-    fn get_current_execution_offset(&self) -> usize {
-        self.block
-            .as_ref()
-            .unwrap()
-            .get_line(self.ip)
-            .unwrap()
-            .offset
+    fn get_current_execution_line(&self) -> (u32, u32) {
+        let line = self.block.as_ref().unwrap().get_line(self.ip).unwrap();
+        (line.line, line.char)
     }
 
     #[cfg(test)]

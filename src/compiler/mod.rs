@@ -12,7 +12,7 @@ mod token;
 struct Token {
     token_type: TokenType,
     token: String,
-    pos: u32,
+    char: u32,
     line: u32,
 }
 
@@ -22,7 +22,7 @@ struct Scanner {
     start: usize,
     current: usize,
     line: u32,
-    pos: u32,
+    char: u32,
     previous_token_type: TokenType,
 }
 

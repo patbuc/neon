@@ -71,4 +71,5 @@ struct Constants {
 struct Line {
     pub offset: usize,
     pub line: u32,
+    pub char: u32,
 }
