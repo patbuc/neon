@@ -15,8 +15,8 @@ impl Block {
 }
 
 impl Block {
-    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32) {
-        self.add_line(self.instructions.len(), line);
+    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, char: u32) {
+        self.add_line(self.instructions.len(), line, char);
         self.instructions.push(op_code as u8)
     }
 
@@ -24,46 +24,46 @@ impl Block {
         self.constants.write_value(value)
     }
 
-    pub(crate) fn write_constant(&mut self, value: Value, line: u32) -> u32 {
+    pub(crate) fn write_constant(&mut self, value: Value, line: u32, char: u32) -> u32 {
         let constant_index = self.add_constant(value);
         if constant_index <= 0xFF {
-            self.write_op_code(OpCode::Constant, line);
+            self.write_op_code(OpCode::Constant, line, char);
             self.write_u8(constant_index as u8)
         } else if constant_index <= 0xFFFF {
-            self.write_op_code(OpCode::Constant2, line);
+            self.write_op_code(OpCode::Constant2, line, char);
             self.write_u16(constant_index as u16)
         } else {
-            self.write_op_code(OpCode::Constant4, line);
+            self.write_op_code(OpCode::Constant4, line, char);
             self.write_u32(constant_index)
         }
         constant_index
     }
 
-    pub(crate) fn define_global(&mut self, name: String, line: u32) {
+    pub(crate) fn define_global(&mut self, name: String, line: u32, char: u32) {
         self.globals.push(name);
         let index = (self.globals.len() - 1) as u32;
         if index <= 0xFF {
-            self.write_op_code(OpCode::DefineGlobal, line);
+            self.write_op_code(OpCode::DefineGlobal, line, char);
             self.write_u8(index as u8)
         } else if index <= 0xFFFF {
-            self.write_op_code(OpCode::DefineGlobal2, line);
+            self.write_op_code(OpCode::DefineGlobal2, line, char);
             self.write_u16(index as u16)
         } else {
-            self.write_op_code(OpCode::DefineGlobal4, line);
+            self.write_op_code(OpCode::DefineGlobal4, line, char);
             self.write_u32(index)
         }
     }
 
-    pub(crate) fn write_string(&mut self, value: Value, line: u32) -> u32 {
+    pub(crate) fn write_string(&mut self, value: Value, line: u32, char: u32) -> u32 {
         let string_index = self.strings.write_value(value);
         if string_index <= 0xFF {
-            self.write_op_code(OpCode::String, line);
+            self.write_op_code(OpCode::String, line, char);
             self.write_u8(string_index as u8)
         } else if string_index <= 0xFFFF {
-            self.write_op_code(OpCode::String2, line);
+            self.write_op_code(OpCode::String2, line, char);
             self.write_u16(string_index as u16)
         } else {
-            self.write_op_code(OpCode::String4, line);
+            self.write_op_code(OpCode::String4, line, char);
             self.write_u32(string_index)
         }
         string_index
@@ -119,8 +119,8 @@ impl Block {
         (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
     }
 
-    pub(crate) fn emit_jump(&mut self, op_code: OpCode, line: u32) -> u32 {
-        self.write_op_code(op_code, line);
+    pub(crate) fn emit_jump(&mut self, op_code: OpCode, line: u32, char: u32) -> u32 {
+        self.write_op_code(op_code, line, char);
         self.write_u32(0xFFFF_FFFF);
         self.instructions.len() as u32 - 4
     }
@@ -136,8 +136,8 @@ impl Block {
 }
 
 impl Block {
-    fn add_line(&mut self, offset: usize, line: u32) {
-        self.lines.push(Line { offset, line });
+    fn add_line(&mut self, offset: usize, line: u32, char: u32) {
+        self.lines.push(Line { offset, line, char });
     }
 
     pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<Line> {
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn op_code_can_be_pushed_to_an_block() {
         let mut block = Block::new("jenny");
-        block.write_op_code(OpCode::Return, 123);
+        block.write_op_code(OpCode::Return, 123, 42);
 
         assert_eq!(1, block.instructions.len());
         assert_eq!(OpCode::Return as u8, block.instructions[0]);
@@ -190,7 +190,7 @@ mod tests {
     fn can_write_more_then_256_constants() {
         let mut block = Block::new("maggie");
         for i in 0..258 {
-            block.write_constant(number!(i as f64), i);
+            block.write_constant(number!(i as f64), i, 42);
         }
 
         assert_eq!(2 * 256 + 6, block.instructions.len());
@@ -237,26 +237,26 @@ mod tests {
     fn can_write_block() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(number!(1234.56), 2);
-        block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(number!(345.67), 4);
-        block.write_op_code(OpCode::Add, 4);
-        block.write_constant(number!(1.2), 5);
-        block.write_op_code(OpCode::Multiply, 6);
-        block.write_op_code(OpCode::Return, 8);
+        block.write_constant(number!(1234.56), 2, 0);
+        block.write_op_code(OpCode::Negate, 3, 0);
+        block.write_constant(number!(345.67), 4, 0);
+        block.write_op_code(OpCode::Add, 4, 0);
+        block.write_constant(number!(1.2), 5, 0);
+        block.write_op_code(OpCode::Multiply, 6, 0);
+        block.write_op_code(OpCode::Return, 8, 0);
     }
 
     #[test]
     fn can_read_line_information() {
         let mut block = Block::new("ZeBlock");
 
-        block.write_constant(number!(1234.56), 2);
-        block.write_op_code(OpCode::Negate, 3);
-        block.write_constant(number!(345.67), 4);
-        block.write_op_code(OpCode::Add, 4);
-        block.write_constant(number!(1.2), 5);
-        block.write_op_code(OpCode::Multiply, 6);
-        block.write_op_code(OpCode::Return, 8);
+        block.write_constant(number!(1234.56), 2, 0);
+        block.write_op_code(OpCode::Negate, 3, 0);
+        block.write_constant(number!(345.67), 4, 0);
+        block.write_op_code(OpCode::Add, 4, 0);
+        block.write_constant(number!(1.2), 5, 0);
+        block.write_op_code(OpCode::Multiply, 6, 0);
+        block.write_op_code(OpCode::Return, 8, 0);
 
         assert_eq!(2, block.get_line(0).unwrap().line);
         assert_eq!(2, block.get_line(1).unwrap().line);

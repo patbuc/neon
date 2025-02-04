@@ -63,7 +63,7 @@ impl Token {
         Token {
             token_type,
             token,
-            pos,
+            char: pos,
             line,
         }
     }
