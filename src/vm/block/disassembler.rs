@@ -56,7 +56,8 @@ impl Block {
             OpCode::GetGlobal => self.variable_instruction(OpCode::GetGlobal, offset),
             OpCode::GetGlobal2 => self.variable_instruction(OpCode::GetGlobal2, offset),
             OpCode::GetGlobal4 => self.variable_instruction(OpCode::GetGlobal4, offset),
-            OpCode::JumpIfFalse => self.string_instruction(instruction, offset),
+            OpCode::JumpIfFalse => self.simple_instruction(instruction, offset),
+            OpCode::Jump => self.simple_instruction(instruction, offset),
         }
     }
 

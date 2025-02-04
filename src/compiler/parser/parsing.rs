@@ -300,7 +300,13 @@ impl Parser {
 
         let then_jump = self.emit_jump(OpCode::JumpIfFalse);
         self.statement();
+        let else_jump = self.emit_jump(OpCode::Jump);
         self.patch_jump(then_jump);
+
+        if self.match_token(TokenType::Else) {
+            self.statement();
+        }
+        self.patch_jump(else_jump);
     }
 
     fn expression_statement(&mut self) {
@@ -374,11 +380,13 @@ impl Parser {
             self.declaration();
         }
         self.consume(TokenType::RightBrace, "Expect '}' after block.");
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' at end of statement.",
-        );
+        if !self.check(TokenType::Else) {
+            self.consume_either(
+                TokenType::NewLine,
+                TokenType::Eof,
+                "Expecting '\\n' or '\\0' at end of block.",
+            );
+        }
     }
 
     fn skip_new_lines(&mut self) {

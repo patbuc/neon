@@ -364,3 +364,58 @@ fn can_handle_a_false_if_statement() {
     assert_eq!(super::Result::Ok, result);
     assert_eq!("The end", vm.get_output());
 }
+
+#[test]
+fn can_handle_a_true_if_else_statement() {
+    let program = r#"
+        val x = 42
+        if (x == 42) {
+            print "The answer to everything"
+        } else {
+            print "The end"
+        }
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("The answer to everything", vm.get_output());
+}
+
+#[test]
+fn can_handle_multiple_if_else_statements() {
+    let program = r#"
+        val x = 42
+        if (x == 41) {
+            print "The answer to everything"
+        } else if (x == 42) {
+            print "The end"
+        } else {
+            print "The beginning"
+        }
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("The end", vm.get_output());
+}
+
+#[test]
+fn can_handle_multiple_if_else_statements_2() {
+    let program = r#"
+        val x = 4
+        if (x == 41) {
+            print "The answer to everything"
+        } else if (x == 42) {
+            print "The end"
+        } else {
+            print "The beginning"
+        }
+        "#;
+
+    let mut vm = super::VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(super::Result::Ok, result);
+    assert_eq!("The beginning", vm.get_output());
+}

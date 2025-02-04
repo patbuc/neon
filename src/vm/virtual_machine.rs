@@ -87,6 +87,7 @@ impl VirtualMachine {
                 OpCode::GetGlobal2 => fn_get_global(self, block, BitsSize::Sixteen),
                 OpCode::GetGlobal4 => fn_get_global(self, block, BitsSize::ThirtyTwo),
                 OpCode::JumpIfFalse => fn_jump_if_false(self, block),
+                OpCode::Jump => fn_jump(self, block),
             }
             self.ip += 1;
         }
