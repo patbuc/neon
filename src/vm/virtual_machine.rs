@@ -2,7 +2,6 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
-use crate::vm::virtual_machine::functions::*;
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 use log::info;
 use std::cell::RefCell;
@@ -52,42 +51,42 @@ impl VirtualMachine {
             let op_code = OpCode::from_u8(block.read_u8(self.ip));
             match op_code {
                 OpCode::Return => return Result::Ok,
-                OpCode::Constant => fn_constant(self, block),
-                OpCode::Constant2 => fn_constant2(self, block),
-                OpCode::Constant4 => fn_constant4(self, block),
+                OpCode::Constant => self.fn_constant(block),
+                OpCode::Constant2 => self.fn_constant2(block),
+                OpCode::Constant4 => self.fn_constant4(block),
                 OpCode::Negate => {
-                    if let Some(value) = fn_negate(self) {
+                    if let Some(value) = self.fn_negate() {
                         return value;
                     }
                 }
                 OpCode::Add => {
-                    if let Some(value) = fn_add(self) {
+                    if let Some(value) = self.fn_add() {
                         return value;
                     }
                 }
-                OpCode::Subtract => fn_subtract(self),
-                OpCode::Multiply => fn_multiply(self),
-                OpCode::Divide => fn_divide(self),
+                OpCode::Subtract => self.fn_subtract(),
+                OpCode::Multiply => self.fn_multiply(),
+                OpCode::Divide => self.fn_divide(),
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),
-                OpCode::Equal => fn_equal(self),
-                OpCode::Greater => fn_greater(self),
-                OpCode::Less => fn_less(self),
-                OpCode::Not => fn_not(self),
-                OpCode::String => fn_string(self, block),
-                OpCode::String2 => fn_string2(self, block),
-                OpCode::String4 => fn_string4(self, block),
-                OpCode::Print => fn_print(self),
+                OpCode::Equal => self.fn_equal(),
+                OpCode::Greater => self.fn_greater(),
+                OpCode::Less => self.fn_less(),
+                OpCode::Not => self.fn_not(),
+                OpCode::String => self.fn_string(block),
+                OpCode::String2 => self.fn_string2(block),
+                OpCode::String4 => self.fn_string4(block),
+                OpCode::Print => self.fn_print(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::DefineGlobal => fn_define_global(self, block, BitsSize::Eight),
-                OpCode::DefineGlobal2 => fn_define_global(self, block, BitsSize::Sixteen),
-                OpCode::DefineGlobal4 => fn_define_global(self, block, BitsSize::ThirtyTwo),
-                OpCode::GetGlobal => fn_get_global(self, block, BitsSize::Eight),
-                OpCode::GetGlobal2 => fn_get_global(self, block, BitsSize::Sixteen),
-                OpCode::GetGlobal4 => fn_get_global(self, block, BitsSize::ThirtyTwo),
-                OpCode::JumpIfFalse => fn_jump_if_false(self, block),
-                OpCode::Jump => fn_jump(self, block),
+                OpCode::DefineGlobal => self.fn_define_global(block, BitsSize::Eight),
+                OpCode::DefineGlobal2 => self.fn_define_global(block, BitsSize::Sixteen),
+                OpCode::DefineGlobal4 => self.fn_define_global(block, BitsSize::ThirtyTwo),
+                OpCode::GetGlobal => self.fn_get_global(block, BitsSize::Eight),
+                OpCode::GetGlobal2 => self.fn_get_global(block, BitsSize::Sixteen),
+                OpCode::GetGlobal4 => self.fn_get_global(block, BitsSize::ThirtyTwo),
+                OpCode::JumpIfFalse => self.fn_jump_if_false(block),
+                OpCode::Jump => self.fn_jump(block),
             }
             self.ip += 1;
         }
