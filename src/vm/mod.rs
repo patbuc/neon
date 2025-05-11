@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 #[macro_use]
@@ -30,9 +30,46 @@ impl BitsSize {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Number(f64),
+    Object(Rc<Object>),
     Boolean(bool),
-    String(String),
     Nil,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Object {
+    String(ObjString),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjString {
+    pub value: Rc<str>,
+}
+
+impl Display for Object {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Object::String(obj_string) => write!(f, "{}", obj_string.value),
+            _ => write!(f, "<object>"),
+        }
+    }
+}
+
+impl PartialEq<Rc<str>> for ObjString {
+    fn eq(&self, other: &Rc<str>) -> bool {
+        self.value == *other
+    }
+}
+
+impl PartialEq for ObjString {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl PartialEq<&ObjString> for &str {
+    fn eq(&self, other: &&ObjString) -> bool {
+        *self == other.value.as_ref()
+    }
 }
 
 #[derive(Debug, PartialEq)]

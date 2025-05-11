@@ -3,6 +3,8 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Compiler, Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
+use crate::vm::ObjString;
+use crate::vm::Object;
 use crate::vm::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -155,7 +157,7 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token;
-        let index = self.add_constant(string!(name.to_string()));
+        let index = self.add_constant(string!(name));
         if index <= 0xFF {
             self.emit_op_code(OpCode::GetGlobal);
             self.emit_u8(index as u8);
@@ -177,8 +179,8 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn string(&mut self) {
         let value = &*self.previous_token.token;
-        let string = value.to_string();
-        self.emit_string(string!(string[1..string.len() - 1].to_string()));
+        let string = &value[1..value.len() - 1];
+        self.emit_string(string!(string));
     }
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]

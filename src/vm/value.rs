@@ -9,8 +9,8 @@ impl Display for Value {
             match self {
                 Value::Number(val) => val.to_string(),
                 Value::Boolean(val) => val.to_string(),
-                Value::String(val) => val.to_string(),
                 Value::Nil => "nil".to_string(),
+                Value::Object(val) => format!("{}", val),
             }
         )
     }
@@ -33,7 +33,9 @@ macro_rules! boolean {
 #[macro_export]
 macro_rules! string {
     ($value: expr) => {
-        Value::String($value)
+        Value::Object(Rc::from(Object::String(ObjString {
+            value: Rc::from($value),
+        })))
     };
 }
 
@@ -67,12 +69,12 @@ macro_rules! as_bool {
 }
 
 #[macro_export]
-macro_rules! as_string {
+macro_rules! as_object {
     ($value: expr) => {
-        if let Value::String(value) = $value {
+        if let Value::Object(ref value) = $value {
             value
         } else {
-            panic!("Expected string, got {:?}", $value);
+            panic!("Expected object, got {:?}", $value);
         }
     };
 }
@@ -89,6 +91,20 @@ macro_rules! as_nil {
 }
 
 #[macro_export]
+macro_rules! as_string {
+    ($value: expr) => {
+        if let Value::Object(ref obj) = $value {
+            if let Object::String(ref obj_string) = **obj {
+                obj_string
+            } else {
+                panic!("Expected Object::String, got {:?}", $value);
+            }
+        } else {
+            panic!("Expected Value::Object, got {:?}", $value);
+        }
+    };
+}
+#[macro_export]
 macro_rules! is_false_like {
     ($value: expr) => {
         match $value {
@@ -102,6 +118,7 @@ macro_rules! is_false_like {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vm::{ObjString, Object, Rc};
 
     #[test]
     fn value_can_be_created_from_number() {
@@ -117,7 +134,7 @@ mod tests {
 
     #[test]
     fn value_can_be_created_from_string() {
-        let value = string!("Hello, World!".to_string());
+        let value = string!("Hello, World!");
         assert_eq!("Hello, World!", as_string!(value));
     }
 
