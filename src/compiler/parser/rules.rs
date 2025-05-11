@@ -1,7 +1,7 @@
 use crate::compiler::token::TokenType;
 use crate::compiler::Parser;
 use lazy_static::lazy_static;
-use std::intrinsics::transmute;
+use std::mem::transmute;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
