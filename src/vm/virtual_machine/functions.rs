@@ -1,3 +1,6 @@
+use crate::vm::ObjString;
+use crate::vm::Object;
+use crate::vm::Rc;
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 impl VirtualMachine {
     #[inline(always)]
@@ -89,13 +92,33 @@ impl VirtualMachine {
         let a = self.pop();
         match (a, b) {
             (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
-            (Value::String(a), Value::String(b)) => self.push(Value::String(format!("{a}{b}"))),
+            (Value::Object(a), Value::Object(b)) => {
+                let obj_a = a.as_ref();
+                let obj_b = b.as_ref();
+                self.fn_add_object(obj_a, obj_b);
+            }
             _ => {
                 self.runtime_error("Operands must be two numbers or two strings");
                 return Some(Result::RuntimeError);
             }
         }
         None
+    }
+
+    fn fn_add_object(&mut self, a: &Object, b: &Object) {
+        // match on ObjString
+        match (a, b) {
+            (Object::String(obj_a), Object::String(obj_b)) => {
+                let mut combined = String::with_capacity(obj_a.value.len() + obj_b.value.len());
+                combined.push_str(&obj_a.value);
+                combined.push_str(&obj_b.value);
+                self.push(string!(combined))
+            }
+            _ => {
+                self.runtime_error("Operands must be two numbers or two strings");
+                Some(Result::RuntimeError);
+            }
+        }
     }
 
     #[inline(always)]

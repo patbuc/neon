@@ -115,7 +115,7 @@ impl Block {
     fn string_instruction(&self, op_code: OpCode, offset: usize) -> usize {
         let index = self.read_u8(offset + 1) as usize;
         let string = self.read_string(index);
-        println!("{:?} {:02} '{}'", op_code, index, as_string!(string));
+        println!("{:?} {:02} '{}'", op_code, index, string);
         offset + 2
     }
 }
