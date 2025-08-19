@@ -44,19 +44,28 @@ fn setup_tracing() {
 
 fn print_tagline() {
     println!(
-        "Hi, this is {} - a toy language you didn't wait for.",
-        "neon".truecolor(240, 0, 255).bold()
+        "🟣 Neon {} - a toy language you didn't wait for",
+        env!("CARGO_PKG_VERSION")
     );
 }
 
 fn run_repl() {
-    println!("Running REPL");
+    println!("Type 'exit' or Ctrl+C to quit");
 
     let mut vm = VirtualMachine::new();
     loop {
         print_prompt();
         let line = read_line();
-        vm.interpret(line);
+        if line == "exit" {
+            println!("Ciao 👋 - May your coffee be strong");
+            break;
+        }
+        let result = vm.interpret(line);
+        match result {
+            vm::Result::Ok => {}
+            vm::Result::CompileError => eprintln!("{}", "Compile error.".red()),
+            vm::Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
+        }
         println!();
     }
 }
@@ -70,7 +79,7 @@ fn read_line() -> String {
 }
 
 fn print_prompt() {
-    print!("> ");
+    print!(">> ");
     io::stdout().flush().unwrap();
 }
 
