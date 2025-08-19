@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-colored = "2.1.0"
+colored = "3.0.0"
 lazy_static = "1.5.0"
-tracing = "0.1.40"
-tracing-attributes = { version = "0.1.27", features = [] }
-tracing-subscriber = "0.3.18"
-env_logger = "0.11.5"
-log = "0.4.22"
+tracing = "0.1.41"
+tracing-attributes = { version = "0.1.30", features = [] }
+tracing-subscriber = "0.3.19"
+env_logger = "0.11.8"
+log = "0.4.27"
 
 [features]
 disassemble = []
