@@ -8,7 +8,7 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
-            column: 0,
+            column: 1,
             previous_token_type: TokenType::NewLine,
         }
     }
@@ -96,9 +96,10 @@ impl Scanner {
                 }
             }
             '\n' => {
+                let new_line = self.make_token(TokenType::NewLine);
                 self.line += 1;
                 self.column = 0;
-                self.make_token(TokenType::NewLine)
+                new_line
             }
             '"' => self.make_string(),
             _ => self.make_error_token("Unexpected character"),
@@ -332,12 +333,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].column, 0);
+        assert_eq!(x[0].column, 1);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].column, 4);
+        assert_eq!(x[1].column, 5);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
@@ -357,12 +358,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].column, 0);
+        assert_eq!(x[0].column, 1);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].column, 4);
+        assert_eq!(x[1].column, 5);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
