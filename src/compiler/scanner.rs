@@ -8,7 +8,7 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
-            char: 0,
+            column: 0,
             previous_token_type: TokenType::NewLine,
         }
     }
@@ -89,7 +89,7 @@ impl Scanner {
                         self.advance();
                     }
                     self.line += 1;
-                    self.char = 0;
+                    self.column = 0;
                     self.scan_token()
                 } else {
                     self.make_token(TokenType::Slash)
@@ -97,7 +97,7 @@ impl Scanner {
             }
             '\n' => {
                 self.line += 1;
-                self.char = 0;
+                self.column = 0;
                 self.make_token(TokenType::NewLine)
             }
             '"' => self.make_string(),
@@ -207,7 +207,7 @@ impl Scanner {
             let c = self.peek();
             match c {
                 ' ' | '\r' | '\t' => {
-                    self.char += 1;
+                    self.column += 1;
                     self.advance();
                 }
                 _ => {
@@ -290,8 +290,8 @@ impl Scanner {
         Token::new(
             TokenType::Error,
             String::from(message),
-            self.char,
             self.line,
+            self.column,
         )
     }
 
@@ -299,13 +299,13 @@ impl Scanner {
         self.previous_token_type = token_type.clone();
         let token_str = String::from_iter(&self.source[self.start..self.current]);
         let token_str_len = token_str.len() as u32;
-        let token = Token::new(token_type, token_str, self.char, self.line);
-        self.char += token_str_len;
+        let token = Token::new(token_type, token_str, self.line, self.column);
+        self.column += token_str_len;
         token
     }
     fn make_eof_token(&mut self) -> Token {
         self.previous_token_type = TokenType::Eof;
-        Token::new(TokenType::Eof, String::new(), self.char, self.line)
+        Token::new(TokenType::Eof, String::new(), self.line, self.column)
     }
 
     fn previous(&self) -> char {
@@ -332,12 +332,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].char, 0);
+        assert_eq!(x[0].column, 0);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].char, 4);
+        assert_eq!(x[1].column, 4);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
@@ -357,12 +357,12 @@ mod tests {
         assert_eq!(x.len(), 6);
 
         assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].char, 0);
+        assert_eq!(x[0].column, 0);
         assert_eq!(x[0].token, "var");
         assert_eq!(x[0].line, 1);
 
         assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].char, 4);
+        assert_eq!(x[1].column, 4);
         assert_eq!(x[1].token, "a");
         assert_eq!(x[1].line, 1);
 
