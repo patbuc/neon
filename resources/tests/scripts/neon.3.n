@@ -1,0 +1,8 @@
+// neon.3.n - Basic arithmetic and print
+val x = 7
+val y = 3
+print x + y      // 10
+print x - y      // 4
+print x * y      // 21
+print x / y      // 2
+

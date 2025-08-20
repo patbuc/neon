@@ -1,0 +1,7 @@
+// neon.6.n - Variable shadowing and reassignment
+val a = 1
+print a            // 1
+val a = 2
+print a            // 2
+val b = a + 3
+print b            // 5
