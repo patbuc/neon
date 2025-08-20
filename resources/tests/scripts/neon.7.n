@@ -1,0 +1,8 @@
+// neon.7.n - Nested expressions and precedence
+val a = 2
+val b = 3
+val c = 4
+print a + b * c         // 14
+print (a + b) * c       // 20
+print a + (b * c)       // 14
+print (a + b) * (c - 1) // 15

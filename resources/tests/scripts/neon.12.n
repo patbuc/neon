@@ -1,0 +1,10 @@
+// neon.12.n - Edge cases: division by zero, empty strings
+val a = 10
+val b = 0
+// Division by zero should be handled gracefully (if supported)
+// If not, expect an error or nil
+print a / b
+val s = ""
+print s + "test"      // test
+print "test" + s      // test
+print s               // (empty line)

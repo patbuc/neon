@@ -1,0 +1,42 @@
+// neon.2.n - VM capabilities test
+
+val a = 10
+val b = 5
+val c = a + b * 2
+print c                // 20
+
+val d = c / 5 - 2
+print d                // 2
+
+val e = "Hello"
+val f = "World"
+print e + " " + f      // Hello World
+
+val g = 42
+if (g == 42) {
+    print "g is 42"
+} else {
+    print "g is not 42"
+}
+
+val h = true
+val i = false
+print h == !i          // true
+
+val j = nil
+print j                // nil
+
+val k = -a
+print k                // -10
+
+if (a > b) {
+    print "a > b"
+} else {
+    print "a <= b"
+}
+
+if (a < b) {
+    print "a < b"
+} else {
+    print "a >= b"
+}

@@ -1,32 +1,34 @@
-use crate::vm::Value;
+use crate::vm::opcodes::OpCode;
+use crate::vm::{Block, Value};
+use crate::vm::{Result, VirtualMachine};
 use std::assert_eq;
 
 #[test]
 fn can_create_vm() {
-    let vm = super::VirtualMachine::new();
+    let vm = VirtualMachine::new();
     assert_eq!(0, vm.ip);
     assert_eq!(0, vm.stack.len());
 }
 
 #[test]
 fn can_execute_simple_arithmetics() {
-    let mut block = super::Block::new("ZeBlock");
+    let mut block = Block::new("ZeBlock");
 
     block.write_constant(crate::number!(1.0), 0, 0);
     block.write_constant(crate::number!(2.0), 0, 0);
-    block.write_op_code(super::OpCode::Add, 0, 0);
+    block.write_op_code(OpCode::Add, 0, 0);
     block.write_constant(crate::number!(3.0), 0, 0);
-    block.write_op_code(super::OpCode::Multiply, 0, 0);
+    block.write_op_code(OpCode::Multiply, 0, 0);
     block.write_constant(crate::number!(2.0), 0, 0);
-    block.write_op_code(super::OpCode::Subtract, 0, 0);
+    block.write_op_code(OpCode::Subtract, 0, 0);
     block.write_constant(crate::number!(2.0), 0, 0);
-    block.write_op_code(super::OpCode::Divide, 0, 0);
-    block.write_op_code(super::OpCode::Return, 0, 0);
+    block.write_op_code(OpCode::Divide, 0, 0);
+    block.write_op_code(OpCode::Return, 0, 0);
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
 
     let result = vm.run(&block);
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!(3.5, crate::as_number!(vm.pop()));
 }
 
@@ -36,10 +38,10 @@ fn can_print_hello_world() {
         print "Hello World 🌍"
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
 }
 
 #[test]
@@ -48,10 +50,10 @@ fn can_print_the_answer_to_everything_times_pi() {
         print 42 * 3.14
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
 }
 
 #[test]
@@ -61,10 +63,10 @@ fn can_run_multi_line_statements() {
         print 13
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
 }
 
 #[test]
@@ -74,10 +76,10 @@ fn can_define_a_global_value() {
         print greeting
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("Hello World 🌎", vm.get_output())
 }
 
@@ -88,9 +90,9 @@ fn can_negate_numbers() {
         print -x
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("-42", vm.get_output());
 }
 
@@ -100,9 +102,9 @@ fn can_compare_numbers_equal() {
         print 42 == 42
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -112,9 +114,9 @@ fn can_compare_numbers_not_equal() {
         print 42 == 43
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -124,9 +126,9 @@ fn can_compare_greater_than() {
         print 43 > 42
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -136,9 +138,9 @@ fn can_compare_less_than() {
         print 41 < 42
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -148,9 +150,9 @@ fn can_use_logical_not() {
         print !false
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -161,9 +163,9 @@ fn can_handle_nil() {
         print x
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("nil", vm.get_output());
 }
 
@@ -174,9 +176,9 @@ fn can_handle_boolean_true() {
         print x
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -187,9 +189,9 @@ fn can_handle_boolean_false() {
         print x
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -199,9 +201,9 @@ fn can_handle_string_concatenation() {
         print "Hello" + " " + "World"
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("Hello World", vm.get_output());
 }
 
@@ -213,9 +215,9 @@ fn can_handle_multiple_global_variables() {
         print x + y
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -227,9 +229,9 @@ fn can_handle_complex_arithmetic() {
         print (x + y) * (x - y)
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("75", vm.get_output());
 }
 
@@ -239,9 +241,9 @@ fn can_handle_string_comparison() {
         print "hello" == "hello"
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -251,9 +253,9 @@ fn can_handle_multiple_boolean_operations() {
         print true == !false
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -263,9 +265,9 @@ fn can_handle_division_by_integers() {
         print 100 / 20
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("5", vm.get_output());
 }
 
@@ -275,9 +277,9 @@ fn can_handle_float_division() {
         print 10.0 / 3.0
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("3.3333333333333335", vm.get_output());
 }
 
@@ -288,9 +290,9 @@ fn can_handle_negative_numbers() {
         print -x
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -300,9 +302,9 @@ fn can_handle_boolean_arithmetic() {
         print true == true == true
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -315,9 +317,9 @@ fn can_handle_complex_string_operations() {
         print greeting + " " + name + punctuation
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("Hello World!", vm.get_output());
 }
 
@@ -327,9 +329,9 @@ fn can_handle_multiple_negations() {
         print !!true
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -343,9 +345,9 @@ fn can_handle_a_true_if_statement() {
         print "The end"
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("The answer to everything\nThe end", vm.get_output());
 }
 
@@ -359,9 +361,9 @@ fn can_handle_a_false_if_statement() {
         print "The end"
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("The end", vm.get_output());
 }
 
@@ -376,9 +378,9 @@ fn can_handle_a_true_if_else_statement() {
         }
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("The answer to everything", vm.get_output());
 }
 
@@ -395,9 +397,9 @@ fn can_handle_multiple_if_else_statements() {
         }
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("The end", vm.get_output());
 }
 
@@ -414,8 +416,8 @@ fn can_handle_multiple_if_else_statements_2() {
         }
         "#;
 
-    let mut vm = super::VirtualMachine::new();
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(super::Result::Ok, result);
+    assert_eq!(Result::Ok, result);
     assert_eq!("The beginning", vm.get_output());
 }

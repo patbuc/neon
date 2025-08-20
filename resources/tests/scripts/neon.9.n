@@ -1,0 +1,14 @@
+// neon.9.n - Nil handling and printing
+val a = nil
+print a           // nil
+if (a == nil) {
+    print "is nil"
+} else {
+    print "not nil"
+}
+val b = 0
+if (b == nil) {
+    print "zero is nil"
+} else {
+    print "zero is not nil"
+}

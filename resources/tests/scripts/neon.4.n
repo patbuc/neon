@@ -1,0 +1,6 @@
+// neon.4.n - String concatenation and print
+val a = "foo"
+val b = "bar"
+print a + b           // foobar
+print a + " " + b     // foo bar
+print "-" + a + "-"   // -foo-

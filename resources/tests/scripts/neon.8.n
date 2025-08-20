@@ -1,0 +1,13 @@
+// neon.8.n - Conditional branching and else
+val x = 5
+if (x > 0) {
+    print "positive"
+} else {
+    print "non-positive"
+}
+if (x < 0) {
+    print "negative"
+} else {
+    print "non-negative"
+}
+
