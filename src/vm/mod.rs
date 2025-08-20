@@ -96,7 +96,7 @@ pub(crate) struct Block {
     globals: Vec<String>,
     strings: Constants,
     instructions: Vec<u8>,
-    lines: Vec<Line>,
+    source_locations: Vec<SourceLocation>,
 }
 
 #[derive(Debug)]
@@ -105,8 +105,14 @@ struct Constants {
 }
 
 #[derive(Debug, Clone)]
-struct Line {
+struct SourceLocation {
     pub offset: usize,
     pub line: u32,
-    pub char: u32,
+    pub column: u32,
+}
+
+impl Display for SourceLocation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
 }

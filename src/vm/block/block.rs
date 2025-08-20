@@ -1,5 +1,5 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, Line, Value};
+use crate::vm::{Block, Constants, SourceLocation, Value};
 
 impl Block {
     pub(crate) fn new(name: &str) -> Self {
@@ -9,14 +9,18 @@ impl Block {
             globals: Vec::new(),
             strings: Constants::new(),
             instructions: Vec::new(),
-            lines: Vec::new(),
+            source_locations: Vec::new(),
         }
     }
 }
 
 impl Block {
-    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, char: u32) {
-        self.add_line(self.instructions.len(), line, char);
+    pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, column: u32) {
+        self.source_locations.push(SourceLocation {
+            offset: self.instructions.len(),
+            line,
+            column,
+        });
         self.instructions.push(op_code as u8)
     }
 
@@ -24,46 +28,46 @@ impl Block {
         self.constants.write_value(value)
     }
 
-    pub(crate) fn write_constant(&mut self, value: Value, line: u32, char: u32) -> u32 {
+    pub(crate) fn write_constant(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let constant_index = self.add_constant(value);
         if constant_index <= 0xFF {
-            self.write_op_code(OpCode::Constant, line, char);
+            self.write_op_code(OpCode::Constant, line, column);
             self.write_u8(constant_index as u8)
         } else if constant_index <= 0xFFFF {
-            self.write_op_code(OpCode::Constant2, line, char);
+            self.write_op_code(OpCode::Constant2, line, column);
             self.write_u16(constant_index as u16)
         } else {
-            self.write_op_code(OpCode::Constant4, line, char);
+            self.write_op_code(OpCode::Constant4, line, column);
             self.write_u32(constant_index)
         }
         constant_index
     }
 
-    pub(crate) fn define_global(&mut self, name: String, line: u32, char: u32) {
+    pub(crate) fn define_global(&mut self, name: String, line: u32, column: u32) {
         self.globals.push(name);
         let index = (self.globals.len() - 1) as u32;
         if index <= 0xFF {
-            self.write_op_code(OpCode::DefineGlobal, line, char);
+            self.write_op_code(OpCode::DefineGlobal, line, column);
             self.write_u8(index as u8)
         } else if index <= 0xFFFF {
-            self.write_op_code(OpCode::DefineGlobal2, line, char);
+            self.write_op_code(OpCode::DefineGlobal2, line, column);
             self.write_u16(index as u16)
         } else {
-            self.write_op_code(OpCode::DefineGlobal4, line, char);
+            self.write_op_code(OpCode::DefineGlobal4, line, column);
             self.write_u32(index)
         }
     }
 
-    pub(crate) fn write_string(&mut self, value: Value, line: u32, char: u32) -> u32 {
+    pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let string_index = self.strings.write_value(value);
         if string_index <= 0xFF {
-            self.write_op_code(OpCode::String, line, char);
+            self.write_op_code(OpCode::String, line, column);
             self.write_u8(string_index as u8)
         } else if string_index <= 0xFFFF {
-            self.write_op_code(OpCode::String2, line, char);
+            self.write_op_code(OpCode::String2, line, column);
             self.write_u16(string_index as u16)
         } else {
-            self.write_op_code(OpCode::String4, line, char);
+            self.write_op_code(OpCode::String4, line, column);
             self.write_u32(string_index)
         }
         string_index
@@ -119,8 +123,8 @@ impl Block {
         (byte4 << 24) | (byte3 << 16) | (byte2 << 8) | byte1
     }
 
-    pub(crate) fn emit_jump(&mut self, op_code: OpCode, line: u32, char: u32) -> u32 {
-        self.write_op_code(op_code, line, char);
+    pub(crate) fn emit_jump(&mut self, op_code: OpCode, line: u32, column: u32) -> u32 {
+        self.write_op_code(op_code, line, column);
         self.write_u32(0xFFFF_FFFF);
         self.instructions.len() as u32 - 4
     }
@@ -136,14 +140,10 @@ impl Block {
 }
 
 impl Block {
-    fn add_line(&mut self, offset: usize, line: u32, char: u32) {
-        self.lines.push(Line { offset, line, char });
-    }
-
-    pub(in crate::vm) fn get_line(&self, offset: usize) -> Option<Line> {
+    pub(in crate::vm) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
         let mut result = Option::default();
         let mut low = 0;
-        let mut high = self.lines.len() - 1;
+        let mut high = self.source_locations.len() - 1;
 
         if offset >= self.instructions.len() {
             return None;
@@ -151,7 +151,7 @@ impl Block {
 
         while low <= high {
             let mid = (low + high) / 2;
-            let line = self.lines.get(mid).unwrap();
+            let line = self.source_locations.get(mid).unwrap();
             if line.offset > offset {
                 high = mid - 1;
             } else {
@@ -258,17 +258,17 @@ mod tests {
         block.write_op_code(OpCode::Multiply, 6, 0);
         block.write_op_code(OpCode::Return, 8, 0);
 
-        assert_eq!(2, block.get_line(0).unwrap().line);
-        assert_eq!(2, block.get_line(1).unwrap().line);
-        assert_eq!(3, block.get_line(2).unwrap().line);
-        assert_eq!(4, block.get_line(3).unwrap().line);
-        assert_eq!(4, block.get_line(4).unwrap().line);
-        assert_eq!(4, block.get_line(5).unwrap().line);
-        assert_eq!(5, block.get_line(6).unwrap().line);
-        assert_eq!(5, block.get_line(7).unwrap().line);
-        assert_eq!(6, block.get_line(8).unwrap().line);
-        assert_eq!(8, block.get_line(9).unwrap().line);
+        assert_eq!(2, block.get_source_location(0).unwrap().line);
+        assert_eq!(2, block.get_source_location(1).unwrap().line);
+        assert_eq!(3, block.get_source_location(2).unwrap().line);
+        assert_eq!(4, block.get_source_location(3).unwrap().line);
+        assert_eq!(4, block.get_source_location(4).unwrap().line);
+        assert_eq!(4, block.get_source_location(5).unwrap().line);
+        assert_eq!(5, block.get_source_location(6).unwrap().line);
+        assert_eq!(5, block.get_source_location(7).unwrap().line);
+        assert_eq!(6, block.get_source_location(8).unwrap().line);
+        assert_eq!(8, block.get_source_location(9).unwrap().line);
 
-        assert_eq!(true, block.get_line(10).is_none());
+        assert_eq!(true, block.get_source_location(10).is_none());
     }
 }

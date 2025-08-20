@@ -17,32 +17,33 @@ impl Parser {
 
     pub fn emit_constant(&mut self, value: Value) -> u32 {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
-        self.current_block_mut().write_constant(value, line, char)
+        let column = self.previous_token.column;
+        self.current_block_mut().write_constant(value, line, column)
     }
 
     pub fn define_global(&mut self, name: String) {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
-        self.current_block_mut().define_global(name, line, char)
+        let column = self.previous_token.column;
+        self.current_block_mut().define_global(name, line, column)
     }
 
     pub fn emit_string(&mut self, value: Value) -> u32 {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
-        self.current_block_mut().write_string(value, line, char)
+        let column = self.previous_token.column;
+        self.current_block_mut().write_string(value, line, column)
     }
 
     pub fn emit_op_code(&mut self, op_code: OpCode) {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
-        self.current_block_mut().write_op_code(op_code, line, char);
+        let column = self.previous_token.column;
+        self.current_block_mut()
+            .write_op_code(op_code, line, column);
     }
 
     pub fn emit_jump(&mut self, op_code: OpCode) -> u32 {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
-        self.current_block_mut().emit_jump(op_code, line, char)
+        let column = self.previous_token.column;
+        self.current_block_mut().emit_jump(op_code, line, column)
     }
 
     pub fn patch_jump(&mut self, offset: u32) {
@@ -63,9 +64,9 @@ impl Parser {
 
     pub fn emit_op_codes(&mut self, op_code1: OpCode, op_code2: OpCode) {
         let line = self.previous_token.line;
-        let char = self.previous_token.char;
+        let column = self.previous_token.column;
         let current_block: &mut Block = self.current_block_mut();
-        current_block.write_op_code(op_code1, line, char);
-        current_block.write_op_code(op_code2, line, char);
+        current_block.write_op_code(op_code1, line, column);
+        current_block.write_op_code(op_code2, line, column);
     }
 }

@@ -2,7 +2,7 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
-use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
+use crate::vm::{BitsSize, Block, Result, SourceLocation, Value, VirtualMachine};
 use log::info;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -108,13 +108,16 @@ impl VirtualMachine {
     }
 
     fn runtime_error(&mut self, error: &str) {
-        let line = self.get_current_execution_line();
-        eprintln!("[line {} char {}] {}", line.0, line.1, error);
+        let source_location = self.get_current_source_location();
+        eprintln!("[{}] {}", source_location, error);
     }
 
-    fn get_current_execution_line(&self) -> (u32, u32) {
-        let line = self.block.as_ref().unwrap().get_line(self.ip).unwrap();
-        (line.line, line.char)
+    fn get_current_source_location(&self) -> SourceLocation {
+        self.block
+            .as_ref()
+            .unwrap()
+            .get_source_location(self.ip)
+            .unwrap()
     }
 
     #[cfg(test)]
