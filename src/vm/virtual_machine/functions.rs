@@ -6,8 +6,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(super) fn fn_print(&mut self) {
         let value = self.pop();
-        println!("{}", value);
 
+        #[cfg(not(test))]
+        println!("{}", value);
         #[cfg(test)]
         self.string_buffer.push_str(value.to_string().as_str());
         #[cfg(test)]
