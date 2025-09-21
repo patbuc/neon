@@ -44,7 +44,7 @@ fn setup_tracing() {
 
 fn print_tagline() {
     println!(
-        "🟣 Neon {} - a toy language you didn't wait for",
+        "✨ neon {} - a toy language you didn't wait for",
         env!("CARGO_PKG_VERSION")
     );
 }
@@ -85,7 +85,6 @@ fn print_prompt() {
 
 fn run_file(path: &String) {
     println!("Running file: {} ", path);
-    println!();
 
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
