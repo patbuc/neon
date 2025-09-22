@@ -421,3 +421,17 @@ fn can_handle_multiple_if_else_statements_2() {
     assert_eq!(Result::Ok, result);
     assert_eq!("The beginning", vm.get_output());
 }
+
+#[test]
+fn can_assign_value_to_variable() {
+    let program = r#"
+        var x = 10
+        x = x + 5
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("15", vm.get_output());
+}

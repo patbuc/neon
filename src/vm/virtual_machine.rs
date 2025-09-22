@@ -14,7 +14,6 @@ impl VirtualMachine {
             ip: 0,
             stack: Vec::new(),
             block: None,
-            globals: HashMap::new(),
             #[cfg(test)]
             string_buffer: String::new(),
         }
@@ -34,9 +33,8 @@ impl VirtualMachine {
             return Result::CompileError;
         }
 
-        let block = Rc::new(block.unwrap());
-        self.block = Option::from(block.clone());
-        let result = self.run(block.as_ref());
+        let block = block.unwrap();
+        let result = self.run(&block);
         self.block = None;
 
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -79,12 +77,18 @@ impl VirtualMachine {
                 OpCode::String4 => self.fn_string4(block),
                 OpCode::Print => self.fn_print(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::DefineGlobal => self.fn_define_global(block, BitsSize::Eight),
-                OpCode::DefineGlobal2 => self.fn_define_global(block, BitsSize::Sixteen),
-                OpCode::DefineGlobal4 => self.fn_define_global(block, BitsSize::ThirtyTwo),
-                OpCode::GetGlobal => self.fn_get_global(block, BitsSize::Eight),
-                OpCode::GetGlobal2 => self.fn_get_global(block, BitsSize::Sixteen),
-                OpCode::GetGlobal4 => self.fn_get_global(block, BitsSize::ThirtyTwo),
+                OpCode::GetValue => self.fn_get_value(block, BitsSize::Eight),
+                OpCode::GetValue2 => self.fn_get_value(block, BitsSize::Sixteen),
+                OpCode::GetValue4 => self.fn_get_value(block, BitsSize::ThirtyTwo),
+                OpCode::SetValue => self.fn_set_value(block, BitsSize::Eight),
+                OpCode::SetValue2 => self.fn_set_value(block, BitsSize::Sixteen),
+                OpCode::SetValue4 => self.fn_set_value(block, BitsSize::ThirtyTwo),
+                OpCode::GetVariable => self.fn_get_variable(block, BitsSize::Eight),
+                OpCode::GetVariable2 => self.fn_get_variable(block, BitsSize::Sixteen),
+                OpCode::GetVariable4 => self.fn_get_variable(block, BitsSize::ThirtyTwo),
+                OpCode::SetVariable => self.fn_set_variable(block, BitsSize::Eight),
+                OpCode::SetVariable2 => self.fn_set_variable(block, BitsSize::Sixteen),
+                OpCode::SetVariable4 => self.fn_set_variable(block, BitsSize::ThirtyTwo),
                 OpCode::JumpIfFalse => self.fn_jump_if_false(block),
                 OpCode::Jump => self.fn_jump(block),
             }
