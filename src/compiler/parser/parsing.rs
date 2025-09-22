@@ -66,7 +66,7 @@ impl Parser {
         if self.match_token(TokenType::Val) {
             self.val_declaration();
         } else if self.match_token(TokenType::Var) {
-            self.val_declaration();
+            self.var_declaration();
         } else {
             self.statement();
         }
@@ -92,7 +92,26 @@ impl Parser {
             "Expecting '\\n' or '\\0' after value declaration.",
         );
 
-        self.define_global(name);
+        self.define_value(name);
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn var_declaration(&mut self) {
+        let name = self.parse_value();
+
+        if self.match_token(TokenType::Equal) {
+            self.expression(false);
+        } else {
+            self.emit_op_code(OpCode::Nil);
+        }
+
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after value declaration.",
+        );
+
+        self.define_variable(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -156,17 +175,43 @@ impl Parser {
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
-        let name = &*self.previous_token.token;
-        let index = self.add_constant(string!(name));
-        if index <= 0xFF {
-            self.emit_op_code(OpCode::GetGlobal);
-            self.emit_u8(index as u8);
-        } else if index <= 0xFFFF {
-            self.emit_op_code(OpCode::GetGlobal2);
-            self.emit_u16(index as u16);
+        let name = &*self.previous_token.token.clone();
+        if self.match_token(TokenType::Equal) {
+            self.expression(false);
+            let maybe_index = self.current_block().get_variable_index(name);
+            if maybe_index.is_none() {
+                self.report_error_at_current(&format!("Undefined variable '{}'.", name));
+                return;
+            }
+            let index = maybe_index.unwrap();
+            if index <= 0xFF {
+                self.emit_op_code(OpCode::SetVariable);
+                self.emit_u8(index as u8);
+            } else if index <= 0xFFFF {
+                self.emit_op_code(OpCode::SetVariable2);
+                self.emit_u16(index as u16);
+            } else {
+                self.emit_op_code(OpCode::SetVariable4);
+                self.emit_u32(index);
+            }
+            return;
         } else {
-            self.emit_op_code(OpCode::GetGlobal4);
-            self.emit_u32(index);
+            let maybe_index = self.current_block().get_variable_index(name);
+            if maybe_index.is_none() {
+                self.report_error_at_current(&format!("Undefined variable '{}'.", name));
+                return;
+            }
+            let index = maybe_index.unwrap();
+            if index <= 0xFF {
+                self.emit_op_code(OpCode::GetVariable);
+                self.emit_u8(index as u8);
+            } else if index <= 0xFFFF {
+                self.emit_op_code(OpCode::GetVariable2);
+                self.emit_u16(index as u16);
+            } else {
+                self.emit_op_code(OpCode::GetVariable4);
+                self.emit_u32(index);
+            }
         }
     }
 

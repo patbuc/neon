@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
@@ -33,6 +32,12 @@ pub enum Value {
     Object(Rc<Object>),
     Boolean(bool),
     Nil,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Variable {
+    pub name: String,
+    pub value: Value,
 }
 
 #[derive(Debug, PartialEq)]
@@ -83,7 +88,8 @@ pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
     block: Option<Rc<Block>>,
-    globals: HashMap<String, Value>,
+    // values: HashMap<String, Value>,
+    // variables: HashMap<String, Value>,
     #[cfg(test)]
     string_buffer: String,
 }
@@ -93,10 +99,17 @@ pub(crate) struct Block {
     #[allow(dead_code)]
     name: String,
     constants: Constants,
-    globals: Vec<String>,
     strings: Constants,
     instructions: Vec<u8>,
     source_locations: Vec<SourceLocation>,
+    values: Vec<Local>,
+    variables: Vec<Local>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Local {
+    pub name: String,
+    pub depth: u32,
 }
 
 #[derive(Debug)]

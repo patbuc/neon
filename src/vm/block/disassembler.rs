@@ -50,12 +50,18 @@ impl Block {
             OpCode::String4 => self.string_instruction(instruction, offset),
             OpCode::Print => self.simple_instruction(OpCode::Print, offset),
             OpCode::Pop => self.simple_instruction(OpCode::Pop, offset),
-            OpCode::DefineGlobal => self.variable_instruction(OpCode::DefineGlobal, offset),
-            OpCode::DefineGlobal2 => self.variable_instruction(OpCode::DefineGlobal2, offset),
-            OpCode::DefineGlobal4 => self.variable_instruction(OpCode::DefineGlobal4, offset),
-            OpCode::GetGlobal => self.variable_instruction(OpCode::GetGlobal, offset),
-            OpCode::GetGlobal2 => self.variable_instruction(OpCode::GetGlobal2, offset),
-            OpCode::GetGlobal4 => self.variable_instruction(OpCode::GetGlobal4, offset),
+            OpCode::SetValue => self.variable_instruction(OpCode::SetValue, offset),
+            OpCode::SetValue2 => self.variable_instruction(OpCode::SetValue2, offset),
+            OpCode::SetValue4 => self.variable_instruction(OpCode::SetValue4, offset),
+            OpCode::GetValue => self.variable_instruction(OpCode::GetValue, offset),
+            OpCode::GetValue2 => self.variable_instruction(OpCode::GetValue2, offset),
+            OpCode::GetValue4 => self.variable_instruction(OpCode::GetValue4, offset),
+            OpCode::SetVariable => self.variable_instruction(OpCode::SetVariable, offset),
+            OpCode::SetVariable2 => self.variable_instruction(OpCode::SetVariable2, offset),
+            OpCode::SetVariable4 => self.variable_instruction(OpCode::SetVariable4, offset),
+            OpCode::GetVariable => self.variable_instruction(OpCode::GetVariable, offset),
+            OpCode::GetVariable2 => self.variable_instruction(OpCode::GetVariable2, offset),
+            OpCode::GetVariable4 => self.variable_instruction(OpCode::GetVariable4, offset),
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset),
             OpCode::Jump => self.jump_instruction(instruction, offset),
         }
@@ -85,12 +91,12 @@ impl Block {
     fn variable_instruction(&self, op_code: OpCode, offset: usize) -> usize {
         fn get_variable_index(block: &Block, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::DefineGlobal => (block.read_u8(offset) as usize, 1),
-                OpCode::DefineGlobal2 => (block.read_u16(offset) as usize, 2),
-                OpCode::DefineGlobal4 => (block.read_u32(offset) as usize, 4),
-                OpCode::GetGlobal => (block.read_u8(offset) as usize, 1),
-                OpCode::GetGlobal2 => (block.read_u16(offset) as usize, 2),
-                OpCode::GetGlobal4 => (block.read_u32(offset) as usize, 4),
+                OpCode::GetValue => (block.read_u8(offset) as usize, 1),
+                OpCode::GetValue2 => (block.read_u16(offset) as usize, 2),
+                OpCode::GetValue4 => (block.read_u32(offset) as usize, 4),
+                OpCode::GetVariable => (block.read_u8(offset) as usize, 1),
+                OpCode::GetVariable2 => (block.read_u16(offset) as usize, 2),
+                OpCode::GetVariable4 => (block.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }

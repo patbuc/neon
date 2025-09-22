@@ -1,8 +1,12 @@
 use crate::compiler::Parser;
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Value};
+use crate::vm::{Block, Local, Value};
 
 impl Parser {
+    pub(super) fn current_block(&self) -> &Block {
+        self.blocks.last().unwrap()
+    }
+
     fn current_block_mut(&mut self) -> &mut Block {
         self.blocks.last_mut().unwrap()
     }
@@ -11,20 +15,26 @@ impl Parser {
         self.emit_op_code(OpCode::Return);
     }
 
-    pub fn add_constant(&mut self, value: Value) -> u32 {
-        self.current_block_mut().add_constant(value)
-    }
-
     pub fn emit_constant(&mut self, value: Value) -> u32 {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
         self.current_block_mut().write_constant(value, line, column)
     }
 
-    pub fn define_global(&mut self, name: String) {
+    pub fn define_value(&mut self, name: String) {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
-        self.current_block_mut().define_global(name, line, column)
+        let depth = self.compiler.borrow_mut().scope_depth;
+        self.current_block_mut()
+            .define_value(Local::new(name, depth), line, column)
+    }
+
+    pub fn define_variable(&mut self, name: String) {
+        let line = self.previous_token.line;
+        let column = self.previous_token.column;
+        let depth = self.compiler.borrow_mut().scope_depth;
+        self.current_block_mut()
+            .define_variable(Local::new(name, depth), line, column)
     }
 
     pub fn emit_string(&mut self, value: Value) -> u32 {

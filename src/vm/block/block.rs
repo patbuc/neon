@@ -1,15 +1,16 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, SourceLocation, Value};
+use crate::vm::{Block, Constants, Local, SourceLocation, Value, Variable};
 
 impl Block {
     pub(crate) fn new(name: &str) -> Self {
         Block {
             name: String::from(name),
             constants: Constants::new(),
-            globals: Vec::new(),
             strings: Constants::new(),
             instructions: Vec::new(),
             source_locations: Vec::new(),
+            values: Vec::new(),
+            variables: Vec::new(),
         }
     }
 }
@@ -43,17 +44,32 @@ impl Block {
         constant_index
     }
 
-    pub(crate) fn define_global(&mut self, name: String, line: u32, column: u32) {
-        self.globals.push(name);
-        let index = (self.globals.len() - 1) as u32;
+    pub(crate) fn define_value(&mut self, local: Local, line: u32, column: u32) {
+        self.values.push(local);
+        let index = (self.values.len() - 1) as u32;
         if index <= 0xFF {
-            self.write_op_code(OpCode::DefineGlobal, line, column);
+            self.write_op_code(OpCode::SetValue, line, column);
             self.write_u8(index as u8)
         } else if index <= 0xFFFF {
-            self.write_op_code(OpCode::DefineGlobal2, line, column);
+            self.write_op_code(OpCode::SetValue2, line, column);
             self.write_u16(index as u16)
         } else {
-            self.write_op_code(OpCode::DefineGlobal4, line, column);
+            self.write_op_code(OpCode::SetValue4, line, column);
+            self.write_u32(index)
+        }
+    }
+
+    pub(crate) fn define_variable(&mut self, local: Local, line: u32, column: u32) {
+        self.variables.push(local);
+        let index = (self.variables.len() - 1) as u32;
+        if index <= 0xFF {
+            self.write_op_code(OpCode::SetVariable, line, column);
+            self.write_u8(index as u8)
+        } else if index <= 0xFFFF {
+            self.write_op_code(OpCode::SetVariable2, line, column);
+            self.write_u16(index as u16)
+        } else {
+            self.write_op_code(OpCode::SetVariable2, line, column);
             self.write_u32(index)
         }
     }
@@ -98,11 +114,6 @@ impl Block {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_global(&self, index: usize) -> String {
-        self.globals[index].clone()
-    }
-
-    #[inline(always)]
     pub(in crate::vm) fn read_u8(&self, offset: usize) -> u8 {
         self.instructions[offset]
     }
@@ -137,6 +148,30 @@ impl Block {
         self.instructions[offset + 2] = (jump >> 16) as u8;
         self.instructions[offset + 3] = (jump >> 24) as u8;
     }
+
+    pub(crate) fn get_variable_index(&self, name: &str) -> Option<u32> {
+        let mut index = 0;
+        loop {
+            if index >= self.variables.len() {
+                break;
+            }
+            if self.variables[index].name == name {
+                return Some(index as u32);
+            }
+            index += 1;
+        }
+        index = 0;
+        loop {
+            if index >= self.values.len() {
+                break;
+            }
+            if self.values[index].name == name {
+                return Some(index as u32);
+            }
+            index += 1;
+        }
+        None
+    }
 }
 
 impl Block {
@@ -160,6 +195,12 @@ impl Block {
             }
         }
         result.cloned()
+    }
+}
+
+impl Local {
+    pub(crate) fn new(name: String, depth: u32) -> Self {
+        Local { name, depth }
     }
 }
 

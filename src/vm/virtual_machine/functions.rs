@@ -158,12 +158,17 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(super) fn fn_define_global(&mut self, block: &Block, bits: BitsSize) {
+    pub(super) fn fn_set_value(&mut self, block: &Block, bits: BitsSize) {
         let index = self.read_bits(block, &bits);
-        let name = block.read_global(index);
-        self.globals.insert(name, self.peek(0));
-        self.pop();
+        self.stack[index] = self.peek(0);
         self.ip += bits.as_bytes()
+    }
+
+    #[inline(always)]
+    pub(super) fn fn_set_variable(&mut self, block: &Block, bits: BitsSize) {
+        let index = self.read_bits(block, &bits);
+        self.stack[index] = self.peek(0);
+        self.ip += bits.as_bytes();
     }
 
     fn read_bits(&mut self, block: &Block, bits: &BitsSize) -> usize {
@@ -175,14 +180,16 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(super) fn fn_get_global(&mut self, block: &Block, bits: BitsSize) {
+    pub(super) fn fn_get_value(&mut self, block: &Block, bits: BitsSize) {
         let index = self.read_bits(block, &bits);
-        let name = block.read_constant(index);
-        if !self.globals.contains_key(&name.to_string()) {
-            self.runtime_error(&format!("Undefined value '{}'", name));
-            return;
-        }
-        self.push(self.globals[&name.to_string()].clone());
+        self.push(self.stack[index].clone());
+        self.ip += bits.as_bytes()
+    }
+
+    #[inline(always)]
+    pub(super) fn fn_get_variable(&mut self, block: &Block, bits: BitsSize) {
+        let index = self.read_bits(block, &bits);
+        self.push(self.stack[index].clone());
         self.ip += bits.as_bytes()
     }
 
