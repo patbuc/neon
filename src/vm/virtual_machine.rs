@@ -26,7 +26,7 @@ impl VirtualMachine {
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         let start = std::time::Instant::now();
-        if let None = block {
+        if block.is_none() {
             return Result::CompileError;
         }
 

@@ -128,7 +128,7 @@ impl Scanner {
             self.advance();
         }
         self.advance();
-        if placeholders.len() > 0 {
+        if !placeholders.is_empty() {
             return self.make_token(TokenType::InterpolatedString);
         }
         self.make_token(TokenType::String)
@@ -182,11 +182,11 @@ impl Scanner {
     }
 
     fn is_alpha(c: char) -> bool {
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+        c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
     }
 
     fn is_digit(c: char) -> bool {
-        c >= '0' && c <= '9'
+        c.is_ascii_digit()
     }
 
     fn peek(&self) -> char {
@@ -382,7 +382,7 @@ mod tests {
                 break;
             }
             if token.token_type == TokenType::NewLine
-                && (tokens.len() == 0 || tokens[tokens.len() - 1].token_type == TokenType::NewLine)
+                && (tokens.is_empty() || tokens[tokens.len() - 1].token_type == TokenType::NewLine)
             {
                 continue;
             }

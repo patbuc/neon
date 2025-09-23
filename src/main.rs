@@ -91,18 +91,18 @@ fn run_file(path: &String) {
 
     let result: vm::Result = vm.interpret(source);
     match result {
-        vm::Result::Ok => return,
+        vm::Result::Ok => (),
         vm::Result::CompileError => exit(65),
         vm::Result::RuntimeError => exit(70),
     }
 }
 
 fn read_file(path: &str) -> String {
-    let mut file = File::open(path).expect(format!("Failed to open the file {}", path).as_str());
+    let mut file = File::open(path).unwrap_or_else(|_| panic!("Failed to open the file {}", path));
 
     // Read the file contents into a string
     let mut contents = String::new();
     file.read_to_string(&mut contents)
-        .expect(format!("Failed to read the file {}", path).as_str());
+        .unwrap_or_else(|_| panic!("Failed to read the file {}", path));
     contents
 }
