@@ -25,67 +25,61 @@ impl Block {
         self.instructions.push(op_code as u8)
     }
 
+    pub(crate) fn write_op_code_variant(
+        &mut self,
+        op_code: OpCode,
+        index: u32,
+        line: u32,
+        column: u32,
+    ) {
+        let offset = if index <= 0xFF {
+            0
+        } else if index <= 0xFFFF {
+            1
+        } else {
+            2
+        };
+
+        // SAFETY: Only use this if the variants are consecutive and valid
+        let op_code_variant = unsafe { std::mem::transmute((op_code as u8) + offset) };
+
+        if offset == 0 {
+            self.write_op_code(op_code_variant, line, column);
+            self.write_u8(index as u8);
+        } else if offset == 1 {
+            self.write_op_code(op_code_variant, line, column);
+            self.write_u16(index as u16);
+        } else {
+            self.write_op_code(op_code_variant, line, column);
+            self.write_u32(index);
+        }
+    }
+
     pub(crate) fn add_constant(&mut self, value: Value) -> u32 {
         self.constants.write_value(value)
     }
 
     pub(crate) fn write_constant(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let constant_index = self.add_constant(value);
-        if constant_index <= 0xFF {
-            self.write_op_code(OpCode::Constant, line, column);
-            self.write_u8(constant_index as u8)
-        } else if constant_index <= 0xFFFF {
-            self.write_op_code(OpCode::Constant2, line, column);
-            self.write_u16(constant_index as u16)
-        } else {
-            self.write_op_code(OpCode::Constant4, line, column);
-            self.write_u32(constant_index)
-        }
+        self.write_op_code_variant(OpCode::Constant, constant_index, line, column);
         constant_index
     }
 
     pub(crate) fn define_value(&mut self, local: Local, line: u32, column: u32) {
         self.values.push(local);
         let index = (self.values.len() - 1) as u32;
-        if index <= 0xFF {
-            self.write_op_code(OpCode::SetValue, line, column);
-            self.write_u8(index as u8)
-        } else if index <= 0xFFFF {
-            self.write_op_code(OpCode::SetValue2, line, column);
-            self.write_u16(index as u16)
-        } else {
-            self.write_op_code(OpCode::SetValue4, line, column);
-            self.write_u32(index)
-        }
+        self.write_op_code_variant(OpCode::SetValue, index, line, column);
     }
 
     pub(crate) fn define_variable(&mut self, local: Local, line: u32, column: u32) {
         self.variables.push(local);
         let index = (self.variables.len() - 1) as u32;
-        if index <= 0xFF {
-            self.write_op_code(OpCode::SetVariable, line, column);
-            self.write_u8(index as u8)
-        } else if index <= 0xFFFF {
-            self.write_op_code(OpCode::SetVariable2, line, column);
-            self.write_u16(index as u16)
-        } else {
-            self.write_op_code(OpCode::SetVariable2, line, column);
-            self.write_u32(index)
-        }
+        self.write_op_code_variant(OpCode::SetVariable, index, line, column);
     }
 
     pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let string_index = self.strings.write_value(value);
-        if string_index <= 0xFF {
-            self.write_op_code(OpCode::String, line, column);
-            self.write_u8(string_index as u8)
-        } else if string_index <= 0xFFFF {
-            self.write_op_code(OpCode::String2, line, column);
-            self.write_u16(string_index as u16)
-        } else {
-            self.write_op_code(OpCode::String4, line, column);
-            self.write_u32(string_index)
-        }
+        self.write_op_code_variant(OpCode::String, string_index, line, column);
         string_index
     }
 
