@@ -149,7 +149,7 @@ impl Parser {
         self.advance();
         let rule = self.get_rule(self.previous_token.token_type.clone());
 
-        if let None = rule.prefix {
+        if rule.prefix.is_none() {
             self.report_error_at_current("Expect expression");
             return;
         }
@@ -176,7 +176,7 @@ impl Parser {
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
         let maybe_index = self.current_block().get_variable_index(name);
-        if let None = maybe_index {
+        if maybe_index.is_none() {
             self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
         }
@@ -196,7 +196,7 @@ impl Parser {
 
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn number(&mut self) {
-        let value = f64::from_str(&*self.previous_token.token).unwrap();
+        let value = f64::from_str(&self.previous_token.token).unwrap();
         self.emit_constant(number!(value));
     }
 
@@ -236,7 +236,7 @@ impl Parser {
             token_type if token_type == TokenType::Minus => self.emit_op_code(OpCode::Subtract),
             token_type if token_type == TokenType::Star => self.emit_op_code(OpCode::Multiply),
             token_type if token_type == TokenType::Slash => self.emit_op_code(OpCode::Divide),
-            _ => return, // Unreachable.
+            _ => (), // Unreachable.
         }
     }
 
@@ -246,7 +246,7 @@ impl Parser {
             TokenType::False => self.emit_op_code(OpCode::False),
             TokenType::Nil => self.emit_op_code(OpCode::Nil),
             TokenType::True => self.emit_op_code(OpCode::True),
-            _ => return, // Unreachable.
+            _ => (), // Unreachable.
         }
     }
 
@@ -261,7 +261,7 @@ impl Parser {
         match operator_type {
             TokenType::Bang => self.emit_op_code(OpCode::Not),
             TokenType::Minus => self.emit_op_code(OpCode::Negate),
-            _ => return, // Unreachable.
+            _ => (), // Unreachable.
         }
     }
 
@@ -393,11 +393,11 @@ impl Parser {
     }
 
     fn begin_scope(&mut self) {
-        self.compiler.borrow_mut().scope_depth += 1;
+        self.scope_depth += 1;
     }
 
     fn end_scope(&mut self) {
-        self.compiler.borrow_mut().scope_depth -= 1;
+        self.scope_depth -= 1;
     }
 
     fn block(&mut self) {

@@ -9,7 +9,7 @@ fn test_scripts() {
     for result in entries {
         let dir_entry = result.expect("Could not read entry");
         let path = dir_entry.path();
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "n") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "n") {
             run_file(&path);
         }
     }
@@ -19,7 +19,7 @@ fn test_scripts() {
 fn run_file(path: &Path) {
     print!("Running file: {:<34} - ", path.display());
 
-    let script = fs::read_to_string(&path).expect("Could not read file");
+    let script = fs::read_to_string(path).expect("Could not read file");
     let mut result_path_buf = path.to_path_buf();
     result_path_buf.set_extension("result");
     let expected_result = fs::read_to_string(&result_path_buf).expect("Could not read file");

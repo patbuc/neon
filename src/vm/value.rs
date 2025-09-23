@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn value_can_be_created_from_bool() {
         let value = boolean!(true);
-        assert_eq!(true, as_bool!(value))
+        assert!(as_bool!(value))
     }
 
     #[test]

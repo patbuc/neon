@@ -1,5 +1,5 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, Local, SourceLocation, Value, Variable};
+use crate::vm::{Block, Constants, Local, SourceLocation, Value};
 
 impl Block {
     pub(crate) fn new(name: &str) -> Self {
@@ -304,6 +304,6 @@ mod tests {
         assert_eq!(6, block.get_source_location(8).unwrap().line);
         assert_eq!(8, block.get_source_location(9).unwrap().line);
 
-        assert_eq!(true, block.get_source_location(10).is_none());
+        assert!(block.get_source_location(10).is_none());
     }
 }

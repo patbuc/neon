@@ -12,7 +12,7 @@ impl VirtualMachine {
         #[cfg(test)]
         self.string_buffer.push_str(value.to_string().as_str());
         #[cfg(test)]
-        self.string_buffer.push_str("\n");
+        self.string_buffer.push('\n');
     }
 
     #[inline(always)]
