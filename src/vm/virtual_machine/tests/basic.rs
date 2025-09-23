@@ -435,3 +435,20 @@ fn can_assign_value_to_variable() {
     assert_eq!(Result::Ok, result);
     assert_eq!("15", vm.get_output());
 }
+
+#[test]
+fn cannot_access_undefined_variable() {
+    let program = r#"
+        var x = 3
+        x = z + 5
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[3:14] Error at \"+\": Undefined variable 'z'.",
+        vm.get_compiler_error()
+    );
+}

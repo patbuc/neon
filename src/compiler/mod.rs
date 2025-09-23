@@ -33,7 +33,16 @@ struct Parser {
     scope_depth: u32,
     had_error: bool,
     panic_mode: bool,
+    compilation_errors: String,
 }
 
 #[derive(Debug)]
-pub(crate) struct Compiler {}
+pub(crate) struct Compiler {
+    compilation_errors: String,
+}
+
+impl Compiler {
+    pub(crate) fn get_compilation_errors(&self) -> String {
+        self.compilation_errors.clone()
+    }
+}

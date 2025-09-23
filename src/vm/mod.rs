@@ -92,6 +92,7 @@ pub struct VirtualMachine {
     // variables: HashMap<String, Value>,
     #[cfg(test)]
     string_buffer: String,
+    compilation_errors: String,
 }
 
 #[derive(Debug)]

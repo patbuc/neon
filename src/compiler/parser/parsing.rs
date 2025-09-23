@@ -23,6 +23,7 @@ impl Parser {
             scope_depth: 0,
             had_error: false,
             panic_mode: false,
+            compilation_errors: String::new(),
         }
     }
 
@@ -357,15 +358,18 @@ impl Parser {
         self.had_error = true;
         self.panic_mode = true;
 
-        eprint!("[{}:{}] Error", token.line, token.column);
+        let mut error = format!("[{}:{}] Error", token.line, token.column);
         if token.token_type == TokenType::Eof {
-            eprint!(" at end");
+            error += " at end";
         } else if token.token_type == TokenType::Error {
             // Nothing.
         } else {
-            eprint!(" at {:?}", token.token);
+            error += format!(" at {:?}", token.token).as_str();
         }
-        eprintln!(": {}", message);
+        error += format!(": {}", message).as_str();
+
+        self.compilation_errors = error.to_string();
+        eprintln!("{}", message);
     }
 
     fn exit_panic_mode(&mut self) {
