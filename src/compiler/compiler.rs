@@ -4,7 +4,9 @@ use crate::vm::Block;
 
 impl Compiler {
     pub(crate) fn new() -> Compiler {
-        Compiler {}
+        Compiler {
+            compilation_errors: String::new(),
+        }
     }
 
     pub(crate) fn compile(&mut self, source: String) -> Option<Block> {
@@ -26,6 +28,7 @@ impl Compiler {
         if !(parser.had_error) {
             parser.blocks.pop()
         } else {
+            self.compilation_errors = parser.compilation_errors.clone();
             None
         }
     }

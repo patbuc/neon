@@ -13,6 +13,7 @@ impl VirtualMachine {
             block: None,
             #[cfg(test)]
             string_buffer: String::new(),
+            compilation_errors: String::new(),
         }
     }
 
@@ -27,6 +28,7 @@ impl VirtualMachine {
 
         let start = std::time::Instant::now();
         if block.is_none() {
+            self.compilation_errors = compiler.get_compilation_errors();
             return Result::CompileError;
         }
 
@@ -124,6 +126,11 @@ impl VirtualMachine {
     #[cfg(test)]
     fn get_output(&self) -> String {
         self.string_buffer.trim().to_string()
+    }
+
+    #[cfg(test)]
+    fn get_compiler_error(&self) -> String {
+        self.compilation_errors.clone()
     }
 
     fn reset(&mut self) {
