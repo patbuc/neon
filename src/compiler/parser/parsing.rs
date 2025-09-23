@@ -1,12 +1,11 @@
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
-use crate::compiler::{Compiler, Parser, Scanner, Token};
+use crate::compiler::{Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
 use crate::vm::ObjString;
 use crate::vm::Object;
 use crate::vm::Value;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -15,15 +14,15 @@ use crate::{number, string};
 use tracing_attributes::instrument;
 
 impl Parser {
-    pub(in crate::compiler) fn new(compiler: Rc<RefCell<Compiler>>, scanner: Scanner) -> Parser {
+    pub(in crate::compiler) fn new(scanner: Scanner) -> Parser {
         Parser {
-            compiler,
             scanner,
             blocks: Vec::default(),
-            had_error: false,
-            panic_mode: false,
             previous_token: Token::default(),
             current_token: Token::default(),
+            scope_depth: 0,
+            had_error: false,
+            panic_mode: false,
         }
     }
 

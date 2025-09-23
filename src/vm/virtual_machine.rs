@@ -4,9 +4,6 @@ use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::{BitsSize, Block, Result, SourceLocation, Value, VirtualMachine};
 use log::info;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
 
 impl VirtualMachine {
     pub fn new() -> Self {
@@ -23,8 +20,8 @@ impl VirtualMachine {
         self.reset();
 
         let start = std::time::Instant::now();
-        let compiler = Compiler::new();
-        let block = Compiler::compile(Rc::new(RefCell::new(compiler)), source);
+        let mut compiler = Compiler::new();
+        let block = compiler.compile(source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 

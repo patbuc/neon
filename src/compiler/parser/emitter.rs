@@ -24,7 +24,7 @@ impl Parser {
     pub fn define_value(&mut self, name: String) {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
-        let depth = self.compiler.borrow_mut().scope_depth;
+        let depth = self.scope_depth;
         self.current_block_mut()
             .define_value(Local::new(name, depth), line, column)
     }
@@ -32,7 +32,7 @@ impl Parser {
     pub fn define_variable(&mut self, name: String) {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
-        let depth = self.compiler.borrow_mut().scope_depth;
+        let depth = self.scope_depth;
         self.current_block_mut()
             .define_variable(Local::new(name, depth), line, column)
     }
