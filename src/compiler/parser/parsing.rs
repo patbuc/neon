@@ -176,42 +176,22 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
-        if self.match_token(TokenType::Equal) {
-            self.expression(false);
-            let maybe_index = self.current_block().get_variable_index(name);
-            if maybe_index.is_none() {
-                self.report_error_at_current(&format!("Undefined variable '{}'.", name));
-                return;
-            }
-            let index = maybe_index.unwrap();
-            if index <= 0xFF {
-                self.emit_op_code(OpCode::SetVariable);
-                self.emit_u8(index as u8);
-            } else if index <= 0xFFFF {
-                self.emit_op_code(OpCode::SetVariable2);
-                self.emit_u16(index as u16);
-            } else {
-                self.emit_op_code(OpCode::SetVariable4);
-                self.emit_u32(index);
-            }
+        let maybe_index = self.current_block().get_variable_index(name);
+        if let None = maybe_index {
+            self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
+        }
+
+        let is_assignment = self.match_token(TokenType::Equal);
+        if is_assignment {
+            self.expression(false);
+        }
+
+        let index = maybe_index.unwrap();
+        if is_assignment {
+            self.emit_op_code_variant(OpCode::SetVariable, index);
         } else {
-            let maybe_index = self.current_block().get_variable_index(name);
-            if maybe_index.is_none() {
-                self.report_error_at_current(&format!("Undefined variable '{}'.", name));
-                return;
-            }
-            let index = maybe_index.unwrap();
-            if index <= 0xFF {
-                self.emit_op_code(OpCode::GetVariable);
-                self.emit_u8(index as u8);
-            } else if index <= 0xFFFF {
-                self.emit_op_code(OpCode::GetVariable2);
-                self.emit_u16(index as u16);
-            } else {
-                self.emit_op_code(OpCode::GetVariable4);
-                self.emit_u32(index);
-            }
+            self.emit_op_code_variant(OpCode::GetVariable, index);
         }
     }
 
