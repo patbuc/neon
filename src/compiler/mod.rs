@@ -3,7 +3,6 @@ use crate::vm::Block;
 
 pub(crate) mod compiler;
 mod parser;
-mod scanner;
 mod token;
 
 #[derive(Debug, Clone, Default)]
