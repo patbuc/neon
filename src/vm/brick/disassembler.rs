@@ -1,10 +1,10 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::Block;
+use crate::vm::Brick;
 
 #[cfg(feature = "disassemble")]
-impl Block {
+impl Brick {
     #[allow(dead_code)]
-    pub(crate) fn disassemble_block(&self) {
+    pub(crate) fn disassemble_brick(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 
@@ -72,11 +72,11 @@ impl Block {
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_constant_index(block: &Block, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_constant_index(brick: &Brick, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::Constant => (block.read_u8(offset) as usize, 1),
-                OpCode::Constant2 => (block.read_u16(offset) as usize, 2),
-                OpCode::Constant4 => (block.read_u32(offset) as usize, 4),
+                OpCode::Constant => (brick.read_u8(offset) as usize, 1),
+                OpCode::Constant2 => (brick.read_u16(offset) as usize, 2),
+                OpCode::Constant4 => (brick.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }
@@ -88,14 +88,14 @@ impl Block {
     }
 
     fn variable_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_variable_index(block: &Block, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_variable_index(brick: &Brick, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::GetValue => (block.read_u8(offset) as usize, 1),
-                OpCode::GetValue2 => (block.read_u16(offset) as usize, 2),
-                OpCode::GetValue4 => (block.read_u32(offset) as usize, 4),
-                OpCode::GetVariable => (block.read_u8(offset) as usize, 1),
-                OpCode::GetVariable2 => (block.read_u16(offset) as usize, 2),
-                OpCode::GetVariable4 => (block.read_u32(offset) as usize, 4),
+                OpCode::GetValue => (brick.read_u8(offset) as usize, 1),
+                OpCode::GetValue2 => (brick.read_u16(offset) as usize, 2),
+                OpCode::GetValue4 => (brick.read_u32(offset) as usize, 4),
+                OpCode::GetVariable => (brick.read_u8(offset) as usize, 1),
+                OpCode::GetVariable2 => (brick.read_u16(offset) as usize, 2),
+                OpCode::GetVariable4 => (brick.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }

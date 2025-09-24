@@ -1,9 +1,9 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Constants, Local, SourceLocation, Value};
+use crate::vm::{Brick, Constants, Local, SourceLocation, Value};
 
-impl Block {
+impl Brick {
     pub(crate) fn new(name: &str) -> Self {
-        Block {
+        Brick {
             name: String::from(name),
             constants: Constants::new(),
             strings: Constants::new(),
@@ -15,7 +15,7 @@ impl Block {
     }
 }
 
-impl Block {
+impl Brick {
     pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, column: u32) {
         self.source_locations.push(SourceLocation {
             offset: self.instructions.len(),
@@ -168,7 +168,7 @@ impl Block {
     }
 }
 
-impl Block {
+impl Brick {
     pub(in crate::vm) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
         let mut result = Option::default();
         let mut low = 0;
@@ -201,110 +201,110 @@ impl Local {
 #[cfg(test)]
 mod tests {
     use crate::vm::opcodes::OpCode;
-    use crate::vm::Block;
+    use crate::vm::Brick;
     use crate::{as_number, number};
 
     #[test]
-    fn new_block_is_empty() {
-        let block = Block::new("origin");
+    fn new_brick_is_empty() {
+        let brick = Brick::new("origin");
 
-        assert_eq!("origin", block.name);
-        assert_eq!(0, block.instructions.len());
-        assert_eq!(0, block.constants.len());
+        assert_eq!("origin", brick.name);
+        assert_eq!(0, brick.instructions.len());
+        assert_eq!(0, brick.constants.len());
     }
 
     #[test]
-    fn op_code_can_be_pushed_to_an_block() {
-        let mut block = Block::new("jenny");
-        block.write_op_code(OpCode::Return, 123, 42);
+    fn op_code_can_be_pushed_to_an_brick() {
+        let mut brick = Brick::new("jenny");
+        brick.write_op_code(OpCode::Return, 123, 42);
 
-        assert_eq!(1, block.instructions.len());
-        assert_eq!(OpCode::Return as u8, block.instructions[0]);
+        assert_eq!(1, brick.instructions.len());
+        assert_eq!(OpCode::Return as u8, brick.instructions[0]);
     }
 
     #[test]
     fn can_write_more_then_256_constants() {
-        let mut block = Block::new("maggie");
+        let mut brick = Brick::new("maggie");
         for i in 0..258 {
-            block.write_constant(number!(i as f64), i, 42);
+            brick.write_constant(number!(i as f64), i, 42);
         }
 
-        assert_eq!(2 * 256 + 6, block.instructions.len());
+        assert_eq!(2 * 256 + 6, brick.instructions.len());
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(block.instructions[2 * 256])
+            OpCode::from_u8(brick.instructions[2 * 256])
         );
 
-        assert_eq!(256, block.read_u16(2 * 256 + 1));
+        assert_eq!(256, brick.read_u16(2 * 256 + 1));
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(block.instructions[2 * 256 + 3])
+            OpCode::from_u8(brick.instructions[2 * 256 + 3])
         );
-        let constant_index = block.read_u16(2 * 256 + 4) as usize;
+        let constant_index = brick.read_u16(2 * 256 + 4) as usize;
         assert_eq!(257, constant_index);
         assert_eq!(
             257f64,
-            as_number!(block.constants.read_value(constant_index))
+            as_number!(brick.constants.read_value(constant_index))
         );
     }
 
     #[test]
     fn can_write_u8() {
-        let mut block = Block::new("ruth");
-        block.write_u8(123);
-        assert_eq!(123, block.read_u8(0));
+        let mut brick = Brick::new("ruth");
+        brick.write_u8(123);
+        assert_eq!(123, brick.read_u8(0));
     }
 
     #[test]
     fn can_write_u16() {
-        let mut block = Block::new("ruth");
-        block.write_u16(12345);
-        assert_eq!(12345, block.read_u16(0));
+        let mut brick = Brick::new("ruth");
+        brick.write_u16(12345);
+        assert_eq!(12345, brick.read_u16(0));
     }
 
     #[test]
     fn can_write_u32() {
-        let mut block = Block::new("ruth");
-        block.write_u32(12345678);
-        assert_eq!(12345678, block.read_u32(0));
+        let mut brick = Brick::new("ruth");
+        brick.write_u32(12345678);
+        assert_eq!(12345678, brick.read_u32(0));
     }
 
     #[test]
-    fn can_write_block() {
-        let mut block = Block::new("ZeBlock");
+    fn can_write_brick() {
+        let mut brick = Brick::new("Zebrick");
 
-        block.write_constant(number!(1234.56), 2, 0);
-        block.write_op_code(OpCode::Negate, 3, 0);
-        block.write_constant(number!(345.67), 4, 0);
-        block.write_op_code(OpCode::Add, 4, 0);
-        block.write_constant(number!(1.2), 5, 0);
-        block.write_op_code(OpCode::Multiply, 6, 0);
-        block.write_op_code(OpCode::Return, 8, 0);
+        brick.write_constant(number!(1234.56), 2, 0);
+        brick.write_op_code(OpCode::Negate, 3, 0);
+        brick.write_constant(number!(345.67), 4, 0);
+        brick.write_op_code(OpCode::Add, 4, 0);
+        brick.write_constant(number!(1.2), 5, 0);
+        brick.write_op_code(OpCode::Multiply, 6, 0);
+        brick.write_op_code(OpCode::Return, 8, 0);
     }
 
     #[test]
     fn can_read_line_information() {
-        let mut block = Block::new("ZeBlock");
+        let mut brick = Brick::new("Zebrick");
 
-        block.write_constant(number!(1234.56), 2, 0);
-        block.write_op_code(OpCode::Negate, 3, 0);
-        block.write_constant(number!(345.67), 4, 0);
-        block.write_op_code(OpCode::Add, 4, 0);
-        block.write_constant(number!(1.2), 5, 0);
-        block.write_op_code(OpCode::Multiply, 6, 0);
-        block.write_op_code(OpCode::Return, 8, 0);
+        brick.write_constant(number!(1234.56), 2, 0);
+        brick.write_op_code(OpCode::Negate, 3, 0);
+        brick.write_constant(number!(345.67), 4, 0);
+        brick.write_op_code(OpCode::Add, 4, 0);
+        brick.write_constant(number!(1.2), 5, 0);
+        brick.write_op_code(OpCode::Multiply, 6, 0);
+        brick.write_op_code(OpCode::Return, 8, 0);
 
-        assert_eq!(2, block.get_source_location(0).unwrap().line);
-        assert_eq!(2, block.get_source_location(1).unwrap().line);
-        assert_eq!(3, block.get_source_location(2).unwrap().line);
-        assert_eq!(4, block.get_source_location(3).unwrap().line);
-        assert_eq!(4, block.get_source_location(4).unwrap().line);
-        assert_eq!(4, block.get_source_location(5).unwrap().line);
-        assert_eq!(5, block.get_source_location(6).unwrap().line);
-        assert_eq!(5, block.get_source_location(7).unwrap().line);
-        assert_eq!(6, block.get_source_location(8).unwrap().line);
-        assert_eq!(8, block.get_source_location(9).unwrap().line);
+        assert_eq!(2, brick.get_source_location(0).unwrap().line);
+        assert_eq!(2, brick.get_source_location(1).unwrap().line);
+        assert_eq!(3, brick.get_source_location(2).unwrap().line);
+        assert_eq!(4, brick.get_source_location(3).unwrap().line);
+        assert_eq!(4, brick.get_source_location(4).unwrap().line);
+        assert_eq!(4, brick.get_source_location(5).unwrap().line);
+        assert_eq!(5, brick.get_source_location(6).unwrap().line);
+        assert_eq!(5, brick.get_source_location(7).unwrap().line);
+        assert_eq!(6, brick.get_source_location(8).unwrap().line);
+        assert_eq!(8, brick.get_source_location(9).unwrap().line);
 
-        assert!(block.get_source_location(10).is_none());
+        assert!(brick.get_source_location(10).is_none());
     }
 }

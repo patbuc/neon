@@ -2,7 +2,7 @@ mod functions;
 
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
-use crate::vm::{BitsSize, Block, Result, SourceLocation, Value, VirtualMachine};
+use crate::vm::{BitsSize, Brick, Result, SourceLocation, Value, VirtualMachine};
 use crate::{boolean, nil};
 use log::info;
 
@@ -11,7 +11,7 @@ impl VirtualMachine {
         VirtualMachine {
             ip: 0,
             stack: Vec::new(),
-            block: None,
+            brick: None,
             #[cfg(test)]
             string_buffer: String::new(),
             compilation_errors: String::new(),
@@ -23,35 +23,35 @@ impl VirtualMachine {
 
         let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
-        let block = compiler.compile(source);
+        let brick = compiler.compile(source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         let start = std::time::Instant::now();
-        if block.is_none() {
+        if brick.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
             return Result::CompileError;
         }
 
-        let block = block.unwrap();
-        let result = self.run(&block);
-        self.block = None;
+        let brick = brick.unwrap();
+        let result = self.run(&brick);
+        self.brick = None;
 
         info!("Run time: {}ms", start.elapsed().as_millis());
         result
     }
 
     #[inline(always)]
-    fn run(&mut self, block: &Block) -> Result {
+    fn run(&mut self, brick: &Brick) -> Result {
         #[cfg(feature = "disassemble")]
-        block.disassemble_block();
+        brick.disassemble_brick();
         loop {
-            let op_code = OpCode::from_u8(block.read_u8(self.ip));
+            let op_code = OpCode::from_u8(brick.read_u8(self.ip));
             match op_code {
                 OpCode::Return => return Result::Ok,
-                OpCode::Constant => self.fn_constant(block),
-                OpCode::Constant2 => self.fn_constant2(block),
-                OpCode::Constant4 => self.fn_constant4(block),
+                OpCode::Constant => self.fn_constant(brick),
+                OpCode::Constant2 => self.fn_constant2(brick),
+                OpCode::Constant4 => self.fn_constant4(brick),
                 OpCode::Negate => {
                     if let Some(value) = self.fn_negate() {
                         return value;
@@ -72,25 +72,25 @@ impl VirtualMachine {
                 OpCode::Greater => self.fn_greater(),
                 OpCode::Less => self.fn_less(),
                 OpCode::Not => self.fn_not(),
-                OpCode::String => self.fn_string(block),
-                OpCode::String2 => self.fn_string2(block),
-                OpCode::String4 => self.fn_string4(block),
+                OpCode::String => self.fn_string(brick),
+                OpCode::String2 => self.fn_string2(brick),
+                OpCode::String4 => self.fn_string4(brick),
                 OpCode::Print => self.fn_print(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::GetValue => self.fn_get_value(block, BitsSize::Eight),
-                OpCode::GetValue2 => self.fn_get_value(block, BitsSize::Sixteen),
-                OpCode::GetValue4 => self.fn_get_value(block, BitsSize::ThirtyTwo),
-                OpCode::SetValue => self.fn_set_value(block, BitsSize::Eight),
-                OpCode::SetValue2 => self.fn_set_value(block, BitsSize::Sixteen),
-                OpCode::SetValue4 => self.fn_set_value(block, BitsSize::ThirtyTwo),
-                OpCode::GetVariable => self.fn_get_variable(block, BitsSize::Eight),
-                OpCode::GetVariable2 => self.fn_get_variable(block, BitsSize::Sixteen),
-                OpCode::GetVariable4 => self.fn_get_variable(block, BitsSize::ThirtyTwo),
-                OpCode::SetVariable => self.fn_set_variable(block, BitsSize::Eight),
-                OpCode::SetVariable2 => self.fn_set_variable(block, BitsSize::Sixteen),
-                OpCode::SetVariable4 => self.fn_set_variable(block, BitsSize::ThirtyTwo),
-                OpCode::JumpIfFalse => self.fn_jump_if_false(block),
-                OpCode::Jump => self.fn_jump(block),
+                OpCode::GetValue => self.fn_get_value(brick, BitsSize::Eight),
+                OpCode::GetValue2 => self.fn_get_value(brick, BitsSize::Sixteen),
+                OpCode::GetValue4 => self.fn_get_value(brick, BitsSize::ThirtyTwo),
+                OpCode::SetValue => self.fn_set_value(brick, BitsSize::Eight),
+                OpCode::SetValue2 => self.fn_set_value(brick, BitsSize::Sixteen),
+                OpCode::SetValue4 => self.fn_set_value(brick, BitsSize::ThirtyTwo),
+                OpCode::GetVariable => self.fn_get_variable(brick, BitsSize::Eight),
+                OpCode::GetVariable2 => self.fn_get_variable(brick, BitsSize::Sixteen),
+                OpCode::GetVariable4 => self.fn_get_variable(brick, BitsSize::ThirtyTwo),
+                OpCode::SetVariable => self.fn_set_variable(brick, BitsSize::Eight),
+                OpCode::SetVariable2 => self.fn_set_variable(brick, BitsSize::Sixteen),
+                OpCode::SetVariable4 => self.fn_set_variable(brick, BitsSize::ThirtyTwo),
+                OpCode::JumpIfFalse => self.fn_jump_if_false(brick),
+                OpCode::Jump => self.fn_jump(brick),
             }
             self.ip += 1;
         }
@@ -117,7 +117,7 @@ impl VirtualMachine {
     }
 
     fn get_current_source_location(&self) -> SourceLocation {
-        self.block
+        self.brick
             .as_ref()
             .unwrap()
             .get_source_location(self.ip)
@@ -137,7 +137,7 @@ impl VirtualMachine {
     fn reset(&mut self) {
         self.ip = 0;
         self.stack.clear();
-        self.block = None;
+        self.brick = None;
     }
 }
 

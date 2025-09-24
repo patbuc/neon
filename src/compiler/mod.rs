@@ -1,5 +1,5 @@
 use crate::compiler::token::TokenType;
-use crate::vm::Block;
+use crate::vm::Brick;
 
 pub(crate) mod compiler;
 mod parser;
@@ -26,7 +26,7 @@ struct Scanner {
 #[derive(Debug)]
 struct Parser {
     scanner: Scanner,
-    blocks: Vec<Block>,
+    bricks: Vec<Brick>,
     previous_token: Token,
     current_token: Token,
     scope_depth: u32,

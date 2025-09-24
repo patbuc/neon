@@ -4,7 +4,7 @@ use std::rc::Rc;
 #[macro_use]
 mod value;
 
-mod block;
+mod brick;
 pub(crate) mod opcodes;
 
 mod virtual_machine;
@@ -87,7 +87,7 @@ pub enum Result {
 pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
-    block: Option<Rc<Block>>,
+    brick: Option<Rc<Brick>>,
     // values: HashMap<String, Value>,
     // variables: HashMap<String, Value>,
     #[cfg(test)]
@@ -96,7 +96,7 @@ pub struct VirtualMachine {
 }
 
 #[derive(Debug)]
-pub(crate) struct Block {
+pub(crate) struct Brick {
     #[allow(dead_code)]
     name: String,
     constants: Constants,
