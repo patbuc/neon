@@ -319,7 +319,7 @@ impl Scanner {
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::scanner::Token;
+    use crate::compiler::parser::scanner::Token;
     use crate::compiler::token::TokenType;
     use crate::compiler::Scanner;
 

@@ -1,5 +1,5 @@
 use crate::compiler::token::TokenType;
-use crate::compiler::{Compiler, Parser, Scanner};
+use crate::compiler::{Compiler, Parser};
 use crate::vm::Block;
 
 impl Compiler {
@@ -10,7 +10,7 @@ impl Compiler {
     }
 
     pub(crate) fn compile(&mut self, source: String) -> Option<Block> {
-        let mut parser = Parser::new(Scanner::new(source));
+        let mut parser = Parser::new(source);
 
         parser.start();
         parser.advance();

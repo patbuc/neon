@@ -14,9 +14,9 @@ use crate::{number, string};
 use tracing_attributes::instrument;
 
 impl Parser {
-    pub(in crate::compiler) fn new(scanner: Scanner) -> Parser {
+    pub(in crate::compiler) fn new(source: String) -> Parser {
         Parser {
-            scanner,
+            scanner: Scanner::new(source),
             blocks: Vec::default(),
             previous_token: Token::default(),
             current_token: Token::default(),
