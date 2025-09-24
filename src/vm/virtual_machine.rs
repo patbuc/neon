@@ -3,6 +3,7 @@ mod functions;
 use crate::compiler::Compiler;
 use crate::vm::opcodes::OpCode;
 use crate::vm::{BitsSize, Block, Result, SourceLocation, Value, VirtualMachine};
+use crate::{boolean, nil};
 use log::info;
 
 impl VirtualMachine {

@@ -201,7 +201,8 @@ impl Local {
 #[cfg(test)]
 mod tests {
     use crate::vm::opcodes::OpCode;
-    use crate::vm::{Block, Value};
+    use crate::vm::Block;
+    use crate::{as_number, number};
 
     #[test]
     fn new_block_is_empty() {

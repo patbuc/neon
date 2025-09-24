@@ -23,6 +23,7 @@ impl Constants {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{as_number, number};
 
     #[test]
     fn value_can_be_written_to_constants() {

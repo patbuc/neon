@@ -1,4 +1,5 @@
 mod compiler;
+mod macros;
 mod vm;
 
 use colored::Colorize;
