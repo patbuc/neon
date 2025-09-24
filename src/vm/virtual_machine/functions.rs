@@ -1,6 +1,6 @@
-use crate::vm::ObjString;
 use crate::vm::Object;
-use crate::vm::Rc;
+use crate::{as_number, boolean, is_false_like, number, string};
+
 use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
 impl VirtualMachine {
     #[inline(always)]

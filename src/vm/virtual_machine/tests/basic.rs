@@ -1,5 +1,5 @@
 use crate::vm::opcodes::OpCode;
-use crate::vm::{Block, Value};
+use crate::vm::Block;
 use crate::vm::{Result, VirtualMachine};
 use std::assert_eq;
 

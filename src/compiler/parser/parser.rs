@@ -3,10 +3,6 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
 use crate::vm::Block;
-use crate::vm::ObjString;
-use crate::vm::Object;
-use crate::vm::Value;
-use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::{number, string};
