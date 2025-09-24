@@ -2,7 +2,7 @@ use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
 use crate::vm::opcodes::OpCode;
-use crate::vm::Block;
+use crate::vm::Brick;
 use std::str::FromStr;
 
 use crate::{number, string};
@@ -13,7 +13,7 @@ impl Parser {
     pub(in crate::compiler) fn new(source: String) -> Parser {
         Parser {
             scanner: Scanner::new(source),
-            blocks: Vec::default(),
+            bricks: Vec::default(),
             previous_token: Token::default(),
             current_token: Token::default(),
             scope_depth: 0,
@@ -24,8 +24,8 @@ impl Parser {
     }
 
     pub(in crate::compiler) fn start(&mut self) {
-        self.blocks.push(Block::new(
-            format!("Block no. {}", self.blocks.len()).as_str(),
+        self.bricks.push(Brick::new(
+            format!("Brick no. {}", self.bricks.len()).as_str(),
         ));
     }
 
@@ -121,7 +121,7 @@ impl Parser {
             self.print_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
-            self.block();
+            self.brick();
             self.end_scope();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
@@ -172,7 +172,7 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
-        let maybe_index = self.current_block().get_variable_index(name);
+        let maybe_index = self.current_brick().get_variable_index(name);
         if maybe_index.is_none() {
             self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
@@ -400,17 +400,17 @@ impl Parser {
         self.scope_depth -= 1;
     }
 
-    fn block(&mut self) {
+    fn brick(&mut self) {
         self.skip_new_lines();
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             self.declaration();
         }
-        self.consume(TokenType::RightBrace, "Expect '}' after block.");
+        self.consume(TokenType::RightBrace, "Expect '}' after brick.");
         if !self.check(TokenType::Else) {
             self.consume_either(
                 TokenType::NewLine,
                 TokenType::Eof,
-                "Expecting '\\n' or '\\0' at end of block.",
+                "Expecting '\\n' or '\\0' at end of brick.",
             );
         }
     }

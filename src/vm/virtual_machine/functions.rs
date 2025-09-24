@@ -1,7 +1,7 @@
 use crate::vm::Object;
 use crate::{as_number, boolean, is_false_like, number, string};
 
-use crate::vm::{BitsSize, Block, Result, Value, VirtualMachine};
+use crate::vm::{BitsSize, Brick, Result, Value, VirtualMachine};
 impl VirtualMachine {
     #[inline(always)]
     pub(super) fn fn_print(&mut self) {
@@ -16,25 +16,25 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(super) fn fn_string4(&mut self, block: &Block) {
-        let string_index = block.read_u32(self.ip + 1) as usize;
-        let string = block.read_string(string_index);
+    pub(super) fn fn_string4(&mut self, brick: &Brick) {
+        let string_index = brick.read_u32(self.ip + 1) as usize;
+        let string = brick.read_string(string_index);
         self.push(string);
         self.ip += 4;
     }
 
     #[inline(always)]
-    pub(super) fn fn_string2(&mut self, block: &Block) {
-        let string_index = block.read_u16(self.ip + 1) as usize;
-        let string = block.read_string(string_index);
+    pub(super) fn fn_string2(&mut self, brick: &Brick) {
+        let string_index = brick.read_u16(self.ip + 1) as usize;
+        let string = brick.read_string(string_index);
         self.push(string);
         self.ip += 2;
     }
 
     #[inline(always)]
-    pub(super) fn fn_string(&mut self, block: &Block) {
-        let string_index = block.read_u8(self.ip + 1) as usize;
-        let string = block.read_string(string_index);
+    pub(super) fn fn_string(&mut self, brick: &Brick) {
+        let string_index = brick.read_u8(self.ip + 1) as usize;
+        let string = brick.read_string(string_index);
         self.push(string);
         self.ip += 1;
     }
@@ -134,68 +134,68 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(super) fn fn_constant4(&mut self, block: &Block) {
-        let constant_index = block.read_u32(self.ip + 1) as usize;
-        let constant = block.read_constant(constant_index);
+    pub(super) fn fn_constant4(&mut self, brick: &Brick) {
+        let constant_index = brick.read_u32(self.ip + 1) as usize;
+        let constant = brick.read_constant(constant_index);
         self.push(constant);
         self.ip += 4;
     }
 
     #[inline(always)]
-    pub(super) fn fn_constant2(&mut self, block: &Block) {
-        let constant_index = block.read_u16(self.ip + 1) as usize;
-        let constant = block.read_constant(constant_index);
+    pub(super) fn fn_constant2(&mut self, brick: &Brick) {
+        let constant_index = brick.read_u16(self.ip + 1) as usize;
+        let constant = brick.read_constant(constant_index);
         self.push(constant);
         self.ip += 2;
     }
 
     #[inline(always)]
-    pub(super) fn fn_constant(&mut self, block: &Block) {
-        let constant_index = block.read_u8(self.ip + 1) as usize;
-        let constant = block.read_constant(constant_index);
+    pub(super) fn fn_constant(&mut self, brick: &Brick) {
+        let constant_index = brick.read_u8(self.ip + 1) as usize;
+        let constant = brick.read_constant(constant_index);
         self.push(constant);
         self.ip += 1;
     }
 
     #[inline(always)]
-    pub(super) fn fn_set_value(&mut self, block: &Block, bits: BitsSize) {
-        let index = self.read_bits(block, &bits);
+    pub(super) fn fn_set_value(&mut self, brick: &Brick, bits: BitsSize) {
+        let index = self.read_bits(brick, &bits);
         self.stack[index] = self.peek(0);
         self.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(super) fn fn_set_variable(&mut self, block: &Block, bits: BitsSize) {
-        let index = self.read_bits(block, &bits);
+    pub(super) fn fn_set_variable(&mut self, brick: &Brick, bits: BitsSize) {
+        let index = self.read_bits(brick, &bits);
         self.stack[index] = self.peek(0);
         self.ip += bits.as_bytes();
     }
 
-    fn read_bits(&mut self, block: &Block, bits: &BitsSize) -> usize {
+    fn read_bits(&mut self, brick: &Brick, bits: &BitsSize) -> usize {
         match bits {
-            BitsSize::Eight => block.read_u8(self.ip + 1) as usize,
-            BitsSize::Sixteen => block.read_u16(self.ip + 1) as usize,
-            BitsSize::ThirtyTwo => block.read_u32(self.ip + 1) as usize,
+            BitsSize::Eight => brick.read_u8(self.ip + 1) as usize,
+            BitsSize::Sixteen => brick.read_u16(self.ip + 1) as usize,
+            BitsSize::ThirtyTwo => brick.read_u32(self.ip + 1) as usize,
         }
     }
 
     #[inline(always)]
-    pub(super) fn fn_get_value(&mut self, block: &Block, bits: BitsSize) {
-        let index = self.read_bits(block, &bits);
+    pub(super) fn fn_get_value(&mut self, brick: &Brick, bits: BitsSize) {
+        let index = self.read_bits(brick, &bits);
         self.push(self.stack[index].clone());
         self.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(super) fn fn_get_variable(&mut self, block: &Block, bits: BitsSize) {
-        let index = self.read_bits(block, &bits);
+    pub(super) fn fn_get_variable(&mut self, brick: &Brick, bits: BitsSize) {
+        let index = self.read_bits(brick, &bits);
         self.push(self.stack[index].clone());
         self.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(super) fn fn_jump_if_false(&mut self, block: &Block) {
-        let offset = block.read_u32(self.ip + 1);
+    pub(super) fn fn_jump_if_false(&mut self, brick: &Brick) {
+        let offset = brick.read_u32(self.ip + 1);
         self.ip += 4;
         if is_false_like!(self.peek(0)) {
             self.pop();
@@ -204,8 +204,8 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(super) fn fn_jump(&mut self, block: &Block) {
-        let offset = block.read_u32(self.ip + 1);
+    pub(super) fn fn_jump(&mut self, brick: &Brick) {
+        let offset = brick.read_u32(self.ip + 1);
         self.ip += 4;
         self.ip += offset as usize;
     }
