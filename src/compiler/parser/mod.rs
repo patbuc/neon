@@ -1,3 +1,3 @@
 mod emitter;
-mod parsing;
+mod parser;
 mod rules;
