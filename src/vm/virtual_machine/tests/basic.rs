@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::vm::Brick;
+use crate::common::Brick;
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;

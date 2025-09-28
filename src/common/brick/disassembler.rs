@@ -16,7 +16,7 @@ impl Brick {
         println!("=== </{}> ===", self.name);
     }
 
-    pub(in crate::vm) fn disassemble_instruction(&self, offset: usize) -> usize {
+    pub(crate) fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
         let line = self.get_source_location(offset).unwrap();

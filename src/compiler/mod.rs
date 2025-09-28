@@ -1,5 +1,5 @@
+use crate::common::Brick;
 use crate::compiler::token::TokenType;
-use crate::vm::Brick;
 
 pub(crate) mod compiler;
 mod parser;

@@ -1,6 +1,6 @@
+use crate::common::Brick;
 use crate::compiler::token::TokenType;
 use crate::compiler::{Compiler, Parser};
-use crate::vm::Brick;
 
 impl Compiler {
     pub(crate) fn new() -> Compiler {

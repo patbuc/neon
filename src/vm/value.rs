@@ -1,4 +1,4 @@
-use crate::vm::Value;
+use crate::common::Value;
 use std::fmt::{Display, Formatter};
 
 impl Display for Value {

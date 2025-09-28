@@ -1,7 +1,9 @@
-use crate::vm::Object;
+use crate::common::Object;
+use crate::common::{BitsSize, Brick, Value};
+use crate::vm::Result;
+use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
 
-use crate::vm::{BitsSize, Brick, Result, Value, VirtualMachine};
 impl VirtualMachine {
     #[inline(always)]
     pub(super) fn fn_print(&mut self) {
