@@ -1,6 +1,6 @@
 use crate::common::opcodes::OpCode;
+use crate::common::{Brick, Local, Value};
 use crate::compiler::Parser;
-use crate::vm::{Brick, Local, Value};
 
 impl Parser {
     pub(super) fn current_brick(&self) -> &Brick {

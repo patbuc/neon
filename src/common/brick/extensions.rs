@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::vm::{Brick, Constants, Local, SourceLocation, Value};
+use crate::common::{Brick, Constants, Local, SourceLocation, Value};
 
 impl Brick {
     pub(crate) fn new(name: &str) -> Self {
@@ -98,29 +98,29 @@ impl Brick {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_constant(&self, index: usize) -> Value {
+    pub(crate) fn read_constant(&self, index: usize) -> Value {
         self.constants.read_value(index)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_string(&self, index: usize) -> Value {
+    pub(crate) fn read_string(&self, index: usize) -> Value {
         self.strings.read_value(index)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_u8(&self, offset: usize) -> u8 {
+    pub(crate) fn read_u8(&self, offset: usize) -> u8 {
         self.instructions[offset]
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_u16(&self, offset: usize) -> u16 {
+    pub(crate) fn read_u16(&self, offset: usize) -> u16 {
         let byte1 = self.instructions[offset] as u16;
         let byte2 = self.instructions[offset + 1] as u16;
         (byte2 << 8) | byte1
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn read_u32(&self, offset: usize) -> u32 {
+    pub(crate) fn read_u32(&self, offset: usize) -> u32 {
         let byte1 = self.instructions[offset] as u32;
         let byte2 = self.instructions[offset + 1] as u32;
         let byte3 = self.instructions[offset + 2] as u32;
@@ -169,7 +169,7 @@ impl Brick {
 }
 
 impl Brick {
-    pub(in crate::vm) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
+    pub(crate) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
         let mut result = Option::default();
         let mut low = 0;
         let mut high = self.source_locations.len() - 1;
@@ -201,7 +201,7 @@ impl Local {
 #[cfg(test)]
 mod tests {
     use crate::common::opcodes::OpCode;
-    use crate::vm::Brick;
+    use crate::common::Brick;
     use crate::{as_number, number};
 
     #[test]

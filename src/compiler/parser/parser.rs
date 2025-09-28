@@ -1,8 +1,8 @@
 use crate::common::opcodes::OpCode;
+use crate::common::Brick;
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
-use crate::vm::Brick;
 use std::str::FromStr;
 
 use crate::{number, string};

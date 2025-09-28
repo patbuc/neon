@@ -1,4 +1,5 @@
-use crate::vm::{Constants, Value};
+use crate::common::Constants;
+use crate::common::Value;
 
 impl Constants {
     pub fn new() -> Self {
@@ -22,7 +23,7 @@ impl Constants {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::common::Constants;
     use crate::{as_number, number};
 
     #[test]
