@@ -90,6 +90,7 @@ impl VirtualMachine {
                 OpCode::SetVariable4 => self.fn_set_variable(brick, BitsSize::ThirtyTwo),
                 OpCode::JumpIfFalse => self.fn_jump_if_false(brick),
                 OpCode::Jump => self.fn_jump(brick),
+                OpCode::Loop => self.fn_loop(brick),
             }
             self.ip += 1;
         }

@@ -453,3 +453,20 @@ fn cannot_access_undefined_variable() {
         vm.get_compiler_error()
     );
 }
+
+#[test]
+fn can_loop() {
+    let program = r#"
+        var x = 0
+        while (x < 10) {
+            x = x + 1
+            print x
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
+}

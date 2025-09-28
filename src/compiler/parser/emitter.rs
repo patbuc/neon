@@ -74,4 +74,10 @@ impl Parser {
         current_brick.write_op_code(op_code1, line, column);
         current_brick.write_op_code(op_code2, line, column);
     }
+
+    pub fn emit_loop(&mut self, loop_start: u32) {
+        let line = self.previous_token.line;
+        let column = self.previous_token.column;
+        self.current_brick_mut().emit_loop(loop_start, line, column);
+    }
 }
