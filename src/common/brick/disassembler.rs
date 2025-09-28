@@ -63,6 +63,7 @@ impl Brick {
             OpCode::GetVariable4 => self.variable_instruction(OpCode::GetVariable4, offset),
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset),
             OpCode::Jump => self.jump_instruction(instruction, offset),
+            OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
         }
     }
 

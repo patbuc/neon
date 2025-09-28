@@ -125,6 +125,8 @@ impl Parser {
             self.end_scope();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
+        } else if self.match_token(TokenType::While) {
+            self.while_statement();
         } else {
             self.expression_statement();
         }
@@ -340,6 +342,21 @@ impl Parser {
             "Expecting '\\n' or '\\0' at end of expression.",
         );
         self.emit_op_code(OpCode::Pop);
+    }
+
+    fn while_statement(&mut self) {
+        let loop_start = self.current_brick().instruction_count() as u32;
+
+        self.consume(TokenType::LeftParen, "Expecting '(' after 'while'.");
+        self.expression(false);
+        self.consume(TokenType::RightParen, "Expecting ')' after condition.");
+
+        let exit_jump = self.emit_jump(OpCode::JumpIfFalse);
+        self.emit_op_code(OpCode::Pop); // Pop the condition value for the true case
+        self.statement();
+        self.emit_loop(loop_start);
+
+        self.patch_jump(exit_jump);
     }
 
     fn report_error_at_current(&mut self, message: &str) {

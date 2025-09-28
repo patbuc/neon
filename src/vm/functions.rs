@@ -211,4 +211,11 @@ impl VirtualMachine {
         self.ip += 4;
         self.ip += offset as usize;
     }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_loop(&mut self, brick: &Brick) {
+        let offset = brick.read_u32(self.ip + 1);
+        self.ip += 4;
+        self.ip -= offset as usize;
+    }
 }

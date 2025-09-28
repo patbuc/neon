@@ -143,6 +143,16 @@ impl Brick {
         self.instructions[offset + 3] = (jump >> 24) as u8;
     }
 
+    pub(crate) fn emit_loop(&mut self, loop_start: u32, line: u32, column: u32) {
+        self.write_op_code(OpCode::Loop, line, column);
+        let offset = self.instructions.len() as u32 - loop_start + 4;
+        self.write_u32(offset);
+    }
+
+    pub(crate) fn instruction_count(&self) -> usize {
+        self.instructions.len()
+    }
+
     pub(crate) fn get_variable_index(&self, name: &str) -> Option<u32> {
         let mut index = 0;
         loop {

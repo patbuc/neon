@@ -38,6 +38,7 @@ pub(crate) enum OpCode {
     GetVariable4,
     JumpIfFalse,
     Jump,
+    Loop,
 }
 
 impl OpCode {
