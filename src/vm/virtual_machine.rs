@@ -1,7 +1,7 @@
 mod functions;
 
+use crate::common::opcodes::OpCode;
 use crate::compiler::Compiler;
-use crate::vm::opcodes::OpCode;
 use crate::vm::{BitsSize, Brick, Result, SourceLocation, Value, VirtualMachine};
 use crate::{boolean, nil};
 use log::info;

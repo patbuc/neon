@@ -1,4 +1,4 @@
-use crate::vm::opcodes::OpCode;
+use crate::common::opcodes::OpCode;
 use crate::vm::Brick;
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};

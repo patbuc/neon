@@ -1,5 +1,5 @@
+use crate::common::opcodes::OpCode;
 use crate::compiler::Parser;
-use crate::vm::opcodes::OpCode;
 use crate::vm::{Brick, Local, Value};
 
 impl Parser {

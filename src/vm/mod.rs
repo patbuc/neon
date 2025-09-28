@@ -5,7 +5,6 @@ use std::rc::Rc;
 mod value;
 
 mod brick;
-pub(crate) mod opcodes;
 
 mod virtual_machine;
 

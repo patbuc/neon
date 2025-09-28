@@ -42,7 +42,7 @@ pub(crate) enum OpCode {
 
 impl OpCode {
     #[inline(always)]
-    pub(in crate::vm) fn from_u8(value: u8) -> OpCode {
+    pub(crate) fn from_u8(value: u8) -> OpCode {
         unsafe { transmute(value) }
     }
 }
