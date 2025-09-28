@@ -1,5 +1,5 @@
 use crate::common::{Brick, Value};
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::rc::Rc;
 
 mod virtual_machine;

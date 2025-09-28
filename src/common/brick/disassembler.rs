@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::vm::Brick;
+use crate::common::Brick;
 
 #[cfg(feature = "disassemble")]
 impl Brick {
@@ -96,7 +96,13 @@ impl Brick {
                 OpCode::GetVariable => (brick.read_u8(offset) as usize, 1),
                 OpCode::GetVariable2 => (brick.read_u16(offset) as usize, 2),
                 OpCode::GetVariable4 => (brick.read_u32(offset) as usize, 4),
-                _ => panic!("Invalid OpCode"),
+                OpCode::SetValue => (brick.read_u8(offset) as usize, 1),
+                OpCode::SetValue2 => (brick.read_u16(offset) as usize, 2),
+                OpCode::SetValue4 => (brick.read_u32(offset) as usize, 4),
+                OpCode::SetVariable => (brick.read_u8(offset) as usize, 1),
+                OpCode::SetVariable2 => (brick.read_u16(offset) as usize, 2),
+                OpCode::SetVariable4 => (brick.read_u32(offset) as usize, 4),
+                _ => panic!("Invalid OpCode {}", op_code),
             }
         }
 
@@ -122,5 +128,12 @@ impl Brick {
         let string = self.read_string(index);
         println!("{:?} {:02} '{}'", op_code, index, string);
         offset + 2
+    }
+}
+
+#[cfg(feature = "disassemble")]
+impl std::fmt::Display for OpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self) // Use Debug formatting as a fallback
     }
 }
