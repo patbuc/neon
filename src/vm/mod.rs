@@ -1,9 +1,6 @@
 use crate::common::{Brick, Value};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
 use std::rc::Rc;
-
-#[macro_use]
-mod value;
 
 mod virtual_machine;
 
