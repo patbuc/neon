@@ -1,5 +1,3 @@
-mod functions;
-
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, Brick, SourceLocation, Value};
 use crate::compiler::Compiler;
@@ -43,7 +41,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    fn run(&mut self, brick: &Brick) -> Result {
+    pub(in crate::vm) fn run(&mut self, brick: &Brick) -> Result {
         #[cfg(feature = "disassemble")]
         brick.disassemble_brick();
         loop {
@@ -98,23 +96,33 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    fn push(&mut self, value: Value) {
+    pub(in crate::vm) fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
 
     #[inline(always)]
-    fn pop(&mut self) -> Value {
+    pub(in crate::vm) fn pop(&mut self) -> Value {
         self.stack.pop().unwrap()
     }
 
     #[inline(always)]
-    fn peek(&self, distance: usize) -> Value {
+    pub(in crate::vm) fn peek(&self, distance: usize) -> Value {
         self.stack[self.stack.len() - 1 - distance].clone()
     }
 
-    fn runtime_error(&mut self, error: &str) {
+    pub(in crate::vm) fn runtime_error(&mut self, error: &str) {
         let source_location = self.get_current_source_location();
         eprintln!("[{}] {}", source_location, error);
+    }
+
+    #[cfg(test)]
+    pub(in crate::vm) fn get_output(&self) -> String {
+        self.string_buffer.trim().to_string()
+    }
+
+    #[cfg(test)]
+    pub(in crate::vm) fn get_compiler_error(&self) -> String {
+        self.compilation_errors.clone()
     }
 
     fn get_current_source_location(&self) -> SourceLocation {
@@ -125,22 +133,9 @@ impl VirtualMachine {
             .unwrap()
     }
 
-    #[cfg(test)]
-    fn get_output(&self) -> String {
-        self.string_buffer.trim().to_string()
-    }
-
-    #[cfg(test)]
-    fn get_compiler_error(&self) -> String {
-        self.compilation_errors.clone()
-    }
-
     fn reset(&mut self) {
         self.ip = 0;
         self.stack.clear();
         self.brick = None;
     }
 }
-
-#[cfg(test)]
-mod tests;

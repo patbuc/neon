@@ -1,5 +1,5 @@
 mod constants;
-mod extensions;
+mod r#impl;
 
 #[cfg(feature = "disassemble")]
 mod disassembler;
