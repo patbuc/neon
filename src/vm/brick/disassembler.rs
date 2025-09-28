@@ -1,4 +1,4 @@
-use crate::vm::opcodes::OpCode;
+use crate::common::opcodes::OpCode;
 use crate::vm::Brick;
 
 #[cfg(feature = "disassemble")]

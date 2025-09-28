@@ -1,4 +1,4 @@
-use crate::vm::opcodes::OpCode;
+use crate::common::opcodes::OpCode;
 use crate::vm::{Brick, Constants, Local, SourceLocation, Value};
 
 impl Brick {
@@ -200,7 +200,7 @@ impl Local {
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::opcodes::OpCode;
+    use crate::common::opcodes::OpCode;
     use crate::vm::Brick;
     use crate::{as_number, number};
 
