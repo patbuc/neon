@@ -2,7 +2,10 @@ use crate::common::{Brick, Value};
 use std::fmt::Debug;
 use std::rc::Rc;
 
-mod virtual_machine;
+mod functions;
+mod r#impl;
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, PartialEq)]
 pub enum Result {
