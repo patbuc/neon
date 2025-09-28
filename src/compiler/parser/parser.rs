@@ -121,7 +121,7 @@ impl Parser {
             self.print_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
-            self.brick();
+            self.block();
             self.end_scope();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
@@ -400,17 +400,17 @@ impl Parser {
         self.scope_depth -= 1;
     }
 
-    fn brick(&mut self) {
+    fn block(&mut self) {
         self.skip_new_lines();
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             self.declaration();
         }
-        self.consume(TokenType::RightBrace, "Expect '}' after brick.");
+        self.consume(TokenType::RightBrace, "Expect '}' after block.");
         if !self.check(TokenType::Else) {
             self.consume_either(
                 TokenType::NewLine,
                 TokenType::Eof,
-                "Expecting '\\n' or '\\0' at end of brick.",
+                "Expecting '\\n' or '\\0' at end of block.",
             );
         }
     }
