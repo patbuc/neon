@@ -175,17 +175,20 @@ impl Parser {
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
         let maybe_index = self.current_brick().get_variable_index(name);
-        if maybe_index.is_none() {
+        if maybe_index.0.is_none() {
             self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
         }
 
         let is_assignment = self.match_token(TokenType::Equal);
-        if is_assignment {
+        if is_assignment && maybe_index.1 {
             self.expression(false);
+        } else if is_assignment {
+            self.report_error_at_current("Can't assign to an immutable variable.");
+            return;
         }
 
-        let index = maybe_index.unwrap();
+        let index = maybe_index.0.unwrap();
         if is_assignment {
             self.emit_op_code_variant(OpCode::SetVariable, index);
         } else {

@@ -438,6 +438,23 @@ fn can_assign_value_to_variable() {
 }
 
 #[test]
+fn cannot_assign_value_to_value() {
+    let program = r#"
+        val x = 10
+        x = x + 5
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[3:12] Error at \"x\": Can't assign to an immutable variable.",
+        vm.get_compiler_error()
+    );
+}
+
+#[test]
 fn cannot_access_undefined_variable() {
     let program = r#"
         var x = 3

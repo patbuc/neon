@@ -153,14 +153,14 @@ impl Brick {
         self.instructions.len()
     }
 
-    pub(crate) fn get_variable_index(&self, name: &str) -> Option<u32> {
+    pub(crate) fn get_variable_index(&self, name: &str) -> (Option<u32>, bool) {
         let mut index = 0;
         loop {
             if index >= self.variables.len() {
                 break;
             }
             if self.variables[index].name == name {
-                return Some(index as u32);
+                return (Some(index as u32), true);
             }
             index += 1;
         }
@@ -170,11 +170,11 @@ impl Brick {
                 break;
             }
             if self.values[index].name == name {
-                return Some(index as u32);
+                return (Some(index as u32), false);
             }
             index += 1;
         }
-        None
+        (None, false)
     }
 }
 
