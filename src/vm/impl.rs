@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Brick, SourceLocation, Value};
+use crate::common::{BitsSize, Brick, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
@@ -11,6 +11,8 @@ impl VirtualMachine {
             ip: 0,
             stack: Vec::new(),
             brick: None,
+            // frames: Vec::new(),
+            // frame_count: 0,
             #[cfg(test)]
             string_buffer: String::new(),
             compilation_errors: String::new(),
@@ -91,6 +93,11 @@ impl VirtualMachine {
                 OpCode::JumpIfFalse => self.fn_jump_if_false(brick),
                 OpCode::Jump => self.fn_jump(brick),
                 OpCode::Loop => self.fn_loop(brick),
+                OpCode::Call => {
+                    if let Some(result) = self.fn_call(brick) {
+                        return result;
+                    }
+                }
             }
             self.ip += 1;
         }
@@ -126,12 +133,16 @@ impl VirtualMachine {
         self.compilation_errors.clone()
     }
 
-    fn get_current_source_location(&self) -> SourceLocation {
-        self.brick
-            .as_ref()
-            .unwrap()
-            .get_source_location(self.ip)
-            .unwrap()
+    fn get_current_source_location(&self) -> String {
+        if let Some(brick) = &self.brick {
+            if let Some(location) = brick.get_source_location(self.ip) {
+                format!("{}:{}", location.line, location.column)
+            } else {
+                "unknown".to_string()
+            }
+        } else {
+            "unknown".to_string()
+        }
     }
 
     fn reset(&mut self) {

@@ -16,6 +16,8 @@ pub enum Result {
 
 pub struct VirtualMachine {
     ip: usize,
+    // frames: Vec<CallFrame>,
+    // frame_count: usize,
     stack: Vec<Value>,
     brick: Option<Rc<Brick>>,
     // values: HashMap<String, Value>,

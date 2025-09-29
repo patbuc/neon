@@ -48,6 +48,70 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_call(&mut self, brick: &Brick) -> Option<Result> {
+        let arg_count = brick.read_u8(self.ip + 1) as usize;
+
+        // Get the function from the stack (it's at position -arg_count - 1)
+        let function_value = self.peek(arg_count);
+
+        match &function_value {
+            Value::Object(obj) => {
+                match obj.as_ref() {
+                    Object::Function(func) => {
+                        // Check arity
+                        if arg_count != func.arity as usize {
+                            self.runtime_error(&format!(
+                                "Expected {} arguments but got {}.",
+                                func.arity, arg_count
+                            ));
+                            return Some(Result::RuntimeError);
+                        }
+
+                        // For now, we'll execute the function by recursively calling run
+                        // This is a simplified approach - a full implementation would use call frames
+                        let saved_ip = self.ip;
+                        let saved_stack_len = self.stack.len() - arg_count - 1; // Save stack size before function call
+
+                        // Execute the function
+                        let mut function_vm = VirtualMachine::new();
+                        function_vm.stack = self.stack.split_off(saved_stack_len);
+                        function_vm.stack.remove(arg_count); // Remove the function object from stack
+
+                        let result = function_vm.run(&func.brick);
+
+                        // Restore the main VM state
+                        self.ip = saved_ip;
+                        self.stack.truncate(saved_stack_len);
+
+                        // Push the result (for now, functions implicitly return nil)
+                        self.push(crate::nil!());
+
+                        // Skip the argument count byte
+                        self.ip += 1;
+
+                        if result != Result::Ok {
+                            return Some(result);
+                        }
+
+                        self.push(string!(function_vm.get_output()));
+                        self.fn_print();
+                    }
+                    _ => {
+                        self.runtime_error("Can only call functions.");
+                        return Some(Result::RuntimeError);
+                    }
+                }
+            }
+            _ => {
+                self.runtime_error("Can only call functions.");
+                return Some(Result::RuntimeError);
+            }
+        }
+
+        None
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_less(&mut self) {
         let b = self.pop();
         let a = self.pop();
@@ -98,7 +162,9 @@ impl VirtualMachine {
             (Value::Object(a), Value::Object(b)) => {
                 let obj_a = a.as_ref();
                 let obj_b = b.as_ref();
-                self.fn_add_object(obj_a, obj_b);
+                if let Some(result) = self.fn_add_object(obj_a, obj_b) {
+                    return Some(result);
+                }
             }
             _ => {
                 self.runtime_error("Operands must be two numbers or two strings");
@@ -108,18 +174,19 @@ impl VirtualMachine {
         None
     }
 
-    fn fn_add_object(&mut self, a: &Object, b: &Object) {
+    fn fn_add_object(&mut self, a: &Object, b: &Object) -> Option<Result> {
         // match on ObjString
         match (a, b) {
             (Object::String(obj_a), Object::String(obj_b)) => {
                 let mut combined = String::with_capacity(obj_a.value.len() + obj_b.value.len());
                 combined.push_str(&obj_a.value);
                 combined.push_str(&obj_b.value);
-                self.push(string!(combined))
+                self.push(string!(combined));
+                None
             }
             _ => {
                 self.runtime_error("Operands must be two numbers or two strings");
-                Some(Result::RuntimeError);
+                Some(Result::RuntimeError)
             }
         }
     }

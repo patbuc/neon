@@ -39,6 +39,7 @@ pub(crate) enum OpCode {
     JumpIfFalse,
     Jump,
     Loop,
+    Call,
 }
 
 impl OpCode {

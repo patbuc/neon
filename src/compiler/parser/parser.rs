@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Brick;
+use crate::common::{Brick, Value};
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
@@ -63,6 +63,8 @@ impl Parser {
             self.val_declaration();
         } else if self.match_token(TokenType::Var) {
             self.var_declaration();
+        } else if self.match_token(TokenType::Fn) {
+            self.fn_declaration();
         } else {
             self.statement();
         }
@@ -108,6 +110,47 @@ impl Parser {
         );
 
         self.define_variable(name);
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn fn_declaration(&mut self) {
+        let name = self.parse_value();
+
+        self.consume(TokenType::LeftParen, "Expect '(' after function name.");
+
+        // For now, we'll support zero-parameter functions only
+        let arity = 0;
+
+        self.consume(TokenType::RightParen, "Expect ')' after parameters.");
+        self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
+
+        // Create a new brick for the function
+        self.bricks.push(Brick::new(&format!("function_{}", name)));
+        let function_brick_index = self.bricks.len() - 1;
+
+        // Compile function body in the new brick
+        self.begin_scope();
+        self.block();
+        self.end_scope();
+
+        // Emit return at end of function
+        self.emit_return();
+
+        // Switch back to main brick and create function constant
+        let function_brick =
+            std::mem::replace(&mut self.bricks[function_brick_index], Brick::new("temp"));
+        let function_value = Value::Object(std::rc::Rc::new(crate::common::Object::Function(
+            crate::common::ObjFunction {
+                name: name.clone(),
+                arity,
+                brick: std::rc::Rc::new(function_brick),
+            },
+        )));
+
+        // Remove the function brick from the list and add it as a constant to main brick
+        self.bricks.remove(function_brick_index);
+        self.emit_constant(function_value);
+        self.define_value(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -265,6 +308,30 @@ impl Parser {
             TokenType::Minus => self.emit_op_code(OpCode::Negate),
             _ => (), // Unreachable.
         }
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(super) fn call(&mut self) {
+        let arg_count = self.argument_list();
+        self.emit_call(arg_count);
+    }
+
+    fn argument_list(&mut self) -> u8 {
+        let mut arg_count = 0u8;
+        if !self.check(TokenType::RightParen) {
+            loop {
+                self.expression(false);
+                if arg_count == 255 {
+                    self.report_error_at_current("Can't have more than 255 arguments.");
+                }
+                arg_count += 1;
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after arguments.");
+        arg_count
     }
 
     pub(in crate::compiler) fn consume(&mut self, token_type: TokenType, message: &str) {
