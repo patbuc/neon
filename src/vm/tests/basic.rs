@@ -487,3 +487,82 @@ fn can_loop() {
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
 }
+
+#[test]
+fn can_call_function() {
+    let program = r#"
+        fn greet() {
+            print "Hello from function!"
+        }
+        greet()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Hello from function!", vm.get_output());
+}
+
+#[test]
+fn can_call_function_multiple_times() {
+    let program = r#"
+        fn greet() {
+            print "Hello again!"
+        }
+        greet()
+        greet()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Hello again!\nHello again!", vm.get_output());
+}
+
+#[test]
+fn can_handle_nested_function_calls() {
+    let program = r#"
+        fn hello() {
+            print "Hello"
+        }
+        fn greet() {
+            hello()
+            print "World"
+        }
+        greet()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Hello\nWorld", vm.get_output());
+}
+
+#[test]
+fn cannot_call_undefined_function() {
+    let program = r#"
+        undefined_function()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[2:27] Error at \"(\": Undefined variable 'undefined_function'.",
+        vm.get_compiler_error()
+    );
+}
+
+#[test]
+fn can_handle_function_with_no_body() {
+    let program = r#"
+        fn empty() {}
+        empty()
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Done", vm.get_output());
+}

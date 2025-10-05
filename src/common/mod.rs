@@ -74,6 +74,7 @@ pub struct Variable {
 #[derive(Debug, PartialEq)]
 pub enum Object {
     String(ObjString),
+    Function(ObjFunction),
 }
 
 #[derive(Debug, Clone)]
@@ -81,11 +82,24 @@ pub struct ObjString {
     pub value: Rc<str>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ObjFunction {
+    pub name: String,
+    pub arity: u8,
+    pub brick: Rc<Brick>,
+}
+
+pub struct CallFrame {
+    pub function: Rc<ObjFunction>,
+    pub ip: usize,
+    pub slot_start: usize,
+}
+
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
-            _ => write!(f, "<object>"),
+            Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
         }
     }
 }
@@ -105,6 +119,13 @@ impl PartialEq for ObjString {
 impl PartialEq<&ObjString> for &str {
     fn eq(&self, other: &&ObjString) -> bool {
         *self == other.value.as_ref()
+    }
+}
+
+impl PartialEq for ObjFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.arity == other.arity
+        // We don't compare bricks as they're complex and functions with same name/arity are considered equal
     }
 }
 

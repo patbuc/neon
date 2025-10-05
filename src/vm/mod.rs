@@ -1,6 +1,5 @@
 use crate::common::{Brick, Value};
 use std::fmt::Debug;
-use std::rc::Rc;
 
 mod functions;
 mod r#impl;
@@ -17,7 +16,7 @@ pub enum Result {
 pub struct VirtualMachine {
     ip: usize,
     stack: Vec<Value>,
-    brick: Option<Rc<Brick>>,
+    brick: Option<Brick>,
     // values: HashMap<String, Value>,
     // variables: HashMap<String, Value>,
     #[cfg(test)]
