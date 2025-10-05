@@ -66,12 +66,6 @@ pub enum Value {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Variable {
-    pub name: String,
-    pub value: Value,
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
