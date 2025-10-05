@@ -7,7 +7,7 @@ use std::assert_eq;
 #[test]
 fn can_create_vm() {
     let vm = VirtualMachine::new();
-    assert_eq!(0, vm.ip);
+    assert_eq!(0, vm.call_frames.len());
     assert_eq!(0, vm.stack.len());
 }
 
@@ -28,7 +28,7 @@ fn can_execute_simple_arithmetics() {
 
     let mut vm = VirtualMachine::new();
 
-    let result = vm.run(&brick);
+    let result = vm.run_brick(brick);
     assert_eq!(Result::Ok, result);
     assert_eq!(3.5, as_number!(vm.pop()));
 }

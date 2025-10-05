@@ -138,13 +138,13 @@ impl Parser {
         // Emit return at end of function
         self.emit_return();
 
-        let function_value = Value::Object(Rc::new(crate::common::Object::Function(
+        let function_value = Value::Object(Rc::new(crate::common::Object::Function(Rc::new(
             crate::common::ObjFunction {
                 name: name.clone(),
                 arity,
                 brick: Rc::new(self.bricks.pop().unwrap()),
             },
-        )));
+        ))));
 
         self.emit_constant(function_value);
         self.define_value(name);

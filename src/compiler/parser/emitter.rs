@@ -5,6 +5,8 @@ use crate::current_brick_mut;
 
 impl Parser {
     pub fn emit_return(&mut self) {
+        // Ensure there's a return value on the stack (nil if no explicit return)
+        self.emit_op_code(OpCode::Nil);
         self.emit_op_code(OpCode::Return);
     }
 
