@@ -145,6 +145,11 @@ impl Parser {
         self.consume(TokenType::RightParen, "Expect ')' after parameters.");
         self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
 
+        // For recursion: define the function name with a placeholder (nil) before compiling the body
+        // This allows the function to reference itself
+        self.emit_op_code(OpCode::Nil);
+        self.define_value(name.clone());
+
         // Create a new brick for the function
         self.bricks.push(Brick::new(&format!("function_{}", name)));
 
@@ -171,8 +176,20 @@ impl Parser {
             },
         ))));
 
+        // Now replace the nil placeholder with the actual function
         self.emit_constant(function_value);
-        self.define_value(name);
+
+        // Get the index of the function variable we defined earlier
+        let (index, _is_mutable, is_global) = self.get_variable_index(&name);
+        let index = index.unwrap();
+
+        // Emit the appropriate Set opcode to update the placeholder
+        if is_global {
+            self.emit_op_code_variant(OpCode::SetGlobal, index);
+        } else {
+            self.emit_op_code_variant(OpCode::SetValue, index);
+        }
+        self.emit_op_code(OpCode::Pop); // Pop the function value from the stack
     }
 
     fn parse_value(&mut self) -> String {
@@ -192,6 +209,8 @@ impl Parser {
             self.if_statement();
         } else if self.match_token(TokenType::While) {
             self.while_statement();
+        } else if self.match_token(TokenType::Return) {
+            self.return_statement();
         } else {
             self.expression_statement();
         }
@@ -455,6 +474,17 @@ impl Parser {
         self.emit_loop(loop_start);
 
         self.patch_jump(exit_jump);
+    }
+
+    fn return_statement(&mut self) {
+        // Parse the return value expression
+        self.expression(false);
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' at end of statement.",
+        );
+        self.emit_op_code(OpCode::Return);
     }
 
     fn report_error_at_current(&mut self, message: &str) {
