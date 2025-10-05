@@ -20,32 +20,35 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_string4(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let string_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
-        let string = frame.function.brick.read_string(string_index);
+        let string = {
+            let frame = self.call_frames.last().unwrap();
+            let string_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
+            frame.function.brick.read_string(string_index)
+        };
         self.push(string);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 4;
+        self.call_frames.last_mut().unwrap().ip += 4;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_string2(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let string_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
-        let string = frame.function.brick.read_string(string_index);
+        let string = {
+            let frame = self.call_frames.last().unwrap();
+            let string_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
+            frame.function.brick.read_string(string_index)
+        };
         self.push(string);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 2;
+        self.call_frames.last_mut().unwrap().ip += 2;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_string(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let string_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
-        let string = frame.function.brick.read_string(string_index);
+        let string = {
+            let frame = self.call_frames.last().unwrap();
+            let string_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
+            frame.function.brick.read_string(string_index)
+        };
         self.push(string);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 1;
+        self.call_frames.last_mut().unwrap().ip += 1;
     }
 
     #[inline(always)]
@@ -224,32 +227,35 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_constant4(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let constant_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
-        let constant = frame.function.brick.read_constant(constant_index);
+        let constant = {
+            let frame = self.call_frames.last().unwrap();
+            let constant_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
+            frame.function.brick.read_constant(constant_index)
+        };
         self.push(constant);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 4;
+        self.call_frames.last_mut().unwrap().ip += 4;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_constant2(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let constant_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
-        let constant = frame.function.brick.read_constant(constant_index);
+        let constant = {
+            let frame = self.call_frames.last().unwrap();
+            let constant_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
+            frame.function.brick.read_constant(constant_index)
+        };
         self.push(constant);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 2;
+        self.call_frames.last_mut().unwrap().ip += 2;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_constant(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let constant_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
-        let constant = frame.function.brick.read_constant(constant_index);
+        let constant = {
+            let frame = self.call_frames.last().unwrap();
+            let constant_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
+            frame.function.brick.read_constant(constant_index)
+        };
         self.push(constant);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 1;
+        self.call_frames.last_mut().unwrap().ip += 1;
     }
 
     #[inline(always)]
@@ -306,21 +312,21 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_jump_if_false(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let offset = frame.function.brick.read_u32(frame.ip + 1);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 4;
+        let offset = self.call_frames.last().unwrap().function.brick.read_u32(
+            self.call_frames.last().unwrap().ip + 1
+        );
+        self.call_frames.last_mut().unwrap().ip += 4;
         if is_false_like!(self.peek(0)) {
             self.pop();
-            let frame = self.call_frames.last_mut().unwrap();
-            frame.ip += offset as usize;
+            self.call_frames.last_mut().unwrap().ip += offset as usize;
         }
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_jump(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let offset = frame.function.brick.read_u32(frame.ip + 1);
+        let offset = self.call_frames.last().unwrap().function.brick.read_u32(
+            self.call_frames.last().unwrap().ip + 1
+        );
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 4;
         frame.ip += offset as usize;
@@ -328,8 +334,9 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_loop(&mut self) {
-        let frame = self.call_frames.last().unwrap();
-        let offset = frame.function.brick.read_u32(frame.ip + 1);
+        let offset = self.call_frames.last().unwrap().function.brick.read_u32(
+            self.call_frames.last().unwrap().ip + 1
+        );
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 4;
         frame.ip -= offset as usize;
