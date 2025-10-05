@@ -163,6 +163,13 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_modulo(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        self.push(Value::Number(as_number!(a) % as_number!(b)));
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_multiply(&mut self) {
         let b = self.pop();
         let a = self.pop();

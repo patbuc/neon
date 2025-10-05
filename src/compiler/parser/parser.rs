@@ -328,6 +328,7 @@ impl Parser {
             token_type if token_type == TokenType::Minus => self.emit_op_code(OpCode::Subtract),
             token_type if token_type == TokenType::Star => self.emit_op_code(OpCode::Multiply),
             token_type if token_type == TokenType::Slash => self.emit_op_code(OpCode::Divide),
+            token_type if token_type == TokenType::Percent => self.emit_op_code(OpCode::Modulo),
             _ => (), // Unreachable.
         }
     }

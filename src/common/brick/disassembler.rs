@@ -65,6 +65,7 @@ impl Brick {
             OpCode::Jump => self.jump_instruction(instruction, offset),
             OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
             OpCode::Call => self.call_instruction(offset),
+            OpCode::Modulo => self.simple_instruction(instruction, offset),
         }
     }
 

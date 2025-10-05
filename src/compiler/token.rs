@@ -10,6 +10,7 @@ pub(in crate::compiler) enum TokenType {
     Dot,
     Minus,
     Plus,
+    Percent,
     Semicolon,
     NewLine,
     Slash,

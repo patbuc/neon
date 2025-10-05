@@ -12,6 +12,7 @@ pub(crate) enum OpCode {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
     Nil,
     True,
     False,
