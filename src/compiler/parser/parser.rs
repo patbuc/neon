@@ -5,7 +5,8 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
 use std::str::FromStr;
 
-use crate::{number, string};
+use crate::{current_brick_mut, number, string};
+
 #[cfg(feature = "disassemble")]
 use tracing_attributes::instrument;
 
@@ -348,7 +349,7 @@ impl Parser {
     }
 
     fn while_statement(&mut self) {
-        let loop_start = self.current_brick().instruction_count() as u32;
+        let loop_start = current_brick_mut!(self.bricks).instruction_count() as u32;
 
         self.consume(TokenType::LeftParen, "Expecting '(' after 'while'.");
         self.expression(false);
