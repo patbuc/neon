@@ -71,6 +71,11 @@ impl Brick {
         self.write_op_code_variant(OpCode::SetValue, index, line, column);
     }
 
+    pub(crate) fn add_parameter(&mut self, local: Local) {
+        // Parameters are already on the stack, just register them
+        self.values.push(local);
+    }
+
     pub(crate) fn define_variable(&mut self, local: Local, line: u32, column: u32) {
         self.variables.push(local);
         let index = (self.variables.len() - 1) as u32;

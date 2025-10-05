@@ -43,10 +43,11 @@ impl VirtualMachine {
         });
 
         // Create the initial call frame
+        // Use -1 for slot_start since the script has no function object on the stack
         let frame = CallFrame {
             function: script_function,
             ip: 0,
-            slot_start: 0,
+            slot_start: -1,
         };
         self.call_frames.push(frame);
 
@@ -120,6 +121,12 @@ impl VirtualMachine {
                 OpCode::SetVariable => self.fn_set_variable(BitsSize::Eight),
                 OpCode::SetVariable2 => self.fn_set_variable(BitsSize::Sixteen),
                 OpCode::SetVariable4 => self.fn_set_variable(BitsSize::ThirtyTwo),
+                OpCode::GetGlobal => self.fn_get_global(BitsSize::Eight),
+                OpCode::GetGlobal2 => self.fn_get_global(BitsSize::Sixteen),
+                OpCode::GetGlobal4 => self.fn_get_global(BitsSize::ThirtyTwo),
+                OpCode::SetGlobal => self.fn_set_global(BitsSize::Eight),
+                OpCode::SetGlobal2 => self.fn_set_global(BitsSize::Sixteen),
+                OpCode::SetGlobal4 => self.fn_set_global(BitsSize::ThirtyTwo),
                 OpCode::JumpIfFalse => self.fn_jump_if_false(),
                 OpCode::Jump => self.fn_jump(),
                 OpCode::Loop => self.fn_loop(),

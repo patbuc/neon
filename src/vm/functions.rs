@@ -76,7 +76,7 @@ impl VirtualMachine {
                         }
 
                         // Calculate slot_start: current stack size - arg_count - 1 (for the function itself)
-                        let slot_start = self.stack.len() - arg_count - 1;
+                        let slot_start = (self.stack.len() - arg_count - 1) as isize;
 
                         // Create a new call frame
                         let new_frame = CallFrame {
@@ -123,7 +123,7 @@ impl VirtualMachine {
         }
 
         // Clear the stack back to the slot_start (removing arguments and locals)
-        self.stack.truncate(frame.slot_start);
+        self.stack.truncate(frame.slot_start as usize);
 
         // Push the return value
         self.push(return_value);
@@ -255,7 +255,12 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_set_value(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-        self.stack[index] = self.peek(0);
+        let frame = self.call_frames.last().unwrap();
+        // For functions: slot_start points to function object, args start at slot_start + 1
+        // For script: slot_start = -1, so locals start at 0
+        // locals (params) are indexed from 0, so param 0 is at slot_start + 1
+        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
+        self.stack[absolute_index] = self.peek(0);
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes()
     }
@@ -263,7 +268,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_set_variable(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-        self.stack[index] = self.peek(0);
+        let frame = self.call_frames.last().unwrap();
+        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
+        self.stack[absolute_index] = self.peek(0);
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes();
     }
@@ -280,7 +287,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_get_value(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-        self.push(self.stack[index].clone());
+        let frame = self.call_frames.last().unwrap();
+        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
+        self.push(self.stack[absolute_index].clone());
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes()
     }
@@ -288,7 +297,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_get_variable(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-        self.push(self.stack[index].clone());
+        let frame = self.call_frames.last().unwrap();
+        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
+        self.push(self.stack[absolute_index].clone());
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes()
     }
@@ -322,5 +333,29 @@ impl VirtualMachine {
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 4;
         frame.ip -= offset as usize;
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
+        // Global variables are always in the script frame (first frame)
+        // Script frame has slot_start = -1, so globals start at index 0
+        let script_frame = &self.call_frames[0];
+        let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
+        self.push(self.stack[absolute_index].clone());
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes()
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_set_global(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
+        // Global variables are always in the script frame (first frame)
+        // Script frame has slot_start = -1, so globals start at index 0
+        let script_frame = &self.call_frames[0];
+        let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
+        self.stack[absolute_index] = self.peek(0);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes();
     }
 }
