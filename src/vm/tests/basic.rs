@@ -614,3 +614,18 @@ fn can_handle_function_with_no_body() {
     assert_eq!(Result::Ok, result);
     assert_eq!("Done", vm.get_output());
 }
+
+#[test]
+fn can_use_modulo_operator() {
+    let program = r#"
+        print 10 % 3
+        print 7 % 2
+        print 5 % 5
+        print 4 % 5
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n1\n0\n4", vm.get_output());
+}
