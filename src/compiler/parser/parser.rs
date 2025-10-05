@@ -187,7 +187,7 @@ impl Parser {
         if is_global {
             self.emit_op_code_variant(OpCode::SetGlobal, index);
         } else {
-            self.emit_op_code_variant(OpCode::SetValue, index);
+            self.emit_op_code_variant(OpCode::SetLocal, index);
         }
         self.emit_op_code(OpCode::Pop); // Pop the function value from the stack
     }
@@ -277,12 +277,12 @@ impl Parser {
             if is_global {
                 self.emit_op_code_variant(OpCode::SetGlobal, index);
             } else {
-                self.emit_op_code_variant(OpCode::SetVariable, index);
+                self.emit_op_code_variant(OpCode::SetLocal, index);
             }
         } else if is_global {
             self.emit_op_code_variant(OpCode::GetGlobal, index);
         } else {
-            self.emit_op_code_variant(OpCode::GetVariable, index);
+            self.emit_op_code_variant(OpCode::GetLocal, index);
         }
     }
 

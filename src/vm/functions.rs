@@ -259,7 +259,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_value(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_set_local(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
         let frame = self.call_frames.last().unwrap();
         // For functions: slot_start points to function object, args start at slot_start + 1
@@ -269,16 +269,6 @@ impl VirtualMachine {
         self.stack[absolute_index] = self.peek(0);
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes()
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_set_variable(&mut self, bits: BitsSize) {
-        let index = self.read_bits(&bits);
-        let frame = self.call_frames.last().unwrap();
-        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        self.stack[absolute_index] = self.peek(0);
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += bits.as_bytes();
     }
 
     fn read_bits(&mut self, bits: &BitsSize) -> usize {
@@ -291,17 +281,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_value(&mut self, bits: BitsSize) {
-        let index = self.read_bits(&bits);
-        let frame = self.call_frames.last().unwrap();
-        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        self.push(self.stack[absolute_index].clone());
-        let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += bits.as_bytes()
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_get_variable(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_get_local(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
         let frame = self.call_frames.last().unwrap();
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
