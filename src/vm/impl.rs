@@ -1,14 +1,15 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Brick, Value};
+use crate::common::{BitsSize, Brick, CallFrame, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
 use log::info;
+use std::rc::Rc;
 
 impl VirtualMachine {
     pub fn new() -> Self {
         VirtualMachine {
-            ip: 0,
+            call_frames: Vec::new(),
             stack: Vec::new(),
             brick: None,
             #[cfg(test)]
@@ -33,7 +34,23 @@ impl VirtualMachine {
         }
 
         let brick = brick.unwrap();
-        let result = self.run(&brick);
+
+        // Create a synthetic function for the script
+        let script_function = Rc::new(ObjFunction {
+            name: "<script>".to_string(),
+            arity: 0,
+            brick: Rc::new(brick),
+        });
+
+        // Create the initial call frame
+        let frame = CallFrame {
+            function: script_function,
+            ip: 0,
+            slot_start: 0,
+        };
+        self.call_frames.push(frame);
+
+        let result = self.run(&Brick::new("dummy")); // brick param is not used anymore
         self.brick = None;
 
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -41,16 +58,31 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, brick: &Brick) -> Result {
+    pub(in crate::vm) fn run(&mut self, _brick: &Brick) -> Result {
         #[cfg(feature = "disassemble")]
-        brick.disassemble_brick();
+        {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.brick.disassemble_brick();
+        }
         loop {
-            let op_code = OpCode::from_u8(brick.read_u8(self.ip));
+            let frame = self.call_frames.last_mut().unwrap();
+            let ip = frame.ip;
+            let op_code = OpCode::from_u8(frame.function.brick.read_u8(ip));
+
+            // Track whether we should increment IP at the end
+            let mut should_increment_ip = true;
+
             match op_code {
-                OpCode::Return => return Result::Ok,
-                OpCode::Constant => self.fn_constant(brick),
-                OpCode::Constant2 => self.fn_constant2(brick),
-                OpCode::Constant4 => self.fn_constant4(brick),
+                OpCode::Return => {
+                    if let Some(result) = self.fn_return() {
+                        return result;
+                    }
+                    // Don't increment IP after return since we switched frames
+                    should_increment_ip = false;
+                }
+                OpCode::Constant => self.fn_constant(),
+                OpCode::Constant2 => self.fn_constant2(),
+                OpCode::Constant4 => self.fn_constant4(),
                 OpCode::Negate => {
                     if let Some(value) = self.fn_negate() {
                         return value;
@@ -71,33 +103,40 @@ impl VirtualMachine {
                 OpCode::Greater => self.fn_greater(),
                 OpCode::Less => self.fn_less(),
                 OpCode::Not => self.fn_not(),
-                OpCode::String => self.fn_string(brick),
-                OpCode::String2 => self.fn_string2(brick),
-                OpCode::String4 => self.fn_string4(brick),
+                OpCode::String => self.fn_string(),
+                OpCode::String2 => self.fn_string2(),
+                OpCode::String4 => self.fn_string4(),
                 OpCode::Print => self.fn_print(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::GetValue => self.fn_get_value(brick, BitsSize::Eight),
-                OpCode::GetValue2 => self.fn_get_value(brick, BitsSize::Sixteen),
-                OpCode::GetValue4 => self.fn_get_value(brick, BitsSize::ThirtyTwo),
-                OpCode::SetValue => self.fn_set_value(brick, BitsSize::Eight),
-                OpCode::SetValue2 => self.fn_set_value(brick, BitsSize::Sixteen),
-                OpCode::SetValue4 => self.fn_set_value(brick, BitsSize::ThirtyTwo),
-                OpCode::GetVariable => self.fn_get_variable(brick, BitsSize::Eight),
-                OpCode::GetVariable2 => self.fn_get_variable(brick, BitsSize::Sixteen),
-                OpCode::GetVariable4 => self.fn_get_variable(brick, BitsSize::ThirtyTwo),
-                OpCode::SetVariable => self.fn_set_variable(brick, BitsSize::Eight),
-                OpCode::SetVariable2 => self.fn_set_variable(brick, BitsSize::Sixteen),
-                OpCode::SetVariable4 => self.fn_set_variable(brick, BitsSize::ThirtyTwo),
-                OpCode::JumpIfFalse => self.fn_jump_if_false(brick),
-                OpCode::Jump => self.fn_jump(brick),
-                OpCode::Loop => self.fn_loop(brick),
+                OpCode::GetValue => self.fn_get_value(BitsSize::Eight),
+                OpCode::GetValue2 => self.fn_get_value(BitsSize::Sixteen),
+                OpCode::GetValue4 => self.fn_get_value(BitsSize::ThirtyTwo),
+                OpCode::SetValue => self.fn_set_value(BitsSize::Eight),
+                OpCode::SetValue2 => self.fn_set_value(BitsSize::Sixteen),
+                OpCode::SetValue4 => self.fn_set_value(BitsSize::ThirtyTwo),
+                OpCode::GetVariable => self.fn_get_variable(BitsSize::Eight),
+                OpCode::GetVariable2 => self.fn_get_variable(BitsSize::Sixteen),
+                OpCode::GetVariable4 => self.fn_get_variable(BitsSize::ThirtyTwo),
+                OpCode::SetVariable => self.fn_set_variable(BitsSize::Eight),
+                OpCode::SetVariable2 => self.fn_set_variable(BitsSize::Sixteen),
+                OpCode::SetVariable4 => self.fn_set_variable(BitsSize::ThirtyTwo),
+                OpCode::JumpIfFalse => self.fn_jump_if_false(),
+                OpCode::Jump => self.fn_jump(),
+                OpCode::Loop => self.fn_loop(),
                 OpCode::Call => {
-                    if let Some(result) = self.fn_call(brick) {
+                    if let Some(result) = self.fn_call() {
                         return result;
                     }
+                    // Don't increment IP after call since we pushed a new frame
+                    should_increment_ip = false;
                 }
             }
-            self.ip += 1;
+
+            // Increment IP for the current frame
+            if should_increment_ip {
+                let frame = self.call_frames.last_mut().unwrap();
+                frame.ip += 1;
+            }
         }
     }
 
@@ -132,8 +171,8 @@ impl VirtualMachine {
     }
 
     fn get_current_source_location(&self) -> String {
-        if let Some(brick) = &self.brick {
-            if let Some(location) = brick.get_source_location(self.ip) {
+        if let Some(frame) = self.call_frames.last() {
+            if let Some(location) = frame.function.brick.get_source_location(frame.ip) {
                 format!("{}:{}", location.line, location.column)
             } else {
                 "unknown".to_string()
@@ -144,7 +183,7 @@ impl VirtualMachine {
     }
 
     fn reset(&mut self) {
-        self.ip = 0;
+        self.call_frames.clear();
         self.stack.clear();
         self.brick = None;
     }

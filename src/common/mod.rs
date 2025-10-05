@@ -74,7 +74,7 @@ pub struct Variable {
 #[derive(Debug, PartialEq)]
 pub enum Object {
     String(ObjString),
-    Function(ObjFunction),
+    Function(Rc<ObjFunction>),
 }
 
 #[derive(Debug, Clone)]

@@ -1,8 +1,9 @@
 use crate::common::Object;
-use crate::common::{BitsSize, Brick, Value};
+use crate::common::{BitsSize, CallFrame, Value};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
+use std::rc::Rc;
 
 impl VirtualMachine {
     #[inline(always)]
@@ -18,27 +19,33 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_string4(&mut self, brick: &Brick) {
-        let string_index = brick.read_u32(self.ip + 1) as usize;
-        let string = brick.read_string(string_index);
+    pub(in crate::vm) fn fn_string4(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let string_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
+        let string = frame.function.brick.read_string(string_index);
         self.push(string);
-        self.ip += 4;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 4;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_string2(&mut self, brick: &Brick) {
-        let string_index = brick.read_u16(self.ip + 1) as usize;
-        let string = brick.read_string(string_index);
+    pub(in crate::vm) fn fn_string2(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let string_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
+        let string = frame.function.brick.read_string(string_index);
         self.push(string);
-        self.ip += 2;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 2;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_string(&mut self, brick: &Brick) {
-        let string_index = brick.read_u8(self.ip + 1) as usize;
-        let string = brick.read_string(string_index);
+    pub(in crate::vm) fn fn_string(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let string_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
+        let string = frame.function.brick.read_string(string_index);
         self.push(string);
-        self.ip += 1;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
     }
 
     #[inline(always)]
@@ -48,8 +55,9 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_call(&mut self, brick: &Brick) -> Option<Result> {
-        let arg_count = brick.read_u8(self.ip + 1) as usize;
+    pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
+        let frame = self.call_frames.last().unwrap();
+        let arg_count = frame.function.brick.read_u8(frame.ip + 1) as usize;
 
         // Get the function from the stack (it's at position -arg_count - 1)
         let function_value = self.peek(arg_count);
@@ -67,24 +75,22 @@ impl VirtualMachine {
                             return Some(Result::RuntimeError);
                         }
 
-                        // For now, we'll execute the function by recursively calling run
-                        // This is a simplified approach - a full implementation would use call frames
-                        let saved_ip = self.ip;
+                        // Calculate slot_start: current stack size - arg_count - 1 (for the function itself)
+                        let slot_start = self.stack.len() - arg_count - 1;
 
-                        self.ip = 0; // Start at the beginning of the function brick
-                        let result = self.run(func.brick.as_ref());
-                        // Restore the main VM state
-                        self.ip = saved_ip;
+                        // Create a new call frame
+                        let new_frame = CallFrame {
+                            function: Rc::clone(func),
+                            ip: 0,
+                            slot_start,
+                        };
 
-                        // Push the result (for now, functions implicitly return nil)
-                        self.push(crate::nil!());
+                        // Increment the current frame's IP before pushing the new frame
+                        // to skip both the Call opcode and the argument count byte when we return
+                        let current_frame = self.call_frames.last_mut().unwrap();
+                        current_frame.ip += 2;
 
-                        // Skip the argument count byte
-                        self.ip += 1;
-
-                        if result != Result::Ok {
-                            return Some(result);
-                        }
+                        self.call_frames.push(new_frame);
                     }
                     _ => {
                         self.runtime_error("Can only call functions.");
@@ -97,6 +103,30 @@ impl VirtualMachine {
                 return Some(Result::RuntimeError);
             }
         }
+
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_return(&mut self) -> Option<Result> {
+        // Get the return value (top of stack)
+        let return_value = self.pop();
+
+        // Pop the current call frame
+        let frame = self.call_frames.pop().unwrap();
+
+        // If this was the last frame, we're done
+        if self.call_frames.is_empty() {
+            // Push the return value back for the script/test to access
+            self.push(return_value);
+            return Some(Result::Ok);
+        }
+
+        // Clear the stack back to the slot_start (removing arguments and locals)
+        self.stack.truncate(frame.slot_start);
+
+        // Push the return value
+        self.push(return_value);
 
         None
     }
@@ -193,86 +223,104 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant4(&mut self, brick: &Brick) {
-        let constant_index = brick.read_u32(self.ip + 1) as usize;
-        let constant = brick.read_constant(constant_index);
+    pub(in crate::vm) fn fn_constant4(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let constant_index = frame.function.brick.read_u32(frame.ip + 1) as usize;
+        let constant = frame.function.brick.read_constant(constant_index);
         self.push(constant);
-        self.ip += 4;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 4;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant2(&mut self, brick: &Brick) {
-        let constant_index = brick.read_u16(self.ip + 1) as usize;
-        let constant = brick.read_constant(constant_index);
+    pub(in crate::vm) fn fn_constant2(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let constant_index = frame.function.brick.read_u16(frame.ip + 1) as usize;
+        let constant = frame.function.brick.read_constant(constant_index);
         self.push(constant);
-        self.ip += 2;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 2;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant(&mut self, brick: &Brick) {
-        let constant_index = brick.read_u8(self.ip + 1) as usize;
-        let constant = brick.read_constant(constant_index);
+    pub(in crate::vm) fn fn_constant(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let constant_index = frame.function.brick.read_u8(frame.ip + 1) as usize;
+        let constant = frame.function.brick.read_constant(constant_index);
         self.push(constant);
-        self.ip += 1;
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_value(&mut self, brick: &Brick, bits: BitsSize) {
-        let index = self.read_bits(brick, &bits);
+    pub(in crate::vm) fn fn_set_value(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
         self.stack[index] = self.peek(0);
-        self.ip += bits.as_bytes()
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_variable(&mut self, brick: &Brick, bits: BitsSize) {
-        let index = self.read_bits(brick, &bits);
+    pub(in crate::vm) fn fn_set_variable(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
         self.stack[index] = self.peek(0);
-        self.ip += bits.as_bytes();
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes();
     }
 
-    fn read_bits(&mut self, brick: &Brick, bits: &BitsSize) -> usize {
+    fn read_bits(&mut self, bits: &BitsSize) -> usize {
+        let frame = self.call_frames.last().unwrap();
         match bits {
-            BitsSize::Eight => brick.read_u8(self.ip + 1) as usize,
-            BitsSize::Sixteen => brick.read_u16(self.ip + 1) as usize,
-            BitsSize::ThirtyTwo => brick.read_u32(self.ip + 1) as usize,
+            BitsSize::Eight => frame.function.brick.read_u8(frame.ip + 1) as usize,
+            BitsSize::Sixteen => frame.function.brick.read_u16(frame.ip + 1) as usize,
+            BitsSize::ThirtyTwo => frame.function.brick.read_u32(frame.ip + 1) as usize,
         }
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_value(&mut self, brick: &Brick, bits: BitsSize) {
-        let index = self.read_bits(brick, &bits);
+    pub(in crate::vm) fn fn_get_value(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
         self.push(self.stack[index].clone());
-        self.ip += bits.as_bytes()
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_variable(&mut self, brick: &Brick, bits: BitsSize) {
-        let index = self.read_bits(brick, &bits);
+    pub(in crate::vm) fn fn_get_variable(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
         self.push(self.stack[index].clone());
-        self.ip += bits.as_bytes()
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes()
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_jump_if_false(&mut self, brick: &Brick) {
-        let offset = brick.read_u32(self.ip + 1);
-        self.ip += 4;
+    pub(in crate::vm) fn fn_jump_if_false(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let offset = frame.function.brick.read_u32(frame.ip + 1);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 4;
         if is_false_like!(self.peek(0)) {
             self.pop();
-            self.ip += offset as usize;
+            let frame = self.call_frames.last_mut().unwrap();
+            frame.ip += offset as usize;
         }
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_jump(&mut self, brick: &Brick) {
-        let offset = brick.read_u32(self.ip + 1);
-        self.ip += 4;
-        self.ip += offset as usize;
+    pub(in crate::vm) fn fn_jump(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let offset = frame.function.brick.read_u32(frame.ip + 1);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 4;
+        frame.ip += offset as usize;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_loop(&mut self, brick: &Brick) {
-        let offset = brick.read_u32(self.ip + 1);
-        self.ip += 4;
-        self.ip -= offset as usize;
+    pub(in crate::vm) fn fn_loop(&mut self) {
+        let frame = self.call_frames.last().unwrap();
+        let offset = frame.function.brick.read_u32(frame.ip + 1);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 4;
+        frame.ip -= offset as usize;
     }
 }
