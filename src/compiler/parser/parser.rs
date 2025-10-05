@@ -570,9 +570,8 @@ impl Parser {
         // Returns: (index, is_mutable, is_global)
         // is_global = true if variable is in a parent brick (not current brick)
         let current_brick_idx = self.bricks.len() - 1;
-
         for (brick_idx, brick) in self.bricks.iter().enumerate().rev() {
-            let index = brick.get_variable_index(name);
+            let index = brick.get_local_index(name);
             if index.0.is_some() {
                 let is_global = brick_idx < current_brick_idx;
                 return (index.0, index.1, is_global);
