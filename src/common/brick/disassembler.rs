@@ -64,7 +64,7 @@ impl Brick {
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset),
             OpCode::Jump => self.jump_instruction(instruction, offset),
             OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
-            OpCode::Call => self.simple_instruction(OpCode::Call, offset),
+            OpCode::Call => self.call_instruction(offset),
         }
     }
 
@@ -129,6 +129,12 @@ impl Brick {
         let index = self.read_u8(offset + 1) as usize;
         let string = self.read_string(index);
         println!("{:?} {:02} '{}'", op_code, index, string);
+        offset + 2
+    }
+
+    fn call_instruction(&self, offset: usize) -> usize {
+        let arg_count = self.read_u8(offset + 1);
+        println!("Call (args: {})", arg_count);
         offset + 2
     }
 }
