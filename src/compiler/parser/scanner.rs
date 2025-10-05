@@ -50,6 +50,7 @@ impl Scanner {
             '.' => self.make_token(TokenType::Dot),
             '-' => self.make_token(TokenType::Minus),
             '+' => self.make_token(TokenType::Plus),
+            '%' => self.make_token(TokenType::Percent),
             ';' => self.make_token(TokenType::Semicolon),
             '*' => self.make_token(TokenType::Star),
             '!' => {

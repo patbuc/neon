@@ -97,6 +97,7 @@ impl VirtualMachine {
                 OpCode::Subtract => self.fn_subtract(),
                 OpCode::Multiply => self.fn_multiply(),
                 OpCode::Divide => self.fn_divide(),
+                OpCode::Modulo => self.fn_modulo(),
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),
