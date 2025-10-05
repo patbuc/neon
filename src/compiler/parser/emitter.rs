@@ -57,6 +57,13 @@ impl Parser {
         current_brick_mut!(self.bricks).patch_jump(offset);
     }
 
+    pub fn emit_call(&mut self, argument_count: u8) {
+        let line = self.previous_token.line;
+        let column = self.previous_token.column;
+        current_brick_mut!(self.bricks).write_op_code(OpCode::Call, line, column);
+        current_brick_mut!(self.bricks).write_u8(argument_count)
+    }
+
     pub fn emit_op_codes(&mut self, op_code1: OpCode, op_code2: OpCode) {
         let line = self.previous_token.line;
         let column = self.previous_token.column;

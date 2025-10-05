@@ -1,8 +1,10 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Brick;
+use crate::common::{Brick, Value};
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
+
+use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::{current_brick_mut, number, string};
@@ -64,6 +66,8 @@ impl Parser {
             self.val_declaration();
         } else if self.match_token(TokenType::Var) {
             self.var_declaration();
+        } else if self.match_token(TokenType::Fn) {
+            self.fn_declaration();
         } else {
             self.statement();
         }
@@ -109,6 +113,41 @@ impl Parser {
         );
 
         self.define_variable(name);
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn fn_declaration(&mut self) {
+        let name = self.parse_value();
+
+        self.consume(TokenType::LeftParen, "Expect '(' after function name.");
+
+        // For now, we'll support zero-parameter functions only
+        let arity = 0;
+
+        self.consume(TokenType::RightParen, "Expect ')' after parameters.");
+        self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
+
+        // Create a new brick for the function
+        self.bricks.push(Brick::new(&format!("function_{}", name)));
+
+        // Compile function body in the new brick
+        self.begin_scope();
+        self.block();
+        self.end_scope();
+
+        // Emit return at end of function
+        self.emit_return();
+
+        let function_value = Value::Object(Rc::new(crate::common::Object::Function(
+            crate::common::ObjFunction {
+                name: name.clone(),
+                arity,
+                brick: Rc::new(self.bricks.pop().unwrap()),
+            },
+        )));
+
+        self.emit_constant(function_value);
+        self.define_value(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -175,7 +214,7 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
-        let maybe_index = self.current_brick().get_variable_index(name);
+        let maybe_index = self.get_variable_index(name);
         if maybe_index.0.is_none() {
             self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
@@ -266,6 +305,30 @@ impl Parser {
             TokenType::Minus => self.emit_op_code(OpCode::Negate),
             _ => (), // Unreachable.
         }
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(super) fn call(&mut self) {
+        let arg_count = self.argument_list();
+        self.emit_call(arg_count);
+    }
+
+    fn argument_list(&mut self) -> u8 {
+        let mut arg_count = 0u8;
+        if !self.check(TokenType::RightParen) {
+            loop {
+                self.expression(false);
+                if arg_count == 255 {
+                    self.report_error_at_current("Can't have more than 255 arguments.");
+                }
+                arg_count += 1;
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after arguments.");
+        arg_count
     }
 
     pub(in crate::compiler) fn consume(&mut self, token_type: TokenType, message: &str) {
@@ -440,5 +503,15 @@ impl Parser {
         while self.check(TokenType::NewLine) {
             self.advance();
         }
+    }
+
+    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool) {
+        for brick in self.bricks.iter().rev() {
+            let index = brick.get_variable_index(name);
+            if index.0.is_some() {
+                return index;
+            }
+        }
+        (None, false)
     }
 }
