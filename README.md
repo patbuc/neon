@@ -1,13 +1,13 @@
 [![Rust](https://github.com/patbuc/neon/actions/workflows/rust.yml/badge.svg)](https://github.com/patbuc/neon/actions/workflows/rust.yml)
 
-# Neon
+# ✨ Neon
 
-Neon, a toy language you didn't wait for
+A toy language you didn't wait for
 
 ## Why
 
-Nobody needs another programming language.
-I just want to teach me two things:
+Let’s be honest — the world doesn’t need another programming language.
+I’m building neon for one simple reason: to teach myself a few things.
 
 - How to build a compiler
 - How to build a virtual machine
@@ -15,26 +15,22 @@ I just want to teach me two things:
 
 ## State
 
-Neon is simply useless at the moment.
+Right now, neon doesn’t do much — it’s purely experimental and entirely useless and will happily crash in interesting
+ways.
 
 ## Goal
 
-The primary goal for me is to make Neon a self-hosted language at some point.
-Additional goals might come up during the development - or not.
+I wanted to make neon self-hosted someday, but I am not sur anymore. Goals may appear (or disappear) as the project
+evolves.
 
 ## Inspiration
 
-At some point I stumbled across Robert Nystrom's
-book [Crafting Interpreters](https://craftinginterpreters.com/), and it is one of the best books in tech. It's a
-fantastic read!
+This project was inspired by Robert Nystrom’s brilliant book [Crafting Interpreters](https://craftinginterpreters.com/).
+It’s one of the best reads in tech and I highly recommended it if you’re interested in the topic!
 
-If you haven't read it yet, and you're into building compilers & programming languages, go and get yourself a copy.
+Go and get yourself a copy!
 
-Said that, Neon will not follow Lox, the language Bob created for the book.
-
-## Thanks
-
-Thanks to [Robert Nystrom](https://stuffwithstuff.com/) for his book 🙏
+That said, neon won’t follow Lox, the language developed in the book. It’s taking its own path.
 
 ## License
 
