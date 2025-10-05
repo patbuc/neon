@@ -48,7 +48,7 @@ impl VirtualMachine {
         let frame = CallFrame {
             function: test_function,
             ip: 0,
-            slot_start: 0,
+            slot_start: -1,  // Like script frame, no function object on stack
         };
         self.call_frames.push(frame);
 

@@ -40,6 +40,12 @@ pub(crate) enum OpCode {
     Jump,
     Loop,
     Call,
+    GetGlobal,
+    GetGlobal2,
+    GetGlobal4,
+    SetGlobal,
+    SetGlobal2,
+    SetGlobal4,
 }
 
 impl OpCode {

@@ -121,8 +121,26 @@ impl Parser {
 
         self.consume(TokenType::LeftParen, "Expect '(' after function name.");
 
-        // For now, we'll support zero-parameter functions only
-        let arity = 0;
+        // Parse parameters
+        let mut arity = 0u8;
+        let mut parameters = Vec::new();
+
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if arity == 255 {
+                    self.report_error_at_current("Can't have more than 255 parameters.");
+                }
+
+                self.consume(TokenType::Identifier, "Expect parameter name.");
+                let param_name = self.previous_token.token.clone();
+                parameters.push(param_name);
+                arity += 1;
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
 
         self.consume(TokenType::RightParen, "Expect ')' after parameters.");
         self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
@@ -132,6 +150,13 @@ impl Parser {
 
         // Compile function body in the new brick
         self.begin_scope();
+
+        // Define parameters as local variables in the function scope
+        // Parameters are already on the stack (pushed by the caller)
+        for param in parameters {
+            self.define_parameter(param);
+        }
+
         self.block();
         self.end_scope();
 
@@ -214,23 +239,29 @@ impl Parser {
     #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
     pub(super) fn variable(&mut self) {
         let name = &*self.previous_token.token.clone();
-        let maybe_index = self.get_variable_index(name);
-        if maybe_index.0.is_none() {
+        let (maybe_index, is_mutable, is_global) = self.get_variable_index(name);
+        if maybe_index.is_none() {
             self.report_error_at_current(&format!("Undefined variable '{}'.", name));
             return;
         }
 
         let is_assignment = self.match_token(TokenType::Equal);
-        if is_assignment && maybe_index.1 {
+        if is_assignment && is_mutable {
             self.expression(false);
         } else if is_assignment {
             self.report_error_at_current("Can't assign to an immutable variable.");
             return;
         }
 
-        let index = maybe_index.0.unwrap();
+        let index = maybe_index.unwrap();
         if is_assignment {
-            self.emit_op_code_variant(OpCode::SetVariable, index);
+            if is_global {
+                self.emit_op_code_variant(OpCode::SetGlobal, index);
+            } else {
+                self.emit_op_code_variant(OpCode::SetVariable, index);
+            }
+        } else if is_global {
+            self.emit_op_code_variant(OpCode::GetGlobal, index);
         } else {
             self.emit_op_code_variant(OpCode::GetVariable, index);
         }
@@ -505,13 +536,18 @@ impl Parser {
         }
     }
 
-    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool) {
-        for brick in self.bricks.iter().rev() {
+    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
+        // Returns: (index, is_mutable, is_global)
+        // is_global = true if variable is in a parent brick (not current brick)
+        let current_brick_idx = self.bricks.len() - 1;
+
+        for (brick_idx, brick) in self.bricks.iter().enumerate().rev() {
             let index = brick.get_variable_index(name);
             if index.0.is_some() {
-                return index;
+                let is_global = brick_idx < current_brick_idx;
+                return (index.0, index.1, is_global);
             }
         }
-        (None, false)
+        (None, false, false)
     }
 }

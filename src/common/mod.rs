@@ -92,7 +92,7 @@ pub struct ObjFunction {
 pub struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
-    pub slot_start: usize,
+    pub slot_start: isize,  // Can be -1 for script frame
 }
 
 impl Display for Object {
