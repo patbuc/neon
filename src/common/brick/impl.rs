@@ -68,7 +68,7 @@ impl Brick {
     pub(crate) fn define_value(&mut self, local: Local, line: u32, column: u32) {
         self.values.push(local);
         let index = (self.values.len() - 1) as u32;
-        self.write_op_code_variant(OpCode::SetValue, index, line, column);
+        self.write_op_code_variant(OpCode::SetLocal, index, line, column);
     }
 
     pub(crate) fn add_parameter(&mut self, local: Local) {
@@ -79,7 +79,7 @@ impl Brick {
     pub(crate) fn define_variable(&mut self, local: Local, line: u32, column: u32) {
         self.variables.push(local);
         let index = (self.variables.len() - 1) as u32;
-        self.write_op_code_variant(OpCode::SetVariable, index, line, column);
+        self.write_op_code_variant(OpCode::SetLocal, index, line, column);
     }
 
     pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
