@@ -20,22 +20,21 @@ impl Parser {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
         let depth = self.scope_depth;
-        current_brick_mut!(self.bricks).define_value(Local::new(name, depth), line, column)
-    }
-
-    pub fn define_parameter(&mut self, name: String) {
-        let depth = self.scope_depth;
-        // Parameters are already on the stack (pushed by caller), so we just register them
-        // without emitting a SetValue opcode
-        current_brick_mut!(self.bricks).add_parameter(Local::new(name, depth));
+        current_brick_mut!(self.bricks).define_local(Local::new(name, depth, false), line, column)
     }
 
     pub fn define_variable(&mut self, name: String) {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
         let depth = self.scope_depth;
+        current_brick_mut!(self.bricks).define_local(Local::new(name, depth, true), line, column)
+    }
 
-        current_brick_mut!(self.bricks).define_variable(Local::new(name, depth), line, column)
+    pub fn define_parameter(&mut self, name: String) {
+        let depth = self.scope_depth;
+        // Parameters are already on the stack (pushed by caller), so we just register them
+        // without emitting a SetValue opcode
+        current_brick_mut!(self.bricks).add_parameter(Local::new(name, depth, false));
     }
 
     pub fn emit_string(&mut self, value: Value) -> u32 {

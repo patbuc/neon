@@ -9,8 +9,7 @@ impl Brick {
             strings: Constants::new(),
             instructions: Vec::new(),
             source_locations: Vec::new(),
-            values: Vec::new(),
-            variables: Vec::new(),
+            locals: Vec::new(),
         }
     }
 }
@@ -41,7 +40,8 @@ impl Brick {
         };
 
         // SAFETY: Only use this if the variants are consecutive and valid
-        let op_code_variant = unsafe { std::mem::transmute((op_code as u8) + offset) };
+        let op_code_variant =
+            unsafe { std::mem::transmute::<u8, OpCode>((op_code as u8) + offset) };
 
         if offset == 0 {
             self.write_op_code(op_code_variant, line, column);
@@ -65,20 +65,14 @@ impl Brick {
         constant_index
     }
 
-    pub(crate) fn define_value(&mut self, local: Local, line: u32, column: u32) {
-        self.values.push(local);
-        let index = (self.values.len() - 1) as u32;
-        self.write_op_code_variant(OpCode::SetLocal, index, line, column);
-    }
-
     pub(crate) fn add_parameter(&mut self, local: Local) {
         // Parameters are already on the stack, just register them
-        self.values.push(local);
+        self.locals.push(local);
     }
 
-    pub(crate) fn define_variable(&mut self, local: Local, line: u32, column: u32) {
-        self.variables.push(local);
-        let index = (self.variables.len() - 1) as u32;
+    pub(crate) fn define_local(&mut self, local: Local, line: u32, column: u32) {
+        self.locals.push(local);
+        let index = (self.locals.len() - 1) as u32;
         self.write_op_code_variant(OpCode::SetLocal, index, line, column);
     }
 
@@ -158,26 +152,21 @@ impl Brick {
         self.instructions.len()
     }
 
-    pub(crate) fn get_variable_index(&self, name: &str) -> (Option<u32>, bool) {
-        let mut index = 0;
-        loop {
-            if index >= self.variables.len() {
-                break;
-            }
-            if self.variables[index].name == name {
-                return (Some(index as u32), true);
-            }
-            index += 1;
+    pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
+        if self.locals.is_empty() {
+            return (None, false);
         }
-        index = 0;
+
+        let mut index = self.locals.len() - 1;
         loop {
-            if index >= self.values.len() {
+            if self.locals[index].name == name {
+                let local = &self.locals[index];
+                return (Some(index as u32), local.is_mutable);
+            }
+            if index == 0 {
                 break;
             }
-            if self.values[index].name == name {
-                return (Some(index as u32), false);
-            }
-            index += 1;
+            index -= 1;
         }
         (None, false)
     }
@@ -208,8 +197,12 @@ impl Brick {
 }
 
 impl Local {
-    pub(crate) fn new(name: String, depth: u32) -> Self {
-        Local { name, depth }
+    pub(crate) fn new(name: String, depth: u32, readonly: bool) -> Self {
+        Local {
+            name,
+            depth,
+            is_mutable: readonly,
+        }
     }
 }
 

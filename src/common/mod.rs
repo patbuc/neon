@@ -12,14 +12,14 @@ pub(crate) struct Brick {
     strings: Constants,
     instructions: Vec<u8>,
     source_locations: Vec<SourceLocation>,
-    values: Vec<Local>,
-    variables: Vec<Local>,
+    locals: Vec<Local>,
 }
 
 #[derive(Debug)]
 pub(crate) struct Local {
     pub name: String,
     pub depth: u32,
+    pub is_mutable: bool,
 }
 
 #[derive(Debug)]
@@ -86,7 +86,7 @@ pub struct ObjFunction {
 pub struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
-    pub slot_start: isize,  // Can be -1 for script frame
+    pub slot_start: isize, // Can be -1 for script frame
 }
 
 impl Display for Object {
