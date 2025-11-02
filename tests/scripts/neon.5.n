@@ -1,4 +1,11 @@
 // neon.5.n - Boolean logic and comparisons
+
+// Expected:
+// false
+// true
+// false
+// true
+
 val t = true
 val f = false
 print t == f         // false

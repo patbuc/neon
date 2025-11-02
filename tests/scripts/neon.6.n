@@ -1,4 +1,10 @@
 // neon.6.n - Variable shadowing and reassignment
+
+// Expected:
+// 1
+// 2
+// 5
+
 val a = 1
 print a            // 1
 val a2 = 2

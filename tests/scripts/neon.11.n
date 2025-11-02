@@ -1,4 +1,11 @@
 // neon.11.n - Chained operations and multiple prints
+
+// Expected:
+// 6
+// 6
+// 9
+// 7
+
 val a = 1
 val b = 2
 val c = 3

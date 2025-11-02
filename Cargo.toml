@@ -14,5 +14,12 @@ tracing-subscriber = "0.3.19"
 env_logger = "0.11.8"
 log = "0.4.27"
 
+[dev-dependencies]
+datatest-stable = "0.3.3"
+
+[[test]]
+name = "neon_scripts"
+harness = false
+
 [features]
 disassemble = []

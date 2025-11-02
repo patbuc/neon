@@ -1,4 +1,10 @@
 // neon.9.n - Nil handling and printing
+
+// Expected:
+// nil
+// is nil
+// zero is not nil
+
 val a = nil
 print a           // nil
 if (a == nil) {
