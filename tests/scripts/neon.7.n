@@ -1,4 +1,11 @@
 // neon.7.n - Nested expressions and precedence
+
+// Expected:
+// 14
+// 20
+// 14
+// 15
+
 val a = 2
 val b = 3
 val c = 4

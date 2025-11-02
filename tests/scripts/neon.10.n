@@ -1,4 +1,10 @@
 // neon.10.n - Unary operations and chaining
+
+// Expected:
+// -8
+// 8
+// -8
+
 val a = 8
 val b = -a
 val c = -b

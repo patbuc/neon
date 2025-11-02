@@ -25,7 +25,7 @@ pub struct VirtualMachine {
     brick: Option<Brick>,
     // values: HashMap<String, Value>,
     // variables: HashMap<String, Value>,
-    #[cfg(test)]
+    #[cfg(any(test, debug_assertions))]
     pub(crate) string_buffer: String,
     compilation_errors: String,
 }

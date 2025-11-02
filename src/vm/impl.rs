@@ -6,13 +6,19 @@ use crate::{boolean, nil};
 use log::info;
 use std::rc::Rc;
 
+impl Default for VirtualMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VirtualMachine {
     pub fn new() -> Self {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             brick: None,
-            #[cfg(test)]
+            #[cfg(any(test, debug_assertions))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
         }
@@ -162,8 +168,8 @@ impl VirtualMachine {
         eprintln!("[{}] {}", source_location, error);
     }
 
-    #[cfg(test)]
-    pub(in crate::vm) fn get_output(&self) -> String {
+    #[cfg(any(test, debug_assertions))]
+    pub fn get_output(&self) -> String {
         self.string_buffer.trim().to_string()
     }
 

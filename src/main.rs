@@ -1,8 +1,3 @@
-mod common;
-mod compiler;
-mod macros;
-mod vm;
-
 use colored::Colorize;
 use std::io::{Read, Write};
 use std::process::exit;
@@ -10,7 +5,7 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
-use crate::vm::VirtualMachine;
+use neon::vm::{Result, VirtualMachine};
 
 fn main() {
     setup_logging();
@@ -64,9 +59,9 @@ fn run_repl() {
         }
         let result = vm.interpret(line);
         match result {
-            vm::Result::Ok => {}
-            vm::Result::CompileError => eprintln!("{}", "Compile error.".red()),
-            vm::Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
+            Result::Ok => {}
+            Result::CompileError => eprintln!("{}", "Compile error.".red()),
+            Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
         }
         println!();
     }
@@ -91,11 +86,11 @@ fn run_file(path: &String) {
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
-    let result: vm::Result = vm.interpret(source);
+    let result: Result = vm.interpret(source);
     match result {
-        vm::Result::Ok => (),
-        vm::Result::CompileError => exit(65),
-        vm::Result::RuntimeError => exit(70),
+        Result::Ok => (),
+        Result::CompileError => exit(65),
+        Result::RuntimeError => exit(70),
     }
 }
 

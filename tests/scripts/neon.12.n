@@ -1,4 +1,10 @@
 // neon.12.n - Edge cases: division by zero, empty strings
+
+// Expected:
+// inf
+// test
+// test
+
 val a = 10
 val b = 0
 // Division by zero should be handled gracefully (if supported)
