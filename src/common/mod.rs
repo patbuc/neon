@@ -1,11 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-pub(crate) mod brick;
+pub(crate) mod bloq;
 pub(crate) mod opcodes;
 
 #[derive(Debug)]
-pub(crate) struct Brick {
+pub(crate) struct Bloq {
     #[allow(dead_code)]
     name: String,
     constants: Constants,
@@ -58,7 +58,7 @@ impl BitsSize {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value {
+pub(crate) enum Value {
     Number(f64),
     Object(Rc<Object>),
     Boolean(bool),
@@ -66,24 +66,24 @@ pub enum Value {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Object {
+pub(crate) enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
 }
 
 #[derive(Debug, Clone)]
-pub struct ObjString {
+pub(crate) struct ObjString {
     pub value: Rc<str>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ObjFunction {
+pub(crate) struct ObjFunction {
     pub name: String,
     pub arity: u8,
-    pub brick: Rc<Brick>,
+    pub bloq: Rc<Bloq>,
 }
 
-pub struct CallFrame {
+pub(crate) struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
@@ -119,7 +119,7 @@ impl PartialEq<&ObjString> for &str {
 impl PartialEq for ObjFunction {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.arity == other.arity
-        // We don't compare bricks as they're complex and functions with same name/arity are considered equal
+        // We don't compare bloqs as they're complex and functions with same name/arity are considered equal
     }
 }
 

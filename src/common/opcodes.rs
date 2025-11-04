@@ -1,7 +1,15 @@
 use std::mem::transmute;
 
+impl OpCode {
+    #[inline(always)]
+    pub(crate) fn from_u8(value: u8) -> OpCode {
+        unsafe { transmute(value) }
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, PartialEq)]
+#[allow(dead_code)]
 pub(crate) enum OpCode {
     Return = 0x00,
     Constant,
@@ -41,11 +49,4 @@ pub(crate) enum OpCode {
     SetGlobal,
     SetGlobal2,
     SetGlobal4,
-}
-
-impl OpCode {
-    #[inline(always)]
-    pub(crate) fn from_u8(value: u8) -> OpCode {
-        unsafe { transmute(value) }
-    }
 }

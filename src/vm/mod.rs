@@ -1,4 +1,4 @@
-use crate::common::{Brick, CallFrame, Value};
+use crate::common::{Bloq, CallFrame, Value};
 use std::fmt::Debug;
 
 mod functions;
@@ -22,7 +22,7 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
-    brick: Option<Brick>,
+    bloq: Option<Bloq>,
     // values: HashMap<String, Value>,
     // variables: HashMap<String, Value>,
     #[cfg(any(test, debug_assertions))]
@@ -33,15 +33,15 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_brick(&mut self, brick: Brick) -> Result {
+    pub(crate) fn run_bloq(&mut self, bloq: Bloq) -> Result {
         use crate::common::ObjFunction;
         use std::rc::Rc;
 
-        // Create a synthetic function for the test brick
+        // Create a synthetic function for the test bloq
         let test_function = Rc::new(ObjFunction {
             name: "<test>".to_string(),
             arity: 0,
-            brick: Rc::new(brick),
+            bloq: Rc::new(bloq),
         });
 
         // Create the initial call frame
@@ -52,6 +52,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Brick::new("dummy"))
+        self.run(&Bloq::new("dummy"))
     }
 }

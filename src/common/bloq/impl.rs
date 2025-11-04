@@ -1,9 +1,9 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Brick, Constants, Local, SourceLocation, Value};
+use crate::common::{Bloq, Constants, Local, SourceLocation, Value};
 
-impl Brick {
+impl Bloq {
     pub(crate) fn new(name: &str) -> Self {
-        Brick {
+        Bloq {
             name: String::from(name),
             constants: Constants::new(),
             strings: Constants::new(),
@@ -14,7 +14,7 @@ impl Brick {
     }
 }
 
-impl Brick {
+impl Bloq {
     pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, column: u32) {
         self.source_locations.push(SourceLocation {
             offset: self.instructions.len(),
@@ -172,7 +172,7 @@ impl Brick {
     }
 }
 
-impl Brick {
+impl Bloq {
     pub(crate) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
         let mut result = Option::default();
         let mut low = 0;
@@ -209,110 +209,110 @@ impl Local {
 #[cfg(test)]
 mod tests {
     use crate::common::opcodes::OpCode;
-    use crate::common::Brick;
+    use crate::common::Bloq;
     use crate::{as_number, number};
 
     #[test]
-    fn new_brick_is_empty() {
-        let brick = Brick::new("origin");
+    fn new_bloq_is_empty() {
+        let bloq = Bloq::new("origin");
 
-        assert_eq!("origin", brick.name);
-        assert_eq!(0, brick.instructions.len());
-        assert_eq!(0, brick.constants.len());
+        assert_eq!("origin", bloq.name);
+        assert_eq!(0, bloq.instructions.len());
+        assert_eq!(0, bloq.constants.len());
     }
 
     #[test]
-    fn op_code_can_be_pushed_to_an_brick() {
-        let mut brick = Brick::new("jenny");
-        brick.write_op_code(OpCode::Return, 123, 42);
+    fn op_code_can_be_pushed_to_a_bloq() {
+        let mut bloq = Bloq::new("jenny");
+        bloq.write_op_code(OpCode::Return, 123, 42);
 
-        assert_eq!(1, brick.instructions.len());
-        assert_eq!(OpCode::Return as u8, brick.instructions[0]);
+        assert_eq!(1, bloq.instructions.len());
+        assert_eq!(OpCode::Return as u8, bloq.instructions[0]);
     }
 
     #[test]
-    fn can_write_more_then_256_constants() {
-        let mut brick = Brick::new("maggie");
+    fn can_write_more_then_256_constants_bloq() {
+        let mut bloq = Bloq::new("maggie");
         for i in 0..258 {
-            brick.write_constant(number!(i as f64), i, 42);
+            bloq.write_constant(number!(i as f64), i, 42);
         }
 
-        assert_eq!(2 * 256 + 6, brick.instructions.len());
+        assert_eq!(2 * 256 + 6, bloq.instructions.len());
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(brick.instructions[2 * 256])
+            OpCode::from_u8(bloq.instructions[2 * 256])
         );
 
-        assert_eq!(256, brick.read_u16(2 * 256 + 1));
+        assert_eq!(256, bloq.read_u16(2 * 256 + 1));
         assert_eq!(
             OpCode::Constant2,
-            OpCode::from_u8(brick.instructions[2 * 256 + 3])
+            OpCode::from_u8(bloq.instructions[2 * 256 + 3])
         );
-        let constant_index = brick.read_u16(2 * 256 + 4) as usize;
+        let constant_index = bloq.read_u16(2 * 256 + 4) as usize;
         assert_eq!(257, constant_index);
         assert_eq!(
             257f64,
-            as_number!(brick.constants.read_value(constant_index))
+            as_number!(bloq.constants.read_value(constant_index))
         );
     }
 
     #[test]
-    fn can_write_u8() {
-        let mut brick = Brick::new("ruth");
-        brick.write_u8(123);
-        assert_eq!(123, brick.read_u8(0));
+    fn can_write_u8_bloq() {
+        let mut bloq = Bloq::new("ruth");
+        bloq.write_u8(123);
+        assert_eq!(123, bloq.read_u8(0));
     }
 
     #[test]
-    fn can_write_u16() {
-        let mut brick = Brick::new("ruth");
-        brick.write_u16(12345);
-        assert_eq!(12345, brick.read_u16(0));
+    fn can_write_u16_bloq() {
+        let mut bloq = Bloq::new("ruth");
+        bloq.write_u16(12345);
+        assert_eq!(12345, bloq.read_u16(0));
     }
 
     #[test]
-    fn can_write_u32() {
-        let mut brick = Brick::new("ruth");
-        brick.write_u32(12345678);
-        assert_eq!(12345678, brick.read_u32(0));
+    fn can_write_u32_bloq() {
+        let mut bloq = Bloq::new("ruth");
+        bloq.write_u32(12345678);
+        assert_eq!(12345678, bloq.read_u32(0));
     }
 
     #[test]
-    fn can_write_brick() {
-        let mut brick = Brick::new("Zebrick");
+    fn can_write_bloq() {
+        let mut bloq = Bloq::new("Zebloq");
 
-        brick.write_constant(number!(1234.56), 2, 0);
-        brick.write_op_code(OpCode::Negate, 3, 0);
-        brick.write_constant(number!(345.67), 4, 0);
-        brick.write_op_code(OpCode::Add, 4, 0);
-        brick.write_constant(number!(1.2), 5, 0);
-        brick.write_op_code(OpCode::Multiply, 6, 0);
-        brick.write_op_code(OpCode::Return, 8, 0);
+        bloq.write_constant(number!(1234.56), 2, 0);
+        bloq.write_op_code(OpCode::Negate, 3, 0);
+        bloq.write_constant(number!(345.67), 4, 0);
+        bloq.write_op_code(OpCode::Add, 4, 0);
+        bloq.write_constant(number!(1.2), 5, 0);
+        bloq.write_op_code(OpCode::Multiply, 6, 0);
+        bloq.write_op_code(OpCode::Return, 8, 0);
     }
 
     #[test]
-    fn can_read_line_information() {
-        let mut brick = Brick::new("Zebrick");
+    fn can_read_line_information_bloq() {
+        let mut bloq = Bloq::new("Zebloq");
 
-        brick.write_constant(number!(1234.56), 2, 0);
-        brick.write_op_code(OpCode::Negate, 3, 0);
-        brick.write_constant(number!(345.67), 4, 0);
-        brick.write_op_code(OpCode::Add, 4, 0);
-        brick.write_constant(number!(1.2), 5, 0);
-        brick.write_op_code(OpCode::Multiply, 6, 0);
-        brick.write_op_code(OpCode::Return, 8, 0);
+        bloq.write_constant(number!(1234.56), 2, 0);
+        bloq.write_op_code(OpCode::Negate, 3, 0);
+        bloq.write_constant(number!(345.67), 4, 0);
+        bloq.write_op_code(OpCode::Add, 4, 0);
+        bloq.write_constant(number!(1.2), 5, 0);
+        bloq.write_op_code(OpCode::Multiply, 6, 0);
+        bloq.write_op_code(OpCode::Return, 8, 0);
 
-        assert_eq!(2, brick.get_source_location(0).unwrap().line);
-        assert_eq!(2, brick.get_source_location(1).unwrap().line);
-        assert_eq!(3, brick.get_source_location(2).unwrap().line);
-        assert_eq!(4, brick.get_source_location(3).unwrap().line);
-        assert_eq!(4, brick.get_source_location(4).unwrap().line);
-        assert_eq!(4, brick.get_source_location(5).unwrap().line);
-        assert_eq!(5, brick.get_source_location(6).unwrap().line);
-        assert_eq!(5, brick.get_source_location(7).unwrap().line);
-        assert_eq!(6, brick.get_source_location(8).unwrap().line);
-        assert_eq!(8, brick.get_source_location(9).unwrap().line);
+assert_eq!(2, bloq.get_source_location(0).unwrap().line);
+assert_eq!(2, bloq.get_source_location(1).unwrap().line);
+assert_eq!(3, bloq.get_source_location(2).unwrap().line);
+assert_eq!(4, bloq.get_source_location(3).unwrap().line);
+assert_eq!(4, bloq.get_source_location(4).unwrap().line);
+assert_eq!(4, bloq.get_source_location(5).unwrap().line);
+assert_eq!(5, bloq.get_source_location(6).unwrap().line);
+assert_eq!(5, bloq.get_source_location(7).unwrap().line);
+assert_eq!(6, bloq.get_source_location(8).unwrap().line);
+assert_eq!(8, bloq.get_source_location(9).unwrap().line);
 
-        assert!(brick.get_source_location(10).is_none());
+assert!(bloq.get_source_location(10).is_none());
     }
 }

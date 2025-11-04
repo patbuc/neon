@@ -1,10 +1,10 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Brick;
+use crate::common::Bloq;
 
 #[cfg(feature = "disassemble")]
-impl Brick {
+impl Bloq {
     #[allow(dead_code)]
-    pub(crate) fn disassemble_brick(&self) {
+    pub(crate) fn disassemble_bloq(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 
@@ -75,11 +75,11 @@ impl Brick {
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_constant_index(brick: &Brick, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_constant_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::Constant => (brick.read_u8(offset) as usize, 1),
-                OpCode::Constant2 => (brick.read_u16(offset) as usize, 2),
-                OpCode::Constant4 => (brick.read_u32(offset) as usize, 4),
+                OpCode::Constant => (bloq.read_u8(offset) as usize, 1),
+                OpCode::Constant2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::Constant4 => (bloq.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }
@@ -91,20 +91,20 @@ impl Brick {
     }
 
     fn variable_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_variable_index(brick: &Brick, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_variable_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::GetLocal => (brick.read_u8(offset) as usize, 1),
-                OpCode::GetLocal2 => (brick.read_u16(offset) as usize, 2),
-                OpCode::GetLocal4 => (brick.read_u32(offset) as usize, 4),
-                OpCode::SetLocal => (brick.read_u8(offset) as usize, 1),
-                OpCode::SetLocal2 => (brick.read_u16(offset) as usize, 2),
-                OpCode::SetLocal4 => (brick.read_u32(offset) as usize, 4),
-                OpCode::GetGlobal => (brick.read_u8(offset) as usize, 1),
-                OpCode::GetGlobal2 => (brick.read_u16(offset) as usize, 2),
-                OpCode::GetGlobal4 => (brick.read_u32(offset) as usize, 4),
-                OpCode::SetGlobal => (brick.read_u8(offset) as usize, 1),
-                OpCode::SetGlobal2 => (brick.read_u16(offset) as usize, 2),
-                OpCode::SetGlobal4 => (brick.read_u32(offset) as usize, 4),
+                OpCode::GetLocal => (bloq.read_u8(offset) as usize, 1),
+                OpCode::GetLocal2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::GetLocal4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::SetLocal => (bloq.read_u8(offset) as usize, 1),
+                OpCode::SetLocal2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::SetLocal4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::GetGlobal => (bloq.read_u8(offset) as usize, 1),
+                OpCode::GetGlobal2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::GetGlobal4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::SetGlobal => (bloq.read_u8(offset) as usize, 1),
+                OpCode::SetGlobal2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::SetGlobal4 => (bloq.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode {}", op_code),
             }
         }

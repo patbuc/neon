@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Brick, Value};
+use crate::common::{Bloq, Value};
 use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
@@ -7,7 +7,7 @@ use crate::compiler::{Parser, Scanner, Token};
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::{current_brick_mut, number, string};
+use crate::{current_bloq_mut, number, string};
 
 #[cfg(feature = "disassemble")]
 use tracing_attributes::instrument;
@@ -16,7 +16,7 @@ impl Parser {
     pub(in crate::compiler) fn new(source: String) -> Parser {
         Parser {
             scanner: Scanner::new(source),
-            bricks: Vec::default(),
+            bloqs: Vec::default(),
             previous_token: Token::default(),
             current_token: Token::default(),
             scope_depth: 0,
@@ -27,8 +27,8 @@ impl Parser {
     }
 
     pub(in crate::compiler) fn start(&mut self) {
-        self.bricks.push(Brick::new(
-            format!("Brick no. {}", self.bricks.len()).as_str(),
+        self.bloqs.push(Bloq::new(
+            format!("Bloq no. {}", self.bloqs.len()).as_str(),
         ));
     }
 
@@ -150,10 +150,10 @@ impl Parser {
         self.emit_op_code(OpCode::Nil);
         self.define_value(name.clone());
 
-        // Create a new brick for the function
-        self.bricks.push(Brick::new(&format!("function_{}", name)));
+        // Create a new bloq for the function
+        self.bloqs.push(Bloq::new(&format!("function_{}", name)));
 
-        // Compile function body in the new brick
+        // Compile function body in the new bloq
         self.begin_scope();
 
         // Define parameters as local variables in the function scope
@@ -172,7 +172,7 @@ impl Parser {
             crate::common::ObjFunction {
                 name: name.clone(),
                 arity,
-                brick: Rc::new(self.bricks.pop().unwrap()),
+                bloq: Rc::new(self.bloqs.pop().unwrap()),
             },
         ))));
 
@@ -463,7 +463,7 @@ impl Parser {
     }
 
     fn while_statement(&mut self) {
-        let loop_start = current_brick_mut!(self.bricks).instruction_count() as u32;
+        let loop_start = current_bloq_mut!(self.bloqs).instruction_count() as u32;
 
         self.consume(TokenType::LeftParen, "Expecting '(' after 'while'.");
         self.expression(false);
@@ -569,12 +569,12 @@ impl Parser {
 
     fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
         // Returns: (index, is_mutable, is_global)
-        // is_global = true if variable is in a parent brick (not current brick)
-        let current_brick_idx = self.bricks.len() - 1;
-        for (brick_idx, brick) in self.bricks.iter().enumerate().rev() {
-            let index = brick.get_local_index(name);
+        // is_global = true if variable is in a parent bloq (not current bloq)
+        let current_bloq_idx = self.bloqs.len() - 1;
+        for (bloq_idx, bloq) in self.bloqs.iter().enumerate().rev() {
+            let index = bloq.get_local_index(name);
             if index.0.is_some() {
-                let is_global = brick_idx < current_brick_idx;
+                let is_global = bloq_idx < current_bloq_idx;
                 return (index.0, index.1, is_global);
             }
         }

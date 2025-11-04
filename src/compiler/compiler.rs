@@ -1,4 +1,4 @@
-use crate::common::Brick;
+use crate::common::Bloq;
 use crate::compiler::token::TokenType;
 use crate::compiler::{Compiler, Parser};
 
@@ -9,7 +9,7 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: String) -> Option<Brick> {
+    pub(crate) fn compile(&mut self, source: String) -> Option<Bloq> {
         let mut parser = Parser::new(source);
 
         parser.start();
@@ -26,7 +26,7 @@ impl Compiler {
         parser.end();
 
         if !(parser.had_error) {
-            parser.bricks.pop()
+            parser.bloqs.pop()
         } else {
             self.compilation_errors = parser.compilation_errors.clone();
             None

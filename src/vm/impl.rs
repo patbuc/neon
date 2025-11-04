@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Brick, CallFrame, ObjFunction, Value};
+use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
@@ -17,7 +17,7 @@ impl VirtualMachine {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
-            brick: None,
+            bloq: None,
             #[cfg(any(test, debug_assertions))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
@@ -29,23 +29,23 @@ impl VirtualMachine {
 
         let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
-        let brick = compiler.compile(source);
+        let bloq = compiler.compile(source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         let start = std::time::Instant::now();
-        if brick.is_none() {
+        if bloq.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
             return Result::CompileError;
         }
 
-        let brick = brick.unwrap();
+        let bloq = bloq.unwrap();
 
         // Create a synthetic function for the script
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
-            brick: Rc::new(brick),
+            bloq: Rc::new(bloq),
         });
 
         // Create the initial call frame
@@ -57,24 +57,24 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Brick::new("dummy")); // brick param is not used anymore
-        self.brick = None;
+        let result = self.run(&Bloq::new("dummy")); // bloq param is not used anymore
+        self.bloq = None;
 
         info!("Run time: {}ms", start.elapsed().as_millis());
         result
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _brick: &Brick) -> Result {
+    pub(in crate::vm) fn run(&mut self, _bloq: &Bloq) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
-            frame.function.brick.disassemble_brick();
+            frame.function.bloq.disassemble_bloq();
         }
         loop {
             let frame = self.call_frames.last_mut().unwrap();
             let ip = frame.ip;
-            let op_code = OpCode::from_u8(frame.function.brick.read_u8(ip));
+            let op_code = OpCode::from_u8(frame.function.bloq.read_u8(ip));
 
             // Track whether we should increment IP at the end
             let mut should_increment_ip = true;
@@ -180,7 +180,7 @@ impl VirtualMachine {
 
     fn get_current_source_location(&self) -> String {
         if let Some(frame) = self.call_frames.last() {
-            if let Some(location) = frame.function.brick.get_source_location(frame.ip) {
+            if let Some(location) = frame.function.bloq.get_source_location(frame.ip) {
                 format!("{}:{}", location.line, location.column)
             } else {
                 "unknown".to_string()
@@ -193,6 +193,6 @@ impl VirtualMachine {
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
-        self.brick = None;
+        self.bloq = None;
     }
 }

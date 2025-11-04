@@ -1,8 +1,8 @@
-use crate::common::Brick;
+use crate::common::Bloq;
 use crate::compiler::token::TokenType;
 
 pub(crate) mod compiler;
-mod parser;
+pub mod parser;
 mod token;
 
 #[derive(Debug, Clone, Default)]
@@ -26,7 +26,7 @@ struct Scanner {
 #[derive(Debug)]
 struct Parser {
     scanner: Scanner,
-    bricks: Vec<Brick>,
+    bloqs: Vec<Bloq>,
     previous_token: Token,
     current_token: Token,
     scope_depth: u32,
