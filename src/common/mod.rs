@@ -69,6 +69,8 @@ pub enum Value {
 pub enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
+    Struct(Rc<ObjStruct>),
+    Instance(Rc<std::cell::RefCell<ObjInstance>>),
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +85,18 @@ pub struct ObjFunction {
     pub brick: Rc<Brick>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ObjStruct {
+    pub name: String,
+    pub fields: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjInstance {
+    pub struct_def: Rc<ObjStruct>,
+    pub fields: std::collections::HashMap<String, Value>,
+}
+
 pub struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
@@ -94,6 +108,11 @@ impl Display for Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
+            Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
+            Object::Instance(obj_instance) => {
+                let instance = obj_instance.borrow();
+                write!(f, "<{} instance>", instance.struct_def.name)
+            }
         }
     }
 }
@@ -120,6 +139,19 @@ impl PartialEq for ObjFunction {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.arity == other.arity
         // We don't compare bricks as they're complex and functions with same name/arity are considered equal
+    }
+}
+
+impl PartialEq for ObjStruct {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjInstance {
+    fn eq(&self, other: &Self) -> bool {
+        // Instances are equal if they point to the same struct and have same field values
+        self.struct_def.name == other.struct_def.name && self.fields == other.fields
     }
 }
 

@@ -135,9 +135,20 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_call() {
                         return result;
                     }
-                    // Don't increment IP after call since we pushed a new frame
+                    // Don't increment IP after call since we pushed a new frame or instantiated
                     should_increment_ip = false;
                 }
+                OpCode::Instantiate => {
+                    // This opcode is not used; struct instantiation goes through Call
+                    self.runtime_error("Instantiate opcode should not be used directly.");
+                    return Result::RuntimeError;
+                }
+                OpCode::GetField => self.fn_get_field(BitsSize::Eight),
+                OpCode::GetField2 => self.fn_get_field(BitsSize::Sixteen),
+                OpCode::GetField4 => self.fn_get_field(BitsSize::ThirtyTwo),
+                OpCode::SetField => self.fn_set_field(BitsSize::Eight),
+                OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
+                OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
             }
 
             // Increment IP for the current frame

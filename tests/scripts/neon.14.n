@@ -1,0 +1,32 @@
+// neon.14.n - Basic struct functionality
+
+// Expected:
+// 10
+// 20
+// 50
+// 20
+// 100
+// 30
+
+// Define a simple struct
+struct Point {
+    x
+    y
+}
+
+// Create an instance
+val p = Point(10, 20)
+
+// Read fields
+print p.x  // 10
+print p.y  // 20
+
+// Mutate fields
+p.x = 50
+print p.x  // 50
+print p.y  // 20
+
+// Create another instance
+val p2 = Point(100, 30)
+print p2.x  // 100
+print p2.y  // 30

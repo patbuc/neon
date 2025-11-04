@@ -1,0 +1,34 @@
+// neon.15.n - Structs with functions
+
+// Expected:
+// 25
+// 0
+// 50
+
+// Define a struct
+struct Point {
+    x
+    y
+}
+
+// Function that calculates distance squared from origin
+fn distance_squared(pt) {
+    val x_squared = pt.x * pt.x
+    val y_squared = pt.y * pt.y
+    return x_squared + y_squared
+}
+
+// Function that moves a point
+fn move_point(pt, dx, dy) {
+    return Point(pt.x + dx, pt.y + dy)
+}
+
+// Create instances
+val p1 = Point(3, 4)
+print distance_squared(p1)  // 25
+
+val p2 = Point(0, 0)
+print distance_squared(p2)  // 0
+
+val p3 = move_point(p1, 2, 1)
+print distance_squared(p3)  // 5*5 + 5*5 = 25 + 25 = 50

@@ -1,0 +1,39 @@
+// Expected:
+// Alice
+// Alice
+
+// Define data structures
+struct Player {
+    name
+    score
+    health
+}
+
+struct Game {
+    player1
+    player2
+    round
+}
+
+// Create game state
+val game = Game(
+    Player("Alice", 100, 10),
+    Player("Bob", 95, 8),
+    1
+)
+
+// Access and modify
+print game.player1.name     // Alice
+game.player1.score = 105
+game.round = game.round + 1
+
+// Functions with structs
+fn get_winner(g) {
+    if (g.player1.score > g.player2.score) {
+        return g.player1
+    }
+    return g.player2
+}
+
+val winner = get_winner(game)
+print winner.name           // Alice

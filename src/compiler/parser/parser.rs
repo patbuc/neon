@@ -68,6 +68,8 @@ impl Parser {
             self.var_declaration();
         } else if self.match_token(TokenType::Fn) {
             self.fn_declaration();
+        } else if self.match_token(TokenType::Struct) {
+            self.struct_declaration();
         } else {
             self.statement();
         }
@@ -190,6 +192,55 @@ impl Parser {
             self.emit_op_code_variant(OpCode::SetLocal, index);
         }
         self.emit_op_code(OpCode::Pop); // Pop the function value from the stack
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn struct_declaration(&mut self) {
+        let name = self.parse_value();
+
+        self.consume(TokenType::LeftBrace, "Expect '{' after struct name.");
+
+        // Parse field list
+        let mut fields = Vec::new();
+        self.skip_new_lines();
+
+        if !self.check(TokenType::RightBrace) {
+            loop {
+                self.consume(TokenType::Identifier, "Expect field name.");
+                let field_name = self.previous_token.token.clone();
+                fields.push(field_name);
+
+                self.skip_new_lines();
+
+                // Fields can be separated by comma or newline
+                if self.match_token(TokenType::Comma) {
+                    self.skip_new_lines();
+                }
+
+                if self.check(TokenType::RightBrace) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after struct declaration.",
+        );
+
+        // Create the struct value
+        let struct_value = Value::Object(Rc::new(crate::common::Object::Struct(Rc::new(
+            crate::common::ObjStruct {
+                name: name.clone(),
+                fields,
+            },
+        ))));
+
+        // Emit the struct as a constant and store it in a variable
+        self.emit_constant(struct_value);
+        self.define_value(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -364,8 +415,35 @@ impl Parser {
         self.emit_call(arg_count);
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(super) fn dot(&mut self) {
+        // Parse field name
+        self.consume(TokenType::Identifier, "Expect field name after '.'.");
+        let field_name = self.previous_token.token.clone();
+
+        // Check if this is a field assignment (p.x = value)
+        if self.match_token(TokenType::Equal) {
+            // This is a set operation
+            // Parse the value to assign
+            self.expression(false);
+
+            // At this point, stack has: [instance, value]
+            // We need to emit SetField with the field name
+            // First, we need to find the field index
+            // But we don't know the struct type at compile time!
+            // We'll need to store field name as string and resolve at runtime
+            self.emit_set_field(field_name);
+        } else {
+            // This is a get operation
+            // Stack has: [instance]
+            // Emit GetField with field name
+            self.emit_get_field(field_name);
+        }
+    }
+
     fn argument_list(&mut self) -> u8 {
         let mut arg_count = 0u8;
+        self.skip_new_lines();
         if !self.check(TokenType::RightParen) {
             loop {
                 self.expression(false);
@@ -376,8 +454,10 @@ impl Parser {
                 if !self.match_token(TokenType::Comma) {
                     break;
                 }
+                self.skip_new_lines();
             }
         }
+        self.skip_new_lines();
         self.consume(TokenType::RightParen, "Expect ')' after arguments.");
         arg_count
     }
@@ -525,6 +605,7 @@ impl Parser {
             match self.current_token.token_type {
                 TokenType::Class
                 | TokenType::Fn
+                | TokenType::Struct
                 | TokenType::Val
                 | TokenType::Var
                 | TokenType::For

@@ -1,7 +1,7 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{Brick, Local, Value};
 use crate::compiler::Parser;
-use crate::current_brick_mut;
+use crate::{current_brick_mut, string};
 
 impl Parser {
     pub fn emit_return(&mut self) {
@@ -84,5 +84,23 @@ impl Parser {
         let line = self.previous_token.line;
         let column = self.previous_token.column;
         current_brick_mut!(self.bricks).emit_loop(loop_start, line, column);
+    }
+
+    pub fn emit_get_field(&mut self, field_name: String) {
+        let line = self.previous_token.line;
+        let column = self.previous_token.column;
+        // Store field name as string constant
+        let field_string = string!(field_name);
+        let field_index = current_brick_mut!(self.bricks).add_string(field_string);
+        current_brick_mut!(self.bricks).write_op_code_variant(OpCode::GetField, field_index, line, column);
+    }
+
+    pub fn emit_set_field(&mut self, field_name: String) {
+        let line = self.previous_token.line;
+        let column = self.previous_token.column;
+        // Store field name as string constant
+        let field_string = string!(field_name);
+        let field_index = current_brick_mut!(self.bricks).add_string(field_string);
+        current_brick_mut!(self.bricks).write_op_code_variant(OpCode::SetField, field_index, line, column);
     }
 }

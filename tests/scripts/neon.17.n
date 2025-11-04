@@ -1,0 +1,69 @@
+// neon.17.n - Complex struct example: Rectangle operations
+
+// Expected:
+// 50
+// 0
+// 1
+// 5
+// 15
+// 100
+
+// Define structs
+struct Point {
+    x
+    y
+}
+
+struct Rectangle {
+    top_left
+    bottom_right
+}
+
+// Function to calculate rectangle area
+fn area(rect) {
+    val width = rect.bottom_right.x - rect.top_left.x
+    val height = rect.bottom_right.y - rect.top_left.y
+    return width * height
+}
+
+// Function to check if point is inside rectangle
+fn contains(rect, pt) {
+    val inside_x = pt.x >= rect.top_left.x
+    val inside_x2 = pt.x <= rect.bottom_right.x
+    val inside_y = pt.y >= rect.top_left.y
+    val inside_y2 = pt.y <= rect.bottom_right.y
+    
+    if (inside_x) {
+        if (inside_x2) {
+            if (inside_y) {
+                if (inside_y2) {
+                    return 1
+                }
+            }
+        }
+    }
+    return 0
+}
+
+// Create a rectangle
+val rect = Rectangle(Point(0, 0), Point(10, 5))
+
+// Calculate area
+print area(rect)  // 50
+
+// Test point containment
+val p1 = Point(-1, 2)
+print contains(rect, p1)  // 0 (outside)
+
+val p2 = Point(5, 2)
+print contains(rect, p2)  // 1 (inside)
+
+// Move the rectangle
+rect.top_left = Point(5, 5)
+rect.bottom_right = Point(15, 15)
+
+print rect.top_left.x      // 5
+print rect.bottom_right.x  // 15
+
+// New area after moving
+print area(rect)  // 100

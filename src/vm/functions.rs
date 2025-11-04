@@ -1,9 +1,11 @@
 use crate::common::Object;
-use crate::common::{BitsSize, CallFrame, Value};
+use crate::common::{BitsSize, CallFrame, Value, ObjInstance};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
 use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 impl VirtualMachine {
     #[inline(always)]
@@ -62,10 +64,10 @@ impl VirtualMachine {
         let frame = self.call_frames.last().unwrap();
         let arg_count = frame.function.brick.read_u8(frame.ip + 1) as usize;
 
-        // Get the function from the stack (it's at position -arg_count - 1)
-        let function_value = self.peek(arg_count);
+        // Get the callable from the stack (it's at position -arg_count - 1)
+        let callable_value = self.peek(arg_count);
 
-        match &function_value {
+        match &callable_value {
             Value::Object(obj) => {
                 match obj.as_ref() {
                     Object::Function(func) => {
@@ -95,14 +97,53 @@ impl VirtualMachine {
 
                         self.call_frames.push(new_frame);
                     }
+                    Object::Struct(struct_def) => {
+                        // Instantiate the struct
+                        // Check field count matches argument count
+                        if arg_count != struct_def.fields.len() {
+                            self.runtime_error(&format!(
+                                "Expected {} fields but got {}.",
+                                struct_def.fields.len(),
+                                arg_count
+                            ));
+                            return Some(Result::RuntimeError);
+                        }
+
+                        // Create instance with fields
+                        let mut fields = HashMap::new();
+                        for (i, field_name) in struct_def.fields.iter().enumerate() {
+                            // Arguments are on stack in order, starting after the struct
+                            let value = self.peek(arg_count - i - 1);
+                            fields.insert(field_name.clone(), value);
+                        }
+
+                        let instance = ObjInstance {
+                            struct_def: Rc::clone(struct_def),
+                            fields,
+                        };
+
+                        // Pop arguments and struct definition
+                        for _ in 0..=arg_count {
+                            self.pop();
+                        }
+
+                        // Push instance
+                        self.push(Value::Object(Rc::new(Object::Instance(Rc::new(
+                            RefCell::new(instance),
+                        )))));
+
+                        // Increment IP to skip Call opcode and arg count
+                        let current_frame = self.call_frames.last_mut().unwrap();
+                        current_frame.ip += 2;
+                    }
                     _ => {
-                        self.runtime_error("Can only call functions.");
+                        self.runtime_error("Can only call functions and structs.");
                         return Some(Result::RuntimeError);
                     }
                 }
             }
             _ => {
-                self.runtime_error("Can only call functions.");
+                self.runtime_error("Can only call functions and structs.");
                 return Some(Result::RuntimeError);
             }
         }
@@ -349,6 +390,119 @@ impl VirtualMachine {
         let script_frame = &self.call_frames[0];
         let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
         self.stack[absolute_index] = self.peek(0);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes();
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_field(&mut self, bits: BitsSize) {
+        let field_name_index = self.read_bits(&bits);
+        let instance_value = self.peek(0);
+
+        // Read the field name from strings
+        let field_name = {
+            let frame = self.call_frames.last().unwrap();
+            let field_value = frame.function.brick.read_string(field_name_index);
+            match field_value {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::String(s) => s.value.to_string(),
+                    _ => {
+                        self.runtime_error("Field name must be a string.");
+                        return;
+                    }
+                },
+                _ => {
+                    self.runtime_error("Field name must be a string.");
+                    return;
+                }
+            }
+        };
+
+        match &instance_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Instance(instance_ref) => {
+                    let instance = instance_ref.borrow();
+
+                    if let Some(value) = instance.fields.get(&field_name) {
+                        let value = value.clone();
+                        drop(instance); // Release borrow before modifying stack
+                        self.pop(); // Pop instance
+                        self.push(value); // Push field value
+                    } else {
+                        self.runtime_error(&format!("Undefined field '{}'.", field_name));
+                        return;
+                    }
+                }
+                _ => {
+                    self.runtime_error("Only instances have fields.");
+                    return;
+                }
+            },
+            _ => {
+                self.runtime_error("Only instances have fields.");
+                return;
+            }
+        }
+
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes();
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_set_field(&mut self, bits: BitsSize) {
+        let field_name_index = self.read_bits(&bits);
+        let value = self.peek(0); // Value to set
+        let instance_value = self.peek(1); // Instance
+
+        // Read the field name from strings
+        let field_name = {
+            let frame = self.call_frames.last().unwrap();
+            let field_value = frame.function.brick.read_string(field_name_index);
+            match field_value {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::String(s) => s.value.to_string(),
+                    _ => {
+                        self.runtime_error("Field name must be a string.");
+                        return;
+                    }
+                },
+                _ => {
+                    self.runtime_error("Field name must be a string.");
+                    return;
+                }
+            }
+        };
+
+        match &instance_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Instance(instance_ref) => {
+                    let mut instance = instance_ref.borrow_mut();
+
+                    // Verify field exists in struct definition
+                    if !instance.struct_def.fields.contains(&field_name) {
+                        self.runtime_error(&format!("Undefined field '{}'.", field_name));
+                        return;
+                    }
+
+                    instance.fields.insert(field_name, value.clone());
+                    drop(instance); // Release borrow before modifying stack
+
+                    // Pop value and instance, push value back (assignment expression returns the value)
+                    self.pop(); // Pop value
+                    self.pop(); // Pop instance
+                    self.push(value); // Push value back
+                }
+                _ => {
+                    self.runtime_error("Only instances have fields.");
+                    return;
+                }
+            },
+            _ => {
+                self.runtime_error("Only instances have fields.");
+                return;
+            }
+        }
+
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes();
     }

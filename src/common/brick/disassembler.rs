@@ -66,6 +66,13 @@ impl Brick {
             OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
             OpCode::Call => self.call_instruction(offset),
             OpCode::Modulo => self.simple_instruction(instruction, offset),
+            OpCode::Instantiate => self.simple_instruction(instruction, offset),
+            OpCode::GetField => self.simple_instruction(OpCode::GetField, offset),
+            OpCode::GetField2 => self.simple_instruction(OpCode::GetField2, offset),
+            OpCode::GetField4 => self.simple_instruction(OpCode::GetField4, offset),
+            OpCode::SetField => self.simple_instruction(OpCode::SetField, offset),
+            OpCode::SetField2 => self.simple_instruction(OpCode::SetField2, offset),
+            OpCode::SetField4 => self.simple_instruction(OpCode::SetField4, offset),
         }
     }
 

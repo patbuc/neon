@@ -59,6 +59,10 @@ impl Brick {
         self.constants.write_value(value)
     }
 
+    pub(crate) fn add_string(&mut self, value: Value) -> u32 {
+        self.strings.write_value(value)
+    }
+
     pub(crate) fn write_constant(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let constant_index = self.add_constant(value);
         self.write_op_code_variant(OpCode::Constant, constant_index, line, column);
