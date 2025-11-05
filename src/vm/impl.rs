@@ -135,8 +135,12 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_call() {
                         return result;
                     }
-                    // Don't increment IP after call since we pushed a new frame
+                    // Don't increment IP after call since we pushed a new frame or instantiated
                     should_increment_ip = false;
+                }
+                OpCode::GetField | OpCode::GetField2 | OpCode::GetField4 
+                | OpCode::SetField | OpCode::SetField2 | OpCode::SetField4 => {
+                    panic!("Field access not yet implemented");
                 }
             }
 

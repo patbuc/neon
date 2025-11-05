@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -69,6 +70,8 @@ pub(crate) enum Value {
 pub(crate) enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
+    Struct(Rc<ObjStruct>),
+    Instance(Rc<RefCell<ObjInstance>>),
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +86,36 @@ pub(crate) struct ObjFunction {
     pub bloq: Rc<Bloq>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ObjStruct {
+    pub name: String,
+    pub fields: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ObjInstance {
+    pub r#struct: Rc<ObjStruct>,
+    pub fields: std::collections::HashMap<String, Value>,
+}
+
+impl Value {
+    pub(crate) fn new_object(instance: ObjInstance) -> Value {
+        Value::Object(Rc::new(Object::Instance(Rc::new(RefCell::new(instance)))))
+    }
+
+    pub(crate) fn new_struct(name: String, fields: Vec<String>) -> Self {
+        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct { name, fields }))))
+    }
+
+    pub(crate) fn new_function(name: String, arity: u8, bloq: Bloq) -> Self {
+        Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
+            name,
+            arity,
+            bloq: Rc::new(bloq),
+        }))))
+    }
+}
+
 pub(crate) struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
@@ -94,6 +127,11 @@ impl Display for Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
+            Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
+            Object::Instance(obj_instance) => {
+                let instance = obj_instance;
+                write!(f, "<{} instance>", instance.borrow().r#struct.name)
+            }
         }
     }
 }
@@ -120,6 +158,19 @@ impl PartialEq for ObjFunction {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.arity == other.arity
         // We don't compare bloqs as they're complex and functions with same name/arity are considered equal
+    }
+}
+
+impl PartialEq for ObjStruct {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjInstance {
+    fn eq(&self, other: &Self) -> bool {
+        // Instances are equal if they point to the same struct and have same field values
+        self.r#struct.name == other.r#struct.name && self.fields == other.fields
     }
 }
 

@@ -59,6 +59,10 @@ impl Bloq {
         self.constants.write_value(value)
     }
 
+    pub(crate) fn add_string(&mut self, value: Value) -> u32 {
+        self.strings.write_value(value)
+    }
+
     pub(crate) fn write_constant(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let constant_index = self.add_constant(value);
         self.write_op_code_variant(OpCode::Constant, constant_index, line, column);
@@ -77,7 +81,7 @@ impl Bloq {
     }
 
     pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
-        let string_index = self.strings.write_value(value);
+        let string_index = self.add_string(value);
         self.write_op_code_variant(OpCode::String, string_index, line, column);
         string_index
     }
@@ -302,17 +306,17 @@ mod tests {
         bloq.write_op_code(OpCode::Multiply, 6, 0);
         bloq.write_op_code(OpCode::Return, 8, 0);
 
-assert_eq!(2, bloq.get_source_location(0).unwrap().line);
-assert_eq!(2, bloq.get_source_location(1).unwrap().line);
-assert_eq!(3, bloq.get_source_location(2).unwrap().line);
-assert_eq!(4, bloq.get_source_location(3).unwrap().line);
-assert_eq!(4, bloq.get_source_location(4).unwrap().line);
-assert_eq!(4, bloq.get_source_location(5).unwrap().line);
-assert_eq!(5, bloq.get_source_location(6).unwrap().line);
-assert_eq!(5, bloq.get_source_location(7).unwrap().line);
-assert_eq!(6, bloq.get_source_location(8).unwrap().line);
-assert_eq!(8, bloq.get_source_location(9).unwrap().line);
+        assert_eq!(2, bloq.get_source_location(0).unwrap().line);
+        assert_eq!(2, bloq.get_source_location(1).unwrap().line);
+        assert_eq!(3, bloq.get_source_location(2).unwrap().line);
+        assert_eq!(4, bloq.get_source_location(3).unwrap().line);
+        assert_eq!(4, bloq.get_source_location(4).unwrap().line);
+        assert_eq!(4, bloq.get_source_location(5).unwrap().line);
+        assert_eq!(5, bloq.get_source_location(6).unwrap().line);
+        assert_eq!(5, bloq.get_source_location(7).unwrap().line);
+        assert_eq!(6, bloq.get_source_location(8).unwrap().line);
+        assert_eq!(8, bloq.get_source_location(9).unwrap().line);
 
-assert!(bloq.get_source_location(10).is_none());
+        assert!(bloq.get_source_location(10).is_none());
     }
 }

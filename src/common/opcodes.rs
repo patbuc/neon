@@ -49,4 +49,10 @@ pub(crate) enum OpCode {
     SetGlobal,
     SetGlobal2,
     SetGlobal4,
+    GetField,
+    GetField2,
+    GetField4,
+    SetField,
+    SetField2,
+    SetField4,
 }

@@ -4,7 +4,6 @@ use crate::compiler::parser::rules::{ParseRule, Precedence, PARSE_RULES};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Parser, Scanner, Token};
 
-use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::{current_bloq_mut, number, string};
@@ -27,9 +26,8 @@ impl Parser {
     }
 
     pub(in crate::compiler) fn start(&mut self) {
-        self.bloqs.push(Bloq::new(
-            format!("Bloq no. {}", self.bloqs.len()).as_str(),
-        ));
+        self.bloqs
+            .push(Bloq::new(format!("Bloq no. {}", self.bloqs.len()).as_str()));
     }
 
     pub(in crate::compiler) fn end(&mut self) {
@@ -68,6 +66,8 @@ impl Parser {
             self.var_declaration();
         } else if self.match_token(TokenType::Fn) {
             self.fn_declaration();
+        } else if self.match_token(TokenType::Struct) {
+            self.struct_declaration();
         } else {
             self.statement();
         }
@@ -168,13 +168,7 @@ impl Parser {
         // Emit return at end of function
         self.emit_return();
 
-        let function_value = Value::Object(Rc::new(crate::common::Object::Function(Rc::new(
-            crate::common::ObjFunction {
-                name: name.clone(),
-                arity,
-                bloq: Rc::new(self.bloqs.pop().unwrap()),
-            },
-        ))));
+        let function_value = Value::new_function(name.clone(), arity, self.bloqs.pop().unwrap());
 
         // Now replace the nil placeholder with the actual function
         self.emit_constant(function_value);
@@ -190,6 +184,46 @@ impl Parser {
             self.emit_op_code_variant(OpCode::SetLocal, index);
         }
         self.emit_op_code(OpCode::Pop); // Pop the function value from the stack
+    }
+
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    fn struct_declaration(&mut self) {
+        let name = self.parse_value();
+
+        self.consume(TokenType::LeftBrace, "Expect '{' after struct name.");
+
+        // Parse field list
+        let mut fields = Vec::new();
+        self.skip_new_lines();
+
+        if !self.check(TokenType::RightBrace) {
+            loop {
+                let consumed = self.consume(TokenType::Identifier, "Expect field name.");
+                if !consumed {
+                    break;
+                }
+                let field_name = self.previous_token.token.clone();
+                fields.push(field_name);
+                self.skip_new_lines();
+                if self.check(TokenType::RightBrace) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after struct declaration.",
+        );
+
+        // Create the struct value
+        let struct_value = Value::new_struct(name.clone(), fields);
+
+        // Emit the struct as a constant and store it in a variable
+        self.emit_constant(struct_value);
+        self.define_value(name);
     }
 
     fn parse_value(&mut self) -> String {
@@ -364,8 +398,21 @@ impl Parser {
         self.emit_call(arg_count);
     }
 
+    #[cfg_attr(feature = "disassemble", instrument(skip(self)))]
+    pub(super) fn dot(&mut self) {
+        self.consume(TokenType::Identifier, "Expect field name after '.'.");
+        let field_name = self.previous_token.token.clone();
+        if self.match_token(TokenType::Equal) {
+            self.expression(false);
+            self.emit_set_field(field_name);
+        } else {
+            self.emit_get_field(field_name);
+        }
+    }
+
     fn argument_list(&mut self) -> u8 {
         let mut arg_count = 0u8;
+        self.skip_new_lines();
         if !self.check(TokenType::RightParen) {
             loop {
                 self.expression(false);
@@ -376,19 +423,21 @@ impl Parser {
                 if !self.match_token(TokenType::Comma) {
                     break;
                 }
+                self.skip_new_lines();
             }
         }
+        self.skip_new_lines();
         self.consume(TokenType::RightParen, "Expect ')' after arguments.");
         arg_count
     }
 
-    pub(in crate::compiler) fn consume(&mut self, token_type: TokenType, message: &str) {
+    pub(in crate::compiler) fn consume(&mut self, token_type: TokenType, message: &str) -> bool {
         if self.current_token.token_type == token_type {
             self.advance();
-            return;
+            return true;
         }
-
         self.report_error_at_current(message);
+        false
     }
 
     pub(in crate::compiler) fn consume_either(
@@ -525,6 +574,7 @@ impl Parser {
             match self.current_token.token_type {
                 TokenType::Class
                 | TokenType::Fn
+                | TokenType::Struct
                 | TokenType::Val
                 | TokenType::Var
                 | TokenType::For

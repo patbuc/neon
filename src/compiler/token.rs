@@ -41,6 +41,7 @@ pub(in crate::compiler) enum TokenType {
     Or,
     Print,
     Return,
+    Struct,
     Super,
     This,
     True,

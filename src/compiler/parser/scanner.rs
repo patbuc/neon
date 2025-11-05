@@ -250,7 +250,16 @@ impl Scanner {
             'o' => self.check_keyword(1, 1, "r", TokenType::Or),
             'p' => self.check_keyword(1, 4, "rint", TokenType::Print),
             'r' => self.check_keyword(1, 5, "eturn", TokenType::Return),
-            's' => self.check_keyword(1, 4, "uper", TokenType::Super),
+            's' => {
+                if self.current - self.start > 1 {
+                    return match self.source[self.start + 1] {
+                        't' => self.check_keyword(2, 4, "ruct", TokenType::Struct),
+                        'u' => self.check_keyword(2, 3, "per", TokenType::Super),
+                        _ => TokenType::Identifier,
+                    };
+                }
+                TokenType::Identifier
+            }
             'v' => {
                 if self.current - self.start > 1 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
