@@ -138,10 +138,12 @@ impl VirtualMachine {
                     // Don't increment IP after call since we pushed a new frame or instantiated
                     should_increment_ip = false;
                 }
-                OpCode::GetField | OpCode::GetField2 | OpCode::GetField4 
-                | OpCode::SetField | OpCode::SetField2 | OpCode::SetField4 => {
-                    panic!("Field access not yet implemented");
-                }
+                OpCode::GetField => self.fn_get_field(BitsSize::Eight),
+                OpCode::GetField2 => self.fn_get_field(BitsSize::Sixteen),
+                OpCode::GetField4 => self.fn_get_field(BitsSize::ThirtyTwo),
+                OpCode::SetField => self.fn_set_field(BitsSize::Eight),
+                OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
+                OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
             }
 
             // Increment IP for the current frame

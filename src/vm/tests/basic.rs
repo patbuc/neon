@@ -519,7 +519,6 @@ fn can_call_function_multiple_times() {
     assert_eq!("Hello again!\nHello again!", vm.get_output());
 }
 
-
 #[test]
 fn can_calculate_fibonacci() {
     let program = r#"
@@ -628,4 +627,23 @@ fn can_use_modulo_operator() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n1\n0\n4", vm.get_output());
+}
+
+#[test]
+fn can_use_struct() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        val p = Point(3, 4)
+        print p.x
+        print p.y
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("3\n4", vm.get_output());
 }

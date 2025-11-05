@@ -66,12 +66,34 @@ impl Bloq {
             OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
             OpCode::Call => self.call_instruction(offset),
             OpCode::Modulo => self.simple_instruction(instruction, offset),
+            OpCode::GetField => self.field_instruction(OpCode::GetField, offset),
+            OpCode::GetField2 => self.field_instruction(OpCode::GetField2, offset),
+            OpCode::GetField4 => self.field_instruction(OpCode::GetField4, offset),
+            OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
+            OpCode::SetField2 => self.field_instruction(OpCode::SetField2, offset),
+            OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
         }
     }
 
     fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize {
         println!("{:?}", op_code);
         offset + 1
+    }
+
+    fn field_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        fn get_field_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
+            match op_code {
+                OpCode::GetField | OpCode::SetField => (bloq.read_u8(offset) as usize, 1),
+                OpCode::GetField2 | OpCode::SetField2 => (bloq.read_u16(offset) as usize, 2),
+                OpCode::GetField4 | OpCode::SetField4 => (bloq.read_u32(offset) as usize, 4),
+                _ => panic!("Invalid OpCode for field instruction"),
+            }
+        }
+
+        let (index, offset_shift) = get_field_index(self, &op_code, offset + 1);
+        let field_name = self.read_string(index);
+        println!("{:?} {:02} '{}'", op_code, index, field_name);
+        offset + 1 + offset_shift
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize {
