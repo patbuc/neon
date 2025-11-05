@@ -346,24 +346,18 @@ impl Parser {
         self.parse_precedence(Precedence::from_u8(rule.precedence as u8 + 1), false);
 
         match operator_type {
-            token_type if token_type == TokenType::BangEqual => {
-                self.emit_op_codes(OpCode::Equal, OpCode::Not)
-            }
-            token_type if token_type == TokenType::EqualEqual => self.emit_op_code(OpCode::Equal),
-            token_type if token_type == TokenType::Greater => self.emit_op_code(OpCode::Greater),
-            token_type if token_type == TokenType::GreaterEqual => {
-                self.emit_op_codes(OpCode::Less, OpCode::Not)
-            }
-            token_type if token_type == TokenType::Less => self.emit_op_code(OpCode::Less),
-            token_type if token_type == TokenType::LessEqual => {
-                self.emit_op_codes(OpCode::Greater, OpCode::Not)
-            }
-            token_type if token_type == TokenType::Plus => self.emit_op_code(OpCode::Add),
-            token_type if token_type == TokenType::Minus => self.emit_op_code(OpCode::Subtract),
-            token_type if token_type == TokenType::Star => self.emit_op_code(OpCode::Multiply),
-            token_type if token_type == TokenType::Slash => self.emit_op_code(OpCode::Divide),
-            token_type if token_type == TokenType::Percent => self.emit_op_code(OpCode::Modulo),
-            _ => (), // Unreachable.
+            TokenType::BangEqual => self.emit_op_codes(OpCode::Equal, OpCode::Not),
+            TokenType::EqualEqual => self.emit_op_code(OpCode::Equal),
+            TokenType::Greater => self.emit_op_code(OpCode::Greater),
+            TokenType::GreaterEqual => self.emit_op_codes(OpCode::Less, OpCode::Not),
+            TokenType::Less => self.emit_op_code(OpCode::Less),
+            TokenType::LessEqual => self.emit_op_codes(OpCode::Greater, OpCode::Not),
+            TokenType::Plus => self.emit_op_code(OpCode::Add),
+            TokenType::Minus => self.emit_op_code(OpCode::Subtract),
+            TokenType::Star => self.emit_op_code(OpCode::Multiply),
+            TokenType::Slash => self.emit_op_code(OpCode::Divide),
+            TokenType::Percent => self.emit_op_code(OpCode::Modulo),
+            _ => (),
         }
     }
 
@@ -446,10 +440,9 @@ impl Parser {
         token_type_2: TokenType,
         message: &str,
     ) {
-        if self.current_token.token_type == token_type_1 {
-            self.advance();
-            return;
-        } else if self.current_token.token_type == token_type_2 {
+        if self.current_token.token_type == token_type_1
+            || self.current_token.token_type == token_type_2
+        {
             self.advance();
             return;
         }
