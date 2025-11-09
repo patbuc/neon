@@ -29,7 +29,7 @@ impl VirtualMachine {
 
         let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
-        let bloq = compiler.compile(source);
+        let bloq = compiler.compile(&source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 

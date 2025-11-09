@@ -2,13 +2,14 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
 impl Scanner {
-    pub(in crate::compiler) fn new(source: String) -> Scanner {
+    pub(in crate::compiler) fn new(source: &str) -> Scanner {
         Scanner {
             source: source.chars().collect(),
             start: 0,
             current: 0,
             line: 1,
             column: 1,
+            offset: 0,
             previous_token_type: TokenType::NewLine,
         }
     }
@@ -90,7 +91,7 @@ impl Scanner {
                         self.advance();
                     }
                     self.line += 1;
-                    self.column = 0;
+                    self.column = 1;
                     self.scan_token()
                 } else {
                     self.make_token(TokenType::Slash)
@@ -99,7 +100,7 @@ impl Scanner {
             '\n' => {
                 let new_line = self.make_token(TokenType::NewLine);
                 self.line += 1;
-                self.column = 0;
+                self.column = 1;
                 new_line
             }
             '"' => self.make_string(),
@@ -210,6 +211,7 @@ impl Scanner {
             match c {
                 ' ' | '\r' | '\t' => {
                     self.column += 1;
+                    self.offset += 1;
                     self.advance();
                 }
                 _ => {
@@ -221,6 +223,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         self.current += 1;
+        self.offset += 1;
         self.source[self.current - 1]
     }
 
@@ -303,6 +306,7 @@ impl Scanner {
             String::from(message),
             self.line,
             self.column,
+            self.offset,
         )
     }
 
@@ -310,13 +314,13 @@ impl Scanner {
         self.previous_token_type = token_type.clone();
         let token_str = String::from_iter(&self.source[self.start..self.current]);
         let token_str_len = token_str.len() as u32;
-        let token = Token::new(token_type, token_str, self.line, self.column);
+        let token = Token::new(token_type, token_str, self.line, self.column, self.offset);
         self.column += token_str_len;
         token
     }
     fn make_eof_token(&mut self) -> Token {
         self.previous_token_type = TokenType::Eof;
-        Token::new(TokenType::Eof, String::new(), self.line, self.column)
+        Token::new(TokenType::Eof, String::new(), self.line, self.column, self.offset)
     }
 
     fn previous(&self) -> char {
@@ -329,13 +333,13 @@ impl Scanner {
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::parser::scanner::Token;
+    use crate::compiler::Token;
     use crate::compiler::token::TokenType;
     use crate::compiler::Scanner;
 
     #[test]
     fn can_scan_simple_statement() {
-        let script = "var a = 1;".to_string();
+        let script = "var a = 1;";
 
         let scanner = Scanner::new(script);
         let x: Vec<Token> = collect_tokens(scanner);
@@ -360,7 +364,7 @@ mod tests {
 
     #[test]
     fn can_scan_interpolated_string() {
-        let script = "var a = \"This is an ${interpolated} string\";".to_string();
+        let script = "var a = \"This is an ${interpolated} string\";";
 
         let scanner = Scanner::new(script);
         let x: Vec<Token> = collect_tokens(scanner);

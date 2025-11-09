@@ -1,6 +1,8 @@
 use crate::common::Bloq;
-use crate::compiler::token::TokenType;
-use crate::compiler::{Compiler, Parser};
+use crate::compiler::codegen::CodeGenerator;
+use crate::compiler::parser::Parser;
+use crate::compiler::semantic::SemanticAnalyzer;
+use crate::compiler::Compiler;
 
 impl Compiler {
     pub(crate) fn new() -> Compiler {
@@ -9,27 +11,70 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: String) -> Option<Bloq> {
+    pub(crate) fn compile(&mut self, source: &str) -> Option<Bloq> {
+        // Multi-pass compilation:
+        // Pass 1: Parse source into AST
+        // Pass 2: Semantic analysis
+        // Pass 3: Code generation
+
+        // Phase 1: Parse
         let mut parser = Parser::new(source);
-
-        parser.start();
-        parser.advance();
-
-        loop {
-            if parser.match_token(TokenType::Eof) {
-                break;
+        let ast = match parser.parse() {
+            Ok(ast) => ast,
+            Err(errors) => {
+                // Collect all parse errors
+                self.compilation_errors = errors
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "[{}:{}] Error: {}",
+                            e.location.line, e.location.column, e.message
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                return None;
             }
-            parser.declaration();
-        }
+        };
 
-        parser.consume(TokenType::Eof, "Expect end of expression");
-        parser.end();
+        // Phase 2: Semantic analysis
+        let mut analyzer = SemanticAnalyzer::new();
+        let symbol_table = match analyzer.analyze(&ast) {
+            Ok(table) => table,
+            Err(errors) => {
+                // Collect all semantic errors
+                self.compilation_errors = errors
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "[{}:{}] Error: {}",
+                            e.location.line, e.location.column, e.message
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                return None;
+            }
+        };
 
-        if !(parser.had_error) {
-            parser.bloqs.pop()
-        } else {
-            self.compilation_errors = parser.compilation_errors.clone();
-            None
+        // Phase 3: Code generation
+        let mut codegen = CodeGenerator::new(symbol_table);
+        match codegen.generate(&ast) {
+            Ok(bloq) => Some(bloq),
+            Err(errors) => {
+                // Collect all codegen errors
+                self.compilation_errors = errors
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "[{}:{}] Error: {}",
+                            e.location.line, e.location.column, e.message
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                None
+            }
         }
     }
 }

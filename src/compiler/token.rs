@@ -1,7 +1,7 @@
 use crate::compiler::Token;
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Default)]
-pub(in crate::compiler) enum TokenType {
+pub(crate) enum TokenType {
     LeftParen,
     RightParen,
     LeftBrace,
@@ -61,12 +61,14 @@ impl Token {
         token: String,
         line: u32,
         column: u32,
+        offset: usize,
     ) -> Token {
         Token {
             token_type,
             token,
             line,
             column,
+            offset,
         }
     }
 }

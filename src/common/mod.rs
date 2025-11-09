@@ -4,6 +4,8 @@ use std::rc::Rc;
 
 pub(crate) mod bloq;
 pub(crate) mod opcodes;
+pub mod errors;
+pub mod constants;
 
 #[derive(Debug)]
 pub(crate) struct Bloq {
@@ -28,7 +30,7 @@ struct Constants {
     values: Vec<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct SourceLocation {
     pub offset: usize,
     pub line: u32,
