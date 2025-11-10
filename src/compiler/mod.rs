@@ -44,6 +44,7 @@ impl Compiler {
         self.compilation_errors.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
     }
