@@ -9,6 +9,9 @@ pub(crate) mod semantic;
 pub(crate) mod symbol_table;
 mod token;
 
+#[cfg(test)]
+mod tests;
+
 // Scanner and Token types used by ast_parser
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Token {
