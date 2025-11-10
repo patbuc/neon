@@ -36,10 +36,15 @@ pub(crate) struct Scanner {
 #[derive(Debug)]
 pub(crate) struct Compiler {
     compilation_errors: String,
+    structured_errors: Vec<crate::common::errors::CompilationError>,
 }
 
 impl Compiler {
     pub(crate) fn get_compilation_errors(&self) -> String {
         self.compilation_errors.clone()
+    }
+
+    pub(crate) fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
+        self.structured_errors.clone()
     }
 }

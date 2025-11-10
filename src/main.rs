@@ -60,7 +60,10 @@ fn run_repl() {
         let result = vm.interpret(line);
         match result {
             Result::Ok => {}
-            Result::CompileError => eprintln!("{}", "Compile error.".red()),
+            Result::CompileError => {
+                let formatted_errors = vm.get_formatted_errors("<repl>");
+                eprintln!("{}", formatted_errors);
+            }
             Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
         }
         println!();
@@ -89,7 +92,12 @@ fn run_file(path: &String) {
     let result: Result = vm.interpret(source);
     match result {
         Result::Ok => (),
-        Result::CompileError => exit(65),
+        Result::CompileError => {
+            // Print formatted compilation errors
+            let formatted_errors = vm.get_formatted_errors(path);
+            eprintln!("{}", formatted_errors);
+            exit(65);
+        }
         Result::RuntimeError => exit(70),
     }
 }

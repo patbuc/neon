@@ -6,6 +6,7 @@ pub(crate) mod bloq;
 pub(crate) mod opcodes;
 pub mod errors;
 pub mod constants;
+pub mod error_renderer;
 
 #[derive(Debug)]
 pub(crate) struct Bloq {

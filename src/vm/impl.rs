@@ -21,11 +21,16 @@ impl VirtualMachine {
             #[cfg(any(test, debug_assertions))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
+            structured_errors: Vec::new(),
+            source: String::new(),
         }
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
         self.reset();
+        
+        // Store source for error reporting
+        self.source = source.clone();
 
         let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
@@ -36,6 +41,7 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
         if bloq.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
+            self.structured_errors = compiler.get_structured_errors();
             return Result::CompileError;
         }
 
@@ -182,6 +188,13 @@ impl VirtualMachine {
     #[cfg(test)]
     pub(in crate::vm) fn get_compiler_error(&self) -> String {
         self.compilation_errors.clone()
+    }
+
+    pub fn get_formatted_errors(&self, filename: &str) -> String {
+        use crate::common::error_renderer::ErrorRenderer;
+        
+        let renderer = ErrorRenderer::default();
+        renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 
     fn get_current_source_location(&self) -> String {

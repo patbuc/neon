@@ -8,6 +8,7 @@ impl Compiler {
     pub(crate) fn new() -> Compiler {
         Compiler {
             compilation_errors: String::new(),
+            structured_errors: Vec::new(),
         }
     }
 
@@ -22,6 +23,8 @@ impl Compiler {
         let ast = match parser.parse() {
             Ok(ast) => ast,
             Err(errors) => {
+                // Store structured errors
+                self.structured_errors = errors.clone();
                 // Collect all parse errors
                 self.compilation_errors = errors
                     .iter()
@@ -37,6 +40,8 @@ impl Compiler {
         let symbol_table = match analyzer.analyze(&ast) {
             Ok(table) => table,
             Err(errors) => {
+                // Store structured errors
+                self.structured_errors = errors.clone();
                 // Collect all semantic errors
                 self.compilation_errors = errors
                     .iter()
@@ -52,6 +57,8 @@ impl Compiler {
         match codegen.generate(&ast) {
             Ok(bloq) => Some(bloq),
             Err(errors) => {
+                // Store structured errors
+                self.structured_errors = errors.clone();
                 // Collect all codegen errors
                 self.compilation_errors = errors
                     .iter()
