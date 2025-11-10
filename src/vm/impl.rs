@@ -38,20 +38,21 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new();
-        let bloq = compiler.compile(&source);
+        let bloq_result = compiler.compile(&source);
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
-        if bloq.is_none() {
-            self.compilation_errors = compiler.get_compilation_errors();
-            self.structured_errors = compiler.get_structured_errors();
-            return Result::CompileError;
-        }
-
-        let bloq = bloq.unwrap();
+        let bloq = match bloq_result {
+            Ok(b) => b,
+            Err(errors) => {
+                self.compilation_errors = compiler.get_compilation_errors();
+                self.structured_errors = errors;
+                return Result::CompileError;
+            }
+        };
 
         // Create a synthetic function for the script
         let script_function = Rc::new(ObjFunction {
@@ -69,7 +70,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Bloq::new("dummy")); // bloq param is not used anymore
+        let result = self.run();
         self.bloq = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -79,7 +80,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _bloq: &Bloq) -> Result {
+    pub(in crate::vm) fn run(&mut self) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
