@@ -201,11 +201,11 @@ impl Bloq {
 }
 
 impl Local {
-    pub(crate) fn new(name: String, depth: u32, readonly: bool) -> Self {
+    pub(crate) fn new(name: String, depth: u32, is_mutable: bool) -> Self {
         Local {
             name,
             depth,
-            is_mutable: readonly,
+            is_mutable,
         }
     }
 }
