@@ -6,6 +6,8 @@ pub struct ErrorRenderer {
     use_color: bool,
 }
 
+enum Color { Red, Blue, Yellow, Cyan, Plain }
+
 impl ErrorRenderer {
     pub fn new(use_color: bool) -> Self {
         ErrorRenderer { use_color }
@@ -35,7 +37,7 @@ impl ErrorRenderer {
                 errors.len(),
                 error_word
             );
-            output.push_str(&self.colorize(&summary, "red", true));
+            output.push_str(&self.colorize(&summary, Color::Red, true));
             output.push('\n');
         }
 
@@ -46,14 +48,14 @@ impl ErrorRenderer {
         let mut output = String::new();
 
         // Error header: error: <message>
-        let error_label = self.colorize("error", "red", true);
-        let message = format!(": {}", self.lowercase_first(&error.message));
+        let error_label = self.colorize("error", Color::Red, true);
+        let message = format!(": {}", &error.message);
         output.push_str(&format!("{}{}\n", error_label, message));
 
         // Location line: --> filename:line:column
         let location_line = format!(
             "  {} {}:{}:{}",
-            self.colorize("-->", "blue", true),
+            self.colorize("-->", Color::Blue, true),
             filename,
             error.location.line,
             error.location.column
@@ -109,14 +111,14 @@ impl ErrorRenderer {
         for line in &snippet.lines {
             // Line number and content
             let line_num = format!("{:>width$}", line.line_number, width = line_num_width);
-            let line_num_colored = self.colorize(&line_num, "blue", true);
-            let separator = self.colorize("|", "blue", true);
+            let line_num_colored = self.colorize(&line_num, Color::Blue, true);
+            let separator = self.colorize("|", Color::Blue, true);
 
             // If this is the error line, add the caret on the same line
             if line.is_error_line {
                 // Calculate spaces before the caret (error_column is 1-based)
                 let spaces_before = " ".repeat((error_column as usize).saturating_sub(1));
-                let indicator = self.colorize("^", "red", true);
+                let indicator = self.colorize("^", Color::Red, true);
 
                 output.push_str(&format!(
                     " {} {} {}\n{}{}\n",
@@ -137,28 +139,19 @@ impl ErrorRenderer {
         output
     }
 
-    fn lowercase_first(&self, s: &str) -> String {
-        let mut chars = s.chars();
-        match chars.next() {
-            None => String::new(),
-            Some(first) => {
-                let lowercase_first = first.to_lowercase().collect::<String>();
-                lowercase_first + chars.as_str()
-            }
-        }
-    }
 
-    fn colorize(&self, text: &str, color: &str, bold: bool) -> String {
+
+    fn colorize(&self, text: &str, color: Color, bold: bool) -> String {
         if !self.use_color {
             return text.to_string();
         }
 
         let colored_text = match color {
-            "red" => text.red(),
-            "blue" => text.blue(),
-            "yellow" => text.yellow(),
-            "cyan" => text.cyan(),
-            _ => text.normal(),
+            Color::Red => text.red(),
+            Color::Blue => text.blue(),
+            Color::Yellow => text.yellow(),
+            Color::Cyan => text.cyan(),
+            Color::Plain => text.normal(),
         };
 
         if bold {

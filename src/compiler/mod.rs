@@ -47,4 +47,13 @@ impl Compiler {
     pub(crate) fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
     }
+
+    pub(crate) fn record_errors(&mut self, errors: &[crate::common::errors::CompilationError]) {
+        self.structured_errors = errors.to_vec();
+        self.compilation_errors = errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
 }

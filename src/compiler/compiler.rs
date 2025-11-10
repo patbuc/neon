@@ -12,7 +12,7 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: &str) -> Option<Bloq> {
+    pub(crate) fn compile(&mut self, source: &str) -> crate::common::errors::CompilationResult<Bloq> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
         // Pass 2: Semantic analysis
@@ -23,15 +23,8 @@ impl Compiler {
         let ast = match parser.parse() {
             Ok(ast) => ast,
             Err(errors) => {
-                // Store structured errors
-                self.structured_errors = errors.clone();
-                // Collect all parse errors
-                self.compilation_errors = errors
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                return None;
+                self.record_errors(&errors);
+                return Err(errors.clone());
             }
         };
 
@@ -40,32 +33,18 @@ impl Compiler {
         let _ = match analyzer.analyze(&ast) {
             Ok(table) => table,
             Err(errors) => {
-                // Store structured errors
-                self.structured_errors = errors.clone();
-                // Collect all semantic errors
-                self.compilation_errors = errors
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                return None;
+                self.record_errors(&errors);
+                return Err(errors.clone());
             }
         };
 
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new();
         match codegen.generate(&ast) {
-            Ok(bloq) => Some(bloq),
+            Ok(bloq) => Ok(bloq),
             Err(errors) => {
-                // Store structured errors
-                self.structured_errors = errors.clone();
-                // Collect all codegen errors
-                self.compilation_errors = errors
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                None
+                self.record_errors(&errors);
+                Err(errors.clone())
             }
         }
     }
