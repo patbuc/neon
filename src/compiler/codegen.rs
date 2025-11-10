@@ -354,6 +354,10 @@ impl CodeGenerator {
                 // Get the variable index
                 let lookup = self.get_variable_index(name);
                 if let Some(index) = lookup.index {
+                    if !lookup.is_mutable {
+                        self.report_error(*location, CompilationErrorKind::ImmutableAssignment, format!("Cannot assign to immutable variable '{}'", name));
+                        return;
+                    }
                     if lookup.is_global {
                         self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
                     } else {
