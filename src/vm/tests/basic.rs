@@ -449,7 +449,7 @@ fn cannot_assign_value_to_value() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[3:9] Error: Cannot assign to immutable variable 'x'",
+        "[Semantic] Immutable Assignment: Cannot assign to immutable variable 'x' at 3:9",
         vm.get_compiler_error()
     );
 }
@@ -466,7 +466,7 @@ fn cannot_access_undefined_variable() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[3:13] Error: Undefined variable 'z'",
+        "[Semantic] Undefined Symbol: Undefined variable 'z' at 3:13",
         vm.get_compiler_error()
     );
 }
@@ -595,7 +595,7 @@ fn cannot_call_undefined_function() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[2:9] Error: Undefined variable 'undefined_function'",
+        "[Semantic] Undefined Symbol: Undefined variable 'undefined_function' at 2:9",
         vm.get_compiler_error()
     );
 }

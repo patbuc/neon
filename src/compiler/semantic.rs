@@ -231,7 +231,7 @@ impl SemanticAnalyzer {
                         if !symbol.is_mutable {
                             self.errors.push(CompilationError::new(
                                 CompilationPhase::Semantic,
-                                CompilationErrorKind::Other,
+                                CompilationErrorKind::ImmutableAssignment,
                                 format!("Cannot assign to immutable variable '{}'", name),
                                 *location,
                             ));

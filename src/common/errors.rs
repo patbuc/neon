@@ -14,9 +14,24 @@ pub(crate) enum CompilationErrorKind {
     UnexpectedToken,
     DuplicateSymbol,
     UndefinedSymbol,
+    ImmutableAssignment,
     ArityExceeded,
     Internal,
     Other,
+}
+
+impl Display for CompilationErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompilationErrorKind::UnexpectedToken => write!(f, "Unexpected Token"),
+            CompilationErrorKind::DuplicateSymbol => write!(f, "Duplicate Symbol"),
+            CompilationErrorKind::UndefinedSymbol => write!(f, "Undefined Symbol"),
+            CompilationErrorKind::ImmutableAssignment => write!(f, "Immutable Assignment"),
+            CompilationErrorKind::ArityExceeded => write!(f, "Arity Exceeded"),
+            CompilationErrorKind::Internal => write!(f, "Internal Error"),
+            CompilationErrorKind::Other => write!(f, "Error"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,8 +62,8 @@ impl Display for CompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{:?}] {} at {}",
-            self.phase, self.message, self.location
+            "[{:?}] {}: {} at {}",
+            self.phase, self.kind, self.message, self.location
         )
     }
 }

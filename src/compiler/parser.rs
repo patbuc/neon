@@ -157,7 +157,7 @@ impl Parser {
 
         self.errors.push(CompilationError::new(
             CompilationPhase::Parse,
-            CompilationErrorKind::Other,
+            CompilationErrorKind::UnexpectedToken,
             message,
             location,
         ));

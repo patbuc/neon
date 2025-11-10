@@ -228,7 +228,18 @@ impl CodeGenerator {
 
                 // Get the index of the function variable we defined earlier
                 let (index, _is_mutable, is_global) = self.get_variable_index(name);
-                let index = index.unwrap();
+                let index = match index {
+                    Some(idx) => idx,
+                    None => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::Internal,
+                            format!("Function '{}' was not found after definition", name),
+                            *location,
+                        ));
+                        return;
+                    }
+                };
 
                 // Emit the appropriate Set opcode to update the placeholder
                 if is_global {

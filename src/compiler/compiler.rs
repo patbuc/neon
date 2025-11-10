@@ -25,12 +25,7 @@ impl Compiler {
                 // Collect all parse errors
                 self.compilation_errors = errors
                     .iter()
-                    .map(|e| {
-                        format!(
-                            "[{}:{}] Error: {}",
-                            e.location.line, e.location.column, e.message
-                        )
-                    })
+                    .map(|e| e.to_string())
                     .collect::<Vec<_>>()
                     .join("\n");
                 return None;
@@ -45,12 +40,7 @@ impl Compiler {
                 // Collect all semantic errors
                 self.compilation_errors = errors
                     .iter()
-                    .map(|e| {
-                        format!(
-                            "[{}:{}] Error: {}",
-                            e.location.line, e.location.column, e.message
-                        )
-                    })
+                    .map(|e| e.to_string())
                     .collect::<Vec<_>>()
                     .join("\n");
                 return None;
@@ -65,12 +55,7 @@ impl Compiler {
                 // Collect all codegen errors
                 self.compilation_errors = errors
                     .iter()
-                    .map(|e| {
-                        format!(
-                            "[{}:{}] Error: {}",
-                            e.location.line, e.location.column, e.message
-                        )
-                    })
+                    .map(|e| e.to_string())
                     .collect::<Vec<_>>()
                     .join("\n");
                 None
