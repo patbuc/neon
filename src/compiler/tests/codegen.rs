@@ -24,6 +24,18 @@ fn compile_program(source: &str) -> Result<Bloq, String> {
 }
 
 #[test]
+fn test_immutable_assignment_error() {
+    // val x = 1 ; x = 2 should produce ImmutableAssignment error
+    let source = "val x = 1\nx = 2\n";
+    let result = compile_program(source);
+    assert!(result.is_err(), "Expected compile error for immutable assignment");
+    let err = result.err().unwrap();
+    // Ensure at least one error mentions immutable
+    let joined = format!("{:?}", err);
+    assert!(joined.contains("Immutable Assignment") || joined.contains("immutable"), "Missing immutable assignment error kind/message");
+}
+
+#[test]
 fn test_simple_number() {
     let bloq = compile_program("42\n").unwrap();
     assert!(bloq.instruction_count() > 0);
