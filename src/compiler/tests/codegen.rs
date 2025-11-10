@@ -209,6 +209,34 @@ fn test_end_to_end_function() {
 }
 
 #[test]
+fn test_jump_offset_patch() {
+    use crate::common::opcodes::OpCode;
+    // Craft an if/else that ensures JumpIfFalse and Jump patching works
+    let program = r#"
+    val x = 1
+    if (x == 1) {
+        print 1
+    } else {
+        print 2
+    }
+    "#;
+    let bloq = compile_program(program).unwrap();
+    // Find JumpIfFalse then verify its patched operand does not remain 0xFFFFFFFF (little endian all 0xFF bytes)
+    let mut found_jump_if_false_offset: Option<usize> = None;
+    for i in 0..bloq.instruction_count() {
+        if OpCode::from_u8(bloq.read_u8(i)) == OpCode::JumpIfFalse {
+            found_jump_if_false_offset = Some(i + 1); // operand starts after opcode
+            break;
+        }
+    }
+    assert!(found_jump_if_false_offset.is_some(), "JumpIfFalse not found in if/else construct");
+    let offset = found_jump_if_false_offset.unwrap();
+    // Read 4 bytes
+    let raw = [bloq.read_u8(offset), bloq.read_u8(offset+1), bloq.read_u8(offset+2), bloq.read_u8(offset+3)];
+    assert_ne!(raw, [0xFF,0xFF,0xFF,0xFF], "Jump offset was not patched");
+}
+
+#[test]
 fn test_constant_operand_widths() {
     use crate::common::opcodes::OpCode;
     // Build a program with > 0xFF constants to force Constant2, and > 0xFFFF would be huge (skip due to test time)
