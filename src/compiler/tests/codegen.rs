@@ -209,6 +209,29 @@ fn test_end_to_end_function() {
 }
 
 #[test]
+fn test_constant_operand_widths() {
+    use crate::common::opcodes::OpCode;
+    // Build a program with > 0xFF constants to force Constant2, and > 0xFFFF would be huge (skip due to test time)
+    // We'll generate 300 simple constants.
+    let mut source = String::new();
+    for i in 0..300 { source.push_str(&format!("{}\n", i)); }
+    let bloq = compile_program(&source).unwrap();
+    // Scan instructions to find first constant opcode variant after index threshold
+    let mut saw_constant = false;
+    let mut saw_constant2 = false;
+    for offset in 0..bloq.instruction_count() {
+        match OpCode::from_u8(bloq.read_u8(offset)) {
+            OpCode::Constant => saw_constant = true,
+            OpCode::Constant2 => { saw_constant2 = true; break; },
+            OpCode::Constant4 => { /* Not expected in this test */ },
+            _ => {}
+        }
+    }
+    assert!(saw_constant, "Did not see initial Constant opcode");
+    assert!(saw_constant2, "Did not see Constant2 opcode after >0xFF constants threshold");
+}
+
+#[test]
 fn test_end_to_end_forward_reference() {
     use crate::vm::VirtualMachine;
 
