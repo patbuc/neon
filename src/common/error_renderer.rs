@@ -6,7 +6,7 @@ pub struct ErrorRenderer {
     use_color: bool,
 }
 
-enum Color { Red, Blue, Yellow, Cyan, Plain }
+enum Color { Red, Blue }
 
 impl ErrorRenderer {
     pub fn new(use_color: bool) -> Self {
@@ -149,9 +149,7 @@ impl ErrorRenderer {
         let colored_text = match color {
             Color::Red => text.red(),
             Color::Blue => text.blue(),
-            Color::Yellow => text.yellow(),
-            Color::Cyan => text.cyan(),
-            Color::Plain => text.normal(),
+            
         };
 
         if bold {
