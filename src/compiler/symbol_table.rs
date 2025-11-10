@@ -29,8 +29,6 @@ pub struct Symbol {
     pub scope_depth: u32,
     /// Source location where defined
     pub location: SourceLocation,
-    /// Index in the local/global array (for codegen)
-    pub index: Option<u32>,
 }
 
 impl Symbol {
@@ -47,13 +45,7 @@ impl Symbol {
             is_mutable,
             scope_depth,
             location,
-            index: None,
         }
-    }
-
-    pub fn with_index(mut self, index: u32) -> Self {
-        self.index = Some(index);
-        self
     }
 }
 
@@ -92,16 +84,6 @@ impl Scope {
     /// Look up a symbol in this scope only (not parents)
     pub fn get(&self, name: &str) -> Option<&Symbol> {
         self.symbols.get(name)
-    }
-
-    /// Get mutable reference to a symbol
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut Symbol> {
-        self.symbols.get_mut(name)
-    }
-
-    /// Get all symbols in this scope
-    pub fn symbols(&self) -> &HashMap<String, Symbol> {
-        &self.symbols
     }
 }
 
@@ -161,39 +143,6 @@ impl SymbolTable {
                 return None; // Reached global scope and didn't find it
             }
         }
-    }
-
-    /// Resolve a symbol mutably
-    pub fn resolve_mut(&mut self, name: &str) -> Option<&mut Symbol> {
-        let mut scope_idx = self.current_scope;
-        loop {
-            // We need to check if symbol exists first, then get mutable reference
-            let has_symbol = self.scopes[scope_idx].get(name).is_some();
-            if has_symbol {
-                return self.scopes[scope_idx].get_mut(name);
-            }
-            // Check parent scope
-            if let Some(parent) = self.scopes[scope_idx].parent {
-                scope_idx = parent;
-            } else {
-                return None;
-            }
-        }
-    }
-
-    /// Check if a symbol is defined in the current scope only
-    pub fn is_defined_locally(&self, name: &str) -> bool {
-        self.scopes[self.current_scope].get(name).is_some()
-    }
-
-    /// Get the global scope
-    pub fn global_scope(&self) -> &Scope {
-        &self.scopes[0]
-    }
-
-    /// Get current scope
-    pub fn current_scope(&self) -> &Scope {
-        &self.scopes[self.current_scope]
     }
 }
 

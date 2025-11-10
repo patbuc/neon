@@ -6,15 +6,12 @@ use crate::common::errors::{
 use crate::common::opcodes::OpCode;
 use crate::common::{Bloq, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
-use crate::compiler::symbol_table::SymbolTable;
 use crate::{number, string};
 
 /// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
     /// Stack of bloqs (for nested function compilation)
     bloqs: Vec<Bloq>,
-    /// Symbol table from semantic analysis
-    symbol_table: SymbolTable,
     /// Current scope depth for tracking locals
     scope_depth: u32,
     /// Errors encountered during code generation
@@ -22,10 +19,9 @@ pub struct CodeGenerator {
 }
 
 impl CodeGenerator {
-    pub fn new(symbol_table: SymbolTable) -> Self {
+    pub fn new() -> Self {
         CodeGenerator {
             bloqs: vec![Bloq::new("main")],
-            symbol_table,
             scope_depth: 0,
             errors: Vec::new(),
         }

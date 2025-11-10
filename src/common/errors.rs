@@ -17,6 +17,7 @@ pub(crate) enum CompilationErrorKind {
     ImmutableAssignment,
     ArityExceeded,
     Internal,
+    #[allow(dead_code)]
     Other,
 }
 

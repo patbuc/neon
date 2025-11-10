@@ -37,7 +37,7 @@ impl Compiler {
 
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
-        let symbol_table = match analyzer.analyze(&ast) {
+        let _ = match analyzer.analyze(&ast) {
             Ok(table) => table,
             Err(errors) => {
                 // Store structured errors
@@ -53,7 +53,7 @@ impl Compiler {
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(symbol_table);
+        let mut codegen = CodeGenerator::new();
         match codegen.generate(&ast) {
             Ok(bloq) => Some(bloq),
             Err(errors) => {

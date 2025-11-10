@@ -12,12 +12,12 @@ fn compile_program(source: &str) -> Result<Bloq, String> {
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
-    let symbol_table = analyzer
+    let _ = analyzer
         .analyze(&ast)
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation
-    let mut codegen = CodeGenerator::new(symbol_table);
+    let mut codegen = CodeGenerator::new();
     codegen
         .generate(&ast)
         .map_err(|e| format!("Codegen error: {:?}", e))

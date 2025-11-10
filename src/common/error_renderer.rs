@@ -11,7 +11,7 @@ impl ErrorRenderer {
         ErrorRenderer { use_color }
     }
 
-    pub fn render_errors(
+    pub(crate) fn render_errors(
         &self,
         errors: &[CompilationError],
         source: &str,
@@ -29,11 +29,7 @@ impl ErrorRenderer {
         // Add summary
         if !errors.is_empty() {
             output.push('\n');
-            let error_word = if errors.len() == 1 {
-                "error"
-            } else {
-                "errors"
-            };
+            let error_word = if errors.len() == 1 { "error" } else { "errors" };
             let summary = format!(
                 "\nerror: aborting due to {} previous {}",
                 errors.len(),
@@ -115,13 +111,13 @@ impl ErrorRenderer {
             let line_num = format!("{:>width$}", line.line_number, width = line_num_width);
             let line_num_colored = self.colorize(&line_num, "blue", true);
             let separator = self.colorize("|", "blue", true);
-            
+
             // If this is the error line, add the caret on the same line
             if line.is_error_line {
                 // Calculate spaces before the caret (error_column is 1-based)
                 let spaces_before = " ".repeat((error_column as usize).saturating_sub(1));
                 let indicator = self.colorize("^", "red", true);
-                
+
                 output.push_str(&format!(
                     " {} {} {}\n{}{}\n",
                     line_num_colored,
@@ -131,7 +127,10 @@ impl ErrorRenderer {
                     indicator
                 ));
             } else {
-                output.push_str(&format!(" {} {} {}\n", line_num_colored, separator, line.content));
+                output.push_str(&format!(
+                    " {} {} {}\n",
+                    line_num_colored, separator, line.content
+                ));
             }
         }
 
