@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
+use crate::common::{BitsSize, CallFrame, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
@@ -21,25 +21,32 @@ impl VirtualMachine {
             #[cfg(any(test, debug_assertions))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
+            structured_errors: Vec::new(),
+            source: String::new(),
         }
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
         self.reset();
+        
+        // Store source for error reporting
+        self.source = source.clone();
 
         let start = std::time::Instant::now();
         let mut compiler = Compiler::new();
-        let bloq = compiler.compile(source);
+        let bloq_result = compiler.compile(&source);
 
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         let start = std::time::Instant::now();
-        if bloq.is_none() {
-            self.compilation_errors = compiler.get_compilation_errors();
-            return Result::CompileError;
-        }
-
-        let bloq = bloq.unwrap();
+        let bloq = match bloq_result {
+            Ok(b) => b,
+            Err(errors) => {
+                self.compilation_errors = compiler.get_compilation_errors();
+                self.structured_errors = errors;
+                return Result::CompileError;
+            }
+        };
 
         // Create a synthetic function for the script
         let script_function = Rc::new(ObjFunction {
@@ -57,7 +64,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Bloq::new("dummy")); // bloq param is not used anymore
+        let result = self.run();
         self.bloq = None;
 
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -65,7 +72,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _bloq: &Bloq) -> Result {
+    pub(in crate::vm) fn run(&mut self) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
@@ -182,6 +189,13 @@ impl VirtualMachine {
     #[cfg(test)]
     pub(in crate::vm) fn get_compiler_error(&self) -> String {
         self.compilation_errors.clone()
+    }
+
+    pub fn get_formatted_errors(&self, filename: &str) -> String {
+        use crate::common::error_renderer::ErrorRenderer;
+        
+        let renderer = ErrorRenderer::default();
+        renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 
     fn get_current_source_location(&self) -> String {

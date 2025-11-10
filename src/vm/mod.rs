@@ -28,6 +28,8 @@ pub struct VirtualMachine {
     #[cfg(any(test, debug_assertions))]
     pub(crate) string_buffer: String,
     compilation_errors: String,
+    structured_errors: Vec<crate::common::errors::CompilationError>,
+    source: String,
 }
 
 // Test-only methods
@@ -52,6 +54,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Bloq::new("dummy"))
+        self.run()
     }
 }

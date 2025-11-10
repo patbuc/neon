@@ -16,7 +16,7 @@ fn main() {
     if args.len() == 1 {
         run_repl();
     } else if args.len() >= 2 {
-        run_file(&args[1]);
+        run_file(&args[1]); // &String coerces to &str
     } else {
         exit(64);
     }
@@ -58,11 +58,7 @@ fn run_repl() {
             break;
         }
         let result = vm.interpret(line);
-        match result {
-            Result::Ok => {}
-            Result::CompileError => eprintln!("{}", "Compile error.".red()),
-            Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
-        }
+        handle_result(&vm, result, "<repl>", false);
         println!();
     }
 }
@@ -80,17 +76,28 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn run_file(path: &String) {
+fn run_file(path: &str) {
     println!("Running file: {} ", path);
 
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
     let result: Result = vm.interpret(source);
+    handle_result(&vm, result, path, true);
+}
+
+fn handle_result(vm: &VirtualMachine, result: Result, filename: &str, exit_on_error: bool) {
     match result {
-        Result::Ok => (),
-        Result::CompileError => exit(65),
-        Result::RuntimeError => exit(70),
+        Result::Ok => {}
+        Result::CompileError => {
+            let formatted_errors = vm.get_formatted_errors(filename);
+            eprintln!("{}", formatted_errors);
+            if exit_on_error { exit(65); }
+        }
+        Result::RuntimeError => {
+            eprintln!("{}", "Runtime error.".red());
+            if exit_on_error { exit(70); }
+        }
     }
 }
 
