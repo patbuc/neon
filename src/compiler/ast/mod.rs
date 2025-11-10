@@ -162,6 +162,7 @@ pub enum Stmt {
 
 impl Expr {
     /// Get the source location of this expression
+    #[allow(dead_code)]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Expr::Number { location, .. }
@@ -182,6 +183,7 @@ impl Expr {
 
 impl Stmt {
     /// Get the source location of this statement
+    #[allow(dead_code)]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Stmt::Val { location, .. }
