@@ -3,8 +3,10 @@ use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
-use log::info;
 use std::rc::Rc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use log::info;
 
 impl Default for VirtualMachine {
     fn default() -> Self {
@@ -18,7 +20,7 @@ impl VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             bloq: None,
-            #[cfg(any(test, debug_assertions))]
+            #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
@@ -28,16 +30,20 @@ impl VirtualMachine {
 
     pub fn interpret(&mut self, source: String) -> Result {
         self.reset();
-        
+
         // Store source for error reporting
         self.source = source.clone();
 
+        #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
+
         let mut compiler = Compiler::new();
         let bloq = compiler.compile(&source);
 
+        #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
+        #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
         if bloq.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
@@ -66,7 +72,9 @@ impl VirtualMachine {
         let result = self.run(&Bloq::new("dummy")); // bloq param is not used anymore
         self.bloq = None;
 
+        #[cfg(not(target_arch = "wasm32"))]
         info!("Run time: {}ms", start.elapsed().as_millis());
+
         result
     }
 
@@ -180,9 +188,19 @@ impl VirtualMachine {
         eprintln!("[{}] {}", source_location, error);
     }
 
-    #[cfg(any(test, debug_assertions))]
+    #[cfg(all(target_arch = "wasm32", not(test)))]
+    pub fn get_output(&self) -> String {
+        self.string_buffer.clone()
+    }
+
+    #[cfg(any(test, all(debug_assertions, not(target_arch = "wasm32"))))]
     pub fn get_output(&self) -> String {
         self.string_buffer.trim().to_string()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn clear_output(&mut self) {
+        self.string_buffer.clear();
     }
 
     #[cfg(test)]
@@ -192,7 +210,7 @@ impl VirtualMachine {
 
     pub fn get_formatted_errors(&self, filename: &str) -> String {
         use crate::common::error_renderer::ErrorRenderer;
-        
+
         let renderer = ErrorRenderer::default();
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }

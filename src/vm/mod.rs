@@ -25,8 +25,8 @@ pub struct VirtualMachine {
     bloq: Option<Bloq>,
     // values: HashMap<String, Value>,
     // variables: HashMap<String, Value>,
-    #[cfg(any(test, debug_assertions))]
-    pub(crate) string_buffer: String,
+    #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+    string_buffer: String,
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     source: String,
@@ -50,7 +50,7 @@ impl VirtualMachine {
         let frame = CallFrame {
             function: test_function,
             ip: 0,
-            slot_start: -1,  // Like script frame, no function object on stack
+            slot_start: -1, // Like script frame, no function object on stack
         };
         self.call_frames.push(frame);
 

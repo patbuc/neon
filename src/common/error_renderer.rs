@@ -171,8 +171,13 @@ impl ErrorRenderer {
 
 impl Default for ErrorRenderer {
     fn default() -> Self {
-        // Check NO_COLOR environment variable
+        // Disable colors for wasm target, or check NO_COLOR environment variable
+        #[cfg(target_arch = "wasm32")]
+        let use_color = false;
+
+        #[cfg(not(target_arch = "wasm32"))]
         let use_color = std::env::var("NO_COLOR").is_err();
+
         ErrorRenderer::new(use_color)
     }
 }

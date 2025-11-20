@@ -100,7 +100,7 @@ fn test_end_to_end_execution() {
 
     #[cfg(any(test, debug_assertions))]
     {
-        assert_eq!(vm.string_buffer, "30\n");
+        assert_eq!(vm.get_output(), "30");
     }
 
     assert_eq!(result, crate::vm::Result::Ok);
@@ -124,7 +124,7 @@ fn test_end_to_end_function() {
 
     #[cfg(any(test, debug_assertions))]
     {
-        assert_eq!(vm.string_buffer, "42\n");
+        assert_eq!(vm.get_output(), "42");
     }
 
     assert_eq!(result, crate::vm::Result::Ok);
@@ -153,7 +153,7 @@ fn test_end_to_end_forward_reference() {
 
     #[cfg(any(test, debug_assertions))]
     {
-        assert_eq!(vm.string_buffer, "99\n");
+        assert_eq!(vm.get_output(), "99");
     }
 
     assert_eq!(result, crate::vm::Result::Ok);

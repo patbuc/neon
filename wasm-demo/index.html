@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon - WebAssembly Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .tagline {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .editor-section {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        #code-input {
+            min-height: 200px;
+            background: #f8f9fa;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-section {
+            margin-top: 20px;
+        }
+
+        #output {
+            min-height: 150px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .success {
+            color: #51cf66;
+        }
+
+        .examples {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .examples h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .example-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            padding: 40px;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d3f9d8;
+            color: #2b8a3e;
+        }
+
+        .status.error {
+            background: #ffe3e3;
+            color: #c92a2a;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>✨ Neon</h1>
+    <p class="tagline">A toy language you didn't wait for - now in your browser!</p>
+
+    <div id="loading" class="loading">
+        Loading WebAssembly module...
+    </div>
+
+    <div id="app" style="display: none;">
+        <div class="editor-section">
+            <label for="code-input">Enter Neon code:</label>
+            <textarea id="code-input" placeholder="print 'Hello, WebAssembly!';">// Try some Neon code!
+var greeting = "Hello from WebAssembly!"
+print greeting
+
+var x = 10
+var y = 20
+print x + y</textarea>
+        </div>
+
+        <div class="button-group">
+            <button id="run-btn">Run Code</button>
+            <button id="clear-btn">Clear</button>
+        </div>
+
+        <div class="examples">
+            <h3>Quick Examples:</h3>
+            <button class="example-btn" data-example="hello">Hello World</button>
+            <button class="example-btn" data-example="fibonacci">Fibonacci</button>
+            <button class="example-btn" data-example="struct">Struct</button>
+            <button class="example-btn" data-example="loop">Loop</button>
+        </div>
+
+        <div class="output-section">
+            <label for="output">Output:</label>
+            <div id="output">Ready to run your code...</div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // Example programs
+    const examples = {
+        hello: `print "Hello, World!"`,
+
+        fibonacci: `fn fibonacci(n) {
+    if (n <= 1) {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+print "Fibonacci of 10:"
+print fibonacci(10)`,
+
+        struct: `struct Point {
+    x
+    y
+}
+
+var p = Point(10, 20)
+print "Point x:"
+print p.x
+print "Point y:"
+print p.y`,
+
+        loop: `var i = 0
+while (i < 5) {
+    print i
+    i = i + 1
+}
+print "Done!"`
+    };
+
+    let neonVM = null;
+
+    async function init() {
+        try {
+            // Import the wasm module
+            const wasm = await import('../wasm-pkg/neon.js');
+            await wasm.default();
+
+            // Create a VM instance
+            neonVM = new wasm.NeonVM();
+
+            // Hide loading, show app
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+
+            setupEventListeners();
+        } catch (error) {
+            document.getElementById('loading').innerHTML =
+                '<span class="error">Failed to load WebAssembly module. Make sure you\'ve run ./build-wasm.sh first!</span><br>' +
+                '<span class="error">Error: ' + error.message + '</span>';
+        }
+    }
+
+    function setupEventListeners() {
+        document.getElementById('run-btn').addEventListener('click', runCode);
+        document.getElementById('clear-btn').addEventListener('click', clearCode);
+
+        // Example buttons
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const example = e.target.dataset.example;
+                document.getElementById('code-input').value = examples[example];
+            });
+        });
+
+        // Allow Ctrl+Enter to run
+        document.getElementById('code-input').addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                runCode();
+            }
+        });
+    }
+
+    function runCode() {
+        const code = document.getElementById('code-input').value;
+        const output = document.getElementById('output');
+
+        if (!code.trim()) {
+            output.innerHTML = '<span class="error">Please enter some code first!</span>';
+            return;
+        }
+
+        try {
+            // Run the code
+            const result = neonVM.interpret(code);
+
+            if (result.success) {
+                const outputText = result.output || '(no output)';
+                output.innerHTML = '<span class="success">✓ Success</span>\n\n' +
+                    escapeHtml(outputText);
+            } else {
+                output.innerHTML = '<span class="error">✗ Error</span>\n\n' +
+                    escapeHtml(result.error || 'Unknown error');
+            }
+        } catch (error) {
+            output.innerHTML = '<span class="error">✗ JavaScript Error</span>\n\n' +
+                escapeHtml(error.toString());
+        }
+    }
+
+    function clearCode() {
+        document.getElementById('code-input').value = '';
+        document.getElementById('output').innerHTML = 'Ready to run your code...';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Initialize when page loads
+    init();
+</script>
+</body>
+</html>

@@ -11,8 +11,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_print(&mut self) {
         let value = self.pop();
 
+        #[cfg(not(target_arch = "wasm32"))]
         println!("{}", value);
-        #[cfg(any(test, debug_assertions))]
+
+        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
             self.string_buffer.push_str(value.to_string().as_str());
             self.string_buffer.push('\n');
