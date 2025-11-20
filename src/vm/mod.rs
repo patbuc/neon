@@ -54,6 +54,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Bloq::new("dummy"))
+        self.run()
     }
 }
