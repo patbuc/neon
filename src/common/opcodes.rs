@@ -1,6 +1,22 @@
 use std::mem::transmute;
 
 impl OpCode {
+    /// Converts a u8 byte value to an OpCode enum variant.
+    ///
+    /// # Safety
+    ///
+    /// This function uses `transmute` to convert a u8 to an OpCode.
+    /// This is safe because:
+    /// 1. OpCode is marked with `#[repr(u8)]`, which guarantees it has the same
+    ///    memory layout as u8
+    /// 2. The compiler automatically assigns sequential u8 values starting from 0x00
+    ///    to each enum variant
+    /// 3. The bytecode compiler only emits valid OpCode values when generating instructions
+    /// 4. All possible u8 values in the valid range (0x00 to the last OpCode variant)
+    ///    map to valid OpCode variants
+    ///
+    /// This transmute is performance-critical as it's called for every instruction
+    /// in the VM's execution loop.
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> OpCode {
         unsafe { transmute(value) }

@@ -152,11 +152,10 @@ mod tests {
         let value = array!(vec![number!(1.0), number!(2.0), number!(3.0)]);
         let arr = as_array!(value);
         let arr_ref = arr.borrow();
-        let elements = arr_ref.elements.borrow();
-        assert_eq!(3, elements.len());
-        assert_eq!(number!(1.0), elements[0]);
-        assert_eq!(number!(2.0), elements[1]);
-        assert_eq!(number!(3.0), elements[2]);
+        assert_eq!(3, arr_ref.elements.len());
+        assert_eq!(number!(1.0), arr_ref.elements[0]);
+        assert_eq!(number!(2.0), arr_ref.elements[1]);
+        assert_eq!(number!(3.0), arr_ref.elements[2]);
     }
 
     #[test]

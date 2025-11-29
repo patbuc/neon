@@ -553,9 +553,8 @@ impl VirtualMachine {
         match &array_value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Array(array_ref) => {
-                    let array = array_ref.borrow();
-                    let mut elements = array.elements.borrow_mut();
-                    elements.push(value);
+                    let mut array = array_ref.borrow_mut();
+                    array.elements.push(value);
                     // Array is already on the stack, no need to push it again
                 }
                 _ => {
@@ -580,8 +579,7 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Array(array_ref) => {
                     let array = array_ref.borrow();
-                    let elements = array.elements.borrow();
-                    let length = elements.len() as f64;
+                    let length = array.elements.len() as f64;
                     self.push(Value::Number(length));
                 }
                 _ => {
@@ -629,19 +627,18 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Array(array_ref) => {
                     let array = array_ref.borrow();
-                    let elements = array.elements.borrow();
                     let index_usize = index as usize;
 
-                    if index_usize >= elements.len() {
+                    if index_usize >= array.elements.len() {
                         self.runtime_error(&format!(
                             "Array index out of bounds: index {} but length is {}.",
                             index,
-                            elements.len()
+                            array.elements.len()
                         ));
                         return Some(Result::RuntimeError);
                     }
 
-                    let element = elements[index_usize].clone();
+                    let element = array.elements[index_usize].clone();
                     self.push(element);
                 }
                 _ => {
@@ -689,20 +686,19 @@ impl VirtualMachine {
         match &array_value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Array(array_ref) => {
-                    let array = array_ref.borrow();
-                    let mut elements = array.elements.borrow_mut();
+                    let mut array = array_ref.borrow_mut();
                     let index_usize = index as usize;
 
-                    if index_usize >= elements.len() {
+                    if index_usize >= array.elements.len() {
                         self.runtime_error(&format!(
                             "Array index out of bounds: index {} but length is {}.",
                             index,
-                            elements.len()
+                            array.elements.len()
                         ));
                         return Some(Result::RuntimeError);
                     }
 
-                    elements[index_usize] = value.clone();
+                    array.elements[index_usize] = value.clone();
                     // Push the value back (assignment returns the value)
                     self.push(value);
                 }

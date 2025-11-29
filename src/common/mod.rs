@@ -104,7 +104,7 @@ pub(crate) struct ObjInstance {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ObjArray {
-    pub elements: Rc<RefCell<Vec<Value>>>,
+    pub elements: Vec<Value>,
 }
 
 impl Value {
@@ -126,7 +126,7 @@ impl Value {
 
     pub(crate) fn new_array(elements: Vec<Value>) -> Self {
         Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(ObjArray {
-            elements: Rc::new(RefCell::new(elements)),
+            elements,
         })))))
     }
 }
@@ -196,17 +196,14 @@ impl PartialEq for ObjInstance {
 impl PartialEq for ObjArray {
     fn eq(&self, other: &Self) -> bool {
         // Arrays are equal if they have the same elements in the same order
-        let self_elements = self.elements.borrow();
-        let other_elements = other.elements.borrow();
-        *self_elements == *other_elements
+        self.elements == other.elements
     }
 }
 
 impl Display for ObjArray {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let elements = self.elements.borrow();
         write!(f, "[")?;
-        for (i, elem) in elements.iter().enumerate() {
+        for (i, elem) in self.elements.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
