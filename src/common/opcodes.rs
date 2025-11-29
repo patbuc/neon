@@ -55,4 +55,66 @@ pub(crate) enum OpCode {
     SetField,
     SetField2,
     SetField4,
+
+    // Array operations
+    /// Create an empty array.
+    /// Stack: [] -> [array]
+    Array,
+
+    /// Create an array with a pre-allocated size.
+    /// Operand: 1-byte size value (0-255)
+    /// Stack: [] -> [array]
+    ArrayWithSize,
+
+    /// Create an array with a pre-allocated size.
+    /// Operand: 2-byte size value (0-65535)
+    /// Stack: [] -> [array]
+    ArrayWithSize2,
+
+    /// Create an array with a pre-allocated size.
+    /// Operand: 4-byte size value
+    /// Stack: [] -> [array]
+    ArrayWithSize4,
+
+    /// Append an element to an array.
+    /// Stack: [array, value] -> [array]
+    /// Note: The array is returned to support method chaining
+    ArrayPush,
+
+    /// Get the length of an array.
+    /// Stack: [array] -> [length]
+    ArrayLength,
+
+    /// Get an element from an array at the given index.
+    /// Operand: 1-byte index value (0-255)
+    /// Stack: [array] -> [value]
+    GetIndex,
+
+    /// Get an element from an array at the given index.
+    /// Operand: 2-byte index value (0-65535)
+    /// Stack: [array] -> [value]
+    GetIndex2,
+
+    /// Get an element from an array at the given index.
+    /// Operand: 4-byte index value
+    /// Stack: [array] -> [value]
+    GetIndex4,
+
+    /// Set an element in an array at the given index.
+    /// Operand: 1-byte index value (0-255)
+    /// Stack: [array, value] -> [value]
+    /// Note: The value is returned to support assignment expressions
+    SetIndex,
+
+    /// Set an element in an array at the given index.
+    /// Operand: 2-byte index value (0-65535)
+    /// Stack: [array, value] -> [value]
+    /// Note: The value is returned to support assignment expressions
+    SetIndex2,
+
+    /// Set an element in an array at the given index.
+    /// Operand: 4-byte index value
+    /// Stack: [array, value] -> [value]
+    /// Note: The value is returned to support assignment expressions
+    SetIndex4,
 }

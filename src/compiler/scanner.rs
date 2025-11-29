@@ -47,6 +47,8 @@ impl Scanner {
             ')' => self.make_token(TokenType::RightParen),
             '{' => self.make_token(TokenType::LeftBrace),
             '}' => self.make_token(TokenType::RightBrace),
+            '[' => self.make_token(TokenType::LeftBracket),
+            ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
             '.' => self.make_token(TokenType::Dot),
             '-' => self.make_token(TokenType::Minus),
@@ -383,6 +385,51 @@ mod tests {
 
         assert_eq!(x[2].token_type, TokenType::Equal);
         assert_eq!(x[3].token_type, TokenType::InterpolatedString);
+        assert_eq!(x[4].token_type, TokenType::Semicolon);
+        assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_array_syntax() {
+        let script = "var arr = [1, 2, 3];";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 12);
+
+        assert_eq!(x[0].token_type, TokenType::Var);
+        assert_eq!(x[1].token_type, TokenType::Identifier);
+        assert_eq!(x[1].token, "arr");
+        assert_eq!(x[2].token_type, TokenType::Equal);
+        assert_eq!(x[3].token_type, TokenType::LeftBracket);
+        assert_eq!(x[3].token, "[");
+        assert_eq!(x[4].token_type, TokenType::Number);
+        assert_eq!(x[5].token_type, TokenType::Comma);
+        assert_eq!(x[6].token_type, TokenType::Number);
+        assert_eq!(x[7].token_type, TokenType::Comma);
+        assert_eq!(x[8].token_type, TokenType::Number);
+        assert_eq!(x[9].token_type, TokenType::RightBracket);
+        assert_eq!(x[9].token, "]");
+        assert_eq!(x[10].token_type, TokenType::Semicolon);
+        assert_eq!(x[11].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_array_indexing() {
+        let script = "arr[0];";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 6);
+
+        assert_eq!(x[0].token_type, TokenType::Identifier);
+        assert_eq!(x[0].token, "arr");
+        assert_eq!(x[1].token_type, TokenType::LeftBracket);
+        assert_eq!(x[2].token_type, TokenType::Number);
+        assert_eq!(x[2].token, "0");
+        assert_eq!(x[3].token_type, TokenType::RightBracket);
         assert_eq!(x[4].token_type, TokenType::Semicolon);
         assert_eq!(x[5].token_type, TokenType::Eof);
     }

@@ -88,6 +88,28 @@ macro_rules! as_string {
         }
     };
 }
+
+#[macro_export]
+macro_rules! array {
+    ($value: expr) => {
+        $crate::common::Value::new_array($value)
+    };
+}
+
+#[macro_export]
+macro_rules! as_array {
+    ($value: expr) => {
+        if let $crate::common::Value::Object(ref obj) = $value {
+            if let $crate::common::Object::Array(ref obj_array) = **obj {
+                obj_array
+            } else {
+                panic!("Expected Object::Array, got {:?}", $value);
+            }
+        } else {
+            panic!("Expected Value::Object, got {:?}", $value);
+        }
+    };
+}
 #[macro_export]
 macro_rules! is_false_like {
     ($value: expr) => {
@@ -123,5 +145,45 @@ mod tests {
     fn value_can_be_created_from_nil() {
         let value = nil!();
         assert_eq!(crate::common::Value::Nil, as_nil!(value));
+    }
+
+    #[test]
+    fn value_can_be_created_from_array() {
+        let value = array!(vec![number!(1.0), number!(2.0), number!(3.0)]);
+        let arr = as_array!(value);
+        let arr_ref = arr.borrow();
+        let elements = arr_ref.elements.borrow();
+        assert_eq!(3, elements.len());
+        assert_eq!(number!(1.0), elements[0]);
+        assert_eq!(number!(2.0), elements[1]);
+        assert_eq!(number!(3.0), elements[2]);
+    }
+
+    #[test]
+    fn arrays_with_same_elements_are_equal() {
+        let arr1 = array!(vec![number!(1.0), string!("hello"), boolean!(true)]);
+        let arr2 = array!(vec![number!(1.0), string!("hello"), boolean!(true)]);
+        assert_eq!(arr1, arr2);
+    }
+
+    #[test]
+    fn arrays_with_different_elements_are_not_equal() {
+        let arr1 = array!(vec![number!(1.0), number!(2.0)]);
+        let arr2 = array!(vec![number!(1.0), number!(3.0)]);
+        assert_ne!(arr1, arr2);
+    }
+
+    #[test]
+    fn empty_arrays_are_equal() {
+        let arr1 = array!(vec![]);
+        let arr2 = array!(vec![]);
+        assert_eq!(arr1, arr2);
+    }
+
+    #[test]
+    fn array_display_shows_correct_format() {
+        let arr = array!(vec![number!(1.0), string!("test"), boolean!(true), nil!()]);
+        let display_string = format!("{}", arr);
+        assert_eq!("[1, test, true, nil]", display_string);
     }
 }

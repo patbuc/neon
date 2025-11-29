@@ -75,6 +75,7 @@ pub(crate) enum Object {
     Function(Rc<ObjFunction>),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
+    Array(Rc<RefCell<ObjArray>>),
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +102,11 @@ pub(crate) struct ObjInstance {
     pub fields: std::collections::HashMap<String, Value>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ObjArray {
+    pub elements: Rc<RefCell<Vec<Value>>>,
+}
+
 impl Value {
     pub(crate) fn new_object(instance: ObjInstance) -> Value {
         Value::Object(Rc::new(Object::Instance(Rc::new(RefCell::new(instance)))))
@@ -116,6 +122,12 @@ impl Value {
             arity,
             bloq: Rc::new(bloq),
         }))))
+    }
+
+    pub(crate) fn new_array(elements: Vec<Value>) -> Self {
+        Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(ObjArray {
+            elements: Rc::new(RefCell::new(elements)),
+        })))))
     }
 }
 
@@ -134,6 +146,10 @@ impl Display for Object {
             Object::Instance(obj_instance) => {
                 let instance = obj_instance;
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
+            }
+            Object::Array(obj_array) => {
+                let array = obj_array.borrow();
+                write!(f, "{}", array)
             }
         }
     }
@@ -174,6 +190,29 @@ impl PartialEq for ObjInstance {
     fn eq(&self, other: &Self) -> bool {
         // Instances are equal if they point to the same struct and have same field values
         self.r#struct.name == other.r#struct.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjArray {
+    fn eq(&self, other: &Self) -> bool {
+        // Arrays are equal if they have the same elements in the same order
+        let self_elements = self.elements.borrow();
+        let other_elements = other.elements.borrow();
+        *self_elements == *other_elements
+    }
+}
+
+impl Display for ObjArray {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let elements = self.elements.borrow();
+        write!(f, "[")?;
+        for (i, elem) in elements.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", elem)?;
+        }
+        write!(f, "]")
     }
 }
 

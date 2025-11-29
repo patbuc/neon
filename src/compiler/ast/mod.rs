@@ -95,6 +95,24 @@ pub enum Expr {
         expr: Box<Expr>,
         location: SourceLocation,
     },
+    /// Array literal: [1, 2, 3]
+    Array {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Array indexing: arr[0]
+    Index {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Array element assignment: arr[0] = value
+    SetIndex {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        value: Box<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -175,7 +193,10 @@ impl Expr {
             | Expr::Call { location, .. }
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
-            | Expr::Grouping { location, .. } => location,
+            | Expr::Grouping { location, .. }
+            | Expr::Array { location, .. }
+            | Expr::Index { location, .. }
+            | Expr::SetIndex { location, .. } => location,
         }
     }
 }

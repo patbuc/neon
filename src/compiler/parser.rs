@@ -501,6 +501,7 @@ impl Parser {
             TokenType::String => self.string(),
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
+            TokenType::LeftBracket => self.array_literal(),
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
             _ => {
@@ -525,6 +526,7 @@ impl Parser {
                 | TokenType::Less
                 | TokenType::LessEqual => self.binary(expr),
                 TokenType::LeftParen => self.call(expr),
+                TokenType::LeftBracket => self.index(expr),
                 TokenType::Dot => self.dot(expr),
                 _ => {
                     return Some(expr);
@@ -541,7 +543,7 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot => Precedence::Call,
+            TokenType::LeftParen | TokenType::LeftBracket | TokenType::Dot => Precedence::Call,
             TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
             TokenType::Greater
@@ -713,6 +715,273 @@ impl Parser {
                 field,
                 location,
             })
+        }
+    }
+
+    fn array_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut elements = Vec::new();
+
+        self.skip_new_lines();
+        if !self.check(TokenType::RightBracket) {
+            loop {
+                elements.push(self.expression(false)?);
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+                self.skip_new_lines();
+            }
+        }
+        self.skip_new_lines();
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after array elements.") {
+            return None;
+        }
+
+        Some(Expr::Array { elements, location })
+    }
+
+    fn index(&mut self, object: Expr) -> Option<Expr> {
+        let location = self.current_location();
+
+        let index = Box::new(self.expression(true)?);
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
+            return None;
+        }
+
+        if self.match_token(TokenType::Equal) {
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::SetIndex {
+                object: Box::new(object),
+                index,
+                value,
+                location,
+            })
+        } else {
+            Some(Expr::Index {
+                object: Box::new(object),
+                index,
+                location,
+            })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compiler::ast::{Expr, Stmt};
+
+    #[test]
+    fn test_parse_array_literal_empty() {
+        let mut parser = Parser::new("[]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::Array { elements, .. } = expr {
+                assert_eq!(elements.len(), 0);
+            } else {
+                panic!("Expected Array expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_literal_with_elements() {
+        let mut parser = Parser::new("[1, 2, 3]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::Array { elements, .. } = expr {
+                assert_eq!(elements.len(), 3);
+                // Verify elements are numbers
+                for (i, elem) in elements.iter().enumerate() {
+                    if let Expr::Number { value, .. } = elem {
+                        assert_eq!(*value, (i + 1) as f64);
+                    } else {
+                        panic!("Expected Number expression");
+                    }
+                }
+            } else {
+                panic!("Expected Array expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_literal_mixed_types() {
+        let mut parser = Parser::new("[1, \"hello\", true]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::Array { elements, .. } = expr {
+                assert_eq!(elements.len(), 3);
+                assert!(matches!(elements[0], Expr::Number { .. }));
+                assert!(matches!(elements[1], Expr::String { .. }));
+                assert!(matches!(elements[2], Expr::Boolean { .. }));
+            } else {
+                panic!("Expected Array expression");
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_indexing() {
+        let mut parser = Parser::new("arr[0]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::Index { object, index, .. } = expr {
+                if let Expr::Variable { name, .. } = &**object {
+                    assert_eq!(name, "arr");
+                } else {
+                    panic!("Expected Variable expression");
+                }
+                if let Expr::Number { value, .. } = &**index {
+                    assert_eq!(*value, 0.0);
+                } else {
+                    panic!("Expected Number expression");
+                }
+            } else {
+                panic!("Expected Index expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_assignment() {
+        let mut parser = Parser::new("arr[0] = 42");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::SetIndex {
+                object,
+                index,
+                value,
+                ..
+            } = expr
+            {
+                if let Expr::Variable { name, .. } = &**object {
+                    assert_eq!(name, "arr");
+                } else {
+                    panic!("Expected Variable expression");
+                }
+                if let Expr::Number { value: idx_val, .. } = &**index {
+                    assert_eq!(*idx_val, 0.0);
+                } else {
+                    panic!("Expected Number expression for index");
+                }
+                if let Expr::Number {
+                    value: num_val, ..
+                } = &**value
+                {
+                    assert_eq!(*num_val, 42.0);
+                } else {
+                    panic!("Expected Number expression for value");
+                }
+            } else {
+                panic!("Expected SetIndex expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_nested_array_indexing() {
+        let mut parser = Parser::new("arr[0][1]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            // Should be Index { object: Index { ... }, index: 1 }
+            if let Expr::Index { object, index, .. } = expr {
+                // Inner should be Index expression
+                assert!(matches!(**object, Expr::Index { .. }));
+                if let Expr::Number { value, .. } = &**index {
+                    assert_eq!(*value, 1.0);
+                } else {
+                    panic!("Expected Number expression for outer index");
+                }
+            } else {
+                panic!("Expected Index expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_literal_in_var_declaration() {
+        let mut parser = Parser::new("var arr = [1, 2, 3]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Var {
+            name, initializer, ..
+        } = &statements[0]
+        {
+            assert_eq!(name, "arr");
+            if let Some(Expr::Array { elements, .. }) = initializer {
+                assert_eq!(elements.len(), 3);
+            } else {
+                panic!("Expected Array expression in initializer");
+            }
+        } else {
+            panic!("Expected Var statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_array_expression_indexing() {
+        let mut parser = Parser::new("[1, 2, 3][0]");
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let statements = result.unwrap();
+        assert_eq!(statements.len(), 1);
+
+        if let Stmt::Expression { expr, .. } = &statements[0] {
+            if let Expr::Index { object, index, .. } = expr {
+                // Object should be an Array literal
+                assert!(matches!(**object, Expr::Array { .. }));
+                if let Expr::Number { value, .. } = &**index {
+                    assert_eq!(*value, 0.0);
+                } else {
+                    panic!("Expected Number expression for index");
+                }
+            } else {
+                panic!("Expected Index expression, got {:?}", expr);
+            }
+        } else {
+            panic!("Expected Expression statement");
         }
     }
 }

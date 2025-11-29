@@ -325,6 +325,31 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
             }
+            Expr::Array { elements, .. } => {
+                // Resolve all elements in the array
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
+            Expr::Index { object, index, .. } => {
+                // Resolve the object being indexed
+                self.resolve_expr(object);
+                // Resolve the index expression
+                self.resolve_expr(index);
+            }
+            Expr::SetIndex {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                // Resolve the object being indexed
+                self.resolve_expr(object);
+                // Resolve the index expression
+                self.resolve_expr(index);
+                // Resolve the value being assigned
+                self.resolve_expr(value);
+            }
         }
     }
 }

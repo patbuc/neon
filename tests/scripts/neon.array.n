@@ -1,0 +1,293 @@
+// neon.array.n - Comprehensive array feature demonstration
+// Tests: array creation, indexing, mutation, nested arrays, functions with arrays
+
+// Expected:
+// === Basic Arrays ===
+// []
+// [1, 2, 3]
+// [10, 20, 30, 40, 50]
+// === Array Access ===
+// 1
+// 2
+// 3
+// === Array Modification ===
+// [1, 2, 3]
+// [1, 42, 3]
+// [100, 42, 3]
+// === Nested Arrays ===
+// [[1, 2], [3, 4]]
+// 1
+// 2
+// 3
+// 4
+// [[1, 99, 3], [4, 5, 6]]
+// === Mixed Type Arrays ===
+// [1, hello, true, nil]
+// 1
+// hello
+// true
+// nil
+// === Arrays with Expressions ===
+// [10, 20, 30]
+// [15, 25, 35]
+// === Arrays in Functions ===
+// 42
+// [5, 10, 15]
+// [999, 2, 3, 4, 5]
+// === Recursive Array Processing ===
+// 15
+// 120
+// === Array Building ===
+// [0, 1, 4, 9, 16]
+// [2, 4, 6, 8, 10]
+// === Matrix Operations ===
+// [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+// [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+// 5
+// === Array Search ===
+// 2
+// -1
+// === Practical: Grade Calculator ===
+// [85, 92, 78, 95, 88]
+// 87.6
+// 95
+// 78
+// === Practical: Vector Operations ===
+// [1, 2, 3]
+// [4, 5, 6]
+// [5, 7, 9]
+// 32
+
+print "=== Basic Arrays ==="
+val empty = []
+print empty
+
+val simple = [1, 2, 3]
+print simple
+
+val numbers = [10, 20, 30, 40, 50]
+print numbers
+
+print "=== Array Access ==="
+print simple[0]
+print simple[1]
+print simple[2]
+
+print "=== Array Modification ==="
+var mutable = [1, 2, 3]
+print mutable
+mutable[1] = 42
+print mutable
+mutable[0] = 100
+print mutable
+
+print "=== Nested Arrays ==="
+val matrix = [[1, 2], [3, 4]]
+print matrix
+print matrix[0][0]
+print matrix[0][1]
+print matrix[1][0]
+print matrix[1][1]
+
+var matrix2 = [[1, 2, 3], [4, 5, 6]]
+matrix2[0][1] = 99
+print matrix2
+
+print "=== Mixed Type Arrays ==="
+val mixed = [1, "hello", true, nil]
+print mixed
+print mixed[0]
+print mixed[1]
+print mixed[2]
+print mixed[3]
+
+print "=== Arrays with Expressions ==="
+val x = 10
+val computed = [x, x * 2, x * 3]
+print computed
+
+var dynamic = [x + 5, x + 15, x + 25]
+print dynamic
+
+print "=== Arrays in Functions ==="
+
+fn get_first(arr) {
+    return arr[0]
+}
+
+fn make_multiples(n) {
+    return [n, n * 2, n * 3]
+}
+
+fn modify_first(arr, new_value) {
+    arr[0] = new_value
+}
+
+val test_arr = [42, 100, 200]
+print get_first(test_arr)
+
+val multiples = make_multiples(5)
+print multiples
+
+var to_modify = [1, 2, 3, 4, 5]
+modify_first(to_modify, 999)
+print to_modify
+
+print "=== Recursive Array Processing ==="
+
+fn sum_array(arr, index, len) {
+    if (index >= len) {
+        return 0
+    }
+    return arr[index] + sum_array(arr, index + 1, len)
+}
+
+fn product_array(arr, index, len) {
+    if (index >= len) {
+        return 1
+    }
+    return arr[index] * product_array(arr, index + 1, len)
+}
+
+val sum_test = [1, 2, 3, 4, 5]
+print sum_array(sum_test, 0, 5)
+
+val prod_test = [2, 3, 4, 5]
+print product_array(prod_test, 0, 4)
+
+print "=== Array Building ==="
+
+val squares = [0, 0, 0, 0, 0]
+var sq_i = 0
+while (sq_i < 5) {
+    squares[sq_i] = sq_i * sq_i
+    sq_i = sq_i + 1
+}
+print squares
+
+val evens = [0, 0, 0, 0, 0]
+var ev_i = 0
+while (ev_i < 5) {
+    evens[ev_i] = (ev_i + 1) * 2
+    ev_i = ev_i + 1
+}
+print evens
+
+print "=== Matrix Operations ==="
+
+fn create_matrix_3x3(init_val) {
+    val row1 = [init_val, init_val, init_val]
+    val row2 = [init_val, init_val, init_val]
+    val row3 = [init_val, init_val, init_val]
+    return [row1, row2, row3]
+}
+
+fn fill_matrix(matrix, rows, cols) {
+    var counter = 1
+    var i = 0
+    while (i < rows) {
+        var j = 0
+        while (j < cols) {
+            matrix[i][j] = counter
+            counter = counter + 1
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+fn get_matrix_element(matrix, row, col) {
+    return matrix[row][col]
+}
+
+val mat1 = create_matrix_3x3(0)
+print mat1
+
+val mat2 = create_matrix_3x3(0)
+fill_matrix(mat2, 3, 3)
+print mat2
+
+print get_matrix_element(mat2, 1, 1)
+
+print "=== Array Search ==="
+
+fn find_element(arr, len, target) {
+    var i = 0
+    while (i < len) {
+        if (arr[i] == target) {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+val search_arr = [10, 20, 30, 40, 50]
+print find_element(search_arr, 5, 30)
+print find_element(search_arr, 5, 99)
+
+print "=== Practical: Grade Calculator ==="
+
+fn calculate_average(grades, count) {
+    val total = sum_array(grades, 0, count)
+    return total / count
+}
+
+fn find_max(arr, count) {
+    var max = arr[0]
+    var i = 1
+    while (i < count) {
+        if (arr[i] > max) {
+            max = arr[i]
+        }
+        i = i + 1
+    }
+    return max
+}
+
+fn find_min(arr, count) {
+    var min = arr[0]
+    var i = 1
+    while (i < count) {
+        if (arr[i] < min) {
+            min = arr[i]
+        }
+        i = i + 1
+    }
+    return min
+}
+
+val grades = [85, 92, 78, 95, 88]
+print grades
+print calculate_average(grades, 5)
+print find_max(grades, 5)
+print find_min(grades, 5)
+
+print "=== Practical: Vector Operations ==="
+
+fn vector_add(v1, v2, len) {
+    val result = [0, 0, 0]
+    var i = 0
+    while (i < len) {
+        result[i] = v1[i] + v2[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn dot_product(v1, v2, len) {
+    var sum = 0
+    var i = 0
+    while (i < len) {
+        sum = sum + v1[i] * v2[i]
+        i = i + 1
+    }
+    return sum
+}
+
+val v1 = [1, 2, 3]
+val v2 = [4, 5, 6]
+print v1
+print v2
+print vector_add(v1, v2, 3)
+print dot_product(v1, v2, 3)

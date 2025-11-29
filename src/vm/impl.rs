@@ -158,6 +158,51 @@ impl VirtualMachine {
                 OpCode::SetField => self.fn_set_field(BitsSize::Eight),
                 OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
                 OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
+                // Array operations
+                OpCode::Array => self.fn_array(),
+                OpCode::ArrayWithSize => self.fn_array_with_size(BitsSize::Eight),
+                OpCode::ArrayWithSize2 => self.fn_array_with_size(BitsSize::Sixteen),
+                OpCode::ArrayWithSize4 => self.fn_array_with_size(BitsSize::ThirtyTwo),
+                OpCode::ArrayPush => {
+                    if let Some(result) = self.fn_array_push() {
+                        return result;
+                    }
+                }
+                OpCode::ArrayLength => {
+                    if let Some(result) = self.fn_array_length() {
+                        return result;
+                    }
+                }
+                OpCode::GetIndex => {
+                    if let Some(result) = self.fn_get_index() {
+                        return result;
+                    }
+                }
+                OpCode::GetIndex2 => {
+                    if let Some(result) = self.fn_get_index() {
+                        return result;
+                    }
+                }
+                OpCode::GetIndex4 => {
+                    if let Some(result) = self.fn_get_index() {
+                        return result;
+                    }
+                }
+                OpCode::SetIndex => {
+                    if let Some(result) = self.fn_set_index() {
+                        return result;
+                    }
+                }
+                OpCode::SetIndex2 => {
+                    if let Some(result) = self.fn_set_index() {
+                        return result;
+                    }
+                }
+                OpCode::SetIndex4 => {
+                    if let Some(result) = self.fn_set_index() {
+                        return result;
+                    }
+                }
             }
 
             // Increment IP for the current frame

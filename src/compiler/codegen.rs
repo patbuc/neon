@@ -460,6 +460,55 @@ impl CodeGenerator {
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
             }
+            Expr::Array {
+                elements,
+                location,
+            } => {
+                // Create empty array
+                self.emit_op_code(OpCode::Array, *location);
+
+                // Generate each element and push to array
+                for element in elements {
+                    // Generate the element value
+                    self.generate_expr(element);
+                    // Push element to array
+                    self.emit_op_code(OpCode::ArrayPush, *location);
+                }
+            }
+            Expr::Index {
+                object,
+                index,
+                location,
+            } => {
+                // Generate the object (array) expression
+                self.generate_expr(object);
+
+                // Generate the index expression
+                self.generate_expr(index);
+
+                // Emit GetIndex opcode
+                // The index and array are on the stack, will be popped by VM
+                self.emit_op_code(OpCode::GetIndex, *location);
+            }
+            Expr::SetIndex {
+                object,
+                index,
+                value,
+                location,
+            } => {
+                // Generate the object (array) expression
+                self.generate_expr(object);
+
+                // Generate the index expression
+                self.generate_expr(index);
+
+                // Generate the value expression
+                self.generate_expr(value);
+
+                // Emit SetIndex opcode
+                // The value, index, and array are on the stack, will be popped by VM
+                self.emit_op_code(OpCode::SetIndex, *location);
+            }
         }
     }
 }

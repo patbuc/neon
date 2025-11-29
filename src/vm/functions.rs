@@ -524,4 +524,198 @@ impl VirtualMachine {
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes();
     }
+
+    // Array operations
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_array(&mut self) {
+        // Create an empty array
+        let array = Value::new_array(Vec::new());
+        self.push(array);
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_array_with_size(&mut self, bits: BitsSize) {
+        let size = self.read_bits(&bits);
+        // Create an array with pre-allocated capacity
+        let array = Value::new_array(Vec::with_capacity(size));
+        self.push(array);
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += bits.as_bytes();
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_array_push(&mut self) -> Option<Result> {
+        // Stack: [array, value] -> [array]
+        let value = self.pop();
+        let array_value = self.peek(0);
+
+        match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    let mut elements = array.elements.borrow_mut();
+                    elements.push(value);
+                    // Array is already on the stack, no need to push it again
+                }
+                _ => {
+                    self.runtime_error("Can only push to arrays.");
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error("Can only push to arrays.");
+                return Some(Result::RuntimeError);
+            }
+        }
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_array_length(&mut self) -> Option<Result> {
+        // Stack: [array] -> [length]
+        let array_value = self.pop();
+
+        match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    let elements = array.elements.borrow();
+                    let length = elements.len() as f64;
+                    self.push(Value::Number(length));
+                }
+                _ => {
+                    self.runtime_error("Can only get length of arrays.");
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error("Can only get length of arrays.");
+                return Some(Result::RuntimeError);
+            }
+        }
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_index(&mut self) -> Option<Result> {
+        // Stack: [array, index] -> [value]
+        let index_value = self.pop();
+        let array_value = self.pop();
+
+        // Validate index is a number
+        let index = match index_value {
+            Value::Number(n) => {
+                // Check if it's an integer
+                if n.fract() != 0.0 {
+                    self.runtime_error("Array index must be an integer.");
+                    return Some(Result::RuntimeError);
+                }
+                n as i64
+            }
+            _ => {
+                self.runtime_error("Array index must be a number.");
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Validate index is non-negative
+        if index < 0 {
+            self.runtime_error("Array index cannot be negative.");
+            return Some(Result::RuntimeError);
+        }
+
+        match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    let elements = array.elements.borrow();
+                    let index_usize = index as usize;
+
+                    if index_usize >= elements.len() {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} but length is {}.",
+                            index,
+                            elements.len()
+                        ));
+                        return Some(Result::RuntimeError);
+                    }
+
+                    let element = elements[index_usize].clone();
+                    self.push(element);
+                }
+                _ => {
+                    self.runtime_error("Can only index arrays.");
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error("Can only index arrays.");
+                return Some(Result::RuntimeError);
+            }
+        }
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_set_index(&mut self) -> Option<Result> {
+        // Stack: [array, index, value] -> [value]
+        let value = self.pop();
+        let index_value = self.pop();
+        let array_value = self.pop();
+
+        // Validate index is a number
+        let index = match index_value {
+            Value::Number(n) => {
+                // Check if it's an integer
+                if n.fract() != 0.0 {
+                    self.runtime_error("Array index must be an integer.");
+                    return Some(Result::RuntimeError);
+                }
+                n as i64
+            }
+            _ => {
+                self.runtime_error("Array index must be a number.");
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Validate index is non-negative
+        if index < 0 {
+            self.runtime_error("Array index cannot be negative.");
+            return Some(Result::RuntimeError);
+        }
+
+        match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    let mut elements = array.elements.borrow_mut();
+                    let index_usize = index as usize;
+
+                    if index_usize >= elements.len() {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} but length is {}.",
+                            index,
+                            elements.len()
+                        ));
+                        return Some(Result::RuntimeError);
+                    }
+
+                    elements[index_usize] = value.clone();
+                    // Push the value back (assignment returns the value)
+                    self.push(value);
+                }
+                _ => {
+                    self.runtime_error("Can only index arrays.");
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error("Can only index arrays.");
+                return Some(Result::RuntimeError);
+            }
+        }
+        None
+    }
 }
