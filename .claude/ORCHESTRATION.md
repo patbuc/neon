@@ -7,7 +7,7 @@ An automated multi-agent system for building features into the Neon programming 
 This orchestration system uses Claude Code's native agent capabilities to manage the complete feature development lifecycle:
 
 ```
-Planning → Implementation → Testing → PR Creation → Code Review → Iteration
+Planning → Implementation → Testing → Custom Review → PR Creation → Copilot Review → Address Feedback → Iteration
 ```
 
 ## Architecture
@@ -57,7 +57,8 @@ The system tracks workflow state in JSON files:
 {
   "feature": "Feature description",
   "branch": "feature/feature-name",
-  "status": "planning|coding|testing|pr_created|reviewed|completed",
+  "worktree_path": "/home/patbuc/code/neon-worktrees/feature-name",
+  "status": "planning|coding|testing|reviewing|pr_created|copilot_reviewing|addressing_copilot_feedback|completed",
   "current_phase": "current phase name",
   "tasks": [
     {
@@ -79,17 +80,63 @@ The system tracks workflow state in JSON files:
     "duration_secs": 2.3
   },
   "pr_url": "https://github.com/user/neon/pull/123",
-  "review": {
+  "custom_review": {
     "performed_at": "ISO timestamp",
     "recommendation": "approve|request_changes|comment",
     "blocking_issues": 0,
     "suggestions": 2,
     "nitpicks": 3
   },
+  "copilot_review": {
+    "performed_at": "ISO timestamp",
+    "review_id": 123456,
+    "state": "approved|changes_requested|commented",
+    "comments_count": 5,
+    "suggestions_addressed": true
+  },
   "iterations": 0,
   "created_at": "ISO timestamp"
 }
 ```
+
+## Prerequisites
+
+### Git Worktrees
+
+The orchestration system uses git worktrees to isolate feature development:
+
+- **Worktree Location**: `/home/patbuc/code/neon-worktrees/{feature-slug}/`
+- **Branch Naming**: `feature/{feature-slug}` (auto-generated from feature description)
+- **Benefits**:
+  - Isolated development environment per feature
+  - No need to stash/commit when switching features
+  - Parallel feature development possible
+  - Main repo stays clean
+
+The system automatically creates and manages worktrees.
+
+### GitHub Copilot Setup
+
+To use the GitHub Copilot code review integration:
+
+1. **GitHub Copilot Subscription**: You need an active GitHub Copilot subscription (Individual, Business, or Enterprise)
+
+2. **Install gh-copilot-review Extension** (Optional but recommended):
+   ```bash
+   gh extension install ChrisCarini/gh-copilot-review
+   ```
+
+3. **Alternative**: Enable automatic Copilot reviews in your repository settings
+   - Go to repository Settings → Rules → Rulesets
+   - Enable "Automatically request Copilot code review"
+
+4. **Verify gh CLI Authentication**:
+   ```bash
+   gh auth status
+   gh auth login  # If not authenticated
+   ```
+
+Without the extension, you can still manually add Copilot as a reviewer through the GitHub web UI.
 
 ## Usage
 
@@ -102,15 +149,20 @@ Build a complete feature with full automation:
 ```
 
 The orchestrator will:
-1. Create a workflow state file
-2. Spawn a Planner Agent to break down the feature
-3. For each task:
-   - Spawn a Coding Agent to implement
-   - Spawn a Testing Agent to verify
+1. Create a new git worktree with a feature branch
+2. Create a workflow state file
+3. Spawn a Planner Agent to break down the feature
+4. For each task:
+   - Spawn a Coding Agent to implement (in worktree)
+   - Spawn a Testing Agent to verify (in worktree)
    - Iterate on failures
-4. Spawn a PR Agent to create the pull request
-5. Spawn a Review Agent to review the code
+5. Spawn a Custom Review Agent to review the code
 6. Iterate on review feedback if needed
+7. Spawn a PR Agent to create the pull request
+8. Request GitHub Copilot review on the PR
+9. Fetch Copilot suggestions via gh CLI
+10. Spawn a Coding Agent to address Copilot feedback
+11. Push changes to update the PR
 
 ### Manual Workflow
 
@@ -142,24 +194,38 @@ Creates a detailed implementation plan saved to `.claude/workflows/array-support
 
 Creates a PR with comprehensive description and test results.
 
-#### Step 4: Review the PR
+#### Step 4: Review Before PR (Custom Review)
 
 ```bash
 /review-pr
 ```
 
-Performs automated code review and provides structured feedback.
+Performs automated code review and provides structured feedback before creating the PR.
 
-#### Step 5: Iterate (if needed)
+#### Step 5: Create PR After Review
 
-If review requests changes:
+Once the custom review approves:
 
 ```bash
-/implement-task "Fix array bounds checking"
-/run-tests
+/create-pr "feat: Add array support to Neon"
 ```
 
-Then update the PR (git push will update automatically).
+Creates a PR with comprehensive description and test results.
+
+#### Step 6: GitHub Copilot Review
+
+After PR creation, Copilot automatically reviews the PR (if orchestration is used), or manually request:
+
+```bash
+gh extension install ChrisCarini/gh-copilot-review  # One-time setup
+gh copilot-review {pr_number}
+```
+
+Or manually add Copilot as a reviewer in the GitHub UI.
+
+#### Step 7: Address Copilot Feedback
+
+The orchestrator fetches Copilot suggestions and spawns agents to address them automatically, pushing updates to the existing PR.
 
 ## Commands Reference
 
@@ -389,6 +455,25 @@ cat .claude/workflows/*-state.json | jq
 rm .claude/workflows/completed-feature-state.json
 ```
 
+### Managing Worktrees
+
+List all worktrees:
+```bash
+cd /home/patbuc/code/neon
+git worktree list
+```
+
+Remove a completed feature worktree:
+```bash
+git worktree remove /home/patbuc/code/neon-worktrees/feature-name
+git branch -d feature/feature-name  # Delete the branch if merged
+```
+
+Prune stale worktrees:
+```bash
+git worktree prune
+```
+
 ## Best Practices
 
 ### 1. Use Descriptive Feature Names
@@ -546,7 +631,7 @@ For independent tasks, you can run multiple coding agents in parallel:
 ## File Structure
 
 ```
-neon/
+neon/                              # Main repository
 ├── .claude/
 │   ├── commands/
 │   │   ├── build-feature.md      # Main orchestrator
@@ -561,6 +646,13 @@ neon/
 │   ├── settings.local.json       # Claude Code settings
 │   └── ORCHESTRATION.md          # This file
 └── ... (Neon source code)
+
+neon-worktrees/                    # Worktree directory (separate)
+├── add-array-support/            # Feature worktree 1
+│   └── ... (full Neon codebase)
+├── implement-for-loops/          # Feature worktree 2
+│   └── ... (full Neon codebase)
+└── ...
 ```
 
 ## Contributing to the Orchestration System
@@ -624,6 +716,7 @@ neon/
 
 Potential improvements to the orchestration system:
 
+- [x] GitHub Copilot code review integration
 - [ ] Parallel task execution for independent tasks
 - [ ] Integration with GitHub Issues
 - [ ] Automatic benchmarking on feature branches
@@ -633,6 +726,8 @@ Potential improvements to the orchestration system:
 - [ ] Integration with external linters
 - [ ] Performance regression detection
 - [ ] Automated migration guides for breaking changes
+- [ ] Smarter Copilot feedback parsing and categorization
+- [ ] Metrics tracking for Copilot suggestion acceptance rate
 
 ## Support
 
@@ -647,7 +742,3 @@ For issues with the orchestration system:
 ## License
 
 This orchestration system is part of the Neon project and follows the same license.
-
----
-
-Built with Claude Code's agent orchestration capabilities.
