@@ -24,6 +24,8 @@ pub(crate) enum TokenType {
     GreaterEqual,
     Less,
     LessEqual,
+    AndAnd,
+    OrOr,
 
     Identifier,
     String,

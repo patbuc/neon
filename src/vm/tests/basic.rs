@@ -699,3 +699,356 @@ fn can_create_and_display_native_function() {
     let display = format!("{}", native_fn);
     assert_eq!("<native fn test_add>", display);
 }
+
+// =============================================================================
+// Logical Operator Tests
+// =============================================================================
+
+#[test]
+fn test_logical_and_true_true() {
+    let program = r#"
+        print true && true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_and_true_false() {
+    let program = r#"
+        print true && false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_and_false_true() {
+    let program = r#"
+        print false && true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_and_false_false() {
+    let program = r#"
+        print false && false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_true_true() {
+    let program = r#"
+        print true || true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_true_false() {
+    let program = r#"
+        print true || false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_false_true() {
+    let program = r#"
+        print false || true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_false_false() {
+    let program = r#"
+        print false || false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_operators_with_comparisons() {
+    let program = r#"
+        print 5 > 3 && 10 < 20
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_operators_with_variables() {
+    let program = r#"
+        val x = true
+        val y = false
+        print x && y
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_with_variables() {
+    let program = r#"
+        val x = true
+        val y = false
+        print x || y
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_precedence_or_and() {
+    let program = r#"
+        print false || true && false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Should parse as: false || (true && false)
+    // true && false = false
+    // false || false = false
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_precedence_and_or() {
+    let program = r#"
+        print true && false || true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Should parse as: (true && false) || true
+    // true && false = false
+    // false || true = true
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_precedence_with_parens() {
+    let program = r#"
+        print (false || true) && false
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // (false || true) = true
+    // true && false = false
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_and_short_circuit() {
+    let program = r#"
+        var x = 10
+        if (false && (x = 20) > 0) {
+            print "Should not reach here"
+        }
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // x should still be 10 because the right side of && should not evaluate
+    assert_eq!("10", vm.get_output());
+}
+
+#[test]
+fn test_logical_or_short_circuit() {
+    let program = r#"
+        var x = 10
+        if (true || (x = 20) > 0) {
+            print "Should reach here"
+        }
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // x should still be 10 because the right side of || should not evaluate
+    assert_eq!("Should reach here\n10", vm.get_output());
+}
+
+#[test]
+fn test_logical_complex_expression() {
+    let program = r#"
+        val a = true
+        val b = false
+        val c = true
+        print (a || b) && c
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // (true || false) = true
+    // true && true = true
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_with_not() {
+    let program = r#"
+        print !false && true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // !false = true
+    // true && true = true
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_chained_and() {
+    let program = r#"
+        print true && true && true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_chained_and_with_false() {
+    let program = r#"
+        print true && false && true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_logical_chained_or() {
+    let program = r#"
+        print false || false || true
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_in_if_statement() {
+    let program = r#"
+        val x = 5
+        val y = 10
+        if (x > 0 && y > 0) {
+            print "Both positive"
+        }
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Both positive", vm.get_output());
+}
+
+#[test]
+fn test_logical_in_while_loop() {
+    let program = r#"
+        var x = 0
+        var y = 3
+        while (x < 3 && y > 0) {
+            x = x + 1
+            y = y - 1
+        }
+        print x
+        print y
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("3\n0", vm.get_output());
+}
+
+#[test]
+fn test_logical_with_equality() {
+    let program = r#"
+        val x = 5
+        print x == 5 && x > 0
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_logical_all_operators_combined() {
+    let program = r#"
+        val a = true
+        val b = false
+        val c = true
+        val d = false
+        print (a && b) || (c && !d)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // (true && false) = false
+    // !false = true
+    // (true && true) = true
+    // false || true = true
+    assert_eq!("true", vm.get_output());
+}

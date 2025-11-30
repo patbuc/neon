@@ -523,7 +523,9 @@ impl Parser {
                 | TokenType::Greater
                 | TokenType::GreaterEqual
                 | TokenType::Less
-                | TokenType::LessEqual => self.binary(expr),
+                | TokenType::LessEqual
+                | TokenType::AndAnd
+                | TokenType::OrOr => self.binary(expr),
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
                 _ => {
@@ -549,6 +551,8 @@ impl Parser {
             | TokenType::Less
             | TokenType::LessEqual => Precedence::Comparison,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality,
+            TokenType::AndAnd => Precedence::And,
+            TokenType::OrOr => Precedence::Or,
             _ => Precedence::None,
         }
     }
@@ -631,6 +635,8 @@ impl Parser {
             TokenType::GreaterEqual => BinaryOp::GreaterEqual,
             TokenType::Less => BinaryOp::Less,
             TokenType::LessEqual => BinaryOp::LessEqual,
+            TokenType::AndAnd => BinaryOp::And,
+            TokenType::OrOr => BinaryOp::Or,
             _ => return None,
         };
 
