@@ -16,6 +16,9 @@ pub enum BinaryOp {
     GreaterEqual,
     Less,
     LessEqual,
+    // Logical
+    And,
+    Or,
 }
 
 /// Unary operators
