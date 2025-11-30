@@ -75,6 +75,8 @@ pub(crate) enum Object {
     Function(Rc<ObjFunction>),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
+    Map(Rc<RefCell<ObjMap>>),
+    Set(Rc<RefCell<ObjSet>>),
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +103,16 @@ pub(crate) struct ObjInstance {
     pub fields: std::collections::HashMap<String, Value>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ObjMap {
+    pub entries: std::collections::HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ObjSet {
+    pub elements: std::collections::HashMap<String, Value>,
+}
+
 impl Value {
     pub(crate) fn new_object(instance: ObjInstance) -> Value {
         Value::Object(Rc::new(Object::Instance(Rc::new(RefCell::new(instance)))))
@@ -116,6 +128,18 @@ impl Value {
             arity,
             bloq: Rc::new(bloq),
         }))))
+    }
+
+    pub(crate) fn new_map() -> Self {
+        Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(ObjMap {
+            entries: std::collections::HashMap::new(),
+        })))))
+    }
+
+    pub(crate) fn new_set() -> Self {
+        Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(ObjSet {
+            elements: std::collections::HashMap::new(),
+        })))))
     }
 }
 
@@ -134,6 +158,32 @@ impl Display for Object {
             Object::Instance(obj_instance) => {
                 let instance = obj_instance;
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
+            }
+            Object::Map(obj_map) => {
+                let map = obj_map.borrow();
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in &map.entries {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", key, value)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            }
+            Object::Set(obj_set) => {
+                let set = obj_set.borrow();
+                write!(f, "#{{")?;
+                let mut first = true;
+                for value in set.elements.values() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", value)?;
+                    first = false;
+                }
+                write!(f, "}}")
             }
         }
     }
@@ -174,6 +224,20 @@ impl PartialEq for ObjInstance {
     fn eq(&self, other: &Self) -> bool {
         // Instances are equal if they point to the same struct and have same field values
         self.r#struct.name == other.r#struct.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjMap {
+    fn eq(&self, other: &Self) -> bool {
+        // Maps are equal if they have the same entries
+        self.entries == other.entries
+    }
+}
+
+impl PartialEq for ObjSet {
+    fn eq(&self, other: &Self) -> bool {
+        // Sets are equal if they have the same elements
+        self.elements == other.elements
     }
 }
 

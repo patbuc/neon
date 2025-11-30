@@ -95,6 +95,28 @@ pub enum Expr {
         expr: Box<Expr>,
         location: SourceLocation,
     },
+    /// Array literal: [1, 2, 3]
+    Array {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Map literal: #{key: value, ...}
+    Map {
+        entries: Vec<(String, Expr)>,
+        location: SourceLocation,
+    },
+    /// Set literal: @{1, 2, 3}
+    Set {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Method call: obj.method(args)
+    MethodCall {
+        object: Box<Expr>,
+        method: String,
+        arguments: Vec<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -175,7 +197,11 @@ impl Expr {
             | Expr::Call { location, .. }
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
-            | Expr::Grouping { location, .. } => location,
+            | Expr::Grouping { location, .. }
+            | Expr::Array { location, .. }
+            | Expr::Map { location, .. }
+            | Expr::Set { location, .. }
+            | Expr::MethodCall { location, .. } => location,
         }
     }
 }

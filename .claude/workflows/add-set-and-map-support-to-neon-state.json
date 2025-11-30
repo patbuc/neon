@@ -1,0 +1,202 @@
+{
+  "feature_description": "Add set and map support to Neon",
+  "branch_name": "maps-and-sets",
+  "status": "implementation",
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Add tokens for map and set syntax (Colon, HashBrace)",
+      "files": [
+        "src/compiler/token.rs",
+        "src/compiler/scanner.rs"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add TokenType::Colon for map syntax (:)",
+        "Add TokenType::HashBrace for set syntax (#{)",
+        "Scanner recognizes # followed by {",
+        "Scanner recognizes : character",
+        "Scanner tokenizes {a: 1} correctly",
+        "Scanner tokenizes #{1, 2} correctly",
+        "Tests verify token recognition"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "description": "Add AST nodes for Map, Set, and MethodCall expressions",
+      "files": [
+        "src/compiler/ast/mod.rs"
+      ],
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "Add Expr::Map variant with entries: Vec<(String, Expr)>",
+        "Add Expr::Set variant with elements: Vec<Expr>",
+        "Add Expr::MethodCall variant for method-like syntax",
+        "Three new expression variants compile",
+        "location() method updated for all new variants"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "description": "Implement parser for map literals, set literals, and method calls",
+      "files": [
+        "src/compiler/parser.rs"
+      ],
+      "dependencies": [2],
+      "acceptance_criteria": [
+        "Implement map_literal() method to parse {key: value}",
+        "Implement set_literal() method to parse #{value}",
+        "Disambiguate maps from blocks in expression context",
+        "Modify dot() to detect obj.method(args) pattern",
+        "Parse {a: 1, b: 2} as map literal",
+        "Parse #{1, 2, 3} as set literal",
+        "Parse map.get(\"key\") as method call",
+        "Parse map[\"key\"] as index expression",
+        "Empty {} creates empty map",
+        "Comprehensive parser tests pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "description": "Add ObjMap and ObjSet runtime types to value representation",
+      "files": [
+        "src/common/mod.rs"
+      ],
+      "dependencies": [2],
+      "acceptance_criteria": [
+        "Add Object::Map(Rc<RefCell<ObjMap>>) variant",
+        "Add Object::Set(Rc<RefCell<ObjSet>>) variant",
+        "Define ObjMap struct with entries: HashMap<String, Value>",
+        "Define ObjSet struct with elements: HashMap<String, Value>",
+        "Add Value::new_map() constructor",
+        "Add Value::new_set() constructor",
+        "Implement PartialEq for ObjMap",
+        "Implement PartialEq for ObjSet",
+        "Implement Display for ObjMap showing {key: value}",
+        "Implement Display for ObjSet showing #{value}",
+        "Value constructor tests pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "description": "Add opcodes for map and set operations",
+      "files": [
+        "src/common/opcodes.rs"
+      ],
+      "dependencies": [4],
+      "acceptance_criteria": [
+        "Add Map, MapSet, MapGet, MapHas, MapRemove opcodes",
+        "Add MapKeys, MapValues, MapSize opcodes",
+        "Add Set, SetAdd, SetHas, SetRemove opcodes",
+        "Add SetSize, SetValues opcodes",
+        "All ~14 opcodes defined with documentation",
+        "Stack effects documented for each opcode",
+        "Code compiles cleanly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "description": "Implement bytecode generation for maps, sets, and method calls",
+      "files": [
+        "src/compiler/codegen.rs"
+      ],
+      "dependencies": [3, 5],
+      "acceptance_criteria": [
+        "Handle Expr::Map: emit Map opcode, then MapSet for each entry",
+        "Handle Expr::Set: emit Set opcode, then SetAdd for each element",
+        "Handle Expr::MethodCall: transform to specific opcodes based on method name",
+        "map.get(\"key\") transforms to MapGet opcode",
+        "map.keys() transforms to MapKeys opcode",
+        "set.add(val) transforms to SetAdd opcode",
+        "Unknown methods produce compile errors",
+        "Map literals emit correct bytecode sequence",
+        "Set literals emit correct bytecode sequence",
+        "Codegen tests verify opcode emission"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "description": "Implement semantic analysis for map, set, and method call expressions",
+      "files": [
+        "src/compiler/semantic.rs"
+      ],
+      "dependencies": [3],
+      "acceptance_criteria": [
+        "Add resolve_expr case for Expr::Map to validate all value expressions",
+        "Add resolve_expr case for Expr::Set to validate all element expressions",
+        "Add resolve_expr case for Expr::MethodCall to validate object and arguments",
+        "Undefined variables in map values are caught",
+        "Undefined variables in set elements are caught",
+        "Undefined variables in method arguments are caught",
+        "Semantic analysis tests pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "description": "Implement VM runtime support for map and set operations",
+      "files": [
+        "src/vm/impl.rs",
+        "src/vm/functions.rs"
+      ],
+      "dependencies": [6],
+      "acceptance_criteria": [
+        "Add opcode cases in run() for all 14 map/set opcodes",
+        "Implement fn_map() to create empty HashMap",
+        "Implement fn_map_set(), fn_map_get(), fn_map_has(), fn_map_remove()",
+        "Implement fn_map_keys(), fn_map_values(), fn_map_size()",
+        "Implement fn_set() to create empty set",
+        "Implement fn_set_add(), fn_set_has(), fn_set_remove()",
+        "Implement fn_set_size(), fn_set_values()",
+        "Update fn_get_index() to handle Object::Map with string keys",
+        "Update fn_set_index() to handle Object::Map",
+        "All 14 opcodes execute correctly",
+        "Bracket syntax works for maps: map[\"key\"]",
+        "Error messages are clear and helpful",
+        "VM runtime tests pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 9,
+      "description": "Add comprehensive tests for maps and sets",
+      "files": [
+        "src/vm/tests/maps.rs",
+        "src/vm/tests/sets.rs",
+        "tests/scripts/neon.map.n",
+        "tests/scripts/neon.set.n"
+      ],
+      "dependencies": [8],
+      "acceptance_criteria": [
+        "Create src/vm/tests/maps.rs with map unit tests",
+        "Create src/vm/tests/sets.rs with set unit tests",
+        "Create tests/scripts/neon.map.n integration test",
+        "Create tests/scripts/neon.set.n integration test",
+        "Test empty map/set creation",
+        "Test map with entries, set with elements",
+        "Test bracket and method access for maps",
+        "Test set deduplication",
+        "Test map.keys(), map.values(), map.size()",
+        "Test set.add(), set.has(), set.remove(), set.size()",
+        "Test nested maps and sets",
+        "Test maps and sets in functions",
+        "40+ map/set specific tests pass",
+        "All unit tests pass",
+        "Integration scripts execute successfully",
+        "No regressions in existing 205+ tests"
+      ],
+      "status": "pending"
+    }
+  ],
+  "current_task_index": 0,
+  "test_results": null,
+  "pr_url": null,
+  "iterations": 0,
+  "created_at": "2025-11-29T00:00:00Z"
+}

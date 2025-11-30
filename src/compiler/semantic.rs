@@ -325,6 +325,41 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
             }
+            Expr::Array { elements, .. } => {
+                // Resolve all array elements
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
+            Expr::Map { entries, .. } => {
+                // Resolve all map values (keys are strings, no need to resolve)
+                for (_key, value) in entries {
+                    self.resolve_expr(value);
+                }
+            }
+            Expr::Set { elements, .. } => {
+                // Resolve all set elements
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
+            Expr::MethodCall {
+                object,
+                arguments,
+                method,
+                location,
+            } => {
+                // Resolve the object
+                self.resolve_expr(object);
+
+                // Resolve all arguments
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+
+                // Method validation could be added here if we track types
+                let _ = (method, location);
+            }
         }
     }
 }

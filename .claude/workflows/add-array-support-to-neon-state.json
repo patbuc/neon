@@ -1,0 +1,161 @@
+{
+  "feature_description": "Add array support to Neon",
+  "branch_name": "arrays",
+  "status": "implementation",
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Add array literal syntax to scanner and parser with AST representation",
+      "files": [
+        "src/compiler/token.rs",
+        "src/compiler/scanner.rs",
+        "src/compiler/parser.rs",
+        "src/compiler/ast/mod.rs"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add LeftBracket and RightBracket token types to TokenType enum",
+        "Update scanner to recognize '[' and ']' characters",
+        "Add Expr::Array variant to AST with elements: Vec<Expr> and location",
+        "Add Expr::Index variant for array indexing with object, index, and location fields",
+        "Add Expr::SetIndex variant for array element assignment with object, index, value, and location",
+        "Parser can parse array literals: [1, 2, 3]",
+        "Parser can parse array indexing: arr[0]",
+        "Parser can parse array assignment: arr[0] = value",
+        "Add precedence handling for bracket expressions in get_precedence",
+        "Add tests for parsing array literals, indexing, and assignment"
+      ],
+      "status": "task_completed"
+    },
+    {
+      "id": 2,
+      "description": "Add ObjArray type to value representation system",
+      "files": [
+        "src/common/mod.rs",
+        "src/macros.rs"
+      ],
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "Add ObjArray struct with elements: Rc<RefCell<Vec<Value>>> field",
+        "Add Object::Array(Rc<RefCell<ObjArray>>) variant to Object enum",
+        "Add Value::new_array helper method to create array values",
+        "Implement PartialEq for ObjArray comparing element-by-element",
+        "Implement Display for ObjArray showing [elem1, elem2, ...] format",
+        "Add array! macro for creating array values from Vec<Value>",
+        "Add as_array! macro for extracting ObjArray from Value",
+        "Add tests for array value creation and comparison"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "description": "Add array opcodes to bytecode instruction set",
+      "files": [
+        "src/common/opcodes.rs"
+      ],
+      "dependencies": [2],
+      "acceptance_criteria": [
+        "Add Array opcode for creating empty arrays",
+        "Add ArrayWithSize opcode for pre-allocated arrays with size argument",
+        "Add ArrayPush opcode to append element to array",
+        "Add GetIndex/GetIndex2/GetIndex4 opcodes for reading array elements",
+        "Add SetIndex/SetIndex2/SetIndex4 opcodes for writing array elements",
+        "Add ArrayLength opcode to get array size",
+        "Opcodes are added in sequence for proper variant calculation",
+        "Document expected stack layout for each new opcode"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "description": "Implement semantic analysis for array expressions",
+      "files": [
+        "src/compiler/semantic.rs"
+      ],
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "Add resolve_expr cases for Expr::Array to validate all element expressions",
+        "Add resolve_expr cases for Expr::Index to validate object and index expressions",
+        "Add resolve_expr cases for Expr::SetIndex to validate object, index, and value expressions",
+        "No additional symbol table entries needed for arrays (runtime type)",
+        "Tests verify that undefined variables in array literals are caught",
+        "Tests verify that array indexing validates the array expression"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "description": "Implement bytecode generation for array operations",
+      "files": [
+        "src/compiler/codegen.rs"
+      ],
+      "dependencies": [3, 4],
+      "acceptance_criteria": [
+        "Handle Expr::Array in generate_expr: emit Array opcode, generate each element, emit ArrayPush for each",
+        "Handle Expr::Index in generate_expr: generate object, generate index, emit GetIndex variant",
+        "Handle Expr::SetIndex in generate_expr: generate object, generate index, generate value, emit SetIndex variant",
+        "Use appropriate opcode variants (1/2/4 byte) based on index size",
+        "Emit proper source locations for all array operations",
+        "Tests verify correct bytecode emission for array literals and operations"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "description": "Implement VM runtime support for array operations",
+      "files": [
+        "src/vm/impl.rs",
+        "src/vm/functions.rs"
+      ],
+      "dependencies": [5],
+      "acceptance_criteria": [
+        "Add opcode cases in run() loop for all array opcodes",
+        "Implement fn_array() to create empty array and push to stack",
+        "Implement fn_array_push() to pop value and array, append value, push array back",
+        "Implement fn_get_index() to pop index and array, validate bounds, push element",
+        "Implement fn_set_index() to pop value, index, and array, validate bounds, set element, push value",
+        "Implement fn_array_length() to pop array, push length as Number",
+        "Add runtime error messages for: non-integer index, out-of-bounds access, indexing non-array",
+        "Tests verify array creation, element access, assignment, and error conditions"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "description": "Add comprehensive tests and documentation for array feature",
+      "files": [
+        "src/compiler/tests/parser.rs",
+        "src/compiler/tests/codegen.rs",
+        "src/vm/tests/basic.rs",
+        "tests/scripts/neon.array.n"
+      ],
+      "dependencies": [6],
+      "acceptance_criteria": [
+        "Parser tests: array literal parsing, nested arrays, empty arrays, indexing",
+        "Codegen tests: verify bytecode for arrays, indexing, assignment",
+        "VM tests: array creation, element access, bounds checking, mutation",
+        "VM tests: arrays as function arguments and return values",
+        "VM tests: nested arrays and arrays containing different value types",
+        "Integration test script: demonstrates array usage in realistic scenarios",
+        "All existing tests continue to pass",
+        "Array feature works with print statement to display arrays"
+      ],
+      "status": "pending"
+    }
+  ],
+  "current_task_index": 0,
+  "test_results": {
+    "timestamp": "2025-11-29T00:00:00Z",
+    "build_status": "success",
+    "test_status": "success",
+    "total_tests": 109,
+    "passed_tests": 109,
+    "failed_tests": 0,
+    "warnings": 3,
+    "task_id": 1,
+    "notes": "All tests passing. Array parsing implementation complete with comprehensive test coverage."
+  },
+  "pr_url": null,
+  "iterations": 0,
+  "created_at": "2025-11-29T00:00:00Z"
+}

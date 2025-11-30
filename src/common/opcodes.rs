@@ -55,4 +55,62 @@ pub(crate) enum OpCode {
     SetField,
     SetField2,
     SetField4,
+
+    // Map operations
+    /// Create empty map
+    /// Stack: [] -> [map]
+    Map,
+
+    /// Set key-value pair in map, operand: key string index
+    /// Stack: [map, value] -> [map]
+    MapSet,
+
+    /// Get value by key from map, operand: key string index
+    /// Stack: [map] -> [value]
+    MapGet,
+
+    /// Check if key exists in map, operand: key string index
+    /// Stack: [map] -> [boolean]
+    MapHas,
+
+    /// Remove key from map, operand: key string index
+    /// Stack: [map] -> [map]
+    MapRemove,
+
+    /// Get array of keys from map
+    /// Stack: [map] -> [array]
+    MapKeys,
+
+    /// Get array of values from map
+    /// Stack: [map] -> [array]
+    MapValues,
+
+    /// Get size of map
+    /// Stack: [map] -> [number]
+    MapSize,
+
+    // Set operations
+    /// Create empty set
+    /// Stack: [] -> [set]
+    Set,
+
+    /// Add element to set
+    /// Stack: [set, value] -> [set]
+    SetAdd,
+
+    /// Check if value exists in set
+    /// Stack: [set, value] -> [boolean]
+    SetHas,
+
+    /// Remove element from set
+    /// Stack: [set, value] -> [set]
+    SetRemove,
+
+    /// Get size of set
+    /// Stack: [set] -> [number]
+    SetSize,
+
+    /// Get array of values from set
+    /// Stack: [set] -> [array]
+    SetValues,
 }

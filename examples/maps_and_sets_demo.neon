@@ -1,0 +1,75 @@
+// Maps and Sets Demo
+
+print "=== Maps Demo ==="
+
+// Create a map with key-value pairs
+val user = {name: "Alice", age: 30, city: "NYC"}
+print user
+
+// Get values from map
+print "Name:"
+print user.get("name")
+print "Age:"
+print user.get("age")
+
+// Set new values
+user.set("age", 31)
+print "Updated age:"
+print user.get("age")
+
+// Check if key exists
+print "Has 'name':"
+print user.has("name")
+print "Has 'email':"
+print user.has("email")
+
+// Get map size
+print "Map size:"
+print user.size()
+
+// Remove a key
+user.remove("city")
+print "Size after removing 'city':"
+print user.size()
+
+print ""
+print "=== Sets Demo ==="
+
+// Create a set
+val numbers = #{1, 2, 3, 4, 5}
+print numbers
+
+// Add elements
+numbers.add(6)
+numbers.add(3)
+print "After adding 6 and 3 (duplicate):"
+print numbers.size()
+
+// Check if element exists
+print "Has 3:"
+print numbers.has(3)
+print "Has 10:"
+print numbers.has(10)
+
+// Remove element
+numbers.remove(2)
+print "Has 2 after removal:"
+print numbers.has(2)
+
+print "Final set size:"
+print numbers.size()
+
+print ""
+print "=== Complex Example ==="
+
+// Using maps and sets together
+val config = {
+    host: "localhost",
+    port: "8080",
+    features: #{true, false}
+}
+
+print "Config map:"
+print config
+print "Host:"
+print config.get("host")

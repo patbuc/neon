@@ -53,7 +53,15 @@ impl Scanner {
             '+' => self.make_token(TokenType::Plus),
             '%' => self.make_token(TokenType::Percent),
             ';' => self.make_token(TokenType::Semicolon),
+            ':' => self.make_token(TokenType::Colon),
             '*' => self.make_token(TokenType::Star),
+            '#' => {
+                if self.matches('{') {
+                    self.make_token(TokenType::HashBrace)
+                } else {
+                    self.make_error_token("Unexpected character")
+                }
+            }
             '!' => {
                 if self.matches('=') {
                     self.make_token(TokenType::BangEqual)
@@ -266,8 +274,8 @@ impl Scanner {
             'v' => {
                 if self.current - self.start > 1 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
-                        'l' => TokenType::Val,
-                        'r' => TokenType::Var,
+                        'l' => self.check_keyword(0, 3, "val", TokenType::Val),
+                        'r' => self.check_keyword(0, 3, "var", TokenType::Var),
                         _ => TokenType::Identifier,
                     };
                 }
@@ -279,7 +287,7 @@ impl Scanner {
                     return match self.source[self.start + 1] {
                         'a' => self.check_keyword(2, 3, "lse", TokenType::False),
                         'o' => self.check_keyword(2, 1, "r", TokenType::For),
-                        'n' => TokenType::Fn,
+                        'n' => self.check_keyword(0, 2, "fn", TokenType::Fn),
                         _ => TokenType::Identifier,
                     };
                 }
@@ -384,6 +392,56 @@ mod tests {
         assert_eq!(x[2].token_type, TokenType::Equal);
         assert_eq!(x[3].token_type, TokenType::InterpolatedString);
         assert_eq!(x[4].token_type, TokenType::Semicolon);
+        assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_map_syntax() {
+        let script = "{a: 1}";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 6);
+
+        assert_eq!(x[0].token_type, TokenType::LeftBrace);
+        assert_eq!(x[0].token, "{");
+
+        assert_eq!(x[1].token_type, TokenType::Identifier);
+        assert_eq!(x[1].token, "a");
+
+        assert_eq!(x[2].token_type, TokenType::Colon);
+        assert_eq!(x[2].token, ":");
+
+        assert_eq!(x[3].token_type, TokenType::Number);
+        assert_eq!(x[3].token, "1");
+
+        assert_eq!(x[4].token_type, TokenType::RightBrace);
+        assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_set_syntax() {
+        let script = "#{1, 2}";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 6);
+
+        assert_eq!(x[0].token_type, TokenType::HashBrace);
+        assert_eq!(x[0].token, "#{");
+
+        assert_eq!(x[1].token_type, TokenType::Number);
+        assert_eq!(x[1].token, "1");
+
+        assert_eq!(x[2].token_type, TokenType::Comma);
+        assert_eq!(x[2].token, ",");
+
+        assert_eq!(x[3].token_type, TokenType::Number);
+        assert_eq!(x[3].token, "2");
+
+        assert_eq!(x[4].token_type, TokenType::RightBrace);
         assert_eq!(x[5].token_type, TokenType::Eof);
     }
 

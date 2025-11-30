@@ -647,3 +647,196 @@ fn can_use_struct() {
     assert_eq!(Result::Ok, result);
     assert_eq!("3\n4", vm.get_output());
 }
+
+#[test]
+fn can_create_empty_map() {
+    let program = r#"
+        val m = {a: 1, b: 2}
+        print m
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Output format is {key: value, ...}
+    assert!(vm.get_output().contains("a: 1"));
+    assert!(vm.get_output().contains("b: 2"));
+}
+
+#[test]
+fn can_get_value_from_map() {
+    let program = r#"
+        val m = {name: "Alice", age: 30}
+        print m.get("name")
+        print m.get("age")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Alice\n30", vm.get_output());
+}
+
+#[test]
+fn can_set_value_in_map() {
+    let program = r#"
+        val m = {count: 10}
+        m.set("count", 20)
+        print m.get("count")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("20", vm.get_output());
+}
+
+#[test]
+fn can_check_map_has_key() {
+    let program = r#"
+        val m = {x: 1, y: 2}
+        print m.has("x")
+        print m.has("z")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn can_remove_key_from_map() {
+    let program = r#"
+        val m = {a: 1, b: 2}
+        m.remove("a")
+        print m.has("a")
+        print m.has("b")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false\ntrue", vm.get_output());
+}
+
+#[test]
+fn can_get_map_size() {
+    let program = r#"
+        val m = {a: 1, b: 2, c: 3}
+        print m.size()
+        m.remove("b")
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("3\n2", vm.get_output());
+}
+
+#[test]
+fn can_create_empty_set() {
+    let program = r#"
+        val s = #{1, 2, 3}
+        print s
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Output format is #{values}
+    assert!(vm.get_output().starts_with("#{"));
+    assert!(vm.get_output().contains("1"));
+    assert!(vm.get_output().contains("2"));
+    assert!(vm.get_output().contains("3"));
+}
+
+#[test]
+fn can_add_to_set() {
+    let program = r#"
+        val s = #{1, 2}
+        s.add(3)
+        print s.has(3)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn can_check_set_has_element() {
+    let program = r#"
+        val s = #{10, 20, 30}
+        print s.has(20)
+        print s.has(40)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn can_remove_from_set() {
+    let program = r#"
+        val s = #{1, 2, 3}
+        s.remove(2)
+        print s.has(2)
+        print s.has(1)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false\ntrue", vm.get_output());
+}
+
+#[test]
+fn can_get_set_size() {
+    let program = r#"
+        val s = #{5, 10, 15, 20}
+        print s.size()
+        s.remove(10)
+        print s.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("4\n3", vm.get_output());
+}
+
+#[test]
+fn can_use_maps_with_string_values() {
+    let program = r#"
+        val config = {host: "localhost", port: "8080"}
+        print config.get("host")
+        config.set("host", "127.0.0.1")
+        print config.get("host")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("localhost\n127.0.0.1", vm.get_output());
+}
+
+#[test]
+fn set_maintains_uniqueness() {
+    let program = r#"
+        val s = #{1, 2, 3}
+        s.add(2)
+        s.add(3)
+        print s.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Size should still be 3 since duplicates aren't added
+    assert_eq!("3", vm.get_output());
+}

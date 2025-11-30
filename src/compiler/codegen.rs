@@ -460,6 +460,214 @@ impl CodeGenerator {
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
             }
+            Expr::Array { elements, location } => {
+                // Array literal generation
+                for element in elements {
+                    self.generate_expr(element);
+                }
+                // TODO: Emit array creation instruction when VM supports arrays
+                let _ = location; // Suppress unused warning
+            }
+            Expr::Map { entries, location } => {
+                // Create empty map
+                self.emit_op_code(OpCode::Map, *location);
+
+                // Add each key-value pair
+                for (key, value) in entries {
+                    // Generate the value expression
+                    self.generate_expr(value);
+
+                    // Store key as string constant
+                    let key_string = string!(key.as_str());
+                    let key_index = self.current_bloq().add_string(key_string);
+                    self.emit_op_code_variant(OpCode::MapSet, key_index, *location);
+                }
+            }
+            Expr::Set { elements, location } => {
+                // Create empty set
+                self.emit_op_code(OpCode::Set, *location);
+
+                // Add each element
+                for element in elements {
+                    // Generate the element expression
+                    self.generate_expr(element);
+                    // Add element to set
+                    self.emit_op_code(OpCode::SetAdd, *location);
+                }
+            }
+            Expr::MethodCall {
+                object,
+                method,
+                arguments,
+                location,
+            } => {
+                // Generate object expression
+                self.generate_expr(object);
+
+                // Handle map and set method calls
+                match method.as_str() {
+                    // Map methods
+                    "get" => {
+                        if arguments.len() != 1 {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                format!("Map.get() expects 1 argument, got {}", arguments.len()),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Key must be a string literal
+                        if let Expr::String { value: key, .. } = &arguments[0] {
+                            let key_string = string!(key.as_str());
+                            let key_index = self.current_bloq().add_string(key_string);
+                            self.emit_op_code_variant(OpCode::MapGet, key_index, *location);
+                        } else {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::Other,
+                                "Map key must be a string literal".to_string(),
+                                *location,
+                            ));
+                        }
+                    }
+                    "set" => {
+                        if arguments.len() != 2 {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                format!("Map.set() expects 2 arguments, got {}", arguments.len()),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Generate value first (will be on stack)
+                        self.generate_expr(&arguments[1]);
+                        // Key must be a string literal
+                        if let Expr::String { value: key, .. } = &arguments[0] {
+                            let key_string = string!(key.as_str());
+                            let key_index = self.current_bloq().add_string(key_string);
+                            self.emit_op_code_variant(OpCode::MapSet, key_index, *location);
+                        } else {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::Other,
+                                "Map key must be a string literal".to_string(),
+                                *location,
+                            ));
+                        }
+                    }
+                    "has" => {
+                        if arguments.len() != 1 {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                format!(
+                                    "Map/Set.has() expects 1 argument, got {}",
+                                    arguments.len()
+                                ),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Check if key is string (map) or value (set)
+                        if let Expr::String { value: key, .. } = &arguments[0] {
+                            // Map.has()
+                            let key_string = string!(key.as_str());
+                            let key_index = self.current_bloq().add_string(key_string);
+                            self.emit_op_code_variant(OpCode::MapHas, key_index, *location);
+                        } else {
+                            // Set.has()
+                            self.generate_expr(&arguments[0]);
+                            self.emit_op_code(OpCode::SetHas, *location);
+                        }
+                    }
+                    "remove" => {
+                        if arguments.len() != 1 {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                format!(
+                                    "Map/Set.remove() expects 1 argument, got {}",
+                                    arguments.len()
+                                ),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Check if key is string (map) or value (set)
+                        if let Expr::String { value: key, .. } = &arguments[0] {
+                            // Map.remove()
+                            let key_string = string!(key.as_str());
+                            let key_index = self.current_bloq().add_string(key_string);
+                            self.emit_op_code_variant(OpCode::MapRemove, key_index, *location);
+                        } else {
+                            // Set.remove()
+                            self.generate_expr(&arguments[0]);
+                            self.emit_op_code(OpCode::SetRemove, *location);
+                        }
+                    }
+                    "keys" => {
+                        if !arguments.is_empty() {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                "Map.keys() expects no arguments".to_string(),
+                                *location,
+                            ));
+                            return;
+                        }
+                        self.emit_op_code(OpCode::MapKeys, *location);
+                    }
+                    "values" => {
+                        if !arguments.is_empty() {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                "Map/Set.values() expects no arguments".to_string(),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Try MapValues first, will handle SetValues in VM based on object type
+                        self.emit_op_code(OpCode::MapValues, *location);
+                    }
+                    "size" => {
+                        if !arguments.is_empty() {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                "Map/Set.size() expects no arguments".to_string(),
+                                *location,
+                            ));
+                            return;
+                        }
+                        // Try MapSize first, will handle SetSize in VM based on object type
+                        self.emit_op_code(OpCode::MapSize, *location);
+                    }
+                    "add" => {
+                        if arguments.len() != 1 {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Codegen,
+                                CompilationErrorKind::ArityExceeded,
+                                format!("Set.add() expects 1 argument, got {}", arguments.len()),
+                                *location,
+                            ));
+                            return;
+                        }
+                        self.generate_expr(&arguments[0]);
+                        self.emit_op_code(OpCode::SetAdd, *location);
+                    }
+                    _ => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::Other,
+                            format!("Unknown method '{}'", method),
+                            *location,
+                        ));
+                    }
+                }
+            }
         }
     }
 }

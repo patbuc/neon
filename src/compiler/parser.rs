@@ -503,6 +503,8 @@ impl Parser {
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
+            TokenType::LeftBrace => self.map_literal(),
+            TokenType::HashBrace => self.set_literal(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -699,7 +701,37 @@ impl Parser {
         }
         let field = self.previous_token.token.clone();
 
-        if self.match_token(TokenType::Equal) {
+        // Check for method call: obj.method(args)
+        if self.check(TokenType::LeftParen) {
+            self.advance(); // consume '('
+            let mut arguments = Vec::new();
+
+            self.skip_new_lines();
+            if !self.check(TokenType::RightParen) {
+                loop {
+                    if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
+                        self.report_error_at_current("Can't have more than 255 arguments.".to_string());
+                    }
+                    arguments.push(self.expression(false)?);
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                    self.skip_new_lines();
+                }
+            }
+            self.skip_new_lines();
+
+            if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
+                return None;
+            }
+
+            Some(Expr::MethodCall {
+                object: Box::new(object),
+                method: field,
+                arguments,
+                location,
+            })
+        } else if self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
                 object: Box::new(object),
@@ -714,5 +746,101 @@ impl Parser {
                 location,
             })
         }
+    }
+
+    // ===== Collection Literals =====
+
+    fn map_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut entries = Vec::new();
+
+        self.skip_new_lines();
+
+        // Empty {} is an empty map
+        if self.check(TokenType::RightBrace) {
+            self.advance();
+            return Some(Expr::Map { entries, location });
+        }
+
+        // Parse first entry to disambiguate map from block
+        // Map: {key: value}, Block: {statement}
+        // We need to check if we have an identifier/string followed by colon
+
+        loop {
+            // Parse key (identifier or string literal)
+            let key = if self.check(TokenType::Identifier) {
+                self.advance();
+                self.previous_token.token.clone()
+            } else if self.check(TokenType::String) {
+                self.advance();
+                let token_value = &self.previous_token.token;
+                token_value[1..token_value.len() - 1].to_string()
+            } else {
+                self.report_error_at_current("Expect identifier or string as map key.".to_string());
+                return None;
+            };
+
+            // Expect colon
+            if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
+                return None;
+            }
+
+            // Parse value
+            let value = self.expression(false)?;
+            entries.push((key, value));
+
+            self.skip_new_lines();
+
+            // Check for comma or end of map
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+            self.skip_new_lines();
+
+            // Allow trailing comma
+            if self.check(TokenType::RightBrace) {
+                break;
+            }
+        }
+
+        self.skip_new_lines();
+        if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
+            return None;
+        }
+
+        Some(Expr::Map { entries, location })
+    }
+
+    fn set_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut elements = Vec::new();
+
+        self.skip_new_lines();
+
+        // Parse elements
+        if !self.check(TokenType::RightBrace) {
+            loop {
+                elements.push(self.expression(false)?);
+
+                self.skip_new_lines();
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+                self.skip_new_lines();
+
+                // Allow trailing comma
+                if self.check(TokenType::RightBrace) {
+                    break;
+                }
+            }
+        }
+
+        self.skip_new_lines();
+        if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
+            return None;
+        }
+
+        Some(Expr::Set { elements, location })
     }
 }

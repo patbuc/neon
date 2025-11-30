@@ -158,6 +158,24 @@ impl VirtualMachine {
                 OpCode::SetField => self.fn_set_field(BitsSize::Eight),
                 OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
                 OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
+
+                // Map operations
+                OpCode::Map => self.fn_map(),
+                OpCode::MapSet => self.fn_map_set(BitsSize::Eight),
+                OpCode::MapGet => self.fn_map_get(BitsSize::Eight),
+                OpCode::MapHas => self.fn_map_has(BitsSize::Eight),
+                OpCode::MapRemove => self.fn_map_remove(BitsSize::Eight),
+                OpCode::MapKeys => self.fn_map_keys(),
+                OpCode::MapValues => self.fn_map_values(),
+                OpCode::MapSize => self.fn_map_size(),
+
+                // Set operations
+                OpCode::Set => self.fn_set(),
+                OpCode::SetAdd => self.fn_set_add(),
+                OpCode::SetHas => self.fn_set_has(),
+                OpCode::SetRemove => self.fn_set_remove(),
+                OpCode::SetSize => self.fn_map_size(), // Reuse map_size for sets
+                OpCode::SetValues => self.fn_map_values(), // Reuse map_values for sets
             }
 
             // Increment IP for the current frame
