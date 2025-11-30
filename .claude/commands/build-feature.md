@@ -95,15 +95,26 @@ IMPORTANT: All file paths and operations must be relative to the worktree direct
 Your task:
 1. Analyze the Neon codebase structure (src/compiler/, src/vm/, src/common/)
 2. Understand how similar features are implemented
-3. Break down the feature into 3-7 atomic, sequential tasks
-4. For each task, specify:
+3. Identify architectural decisions and implementation approaches
+4. **Use AskUserQuestion tool** to clarify with the user:
+   - Multiple valid implementation approaches (e.g., which data structure to use)
+   - Architectural decisions (e.g., where to place new functionality)
+   - Scope and requirements clarification
+   - Trade-offs between different approaches
+   - Any ambiguities in the feature description
+5. Based on user feedback, break down the feature into 3-7 atomic, sequential tasks
+6. For each task, specify:
    - Clear description
    - Files likely to be modified
    - Dependencies on other tasks
    - Acceptance criteria
+   - Implementation approach (based on user decisions)
+
+IMPORTANT: Always ask questions when there are multiple valid approaches or unclear requirements.
+Do NOT make architectural decisions without user input.
+Do NOT implement anything - only plan.
 
 Return your plan as a structured list of tasks. Be specific and actionable.
-Do NOT implement anything - only plan.
 ```
 
 Update the state file with the task list from the planner.

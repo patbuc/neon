@@ -19,6 +19,8 @@ The system consists of specialized agents, each with a specific role:
 1. **Planner Agent** (`/plan-feature`)
    - Analyzes feature requirements
    - Explores codebase patterns
+   - Clarifies architectural decisions with user
+   - Asks questions about implementation approaches
    - Breaks features into atomic tasks
 
 2. **Coding Agent** (`/implement-task`)
