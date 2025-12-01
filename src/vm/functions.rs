@@ -3,7 +3,7 @@ use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativ
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, number, string};
+use crate::{as_number, boolean, is_false_like, nil, number, string};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -805,6 +805,25 @@ impl VirtualMachine {
 
         // Push the new map onto the stack
         self.push(Value::new_map(map));
+
+        // Increment IP to skip the count byte
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
+    }
+
+    pub(in crate::vm) fn fn_create_array(&mut self) {
+        // Read the count of elements from bytecode
+        let count = {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.bloq.read_u8(frame.ip + 1) as usize
+        };
+
+        // TODO: Implement array value creation and runtime support
+        // For now, just pop the elements and push nil as a placeholder
+        for _ in 0..count {
+            self.pop();
+        }
+        self.push(nil!());
 
         // Increment IP to skip the count byte
         let frame = self.call_frames.last_mut().unwrap();

@@ -551,17 +551,18 @@ impl CodeGenerator {
                 self.current_bloq().write_u8(entries.len() as u8);
             }
             Expr::ArrayLiteral { elements, location } => {
-                // TODO: Implement array literal codegen
-                // Will need CreateArray opcode and VM support
+                // Generate bytecode for array literal creation
+                // Strategy: emit code for each element, then CreateArray
+                // This allows the VM to pop elements from the stack in order
+
+                // Generate code for all elements
                 for element in elements {
                     self.generate_expr(element);
                 }
-                // Placeholder - actual implementation will require:
-                // 1. CreateArray opcode
-                // 2. VM support for array values
-                // 3. Array runtime implementation
-                let _ = location; // Suppress unused warning
-                todo!("Array literal codegen not yet implemented")
+
+                // Emit CreateArray with the count of elements
+                self.emit_op_code(OpCode::CreateArray, *location);
+                self.current_bloq().write_u8(elements.len() as u8);
             }
             Expr::Index {
                 object,
