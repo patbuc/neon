@@ -367,6 +367,8 @@ impl Parser {
             self.if_statement()
         } else if self.match_token(TokenType::While) {
             self.while_statement()
+        } else if self.match_token(TokenType::For) {
+            self.for_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
         } else {
@@ -467,6 +469,63 @@ impl Parser {
         Some(Stmt::While {
             condition,
             body,
+            location,
+        })
+    }
+
+    fn for_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'for'.") {
+            return None;
+        }
+
+        // Parse init clause - must be val or var declaration
+        let init = if self.match_token(TokenType::Val) {
+            self.val_declaration()?
+        } else if self.match_token(TokenType::Var) {
+            self.var_declaration()?
+        } else {
+            self.report_error_at_current("Expecting 'val' or 'var' in for loop initializer.".to_string());
+            return None;
+        };
+
+        // Parse condition expression
+        let condition = self.expression(false)?;
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop condition.") {
+            return None;
+        }
+
+        // Parse increment - must be an assignment expression
+        let increment_expr = self.expression(false)?;
+        let increment_location = self.current_location();
+        let increment = Stmt::Expression {
+            expr: increment_expr,
+            location: increment_location,
+        };
+
+        if !self.consume(TokenType::RightParen, "Expecting ')' after for clauses.") {
+            return None;
+        }
+
+        // Parse loop body
+        let body = self.statement()?;
+
+        // Desugar to: Block { init, While { condition, Block { body, increment } } }
+        let while_body = Stmt::Block {
+            statements: vec![body, increment],
+            location: location.clone(),
+        };
+
+        let while_loop = Stmt::While {
+            condition,
+            body: Box::new(while_body),
+            location: location.clone(),
+        };
+
+        Some(Stmt::Block {
+            statements: vec![init, while_loop],
             location,
         })
     }
