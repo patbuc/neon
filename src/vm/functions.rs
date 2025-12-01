@@ -840,9 +840,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_get_index(&mut self) {
         let index_value = self.pop();
-        let map_value = self.pop();
+        let collection_value = self.pop();
 
-        match &map_value {
+        match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
@@ -861,17 +861,52 @@ impl VirtualMachine {
                     let result = map.get(&key).cloned().unwrap_or(Value::Nil);
                     self.push(result);
                 }
+                Object::Array(array_ref) => {
+                    // Extract index as number
+                    let index = match index_value {
+                        Value::Number(n) => n as i32,
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let array = array_ref.borrow();
+                    let len = array.len() as i32;
+
+                    // Normalize negative indices
+                    let actual_index = if index < 0 {
+                        len + index
+                    } else {
+                        index
+                    };
+
+                    // Bounds check
+                    if actual_index < 0 || actual_index >= len {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                            index, actual_index, len
+                        ));
+                        return;
+                    }
+
+                    let result = array[actual_index as usize].clone();
+                    self.push(result);
+                }
                 _ => {
                     self.runtime_error(&format!(
-                        "Only maps support index access, got {}.",
-                        map_value
+                        "Only arrays and maps support index access, got {}.",
+                        collection_value
                     ));
                 }
             },
             _ => {
                 self.runtime_error(&format!(
-                    "Only maps support index access, got {}.",
-                    map_value
+                    "Only arrays and maps support index access, got {}.",
+                    collection_value
                 ));
             }
         }
@@ -881,9 +916,9 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_set_index(&mut self) {
         let value = self.pop();
         let index_value = self.pop();
-        let map_value = self.pop();
+        let collection_value = self.pop();
 
-        match &map_value {
+        match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
@@ -904,17 +939,54 @@ impl VirtualMachine {
                     // Push the value back (assignment expression returns the value)
                     self.push(value);
                 }
+                Object::Array(array_ref) => {
+                    // Extract index as number
+                    let index = match index_value {
+                        Value::Number(n) => n as i32,
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let mut array = array_ref.borrow_mut();
+                    let len = array.len() as i32;
+
+                    // Normalize negative indices
+                    let actual_index = if index < 0 {
+                        len + index
+                    } else {
+                        index
+                    };
+
+                    // Bounds check
+                    if actual_index < 0 || actual_index >= len {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                            index, actual_index, len
+                        ));
+                        return;
+                    }
+
+                    array[actual_index as usize] = value.clone();
+
+                    // Push the value back (assignment expression returns the value)
+                    self.push(value);
+                }
                 _ => {
                     self.runtime_error(&format!(
-                        "Only maps support index assignment, got {}.",
-                        map_value
+                        "Only arrays and maps support index assignment, got {}.",
+                        collection_value
                     ));
                 }
             },
             _ => {
                 self.runtime_error(&format!(
-                    "Only maps support index assignment, got {}.",
-                    map_value
+                    "Only arrays and maps support index assignment, got {}.",
+                    collection_value
                 ));
             }
         }
