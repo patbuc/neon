@@ -82,6 +82,20 @@ impl Scanner {
                     self.make_token(TokenType::Greater)
                 }
             }
+            '&' => {
+                if self.matches('&') {
+                    self.make_token(TokenType::AndAnd)
+                } else {
+                    self.make_error_token("Expected '&&' operator")
+                }
+            }
+            '|' => {
+                if self.matches('|') {
+                    self.make_token(TokenType::OrOr)
+                } else {
+                    self.make_error_token("Expected '||' operator")
+                }
+            }
             '/' => {
                 if self.matches('/') {
                     while self.peek_next() != '\n' && !self.is_at_end() {

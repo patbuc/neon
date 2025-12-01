@@ -406,7 +406,8 @@ impl VirtualMachine {
             .read_u32(self.call_frames.last().unwrap().ip + 1);
         self.call_frames.last_mut().unwrap().ip += 4;
         if is_false_like!(self.peek(0)) {
-            self.pop();
+            // Don't pop! Leave the value on the stack for logical operators
+            // The caller is responsible for popping if needed (e.g., in if statements)
             self.call_frames.last_mut().unwrap().ip += offset as usize;
         }
     }
