@@ -503,6 +503,7 @@ impl Parser {
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
+            TokenType::LeftBrace => self.map_literal(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -528,6 +529,7 @@ impl Parser {
                 | TokenType::OrOr => self.binary(expr),
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
+                TokenType::LeftBracket => self.index(expr),
                 _ => {
                     return Some(expr);
                 }
@@ -543,7 +545,7 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot => Precedence::Call,
+            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket => Precedence::Call,
             TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
             TokenType::Greater
@@ -748,6 +750,83 @@ impl Parser {
             Some(Expr::GetField {
                 object: Box::new(object),
                 field,
+                location,
+            })
+        }
+    }
+
+    fn map_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut entries = Vec::new();
+
+        self.skip_new_lines();
+
+        // Handle empty map: {}
+        if self.check(TokenType::RightBrace) {
+            self.advance();
+            return Some(Expr::MapLiteral { entries, location });
+        }
+
+        // Parse key-value pairs
+        loop {
+            // Parse key
+            let key = self.expression(false)?;
+
+            // Expect colon
+            if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
+                return None;
+            }
+
+            // Parse value
+            let value = self.expression(false)?;
+
+            entries.push((key, value));
+
+            self.skip_new_lines();
+
+            // Check for comma or end of map
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+
+            self.skip_new_lines();
+
+            // Allow trailing comma
+            if self.check(TokenType::RightBrace) {
+                break;
+            }
+        }
+
+        if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
+            return None;
+        }
+
+        Some(Expr::MapLiteral { entries, location })
+    }
+
+    fn index(&mut self, object: Expr) -> Option<Expr> {
+        let location = self.current_location();
+
+        // Parse index expression
+        let index = Box::new(self.expression(false)?);
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
+            return None;
+        }
+
+        // Check if this is an index assignment: expr[index] = value
+        if self.match_token(TokenType::Equal) {
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::IndexAssign {
+                object: Box::new(object),
+                index,
+                value,
+                location,
+            })
+        } else {
+            Some(Expr::Index {
+                object: Box::new(object),
+                index,
                 location,
             })
         }

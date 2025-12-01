@@ -105,6 +105,24 @@ pub enum Expr {
         arguments: Vec<Expr>,
         location: SourceLocation,
     },
+    /// Map literal: {"key": value, "key2": value2}
+    MapLiteral {
+        entries: Vec<(Expr, Expr)>,
+        location: SourceLocation,
+    },
+    /// Index access: map["key"], array[0]
+    Index {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Index assignment: map["key"] = value
+    IndexAssign {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        value: Box<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -186,7 +204,10 @@ impl Expr {
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
             | Expr::Grouping { location, .. }
-            | Expr::MethodCall { location, .. } => location,
+            | Expr::MethodCall { location, .. }
+            | Expr::MapLiteral { location, .. }
+            | Expr::Index { location, .. }
+            | Expr::IndexAssign { location, .. } => location,
         }
     }
 }

@@ -522,6 +522,59 @@ impl CodeGenerator {
                 self.current_bloq().write_u8(arguments.len() as u8);
                 self.current_bloq().write_u8(method_index as u8);
             }
+            Expr::MapLiteral { entries, location } => {
+                // Generate bytecode for map literal creation
+                // Strategy: emit code for each key, then each value, then CreateMap
+                // This allows the VM to pop pairs from the stack in order
+
+                // First, generate code for all keys
+                for (key, _) in entries {
+                    self.generate_expr(key);
+                }
+
+                // Then, generate code for all values
+                for (_, value) in entries {
+                    self.generate_expr(value);
+                }
+
+                // Emit CreateMap with the count of entries
+                self.emit_op_code(OpCode::CreateMap, *location);
+                self.current_bloq().write_u8(entries.len() as u8);
+            }
+            Expr::Index {
+                object,
+                index,
+                location,
+            } => {
+                // Generate bytecode for index access (map["key"] or array[0])
+                // First evaluate the object being indexed
+                self.generate_expr(object);
+
+                // Then evaluate the index expression
+                self.generate_expr(index);
+
+                // Emit GetIndex opcode
+                self.emit_op_code(OpCode::GetIndex, *location);
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                location,
+            } => {
+                // Generate bytecode for index assignment (map["key"] = value)
+                // First evaluate the object being indexed
+                self.generate_expr(object);
+
+                // Then evaluate the index expression
+                self.generate_expr(index);
+
+                // Finally evaluate the value to be assigned
+                self.generate_expr(value);
+
+                // Emit SetIndex opcode
+                self.emit_op_code(OpCode::SetIndex, *location);
+            }
         }
     }
 }

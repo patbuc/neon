@@ -47,12 +47,15 @@ impl Scanner {
             ')' => self.make_token(TokenType::RightParen),
             '{' => self.make_token(TokenType::LeftBrace),
             '}' => self.make_token(TokenType::RightBrace),
+            '[' => self.make_token(TokenType::LeftBracket),
+            ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
             '.' => self.make_token(TokenType::Dot),
             '-' => self.make_token(TokenType::Minus),
             '+' => self.make_token(TokenType::Plus),
             '%' => self.make_token(TokenType::Percent),
             ';' => self.make_token(TokenType::Semicolon),
+            ':' => self.make_token(TokenType::Colon),
             '*' => self.make_token(TokenType::Star),
             '!' => {
                 if self.matches('=') {
@@ -278,10 +281,10 @@ impl Scanner {
                 TokenType::Identifier
             }
             'v' => {
-                if self.current - self.start > 1 && self.source[self.start + 1] == 'a' {
+                if self.current - self.start >= 3 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
-                        'l' => TokenType::Val,
-                        'r' => TokenType::Var,
+                        'l' => self.check_keyword(3, 0, "", TokenType::Val),
+                        'r' => self.check_keyword(3, 0, "", TokenType::Var),
                         _ => TokenType::Identifier,
                     };
                 }
