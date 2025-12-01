@@ -334,6 +334,7 @@ impl VirtualMachine {
             ("Set", "intersection") => Some(crate::vm::set_functions::native_set_intersection),
             ("Set", "difference") => Some(crate::vm::set_functions::native_set_difference),
             ("Set", "isSubset") => Some(crate::vm::set_functions::native_set_is_subset),
+            ("Set", "toArray") => Some(crate::vm::set_functions::native_set_to_array),
             _ => None,
         }
     }
