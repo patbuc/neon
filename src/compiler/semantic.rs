@@ -15,8 +15,24 @@ pub struct SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
+        let mut symbol_table = SymbolTable::new();
+        // Pre-define Math as a built-in global constant
+        // This corresponds to the Math object that will be available at runtime
+        let math_symbol = Symbol {
+            name: "Math".to_string(),
+            kind: SymbolKind::Value,
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(math_symbol); // Ignore error since this is initial setup
+
         SemanticAnalyzer {
-            symbol_table: SymbolTable::new(),
+            symbol_table,
             errors: Vec::new(),
         }
     }

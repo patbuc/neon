@@ -19,10 +19,16 @@ impl Default for VirtualMachine {
 
 impl VirtualMachine {
     pub fn new() -> Self {
+        let mut globals = HashMap::new();
+
+        // Initialize built-in global objects
+        globals.insert("Math".to_string(), Self::create_math_object());
+
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             bloq: None,
+            globals,
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
@@ -106,11 +112,6 @@ impl VirtualMachine {
         }
 
         let bloq = bloq.unwrap();
-
-        // Initialize built-in globals before running the script
-        // Push Math object to stack at global slot 0
-        let math_object = Self::create_math_object();
-        self.stack.push(math_object);
 
         // Create a synthetic function for the script
         let script_function = Rc::new(ObjFunction {
