@@ -164,18 +164,9 @@ impl VirtualMachine {
                     }
                     should_increment_ip = false;
                 }
-                OpCode::CreateMap => {
-                    // TODO: Implement map creation in VM (Task 5)
-                    unimplemented!("CreateMap opcode not yet implemented")
-                }
-                OpCode::GetIndex => {
-                    // TODO: Implement index access in VM (Task 5)
-                    unimplemented!("GetIndex opcode not yet implemented")
-                }
-                OpCode::SetIndex => {
-                    // TODO: Implement index assignment in VM (Task 5)
-                    unimplemented!("SetIndex opcode not yet implemented")
-                }
+                OpCode::CreateMap => self.fn_create_map(),
+                OpCode::GetIndex => self.fn_get_index(),
+                OpCode::SetIndex => self.fn_set_index(),
             }
 
             // Increment IP for the current frame
