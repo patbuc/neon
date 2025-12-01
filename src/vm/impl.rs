@@ -325,6 +325,9 @@ impl VirtualMachine {
             ("Map", "keys") => Some(crate::vm::map_functions::native_map_keys),
             ("Map", "values") => Some(crate::vm::map_functions::native_map_values),
             ("Map", "entries") => Some(crate::vm::map_functions::native_map_entries),
+            ("Array", "push") => Some(crate::vm::array_functions::native_array_push),
+            ("Array", "pop") => Some(crate::vm::array_functions::native_array_pop),
+            ("Array", "length") => Some(crate::vm::array_functions::native_array_length),
             _ => None,
         }
     }
