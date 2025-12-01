@@ -133,6 +133,308 @@ fn test_parse_while_loop() {
 }
 
 #[test]
+fn test_parse_for_loop() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    // For loop is desugared to a Block containing a declaration and a While loop
+    match &stmts[0] {
+        Stmt::Block { statements, .. } => {
+            assert_eq!(statements.len(), 2);
+            // First statement should be the initializer (var declaration)
+            match &statements[0] {
+                Stmt::Var { name, .. } => {
+                    assert_eq!(name, "i");
+                }
+                _ => panic!("Expected Var declaration as first statement in for loop"),
+            }
+            // Second statement should be the while loop
+            match &statements[1] {
+                Stmt::While { condition, body, .. } => {
+                    // Verify condition is a binary comparison
+                    match condition {
+                        Expr::Binary { .. } => {}
+                        _ => panic!("Expected Binary expression for condition"),
+                    }
+                    // Verify body is a Block containing original body and increment
+                    match body.as_ref() {
+                        Stmt::Block { statements: while_stmts, .. } => {
+                            assert_eq!(while_stmts.len(), 2, "While body should contain original body + increment");
+                        }
+                        _ => panic!("Expected Block as while body"),
+                    }
+                }
+                _ => panic!("Expected While statement as second statement in for loop"),
+            }
+        }
+        _ => panic!("Expected Block statement for for loop desugaring"),
+    }
+}
+
+#[test]
+fn test_parse_for_loop_with_val() {
+    let program = r#"
+        for (val i = 0; i < 10; i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    // For loop with val should parse successfully (runtime will catch the error)
+    match &stmts[0] {
+        Stmt::Block { statements, .. } => {
+            assert_eq!(statements.len(), 2);
+            // First statement should be the initializer (val declaration)
+            match &statements[0] {
+                Stmt::Val { name, .. } => {
+                    assert_eq!(name, "i");
+                }
+                _ => panic!("Expected Val declaration as first statement in for loop"),
+            }
+            // Second statement should be the while loop
+            match &statements[1] {
+                Stmt::While { .. } => {}
+                _ => panic!("Expected While statement as second statement in for loop"),
+            }
+        }
+        _ => panic!("Expected Block statement for for loop desugaring"),
+    }
+}
+
+#[test]
+fn test_parse_for_loop_empty_body() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1) {
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Block { statements, .. } => {
+            assert_eq!(statements.len(), 2);
+            // Verify the while loop body contains empty block + increment
+            match &statements[1] {
+                Stmt::While { body, .. } => {
+                    match body.as_ref() {
+                        Stmt::Block { statements: while_stmts, .. } => {
+                            assert_eq!(while_stmts.len(), 2);
+                            // First should be the empty body block
+                            match &while_stmts[0] {
+                                Stmt::Block { statements: empty_stmts, .. } => {
+                                    assert_eq!(empty_stmts.len(), 0, "Body should be empty");
+                                }
+                                _ => panic!("Expected Block for empty body"),
+                            }
+                        }
+                        _ => panic!("Expected Block as while body"),
+                    }
+                }
+                _ => panic!("Expected While statement"),
+            }
+        }
+        _ => panic!("Expected Block statement"),
+    }
+}
+
+#[test]
+fn test_parse_nested_for_loops() {
+    let program = r#"
+        for (var i = 0; i < 3; i = i + 1) {
+            for (var j = 0; j < 3; j = j + 1) {
+                print i
+                print j
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    // Outer for loop
+    match &stmts[0] {
+        Stmt::Block { statements, .. } => {
+            assert_eq!(statements.len(), 2);
+            // Verify outer var declaration
+            match &statements[0] {
+                Stmt::Var { name, .. } => assert_eq!(name, "i"),
+                _ => panic!("Expected Var declaration for outer loop"),
+            }
+            // Verify outer while loop
+            match &statements[1] {
+                Stmt::While { body, .. } => {
+                    match body.as_ref() {
+                        Stmt::Block { statements: outer_while_stmts, .. } => {
+                            assert_eq!(outer_while_stmts.len(), 2);
+                            // First statement should be a Block (from the { } in source code)
+                            match &outer_while_stmts[0] {
+                                Stmt::Block { statements: source_block_stmts, .. } => {
+                                    assert_eq!(source_block_stmts.len(), 1, "Source block should contain one statement (the desugared inner for loop)");
+                                    // That statement should be the desugared inner for loop (another Block)
+                                    match &source_block_stmts[0] {
+                                        Stmt::Block { statements: inner_for_stmts, .. } => {
+                                            assert_eq!(inner_for_stmts.len(), 2);
+                                            // Verify inner var declaration
+                                            match &inner_for_stmts[0] {
+                                                Stmt::Var { name, .. } => assert_eq!(name, "j"),
+                                                _ => panic!("Expected Var declaration for inner loop"),
+                                            }
+                                            // Verify inner while loop exists
+                                            match &inner_for_stmts[1] {
+                                                Stmt::While { .. } => {}
+                                                _ => panic!("Expected While statement for inner loop"),
+                                            }
+                                        }
+                                        _ => panic!("Expected Block for desugared inner for loop"),
+                                    }
+                                }
+                                _ => panic!("Expected Block from source code braces"),
+                            }
+                        }
+                        _ => panic!("Expected Block as outer while body"),
+                    }
+                }
+                _ => panic!("Expected While statement for outer loop"),
+            }
+        }
+        _ => panic!("Expected Block statement for outer for loop"),
+    }
+}
+
+#[test]
+fn test_parse_for_loop_missing_semicolon_after_init() {
+    let program = r#"
+        for (var i = 0 i < 10; i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail when missing semicolon after init");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("';'") || errors[0].message.contains("after loop initializer"));
+}
+
+#[test]
+fn test_parse_for_loop_missing_semicolon_after_condition() {
+    let program = r#"
+        for (var i = 0; i < 10 i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail when missing semicolon after condition");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("';'") || errors[0].message.contains("after loop condition"));
+}
+
+#[test]
+fn test_parse_for_loop_missing_left_paren() {
+    let program = r#"
+        for var i = 0; i < 10; i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail when missing left parenthesis");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("'('") || errors[0].message.contains("after 'for'"));
+}
+
+#[test]
+fn test_parse_for_loop_missing_right_paren() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1 {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail when missing right parenthesis");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("')'") || errors[0].message.contains("after for clauses"));
+}
+
+#[test]
+fn test_parse_for_loop_invalid_init_not_declaration() {
+    let program = r#"
+        for (i = 0; i < 10; i = i + 1) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail when init is not a val/var declaration");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(
+        errors[0].message.contains("val") || errors[0].message.contains("var") || errors[0].message.contains("initializer"),
+        "Error should mention val/var requirement, got: {}", errors[0].message
+    );
+}
+
+#[test]
+fn test_parse_for_loop_complex_increment() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 2) {
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    // Verify the increment expression is part of the while body
+    match &stmts[0] {
+        Stmt::Block { statements, .. } => {
+            match &statements[1] {
+                Stmt::While { body, .. } => {
+                    match body.as_ref() {
+                        Stmt::Block { statements: while_stmts, .. } => {
+                            assert_eq!(while_stmts.len(), 2);
+                            // Second statement should be the increment
+                            match &while_stmts[1] {
+                                Stmt::Expression { expr, .. } => {
+                                    // Should be an assignment expression
+                                    match expr {
+                                        Expr::Assign { .. } => {}
+                                        _ => panic!("Expected Assign expression for increment"),
+                                    }
+                                }
+                                _ => panic!("Expected Expression statement for increment"),
+                            }
+                        }
+                        _ => panic!("Expected Block as while body"),
+                    }
+                }
+                _ => panic!("Expected While statement"),
+            }
+        }
+        _ => panic!("Expected Block statement"),
+    }
+}
+
+#[test]
 fn test_parse_method_call_no_args() {
     let program = r#"
         val result = str.len()
