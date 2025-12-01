@@ -230,6 +230,26 @@ impl Parser {
         })
     }
 
+    fn val_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
+
+        Some(Stmt::Val {
+            name,
+            initializer,
+            location,
+        })
+    }
+
     fn var_declaration(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
@@ -248,6 +268,26 @@ impl Parser {
             TokenType::Eof,
             "Expecting '\\n' or '\\0' after variable declaration.",
         );
+
+        Some(Stmt::Var {
+            name,
+            initializer,
+            location,
+        })
+    }
+
+    fn var_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
 
         Some(Stmt::Var {
             name,
@@ -482,13 +522,17 @@ impl Parser {
 
         // Parse init clause - must be val or var declaration
         let init = if self.match_token(TokenType::Val) {
-            self.val_declaration()?
+            self.val_declaration_no_terminator()?
         } else if self.match_token(TokenType::Var) {
-            self.var_declaration()?
+            self.var_declaration_no_terminator()?
         } else {
             self.report_error_at_current("Expecting 'val' or 'var' in for loop initializer.".to_string());
             return None;
         };
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop initializer.") {
+            return None;
+        }
 
         // Parse condition expression
         let condition = self.expression(false)?;
