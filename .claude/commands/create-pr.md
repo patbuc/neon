@@ -132,11 +132,28 @@ Ensure the branch is ready:
 # Check for uncommitted changes
 git status
 
-# If there are uncommitted changes
-git add .
-git commit -m "feat: {feature description}"
+# All tasks should already be committed individually
+# If there are still uncommitted changes, something went wrong
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "WARNING: Found uncommitted changes. This shouldn't happen if all tasks were committed."
+  echo "Creating fallback commit..."
 
-# Push to remote
+  # Source commit utilities for watermark validation
+  source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+
+  commit_message="feat: {feature description}"
+
+  # Validate no watermarks
+  if ! validate_no_watermarks "$commit_message"; then
+    echo "ERROR: Watermark detected in commit message!"
+    exit 1
+  fi
+
+  git add .
+  git commit -m "$commit_message"
+fi
+
+# Push all commits to remote
 git push -u origin $(git branch --show-current)
 ```
 

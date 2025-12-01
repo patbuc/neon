@@ -204,6 +204,26 @@ If status == "needs_fixes":
 - Limit to 3 iterations per task before escalating to user
 
 If status == "task_completed":
+- **Create commit for this task**:
+  ```bash
+  cd {worktree_path}
+
+  # Source commit utilities
+  source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+
+  # Get current task info from state file
+  state_file="/home/patbuc/code/neon/.claude/workflows/{feature-slug}-state.json"
+  current_task=$(jq -r ".tasks[.current_task_index]" "$state_file")
+  task_description=$(echo "$current_task" | jq -r '.description')
+
+  # Commit the task (with watermark validation)
+  if ! safe_task_commit "$task_description"; then
+    echo "ERROR: Failed to commit task. Pausing workflow."
+    jq '.status = "error" | .error = "commit_failed"' "$state_file" > "$state_file.tmp"
+    mv "$state_file.tmp" "$state_file"
+    exit 1
+  fi
+  ```
 - Mark task as completed in state file
 - Move to next task
 
@@ -350,130 +370,112 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
   --jq '.[] | select(.user.login == "copilot") | {path: .path, line: .line, body: .body}'
 ```
 
-### 9. Address Copilot Feedback Phase
-
-If Copilot provided suggestions, analyze and categorize them before implementing:
-
-Update state: status = "analyzing_copilot_feedback"
-
-#### 9a. Categorize Feedback
-
-Analyze each Copilot comment and categorize by severity:
-
-**Critical/Important Issues** (Auto-implement):
-- Security vulnerabilities
-- Bugs or logic errors
-- Memory safety issues
-- Potential panics or crashes
-- Type safety violations
-- Breaking changes that need fixes
-
-**Optional Suggestions** (User decides):
-- Style improvements
-- Refactoring suggestions
-- Performance optimizations
-- Code simplification
-- Naming suggestions
-- Documentation improvements
-
-#### 9b. Present Options to User
-
-Use the **AskUserQuestion** tool to let the user choose which optional suggestions to implement:
-
-```
-Question: "GitHub Copilot provided {count} suggestions. Critical issues will be auto-fixed. Which optional suggestions would you like to implement?"
-
-Options (multiSelect: true):
-- For each optional suggestion:
-  - label: "{file}:{line} - {brief summary}"
-  - description: "{copilot comment text}"
-```
-
-#### 9c. Implement Selected Changes
+### 9. Address Copilot Feedback Phase (UPDATED)
 
 Update state: status = "addressing_copilot_feedback"
 
-Spawn a **Coding Agent** using the Task tool (subagent_type: "general-purpose"):
+If Copilot provided suggestions:
 
-**Prompt for Coding Agent:**
-```
-You are the Coding Agent addressing GitHub Copilot's code review feedback.
-
-Worktree: {worktree_path}
-PR: {pr_url}
-Feature: {feature_description}
-Branch: {branch_name}
-
-IMPORTANT: All operations must be in the worktree directory: {worktree_path}
-
-IMPORTANT - Commit Message Guidelines:
-- DO NOT add watermarks like "Generated with Claude Code"
-- DO NOT add "Co-Authored-By: Claude" trailers
-- DO NOT list changed files in commit messages
-- Focus on the intent and high-level summary (WHY, not WHAT)
-- Keep messages clean and professional
-
-Critical Issues (Auto-implement):
-{list of critical copilot comments}
-
-User-Selected Suggestions:
-{list of user-selected optional suggestions}
-
-Your task:
-1. Read each file mentioned in the review comments from {worktree_path}
-2. Understand Copilot's suggestions
-3. Implement ALL critical issues
-4. Implement ONLY the user-selected optional suggestions
-5. Ensure code still compiles: cd {worktree_path} && cargo build
-6. Do NOT create a new PR - changes will update the existing PR
-
-Focus on addressing the feedback precisely and thoroughly.
-```
-
-#### 9d. Re-run Tests
-
-After implementation, re-run tests:
-
-Spawn a **Testing Agent** using the Task tool (subagent_type: "general-purpose"):
-
-**Prompt for Testing Agent:**
-```
-You are the Testing Agent for Neon language development.
-
-Worktree: {worktree_path}
-
-IMPORTANT: Execute tests in the worktree directory: {worktree_path}
-
-Just completed: Copilot review feedback implementation
-Files modified: {list of modified files}
-
-Your task:
-1. Run: cd {worktree_path} && cargo test --verbose
-2. Run: cd {worktree_path} && cargo build --verbose
-3. Analyze any failures
-4. Report test results
-
-Return detailed test results and analysis.
-```
-
-### 10. Push Updates to PR
-
-After addressing Copilot feedback:
+#### 9a. Fetch and Group Feedback by Category
 
 ```bash
-# Commit and push from worktree
 cd {worktree_path}
-git add .
-git commit -m "fix: Address GitHub Copilot review suggestions"
+
+# Source utilities
+source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+
+# Get state file
+state_file="/home/patbuc/code/neon/.claude/workflows/{feature-slug}-state.json"
+
+# Fetch Copilot review comments
+pr_number=$(jq -r '.pr_number' "$state_file")
+copilot_comments=$(gh api "repos/patbuc/neon/pulls/$pr_number/comments" \
+  --jq '.[] | select(.user.login == "github-copilot[bot]") | .body')
+
+# Categorize all comments
+declare -A categories
+while IFS= read -r comment; do
+  if [[ -n "$comment" ]]; then
+    category=$(categorize_copilot_issue "$comment")
+    categories["$category"]=1
+  fi
+done <<< "$copilot_comments"
+
+# Get unique categories
+unique_categories="${!categories[@]}"
+echo "Copilot feedback categories: $unique_categories"
+```
+
+#### 9b. Address Each Category
+
+For each category, spawn Coding Agent, then commit:
+
+```bash
+for category in $unique_categories; do
+  echo "Processing Copilot feedback category: $category"
+
+  # Get all issues for this category
+  category_issues=$(echo "$copilot_comments" | while read -r comment; do
+    if [[ -n "$comment" ]] && [[ "$(categorize_copilot_issue "$comment")" == "$category" ]]; then
+      echo "$comment"
+      echo "---"
+    fi
+  done)
+
+  # Count issues
+  issue_count=$(echo "$category_issues" | grep -c "---" || echo "0")
+  echo "Found $issue_count issue(s) in category: $category"
+
+  # Spawn Coding Agent to address this category
+  # (Use Task tool with subagent_type: "general-purpose")
+  # See prompt below
+
+  # After Coding Agent completes:
+  # 1. Run tests
+  cd {worktree_path}
+  if ! cargo test --quiet 2>&1 | tee test_output.log; then
+    echo "ERROR: Tests failed after addressing $category issues"
+    cat test_output.log
+    exit 1
+  fi
+
+  # 2. Commit this category (with watermark validation)
+  if ! safe_copilot_commit "$category"; then
+    echo "ERROR: Failed to commit $category fixes"
+    exit 1
+  fi
+done
+
+# Push all category commits
 git push
 ```
 
-**Important - Commit Message Guidelines**:
-- DO NOT add watermarks like "Generated with Claude Code"
-- DO NOT add "Co-Authored-By: Claude" trailers
-- DO NOT list changed files in commit messages
-- Focus on the intent and high-level summary (WHY, not WHAT)
-- Keep messages clean and professional
+#### 9c. Coding Agent Prompt (per category)
+
+Spawn a **Coding Agent** for each category:
+
+```
+You are the Coding Agent addressing GitHub Copilot review feedback.
+
+Worktree: {worktree_path}
+PR: {pr_url}
+Category: {category}
+
+IMPORTANT: Work in the worktree directory: {worktree_path}
+
+Copilot Review Feedback ({category}):
+{category_issues}
+
+Your task:
+1. Read each mentioned file from {worktree_path}
+2. Understand Copilot's {category} suggestions
+3. Implement the changes
+4. Ensure compilation: cd {worktree_path} && cargo build
+5. Run tests: cd {worktree_path} && cargo test
+
+Focus ONLY on {category} issues. Be precise.
+DO NOT add watermarks or attribution to code or commit messages.
+```
 
 Update state: status = "completed"
 
