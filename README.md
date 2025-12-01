@@ -24,8 +24,8 @@ Neon currently supports the following operators:
 
 ### Logical Operators
 
-- `&&` (logical AND) - Returns the right operand if the left is truthy, otherwise returns the left operand
-- `||` (logical OR) - Returns the left operand if it's truthy, otherwise returns the right operand
+- `&&` (logical AND) - Returns `true` if both operands are truthy, otherwise returns `false`
+- `||` (logical OR) - Returns `true` if either operand is truthy, otherwise returns `false`
 - `!` (logical NOT) - Negates a boolean value
 
 **Short-circuit evaluation:** Both `&&` and `||` use short-circuit evaluation, meaning the right operand is only
