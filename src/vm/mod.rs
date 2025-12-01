@@ -7,6 +7,7 @@ mod boolean_functions;
 mod number_functions;
 mod string_functions;
 mod map_functions;
+mod set_functions;
 mod math_functions;
 #[cfg(test)]
 mod tests;

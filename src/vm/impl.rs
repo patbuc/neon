@@ -325,6 +325,11 @@ impl VirtualMachine {
             ("Map", "keys") => Some(crate::vm::map_functions::native_map_keys),
             ("Map", "values") => Some(crate::vm::map_functions::native_map_values),
             ("Map", "entries") => Some(crate::vm::map_functions::native_map_entries),
+            ("Set", "add") => Some(crate::vm::set_functions::native_set_add),
+            ("Set", "remove") => Some(crate::vm::set_functions::native_set_remove),
+            ("Set", "has") => Some(crate::vm::set_functions::native_set_has),
+            ("Set", "size") => Some(crate::vm::set_functions::native_set_size),
+            ("Set", "clear") => Some(crate::vm::set_functions::native_set_clear),
             _ => None,
         }
     }
