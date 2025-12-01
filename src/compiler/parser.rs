@@ -230,6 +230,12 @@ impl Parser {
         })
     }
 
+    /// Parses a val (immutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `val identifier [= expression]`
     fn val_declaration_no_terminator(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
@@ -276,6 +282,12 @@ impl Parser {
         })
     }
 
+    /// Parses a var (mutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `var identifier [= expression]`
     fn var_declaration_no_terminator(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
@@ -513,6 +525,53 @@ impl Parser {
         })
     }
 
+    /// Parses a C-style for loop and desugars it into a while loop within a block scope.
+    ///
+    /// # Syntax
+    /// ```neon
+    /// for (val|var identifier = expression; condition; increment) statement
+    /// ```
+    ///
+    /// # Desugaring Strategy
+    /// The for loop is transformed into a semantically equivalent while loop structure:
+    ///
+    /// ```neon
+    /// for (val i = 0; i < 10; i = i + 1) {
+    ///     print i
+    /// }
+    /// ```
+    ///
+    /// Becomes:
+    ///
+    /// ```neon
+    /// {  // Outer block creates isolated scope for loop variable
+    ///     val i = 0  // Initialization
+    ///     while (i < 10) {  // Condition
+    ///         print i  // Body
+    ///         i = i + 1  // Increment (executed after each iteration)
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # AST Structure
+    /// Returns `Stmt::Block` containing:
+    /// - `init`: The loop variable declaration (val or var)
+    /// - `Stmt::While` with:
+    ///   - `condition`: The loop continuation test
+    ///   - `body`: A `Stmt::Block` containing:
+    ///     - The original loop body statement
+    ///     - The increment expression statement
+    ///
+    /// # Scoping Behavior
+    /// The outer Block creates an isolated scope, ensuring the loop variable:
+    /// - Is only visible within the for loop
+    /// - Does not pollute the enclosing scope
+    /// - Is automatically cleaned up when the loop exits
+    ///
+    /// # Requirements
+    /// - Initialization must be a `val` or `var` declaration (not an expression)
+    /// - All three clauses (init, condition, increment) are mandatory
+    /// - Increment is typically an assignment expression
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
