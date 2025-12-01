@@ -352,7 +352,44 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
 
 ### 9. Address Copilot Feedback Phase
 
-If Copilot provided suggestions, spawn a **Coding Agent** to address them:
+If Copilot provided suggestions, analyze and categorize them before implementing:
+
+Update state: status = "analyzing_copilot_feedback"
+
+#### 9a. Categorize Feedback
+
+Analyze each Copilot comment and categorize by severity:
+
+**Critical/Important Issues** (Auto-implement):
+- Security vulnerabilities
+- Bugs or logic errors
+- Memory safety issues
+- Potential panics or crashes
+- Type safety violations
+- Breaking changes that need fixes
+
+**Optional Suggestions** (User decides):
+- Style improvements
+- Refactoring suggestions
+- Performance optimizations
+- Code simplification
+- Naming suggestions
+- Documentation improvements
+
+#### 9b. Present Options to User
+
+Use the **AskUserQuestion** tool to let the user choose which optional suggestions to implement:
+
+```
+Question: "GitHub Copilot provided {count} suggestions. Critical issues will be auto-fixed. Which optional suggestions would you like to implement?"
+
+Options (multiSelect: true):
+- For each optional suggestion:
+  - label: "{file}:{line} - {brief summary}"
+  - description: "{copilot comment text}"
+```
+
+#### 9c. Implement Selected Changes
 
 Update state: status = "addressing_copilot_feedback"
 
@@ -376,18 +413,24 @@ IMPORTANT - Commit Message Guidelines:
 - Focus on the intent and high-level summary (WHY, not WHAT)
 - Keep messages clean and professional
 
-Copilot Review Feedback:
-{copilot_review_comments}
+Critical Issues (Auto-implement):
+{list of critical copilot comments}
+
+User-Selected Suggestions:
+{list of user-selected optional suggestions}
 
 Your task:
 1. Read each file mentioned in the review comments from {worktree_path}
 2. Understand Copilot's suggestions
-3. Implement the suggested changes
-4. Ensure code still compiles: cd {worktree_path} && cargo build
-5. Do NOT create a new PR - changes will update the existing PR
+3. Implement ALL critical issues
+4. Implement ONLY the user-selected optional suggestions
+5. Ensure code still compiles: cd {worktree_path} && cargo build
+6. Do NOT create a new PR - changes will update the existing PR
 
-Focus only on addressing the Copilot feedback. Be precise and thorough.
+Focus on addressing the feedback precisely and thoroughly.
 ```
+
+#### 9d. Re-run Tests
 
 After implementation, re-run tests:
 
