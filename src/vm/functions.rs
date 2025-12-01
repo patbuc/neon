@@ -580,13 +580,63 @@ impl VirtualMachine {
                     let function_value = field_value.clone();
                     drop(instance); // Drop the borrow before calling
 
-                    // Replace receiver with the function on the stack
-                    let stack_len = self.stack.len();
-                    let receiver_index = stack_len - arg_count - 1;
-                    self.stack[receiver_index] = function_value;
+                    // Handle different function types
+                    match &function_value {
+                        Value::Object(func_obj) => match func_obj.as_ref() {
+                            Object::Function(func) => {
+                                // Call user-defined function
+                                return if let Some(result) = self.call_function(arg_count, &func) {
+                                    Some(result)
+                                } else {
+                                    // Increment IP for CallMethod (opcode + arg_count + method_name_index)
+                                    let current_frame = self.call_frames.last_mut().unwrap();
+                                    current_frame.ip += 3;
+                                    None
+                                };
+                            }
+                            Object::NativeFunction(native_fn) => {
+                                // Collect arguments from the stack (receiver + args)
+                                // Stack: [receiver, arg1, arg2, ...]
+                                let stack_len = self.stack.len();
+                                let receiver_index = stack_len - arg_count - 1;
+                                let args: Vec<Value> = self.stack[receiver_index + 1..stack_len].to_vec();
 
-                    // Use the regular call mechanism
-                    return self.fn_call();
+                                // Call the native function
+                                let result = (native_fn.function)(self, &args);
+
+                                // Pop receiver and arguments from the stack
+                                let n = arg_count + 1;
+                                let start = self.stack.len().saturating_sub(n);
+                                self.stack.drain(start..);
+
+                                // Handle the result
+                                return match result {
+                                    Ok(value) => {
+                                        // Push the return value onto the stack
+                                        self.push(value);
+
+                                        // Increment IP for CallMethod (opcode + arg_count + method_name_index)
+                                        let current_frame = self.call_frames.last_mut().unwrap();
+                                        current_frame.ip += 3;
+
+                                        None
+                                    }
+                                    Err(error_msg) => {
+                                        self.runtime_error(&error_msg);
+                                        Some(Result::RuntimeError)
+                                    }
+                                };
+                            }
+                            _ => {
+                                self.runtime_error("Field is not a callable function");
+                                return Some(Result::RuntimeError);
+                            }
+                        },
+                        _ => {
+                            self.runtime_error("Field is not a callable function");
+                            return Some(Result::RuntimeError);
+                        }
+                    }
                 }
             }
         }
