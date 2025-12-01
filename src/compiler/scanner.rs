@@ -281,10 +281,10 @@ impl Scanner {
                 TokenType::Identifier
             }
             'v' => {
-                if self.current - self.start > 1 && self.source[self.start + 1] == 'a' {
+                if self.current - self.start > 2 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
-                        'l' => TokenType::Val,
-                        'r' => TokenType::Var,
+                        'l' => self.check_keyword(3, 0, "", TokenType::Val),
+                        'r' => self.check_keyword(3, 0, "", TokenType::Var),
                         _ => TokenType::Identifier,
                     };
                 }

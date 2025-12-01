@@ -158,3 +158,96 @@ fn test_end_to_end_forward_reference() {
 
     assert_eq!(result, crate::vm::Result::Ok);
 }
+
+#[test]
+fn test_map_literal_empty() {
+    let program = r#"
+    val m = {}
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_literal_single_entry() {
+    let program = r#"
+    val m = {"name": "Alice"}
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_literal_multiple_entries() {
+    let program = r#"
+    val person = {
+        "name": "Bob",
+        "age": 30,
+        "city": "New York"
+    }
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_index_access() {
+    let program = r#"
+    val m = {"key": "value"}
+    val result = m["key"]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_index_assignment() {
+    let program = r#"
+    var m = {"x": 10}
+    m["x"] = 20
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_dynamic_key_access() {
+    let program = r#"
+    val m = {"a": 1, "b": 2}
+    val key = "a"
+    val value = m[key]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_nested_operations() {
+    let program = r#"
+    val outer = {"inner": {"value": 42}}
+    val result = outer["inner"]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_with_expressions_as_keys() {
+    let program = r#"
+    val key1 = "first"
+    val key2 = "second"
+    val m = {key1: 100, key2: 200}
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_map_with_number_keys() {
+    let program = r#"
+    val m = {1: "one", 2: "two", 3: "three"}
+    val value = m[2]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
