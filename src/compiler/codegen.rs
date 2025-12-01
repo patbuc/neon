@@ -550,6 +550,16 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateMap, *location);
                 self.current_bloq().write_u8(entries.len() as u8);
             }
+            Expr::SetLiteral { elements, location } => {
+                // Generate code for each element expression
+                for element in elements {
+                    self.generate_expr(element);
+                }
+
+                // Emit CreateSet with the count of elements
+                self.emit_op_code(OpCode::CreateSet, *location);
+                self.current_bloq().write_u8(elements.len() as u8);
+            }
             Expr::Index {
                 object,
                 index,
