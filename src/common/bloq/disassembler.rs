@@ -72,6 +72,10 @@ impl Bloq {
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
             OpCode::SetField2 => self.field_instruction(OpCode::SetField2, offset),
             OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
+            OpCode::CallMethod => self.call_method_instruction(offset),
+            OpCode::CreateMap => self.create_map_instruction(offset),
+            OpCode::GetIndex => self.simple_instruction(OpCode::GetIndex, offset),
+            OpCode::SetIndex => self.simple_instruction(OpCode::SetIndex, offset),
         }
     }
 
@@ -158,6 +162,23 @@ impl Bloq {
     fn call_instruction(&self, offset: usize) -> usize {
         let arg_count = self.read_u8(offset + 1);
         println!("Call (args: {})", arg_count);
+        offset + 2
+    }
+
+    fn call_method_instruction(&self, offset: usize) -> usize {
+        let arg_count = self.read_u8(offset + 1);
+        let method_index = self.read_u8(offset + 2) as usize;
+        let method_name = self.read_string(method_index);
+        println!(
+            "CallMethod (args: {}, method: '{}')",
+            arg_count, method_name
+        );
+        offset + 3
+    }
+
+    fn create_map_instruction(&self, offset: usize) -> usize {
+        let entry_count = self.read_u8(offset + 1);
+        println!("CreateMap (entries: {})", entry_count);
         offset + 2
     }
 }
