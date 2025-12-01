@@ -20,8 +20,10 @@ pub struct CodeGenerator {
 
 impl CodeGenerator {
     pub fn new() -> Self {
+        let bloqs = vec![Bloq::new("main")];
+
         CodeGenerator {
-            bloqs: vec![Bloq::new("main")],
+            bloqs,
             scope_depth: 0,
             errors: Vec::new(),
         }
@@ -123,13 +125,21 @@ impl CodeGenerator {
 
     fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
         // Returns: (index, is_mutable, is_global)
+
+        // Special case: Math is a built-in global stored in the VM's globals HashMap
+        // We use u32::MAX as a sentinel value to signal the VM to look up built-in globals
+        if name == "Math" {
+            return (Some(u32::MAX), false, true); // is_global = true to emit GetGlobal
+        }
+
         // Search in bloq stack from innermost to outermost
         let current_bloq_idx = self.bloqs.len() - 1;
 
         // First try to find in current bloq (parameters and locals)
         let current_result = self.bloqs[current_bloq_idx].get_local_index(name);
         if current_result.0.is_some() {
-            return (current_result.0, current_result.1, false);
+            let index = current_result.0.unwrap();
+            return (Some(index), current_result.1, false);
         }
 
         // Then try to find in parent bloqs (global scope for nested functions)
@@ -137,7 +147,7 @@ impl CodeGenerator {
             for bloq_idx in (0..current_bloq_idx).rev() {
                 let index = self.bloqs[bloq_idx].get_local_index(name);
                 if index.0.is_some() {
-                    return (index.0, index.1, true); // is_global = true
+                    return (Some(index.0.unwrap()), index.1, true); // is_global = true
                 }
             }
         }
@@ -504,8 +514,7 @@ impl CodeGenerator {
                 arguments,
                 location,
             } => {
-                // Emit CallMethod opcode for native method dispatch
-                // First evaluate the object (receiver)
+                // Evaluate the receiver object
                 self.generate_expr(object);
 
                 // Evaluate all arguments
@@ -513,13 +522,13 @@ impl CodeGenerator {
                     self.generate_expr(arg);
                 }
 
-                // Store method name as string constant
-                let method_string = string!(method.as_str());
-                let method_index = self.current_bloq().add_string(method_string);
-
-                // Emit CallMethod with arg count and method name index
+                // Emit CallMethod instruction
                 self.emit_op_code(OpCode::CallMethod, *location);
                 self.current_bloq().write_u8(arguments.len() as u8);
+
+                // Add method name to string constants and emit index
+                let method_string = string!(method.as_str());
+                let method_index = self.current_bloq().add_string(method_string);
                 self.current_bloq().write_u8(method_index as u8);
             }
             Expr::MapLiteral { entries, location } => {

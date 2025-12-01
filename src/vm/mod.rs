@@ -47,8 +47,8 @@ pub struct VirtualMachine {
     #[cfg(not(test))]
     stack: Vec<Value>,
     bloq: Option<Bloq>,
-    // values: HashMap<String, Value>,
-    // variables: HashMap<String, Value>,
+    /// Global built-in values (like Math) stored separately from the call stack
+    globals: std::collections::HashMap<String, Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,
     compilation_errors: String,
