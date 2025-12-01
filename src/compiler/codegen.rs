@@ -276,9 +276,11 @@ impl CodeGenerator {
                 self.generate_expr(condition);
 
                 let then_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                self.emit_op_code(OpCode::Pop, *location); // Pop condition if true (not jumping)
                 self.generate_stmt(then_branch);
                 let else_jump = self.emit_jump(OpCode::Jump, *location);
                 self.patch_jump(then_jump);
+                self.emit_op_code(OpCode::Pop, *location); // Pop condition if false (jumped here)
 
                 if let Some(else_stmt) = else_branch {
                     self.generate_stmt(else_stmt);
@@ -300,6 +302,7 @@ impl CodeGenerator {
                 self.emit_loop(loop_start, *location);
 
                 self.patch_jump(exit_jump);
+                self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the false case (exiting loop)
             }
             Stmt::Return { value, location } => {
                 self.generate_expr(value);
@@ -376,29 +379,64 @@ impl CodeGenerator {
                 right,
                 location,
             } => {
-                self.generate_expr(left);
-                self.generate_expr(right);
-
+                // Handle short-circuit operators specially
                 match operator {
-                    BinaryOp::Add => self.emit_op_code(OpCode::Add, *location),
-                    BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
-                    BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
-                    BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
-                    BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
-                    BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
-                    BinaryOp::NotEqual => {
-                        self.emit_op_code(OpCode::Equal, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    BinaryOp::And => {
+                        // For `a && b`:
+                        // 1. Evaluate left operand
+                        self.generate_expr(left);
+                        // 2. If false, skip right operand and result is false
+                        let end_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                        // 3. Left was true, pop it and evaluate right
+                        self.emit_op_code(OpCode::Pop, *location);
+                        self.generate_expr(right);
+                        // 4. Patch jump to end (if left was false, we skip here with false on stack)
+                        self.patch_jump(end_jump);
                     }
-                    BinaryOp::Greater => self.emit_op_code(OpCode::Greater, *location),
-                    BinaryOp::GreaterEqual => {
-                        self.emit_op_code(OpCode::Less, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    BinaryOp::Or => {
+                        // For `a || b`:
+                        // 1. Evaluate left operand
+                        self.generate_expr(left);
+                        // 2. If false, jump to evaluate right operand
+                        let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                        // 3. Left was true, jump to end with true result
+                        let end_jump = self.emit_jump(OpCode::Jump, *location);
+                        // 4. Patch else jump (left was false, need to evaluate right)
+                        self.patch_jump(else_jump);
+                        // 5. Pop false value and evaluate right
+                        self.emit_op_code(OpCode::Pop, *location);
+                        self.generate_expr(right);
+                        // 6. Patch end jump (left was true, skip right evaluation)
+                        self.patch_jump(end_jump);
                     }
-                    BinaryOp::Less => self.emit_op_code(OpCode::Less, *location),
-                    BinaryOp::LessEqual => {
-                        self.emit_op_code(OpCode::Greater, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    _ => {
+                        // Regular binary operators: evaluate both operands first
+                        self.generate_expr(left);
+                        self.generate_expr(right);
+
+                        match operator {
+                            BinaryOp::Add => self.emit_op_code(OpCode::Add, *location),
+                            BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
+                            BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
+                            BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
+                            BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
+                            BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
+                            BinaryOp::NotEqual => {
+                                self.emit_op_code(OpCode::Equal, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::Greater => self.emit_op_code(OpCode::Greater, *location),
+                            BinaryOp::GreaterEqual => {
+                                self.emit_op_code(OpCode::Less, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::Less => self.emit_op_code(OpCode::Less, *location),
+                            BinaryOp::LessEqual => {
+                                self.emit_op_code(OpCode::Greater, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::And | BinaryOp::Or => unreachable!(),
+                        }
                     }
                 }
             }

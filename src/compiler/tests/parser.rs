@@ -351,3 +351,84 @@ fn test_parse_method_call_vs_field_access() {
         _ => panic!("Expected Val statement"),
     }
 }
+
+#[test]
+fn test_parse_logical_and() {
+    let mut parser = Parser::new("true && false\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+}
+
+#[test]
+fn test_parse_logical_or() {
+    let mut parser = Parser::new("true || false\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+}
+
+#[test]
+fn test_parse_logical_and_with_variables() {
+    let mut parser = Parser::new("x && y\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_logical_or_with_variables() {
+    let mut parser = Parser::new("x || y\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_logical_mixed() {
+    let mut parser = Parser::new("a && b || c\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_logical_with_comparisons() {
+    let mut parser = Parser::new("x > 5 && y < 10\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_logical_with_parentheses() {
+    let mut parser = Parser::new("(x || y) && z\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_logical_in_if() {
+    let program = r#"
+        if (x > 0 && y > 0) {
+            print "both positive"
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::If { .. } => {}
+        _ => panic!("Expected If statement"),
+    }
+}
+
+#[test]
+fn test_parse_complex_logical_expression() {
+    let program = r#"
+        val result = (a && b) || (c && d) || (e && f)
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
