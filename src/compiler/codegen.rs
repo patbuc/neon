@@ -460,6 +460,30 @@ impl CodeGenerator {
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
             }
+            Expr::MethodCall {
+                object,
+                method,
+                arguments,
+                location,
+            } => {
+                // Emit CallMethod opcode for native method dispatch
+                // First evaluate the object (receiver)
+                self.generate_expr(object);
+
+                // Evaluate all arguments
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+
+                // Store method name as string constant
+                let method_string = string!(method.as_str());
+                let method_index = self.current_bloq().add_string(method_string);
+
+                // Emit CallMethod with arg count and method name index
+                self.emit_op_code(OpCode::CallMethod, *location);
+                self.current_bloq().write_u8(arguments.len() as u8);
+                self.current_bloq().write_u8(method_index as u8);
+            }
         }
     }
 }

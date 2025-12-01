@@ -699,7 +699,38 @@ impl Parser {
         }
         let field = self.previous_token.token.clone();
 
-        if self.match_token(TokenType::Equal) {
+        // Check if this is a method call: obj.method(args)
+        if self.check(TokenType::LeftParen) {
+            self.advance(); // consume '('
+            let method_location = self.current_location();
+            let mut arguments = Vec::new();
+
+            self.skip_new_lines();
+            if !self.check(TokenType::RightParen) {
+                loop {
+                    if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
+                        self.report_error_at_current("Can't have more than 255 arguments.".to_string());
+                    }
+                    arguments.push(self.expression(false)?);
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                    self.skip_new_lines();
+                }
+            }
+            self.skip_new_lines();
+
+            if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
+                return None;
+            }
+
+            Some(Expr::MethodCall {
+                object: Box::new(object),
+                method: field,
+                arguments,
+                location: method_location,
+            })
+        } else if self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
                 object: Box::new(object),
