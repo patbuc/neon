@@ -625,7 +625,7 @@ impl Parser {
         let while_loop = Stmt::While {
             condition,
             body: Box::new(while_body),
-            location,
+            location: body_location,
         };
 
         Some(Stmt::Block {
