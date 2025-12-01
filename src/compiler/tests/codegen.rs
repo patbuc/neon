@@ -251,3 +251,146 @@ fn test_map_with_number_keys() {
     let bloq = compile_program(program).unwrap();
     assert!(bloq.instruction_count() > 0);
 }
+
+// =============================================================================
+// Array Literal Tests
+// =============================================================================
+
+#[test]
+fn test_array_literal_empty() {
+    let program = r#"
+    val arr = []
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_literal_single_element() {
+    let program = r#"
+    val arr = [42]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_literal_multiple_elements() {
+    let program = r#"
+    val arr = [1, 2, 3, 4, 5]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_literal_mixed_types() {
+    let program = r#"
+    val arr = [1, "hello", true, nil]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_index_access() {
+    let program = r#"
+    val arr = [1, 2, 3]
+    val result = arr[0]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_index_assignment() {
+    let program = r#"
+    var arr = [1, 2, 3]
+    arr[0] = 99
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_negative_indexing() {
+    let program = r#"
+    val arr = [1, 2, 3]
+    val last = arr[-1]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_nested() {
+    let program = r#"
+    val arr = [[1, 2], [3, 4]]
+    val inner = arr[0]
+    val value = inner[1]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_with_expressions() {
+    let program = r#"
+    val arr = [1 + 1, 2 * 3, 10 - 5]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_dynamic_index() {
+    let program = r#"
+    val arr = [10, 20, 30]
+    val i = 1
+    val value = arr[i]
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_method_push() {
+    let program = r#"
+    var arr = [1, 2, 3]
+    arr.push(4)
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_method_pop() {
+    let program = r#"
+    var arr = [1, 2, 3]
+    val last = arr.pop()
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_method_length() {
+    let program = r#"
+    val arr = [1, 2, 3]
+    val len = arr.length()
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_in_map() {
+    let program = r#"
+    val m = {
+        "numbers": [1, 2, 3],
+        "data": [4, 5, 6]
+    }
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
