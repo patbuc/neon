@@ -18,6 +18,8 @@ pub struct CodeGenerator {
     errors: Vec<CompilationError>,
 }
 
+struct VarLookup { index: Option<u32>, is_mutable: bool, is_global: bool }
+
 impl CodeGenerator {
     pub fn new() -> Self {
         CodeGenerator {
@@ -73,6 +75,10 @@ impl CodeGenerator {
 
     // ===== Helper Methods =====
 
+    fn report_error(&mut self, location: SourceLocation, kind: CompilationErrorKind, message: impl Into<String>) {
+        self.errors.push(CompilationError::new(CompilationPhase::Codegen, kind, message.into(), location));
+    }
+
     fn current_bloq(&mut self) -> &mut Bloq {
         self.bloqs.last_mut().unwrap()
     }
@@ -121,7 +127,9 @@ impl CodeGenerator {
             .emit_loop(loop_start, location.line, location.column);
     }
 
-    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
+
+
+    fn get_variable_index(&self, name: &str) -> VarLookup {
         // Returns: (index, is_mutable, is_global)
         // Search in bloq stack from innermost to outermost
         let current_bloq_idx = self.bloqs.len() - 1;
@@ -129,7 +137,7 @@ impl CodeGenerator {
         // First try to find in current bloq (parameters and locals)
         let current_result = self.bloqs[current_bloq_idx].get_local_index(name);
         if current_result.0.is_some() {
-            return (current_result.0, current_result.1, false);
+            return VarLookup { index: current_result.0, is_mutable: current_result.1, is_global: false };
         }
 
         // Then try to find in parent bloqs (global scope for nested functions)
@@ -137,12 +145,12 @@ impl CodeGenerator {
             for bloq_idx in (0..current_bloq_idx).rev() {
                 let index = self.bloqs[bloq_idx].get_local_index(name);
                 if index.0.is_some() {
-                    return (index.0, index.1, true); // is_global = true
+                    return VarLookup { index: index.0, is_mutable: index.1, is_global: true }; // is_global = true
                 }
             }
         }
 
-        (None, false, false)
+        VarLookup { index: None, is_mutable: false, is_global: false }
     }
 
     // ===== Statement Generation =====
@@ -223,22 +231,17 @@ impl CodeGenerator {
                 self.emit_constant(function_value, *location);
 
                 // Get the index of the function variable we defined earlier
-                let (index, _is_mutable, is_global) = self.get_variable_index(name);
-                let index = match index {
+                let lookup = self.get_variable_index(name);
+                let index = match lookup.index {
                     Some(idx) => idx,
                     None => {
-                        self.errors.push(CompilationError::new(
-                            CompilationPhase::Codegen,
-                            CompilationErrorKind::Internal,
-                            format!("Function '{}' was not found after definition", name),
-                            *location,
-                        ));
+                        self.report_error(*location, CompilationErrorKind::Internal, format!("Function '{}' was not found after definition", name));
                         return;
                     }
                 };
 
                 // Emit the appropriate Set opcode to update the placeholder
-                if is_global {
+                if lookup.is_global {
                     self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
                 } else {
                     self.emit_op_code_variant(OpCode::SetLocal, index, *location);
@@ -329,20 +332,15 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::Nil, *location);
             }
             Expr::Variable { name, location } => {
-                let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
-                if let Some(index) = maybe_index {
-                    if is_global {
+                let lookup = self.get_variable_index(name);
+                if let Some(index) = lookup.index {
+                    if lookup.is_global {
                         self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
                     } else {
                         self.emit_op_code_variant(OpCode::GetLocal, index, *location);
                     }
                 } else {
-                    self.errors.push(CompilationError::new(
-                        CompilationPhase::Codegen,
-                        CompilationErrorKind::UndefinedSymbol,
-                        format!("Undefined variable '{}'", name),
-                        *location,
-                    ));
+                    self.report_error(*location, CompilationErrorKind::UndefinedSymbol, format!("Undefined variable '{}'", name));
                 }
             }
             Expr::Assign {
@@ -354,20 +352,19 @@ impl CodeGenerator {
                 self.generate_expr(value);
 
                 // Get the variable index
-                let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
-                if let Some(index) = maybe_index {
-                    if is_global {
+                let lookup = self.get_variable_index(name);
+                if let Some(index) = lookup.index {
+                    if !lookup.is_mutable {
+                        self.report_error(*location, CompilationErrorKind::ImmutableAssignment, format!("Cannot assign to immutable variable '{}'", name));
+                        return;
+                    }
+                    if lookup.is_global {
                         self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
                     } else {
                         self.emit_op_code_variant(OpCode::SetLocal, index, *location);
                     }
                 } else {
-                    self.errors.push(CompilationError::new(
-                        CompilationPhase::Codegen,
-                        CompilationErrorKind::UndefinedSymbol,
-                        format!("Undefined variable '{}'", name),
-                        *location,
-                    ));
+                    self.report_error(*location, CompilationErrorKind::UndefinedSymbol, format!("Undefined variable '{}'", name));
                 }
             }
             Expr::Binary {
