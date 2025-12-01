@@ -618,13 +618,13 @@ impl Parser {
         // Desugar to: Block { init, While { condition, Block { body, increment } } }
         let while_body = Stmt::Block {
             statements: vec![body, increment],
-            location: location.clone(),
+            location,
         };
 
         let while_loop = Stmt::While {
             condition,
             body: Box::new(while_body),
-            location: location.clone(),
+            location,
         };
 
         Some(Stmt::Block {
