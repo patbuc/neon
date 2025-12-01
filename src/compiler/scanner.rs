@@ -281,7 +281,7 @@ impl Scanner {
                 TokenType::Identifier
             }
             'v' => {
-                if self.current - self.start > 2 && self.source[self.start + 1] == 'a' {
+                if self.current - self.start >= 3 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
                         'l' => self.check_keyword(3, 0, "", TokenType::Val),
                         'r' => self.check_keyword(3, 0, "", TokenType::Var),
