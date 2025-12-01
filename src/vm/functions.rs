@@ -552,6 +552,7 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::String(_) => "String".to_string(),
                 Object::Array(_) => "Array".to_string(),
+                Object::Map(_) => "Map".to_string(),
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
                     instance.r#struct.name.clone()

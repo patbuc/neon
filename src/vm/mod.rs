@@ -4,6 +4,7 @@ use std::fmt::Debug;
 mod functions;
 mod r#impl;
 mod string_functions;
+mod map_functions;
 #[cfg(test)]
 mod tests;
 
