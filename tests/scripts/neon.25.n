@@ -1,0 +1,32 @@
+// neon.25.n - Basic map operations
+
+// Expected:
+// Alice
+// 30
+// nil
+// Bob
+// 3
+// true
+// false
+
+// Create a map with string keys
+val person = {"name": "Alice", "age": 30}
+
+// Access values
+print person["name"]   // Alice
+print person["age"]    // 30
+
+// Access missing key returns nil
+print person["missing"]  // nil
+
+// Modify values
+person["name"] = "Bob"
+print person["name"]   // Bob
+
+// Add new key
+person["city"] = "NYC"
+print person.size()    // 3
+
+// Check key existence
+print person.has("city")     // true
+print person.has("country")  // false

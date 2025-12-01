@@ -1,0 +1,42 @@
+// neon.34.n - Maps with structs
+
+// Expected:
+// Alice
+// 30
+// NYC
+// 95
+// Bob
+// 25
+// LA
+// 87
+
+// Define a struct
+struct Person {
+    name
+    age
+    city
+}
+
+// Create a map of people with scores
+val students = {
+    "student1": Person("Alice", 30, "NYC"),
+    "student2": Person("Bob", 25, "LA")
+}
+
+val scores = {
+    "student1": 95,
+    "student2": 87
+}
+
+// Access nested struct properties
+val s1 = students["student1"]
+print s1.name
+print s1.age
+print s1.city
+print scores["student1"]
+
+val s2 = students["student2"]
+print s2.name
+print s2.age
+print s2.city
+print scores["student2"]
