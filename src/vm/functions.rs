@@ -812,6 +812,24 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_create_set(&mut self) {
+        // TODO: Implement set creation
+        // Read the count of elements from bytecode
+        let _count = {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.bloq.read_u8(frame.ip + 1) as usize
+        };
+
+        // For now, just push nil as a placeholder
+        // This will be properly implemented in a later task
+        self.push(Value::Nil);
+
+        // Increment IP to skip the count byte
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_get_index(&mut self) {
         let index_value = self.pop();
         let map_value = self.pop();

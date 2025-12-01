@@ -225,6 +225,7 @@ impl VirtualMachine {
                     should_increment_ip = false;
                 }
                 OpCode::CreateMap => self.fn_create_map(),
+                OpCode::CreateSet => self.fn_create_set(),
                 OpCode::GetIndex => self.fn_get_index(),
                 OpCode::SetIndex => self.fn_set_index(),
             }
