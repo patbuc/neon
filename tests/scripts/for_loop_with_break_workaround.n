@@ -1,0 +1,14 @@
+// Expected:
+// 0
+// 1
+// 2
+
+var found = false
+for (var i = 0; i < 10; i = i + 1) {
+    if (!found) {
+        print i
+        if (i == 2) {
+            found = true
+        }
+    }
+}
