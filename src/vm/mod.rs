@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 mod functions;
 mod r#impl;
+mod number_functions;
 mod string_functions;
 mod map_functions;
 #[cfg(test)]
