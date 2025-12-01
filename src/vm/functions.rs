@@ -1,3 +1,4 @@
+use crate::common::constants::VARIADIC_ARITY;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativeFunction};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
@@ -166,8 +167,8 @@ impl VirtualMachine {
     }
 
     fn call_native_function(&mut self, arg_count: usize, native_fn: &ObjNativeFunction) -> Option<Result> {
-        // Check arity
-        if arg_count != native_fn.arity as usize {
+        // Check arity (VARIADIC_ARITY means variadic function - any number of args allowed)
+        if native_fn.arity != VARIADIC_ARITY && arg_count != native_fn.arity as usize {
             self.runtime_error(&format!(
                 "Expected {} arguments but got {}.",
                 native_fn.arity, arg_count
@@ -443,10 +444,32 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-        // Global variables are always in the script frame (first frame)
+
+        // Check if this is a built-in global using the sentinel value u32::MAX
+        if index == u32::MAX as usize {
+            // This is a request for Math from the globals HashMap
+            if let Some(value) = self.globals.get("Math") {
+                self.push(value.clone());
+                let frame = self.call_frames.last_mut().unwrap();
+                frame.ip += bits.as_bytes();
+                return;
+            }
+            // If Math is not found, this is an internal error
+            self.runtime_error("Built-in global 'Math' not found");
+            return;
+        }
+
+        // Regular global variables are in the script frame
         // Script frame has slot_start = -1, so globals start at index 0
         let script_frame = &self.call_frames[0];
         let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
+
+        // Make sure we don't go out of bounds
+        if absolute_index >= self.stack.len() {
+            self.runtime_error(&format!("Global variable index {} out of bounds (stack size: {})", absolute_index, self.stack.len()));
+            return;
+        }
+
         self.push(self.stack[absolute_index].clone());
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes()
@@ -547,7 +570,78 @@ impl VirtualMachine {
         // Stack layout: [receiver, arg1, arg2, ...]
         let receiver = self.peek(arg_count);
 
-        // Determine the type of the receiver
+        // Check if receiver is an instance with the method as a function field
+        // This allows Math.abs(x) where abs is a function field in the Math instance
+        if let Value::Object(obj) = &receiver {
+            if let Object::Instance(instance_ref) = obj.as_ref() {
+                let instance = instance_ref.borrow();
+                if let Some(field_value) = instance.fields.get(&method_name) {
+                    // The "method" is actually a function field - call it
+                    let function_value = field_value.clone();
+                    drop(instance); // Drop the borrow before calling
+
+                    // Handle different function types
+                    match &function_value {
+                        Value::Object(func_obj) => match func_obj.as_ref() {
+                            Object::Function(func) => {
+                                // Call user-defined function
+                                return if let Some(result) = self.call_function(arg_count, &func) {
+                                    Some(result)
+                                } else {
+                                    // Increment IP for CallMethod (opcode + arg_count + method_name_index)
+                                    let current_frame = self.call_frames.last_mut().unwrap();
+                                    current_frame.ip += 3;
+                                    None
+                                };
+                            }
+                            Object::NativeFunction(native_fn) => {
+                                // Collect arguments from the stack (receiver + args)
+                                // Stack: [receiver, arg1, arg2, ...]
+                                let stack_len = self.stack.len();
+                                let receiver_index = stack_len - arg_count - 1;
+                                let args: Vec<Value> = self.stack[receiver_index + 1..stack_len].to_vec();
+
+                                // Call the native function
+                                let result = (native_fn.function)(self, &args);
+
+                                // Pop receiver and arguments from the stack
+                                let n = arg_count + 1;
+                                let start = self.stack.len().saturating_sub(n);
+                                self.stack.drain(start..);
+
+                                // Handle the result
+                                return match result {
+                                    Ok(value) => {
+                                        // Push the return value onto the stack
+                                        self.push(value);
+
+                                        // Increment IP for CallMethod (opcode + arg_count + method_name_index)
+                                        let current_frame = self.call_frames.last_mut().unwrap();
+                                        current_frame.ip += 3;
+
+                                        None
+                                    }
+                                    Err(error_msg) => {
+                                        self.runtime_error(&error_msg);
+                                        Some(Result::RuntimeError)
+                                    }
+                                };
+                            }
+                            _ => {
+                                self.runtime_error("Field is not a callable function");
+                                return Some(Result::RuntimeError);
+                            }
+                        },
+                        _ => {
+                            self.runtime_error("Field is not a callable function");
+                            return Some(Result::RuntimeError);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Determine the type of the receiver for native method lookup
         let type_name = match &receiver {
             Value::Number(_) => "Number".to_string(),
             Value::Boolean(_) => "Boolean".to_string(),

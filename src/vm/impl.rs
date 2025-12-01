@@ -1,8 +1,11 @@
+use crate::common::constants::VARIADIC_ARITY;
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
+use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStruct, Value};
 use crate::compiler::Compiler;
+use crate::vm::math_functions::*;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -16,16 +19,73 @@ impl Default for VirtualMachine {
 
 impl VirtualMachine {
     pub fn new() -> Self {
+        let mut globals = HashMap::new();
+
+        // Initialize built-in global objects
+        globals.insert("Math".to_string(), Self::create_math_object());
+
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             bloq: None,
+            globals,
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
             source: String::new(),
         }
+    }
+
+    /// Creates the Math built-in object with all math functions as fields
+    /// The Math object is a struct-like object with function fields
+    fn create_math_object() -> Value {
+        // Create the Math struct definition with field names
+        let math_struct = Rc::new(ObjStruct {
+            name: "Math".to_string(),
+            fields: vec![
+                "abs".to_string(),
+                "floor".to_string(),
+                "ceil".to_string(),
+                "sqrt".to_string(),
+                "min".to_string(),
+                "max".to_string(),
+            ],
+        });
+
+        // Create an instance of the Math struct with native function values
+        let mut fields = HashMap::new();
+        fields.insert(
+            "abs".to_string(),
+            Value::new_native_function("abs".to_string(), 1, native_math_abs),
+        );
+        fields.insert(
+            "floor".to_string(),
+            Value::new_native_function("floor".to_string(), 1, native_math_floor),
+        );
+        fields.insert(
+            "ceil".to_string(),
+            Value::new_native_function("ceil".to_string(), 1, native_math_ceil),
+        );
+        fields.insert(
+            "sqrt".to_string(),
+            Value::new_native_function("sqrt".to_string(), 1, native_math_sqrt),
+        );
+        fields.insert(
+            "min".to_string(),
+            Value::new_native_function("min".to_string(), VARIADIC_ARITY, native_math_min),
+        );
+        fields.insert(
+            "max".to_string(),
+            Value::new_native_function("max".to_string(), VARIADIC_ARITY, native_math_max),
+        );
+
+        let math_instance = ObjInstance {
+            r#struct: math_struct,
+            fields,
+        };
+
+        Value::new_object(math_instance)
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
