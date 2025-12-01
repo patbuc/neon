@@ -571,7 +571,7 @@ impl Parser {
     /// # Requirements
     /// - Initialization must be a `val` or `var` declaration (not an expression)
     /// - All three clauses (init, condition, increment) are mandatory
-    /// - Increment is typically an assignment expression
+    /// - Increment can be any expression (typically an assignment expression)
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
@@ -600,7 +600,7 @@ impl Parser {
             return None;
         }
 
-        // Parse increment - must be an assignment expression
+        // Parse increment - any expression is allowed
         let increment_expr = self.expression(false)?;
         let increment_location = self.current_location();
         let increment = Stmt::Expression {
