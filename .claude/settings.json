@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test:*)",
+      "Bash(cargo build:*)",
+      "Bash(git worktree:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git commit -m *)",
+      "Bash(git -C *-worktrees/* commit -m *)",
+      "Bash(git -C *-worktrees/* add .)",
+      "Bash(git -C *-worktrees/* status)",
+      "Bash(git -C *-worktrees/* push)",
+      "Bash(gh api:*)",
+      "Bash(gh pr *)",
+      "Bash(chmod:*)",
+      "Bash(source *)",
+      "Bash(jq *)",
+      "WebSearch",
+      "WebFetch(domain:docs.github.com)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
