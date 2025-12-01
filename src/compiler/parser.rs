@@ -666,7 +666,7 @@ impl Parser {
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
-            TokenType::LeftBrace => self.map_literal(),
+            TokenType::LeftBrace => self.brace_literal(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -918,53 +918,119 @@ impl Parser {
         }
     }
 
-    fn map_literal(&mut self) -> Option<Expr> {
+    fn brace_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
-        let mut entries = Vec::new();
 
         self.skip_new_lines();
 
-        // Handle empty map: {}
+        // Handle empty braces: {} - treat as empty map (consistent with Python, JavaScript, etc.)
         if self.check(TokenType::RightBrace) {
             self.advance();
-            return Some(Expr::MapLiteral { entries, location });
+            return Some(Expr::MapLiteral {
+                entries: Vec::new(),
+                location,
+            });
         }
 
-        // Parse key-value pairs
-        loop {
-            // Parse key
-            let key = self.expression(false)?;
+        // Parse first expression to determine if this is a set or map
+        let first_expr = self.expression(false)?;
 
-            // Expect colon
-            if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
+        self.skip_new_lines();
+
+        // Check if next token is a colon (map) or comma/closing brace (set)
+        if self.match_token(TokenType::Colon) {
+            // This is a map literal: {key: value, ...}
+            let mut entries = Vec::new();
+
+            // Parse first value
+            let first_value = self.expression(false)?;
+            entries.push((first_expr, first_value));
+
+            self.skip_new_lines();
+
+            // Parse remaining key-value pairs
+            if self.match_token(TokenType::Comma) {
+                self.skip_new_lines();
+
+                // Allow trailing comma
+                if !self.check(TokenType::RightBrace) {
+                    loop {
+                        // Parse key
+                        let key = self.expression(false)?;
+
+                        // Expect colon
+                        if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
+                            return None;
+                        }
+
+                        // Parse value
+                        let value = self.expression(false)?;
+
+                        entries.push((key, value));
+
+                        self.skip_new_lines();
+
+                        // Check for comma or end of map
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+
+                        self.skip_new_lines();
+
+                        // Allow trailing comma
+                        if self.check(TokenType::RightBrace) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
                 return None;
             }
 
-            // Parse value
-            let value = self.expression(false)?;
-
-            entries.push((key, value));
-
-            self.skip_new_lines();
-
-            // Check for comma or end of map
-            if !self.match_token(TokenType::Comma) {
-                break;
-            }
+            Some(Expr::MapLiteral { entries, location })
+        } else {
+            // This is a set literal: {elem1, elem2, ...}
+            let mut elements = Vec::new();
+            elements.push(first_expr);
 
             self.skip_new_lines();
 
-            // Allow trailing comma
-            if self.check(TokenType::RightBrace) {
-                break;
+            // Parse remaining elements
+            if self.match_token(TokenType::Comma) {
+                self.skip_new_lines();
+
+                // Allow trailing comma
+                if !self.check(TokenType::RightBrace) {
+                    loop {
+                        // Parse element
+                        let element = self.expression(false)?;
+                        elements.push(element);
+
+                        self.skip_new_lines();
+
+                        // Check for comma or end of set
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+
+                        self.skip_new_lines();
+
+                        // Allow trailing comma
+                        if self.check(TokenType::RightBrace) {
+                            break;
+                        }
+                    }
+                }
             }
-        }
 
-        if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
-            return None;
-        }
+            if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
+                return None;
+            }
 
-        Some(Expr::MapLiteral { entries, location })
+            Some(Expr::SetLiteral { elements, location })
+        }
     }
 
     fn index(&mut self, object: Expr) -> Option<Expr> {
