@@ -667,6 +667,7 @@ impl Parser {
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
             TokenType::LeftBrace => self.map_literal(),
+            TokenType::LeftBracket => self.array_literal(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -965,6 +966,46 @@ impl Parser {
         }
 
         Some(Expr::MapLiteral { entries, location })
+    }
+
+    fn array_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut elements = Vec::new();
+
+        self.skip_new_lines();
+
+        // Handle empty array: []
+        if self.check(TokenType::RightBracket) {
+            self.advance();
+            return Some(Expr::ArrayLiteral { elements, location });
+        }
+
+        // Parse comma-separated elements
+        loop {
+            // Parse element expression
+            let element = self.expression(false)?;
+            elements.push(element);
+
+            self.skip_new_lines();
+
+            // Check for comma or end of array
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+
+            self.skip_new_lines();
+
+            // Allow trailing comma
+            if self.check(TokenType::RightBracket) {
+                break;
+            }
+        }
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after array elements.") {
+            return None;
+        }
+
+        Some(Expr::ArrayLiteral { elements, location })
     }
 
     fn index(&mut self, object: Expr) -> Option<Expr> {

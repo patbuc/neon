@@ -1285,3 +1285,282 @@ fn test_parse_complex_map_program() {
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 4);
 }
+
+// ===== Array Literal Tests =====
+
+#[test]
+fn test_parse_empty_array() {
+    let program = "val arr = []\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 0);
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_numbers() {
+    let program = "val arr = [1, 2, 3]\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 3);
+                    match &elements[0] {
+                        Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                        _ => panic!("Expected Number element"),
+                    }
+                    match &elements[1] {
+                        Expr::Number { value, .. } => assert_eq!(*value, 2.0),
+                        _ => panic!("Expected Number element"),
+                    }
+                    match &elements[2] {
+                        Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                        _ => panic!("Expected Number element"),
+                    }
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_mixed_types() {
+    let program = r#"val arr = [1, "hello", true, nil]"#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 4);
+                    assert!(matches!(elements[0], Expr::Number { .. }));
+                    assert!(matches!(elements[1], Expr::String { .. }));
+                    assert!(matches!(elements[2], Expr::Boolean { .. }));
+                    assert!(matches!(elements[3], Expr::Nil { .. }));
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_trailing_comma() {
+    let program = "val arr = [1, 2, 3,]\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 3);
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_nested_arrays() {
+    let program = "val arr = [[1, 2], [3, 4]]\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 2);
+                    // Check first nested array
+                    match &elements[0] {
+                        Expr::ArrayLiteral { elements: inner, .. } => {
+                            assert_eq!(inner.len(), 2);
+                            match &inner[0] {
+                                Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                                _ => panic!("Expected Number"),
+                            }
+                        }
+                        _ => panic!("Expected nested ArrayLiteral"),
+                    }
+                    // Check second nested array
+                    match &elements[1] {
+                        Expr::ArrayLiteral { elements: inner, .. } => {
+                            assert_eq!(inner.len(), 2);
+                            match &inner[0] {
+                                Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                                _ => panic!("Expected Number"),
+                            }
+                        }
+                        _ => panic!("Expected nested ArrayLiteral"),
+                    }
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_multiline() {
+    let program = r#"
+        val arr = [
+            1,
+            2,
+            3
+        ]
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 3);
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_expressions() {
+    let program = "val arr = [1 + 2, 3 * 4, 5 - 6]\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::ArrayLiteral { elements, .. } => {
+                    assert_eq!(elements.len(), 3);
+                    // All elements should be binary expressions
+                    assert!(matches!(elements[0], Expr::Binary { .. }));
+                    assert!(matches!(elements[1], Expr::Binary { .. }));
+                    assert!(matches!(elements[2], Expr::Binary { .. }));
+                }
+                _ => panic!("Expected ArrayLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_missing_closing_bracket() {
+    let program = "val arr = [1, 2, 3\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("']'"));
+}
