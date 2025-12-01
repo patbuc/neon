@@ -95,6 +95,13 @@ pub enum Expr {
         expr: Box<Expr>,
         location: SourceLocation,
     },
+    /// Method call: obj.method(args)
+    MethodCall {
+        object: Box<Expr>,
+        method: String,
+        arguments: Vec<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -175,7 +182,8 @@ impl Expr {
             | Expr::Call { location, .. }
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
-            | Expr::Grouping { location, .. } => location,
+            | Expr::Grouping { location, .. }
+            | Expr::MethodCall { location, .. } => location,
         }
     }
 }

@@ -1,0 +1,12 @@
+// Expected:
+// hello
+// world
+// worl
+// hello world
+
+val str = "hello world"
+
+print str.substring(0, 5)
+print str.substring(6, 11)
+print str.substring(-5, -1)
+print str.substring(0, 100)

@@ -3,8 +3,28 @@ use std::fmt::Debug;
 
 mod functions;
 mod r#impl;
+mod string_functions;
 #[cfg(test)]
 mod tests;
+
+// Native functions for testing and built-in operations
+pub mod native_functions {
+    use crate::common::Value;
+    use crate::vm::VirtualMachine;
+
+    /// Test native function that adds two numbers
+    /// This demonstrates how native functions work and can be used for testing
+    pub fn native_add(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+        if args.len() != 2 {
+            return Err(format!("native_add expects 2 arguments, got {}", args.len()));
+        }
+
+        match (&args[0], &args[1]) {
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            _ => Err("native_add requires two number arguments".to_string()),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Result {
