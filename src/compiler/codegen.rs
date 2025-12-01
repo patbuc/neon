@@ -522,6 +522,48 @@ impl CodeGenerator {
                 self.current_bloq().write_u8(arguments.len() as u8);
                 self.current_bloq().write_u8(method_index as u8);
             }
+            Expr::MapLiteral { entries, location } => {
+                // TODO: Implement map literal code generation
+                // Will be implemented when parser support is added
+                let _ = (entries, location);
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UnexpectedToken,
+                    "Map literals are not yet implemented".to_string(),
+                    *location,
+                ));
+            }
+            Expr::Index {
+                object,
+                index,
+                location,
+            } => {
+                // TODO: Implement index access code generation
+                // Will be implemented when parser support is added
+                let _ = (object, index);
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UnexpectedToken,
+                    "Index access is not yet implemented".to_string(),
+                    *location,
+                ));
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                location,
+            } => {
+                // TODO: Implement index assignment code generation
+                // Will be implemented when parser support is added
+                let _ = (object, index, value);
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UnexpectedToken,
+                    "Index assignment is not yet implemented".to_string(),
+                    *location,
+                ));
+            }
         }
     }
 }
