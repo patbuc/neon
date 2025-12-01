@@ -354,6 +354,7 @@ If a state file exists at `.claude/workflows/{feature}-state.json`:
 - Create PR if tests are failing
 - Make assumptions about remote setup
 - Add watermarks or attribution to commit messages (no "Generated with Claude Code" or "Co-Authored-By" tags)
+- List changed files in commit messages - focus on intent, not obvious details from git diff
 - Skip the Copilot review step
 - Report PR as complete if Copilot requested changes
 

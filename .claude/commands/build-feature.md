@@ -139,6 +139,13 @@ Branch: {branch_name}
 IMPORTANT: All file operations and commands must be executed in: {worktree_path}
 Change to this directory before any operations: cd {worktree_path}
 
+IMPORTANT - Commit Message Guidelines:
+- DO NOT add watermarks like "Generated with Claude Code"
+- DO NOT add "Co-Authored-By: Claude" trailers
+- DO NOT list changed files in commit messages
+- Focus on the intent and high-level summary (WHY, not WHAT)
+- Keep messages clean and professional
+
 Current Task: {task.description}
 Files to modify: {task.files}
 Acceptance criteria: {task.acceptance_criteria}
@@ -264,6 +271,13 @@ Files modified: {all modified files}
 
 IMPORTANT: Execute all git commands from the worktree directory: {worktree_path}
 
+IMPORTANT - Commit Message Guidelines:
+- DO NOT add watermarks like "Generated with Claude Code"
+- DO NOT add "Co-Authored-By: Claude" trailers
+- DO NOT list changed files in commit messages
+- Focus on the intent and high-level summary (WHY, not WHAT)
+- Keep messages clean and professional
+
 Your task:
 1. Create a comprehensive PR description including:
    - Feature overview
@@ -355,6 +369,13 @@ Branch: {branch_name}
 
 IMPORTANT: All operations must be in the worktree directory: {worktree_path}
 
+IMPORTANT - Commit Message Guidelines:
+- DO NOT add watermarks like "Generated with Claude Code"
+- DO NOT add "Co-Authored-By: Claude" trailers
+- DO NOT list changed files in commit messages
+- Focus on the intent and high-level summary (WHY, not WHAT)
+- Keep messages clean and professional
+
 Copilot Review Feedback:
 {copilot_review_comments}
 
@@ -403,6 +424,13 @@ git add .
 git commit -m "fix: Address GitHub Copilot review suggestions"
 git push
 ```
+
+**Important - Commit Message Guidelines**:
+- DO NOT add watermarks like "Generated with Claude Code"
+- DO NOT add "Co-Authored-By: Claude" trailers
+- DO NOT list changed files in commit messages
+- Focus on the intent and high-level summary (WHY, not WHAT)
+- Keep messages clean and professional
 
 Update state: status = "completed"
 
