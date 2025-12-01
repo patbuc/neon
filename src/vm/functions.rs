@@ -549,6 +549,8 @@ impl VirtualMachine {
 
         // Determine the type of the receiver
         let type_name = match &receiver {
+            Value::Number(_) => "Number".to_string(),
+            Value::Boolean(_) => "Boolean".to_string(),
             Value::Object(obj) => match obj.as_ref() {
                 Object::String(_) => "String".to_string(),
                 Object::Array(_) => "Array".to_string(),
