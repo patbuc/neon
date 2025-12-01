@@ -552,6 +552,7 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::String(_) => "String".to_string(),
                 Object::Array(_) => "Array".to_string(),
+                Object::Map(_) => "Map".to_string(),
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
                     instance.r#struct.name.clone()
@@ -667,5 +668,149 @@ impl VirtualMachine {
 
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes();
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_create_map(&mut self) {
+        // Read the count of entries from bytecode
+        let count = {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.bloq.read_u8(frame.ip + 1) as usize
+        };
+
+        // Pop key-value pairs from stack and build the map
+        // Stack layout from compiler: [key1, key2, ..., keyN, value1, value2, ..., valueN]
+        let stack_len = self.stack.len();
+        let pairs_start = stack_len - (count * 2);
+
+        let mut map = HashMap::with_capacity(count);
+        for i in 0..count {
+            // Keys are in the first half, values in the second half
+            let key_value = &self.stack[pairs_start + i];
+            let value = &self.stack[pairs_start + count + i];
+
+            // Convert Value to MapKey
+            let key = match Self::value_to_map_key(key_value) {
+                Some(k) => k,
+                None => {
+                    self.runtime_error(&format!(
+                        "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
+                        key_value
+                    ));
+                    return;
+                }
+            };
+
+            map.insert(key, value.clone());
+        }
+
+        // Pop all key-value pairs from stack
+        self.stack.drain(pairs_start..);
+
+        // Push the new map onto the stack
+        self.push(Value::new_map(map));
+
+        // Increment IP to skip the count byte
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_index(&mut self) {
+        let index_value = self.pop();
+        let map_value = self.pop();
+
+        match &map_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Map(map_ref) => {
+                    // Convert index to MapKey
+                    let key = match Self::value_to_map_key(&index_value) {
+                        Some(k) => k,
+                        None => {
+                            self.runtime_error(&format!(
+                                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let map = map_ref.borrow();
+                    let result = map.get(&key).cloned().unwrap_or(Value::Nil);
+                    self.push(result);
+                }
+                _ => {
+                    self.runtime_error(&format!(
+                        "Only maps support index access, got {}.",
+                        map_value
+                    ));
+                }
+            },
+            _ => {
+                self.runtime_error(&format!(
+                    "Only maps support index access, got {}.",
+                    map_value
+                ));
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_set_index(&mut self) {
+        let value = self.pop();
+        let index_value = self.pop();
+        let map_value = self.pop();
+
+        match &map_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Map(map_ref) => {
+                    // Convert index to MapKey
+                    let key = match Self::value_to_map_key(&index_value) {
+                        Some(k) => k,
+                        None => {
+                            self.runtime_error(&format!(
+                                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let mut map = map_ref.borrow_mut();
+                    map.insert(key, value.clone());
+
+                    // Push the value back (assignment expression returns the value)
+                    self.push(value);
+                }
+                _ => {
+                    self.runtime_error(&format!(
+                        "Only maps support index assignment, got {}.",
+                        map_value
+                    ));
+                }
+            },
+            _ => {
+                self.runtime_error(&format!(
+                    "Only maps support index assignment, got {}.",
+                    map_value
+                ));
+            }
+        }
+    }
+
+    /// Convert a Value to a MapKey if possible
+    fn value_to_map_key(value: &Value) -> Option<crate::common::MapKey> {
+        use crate::common::MapKey;
+        use ordered_float::OrderedFloat;
+
+        match value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(s) => Some(MapKey::String(Rc::clone(&s.value))),
+                _ => None,
+            },
+            Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
+            Value::Boolean(b) => Some(MapKey::Boolean(*b)),
+            Value::Nil => None,
+        }
     }
 }

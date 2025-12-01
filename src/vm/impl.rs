@@ -164,6 +164,9 @@ impl VirtualMachine {
                     }
                     should_increment_ip = false;
                 }
+                OpCode::CreateMap => self.fn_create_map(),
+                OpCode::GetIndex => self.fn_get_index(),
+                OpCode::SetIndex => self.fn_set_index(),
             }
 
             // Increment IP for the current frame
@@ -249,6 +252,13 @@ impl VirtualMachine {
             ("String", "substring") => Some(crate::vm::string_functions::native_string_substring),
             ("String", "replace") => Some(crate::vm::string_functions::native_string_replace),
             ("String", "split") => Some(crate::vm::string_functions::native_string_split),
+            ("Map", "get") => Some(crate::vm::map_functions::native_map_get),
+            ("Map", "size") => Some(crate::vm::map_functions::native_map_size),
+            ("Map", "has") => Some(crate::vm::map_functions::native_map_has),
+            ("Map", "remove") => Some(crate::vm::map_functions::native_map_remove),
+            ("Map", "keys") => Some(crate::vm::map_functions::native_map_keys),
+            ("Map", "values") => Some(crate::vm::map_functions::native_map_values),
+            ("Map", "entries") => Some(crate::vm::map_functions::native_map_entries),
             _ => None,
         }
     }

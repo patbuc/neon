@@ -1,6 +1,8 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use ordered_float::OrderedFloat;
 
 pub(crate) mod bloq;
 pub(crate) mod opcodes;
@@ -74,6 +76,23 @@ pub(crate) enum Value {
     Nil,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum MapKey {
+    String(Rc<str>),
+    Number(OrderedFloat<f64>),
+    Boolean(bool),
+}
+
+impl Display for MapKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MapKey::String(s) => write!(f, "{}", s),
+            MapKey::Number(n) => write!(f, "{}", n),
+            MapKey::Boolean(b) => write!(f, "{}", b),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Object {
     String(ObjString),
@@ -82,6 +101,7 @@ pub(crate) enum Object {
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
+    Map(Rc<RefCell<HashMap<MapKey, Value>>>),
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +182,10 @@ impl Value {
     pub(crate) fn new_array(elements: Vec<Value>) -> Self {
         Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
     }
+
+    pub(crate) fn new_map(entries: HashMap<MapKey, Value>) -> Self {
+        Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
+    }
 }
 
 pub(crate) struct CallFrame {
@@ -191,6 +215,19 @@ impl Display for Object {
                     write!(f, "{}", value)?;
                 }
                 write!(f, "]")
+            }
+            Object::Map(map) => {
+                let entries = map.borrow();
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in entries.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}: {}", key, value)?;
+                }
+                write!(f, "}}")
             }
         }
     }
@@ -328,5 +365,108 @@ mod test_array {
 
         let display = format!("{}", arr);
         assert_eq!(display, "[42, true, nil]");
+    }
+}
+
+#[cfg(test)]
+mod test_map {
+    use super::*;
+
+    #[test]
+    fn test_map_creation() {
+        let mut entries = HashMap::new();
+        entries.insert(MapKey::String(Rc::from("name")), Value::Object(Rc::new(Object::String(ObjString { value: Rc::from("Alice") }))));
+        entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
+
+        let map = Value::new_map(entries);
+
+        // Test that the map was created
+        match map {
+            Value::Object(obj) => {
+                match obj.as_ref() {
+                    Object::Map(_) => {
+                        // Success - map was created
+                    },
+                    _ => panic!("Expected Map object"),
+                }
+            },
+            _ => panic!("Expected Object value"),
+        }
+    }
+
+    #[test]
+    fn test_map_display() {
+        let mut entries = HashMap::new();
+        entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
+        entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
+
+        let map = Value::new_map(entries);
+        let display = format!("{}", map);
+
+        // HashMap order is not guaranteed, so we test both possible orders
+        assert!(display == "{a: 1, b: 2}" || display == "{b: 2, a: 1}");
+    }
+
+    #[test]
+    fn test_empty_map_display() {
+        let map = Value::new_map(HashMap::new());
+        let display = format!("{}", map);
+        assert_eq!(display, "{}");
+    }
+
+    #[test]
+    fn test_map_equality() {
+        let mut entries1 = HashMap::new();
+        entries1.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+        entries1.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+        let map1 = Value::new_map(entries1);
+
+        let mut entries2 = HashMap::new();
+        entries2.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+        entries2.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+        let map2 = Value::new_map(entries2);
+
+        let mut entries3 = HashMap::new();
+        entries3.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+        entries3.insert(MapKey::String(Rc::from("y")), Value::Number(3.0));
+        let map3 = Value::new_map(entries3);
+
+        // These should be equal
+        assert_eq!(map1, map2);
+
+        // These should not be equal
+        assert_ne!(map1, map3);
+    }
+
+    #[test]
+    fn test_map_with_different_key_types() {
+        let mut entries = HashMap::new();
+        entries.insert(MapKey::String(Rc::from("name")), Value::Object(Rc::new(Object::String(ObjString { value: Rc::from("Alice") }))));
+        entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
+        entries.insert(MapKey::Boolean(true), Value::Boolean(false));
+
+        let map = Value::new_map(entries);
+        let display = format!("{}", map);
+
+        // Check that all key types are represented
+        assert!(display.contains("name:"));
+        assert!(display.contains("42:"));
+        assert!(display.contains("true:"));
+    }
+
+    #[test]
+    fn test_map_with_mixed_value_types() {
+        let mut entries = HashMap::new();
+        entries.insert(MapKey::String(Rc::from("num")), Value::Number(42.0));
+        entries.insert(MapKey::String(Rc::from("bool")), Value::Boolean(true));
+        entries.insert(MapKey::String(Rc::from("nil")), Value::Nil);
+
+        let map = Value::new_map(entries);
+        let display = format!("{}", map);
+
+        // Check that all value types are represented
+        assert!(display.contains("num:"));
+        assert!(display.contains("bool:"));
+        assert!(display.contains("nil:"));
     }
 }

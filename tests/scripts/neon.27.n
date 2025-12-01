@@ -1,0 +1,26 @@
+// neon.27.n - Nested maps
+
+// Expected:
+// Alice
+// 30
+// NYC
+// Bob
+// 25
+// LA
+
+// Create nested map structure
+val people = {
+    "person1": {"name": "Alice", "age": 30, "city": "NYC"},
+    "person2": {"name": "Bob", "age": 25, "city": "LA"}
+}
+
+// Access nested values
+val p1 = people["person1"]
+print p1["name"]   // Alice
+print p1["age"]    // 30
+print p1["city"]   // NYC
+
+val p2 = people["person2"]
+print p2["name"]   // Bob
+print p2["age"]    // 25
+print p2["city"]   // LA

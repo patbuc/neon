@@ -339,6 +339,29 @@ impl SemanticAnalyzer {
                 // Method validation could be added here if we track method types
                 // For now, we just ensure the object and arguments are valid
             }
+            Expr::MapLiteral { entries, .. } => {
+                // Resolve all key-value pairs in the map literal
+                for (key, value) in entries {
+                    self.resolve_expr(key);
+                    self.resolve_expr(value);
+                }
+            }
+            Expr::Index { object, index, .. } => {
+                // Resolve the object and index expression
+                self.resolve_expr(object);
+                self.resolve_expr(index);
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                // Resolve the object, index, and value expressions
+                self.resolve_expr(object);
+                self.resolve_expr(index);
+                self.resolve_expr(value);
+            }
         }
     }
 }
