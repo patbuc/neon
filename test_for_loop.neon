@@ -1,0 +1,29 @@
+// Test basic for loop
+for (val i = 0; i < 5; i = i + 1) {
+    print(i);
+}
+
+print("---");
+
+// Test for loop with condition and update
+for (val j = 10; j > 0; j = j - 2) {
+    print(j);
+}
+
+print("---");
+
+// Test nested for loops
+for (val x = 1; x <= 3; x = x + 1) {
+    for (val y = 1; y <= 3; y = y + 1) {
+        print(x * y);
+    }
+}
+
+print("---");
+
+// Test for loop with more complex condition
+val sum = 0;
+for (val k = 1; k <= 10; k = k + 1) {
+    sum = sum + k;
+}
+print(sum);
