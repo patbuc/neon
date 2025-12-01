@@ -115,9 +115,10 @@ impl std::fmt::Debug for ObjNativeFunction {
 
 impl PartialEq for ObjNativeFunction {
     fn eq(&self, other: &Self) -> bool {
-        // Native functions are equal if they have the same name and arity
-        // We can't compare function pointers directly in a meaningful way
-        self.name == other.name && self.arity == other.arity
+        // Native functions are equal if they have the same name, arity, and function pointer
+        self.name == other.name
+            && self.arity == other.arity
+            && (self.function as usize) == (other.function as usize)
     }
 }
 

@@ -69,12 +69,10 @@ pub fn native_string_substring(_vm: &mut VirtualMachine, args: &[Value]) -> Resu
         (end_arg as i32).min(str_len) as usize
     };
 
-    // Ensure start <= end
-    let (start_idx, end_idx) = if start_idx > end_idx {
-        (end_idx, start_idx)
-    } else {
-        (start_idx, end_idx)
-    };
+    // Return empty string if start > end
+    if start_idx > end_idx {
+        return Ok(string!(String::new()));
+    }
 
     // Extract substring
     let substring: String = chars[start_idx..end_idx].iter().collect();
@@ -251,6 +249,17 @@ mod tests {
         let mut vm = VirtualMachine::new();
         let test_str = string!("hello");
         let args = vec![test_str, Value::Number(2.0), Value::Number(2.0)];
+
+        let result = native_string_substring(&mut vm, &args).unwrap();
+        assert_eq!("", as_string!(result));
+    }
+
+    #[test]
+    fn test_substring_start_greater_than_end() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        // start=5, end=0: should return empty string
+        let args = vec![test_str, Value::Number(5.0), Value::Number(0.0)];
 
         let result = native_string_substring(&mut vm, &args).unwrap();
         assert_eq!("", as_string!(result));
