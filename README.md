@@ -60,7 +60,7 @@ print !t        // false
 
 ## Goal
 
-I wanted to make neon self-hosted someday, but I am not sur anymore. Goals may appear (or disappear) as the project
+I wanted to make neon self-hosted someday, but I am not sure anymore. Goals may appear (or disappear) as the project
 evolves.
 
 ## Inspiration
