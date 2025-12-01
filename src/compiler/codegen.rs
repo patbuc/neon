@@ -550,6 +550,19 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateMap, *location);
                 self.current_bloq().write_u8(entries.len() as u8);
             }
+            Expr::ArrayLiteral { elements, location } => {
+                // TODO: Implement array literal codegen
+                // Will need CreateArray opcode and VM support
+                for element in elements {
+                    self.generate_expr(element);
+                }
+                // Placeholder - actual implementation will require:
+                // 1. CreateArray opcode
+                // 2. VM support for array values
+                // 3. Array runtime implementation
+                let _ = location; // Suppress unused warning
+                todo!("Array literal codegen not yet implemented")
+            }
             Expr::Index {
                 object,
                 index,

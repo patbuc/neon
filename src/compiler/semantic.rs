@@ -362,6 +362,12 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
+            Expr::ArrayLiteral { elements, .. } => {
+                // Resolve all elements in the array literal
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
             Expr::Index { object, index, .. } => {
                 // Resolve the object and index expression
                 self.resolve_expr(object);
