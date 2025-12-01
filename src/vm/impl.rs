@@ -330,6 +330,10 @@ impl VirtualMachine {
             ("Set", "has") => Some(crate::vm::set_functions::native_set_has),
             ("Set", "size") => Some(crate::vm::set_functions::native_set_size),
             ("Set", "clear") => Some(crate::vm::set_functions::native_set_clear),
+            ("Set", "union") => Some(crate::vm::set_functions::native_set_union),
+            ("Set", "intersection") => Some(crate::vm::set_functions::native_set_intersection),
+            ("Set", "difference") => Some(crate::vm::set_functions::native_set_difference),
+            ("Set", "isSubset") => Some(crate::vm::set_functions::native_set_is_subset),
             _ => None,
         }
     }

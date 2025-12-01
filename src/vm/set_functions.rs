@@ -152,6 +152,150 @@ pub fn native_set_clear(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Valu
     Ok(Value::Nil)
 }
 
+/// Native implementation of Set.union(other)
+/// Returns a new set with all elements from both sets
+pub fn native_set_union(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "union() expects 1 argument (other set), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the first set (receiver)
+    let set1_ref = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("union() can only be called on sets".to_string()),
+        },
+        _ => return Err("union() can only be called on sets".to_string()),
+    };
+
+    // Extract the second set (argument)
+    let set2_ref = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("union() requires a set as argument".to_string()),
+        },
+        _ => return Err("union() requires a set as argument".to_string()),
+    };
+
+    // Create union of both sets
+    let set1 = set1_ref.borrow();
+    let set2 = set2_ref.borrow();
+    let union_set: std::collections::HashSet<SetKey> = set1.union(&*set2).cloned().collect();
+
+    Ok(Value::new_set(union_set))
+}
+
+/// Native implementation of Set.intersection(other)
+/// Returns a new set with only elements common to both sets
+pub fn native_set_intersection(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "intersection() expects 1 argument (other set), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the first set (receiver)
+    let set1_ref = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("intersection() can only be called on sets".to_string()),
+        },
+        _ => return Err("intersection() can only be called on sets".to_string()),
+    };
+
+    // Extract the second set (argument)
+    let set2_ref = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("intersection() requires a set as argument".to_string()),
+        },
+        _ => return Err("intersection() requires a set as argument".to_string()),
+    };
+
+    // Create intersection of both sets
+    let set1 = set1_ref.borrow();
+    let set2 = set2_ref.borrow();
+    let intersection_set: std::collections::HashSet<SetKey> = set1.intersection(&*set2).cloned().collect();
+
+    Ok(Value::new_set(intersection_set))
+}
+
+/// Native implementation of Set.difference(other)
+/// Returns a new set with elements in the first set but not in the second
+pub fn native_set_difference(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "difference() expects 1 argument (other set), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the first set (receiver)
+    let set1_ref = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("difference() can only be called on sets".to_string()),
+        },
+        _ => return Err("difference() can only be called on sets".to_string()),
+    };
+
+    // Extract the second set (argument)
+    let set2_ref = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("difference() requires a set as argument".to_string()),
+        },
+        _ => return Err("difference() requires a set as argument".to_string()),
+    };
+
+    // Create difference of both sets
+    let set1 = set1_ref.borrow();
+    let set2 = set2_ref.borrow();
+    let difference_set: std::collections::HashSet<SetKey> = set1.difference(&*set2).cloned().collect();
+
+    Ok(Value::new_set(difference_set))
+}
+
+/// Native implementation of Set.isSubset(other)
+/// Returns true if all elements of the first set are in the second set
+pub fn native_set_is_subset(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "isSubset() expects 1 argument (other set), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the first set (receiver)
+    let set1_ref = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("isSubset() can only be called on sets".to_string()),
+        },
+        _ => return Err("isSubset() can only be called on sets".to_string()),
+    };
+
+    // Extract the second set (argument)
+    let set2_ref = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("isSubset() requires a set as argument".to_string()),
+        },
+        _ => return Err("isSubset() requires a set as argument".to_string()),
+    };
+
+    // Check if first set is a subset of second set
+    let set1 = set1_ref.borrow();
+    let set2 = set2_ref.borrow();
+    let is_subset = set1.is_subset(&*set2);
+
+    Ok(Value::Boolean(is_subset))
+}
+
 /// Helper function to convert a Value to a SetKey
 fn value_to_set_key(value: &Value) -> Option<SetKey> {
     match value {
@@ -498,5 +642,558 @@ mod tests {
         let clear_result = native_set_clear(&mut vm, &[not_a_set]);
         assert!(clear_result.is_err());
         assert!(clear_result.unwrap_err().contains("can only be called on sets"));
+    }
+
+    // Tests for set algebra methods
+
+    #[test]
+    fn test_set_union_basic() {
+        let mut vm = VirtualMachine::new();
+
+        // Create set1 = {1, 2, 3}
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(3.0)));
+        let set1 = Value::new_set(elements1);
+
+        // Create set2 = {3, 4, 5}
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(5.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1.clone(), set2.clone()];
+        let result = native_set_union(&mut vm, &args).unwrap();
+
+        // Result should be {1, 2, 3, 4, 5}
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 5);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(1.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(2.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(3.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(4.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(5.0))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+
+        // Verify original sets unchanged
+        match set1 {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 3);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+        match set2 {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 3);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_union_empty_sets() {
+        let mut vm = VirtualMachine::new();
+
+        let set1 = Value::new_set(HashSet::new());
+        let set2 = Value::new_set(HashSet::new());
+
+        let args = vec![set1, set2];
+        let result = native_set_union(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 0);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_union_one_empty() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements);
+        let set2 = Value::new_set(HashSet::new());
+
+        let args = vec![set1, set2];
+        let result = native_set_union(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 2);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(1.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(2.0))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_union_mixed_types() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::String(Rc::from("hello")));
+        let set1 = Value::new_set(elements1);
+
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Boolean(true));
+        elements2.insert(SetKey::String(Rc::from("world")));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1, set2];
+        let result = native_set_union(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 4);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(1.0))));
+                    assert!(set_contents.contains(&SetKey::String(Rc::from("hello"))));
+                    assert!(set_contents.contains(&SetKey::Boolean(true)));
+                    assert!(set_contents.contains(&SetKey::String(Rc::from("world"))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_intersection_basic() {
+        let mut vm = VirtualMachine::new();
+
+        // Create set1 = {1, 2, 3, 4}
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set1 = Value::new_set(elements1);
+
+        // Create set2 = {3, 4, 5, 6}
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(5.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(6.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1.clone(), set2.clone()];
+        let result = native_set_intersection(&mut vm, &args).unwrap();
+
+        // Result should be {3, 4}
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 2);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(3.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(4.0))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+
+        // Verify original sets unchanged
+        match set1 {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 4);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_intersection_no_common_elements() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements1);
+
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1, set2];
+        let result = native_set_intersection(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 0);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_intersection_empty_sets() {
+        let mut vm = VirtualMachine::new();
+
+        let set1 = Value::new_set(HashSet::new());
+        let set2 = Value::new_set(HashSet::new());
+
+        let args = vec![set1, set2];
+        let result = native_set_intersection(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 0);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_difference_basic() {
+        let mut vm = VirtualMachine::new();
+
+        // Create set1 = {1, 2, 3, 4}
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set1 = Value::new_set(elements1);
+
+        // Create set2 = {3, 4, 5, 6}
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(5.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(6.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1.clone(), set2.clone()];
+        let result = native_set_difference(&mut vm, &args).unwrap();
+
+        // Result should be {1, 2} (in set1 but not in set2)
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 2);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(1.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(2.0))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+
+        // Verify original sets unchanged
+        match set1 {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 4);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_difference_no_overlap() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements1);
+
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1, set2];
+        let result = native_set_difference(&mut vm, &args).unwrap();
+
+        // Result should be {1, 2} (all of set1)
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    let set_contents = s.borrow();
+                    assert_eq!(set_contents.len(), 2);
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(1.0))));
+                    assert!(set_contents.contains(&SetKey::Number(OrderedFloat(2.0))));
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_difference_empty_result() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements1.clone());
+        let set2 = Value::new_set(elements1);
+
+        let args = vec![set1, set2];
+        let result = native_set_difference(&mut vm, &args).unwrap();
+
+        // Result should be empty (same elements)
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 0);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_difference_empty_sets() {
+        let mut vm = VirtualMachine::new();
+
+        let set1 = Value::new_set(HashSet::new());
+        let set2 = Value::new_set(HashSet::new());
+
+        let args = vec![set1, set2];
+        let result = native_set_difference(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Set(s) => {
+                    assert_eq!(s.borrow().len(), 0);
+                }
+                _ => panic!("Expected set"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_is_subset_true() {
+        let mut vm = VirtualMachine::new();
+
+        // Create set1 = {1, 2}
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements1);
+
+        // Create set2 = {1, 2, 3, 4}
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1, set2];
+        let result = native_set_is_subset(&mut vm, &args).unwrap();
+
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_set_is_subset_false() {
+        let mut vm = VirtualMachine::new();
+
+        // Create set1 = {1, 2, 5}
+        let mut elements1 = HashSet::new();
+        elements1.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements1.insert(SetKey::Number(OrderedFloat(5.0)));
+        let set1 = Value::new_set(elements1);
+
+        // Create set2 = {1, 2, 3, 4}
+        let mut elements2 = HashSet::new();
+        elements2.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(3.0)));
+        elements2.insert(SetKey::Number(OrderedFloat(4.0)));
+        let set2 = Value::new_set(elements2);
+
+        let args = vec![set1, set2];
+        let result = native_set_is_subset(&mut vm, &args).unwrap();
+
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_set_is_subset_equal_sets() {
+        let mut vm = VirtualMachine::new();
+
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+        let set1 = Value::new_set(elements.clone());
+        let set2 = Value::new_set(elements);
+
+        let args = vec![set1, set2];
+        let result = native_set_is_subset(&mut vm, &args).unwrap();
+
+        // A set is a subset of itself
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_set_is_subset_empty_set() {
+        let mut vm = VirtualMachine::new();
+
+        let set1 = Value::new_set(HashSet::new());
+
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        let set2 = Value::new_set(elements);
+
+        let args = vec![set1, set2];
+        let result = native_set_is_subset(&mut vm, &args).unwrap();
+
+        // Empty set is a subset of any set
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_set_is_subset_both_empty() {
+        let mut vm = VirtualMachine::new();
+
+        let set1 = Value::new_set(HashSet::new());
+        let set2 = Value::new_set(HashSet::new());
+
+        let args = vec![set1, set2];
+        let result = native_set_is_subset(&mut vm, &args).unwrap();
+
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_set_union_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let args = vec![set];
+
+        let result = native_set_union(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("expects 1 argument"));
+    }
+
+    #[test]
+    fn test_set_intersection_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let args = vec![set];
+
+        let result = native_set_intersection(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("expects 1 argument"));
+    }
+
+    #[test]
+    fn test_set_difference_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let args = vec![set];
+
+        let result = native_set_difference(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("expects 1 argument"));
+    }
+
+    #[test]
+    fn test_set_is_subset_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let args = vec![set];
+
+        let result = native_set_is_subset(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("expects 1 argument"));
+    }
+
+    #[test]
+    fn test_set_algebra_on_non_set() {
+        let mut vm = VirtualMachine::new();
+        let not_a_set = Value::Number(42.0);
+        let set = Value::new_set(HashSet::new());
+
+        let union_result = native_set_union(&mut vm, &[not_a_set.clone(), set.clone()]);
+        assert!(union_result.is_err());
+        assert!(union_result.unwrap_err().contains("can only be called on sets"));
+
+        let intersection_result = native_set_intersection(&mut vm, &[not_a_set.clone(), set.clone()]);
+        assert!(intersection_result.is_err());
+        assert!(intersection_result.unwrap_err().contains("can only be called on sets"));
+
+        let difference_result = native_set_difference(&mut vm, &[not_a_set.clone(), set.clone()]);
+        assert!(difference_result.is_err());
+        assert!(difference_result.unwrap_err().contains("can only be called on sets"));
+
+        let subset_result = native_set_is_subset(&mut vm, &[not_a_set, set]);
+        assert!(subset_result.is_err());
+        assert!(subset_result.unwrap_err().contains("can only be called on sets"));
+    }
+
+    #[test]
+    fn test_set_algebra_with_non_set_argument() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let not_a_set = Value::Number(42.0);
+
+        let union_result = native_set_union(&mut vm, &[set.clone(), not_a_set.clone()]);
+        assert!(union_result.is_err());
+        assert!(union_result.unwrap_err().contains("requires a set as argument"));
+
+        let intersection_result = native_set_intersection(&mut vm, &[set.clone(), not_a_set.clone()]);
+        assert!(intersection_result.is_err());
+        assert!(intersection_result.unwrap_err().contains("requires a set as argument"));
+
+        let difference_result = native_set_difference(&mut vm, &[set.clone(), not_a_set.clone()]);
+        assert!(difference_result.is_err());
+        assert!(difference_result.unwrap_err().contains("requires a set as argument"));
+
+        let subset_result = native_set_is_subset(&mut vm, &[set, not_a_set]);
+        assert!(subset_result.is_err());
+        assert!(subset_result.unwrap_err().contains("requires a set as argument"));
     }
 }
