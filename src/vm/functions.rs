@@ -1,4 +1,4 @@
-use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
+use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativeFunction};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -72,6 +72,11 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Function(func) => {
                     if let Some(value) = self.call_function(arg_count, &func) {
+                        return Some(value);
+                    }
+                }
+                Object::NativeFunction(native_fn) => {
+                    if let Some(value) = self.call_native_function(arg_count, native_fn) {
                         return Some(value);
                     }
                 }
@@ -158,6 +163,49 @@ impl VirtualMachine {
 
         self.call_frames.push(new_frame);
         None
+    }
+
+    fn call_native_function(&mut self, arg_count: usize, native_fn: &ObjNativeFunction) -> Option<Result> {
+        // Check arity
+        if arg_count != native_fn.arity as usize {
+            self.runtime_error(&format!(
+                "Expected {} arguments but got {}.",
+                native_fn.arity, arg_count
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        // Collect arguments from the stack
+        // Arguments are at stack positions: [stack.len() - arg_count .. stack.len()]
+        let stack_len = self.stack.len();
+        let args_start = stack_len - arg_count;
+        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
+
+        // Call the native function
+        let result = (native_fn.function)(self, &args);
+
+        // Pop arguments and the native function object from the stack
+        let n = arg_count + 1;
+        let start = self.stack.len().saturating_sub(n);
+        self.stack.drain(start..);
+
+        // Handle the result
+        match result {
+            Ok(value) => {
+                // Push the return value onto the stack
+                self.push(value);
+
+                // Increment IP to skip Call opcode and arg count
+                let current_frame = self.call_frames.last_mut().unwrap();
+                current_frame.ip += 2;
+
+                None
+            }
+            Err(error_msg) => {
+                self.runtime_error(&error_msg);
+                Some(Result::RuntimeError)
+            }
+        }
     }
 
     #[inline(always)]
@@ -466,6 +514,101 @@ impl VirtualMachine {
 
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += bits.as_bytes();
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_call_method(&mut self) -> Option<Result> {
+        // Read arg count and method name index
+        let frame = self.call_frames.last().unwrap();
+        let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+        let method_name_index = frame.function.bloq.read_u8(frame.ip + 2) as usize;
+
+        // Read the method name from strings
+        let method_name = {
+            let frame = self.call_frames.last().unwrap();
+            let method_value = frame.function.bloq.read_string(method_name_index);
+            match method_value {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::String(s) => s.value.to_string(),
+                    _ => {
+                        self.runtime_error("Method name must be a string.");
+                        return Some(Result::RuntimeError);
+                    }
+                },
+                _ => {
+                    self.runtime_error("Method name must be a string.");
+                    return Some(Result::RuntimeError);
+                }
+            }
+        };
+
+        // Get the receiver (object) from the stack
+        // Stack layout: [receiver, arg1, arg2, ...]
+        let receiver = self.peek(arg_count);
+
+        // Determine the type of the receiver
+        let type_name = match &receiver {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(_) => "String".to_string(),
+                Object::Array(_) => "Array".to_string(),
+                Object::Instance(instance_ref) => {
+                    let instance = instance_ref.borrow();
+                    instance.r#struct.name.clone()
+                }
+                _ => {
+                    self.runtime_error(&format!("Type does not support method calls: {:?}", receiver));
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error(&format!("Cannot call methods on primitive type: {:?}", receiver));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Look up the native method
+        let native_fn = match VirtualMachine::get_native_method(&type_name, &method_name) {
+            Some(f) => f,
+            None => {
+                self.runtime_error(&format!(
+                    "Undefined method '{}' for type '{}'",
+                    method_name, type_name
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Collect arguments from the stack (receiver + args)
+        // Stack: [receiver, arg1, arg2, ...]
+        let stack_len = self.stack.len();
+        let receiver_index = stack_len - arg_count - 1;
+        let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
+
+        // Call the native method
+        let result = native_fn(self, &args);
+
+        // Pop receiver and arguments from the stack
+        let n = arg_count + 1;
+        let start = self.stack.len().saturating_sub(n);
+        self.stack.drain(start..);
+
+        // Handle the result
+        match result {
+            Ok(value) => {
+                // Push the return value onto the stack
+                self.push(value);
+
+                // Increment IP to skip CallMethod opcode, arg count, and method name index
+                let current_frame = self.call_frames.last_mut().unwrap();
+                current_frame.ip += 3;
+
+                None
+            }
+            Err(error_msg) => {
+                self.runtime_error(&error_msg);
+                Some(Result::RuntimeError)
+            }
+        }
     }
 
     #[inline(always)]

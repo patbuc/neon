@@ -325,6 +325,20 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
             }
+            Expr::MethodCall {
+                object,
+                method: _,
+                arguments,
+                location: _,
+            } => {
+                // Resolve the object and all arguments
+                self.resolve_expr(object);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                // Method validation could be added here if we track method types
+                // For now, we just ensure the object and arguments are valid
+            }
         }
     }
 }

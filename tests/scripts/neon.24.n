@@ -1,0 +1,10 @@
+// Expected:
+// [a, b, c]
+// [hello, world]
+// [t, e, s, t]
+// [no delimiter]
+
+print "a,b,c".split(",")
+print "hello world".split(" ")
+print "test".split("")
+print "no delimiter".split(",")

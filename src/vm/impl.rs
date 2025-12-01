@@ -158,6 +158,12 @@ impl VirtualMachine {
                 OpCode::SetField => self.fn_set_field(BitsSize::Eight),
                 OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
                 OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
+                OpCode::CallMethod => {
+                    if let Some(result) = self.fn_call_method() {
+                        return result;
+                    }
+                    should_increment_ip = false;
+                }
             }
 
             // Increment IP for the current frame
@@ -231,5 +237,19 @@ impl VirtualMachine {
         self.call_frames.clear();
         self.stack.clear();
         self.bloq = None;
+    }
+
+    /// Look up a native method for a given type and method name
+    pub(in crate::vm) fn get_native_method(
+        type_name: &str,
+        method_name: &str,
+    ) -> Option<crate::common::NativeFn> {
+        match (type_name, method_name) {
+            ("String", "len") => Some(crate::vm::string_functions::native_string_len),
+            ("String", "substring") => Some(crate::vm::string_functions::native_string_substring),
+            ("String", "replace") => Some(crate::vm::string_functions::native_string_replace),
+            ("String", "split") => Some(crate::vm::string_functions::native_string_split),
+            _ => None,
+        }
     }
 }
