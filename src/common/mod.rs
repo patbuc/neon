@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use ordered_float::OrderedFloat;
@@ -76,7 +76,7 @@ pub(crate) enum Value {
     Nil,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum MapKey {
     String(Rc<str>),
     Number(OrderedFloat<f64>),
@@ -104,7 +104,7 @@ pub(crate) enum Object {
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
-    Set(Rc<RefCell<HashSet<SetKey>>>),
+    Set(Rc<RefCell<BTreeSet<SetKey>>>),
 }
 
 #[derive(Debug, Clone)]
@@ -190,7 +190,7 @@ impl Value {
         Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
     }
 
-    pub(crate) fn new_set(elements: HashSet<SetKey>) -> Self {
+    pub(crate) fn new_set(elements: BTreeSet<SetKey>) -> Self {
         Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(elements)))))
     }
 }
@@ -238,7 +238,7 @@ impl Display for Object {
             }
             Object::Set(set) => {
                 let elements = set.borrow();
-                write!(f, "#{{")?;
+                write!(f, "{{")?;
                 let mut first = true;
                 for element in elements.iter() {
                     if !first {
@@ -497,7 +497,7 @@ mod test_set {
 
     #[test]
     fn test_set_creation() {
-        let mut elements = HashSet::new();
+        let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(2.0)));
         elements.insert(SetKey::Number(OrderedFloat(3.0)));
@@ -520,7 +520,7 @@ mod test_set {
 
     #[test]
     fn test_set_display() {
-        let mut elements = HashSet::new();
+        let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(2.0)));
         elements.insert(SetKey::Number(OrderedFloat(3.0)));
@@ -529,7 +529,7 @@ mod test_set {
         let display = format!("{}", set);
 
         // HashSet order is not guaranteed, so we check for the format and presence of elements
-        assert!(display.starts_with("#{"));
+        assert!(display.starts_with("{"));
         assert!(display.ends_with("}"));
         assert!(display.contains("1"));
         assert!(display.contains("2"));
@@ -538,24 +538,24 @@ mod test_set {
 
     #[test]
     fn test_empty_set_display() {
-        let set = Value::new_set(HashSet::new());
+        let set = Value::new_set(BTreeSet::new());
         let display = format!("{}", set);
-        assert_eq!(display, "#{}");
+        assert_eq!(display, "{}");
     }
 
     #[test]
     fn test_set_equality() {
-        let mut elements1 = HashSet::new();
+        let mut elements1 = BTreeSet::new();
         elements1.insert(SetKey::String(Rc::from("a")));
         elements1.insert(SetKey::String(Rc::from("b")));
         let set1 = Value::new_set(elements1);
 
-        let mut elements2 = HashSet::new();
+        let mut elements2 = BTreeSet::new();
         elements2.insert(SetKey::String(Rc::from("a")));
         elements2.insert(SetKey::String(Rc::from("b")));
         let set2 = Value::new_set(elements2);
 
-        let mut elements3 = HashSet::new();
+        let mut elements3 = BTreeSet::new();
         elements3.insert(SetKey::String(Rc::from("a")));
         elements3.insert(SetKey::String(Rc::from("c")));
         let set3 = Value::new_set(elements3);
@@ -569,7 +569,7 @@ mod test_set {
 
     #[test]
     fn test_set_with_different_key_types() {
-        let mut elements = HashSet::new();
+        let mut elements = BTreeSet::new();
         elements.insert(SetKey::String(Rc::from("hello")));
         elements.insert(SetKey::Number(OrderedFloat(42.0)));
         elements.insert(SetKey::Boolean(true));
@@ -585,7 +585,7 @@ mod test_set {
 
     #[test]
     fn test_set_uniqueness() {
-        let mut elements = HashSet::new();
+        let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(1.0))); // Duplicate
         elements.insert(SetKey::Number(OrderedFloat(2.0)));

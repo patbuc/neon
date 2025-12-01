@@ -318,6 +318,8 @@ impl VirtualMachine {
             ("String", "toBool") => Some(crate::vm::string_functions::native_string_to_bool),
             ("Number", "toString") => Some(crate::vm::number_functions::native_number_to_string),
             ("Boolean", "toString") => Some(crate::vm::boolean_functions::native_boolean_to_string),
+            ("Array", "size") => Some(crate::vm::array_functions::native_array_size),
+            ("Array", "contains") => Some(crate::vm::array_functions::native_array_contains),
             ("Map", "get") => Some(crate::vm::map_functions::native_map_get),
             ("Map", "size") => Some(crate::vm::map_functions::native_map_size),
             ("Map", "has") => Some(crate::vm::map_functions::native_map_has),
