@@ -177,6 +177,36 @@ pub fn native_string_to_float(_vm: &mut VirtualMachine, args: &[Value]) -> Resul
     }
 }
 
+/// Native implementation of String.toBool()
+/// Parses the string as a boolean and returns it as a Boolean
+/// Accepts "true" or "false" (case-insensitive), returns an error for other input
+pub fn native_string_to_bool(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toBool() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toBool() can only be called on strings".to_string()),
+        },
+        _ => return Err("toBool() can only be called on strings".to_string()),
+    };
+
+    // Trim whitespace and convert to lowercase for case-insensitive comparison
+    let normalized = obj_string.value.trim().to_lowercase();
+
+    match normalized.as_str() {
+        "true" => Ok(Value::Boolean(true)),
+        "false" => Ok(Value::Boolean(false)),
+        _ => Err(format!(
+            "toBool() failed: '{}' is not a valid boolean (expected 'true' or 'false')",
+            obj_string.value
+        )),
+    }
+}
+
 /// Native implementation of String.split(delimiter)
 /// Returns an array of strings split by the delimiter
 pub fn native_string_split(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
@@ -771,5 +801,170 @@ mod tests {
 
         let result = native_string_to_float(&mut vm, &args).unwrap();
         assert!(as_number!(result).is_infinite() && as_number!(result) < 0.0);
+    }
+
+    // Tests for String.toBool()
+    #[test]
+    fn test_to_bool_lowercase_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("true");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_lowercase_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("false");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_uppercase_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("TRUE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_uppercase_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("FALSE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_mixed_case_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("TrUe");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_mixed_case_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("FaLsE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_with_whitespace_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  true  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_with_whitespace_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  false  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_with_tabs_and_newlines() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("\t\ntrue\n\t");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("yes");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_number() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("1");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_zero() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("0");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_empty_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_partial_match() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("truee");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_bool_mixed_content() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("true123");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_bool_with_surrounding_text() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("the answer is true");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
     }
 }
