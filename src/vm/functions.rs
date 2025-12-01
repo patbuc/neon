@@ -813,16 +813,42 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_create_set(&mut self) {
-        // TODO: Implement set creation
         // Read the count of elements from bytecode
-        let _count = {
+        let count = {
             let frame = self.call_frames.last().unwrap();
             frame.function.bloq.read_u8(frame.ip + 1) as usize
         };
 
-        // For now, just push nil as a placeholder
-        // This will be properly implemented in a later task
-        self.push(Value::Nil);
+        // Pop elements from stack and build the set
+        // Stack layout from compiler: [element1, element2, ..., elementN]
+        let stack_len = self.stack.len();
+        let elements_start = stack_len - count;
+
+        let mut set = std::collections::HashSet::with_capacity(count);
+        for i in 0..count {
+            let element_value = &self.stack[elements_start + i];
+
+            // Convert Value to SetKey
+            let key = match Self::value_to_map_key(element_value) {
+                Some(k) => k,
+                None => {
+                    self.runtime_error(&format!(
+                        "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
+                        element_value
+                    ));
+                    return;
+                }
+            };
+
+            // Insert into set (duplicates are automatically handled by HashSet)
+            set.insert(key);
+        }
+
+        // Pop all elements from stack
+        self.stack.drain(elements_start..);
+
+        // Push the new set onto the stack
+        self.push(Value::new_set(set));
 
         // Increment IP to skip the count byte
         let frame = self.call_frames.last_mut().unwrap();
