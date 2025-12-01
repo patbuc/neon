@@ -3,7 +3,7 @@ use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativ
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, nil, number, string};
+use crate::{as_number, boolean, is_false_like, number, string};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -818,12 +818,19 @@ impl VirtualMachine {
             frame.function.bloq.read_u8(frame.ip + 1) as usize
         };
 
-        // TODO: Implement array value creation and runtime support
-        // For now, just pop the elements and push nil as a placeholder
-        for _ in 0..count {
-            self.pop();
-        }
-        self.push(nil!());
+        // Pop elements from stack and build the array
+        // Stack layout: [elem0, elem1, ..., elemN]
+        let stack_len = self.stack.len();
+        let elements_start = stack_len - count;
+
+        // Collect elements into a Vec
+        let elements: Vec<Value> = self.stack[elements_start..stack_len].to_vec();
+
+        // Pop all elements from stack
+        self.stack.drain(elements_start..);
+
+        // Push the new array onto the stack
+        self.push(Value::new_array(elements));
 
         // Increment IP to skip the count byte
         let frame = self.call_frames.last_mut().unwrap();
