@@ -1,0 +1,25 @@
+// neon.37.n - Maps as function return values
+
+// Expected:
+// Alice
+// 30
+// NYC
+// Bob
+// 25
+// LA
+
+// Function that creates and returns a map
+fn create_person(name, age, city) {
+    return {"name": name, "age": age, "city": city}
+}
+
+// Create persons
+val person1 = create_person("Alice", 30, "NYC")
+print person1["name"]
+print person1["age"]
+print person1["city"]
+
+val person2 = create_person("Bob", 25, "LA")
+print person2["name"]
+print person2["age"]
+print person2["city"]

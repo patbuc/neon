@@ -1,0 +1,17 @@
+// neon.40.n - Map operations with string values
+
+// Expected:
+// Name: Alice, Status: Active
+// Hello from NYC
+// Grade: A
+
+// Map with person data
+val person = {"name": "Alice", "status": "Active", "city": "NYC"}
+
+// Use map values in string concatenation
+print "Name: " + person["name"] + ", Status: " + person["status"]
+print "Hello from " + person["city"]
+
+// Map with grade
+val grade = {"value": "A"}
+print "Grade: " + grade["value"]
