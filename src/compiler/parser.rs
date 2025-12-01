@@ -230,6 +230,32 @@ impl Parser {
         })
     }
 
+    /// Parses a val (immutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `val identifier [= expression]`
+    fn val_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
+
+        Some(Stmt::Val {
+            name,
+            initializer,
+            location,
+        })
+    }
+
     fn var_declaration(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
@@ -248,6 +274,32 @@ impl Parser {
             TokenType::Eof,
             "Expecting '\\n' or '\\0' after variable declaration.",
         );
+
+        Some(Stmt::Var {
+            name,
+            initializer,
+            location,
+        })
+    }
+
+    /// Parses a var (mutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `var identifier [= expression]`
+    fn var_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
 
         Some(Stmt::Var {
             name,
@@ -367,6 +419,8 @@ impl Parser {
             self.if_statement()
         } else if self.match_token(TokenType::While) {
             self.while_statement()
+        } else if self.match_token(TokenType::For) {
+            self.for_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
         } else {
@@ -467,6 +521,115 @@ impl Parser {
         Some(Stmt::While {
             condition,
             body,
+            location,
+        })
+    }
+
+    /// Parses a C-style for loop and desugars it into a while loop within a block scope.
+    ///
+    /// # Syntax
+    /// ```neon
+    /// for (val|var identifier = expression; condition; increment) statement
+    /// ```
+    ///
+    /// # Desugaring Strategy
+    /// The for loop is transformed into a semantically equivalent while loop structure:
+    ///
+    /// ```neon
+    /// for (val i = 0; i < 10; i = i + 1) {
+    ///     print i
+    /// }
+    /// ```
+    ///
+    /// Becomes:
+    ///
+    /// ```neon
+    /// {  // Outer block creates isolated scope for loop variable
+    ///     val i = 0  // Initialization
+    ///     while (i < 10) {  // Condition
+    ///         print i  // Body
+    ///         i = i + 1  // Increment (executed after each iteration)
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # AST Structure
+    /// Returns `Stmt::Block` containing:
+    /// - `init`: The loop variable declaration (val or var)
+    /// - `Stmt::While` with:
+    ///   - `condition`: The loop continuation test
+    ///   - `body`: A `Stmt::Block` containing:
+    ///     - The original loop body statement
+    ///     - The increment expression statement
+    ///
+    /// # Scoping Behavior
+    /// The outer Block creates an isolated scope, ensuring the loop variable:
+    /// - Is only visible within the for loop
+    /// - Does not pollute the enclosing scope
+    /// - Is automatically cleaned up when the loop exits
+    ///
+    /// # Requirements
+    /// - Initialization must be a `val` or `var` declaration (not an expression)
+    /// - All three clauses (init, condition, increment) are mandatory
+    /// - Increment can be any expression (typically an assignment expression)
+    fn for_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'for'.") {
+            return None;
+        }
+
+        // Parse init clause - must be val or var declaration
+        let init = if self.match_token(TokenType::Val) {
+            self.val_declaration_no_terminator()?
+        } else if self.match_token(TokenType::Var) {
+            self.var_declaration_no_terminator()?
+        } else {
+            self.report_error_at_current("Expecting 'val' or 'var' in for loop initializer.".to_string());
+            return None;
+        };
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop initializer.") {
+            return None;
+        }
+
+        // Parse condition expression
+        let condition = self.expression(false)?;
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop condition.") {
+            return None;
+        }
+
+        // Parse increment - any expression is allowed
+        let increment_expr = self.expression(false)?;
+        let increment_location = self.current_location();
+        let increment = Stmt::Expression {
+            expr: increment_expr,
+            location: increment_location,
+        };
+
+        if !self.consume(TokenType::RightParen, "Expecting ')' after for clauses.") {
+            return None;
+        }
+
+        // Parse loop body
+        let body = self.statement()?;
+        let body_location = body.location().clone();
+
+        // Desugar to: Block { init, While { condition, Block { body, increment } } }
+        let while_body = Stmt::Block {
+            statements: vec![body, increment],
+            location: body_location,
+        };
+
+        let while_loop = Stmt::While {
+            condition,
+            body: Box::new(while_body),
+            location: body_location,
+        };
+
+        Some(Stmt::Block {
+            statements: vec![init, while_loop],
             location,
         })
     }
