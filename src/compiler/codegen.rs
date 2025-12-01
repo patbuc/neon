@@ -550,15 +550,15 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateMap, *location);
                 self.current_bloq().write_u8(entries.len() as u8);
             }
-            Expr::SetLiteral { elements: _, location } => {
-                // TODO: Generate bytecode for set literal creation
-                // This will be implemented when CreateSet opcode is added
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::UnexpectedToken,
-                    "Set literals are not yet supported in codegen".to_string(),
-                    *location,
-                ));
+            Expr::SetLiteral { elements, location } => {
+                // Generate code for each element expression
+                for element in elements {
+                    self.generate_expr(element);
+                }
+
+                // Emit CreateSet with the count of elements
+                self.emit_op_code(OpCode::CreateSet, *location);
+                self.current_bloq().write_u8(elements.len() as u8);
             }
             Expr::Index {
                 object,
