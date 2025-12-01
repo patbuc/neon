@@ -309,6 +309,42 @@ fn value_to_set_key(value: &Value) -> Option<SetKey> {
     }
 }
 
+/// Helper function to convert a SetKey back to a Value
+fn set_key_to_value(key: &SetKey) -> Value {
+    match key {
+        SetKey::String(s) => {
+            Value::Object(Rc::new(Object::String(crate::common::ObjString {
+                value: Rc::clone(s),
+            })))
+        }
+        SetKey::Number(n) => Value::Number(n.0),
+        SetKey::Boolean(b) => Value::Boolean(*b),
+    }
+}
+
+/// Native implementation of Set.toArray()
+/// Returns a new array containing all elements from the set
+pub fn native_set_to_array(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("toArray() expects no arguments".to_string());
+    }
+
+    // Extract the set
+    let set_ref = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Set(s) => s,
+            _ => return Err("toArray() can only be called on sets".to_string()),
+        },
+        _ => return Err("toArray() can only be called on sets".to_string()),
+    };
+
+    // Convert set elements to array
+    let set = set_ref.borrow();
+    let array_elements: Vec<Value> = set.iter().map(set_key_to_value).collect();
+
+    Ok(Value::new_array(array_elements))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1195,5 +1231,192 @@ mod tests {
         let subset_result = native_set_is_subset(&mut vm, &[set, not_a_set]);
         assert!(subset_result.is_err());
         assert!(subset_result.unwrap_err().contains("requires a set as argument"));
+    }
+
+    // Tests for toArray method
+
+    #[test]
+    fn test_set_to_array_empty() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let args = vec![set];
+
+        let result = native_set_to_array(&mut vm, &args).unwrap();
+
+        // Verify it's an array
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                crate::common::Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 0);
+                }
+                _ => panic!("Expected array"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_to_array_with_numbers() {
+        let mut vm = VirtualMachine::new();
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements.insert(SetKey::Number(OrderedFloat(3.0)));
+        let set = Value::new_set(elements);
+        let args = vec![set];
+
+        let result = native_set_to_array(&mut vm, &args).unwrap();
+
+        // Verify it's an array with the correct elements
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                crate::common::Object::Array(arr) => {
+                    let array_elements = arr.borrow();
+                    assert_eq!(array_elements.len(), 3);
+
+                    // Check that all elements are present (order not guaranteed)
+                    let contains_1 = array_elements.iter().any(|v| matches!(v, Value::Number(n) if *n == 1.0));
+                    let contains_2 = array_elements.iter().any(|v| matches!(v, Value::Number(n) if *n == 2.0));
+                    let contains_3 = array_elements.iter().any(|v| matches!(v, Value::Number(n) if *n == 3.0));
+                    assert!(contains_1);
+                    assert!(contains_2);
+                    assert!(contains_3);
+                }
+                _ => panic!("Expected array"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_to_array_with_strings() {
+        let mut vm = VirtualMachine::new();
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::String(Rc::from("apple")));
+        elements.insert(SetKey::String(Rc::from("banana")));
+        let set = Value::new_set(elements);
+        let args = vec![set];
+
+        let result = native_set_to_array(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                crate::common::Object::Array(arr) => {
+                    let array_elements = arr.borrow();
+                    assert_eq!(array_elements.len(), 2);
+
+                    // Check that both strings are present
+                    let mut has_apple = false;
+                    let mut has_banana = false;
+                    for element in array_elements.iter() {
+                        if let Value::Object(obj) = element {
+                            if let crate::common::Object::String(s) = obj.as_ref() {
+                                if s.value.as_ref() == "apple" {
+                                    has_apple = true;
+                                } else if s.value.as_ref() == "banana" {
+                                    has_banana = true;
+                                }
+                            }
+                        }
+                    }
+                    assert!(has_apple);
+                    assert!(has_banana);
+                }
+                _ => panic!("Expected array"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_to_array_with_booleans() {
+        let mut vm = VirtualMachine::new();
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Boolean(true));
+        elements.insert(SetKey::Boolean(false));
+        let set = Value::new_set(elements);
+        let args = vec![set];
+
+        let result = native_set_to_array(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                crate::common::Object::Array(arr) => {
+                    let array_elements = arr.borrow();
+                    assert_eq!(array_elements.len(), 2);
+
+                    // Check that both booleans are present
+                    let has_true = array_elements.iter().any(|v| matches!(v, Value::Boolean(true)));
+                    let has_false = array_elements.iter().any(|v| matches!(v, Value::Boolean(false)));
+                    assert!(has_true);
+                    assert!(has_false);
+                }
+                _ => panic!("Expected array"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_to_array_mixed_types() {
+        let mut vm = VirtualMachine::new();
+        let mut elements = HashSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(42.0)));
+        elements.insert(SetKey::String(Rc::from("hello")));
+        elements.insert(SetKey::Boolean(true));
+        let set = Value::new_set(elements);
+        let args = vec![set];
+
+        let result = native_set_to_array(&mut vm, &args).unwrap();
+
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                crate::common::Object::Array(arr) => {
+                    let array_elements = arr.borrow();
+                    assert_eq!(array_elements.len(), 3);
+
+                    // Check that all types are present
+                    let has_number = array_elements.iter().any(|v| matches!(v, Value::Number(n) if *n == 42.0));
+                    let has_string = array_elements.iter().any(|v| {
+                        if let Value::Object(obj) = v {
+                            if let crate::common::Object::String(s) = obj.as_ref() {
+                                return s.value.as_ref() == "hello";
+                            }
+                        }
+                        false
+                    });
+                    let has_boolean = array_elements.iter().any(|v| matches!(v, Value::Boolean(true)));
+                    assert!(has_number);
+                    assert!(has_string);
+                    assert!(has_boolean);
+                }
+                _ => panic!("Expected array"),
+            },
+            _ => panic!("Expected object"),
+        }
+    }
+
+    #[test]
+    fn test_set_to_array_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+        let set = Value::new_set(HashSet::new());
+        let extra_arg = Value::Number(42.0);
+        let args = vec![set, extra_arg];
+
+        let result = native_set_to_array(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("expects no arguments"));
+    }
+
+    #[test]
+    fn test_set_to_array_on_non_set() {
+        let mut vm = VirtualMachine::new();
+        let not_a_set = Value::Number(42.0);
+        let args = vec![not_a_set];
+
+        let result = native_set_to_array(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("can only be called on sets"));
     }
 }
