@@ -74,6 +74,7 @@ impl Bloq {
             OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
             OpCode::CallMethod => self.call_method_instruction(offset),
             OpCode::CreateMap => self.create_map_instruction(offset),
+            OpCode::CreateSet => self.create_set_instruction(offset),
             OpCode::GetIndex => self.simple_instruction(OpCode::GetIndex, offset),
             OpCode::SetIndex => self.simple_instruction(OpCode::SetIndex, offset),
         }
@@ -179,6 +180,12 @@ impl Bloq {
     fn create_map_instruction(&self, offset: usize) -> usize {
         let entry_count = self.read_u8(offset + 1);
         println!("CreateMap (entries: {})", entry_count);
+        offset + 2
+    }
+
+    fn create_set_instruction(&self, offset: usize) -> usize {
+        let element_count = self.read_u8(offset + 1);
+        println!("CreateSet (elements: {})", element_count);
         offset + 2
     }
 }

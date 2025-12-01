@@ -1,0 +1,158 @@
+// set.02.n - Set algebra operations (union, intersection, difference, isSubset)
+
+// Expected:
+// Union of two sets
+// {1, 2, 3, 4, 5, 6}
+// 6
+//
+// Intersection of two sets
+// {3, 4}
+// 2
+//
+// Difference of two sets
+// {1, 2}
+// 2
+//
+// Subset tests
+// true
+// true
+// false
+// false
+//
+// Empty set operations
+// {1, 2, 3}
+// {}
+// {}
+//
+// String sets
+// {alice, bob, charlie, david}
+// {bob}
+// {alice}
+// true
+//
+// Practical example: user permissions
+// {admin, read, write}
+// true
+// false
+// {read, write}
+// {admin}
+// true
+// true
+
+// Test 1: Union operation
+print "Union of two sets"
+val setA = {1}
+setA.clear()
+setA.add(1)
+setA.add(2)
+setA.add(3)
+setA.add(4)
+
+val setB = {1}
+setB.clear()
+setB.add(3)
+setB.add(4)
+setB.add(5)
+setB.add(6)
+
+val unionSet = setA.union(setB)
+print unionSet
+print unionSet.size()
+
+// Test 2: Intersection operation
+print ""
+print "Intersection of two sets"
+val intersectionSet = setA.intersection(setB)
+print intersectionSet
+print intersectionSet.size()
+
+// Test 3: Difference operation
+print ""
+print "Difference of two sets"
+val differenceSet = setA.difference(setB)
+print differenceSet
+print differenceSet.size()
+
+// Test 4: Subset tests
+print ""
+print "Subset tests"
+val small = {1}
+small.clear()
+small.add(1)
+small.add(2)
+
+val large = {1}
+large.clear()
+large.add(1)
+large.add(2)
+large.add(3)
+large.add(4)
+
+print small.isSubset(large)  // true
+print small.isSubset(small)  // true (set is subset of itself)
+print large.isSubset(small)  // false
+print setA.isSubset(setB)    // false
+
+// Test 5: Empty set operations
+print ""
+print "Empty set operations"
+val empty = {1}
+empty.clear()
+val filled = {1}
+filled.clear()
+filled.add(1)
+filled.add(2)
+filled.add(3)
+
+print empty.union(filled)
+print empty.intersection(filled)
+print filled.difference(filled)  // empty result
+
+// Test 6: String sets
+print ""
+print "String sets"
+val team1 = {"x"}
+team1.clear()
+team1.add("alice")
+team1.add("bob")
+
+val team2 = {"x"}
+team2.clear()
+team2.add("bob")
+team2.add("charlie")
+team2.add("david")
+
+print team1.union(team2)
+print team1.intersection(team2)
+print team1.difference(team2)
+
+val solo = {"x"}
+solo.clear()
+solo.add("bob")
+print solo.isSubset(team2)
+
+// Test 7: Practical example - user permissions
+print ""
+print "Practical example: user permissions"
+val adminPerms = {"x"}
+adminPerms.clear()
+adminPerms.add("read")
+adminPerms.add("write")
+adminPerms.add("admin")
+
+val userPerms = {"x"}
+userPerms.clear()
+userPerms.add("read")
+userPerms.add("write")
+
+val guestPerms = {"x"}
+guestPerms.clear()
+guestPerms.add("read")
+
+print adminPerms
+print adminPerms.has("admin")
+print userPerms.has("admin")
+print adminPerms.intersection(userPerms)  // common permissions
+print adminPerms.difference(userPerms)    // admin-only permissions
+print guestPerms.isSubset(userPerms)      // guest has fewer perms
+print userPerms.isSubset(adminPerms)      // user has subset of admin perms
