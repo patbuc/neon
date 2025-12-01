@@ -1,3 +1,4 @@
+use crate::common::constants::VARIADIC_ARITY;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativeFunction};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
@@ -166,8 +167,8 @@ impl VirtualMachine {
     }
 
     fn call_native_function(&mut self, arg_count: usize, native_fn: &ObjNativeFunction) -> Option<Result> {
-        // Check arity
-        if arg_count != native_fn.arity as usize {
+        // Check arity (VARIADIC_ARITY means variadic function - any number of args allowed)
+        if native_fn.arity != VARIADIC_ARITY && arg_count != native_fn.arity as usize {
             self.runtime_error(&format!(
                 "Expected {} arguments but got {}.",
                 native_fn.arity, arg_count
