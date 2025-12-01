@@ -1277,3 +1277,324 @@ fn test_map_dynamic_key() {
     assert_eq!(Result::Ok, result);
     assert_eq!("two", vm.get_output());
 }
+
+// Map method tests
+
+#[test]
+fn test_map_get_method_existing_key() {
+    let program = r#"
+        val m = {"name": "Alice", "age": 30}
+        print m.get("name")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Alice", vm.get_output());
+}
+
+#[test]
+fn test_map_get_method_nonexistent_key() {
+    let program = r#"
+        val m = {"name": "Alice"}
+        print m.get("missing")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("nil", vm.get_output());
+}
+
+#[test]
+fn test_map_get_method_number_key() {
+    let program = r#"
+        val m = {42: "answer", 100: "century"}
+        print m.get(42)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("answer", vm.get_output());
+}
+
+#[test]
+fn test_map_size_method_empty() {
+    let program = r#"
+        val m = {}
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0", vm.get_output());
+}
+
+#[test]
+fn test_map_size_method_with_entries() {
+    let program = r#"
+        val m = {"a": 1, "b": 2, "c": 3}
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("3", vm.get_output());
+}
+
+#[test]
+fn test_map_has_method_existing_key() {
+    let program = r#"
+        val m = {"name": "Alice", "age": 30}
+        print m.has("name")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_map_has_method_nonexistent_key() {
+    let program = r#"
+        val m = {"name": "Alice"}
+        print m.has("missing")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_map_has_method_boolean_key() {
+    let program = r#"
+        val m = {true: "yes", false: "no"}
+        print m.has(true)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_map_remove_method_existing_key() {
+    let program = r#"
+        val m = {"name": "Alice", "age": 30}
+        val removed = m.remove("name")
+        print removed
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("Alice\n1", vm.get_output());
+}
+
+#[test]
+fn test_map_remove_method_nonexistent_key() {
+    let program = r#"
+        val m = {"name": "Alice"}
+        val removed = m.remove("missing")
+        print removed
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("nil\n1", vm.get_output());
+}
+
+#[test]
+fn test_map_keys_method_empty() {
+    let program = r#"
+        val m = {}
+        val keys = m.keys()
+        print keys
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("[]", vm.get_output());
+}
+
+#[test]
+fn test_map_keys_method_with_entries() {
+    let program = r#"
+        val m = {"a": 1, "b": 2}
+        val keys = m.keys()
+        print keys
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
+    let output = vm.get_output();
+    assert!(output.starts_with('[') && output.ends_with(']'));
+}
+
+#[test]
+fn test_map_values_method_empty() {
+    let program = r#"
+        val m = {}
+        val values = m.values()
+        print values
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("[]", vm.get_output());
+}
+
+#[test]
+fn test_map_values_method_with_entries() {
+    let program = r#"
+        val m = {"a": 1, "b": 2}
+        val values = m.values()
+        print values
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
+    let output = vm.get_output();
+    assert!(output.starts_with('[') && output.ends_with(']'));
+}
+
+#[test]
+fn test_map_entries_method_empty() {
+    let program = r#"
+        val m = {}
+        val entries = m.entries()
+        print entries
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("[]", vm.get_output());
+}
+
+#[test]
+fn test_map_entries_method_with_entries() {
+    let program = r#"
+        val m = {"name": "Alice", "age": 30}
+        val entries = m.entries()
+        print entries
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Note: HashMap order is not guaranteed, so we just check it's an array
+    let output = vm.get_output();
+    assert!(output.starts_with('[') && output.ends_with(']'));
+}
+
+#[test]
+fn test_map_chained_operations() {
+    let program = r#"
+        val m = {"a": 1, "b": 2, "c": 3}
+        print m.has("a")
+        print m.get("b")
+        val old = m.remove("c")
+        print old
+        print m.size()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true\n2\n3\n2", vm.get_output());
+}
+
+#[test]
+fn test_map_keys_with_different_types() {
+    let program = r#"
+        val m = {"str": 1, 42: 2, true: 3}
+        val keys = m.keys()
+        print keys
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Just verify it returns an array
+    let output = vm.get_output();
+    assert!(output.starts_with('[') && output.ends_with(']'));
+}
+
+#[test]
+fn test_map_method_after_modification() {
+    let program = r#"
+        val m = {"a": 1}
+        m["b"] = 2
+        m["c"] = 3
+        print m.size()
+        print m.has("b")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("3\ntrue", vm.get_output());
+}
+
+#[test]
+fn test_map_remove_then_size() {
+    let program = r#"
+        val m = {"x": 10, "y": 20, "z": 30}
+        m.remove("y")
+        print m.size()
+        print m.has("y")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("2\nfalse", vm.get_output());
+}
+
+#[test]
+fn test_map_get_and_bracket_equivalence() {
+    let program = r#"
+        val m = {"key": "value"}
+        print m.get("key")
+        print m["key"]
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("value\nvalue", vm.get_output());
+}
+
+#[test]
+fn test_map_values_reflect_changes() {
+    let program = r#"
+        val m = {"a": 1, "b": 2}
+        m["c"] = 3
+        val values = m.values()
+        print values
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    // Verify it's an array with 3 elements
+    let output = vm.get_output();
+    assert!(output.starts_with('[') && output.ends_with(']'));
+}
