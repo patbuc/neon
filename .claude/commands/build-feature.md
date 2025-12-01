@@ -46,8 +46,8 @@ worktree_path="/home/patbuc/code/neon-worktrees/${feature_slug}"
 # Create worktree directory if it doesn't exist
 mkdir -p /home/patbuc/code/neon-worktrees
 
-# Create new worktree with new branch based on main
-git worktree add "${worktree_path}" -b "${branch_name}" main
+# Create new worktree with new branch based on aoc-main
+git worktree add "${worktree_path}" -b "${branch_name}" aoc-main
 
 # Verify worktree creation
 git worktree list

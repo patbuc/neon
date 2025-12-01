@@ -24,13 +24,13 @@ Collect all relevant information:
 git branch --show-current
 
 # Modified files
-git diff --name-only main...HEAD
+git diff --name-only aoc-main...HEAD
 
 # Commit messages
-git log main..HEAD --oneline
+git log aoc-main..HEAD --oneline
 
 # Diff stats
-git diff --stat main...HEAD
+git diff --stat aoc-main...HEAD
 ```
 
 **From State File** (if exists at `.claude/workflows/{feature}-state.json`):
@@ -165,7 +165,7 @@ Use the GitHub CLI to create the PR:
 gh pr create \
   --title "{generated title}" \
   --body "{generated description}" \
-  --base main
+  --base aoc-main
 ```
 
 **If no git remote**:
