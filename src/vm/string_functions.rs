@@ -121,6 +121,92 @@ pub fn native_string_replace(_vm: &mut VirtualMachine, args: &[Value]) -> Result
     Ok(string!(result))
 }
 
+/// Native implementation of String.toInt()
+/// Parses the string as an integer and returns it as a Number
+/// Returns an error if the string cannot be parsed as an integer
+pub fn native_string_to_int(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toInt() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toInt() can only be called on strings".to_string()),
+        },
+        _ => return Err("toInt() can only be called on strings".to_string()),
+    };
+
+    // Trim whitespace and parse as i64
+    let trimmed = obj_string.value.trim();
+    match trimmed.parse::<i64>() {
+        Ok(num) => Ok(Value::Number(num as f64)),
+        Err(_) => Err(format!(
+            "toInt() failed: '{}' is not a valid integer",
+            obj_string.value
+        )),
+    }
+}
+
+/// Native implementation of String.toFloat()
+/// Parses the string as a floating-point number and returns it as a Number
+/// Returns an error if the string cannot be parsed as a float
+pub fn native_string_to_float(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toFloat() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toFloat() can only be called on strings".to_string()),
+        },
+        _ => return Err("toFloat() can only be called on strings".to_string()),
+    };
+
+    // Trim whitespace and parse as f64
+    let trimmed = obj_string.value.trim();
+    match trimmed.parse::<f64>() {
+        Ok(num) => Ok(Value::Number(num)),
+        Err(_) => Err(format!(
+            "toFloat() failed: '{}' is not a valid float",
+            obj_string.value
+        )),
+    }
+}
+
+/// Native implementation of String.toBool()
+/// Parses the string as a boolean and returns it as a Boolean
+/// Accepts "true" or "false" (case-insensitive), returns an error for other input
+pub fn native_string_to_bool(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toBool() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toBool() can only be called on strings".to_string()),
+        },
+        _ => return Err("toBool() can only be called on strings".to_string()),
+    };
+
+    // Trim whitespace and convert to lowercase for case-insensitive comparison
+    let normalized = obj_string.value.trim().to_lowercase();
+
+    match normalized.as_str() {
+        "true" => Ok(Value::Boolean(true)),
+        "false" => Ok(Value::Boolean(false)),
+        _ => Err(format!(
+            "toBool() failed: '{}' is not a valid boolean (expected 'true' or 'false')",
+            obj_string.value
+        )),
+    }
+}
+
 /// Native implementation of String.split(delimiter)
 /// Returns an array of strings split by the delimiter
 pub fn native_string_split(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
@@ -480,5 +566,405 @@ mod tests {
             }
             _ => panic!("Expected Object value"),
         }
+    }
+
+    // Tests for String.toInt()
+    #[test]
+    fn test_to_int_basic_positive() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("123");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 123.0);
+    }
+
+    #[test]
+    fn test_to_int_basic_negative() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("-456");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), -456.0);
+    }
+
+    #[test]
+    fn test_to_int_zero() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("0");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.0);
+    }
+
+    #[test]
+    fn test_to_int_with_whitespace() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  789  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 789.0);
+    }
+
+    #[test]
+    fn test_to_int_large_number() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("9876543210");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 9876543210.0);
+    }
+
+    #[test]
+    fn test_to_int_invalid_float() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("123.45");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid integer"));
+    }
+
+    #[test]
+    fn test_to_int_invalid_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("abc");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid integer"));
+    }
+
+    #[test]
+    fn test_to_int_empty_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_int_mixed_content() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("123abc");
+        let args = vec![test_str];
+
+        let result = native_string_to_int(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    // Tests for String.toFloat()
+    #[test]
+    fn test_to_float_basic_integer() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("123");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 123.0);
+    }
+
+    #[test]
+    fn test_to_float_basic_decimal() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("45.67");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 45.67);
+    }
+
+    #[test]
+    fn test_to_float_negative() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("-12.34");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), -12.34);
+    }
+
+    #[test]
+    fn test_to_float_zero() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("0.0");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.0);
+    }
+
+    #[test]
+    fn test_to_float_with_whitespace() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  3.14  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 3.14);
+    }
+
+    #[test]
+    fn test_to_float_scientific_notation() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("1.23e4");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 12300.0);
+    }
+
+    #[test]
+    fn test_to_float_scientific_notation_negative_exponent() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("1.5e-2");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.015);
+    }
+
+    #[test]
+    fn test_to_float_no_decimal() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("42");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 42.0);
+    }
+
+    #[test]
+    fn test_to_float_leading_decimal() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!(".5");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.5);
+    }
+
+    #[test]
+    fn test_to_float_invalid_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("abc");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid float"));
+    }
+
+    #[test]
+    fn test_to_float_empty_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_float_mixed_content() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("12.34abc");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_float_infinity() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("inf");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert!(as_number!(result).is_infinite() && as_number!(result) > 0.0);
+    }
+
+    #[test]
+    fn test_to_float_negative_infinity() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("-inf");
+        let args = vec![test_str];
+
+        let result = native_string_to_float(&mut vm, &args).unwrap();
+        assert!(as_number!(result).is_infinite() && as_number!(result) < 0.0);
+    }
+
+    // Tests for String.toBool()
+    #[test]
+    fn test_to_bool_lowercase_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("true");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_lowercase_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("false");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_uppercase_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("TRUE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_uppercase_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("FALSE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_mixed_case_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("TrUe");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_mixed_case_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("FaLsE");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_with_whitespace_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  true  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_with_whitespace_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  false  ");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_to_bool_with_tabs_and_newlines() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("\t\ntrue\n\t");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("yes");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_number() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("1");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_invalid_zero() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("0");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_empty_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a valid boolean"));
+    }
+
+    #[test]
+    fn test_to_bool_partial_match() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("truee");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_bool_mixed_content() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("true123");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_bool_with_surrounding_text() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("the answer is true");
+        let args = vec![test_str];
+
+        let result = native_string_to_bool(&mut vm, &args);
+        assert!(result.is_err());
     }
 }
