@@ -161,11 +161,68 @@ gh pr create \
 
 ### 6. Capture PR URL
 
-After PR creation, `gh pr create` returns a URL. Capture it and report to user.
+After PR creation, `gh pr create` returns a URL. Capture it and extract the PR number.
+
+### 7. Request GitHub Copilot Review
+
+Immediately after PR creation, request a GitHub Copilot code review:
+
+```bash
+# Extract PR number from URL (e.g., 123 from .../pull/123)
+gh copilot-review {pr_number}
+```
+
+### 8. Wait for Copilot Review
+
+Poll for the review to complete:
+
+```bash
+# Check for Copilot review status (poll every 30 seconds, max 5 minutes)
+gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
+```
+
+Look for a review from `github-actions[bot]` or `copilot` with state `APPROVED`, `CHANGES_REQUESTED`, or `COMMENTED`.
+
+**Polling logic**:
+1. Wait 30 seconds after requesting review
+2. Check for review status
+3. If no review yet, wait another 30 seconds and retry
+4. Maximum 10 retries (5 minutes total)
+5. If timeout, proceed without Copilot review and inform user
+
+### 9. Process Copilot Review Results
+
+Once the review is complete:
+
+**If APPROVED**:
+- Report success to user
+- PR is ready for human review/merge
+
+**If CHANGES_REQUESTED or issues found**:
+- Parse the review comments
+- Extract specific file paths and line numbers
+- Format a structured report for the coding agent
+- Return with `needs_changes: true` and the review details
+
+```json
+{
+  "copilot_review": {
+    "status": "changes_requested",
+    "comments": [
+      {
+        "file": "src/parser.rs",
+        "line": 42,
+        "body": "Consider handling the edge case where..."
+      }
+    ],
+    "summary": "Copilot found 2 issues that need addressing"
+  }
+}
+```
 
 ## Output Format
 
-### Successful PR Creation
+### Successful PR Creation (Copilot Approved)
 
 ```markdown
 # Pull Request Created Successfully
@@ -183,14 +240,60 @@ Created PR with:
 - 6 new tests added
 - All tests passing ✓
 
+## GitHub Copilot Review
+- **Status**: APPROVED ✓
+- Copilot found no issues with the code
+
 ## Next Steps
 1. Review the PR at the URL above
-2. Use `/review-pr` for automated code review
-3. Address any review feedback
-4. Merge when ready
+2. Address any human review feedback
+3. Merge when ready
 
 ## PR Description Preview
 [Show first few lines of the generated description]
+```
+
+### PR Created with Copilot Review Issues
+
+When Copilot requests changes, return a structured result that the orchestrator can pass to the coding agent:
+
+```markdown
+# Pull Request Created - Review Issues Found
+
+## PR Details
+- **Title**: feat: Add array support to Neon
+- **URL**: https://github.com/user/neon/pull/123
+- **Branch**: feature/array-support → main
+- **Status**: Open (needs changes)
+
+## GitHub Copilot Review
+- **Status**: CHANGES_REQUESTED
+- **Issues Found**: 2
+
+### Issue 1: src/parser.rs:42
+> Consider handling the edge case where the array is empty
+
+### Issue 2: src/codegen.rs:156
+> This could panic if index is out of bounds
+
+## Action Required
+The coding agent should address these issues and push fixes to the branch.
+```
+
+**Return data for orchestrator**:
+```json
+{
+  "pr_url": "https://github.com/user/neon/pull/123",
+  "pr_number": 123,
+  "needs_changes": true,
+  "copilot_review": {
+    "status": "changes_requested",
+    "comments": [
+      {"file": "src/parser.rs", "line": 42, "body": "Consider handling..."},
+      {"file": "src/codegen.rs", "line": 156, "body": "This could panic..."}
+    ]
+  }
+}
 ```
 
 ### PR Creation Failed
@@ -238,6 +341,10 @@ If a state file exists at `.claude/workflows/{feature}-state.json`:
 - Commit and push changes if needed
 - Handle git/gh errors gracefully
 - Reference issue numbers if applicable
+- Use clean commit messages that follow the repository's style
+- Always request GitHub Copilot review after creating PR
+- Wait for Copilot review to complete before reporting success
+- Return structured data for the coding agent when Copilot finds issues
 
 ### DON'T:
 - Create vague PR descriptions
@@ -246,6 +353,9 @@ If a state file exists at `.claude/workflows/{feature}-state.json`:
 - Skip the test status
 - Create PR if tests are failing
 - Make assumptions about remote setup
+- Add watermarks or attribution to commit messages (no "Generated with Claude Code" or "Co-Authored-By" tags)
+- Skip the Copilot review step
+- Report PR as complete if Copilot requested changes
 
 ## Special Cases
 
@@ -276,8 +386,32 @@ If this PR relates to issues:
 
 ## Integration with Workflow
 
-After PR creation:
+After PR creation and Copilot review:
+
+### If Copilot Approves:
 - Provide the PR URL to the user
-- Suggest using `/review-pr` for automated review
 - Update the state file with PR information
-- Ask if user wants automated review
+- PR is ready for human review/merge
+
+### If Copilot Requests Changes:
+- Return structured data with `needs_changes: true`
+- The orchestrator should pass the Copilot feedback to the coding agent
+- Coding agent fixes the issues and pushes to the branch
+- Re-request Copilot review after fixes are pushed
+- Repeat until Copilot approves or user intervenes
+
+### Handoff to Coding Agent
+
+When returning to the orchestrator with review issues, provide:
+1. The PR URL and number
+2. The full list of Copilot comments with file paths and line numbers
+3. A clear summary of what needs to be fixed
+
+The orchestrator can then spawn the coding agent with:
+```
+Fix the following issues identified by GitHub Copilot review on PR #{pr_number}:
+
+{formatted list of issues with file:line references}
+
+After fixing, push the changes to the branch and the PR agent will re-request review.
+```
