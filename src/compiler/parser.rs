@@ -614,11 +614,12 @@ impl Parser {
 
         // Parse loop body
         let body = self.statement()?;
+        let body_location = body.location().clone();
 
         // Desugar to: Block { init, While { condition, Block { body, increment } } }
         let while_body = Stmt::Block {
             statements: vec![body, increment],
-            location,
+            location: body_location,
         };
 
         let while_loop = Stmt::While {
