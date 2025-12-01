@@ -1,0 +1,178 @@
+// set.03.n - Edge cases (empty sets, duplicates, mixed types, toArray)
+
+// Expected:
+// Empty set edge cases
+// {}
+// 0
+// false
+// {}
+//
+// toArray on empty set
+// []
+// 0
+//
+// toArray with numbers
+// 3
+// true
+// true
+// true
+//
+// toArray with strings
+// 2
+// true
+// true
+//
+// toArray with mixed types
+// 3
+// true
+// true
+// true
+//
+// Duplicate handling
+// true
+// true
+// false
+// false
+// true
+// {1, 2, 3}
+// 3
+//
+// Boolean set
+// {false, true}
+// 2
+// true
+// true
+// false
+//
+// Zero and negative numbers
+// {-5, -1, 0, 1, 5}
+// true
+// true
+// true
+//
+// Converting set to array and back
+// 3
+// true
+// true
+// true
+// {10, 20, 30}
+
+// Test 1: Empty set edge cases
+print "Empty set edge cases"
+val empty = {1}
+empty.clear()
+print empty
+print empty.size()
+print empty.has(1)
+empty.remove(99)  // removing from empty set
+print empty.union(empty)
+
+// Test 2: toArray on empty set
+print ""
+print "toArray on empty set"
+val arr1 = empty.toArray()
+print arr1
+print arr1.size()
+
+// Test 3: toArray with numbers
+print ""
+print "toArray with numbers"
+val nums = {1}
+nums.clear()
+nums.add(1)
+nums.add(2)
+nums.add(3)
+val numArr = nums.toArray()
+print numArr.size()
+print numArr.contains(1)
+print numArr.contains(2)
+print numArr.contains(3)
+
+// Test 4: toArray with strings
+print ""
+print "toArray with strings"
+val strs = {"x"}
+strs.clear()
+strs.add("hello")
+strs.add("world")
+val strArr = strs.toArray()
+print strArr.size()
+print strArr.contains("hello")
+print strArr.contains("world")
+
+// Test 5: toArray with mixed types
+print ""
+print "toArray with mixed types"
+val mixed = {1}
+mixed.clear()
+mixed.add(42)
+mixed.add("test")
+mixed.add(true)
+val mixedArr = mixed.toArray()
+print mixedArr.size()
+print mixedArr.contains(42)
+print mixedArr.contains("test")
+print mixedArr.contains(true)
+
+// Test 6: Duplicate handling
+print ""
+print "Duplicate handling"
+val dups = {1}
+dups.clear()
+print dups.add(1)     // true (added)
+print dups.add(2)     // true (added)
+print dups.add(1)     // false (duplicate)
+print dups.add(2)     // false (duplicate)
+print dups.add(3)     // true (added)
+dups.add(3)           // duplicate
+print dups
+print dups.size()
+
+// Test 7: Boolean values in set
+print ""
+print "Boolean set"
+val bools = {true}
+bools.clear()
+bools.add(true)
+bools.add(false)
+print bools
+print bools.size()
+print bools.has(true)
+print bools.has(false)
+print bools.has(42)  // wrong type
+
+// Test 8: Zero and negative numbers
+print ""
+print "Zero and negative numbers"
+val signed = {0}
+signed.clear()
+signed.add(0)
+signed.add(1)
+signed.add(-1)
+signed.add(5)
+signed.add(-5)
+print signed
+print signed.has(0)
+print signed.has(-1)
+print signed.has(5)
+
+// Test 9: Practical example - Converting set to array for iteration
+print ""
+print "Converting set to array and back"
+val original = {1}
+original.clear()
+original.add(10)
+original.add(20)
+original.add(30)
+
+val arrayForm = original.toArray()
+print arrayForm.size()
+
+// Process array elements and add back to a new set
+val processed = {1}
+processed.clear()
+for (var i = 0; i < arrayForm.size(); i = i + 1) {
+    val element = arrayForm[i]
+    print processed.add(element)
+}
+print processed

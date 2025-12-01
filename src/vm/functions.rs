@@ -825,7 +825,7 @@ impl VirtualMachine {
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
 
-        let mut set = std::collections::HashSet::with_capacity(count);
+        let mut set = std::collections::BTreeSet::new();
         for i in 0..count {
             let element_value = &self.stack[elements_start + i];
 
@@ -859,10 +859,43 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_get_index(&mut self) {
         let index_value = self.pop();
-        let map_value = self.pop();
+        let collection_value = self.pop();
 
-        match &map_value {
+        match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    // Handle array indexing
+                    match index_value {
+                        Value::Number(n) => {
+                            let index = n as i64;
+                            if index < 0 {
+                                self.runtime_error(&format!(
+                                    "Array index must be non-negative, got {}.",
+                                    index
+                                ));
+                                return;
+                            }
+                            let array = array_ref.borrow();
+                            let index = index as usize;
+                            if index >= array.len() {
+                                self.runtime_error(&format!(
+                                    "Array index out of bounds: index {} but length is {}.",
+                                    index,
+                                    array.len()
+                                ));
+                                return;
+                            }
+                            let result = array[index].clone();
+                            self.push(result);
+                        }
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                        }
+                    }
+                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
@@ -882,15 +915,15 @@ impl VirtualMachine {
                 }
                 _ => {
                     self.runtime_error(&format!(
-                        "Only maps support index access, got {}.",
-                        map_value
+                        "Only arrays and maps support index access, got {}.",
+                        collection_value
                     ));
                 }
             },
             _ => {
                 self.runtime_error(&format!(
-                    "Only maps support index access, got {}.",
-                    map_value
+                    "Only arrays and maps support index access, got {}.",
+                    collection_value
                 ));
             }
         }
@@ -900,10 +933,44 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_set_index(&mut self) {
         let value = self.pop();
         let index_value = self.pop();
-        let map_value = self.pop();
+        let collection_value = self.pop();
 
-        match &map_value {
+        match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => {
+                    // Handle array assignment
+                    match index_value {
+                        Value::Number(n) => {
+                            let index = n as i64;
+                            if index < 0 {
+                                self.runtime_error(&format!(
+                                    "Array index must be non-negative, got {}.",
+                                    index
+                                ));
+                                return;
+                            }
+                            let mut array = array_ref.borrow_mut();
+                            let index = index as usize;
+                            if index >= array.len() {
+                                self.runtime_error(&format!(
+                                    "Array index out of bounds: index {} but length is {}.",
+                                    index,
+                                    array.len()
+                                ));
+                                return;
+                            }
+                            array[index] = value.clone();
+                            // Push the value back (assignment expression returns the value)
+                            self.push(value);
+                        }
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                        }
+                    }
+                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
@@ -925,15 +992,15 @@ impl VirtualMachine {
                 }
                 _ => {
                     self.runtime_error(&format!(
-                        "Only maps support index assignment, got {}.",
-                        map_value
+                        "Only arrays and maps support index assignment, got {}.",
+                        collection_value
                     ));
                 }
             },
             _ => {
                 self.runtime_error(&format!(
-                    "Only maps support index assignment, got {}.",
-                    map_value
+                    "Only arrays and maps support index assignment, got {}.",
+                    collection_value
                 ));
             }
         }
