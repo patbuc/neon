@@ -115,6 +115,11 @@ pub enum Expr {
         elements: Vec<Expr>,
         location: SourceLocation,
     },
+    /// Set literal: {1, 2, 3}
+    SetLiteral {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
     /// Index access: map["key"], array[0]
     Index {
         object: Box<Expr>,
@@ -212,6 +217,7 @@ impl Expr {
             | Expr::MethodCall { location, .. }
             | Expr::MapLiteral { location, .. }
             | Expr::ArrayLiteral { location, .. }
+            | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. }
             | Expr::IndexAssign { location, .. } => location,
         }

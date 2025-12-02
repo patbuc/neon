@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use ordered_float::OrderedFloat;
@@ -76,12 +76,14 @@ pub(crate) enum Value {
     Nil,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum MapKey {
     String(Rc<str>),
     Number(OrderedFloat<f64>),
     Boolean(bool),
 }
+
+pub(crate) type SetKey = MapKey;
 
 impl Display for MapKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -102,6 +104,7 @@ pub(crate) enum Object {
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
+    Set(Rc<RefCell<BTreeSet<SetKey>>>),
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +189,10 @@ impl Value {
     pub(crate) fn new_map(entries: HashMap<MapKey, Value>) -> Self {
         Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
     }
+
+    pub(crate) fn new_set(elements: BTreeSet<SetKey>) -> Self {
+        Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(elements)))))
+    }
 }
 
 pub(crate) struct CallFrame {
@@ -226,6 +233,19 @@ impl Display for Object {
                     }
                     first = false;
                     write!(f, "{}: {}", key, value)?;
+                }
+                write!(f, "}}")
+            }
+            Object::Set(set) => {
+                let elements = set.borrow();
+                write!(f, "{{")?;
+                let mut first = true;
+                for element in elements.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}", element)?;
                 }
                 write!(f, "}}")
             }
@@ -468,5 +488,119 @@ mod test_map {
         assert!(display.contains("num:"));
         assert!(display.contains("bool:"));
         assert!(display.contains("nil:"));
+    }
+}
+
+#[cfg(test)]
+mod test_set {
+    use super::*;
+
+    #[test]
+    fn test_set_creation() {
+        let mut elements = BTreeSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements.insert(SetKey::Number(OrderedFloat(3.0)));
+
+        let set = Value::new_set(elements);
+
+        // Test that the set was created
+        match set {
+            Value::Object(obj) => {
+                match obj.as_ref() {
+                    Object::Set(_) => {
+                        // Success - set was created
+                    },
+                    _ => panic!("Expected Set object"),
+                }
+            },
+            _ => panic!("Expected Object value"),
+        }
+    }
+
+    #[test]
+    fn test_set_display() {
+        let mut elements = BTreeSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+        elements.insert(SetKey::Number(OrderedFloat(3.0)));
+
+        let set = Value::new_set(elements);
+        let display = format!("{}", set);
+
+        // HashSet order is not guaranteed, so we check for the format and presence of elements
+        assert!(display.starts_with("{"));
+        assert!(display.ends_with("}"));
+        assert!(display.contains("1"));
+        assert!(display.contains("2"));
+        assert!(display.contains("3"));
+    }
+
+    #[test]
+    fn test_empty_set_display() {
+        let set = Value::new_set(BTreeSet::new());
+        let display = format!("{}", set);
+        assert_eq!(display, "{}");
+    }
+
+    #[test]
+    fn test_set_equality() {
+        let mut elements1 = BTreeSet::new();
+        elements1.insert(SetKey::String(Rc::from("a")));
+        elements1.insert(SetKey::String(Rc::from("b")));
+        let set1 = Value::new_set(elements1);
+
+        let mut elements2 = BTreeSet::new();
+        elements2.insert(SetKey::String(Rc::from("a")));
+        elements2.insert(SetKey::String(Rc::from("b")));
+        let set2 = Value::new_set(elements2);
+
+        let mut elements3 = BTreeSet::new();
+        elements3.insert(SetKey::String(Rc::from("a")));
+        elements3.insert(SetKey::String(Rc::from("c")));
+        let set3 = Value::new_set(elements3);
+
+        // These should be equal
+        assert_eq!(set1, set2);
+
+        // These should not be equal
+        assert_ne!(set1, set3);
+    }
+
+    #[test]
+    fn test_set_with_different_key_types() {
+        let mut elements = BTreeSet::new();
+        elements.insert(SetKey::String(Rc::from("hello")));
+        elements.insert(SetKey::Number(OrderedFloat(42.0)));
+        elements.insert(SetKey::Boolean(true));
+
+        let set = Value::new_set(elements);
+        let display = format!("{}", set);
+
+        // Check that all key types are represented
+        assert!(display.contains("hello"));
+        assert!(display.contains("42"));
+        assert!(display.contains("true"));
+    }
+
+    #[test]
+    fn test_set_uniqueness() {
+        let mut elements = BTreeSet::new();
+        elements.insert(SetKey::Number(OrderedFloat(1.0)));
+        elements.insert(SetKey::Number(OrderedFloat(1.0))); // Duplicate
+        elements.insert(SetKey::Number(OrderedFloat(2.0)));
+
+        let set = Value::new_set(elements);
+
+        // Verify that the set contains only unique elements
+        if let Value::Object(obj) = &set {
+            if let Object::Set(set_ref) = obj.as_ref() {
+                assert_eq!(set_ref.borrow().len(), 2); // Should only contain 2 unique elements
+            } else {
+                panic!("Expected Set object");
+            }
+        } else {
+            panic!("Expected Object value");
+        }
     }
 }

@@ -1189,7 +1189,11 @@ fn test_parse_map_missing_colon() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("':'"));
+    // With set support, {"key" 42} is ambiguous - could be:
+    // 1. A map with missing colon: {"key": 42}
+    // 2. A set with missing comma: {"key", 42}
+    // Parser treats it as a malformed set, so accept either error message
+    assert!(errors[0].message.contains("':'") || errors[0].message.contains("'}'"));
 }
 
 #[test]
