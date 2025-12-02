@@ -225,6 +225,7 @@ impl VirtualMachine {
                     should_increment_ip = false;
                 }
                 OpCode::CreateMap => self.fn_create_map(),
+                OpCode::CreateArray => self.fn_create_array(),
                 OpCode::CreateSet => self.fn_create_set(),
                 OpCode::GetIndex => self.fn_get_index(),
                 OpCode::SetIndex => self.fn_set_index(),
@@ -327,6 +328,9 @@ impl VirtualMachine {
             ("Map", "keys") => Some(crate::vm::map_functions::native_map_keys),
             ("Map", "values") => Some(crate::vm::map_functions::native_map_values),
             ("Map", "entries") => Some(crate::vm::map_functions::native_map_entries),
+            ("Array", "push") => Some(crate::vm::array_functions::native_array_push),
+            ("Array", "pop") => Some(crate::vm::array_functions::native_array_pop),
+            ("Array", "length") => Some(crate::vm::array_functions::native_array_length),
             ("Set", "add") => Some(crate::vm::set_functions::native_set_add),
             ("Set", "remove") => Some(crate::vm::set_functions::native_set_remove),
             ("Set", "has") => Some(crate::vm::set_functions::native_set_has),

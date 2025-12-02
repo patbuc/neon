@@ -110,6 +110,11 @@ pub enum Expr {
         entries: Vec<(Expr, Expr)>,
         location: SourceLocation,
     },
+    /// Array literal: [1, 2, 3]
+    ArrayLiteral {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
     /// Set literal: {1, 2, 3}
     SetLiteral {
         elements: Vec<Expr>,
@@ -211,6 +216,7 @@ impl Expr {
             | Expr::Grouping { location, .. }
             | Expr::MethodCall { location, .. }
             | Expr::MapLiteral { location, .. }
+            | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. }
             | Expr::IndexAssign { location, .. } => location,

@@ -812,6 +812,32 @@ impl VirtualMachine {
         frame.ip += 1;
     }
 
+    pub(in crate::vm) fn fn_create_array(&mut self) {
+        // Read the count of elements from bytecode
+        let count = {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.bloq.read_u8(frame.ip + 1) as usize
+        };
+
+        // Pop elements from stack and build the array
+        // Stack layout: [elem0, elem1, ..., elemN]
+        let stack_len = self.stack.len();
+        let elements_start = stack_len - count;
+
+        // Collect elements into a Vec
+        let elements: Vec<Value> = self.stack[elements_start..stack_len].to_vec();
+
+        // Pop all elements from stack
+        self.stack.drain(elements_start..);
+
+        // Push the new array onto the stack
+        self.push(Value::new_array(elements));
+
+        // Increment IP to skip the count byte
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn fn_create_set(&mut self) {
         // Read the count of elements from bytecode
@@ -863,39 +889,6 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(array_ref) => {
-                    // Handle array indexing
-                    match index_value {
-                        Value::Number(n) => {
-                            let index = n as i64;
-                            if index < 0 {
-                                self.runtime_error(&format!(
-                                    "Array index must be non-negative, got {}.",
-                                    index
-                                ));
-                                return;
-                            }
-                            let array = array_ref.borrow();
-                            let index = index as usize;
-                            if index >= array.len() {
-                                self.runtime_error(&format!(
-                                    "Array index out of bounds: index {} but length is {}.",
-                                    index,
-                                    array.len()
-                                ));
-                                return;
-                            }
-                            let result = array[index].clone();
-                            self.push(result);
-                        }
-                        _ => {
-                            self.runtime_error(&format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            ));
-                        }
-                    }
-                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
@@ -911,6 +904,41 @@ impl VirtualMachine {
 
                     let map = map_ref.borrow();
                     let result = map.get(&key).cloned().unwrap_or(Value::Nil);
+                    self.push(result);
+                }
+                Object::Array(array_ref) => {
+                    // Extract index as number
+                    let index = match index_value {
+                        Value::Number(n) => n as i32,
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let array = array_ref.borrow();
+                    let len = array.len() as i32;
+
+                    // Normalize negative indices
+                    let actual_index = if index < 0 {
+                        len + index
+                    } else {
+                        index
+                    };
+
+                    // Bounds check
+                    if actual_index < 0 || actual_index >= len {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                            index, actual_index, len
+                        ));
+                        return;
+                    }
+
+                    let result = array[actual_index as usize].clone();
                     self.push(result);
                 }
                 _ => {
@@ -937,40 +965,6 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(array_ref) => {
-                    // Handle array assignment
-                    match index_value {
-                        Value::Number(n) => {
-                            let index = n as i64;
-                            if index < 0 {
-                                self.runtime_error(&format!(
-                                    "Array index must be non-negative, got {}.",
-                                    index
-                                ));
-                                return;
-                            }
-                            let mut array = array_ref.borrow_mut();
-                            let index = index as usize;
-                            if index >= array.len() {
-                                self.runtime_error(&format!(
-                                    "Array index out of bounds: index {} but length is {}.",
-                                    index,
-                                    array.len()
-                                ));
-                                return;
-                            }
-                            array[index] = value.clone();
-                            // Push the value back (assignment expression returns the value)
-                            self.push(value);
-                        }
-                        _ => {
-                            self.runtime_error(&format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            ));
-                        }
-                    }
-                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
@@ -986,6 +980,43 @@ impl VirtualMachine {
 
                     let mut map = map_ref.borrow_mut();
                     map.insert(key, value.clone());
+
+                    // Push the value back (assignment expression returns the value)
+                    self.push(value);
+                }
+                Object::Array(array_ref) => {
+                    // Extract index as number
+                    let index = match index_value {
+                        Value::Number(n) => n as i32,
+                        _ => {
+                            self.runtime_error(&format!(
+                                "Array index must be a number, got {}.",
+                                index_value
+                            ));
+                            return;
+                        }
+                    };
+
+                    let mut array = array_ref.borrow_mut();
+                    let len = array.len() as i32;
+
+                    // Normalize negative indices
+                    let actual_index = if index < 0 {
+                        len + index
+                    } else {
+                        index
+                    };
+
+                    // Bounds check
+                    if actual_index < 0 || actual_index >= len {
+                        self.runtime_error(&format!(
+                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                            index, actual_index, len
+                        ));
+                        return;
+                    }
+
+                    array[actual_index as usize] = value.clone();
 
                     // Push the value back (assignment expression returns the value)
                     self.push(value);
