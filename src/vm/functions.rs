@@ -889,39 +889,6 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(array_ref) => {
-                    // Handle array indexing
-                    match index_value {
-                        Value::Number(n) => {
-                            let index = n as i64;
-                            if index < 0 {
-                                self.runtime_error(&format!(
-                                    "Array index must be non-negative, got {}.",
-                                    index
-                                ));
-                                return;
-                            }
-                            let array = array_ref.borrow();
-                            let index = index as usize;
-                            if index >= array.len() {
-                                self.runtime_error(&format!(
-                                    "Array index out of bounds: index {} but length is {}.",
-                                    index,
-                                    array.len()
-                                ));
-                                return;
-                            }
-                            let result = array[index].clone();
-                            self.push(result);
-                        }
-                        _ => {
-                            self.runtime_error(&format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            ));
-                        }
-                    }
-                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
@@ -998,40 +965,6 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(array_ref) => {
-                    // Handle array assignment
-                    match index_value {
-                        Value::Number(n) => {
-                            let index = n as i64;
-                            if index < 0 {
-                                self.runtime_error(&format!(
-                                    "Array index must be non-negative, got {}.",
-                                    index
-                                ));
-                                return;
-                            }
-                            let mut array = array_ref.borrow_mut();
-                            let index = index as usize;
-                            if index >= array.len() {
-                                self.runtime_error(&format!(
-                                    "Array index out of bounds: index {} but length is {}.",
-                                    index,
-                                    array.len()
-                                ));
-                                return;
-                            }
-                            array[index] = value.clone();
-                            // Push the value back (assignment expression returns the value)
-                            self.push(value);
-                        }
-                        _ => {
-                            self.runtime_error(&format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            ));
-                        }
-                    }
-                }
                 Object::Map(map_ref) => {
                     // Convert index to MapKey
                     let key = match Self::value_to_map_key(&index_value) {
