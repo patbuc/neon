@@ -226,6 +226,7 @@ impl VirtualMachine {
                 }
                 OpCode::CreateMap => self.fn_create_map(),
                 OpCode::CreateArray => self.fn_create_array(),
+                OpCode::CreateSet => self.fn_create_set(),
                 OpCode::GetIndex => self.fn_get_index(),
                 OpCode::SetIndex => self.fn_set_index(),
             }
@@ -318,6 +319,8 @@ impl VirtualMachine {
             ("String", "toBool") => Some(crate::vm::string_functions::native_string_to_bool),
             ("Number", "toString") => Some(crate::vm::number_functions::native_number_to_string),
             ("Boolean", "toString") => Some(crate::vm::boolean_functions::native_boolean_to_string),
+            ("Array", "size") => Some(crate::vm::array_functions::native_array_size),
+            ("Array", "contains") => Some(crate::vm::array_functions::native_array_contains),
             ("Map", "get") => Some(crate::vm::map_functions::native_map_get),
             ("Map", "size") => Some(crate::vm::map_functions::native_map_size),
             ("Map", "has") => Some(crate::vm::map_functions::native_map_has),
@@ -328,6 +331,16 @@ impl VirtualMachine {
             ("Array", "push") => Some(crate::vm::array_functions::native_array_push),
             ("Array", "pop") => Some(crate::vm::array_functions::native_array_pop),
             ("Array", "length") => Some(crate::vm::array_functions::native_array_length),
+            ("Set", "add") => Some(crate::vm::set_functions::native_set_add),
+            ("Set", "remove") => Some(crate::vm::set_functions::native_set_remove),
+            ("Set", "has") => Some(crate::vm::set_functions::native_set_has),
+            ("Set", "size") => Some(crate::vm::set_functions::native_set_size),
+            ("Set", "clear") => Some(crate::vm::set_functions::native_set_clear),
+            ("Set", "union") => Some(crate::vm::set_functions::native_set_union),
+            ("Set", "intersection") => Some(crate::vm::set_functions::native_set_intersection),
+            ("Set", "difference") => Some(crate::vm::set_functions::native_set_difference),
+            ("Set", "isSubset") => Some(crate::vm::set_functions::native_set_is_subset),
+            ("Set", "toArray") => Some(crate::vm::set_functions::native_set_to_array),
             _ => None,
         }
     }

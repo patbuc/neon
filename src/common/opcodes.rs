@@ -58,6 +58,7 @@ pub(crate) enum OpCode {
     CallMethod,
     CreateMap,
     CreateArray,
+    CreateSet,
     GetIndex,
     SetIndex,
 }
