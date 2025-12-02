@@ -550,6 +550,20 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateMap, *location);
                 self.current_bloq().write_u8(entries.len() as u8);
             }
+            Expr::ArrayLiteral { elements, location } => {
+                // Generate bytecode for array literal creation
+                // Strategy: emit code for each element, then CreateArray
+                // This allows the VM to pop elements from the stack in order
+
+                // Generate code for all elements
+                for element in elements {
+                    self.generate_expr(element);
+                }
+
+                // Emit CreateArray with the count of elements
+                self.emit_op_code(OpCode::CreateArray, *location);
+                self.current_bloq().write_u8(elements.len() as u8);
+            }
             Expr::SetLiteral { elements, location } => {
                 // Generate code for each element expression
                 for element in elements {
