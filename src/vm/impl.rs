@@ -316,11 +316,44 @@ impl VirtualMachine {
         self.bloq = None;
     }
 
-    /// Look up a native method for a given type and method name
+    /// Look up a native method for a given type and method name.
+    ///
+    /// This function provides runtime dispatch for native methods. The method registry
+    /// (MethodRegistry) is used at compile-time to validate method calls and should be
+    /// kept in sync with this dispatch table.
+    ///
+    /// Note: In debug builds, we verify consistency with the MethodRegistry to catch
+    /// any discrepancies between compile-time validation and runtime dispatch.
     pub(in crate::vm) fn get_native_method(
         type_name: &str,
         method_name: &str,
     ) -> Option<crate::common::NativeFn> {
+        // In debug mode, verify the method exists in the registry for consistency
+        #[cfg(debug_assertions)]
+        {
+            use crate::common::method_registry::MethodRegistry;
+            let is_valid = MethodRegistry::is_valid_method(type_name, method_name);
+            let result_exists = matches!(
+                (type_name, method_name),
+                ("String", "len") | ("String", "substring") | ("String", "replace") |
+                ("String", "split") | ("String", "toInt") | ("String", "toFloat") |
+                ("String", "toBool") | ("Number", "toString") | ("Boolean", "toString") |
+                ("Array", "size") | ("Array", "contains") | ("Array", "push") |
+                ("Array", "pop") | ("Array", "length") | ("Map", "get") | ("Map", "size") |
+                ("Map", "has") | ("Map", "remove") | ("Map", "keys") | ("Map", "values") |
+                ("Map", "entries") | ("Set", "add") | ("Set", "remove") | ("Set", "has") |
+                ("Set", "size") | ("Set", "clear") | ("Set", "union") |
+                ("Set", "intersection") | ("Set", "difference") | ("Set", "isSubset") |
+                ("Set", "toArray")
+            );
+            debug_assert_eq!(
+                is_valid, result_exists,
+                "Inconsistency between MethodRegistry and get_native_method: \
+                 type={}, method={}, registry={}, dispatch={}",
+                type_name, method_name, is_valid, result_exists
+            );
+        }
+
         match (type_name, method_name) {
             ("String", "len") => Some(crate::vm::string_functions::native_string_len),
             ("String", "substring") => Some(crate::vm::string_functions::native_string_substring),

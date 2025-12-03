@@ -1,16 +1,19 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+use crate::common::method_registry::MethodRegistry;
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
+use std::collections::HashMap;
 
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     errors: Vec<CompilationError>,
+    type_env: HashMap<String, String>,
 }
 
 impl SemanticAnalyzer {
@@ -34,6 +37,7 @@ impl SemanticAnalyzer {
         SemanticAnalyzer {
             symbol_table,
             errors: Vec::new(),
+            type_env: HashMap::new(),
         }
     }
 
@@ -112,6 +116,75 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Infer the type of an expression based on its structure
+    fn infer_expr_type(&self, expr: &Expr) -> Option<String> {
+        match expr {
+            // Literal types
+            Expr::Number { .. } => Some("Number".to_string()),
+            Expr::String { .. } => Some("String".to_string()),
+            Expr::Boolean { .. } => Some("Boolean".to_string()),
+            Expr::ArrayLiteral { .. } => Some("Array".to_string()),
+            Expr::MapLiteral { .. } => Some("Map".to_string()),
+            Expr::SetLiteral { .. } => Some("Set".to_string()),
+            Expr::Nil { .. } => Some("Nil".to_string()),
+
+            // Variable lookup
+            Expr::Variable { name, .. } => {
+                self.type_env.get(name).cloned()
+            }
+
+            // Grouping - infer from inner expression
+            Expr::Grouping { expr, .. } => {
+                self.infer_expr_type(expr)
+            }
+
+            // Method calls with known return types
+            Expr::MethodCall { object, method, .. } => {
+                let object_type = self.infer_expr_type(object)?;
+                match (object_type.as_str(), method.as_str()) {
+                    ("Map", "keys") => Some("Array".to_string()),
+                    ("Map", "values") => Some("Array".to_string()),
+                    ("Set", "toArray") => Some("Array".to_string()),
+                    ("String", "split") => Some("Array".to_string()),
+                    ("Array", "join") => Some("String".to_string()),
+                    ("Array", "map") => Some("Array".to_string()),
+                    ("Array", "filter") => Some("Array".to_string()),
+                    _ => None,
+                }
+            }
+
+            // Binary operations - basic type inference
+            Expr::Binary { operator, .. } => {
+                use crate::compiler::ast::BinaryOp;
+                match operator {
+                    BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply |
+                    BinaryOp::Divide | BinaryOp::Modulo => {
+                        // Arithmetic operations return Number
+                        Some("Number".to_string())
+                    }
+                    BinaryOp::Equal | BinaryOp::NotEqual | BinaryOp::Greater |
+                    BinaryOp::GreaterEqual | BinaryOp::Less | BinaryOp::LessEqual |
+                    BinaryOp::And | BinaryOp::Or => {
+                        // Comparison and logical operations return Boolean
+                        Some("Boolean".to_string())
+                    }
+                }
+            }
+
+            // Unary operations
+            Expr::Unary { operator, .. } => {
+                use crate::compiler::ast::UnaryOp;
+                match operator {
+                    UnaryOp::Negate => Some("Number".to_string()),
+                    UnaryOp::Not => Some("Boolean".to_string()),
+                }
+            }
+
+            // For other expressions, we can't infer the type
+            _ => None,
+        }
+    }
+
     // ===== Then: Reference Resolution =====
 
     fn resolve_statements(&mut self, statements: &[Stmt]) {
@@ -130,6 +203,10 @@ impl SemanticAnalyzer {
                 // Resolve initializer first (if any)
                 if let Some(init) = initializer {
                     self.resolve_expr(init);
+                    // Infer and track type if possible
+                    if let Some(inferred_type) = self.infer_expr_type(init) {
+                        self.type_env.insert(name.clone(), inferred_type);
+                    }
                 }
                 // Then define the variable in current scope
                 self.define_symbol(name.clone(), SymbolKind::Value, false, *location);
@@ -142,6 +219,10 @@ impl SemanticAnalyzer {
                 // Resolve initializer first (if any)
                 if let Some(init) = initializer {
                     self.resolve_expr(init);
+                    // Infer and track type if possible
+                    if let Some(inferred_type) = self.infer_expr_type(init) {
+                        self.type_env.insert(name.clone(), inferred_type);
+                    }
                 }
                 // Then define the variable in current scope
                 self.define_symbol(name.clone(), SymbolKind::Variable, true, *location);
@@ -251,6 +332,14 @@ impl SemanticAnalyzer {
                                 format!("Cannot assign to immutable variable '{}'", name),
                                 *location,
                             ));
+                        } else {
+                            // Update type tracking for mutable variables
+                            if let Some(new_type) = self.infer_expr_type(value) {
+                                self.type_env.insert(name.clone(), new_type);
+                            } else {
+                                // If we can't infer the new type, remove from tracking
+                                self.type_env.remove(name);
+                            }
                         }
                     }
                 }
@@ -343,17 +432,53 @@ impl SemanticAnalyzer {
             }
             Expr::MethodCall {
                 object,
-                method: _,
+                method,
                 arguments,
-                location: _,
+                location,
             } => {
                 // Resolve the object and all arguments
                 self.resolve_expr(object);
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
-                // Method validation could be added here if we track method types
-                // For now, we just ensure the object and arguments are valid
+
+                // Validate method if we can infer the object's type
+                if let Some(object_type) = self.infer_expr_type(object) {
+                    // Check if the method is valid for this type
+                    if !MethodRegistry::is_valid_method(&object_type, method) {
+                        // Method is invalid - try to suggest a correction
+                        let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(&object_type, method) {
+                            // We found a close match - suggest it
+                            format!(
+                                "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                                object_type, method, suggestion
+                            )
+                        } else {
+                            // No close match - list available methods
+                            let available_methods = MethodRegistry::get_methods_for_type(&object_type);
+                            if available_methods.is_empty() {
+                                format!(
+                                    "Type '{}' has no method named '{}' and no available methods",
+                                    object_type, method
+                                )
+                            } else {
+                                format!(
+                                    "Type '{}' has no method named '{}'. Available methods: {}",
+                                    object_type,
+                                    method,
+                                    available_methods.join(", ")
+                                )
+                            }
+                        };
+
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            error_message,
+                            *location,
+                        ));
+                    }
+                }
             }
             Expr::MapLiteral { entries, .. } => {
                 // Resolve all key-value pairs in the map literal
