@@ -2581,3 +2581,54 @@ fn test_array_empty_to_full_lifecycle() {
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n1\n10\n3\n[10, 99, 30]\n0\n[]", vm.get_output());
 }
+
+#[test]
+fn test_array_large_size() {
+    // Test that arrays with more than 256 elements work correctly
+    // This tests the u16 array count encoding
+    let program = r#"
+        var arr = []
+        var i = 0
+        while (i < 300) {
+            arr.push(i)
+            i = i + 1
+        }
+        print arr.length()
+        print arr[0]
+        print arr[255]
+        print arr[256]
+        print arr[299]
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("300\n0\n255\n256\n299", vm.get_output());
+}
+
+#[test]
+fn test_array_literal_large_size() {
+    // Test array literal with more than 256 elements
+    let mut elements = Vec::new();
+    for i in 0..300 {
+        elements.push(i.to_string());
+    }
+    let array_literal = format!("[{}]", elements.join(", "));
+
+    let program = format!(
+        r#"
+        var arr = {}
+        print arr.length()
+        print arr[0]
+        print arr[255]
+        print arr[256]
+        print arr[299]
+        "#,
+        array_literal
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(Result::Ok, result);
+    assert_eq!("300\n0\n255\n256\n299", vm.get_output());
+}

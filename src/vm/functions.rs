@@ -816,7 +816,7 @@ impl VirtualMachine {
         // Read the count of elements from bytecode
         let count = {
             let frame = self.call_frames.last().unwrap();
-            frame.function.bloq.read_u8(frame.ip + 1) as usize
+            frame.function.bloq.read_u16(frame.ip + 1) as usize
         };
 
         // Pop elements from stack and build the array
@@ -833,9 +833,9 @@ impl VirtualMachine {
         // Push the new array onto the stack
         self.push(Value::new_array(elements));
 
-        // Increment IP to skip the count byte
+        // Increment IP to skip the count bytes (u16 = 2 bytes)
         let frame = self.call_frames.last_mut().unwrap();
-        frame.ip += 1;
+        frame.ip += 2;
     }
 
     #[inline(always)]
