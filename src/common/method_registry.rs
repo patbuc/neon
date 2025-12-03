@@ -5,211 +5,63 @@
 use crate::common::string_similarity::find_closest_match;
 use crate::common::NativeFn;
 
-/// A single method entry in the registry.
-///
-/// Each entry represents a native method available for a specific type.
-pub struct MethodEntry {
-    pub type_name: &'static str,
-    pub method_name: &'static str,
-    pub function: NativeFn,
-}
-
 /// Static registry of all native methods - SINGLE SOURCE OF TRUTH.
 ///
-/// All native method definitions are centralized here. To add a new method,
-/// simply add a new MethodEntry to this array.
-const NATIVE_METHODS: &[MethodEntry] = &[
+/// Format: (type_name, method_name, function)
+const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     // Array methods
-    MethodEntry {
-        type_name: "Array",
-        method_name: "push",
-        function: crate::vm::array_functions::native_array_push,
-    },
-    MethodEntry {
-        type_name: "Array",
-        method_name: "pop",
-        function: crate::vm::array_functions::native_array_pop,
-    },
-    MethodEntry {
-        type_name: "Array",
-        method_name: "length",
-        function: crate::vm::array_functions::native_array_length,
-    },
-    MethodEntry {
-        type_name: "Array",
-        method_name: "size",
-        function: crate::vm::array_functions::native_array_size,
-    },
-    MethodEntry {
-        type_name: "Array",
-        method_name: "contains",
-        function: crate::vm::array_functions::native_array_contains,
-    },
+    ("Array", "push", crate::vm::array_functions::native_array_push),
+    ("Array", "pop", crate::vm::array_functions::native_array_pop),
+    ("Array", "length", crate::vm::array_functions::native_array_length),
+    ("Array", "size", crate::vm::array_functions::native_array_size),
+    ("Array", "contains", crate::vm::array_functions::native_array_contains),
     // String methods
-    MethodEntry {
-        type_name: "String",
-        method_name: "len",
-        function: crate::vm::string_functions::native_string_len,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "substring",
-        function: crate::vm::string_functions::native_string_substring,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "replace",
-        function: crate::vm::string_functions::native_string_replace,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "split",
-        function: crate::vm::string_functions::native_string_split,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "toInt",
-        function: crate::vm::string_functions::native_string_to_int,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "toFloat",
-        function: crate::vm::string_functions::native_string_to_float,
-    },
-    MethodEntry {
-        type_name: "String",
-        method_name: "toBool",
-        function: crate::vm::string_functions::native_string_to_bool,
-    },
+    ("String", "len", crate::vm::string_functions::native_string_len),
+    ("String", "substring", crate::vm::string_functions::native_string_substring),
+    ("String", "replace", crate::vm::string_functions::native_string_replace),
+    ("String", "split", crate::vm::string_functions::native_string_split),
+    ("String", "toInt", crate::vm::string_functions::native_string_to_int),
+    ("String", "toFloat", crate::vm::string_functions::native_string_to_float),
+    ("String", "toBool", crate::vm::string_functions::native_string_to_bool),
     // Number methods
-    MethodEntry {
-        type_name: "Number",
-        method_name: "toString",
-        function: crate::vm::number_functions::native_number_to_string,
-    },
+    ("Number", "toString", crate::vm::number_functions::native_number_to_string),
     // Boolean methods
-    MethodEntry {
-        type_name: "Boolean",
-        method_name: "toString",
-        function: crate::vm::boolean_functions::native_boolean_to_string,
-    },
+    ("Boolean", "toString", crate::vm::boolean_functions::native_boolean_to_string),
     // Map methods
-    MethodEntry {
-        type_name: "Map",
-        method_name: "get",
-        function: crate::vm::map_functions::native_map_get,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "size",
-        function: crate::vm::map_functions::native_map_size,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "has",
-        function: crate::vm::map_functions::native_map_has,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "remove",
-        function: crate::vm::map_functions::native_map_remove,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "keys",
-        function: crate::vm::map_functions::native_map_keys,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "values",
-        function: crate::vm::map_functions::native_map_values,
-    },
-    MethodEntry {
-        type_name: "Map",
-        method_name: "entries",
-        function: crate::vm::map_functions::native_map_entries,
-    },
+    ("Map", "get", crate::vm::map_functions::native_map_get),
+    ("Map", "size", crate::vm::map_functions::native_map_size),
+    ("Map", "has", crate::vm::map_functions::native_map_has),
+    ("Map", "remove", crate::vm::map_functions::native_map_remove),
+    ("Map", "keys", crate::vm::map_functions::native_map_keys),
+    ("Map", "values", crate::vm::map_functions::native_map_values),
+    ("Map", "entries", crate::vm::map_functions::native_map_entries),
     // Set methods
-    MethodEntry {
-        type_name: "Set",
-        method_name: "add",
-        function: crate::vm::set_functions::native_set_add,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "remove",
-        function: crate::vm::set_functions::native_set_remove,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "has",
-        function: crate::vm::set_functions::native_set_has,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "size",
-        function: crate::vm::set_functions::native_set_size,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "clear",
-        function: crate::vm::set_functions::native_set_clear,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "union",
-        function: crate::vm::set_functions::native_set_union,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "intersection",
-        function: crate::vm::set_functions::native_set_intersection,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "difference",
-        function: crate::vm::set_functions::native_set_difference,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "isSubset",
-        function: crate::vm::set_functions::native_set_is_subset,
-    },
-    MethodEntry {
-        type_name: "Set",
-        method_name: "toArray",
-        function: crate::vm::set_functions::native_set_to_array,
-    },
+    ("Set", "add", crate::vm::set_functions::native_set_add),
+    ("Set", "remove", crate::vm::set_functions::native_set_remove),
+    ("Set", "has", crate::vm::set_functions::native_set_has),
+    ("Set", "size", crate::vm::set_functions::native_set_size),
+    ("Set", "clear", crate::vm::set_functions::native_set_clear),
+    ("Set", "union", crate::vm::set_functions::native_set_union),
+    ("Set", "intersection", crate::vm::set_functions::native_set_intersection),
+    ("Set", "difference", crate::vm::set_functions::native_set_difference),
+    ("Set", "isSubset", crate::vm::set_functions::native_set_is_subset),
+    ("Set", "toArray", crate::vm::set_functions::native_set_to_array),
 ];
 
 /// Get native function implementation for a type and method.
-///
-/// # Arguments
-/// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
-/// * `method_name` - The name of the method to look up
-///
-/// # Returns
-/// * `Some(NativeFn)` - The function pointer if the method exists
-/// * `None` - If the method doesn't exist for this type
 pub fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
     NATIVE_METHODS
         .iter()
-        .find(|entry| entry.type_name == type_name && entry.method_name == method_name)
-        .map(|entry| entry.function)
+        .find(|(t, m, _)| *t == type_name && *m == method_name)
+        .map(|(_, _, f)| *f)
 }
 
 /// Get all method names for a given type.
-///
-/// # Arguments
-/// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
-///
-/// # Returns
-/// A vector of method names valid for this type, or an empty vector if the type is unknown.
 pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
     NATIVE_METHODS
         .iter()
-        .filter(|entry| entry.type_name == type_name)
-        .map(|entry| entry.method_name)
+        .filter(|(t, _, _)| *t == type_name)
+        .map(|(_, m, _)| *m)
         .collect()
 }
 
