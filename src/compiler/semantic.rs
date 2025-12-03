@@ -1,6 +1,7 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+use crate::common::method_registry::MethodRegistry;
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
@@ -431,17 +432,53 @@ impl SemanticAnalyzer {
             }
             Expr::MethodCall {
                 object,
-                method: _,
+                method,
                 arguments,
-                location: _,
+                location,
             } => {
                 // Resolve the object and all arguments
                 self.resolve_expr(object);
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
-                // Method validation could be added here if we track method types
-                // For now, we just ensure the object and arguments are valid
+
+                // Validate method if we can infer the object's type
+                if let Some(object_type) = self.infer_expr_type(object) {
+                    // Check if the method is valid for this type
+                    if !MethodRegistry::is_valid_method(&object_type, method) {
+                        // Method is invalid - try to suggest a correction
+                        let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(&object_type, method) {
+                            // We found a close match - suggest it
+                            format!(
+                                "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                                object_type, method, suggestion
+                            )
+                        } else {
+                            // No close match - list available methods
+                            let available_methods = MethodRegistry::get_methods_for_type(&object_type);
+                            if available_methods.is_empty() {
+                                format!(
+                                    "Type '{}' has no method named '{}' and no available methods",
+                                    object_type, method
+                                )
+                            } else {
+                                format!(
+                                    "Type '{}' has no method named '{}'. Available methods: {}",
+                                    object_type,
+                                    method,
+                                    available_methods.join(", ")
+                                )
+                            }
+                        };
+
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            error_message,
+                            *location,
+                        ));
+                    }
+                }
             }
             Expr::MapLiteral { entries, .. } => {
                 // Resolve all key-value pairs in the map literal
