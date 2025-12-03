@@ -541,11 +541,23 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_call_method(&mut self) -> Option<Result> {
+    pub(in crate::vm) fn fn_call_method(&mut self, bits: BitsSize) -> Option<Result> {
+        // Calculate index size and IP increment based on variant
+        let index_size = match bits {
+            BitsSize::Eight => 1,
+            BitsSize::Sixteen => 2,
+            BitsSize::ThirtyTwo => 4,
+        };
+        let ip_increment = 1 + 1 + index_size; // opcode + arg_count + method_index
+
         // Read arg count and method name index
         let frame = self.call_frames.last().unwrap();
         let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
-        let method_name_index = frame.function.bloq.read_u8(frame.ip + 2) as usize;
+        let method_name_index = match bits {
+            BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
+            BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
+            BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+        };
 
         // Read the method name from strings
         let method_name = {
@@ -590,7 +602,7 @@ impl VirtualMachine {
                                 } else {
                                     // Increment IP for CallMethod (opcode + arg_count + method_name_index)
                                     let current_frame = self.call_frames.last_mut().unwrap();
-                                    current_frame.ip += 3;
+                                    current_frame.ip += ip_increment;
                                     None
                                 };
                             }
@@ -617,7 +629,7 @@ impl VirtualMachine {
 
                                         // Increment IP for CallMethod (opcode + arg_count + method_name_index)
                                         let current_frame = self.call_frames.last_mut().unwrap();
-                                        current_frame.ip += 3;
+                                        current_frame.ip += ip_increment;
 
                                         None
                                     }
@@ -699,7 +711,7 @@ impl VirtualMachine {
 
                 // Increment IP to skip CallMethod opcode, arg count, and method name index
                 let current_frame = self.call_frames.last_mut().unwrap();
-                current_frame.ip += 3;
+                current_frame.ip += ip_increment;
 
                 None
             }
