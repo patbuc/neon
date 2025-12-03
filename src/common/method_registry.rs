@@ -3,7 +3,215 @@
 /// This module provides compile-time validation of method calls by maintaining
 /// a complete list of all valid methods for each built-in type in the Neon language.
 use crate::common::string_similarity::find_closest_match;
-use crate::define_native_methods;
+use crate::common::NativeFn;
+
+/// A single method entry in the registry.
+///
+/// Each entry represents a native method available for a specific type.
+pub struct MethodEntry {
+    pub type_name: &'static str,
+    pub method_name: &'static str,
+    pub function: NativeFn,
+}
+
+/// Static registry of all native methods - SINGLE SOURCE OF TRUTH.
+///
+/// All native method definitions are centralized here. To add a new method,
+/// simply add a new MethodEntry to this array.
+const NATIVE_METHODS: &[MethodEntry] = &[
+    // Array methods
+    MethodEntry {
+        type_name: "Array",
+        method_name: "push",
+        function: crate::vm::array_functions::native_array_push,
+    },
+    MethodEntry {
+        type_name: "Array",
+        method_name: "pop",
+        function: crate::vm::array_functions::native_array_pop,
+    },
+    MethodEntry {
+        type_name: "Array",
+        method_name: "length",
+        function: crate::vm::array_functions::native_array_length,
+    },
+    MethodEntry {
+        type_name: "Array",
+        method_name: "size",
+        function: crate::vm::array_functions::native_array_size,
+    },
+    MethodEntry {
+        type_name: "Array",
+        method_name: "contains",
+        function: crate::vm::array_functions::native_array_contains,
+    },
+    // String methods
+    MethodEntry {
+        type_name: "String",
+        method_name: "len",
+        function: crate::vm::string_functions::native_string_len,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "substring",
+        function: crate::vm::string_functions::native_string_substring,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "replace",
+        function: crate::vm::string_functions::native_string_replace,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "split",
+        function: crate::vm::string_functions::native_string_split,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "toInt",
+        function: crate::vm::string_functions::native_string_to_int,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "toFloat",
+        function: crate::vm::string_functions::native_string_to_float,
+    },
+    MethodEntry {
+        type_name: "String",
+        method_name: "toBool",
+        function: crate::vm::string_functions::native_string_to_bool,
+    },
+    // Number methods
+    MethodEntry {
+        type_name: "Number",
+        method_name: "toString",
+        function: crate::vm::number_functions::native_number_to_string,
+    },
+    // Boolean methods
+    MethodEntry {
+        type_name: "Boolean",
+        method_name: "toString",
+        function: crate::vm::boolean_functions::native_boolean_to_string,
+    },
+    // Map methods
+    MethodEntry {
+        type_name: "Map",
+        method_name: "get",
+        function: crate::vm::map_functions::native_map_get,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "size",
+        function: crate::vm::map_functions::native_map_size,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "has",
+        function: crate::vm::map_functions::native_map_has,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "remove",
+        function: crate::vm::map_functions::native_map_remove,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "keys",
+        function: crate::vm::map_functions::native_map_keys,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "values",
+        function: crate::vm::map_functions::native_map_values,
+    },
+    MethodEntry {
+        type_name: "Map",
+        method_name: "entries",
+        function: crate::vm::map_functions::native_map_entries,
+    },
+    // Set methods
+    MethodEntry {
+        type_name: "Set",
+        method_name: "add",
+        function: crate::vm::set_functions::native_set_add,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "remove",
+        function: crate::vm::set_functions::native_set_remove,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "has",
+        function: crate::vm::set_functions::native_set_has,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "size",
+        function: crate::vm::set_functions::native_set_size,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "clear",
+        function: crate::vm::set_functions::native_set_clear,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "union",
+        function: crate::vm::set_functions::native_set_union,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "intersection",
+        function: crate::vm::set_functions::native_set_intersection,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "difference",
+        function: crate::vm::set_functions::native_set_difference,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "isSubset",
+        function: crate::vm::set_functions::native_set_is_subset,
+    },
+    MethodEntry {
+        type_name: "Set",
+        method_name: "toArray",
+        function: crate::vm::set_functions::native_set_to_array,
+    },
+];
+
+/// Get native function implementation for a type and method.
+///
+/// # Arguments
+/// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
+/// * `method_name` - The name of the method to look up
+///
+/// # Returns
+/// * `Some(NativeFn)` - The function pointer if the method exists
+/// * `None` - If the method doesn't exist for this type
+pub fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
+    NATIVE_METHODS
+        .iter()
+        .find(|entry| entry.type_name == type_name && entry.method_name == method_name)
+        .map(|entry| entry.function)
+}
+
+/// Get all method names for a given type.
+///
+/// # Arguments
+/// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
+///
+/// # Returns
+/// A vector of method names valid for this type, or an empty vector if the type is unknown.
+pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
+    NATIVE_METHODS
+        .iter()
+        .filter(|entry| entry.type_name == type_name)
+        .map(|entry| entry.method_name)
+        .collect()
+}
 
 /// Static method registry for validating method calls at compile time.
 pub struct MethodRegistry;
@@ -15,7 +223,7 @@ impl MethodRegistry {
     /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
     ///
     /// # Returns
-    /// A slice of method names valid for this type, or an empty slice if the type is unknown.
+    /// A vector of method names valid for this type, or an empty vector if the type is unknown.
     ///
     /// # Examples
     /// ```
@@ -24,7 +232,7 @@ impl MethodRegistry {
     /// let methods = MethodRegistry::get_methods_for_type("Array");
     /// assert!(methods.contains(&"push"));
     /// ```
-    pub fn get_methods_for_type(type_name: &str) -> &'static [&'static str] {
+    pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
         get_methods_for_type(type_name)
     }
 
@@ -45,9 +253,7 @@ impl MethodRegistry {
     /// assert!(!MethodRegistry::is_valid_method("Array", "foo"));
     /// ```
     pub fn is_valid_method(type_name: &str, method_name: &str) -> bool {
-        Self::get_methods_for_type(type_name)
-            .iter()
-            .any(|&m| m == method_name)
+        get_native_method(type_name, method_name).is_some()
     }
 
     /// Suggests a similar method name if the given method is invalid.
@@ -73,59 +279,8 @@ impl MethodRegistry {
     /// ```
     pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
         let methods = Self::get_methods_for_type(type_name);
-        find_closest_match(method_name, methods)
+        find_closest_match(method_name, &methods)
     }
-}
-
-// Single source of truth for all native methods
-// This macro generates:
-// 1. Static method arrays (e.g., ARRAY_METHODS)
-// 2. get_methods_for_type() function
-// 3. get_native_method() dispatch function with debug assertions
-define_native_methods! {
-    Array => {
-        push => crate::vm::array_functions::native_array_push,
-        pop => crate::vm::array_functions::native_array_pop,
-        length => crate::vm::array_functions::native_array_length,
-        size => crate::vm::array_functions::native_array_size,
-        contains => crate::vm::array_functions::native_array_contains,
-    },
-    String => {
-        len => crate::vm::string_functions::native_string_len,
-        substring => crate::vm::string_functions::native_string_substring,
-        replace => crate::vm::string_functions::native_string_replace,
-        split => crate::vm::string_functions::native_string_split,
-        toInt => crate::vm::string_functions::native_string_to_int,
-        toFloat => crate::vm::string_functions::native_string_to_float,
-        toBool => crate::vm::string_functions::native_string_to_bool,
-    },
-    Number => {
-        toString => crate::vm::number_functions::native_number_to_string,
-    },
-    Boolean => {
-        toString => crate::vm::boolean_functions::native_boolean_to_string,
-    },
-    Map => {
-        get => crate::vm::map_functions::native_map_get,
-        size => crate::vm::map_functions::native_map_size,
-        has => crate::vm::map_functions::native_map_has,
-        remove => crate::vm::map_functions::native_map_remove,
-        keys => crate::vm::map_functions::native_map_keys,
-        values => crate::vm::map_functions::native_map_values,
-        entries => crate::vm::map_functions::native_map_entries,
-    },
-    Set => {
-        add => crate::vm::set_functions::native_set_add,
-        remove => crate::vm::set_functions::native_set_remove,
-        has => crate::vm::set_functions::native_set_has,
-        size => crate::vm::set_functions::native_set_size,
-        clear => crate::vm::set_functions::native_set_clear,
-        union => crate::vm::set_functions::native_set_union,
-        intersection => crate::vm::set_functions::native_set_intersection,
-        difference => crate::vm::set_functions::native_set_difference,
-        isSubset => crate::vm::set_functions::native_set_is_subset,
-        toArray => crate::vm::set_functions::native_set_to_array,
-    },
 }
 
 #[cfg(test)]
@@ -244,7 +399,10 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("Array", "poop"), Some("pop"));
 
         // Typo in "length"
-        assert_eq!(MethodRegistry::suggest_method("Array", "lenght"), Some("length"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Array", "lenght"),
+            Some("length")
+        );
     }
 
     #[test]
@@ -253,13 +411,19 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("String", "lenn"), Some("len"));
 
         // Typo in "split"
-        assert_eq!(MethodRegistry::suggest_method("String", "splt"), Some("split"));
+        assert_eq!(
+            MethodRegistry::suggest_method("String", "splt"),
+            Some("split")
+        );
     }
 
     #[test]
     fn test_suggest_method_map() {
         // Typo in "remove"
-        assert_eq!(MethodRegistry::suggest_method("Map", "remov"), Some("remove"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Map", "remov"),
+            Some("remove")
+        );
 
         // Typo in "keys"
         assert_eq!(MethodRegistry::suggest_method("Map", "key"), Some("keys"));
@@ -271,14 +435,20 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("Set", "uniom"), Some("union"));
 
         // Typo in "isSubset"
-        assert_eq!(MethodRegistry::suggest_method("Set", "isSubet"), Some("isSubset"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Set", "isSubet"),
+            Some("isSubset")
+        );
     }
 
     #[test]
     fn test_suggest_method_no_match() {
         // Completely wrong method name (too different)
         assert_eq!(MethodRegistry::suggest_method("Array", "xyz"), None);
-        assert_eq!(MethodRegistry::suggest_method("String", "completely_wrong"), None);
+        assert_eq!(
+            MethodRegistry::suggest_method("String", "completely_wrong"),
+            None
+        );
     }
 
     #[test]
@@ -290,7 +460,10 @@ mod tests {
     #[test]
     fn test_suggest_method_exact_match() {
         // Even exact matches are returned as suggestions
-        assert_eq!(MethodRegistry::suggest_method("Array", "push"), Some("push"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Array", "push"),
+            Some("push")
+        );
     }
 
     #[test]
@@ -302,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_all_vm_methods_present() {
-        // Verify that all methods from vm/impl.rs:320-358 are present
+        // Verify that all methods from vm/impl.rs are present
 
         // Array methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("Array", "push"));
