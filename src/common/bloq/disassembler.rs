@@ -72,7 +72,9 @@ impl Bloq {
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
             OpCode::SetField2 => self.field_instruction(OpCode::SetField2, offset),
             OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
-            OpCode::CallMethod => self.call_method_instruction(offset),
+            OpCode::CallMethod => self.call_method_instruction(OpCode::CallMethod, offset),
+            OpCode::CallMethod2 => self.call_method_instruction(OpCode::CallMethod2, offset),
+            OpCode::CallMethod4 => self.call_method_instruction(OpCode::CallMethod4, offset),
             OpCode::CreateMap => self.create_map_instruction(offset),
             OpCode::CreateArray => self.create_array_instruction(offset),
             OpCode::CreateSet => self.create_set_instruction(offset),
@@ -167,15 +169,22 @@ impl Bloq {
         offset + 2
     }
 
-    fn call_method_instruction(&self, offset: usize) -> usize {
+    fn call_method_instruction(&self, op_code: OpCode, offset: usize) -> usize {
         let arg_count = self.read_u8(offset + 1);
-        let method_index = self.read_u8(offset + 2) as usize;
+
+        let (method_index, index_size) = match op_code {
+            OpCode::CallMethod => (self.read_u8(offset + 2) as usize, 1),
+            OpCode::CallMethod2 => (self.read_u16(offset + 2) as usize, 2),
+            OpCode::CallMethod4 => (self.read_u32(offset + 2) as usize, 4),
+            _ => panic!("Invalid opcode for call_method_instruction"),
+        };
+
         let method_name = self.read_string(method_index);
         println!(
-            "CallMethod (args: {}, method: '{}')",
-            arg_count, method_name
+            "{:?} (args: {}, method: '{}')",
+            op_code, arg_count, method_name
         );
-        offset + 3
+        offset + 1 + 1 + index_size
     }
 
     fn create_map_instruction(&self, offset: usize) -> usize {

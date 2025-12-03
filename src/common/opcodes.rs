@@ -56,6 +56,8 @@ pub(crate) enum OpCode {
     SetField2,
     SetField4,
     CallMethod,
+    CallMethod2,
+    CallMethod4,
     CreateMap,
     CreateArray,
     CreateSet,

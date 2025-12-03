@@ -522,14 +522,29 @@ impl CodeGenerator {
                     self.generate_expr(arg);
                 }
 
-                // Emit CallMethod instruction
-                self.emit_op_code(OpCode::CallMethod, *location);
-                self.current_bloq().write_u8(arguments.len() as u8);
-
-                // Add method name to string constants and emit index
+                // Add method name to string constants
                 let method_string = string!(method.as_str());
                 let method_index = self.current_bloq().add_string(method_string);
-                self.current_bloq().write_u8(method_index as u8);
+
+                // Emit CallMethod instruction with appropriate variant based on method_index size
+                let (opcode, index_bytes) = if method_index <= 0xFF {
+                    (OpCode::CallMethod, 1)
+                } else if method_index <= 0xFFFF {
+                    (OpCode::CallMethod2, 2)
+                } else {
+                    (OpCode::CallMethod4, 4)
+                };
+
+                self.emit_op_code(opcode, *location);
+                self.current_bloq().write_u8(arguments.len() as u8);
+
+                // Write method index with appropriate size
+                match index_bytes {
+                    1 => self.current_bloq().write_u8(method_index as u8),
+                    2 => self.current_bloq().write_u16(method_index as u16),
+                    4 => self.current_bloq().write_u32(method_index),
+                    _ => unreachable!(),
+                }
             }
             Expr::MapLiteral { entries, location } => {
                 // Generate bytecode for map literal creation

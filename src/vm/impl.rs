@@ -219,7 +219,19 @@ impl VirtualMachine {
                 OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
                 OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
                 OpCode::CallMethod => {
-                    if let Some(result) = self.fn_call_method() {
+                    if let Some(result) = self.fn_call_method(BitsSize::Eight) {
+                        return result;
+                    }
+                    should_increment_ip = false;
+                }
+                OpCode::CallMethod2 => {
+                    if let Some(result) = self.fn_call_method(BitsSize::Sixteen) {
+                        return result;
+                    }
+                    should_increment_ip = false;
+                }
+                OpCode::CallMethod4 => {
+                    if let Some(result) = self.fn_call_method(BitsSize::ThirtyTwo) {
                         return result;
                     }
                     should_increment_ip = false;
