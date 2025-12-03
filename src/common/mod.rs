@@ -9,6 +9,7 @@ pub(crate) mod opcodes;
 pub mod errors;
 pub mod constants;
 pub mod error_renderer;
+pub mod string_similarity;
 
 // Forward declare VirtualMachine for NativeFn signature
 // We can't import VirtualMachine directly as it would create a circular dependency
