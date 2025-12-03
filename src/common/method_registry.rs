@@ -3,6 +3,67 @@
 /// This module provides compile-time validation of method calls by maintaining
 /// a complete list of all valid methods for each built-in type in the Neon language.
 use crate::common::string_similarity::find_closest_match;
+use crate::common::NativeFn;
+
+/// Static registry of all native methods - SINGLE SOURCE OF TRUTH.
+///
+/// Format: (type_name, method_name, function)
+const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
+    // Array methods
+    ("Array", "push", crate::vm::array_functions::native_array_push),
+    ("Array", "pop", crate::vm::array_functions::native_array_pop),
+    ("Array", "length", crate::vm::array_functions::native_array_length),
+    ("Array", "size", crate::vm::array_functions::native_array_size),
+    ("Array", "contains", crate::vm::array_functions::native_array_contains),
+    // String methods
+    ("String", "len", crate::vm::string_functions::native_string_len),
+    ("String", "substring", crate::vm::string_functions::native_string_substring),
+    ("String", "replace", crate::vm::string_functions::native_string_replace),
+    ("String", "split", crate::vm::string_functions::native_string_split),
+    ("String", "toInt", crate::vm::string_functions::native_string_to_int),
+    ("String", "toFloat", crate::vm::string_functions::native_string_to_float),
+    ("String", "toBool", crate::vm::string_functions::native_string_to_bool),
+    // Number methods
+    ("Number", "toString", crate::vm::number_functions::native_number_to_string),
+    // Boolean methods
+    ("Boolean", "toString", crate::vm::boolean_functions::native_boolean_to_string),
+    // Map methods
+    ("Map", "get", crate::vm::map_functions::native_map_get),
+    ("Map", "size", crate::vm::map_functions::native_map_size),
+    ("Map", "has", crate::vm::map_functions::native_map_has),
+    ("Map", "remove", crate::vm::map_functions::native_map_remove),
+    ("Map", "keys", crate::vm::map_functions::native_map_keys),
+    ("Map", "values", crate::vm::map_functions::native_map_values),
+    ("Map", "entries", crate::vm::map_functions::native_map_entries),
+    // Set methods
+    ("Set", "add", crate::vm::set_functions::native_set_add),
+    ("Set", "remove", crate::vm::set_functions::native_set_remove),
+    ("Set", "has", crate::vm::set_functions::native_set_has),
+    ("Set", "size", crate::vm::set_functions::native_set_size),
+    ("Set", "clear", crate::vm::set_functions::native_set_clear),
+    ("Set", "union", crate::vm::set_functions::native_set_union),
+    ("Set", "intersection", crate::vm::set_functions::native_set_intersection),
+    ("Set", "difference", crate::vm::set_functions::native_set_difference),
+    ("Set", "isSubset", crate::vm::set_functions::native_set_is_subset),
+    ("Set", "toArray", crate::vm::set_functions::native_set_to_array),
+];
+
+/// Get native function implementation for a type and method.
+pub fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
+    NATIVE_METHODS
+        .iter()
+        .find(|(t, m, _)| *t == type_name && *m == method_name)
+        .map(|(_, _, f)| *f)
+}
+
+/// Get all method names for a given type.
+pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
+    NATIVE_METHODS
+        .iter()
+        .filter(|(t, _, _)| *t == type_name)
+        .map(|(_, m, _)| *m)
+        .collect()
+}
 
 /// Static method registry for validating method calls at compile time.
 pub struct MethodRegistry;
@@ -14,7 +75,7 @@ impl MethodRegistry {
     /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
     ///
     /// # Returns
-    /// A slice of method names valid for this type, or an empty slice if the type is unknown.
+    /// A vector of method names valid for this type, or an empty vector if the type is unknown.
     ///
     /// # Examples
     /// ```
@@ -23,16 +84,8 @@ impl MethodRegistry {
     /// let methods = MethodRegistry::get_methods_for_type("Array");
     /// assert!(methods.contains(&"push"));
     /// ```
-    pub fn get_methods_for_type(type_name: &str) -> &'static [&'static str] {
-        match type_name {
-            "Array" => &ARRAY_METHODS,
-            "String" => &STRING_METHODS,
-            "Number" => &NUMBER_METHODS,
-            "Boolean" => &BOOLEAN_METHODS,
-            "Map" => &MAP_METHODS,
-            "Set" => &SET_METHODS,
-            _ => &[],
-        }
+    pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
+        get_methods_for_type(type_name)
     }
 
     /// Checks if a method is valid for the given type.
@@ -52,9 +105,7 @@ impl MethodRegistry {
     /// assert!(!MethodRegistry::is_valid_method("Array", "foo"));
     /// ```
     pub fn is_valid_method(type_name: &str, method_name: &str) -> bool {
-        Self::get_methods_for_type(type_name)
-            .iter()
-            .any(|&m| m == method_name)
+        get_native_method(type_name, method_name).is_some()
     }
 
     /// Suggests a similar method name if the given method is invalid.
@@ -80,67 +131,9 @@ impl MethodRegistry {
     /// ```
     pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
         let methods = Self::get_methods_for_type(type_name);
-        find_closest_match(method_name, methods)
+        find_closest_match(method_name, &methods)
     }
 }
-
-// Static method arrays for each built-in type
-// These arrays are extracted from vm/impl.rs:320-358 (get_native_method function)
-
-/// Array methods: push, pop, length, size, contains
-static ARRAY_METHODS: [&str; 5] = [
-    "push",
-    "pop",
-    "length",
-    "size",
-    "contains",
-];
-
-/// String methods: len, substring, replace, split, toInt, toFloat, toBool
-static STRING_METHODS: [&str; 7] = [
-    "len",
-    "substring",
-    "replace",
-    "split",
-    "toInt",
-    "toFloat",
-    "toBool",
-];
-
-/// Number methods: toString
-static NUMBER_METHODS: [&str; 1] = [
-    "toString",
-];
-
-/// Boolean methods: toString
-static BOOLEAN_METHODS: [&str; 1] = [
-    "toString",
-];
-
-/// Map methods: get, size, has, remove, keys, values, entries
-static MAP_METHODS: [&str; 7] = [
-    "get",
-    "size",
-    "has",
-    "remove",
-    "keys",
-    "values",
-    "entries",
-];
-
-/// Set methods: add, remove, has, size, clear, union, intersection, difference, isSubset, toArray
-static SET_METHODS: [&str; 10] = [
-    "add",
-    "remove",
-    "has",
-    "size",
-    "clear",
-    "union",
-    "intersection",
-    "difference",
-    "isSubset",
-    "toArray",
-];
 
 #[cfg(test)]
 mod tests {
@@ -258,7 +251,10 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("Array", "poop"), Some("pop"));
 
         // Typo in "length"
-        assert_eq!(MethodRegistry::suggest_method("Array", "lenght"), Some("length"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Array", "lenght"),
+            Some("length")
+        );
     }
 
     #[test]
@@ -267,13 +263,19 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("String", "lenn"), Some("len"));
 
         // Typo in "split"
-        assert_eq!(MethodRegistry::suggest_method("String", "splt"), Some("split"));
+        assert_eq!(
+            MethodRegistry::suggest_method("String", "splt"),
+            Some("split")
+        );
     }
 
     #[test]
     fn test_suggest_method_map() {
         // Typo in "remove"
-        assert_eq!(MethodRegistry::suggest_method("Map", "remov"), Some("remove"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Map", "remov"),
+            Some("remove")
+        );
 
         // Typo in "keys"
         assert_eq!(MethodRegistry::suggest_method("Map", "key"), Some("keys"));
@@ -285,14 +287,20 @@ mod tests {
         assert_eq!(MethodRegistry::suggest_method("Set", "uniom"), Some("union"));
 
         // Typo in "isSubset"
-        assert_eq!(MethodRegistry::suggest_method("Set", "isSubet"), Some("isSubset"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Set", "isSubet"),
+            Some("isSubset")
+        );
     }
 
     #[test]
     fn test_suggest_method_no_match() {
         // Completely wrong method name (too different)
         assert_eq!(MethodRegistry::suggest_method("Array", "xyz"), None);
-        assert_eq!(MethodRegistry::suggest_method("String", "completely_wrong"), None);
+        assert_eq!(
+            MethodRegistry::suggest_method("String", "completely_wrong"),
+            None
+        );
     }
 
     #[test]
@@ -304,7 +312,10 @@ mod tests {
     #[test]
     fn test_suggest_method_exact_match() {
         // Even exact matches are returned as suggestions
-        assert_eq!(MethodRegistry::suggest_method("Array", "push"), Some("push"));
+        assert_eq!(
+            MethodRegistry::suggest_method("Array", "push"),
+            Some("push")
+        );
     }
 
     #[test]
@@ -316,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_all_vm_methods_present() {
-        // Verify that all methods from vm/impl.rs:320-358 are present
+        // Verify that all methods from vm/impl.rs are present
 
         // Array methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("Array", "push"));
