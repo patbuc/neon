@@ -185,9 +185,9 @@ impl Bloq {
     }
 
     fn create_array_instruction(&self, offset: usize) -> usize {
-        let element_count = self.read_u8(offset + 1);
+        let element_count = self.read_u16(offset + 1);
         println!("CreateArray (elements: {})", element_count);
-        offset + 2
+        offset + 3
     }
 
     fn create_set_instruction(&self, offset: usize) -> usize {

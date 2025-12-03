@@ -555,6 +555,21 @@ impl CodeGenerator {
                 // Strategy: emit code for each element, then CreateArray
                 // This allows the VM to pop elements from the stack in order
 
+                // Check if array size exceeds u16 limit
+                if elements.len() > u16::MAX as usize {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        format!(
+                            "array literal too large: {} elements (maximum is {})",
+                            elements.len(),
+                            u16::MAX
+                        ),
+                        *location,
+                    ));
+                    return;
+                }
+
                 // Generate code for all elements
                 for element in elements {
                     self.generate_expr(element);
@@ -562,7 +577,7 @@ impl CodeGenerator {
 
                 // Emit CreateArray with the count of elements
                 self.emit_op_code(OpCode::CreateArray, *location);
-                self.current_bloq().write_u8(elements.len() as u8);
+                self.current_bloq().write_u16(elements.len() as u16);
             }
             Expr::SetLiteral { elements, location } => {
                 // Generate code for each element expression

@@ -394,3 +394,21 @@ fn test_array_in_map() {
     let bloq = compile_program(program).unwrap();
     assert!(bloq.instruction_count() > 0);
 }
+
+#[test]
+fn test_array_literal_too_large() {
+    // Generate an array literal with more than 65535 elements
+    let mut elements = Vec::new();
+    for i in 0..70000 {
+        elements.push(i.to_string());
+    }
+    let array_literal = format!("[{}]", elements.join(", "));
+    let program = format!("val arr = {}", array_literal);
+
+    let result = compile_program(&program);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("array literal too large"));
+    assert!(err.contains("70000"));
+    assert!(err.contains("65535"));
+}
