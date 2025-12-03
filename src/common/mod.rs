@@ -11,7 +11,6 @@ pub mod constants;
 pub mod error_renderer;
 pub mod string_similarity;
 pub mod method_registry;
-pub mod native_method_registry_macro;
 
 // Forward declare VirtualMachine for NativeFn signature
 // We can't import VirtualMachine directly as it would create a circular dependency
