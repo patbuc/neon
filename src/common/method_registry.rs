@@ -3,6 +3,7 @@
 /// This module provides compile-time validation of method calls by maintaining
 /// a complete list of all valid methods for each built-in type in the Neon language.
 use crate::common::string_similarity::find_closest_match;
+use crate::define_native_methods;
 
 /// Static method registry for validating method calls at compile time.
 pub struct MethodRegistry;
@@ -24,15 +25,7 @@ impl MethodRegistry {
     /// assert!(methods.contains(&"push"));
     /// ```
     pub fn get_methods_for_type(type_name: &str) -> &'static [&'static str] {
-        match type_name {
-            "Array" => &ARRAY_METHODS,
-            "String" => &STRING_METHODS,
-            "Number" => &NUMBER_METHODS,
-            "Boolean" => &BOOLEAN_METHODS,
-            "Map" => &MAP_METHODS,
-            "Set" => &SET_METHODS,
-            _ => &[],
-        }
+        get_methods_for_type(type_name)
     }
 
     /// Checks if a method is valid for the given type.
@@ -84,63 +77,56 @@ impl MethodRegistry {
     }
 }
 
-// Static method arrays for each built-in type
-// These arrays are extracted from vm/impl.rs:320-358 (get_native_method function)
-
-/// Array methods: push, pop, length, size, contains
-static ARRAY_METHODS: [&str; 5] = [
-    "push",
-    "pop",
-    "length",
-    "size",
-    "contains",
-];
-
-/// String methods: len, substring, replace, split, toInt, toFloat, toBool
-static STRING_METHODS: [&str; 7] = [
-    "len",
-    "substring",
-    "replace",
-    "split",
-    "toInt",
-    "toFloat",
-    "toBool",
-];
-
-/// Number methods: toString
-static NUMBER_METHODS: [&str; 1] = [
-    "toString",
-];
-
-/// Boolean methods: toString
-static BOOLEAN_METHODS: [&str; 1] = [
-    "toString",
-];
-
-/// Map methods: get, size, has, remove, keys, values, entries
-static MAP_METHODS: [&str; 7] = [
-    "get",
-    "size",
-    "has",
-    "remove",
-    "keys",
-    "values",
-    "entries",
-];
-
-/// Set methods: add, remove, has, size, clear, union, intersection, difference, isSubset, toArray
-static SET_METHODS: [&str; 10] = [
-    "add",
-    "remove",
-    "has",
-    "size",
-    "clear",
-    "union",
-    "intersection",
-    "difference",
-    "isSubset",
-    "toArray",
-];
+// Single source of truth for all native methods
+// This macro generates:
+// 1. Static method arrays (e.g., ARRAY_METHODS)
+// 2. get_methods_for_type() function
+// 3. get_native_method() dispatch function with debug assertions
+define_native_methods! {
+    Array => {
+        push => crate::vm::array_functions::native_array_push,
+        pop => crate::vm::array_functions::native_array_pop,
+        length => crate::vm::array_functions::native_array_length,
+        size => crate::vm::array_functions::native_array_size,
+        contains => crate::vm::array_functions::native_array_contains,
+    },
+    String => {
+        len => crate::vm::string_functions::native_string_len,
+        substring => crate::vm::string_functions::native_string_substring,
+        replace => crate::vm::string_functions::native_string_replace,
+        split => crate::vm::string_functions::native_string_split,
+        toInt => crate::vm::string_functions::native_string_to_int,
+        toFloat => crate::vm::string_functions::native_string_to_float,
+        toBool => crate::vm::string_functions::native_string_to_bool,
+    },
+    Number => {
+        toString => crate::vm::number_functions::native_number_to_string,
+    },
+    Boolean => {
+        toString => crate::vm::boolean_functions::native_boolean_to_string,
+    },
+    Map => {
+        get => crate::vm::map_functions::native_map_get,
+        size => crate::vm::map_functions::native_map_size,
+        has => crate::vm::map_functions::native_map_has,
+        remove => crate::vm::map_functions::native_map_remove,
+        keys => crate::vm::map_functions::native_map_keys,
+        values => crate::vm::map_functions::native_map_values,
+        entries => crate::vm::map_functions::native_map_entries,
+    },
+    Set => {
+        add => crate::vm::set_functions::native_set_add,
+        remove => crate::vm::set_functions::native_set_remove,
+        has => crate::vm::set_functions::native_set_has,
+        size => crate::vm::set_functions::native_set_size,
+        clear => crate::vm::set_functions::native_set_clear,
+        union => crate::vm::set_functions::native_set_union,
+        intersection => crate::vm::set_functions::native_set_intersection,
+        difference => crate::vm::set_functions::native_set_difference,
+        isSubset => crate::vm::set_functions::native_set_is_subset,
+        toArray => crate::vm::set_functions::native_set_to_array,
+    },
+}
 
 #[cfg(test)]
 mod tests {

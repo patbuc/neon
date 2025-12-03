@@ -3,12 +3,12 @@ use std::fmt::Debug;
 
 mod functions;
 mod r#impl;
-mod boolean_functions;
-mod number_functions;
-mod string_functions;
-mod array_functions;
-mod map_functions;
-mod set_functions;
+pub(crate) mod boolean_functions;
+pub(crate) mod number_functions;
+pub(crate) mod string_functions;
+pub(crate) mod array_functions;
+pub(crate) mod map_functions;
+pub(crate) mod set_functions;
 mod math_functions;
 #[cfg(test)]
 mod tests;
