@@ -196,6 +196,13 @@ pub enum Stmt {
         value: Expr,
         location: SourceLocation,
     },
+    /// For-in loop: for (variable in collection) body
+    ForIn {
+        variable: String,
+        collection: Expr,
+        body: Box<Stmt>,
+        location: SourceLocation,
+    },
 }
 
 impl Expr {
@@ -237,7 +244,8 @@ impl Stmt {
             | Stmt::Block { location, .. }
             | Stmt::If { location, .. }
             | Stmt::While { location, .. }
-            | Stmt::Return { location, .. } => location,
+            | Stmt::Return { location, .. }
+            | Stmt::ForIn { location, .. } => location,
         }
     }
 }

@@ -525,15 +525,21 @@ impl Parser {
         })
     }
 
-    /// Parses a C-style for loop and desugars it into a while loop within a block scope.
+    /// Parses for loops: supports both C-style and for-in loops
     ///
-    /// # Syntax
-    /// ```neon
-    /// for (val|var identifier = expression; condition; increment) statement
-    /// ```
+    /// # Syntax Options
+    /// 1. C-style for loop:
+    ///    ```neon
+    ///    for (val|var identifier = expression; condition; increment) statement
+    ///    ```
     ///
-    /// # Desugaring Strategy
-    /// The for loop is transformed into a semantically equivalent while loop structure:
+    /// 2. For-in loop:
+    ///    ```neon
+    ///    for (identifier in collection) statement
+    ///    ```
+    ///
+    /// # C-style For Loop Desugaring
+    /// The C-style for loop is transformed into a while loop:
     ///
     /// ```neon
     /// for (val i = 0; i < 10; i = i + 1) {
@@ -544,34 +550,28 @@ impl Parser {
     /// Becomes:
     ///
     /// ```neon
-    /// {  // Outer block creates isolated scope for loop variable
-    ///     val i = 0  // Initialization
-    ///     while (i < 10) {  // Condition
-    ///         print i  // Body
-    ///         i = i + 1  // Increment (executed after each iteration)
+    /// {
+    ///     val i = 0
+    ///     while (i < 10) {
+    ///         print i
+    ///         i = i + 1
     ///     }
     /// }
     /// ```
     ///
-    /// # AST Structure
-    /// Returns `Stmt::Block` containing:
-    /// - `init`: The loop variable declaration (val or var)
-    /// - `Stmt::While` with:
-    ///   - `condition`: The loop continuation test
-    ///   - `body`: A `Stmt::Block` containing:
-    ///     - The original loop body statement
-    ///     - The increment expression statement
+    /// # For-in Loop Structure
+    /// For-in loops iterate over collections (arrays, maps, sets):
     ///
-    /// # Scoping Behavior
-    /// The outer Block creates an isolated scope, ensuring the loop variable:
-    /// - Is only visible within the for loop
-    /// - Does not pollute the enclosing scope
-    /// - Is automatically cleaned up when the loop exits
+    /// ```neon
+    /// for (item in collection) {
+    ///     print item
+    /// }
+    /// ```
     ///
-    /// # Requirements
-    /// - Initialization must be a `val` or `var` declaration (not an expression)
-    /// - All three clauses (init, condition, increment) are mandatory
-    /// - Increment can be any expression (typically an assignment expression)
+    /// - The loop variable is always immutable (implicit val)
+    /// - Maps iterate over keys (use map[key] to access values)
+    /// - Arrays iterate over elements
+    /// - Sets iterate over elements (converted to array internally)
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
@@ -579,6 +579,32 @@ impl Parser {
             return None;
         }
 
+        // Look ahead to determine if this is a for-in loop or C-style for loop
+        // For-in: for (identifier in collection)
+        // C-style: for (val/var identifier = ...)
+
+        // Check if we have an identifier followed by 'in' keyword
+        if self.check(TokenType::Identifier) {
+            // Save the current position in case we need to backtrack
+            let identifier = self.current_token.token.clone();
+            self.advance(); // consume identifier
+
+            // Check for 'in' keyword
+            if self.match_token(TokenType::In) {
+                // This is a for-in loop
+                return self.for_in_loop(identifier, location);
+            } else {
+                // This is not a for-in loop, report error
+                // User wrote: for (identifier ...
+                // Expected either: for (identifier in ...) or for (val/var identifier ...)
+                self.report_error_at_current(
+                    "Expecting 'in' after identifier in for-in loop, or 'val'/'var' for C-style for loop.".to_string()
+                );
+                return None;
+            }
+        }
+
+        // Not a for-in loop, parse as C-style for loop
         // Parse init clause - must be val or var declaration
         let init = if self.match_token(TokenType::Val) {
             self.val_declaration_no_terminator()?
@@ -630,6 +656,37 @@ impl Parser {
 
         Some(Stmt::Block {
             statements: vec![init, while_loop],
+            location,
+        })
+    }
+
+    /// Parses a for-in loop after detecting 'identifier in' pattern
+    ///
+    /// # Syntax
+    /// ```neon
+    /// for (variable in collection) statement
+    /// ```
+    ///
+    /// # Behavior
+    /// - Loop variable is always immutable (implicit val)
+    /// - Arrays: iterate over elements
+    /// - Maps: iterate over keys
+    /// - Sets: iterate over elements
+    fn for_in_loop(&mut self, variable: String, location: SourceLocation) -> Option<Stmt> {
+        // Parse collection expression
+        let collection = self.expression(false)?;
+
+        if !self.consume(TokenType::RightParen, "Expecting ')' after for-in clauses.") {
+            return None;
+        }
+
+        // Parse loop body
+        let body = Box::new(self.statement()?);
+
+        Some(Stmt::ForIn {
+            variable,
+            collection,
+            body,
             location,
         })
     }
