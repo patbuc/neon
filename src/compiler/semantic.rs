@@ -195,7 +195,7 @@ impl SemanticAnalyzer {
                 use crate::compiler::ast::BinaryOp;
                 match operator {
                     BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply |
-                    BinaryOp::Divide | BinaryOp::Modulo => {
+                    BinaryOp::Divide | BinaryOp::FloorDivide | BinaryOp::Modulo => {
                         // Arithmetic operations return Number
                         Some("Number".to_string())
                     }

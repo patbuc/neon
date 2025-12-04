@@ -269,6 +269,14 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_floor_divide(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let result = (as_number!(a) / as_number!(b)).floor();
+        self.push(Value::Number(result));
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_modulo(&mut self) {
         let b = self.pop();
         let a = self.pop();

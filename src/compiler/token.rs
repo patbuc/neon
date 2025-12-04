@@ -19,6 +19,7 @@ pub(crate) enum TokenType {
     Colon,
     NewLine,
     Slash,
+    SlashSlash,
     Star,
 
     Bang,

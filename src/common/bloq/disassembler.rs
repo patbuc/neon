@@ -37,6 +37,7 @@ impl Bloq {
             OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset),
             OpCode::Multiply => self.simple_instruction(OpCode::Multiply, offset),
             OpCode::Divide => self.simple_instruction(OpCode::Divide, offset),
+            OpCode::FloorDivide => self.simple_instruction(OpCode::FloorDivide, offset),
             OpCode::Nil => self.simple_instruction(OpCode::Nil, offset),
             OpCode::True => self.simple_instruction(OpCode::True, offset),
             OpCode::False => self.simple_instruction(OpCode::False, offset),
