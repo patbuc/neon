@@ -28,6 +28,15 @@ pub enum UnaryOp {
     Not,
 }
 
+/// Parts of an interpolated string
+#[derive(Debug, Clone, PartialEq)]
+pub enum InterpolationPart {
+    /// Literal string part: "Hello "
+    Literal(String),
+    /// Expression part: ${name}
+    Expression(Box<Expr>),
+}
+
 /// Expression nodes
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -39,6 +48,11 @@ pub enum Expr {
     /// String literal: "hello"
     String {
         value: String,
+        location: SourceLocation,
+    },
+    /// String interpolation: "Hello ${name}"
+    StringInterpolation {
+        parts: Vec<InterpolationPart>,
         location: SourceLocation,
     },
     /// Boolean literal: true, false
@@ -226,6 +240,7 @@ impl Expr {
         match self {
             Expr::Number { location, .. }
             | Expr::String { location, .. }
+            | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }
             | Expr::Variable { location, .. }

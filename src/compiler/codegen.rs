@@ -530,6 +530,36 @@ impl CodeGenerator {
             Expr::String { value, location } => {
                 self.emit_string(string!(value.as_str()), *location);
             }
+            Expr::StringInterpolation { parts, location } => {
+                use crate::compiler::ast::InterpolationPart;
+
+                // Generate code for each part and concatenate them
+                let mut first = true;
+                for part in parts {
+                    match part {
+                        InterpolationPart::Literal(s) => {
+                            self.emit_string(string!(s.as_str()), *location);
+                        }
+                        InterpolationPart::Expression(expr) => {
+                            // Generate the expression
+                            self.generate_expr(expr);
+                            // Convert to string using ToString opcode
+                            self.emit_op_code(OpCode::ToString, *location);
+                        }
+                    }
+
+                    // Concatenate with previous parts (skip for first part)
+                    if !first {
+                        self.emit_op_code(OpCode::Add, *location);
+                    }
+                    first = false;
+                }
+
+                // If there are no parts, emit an empty string
+                if parts.is_empty() {
+                    self.emit_string(string!(""), *location);
+                }
+            }
             Expr::Boolean { value, location } => {
                 if *value {
                     self.emit_op_code(OpCode::True, *location);

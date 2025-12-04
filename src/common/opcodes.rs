@@ -68,4 +68,5 @@ pub(crate) enum OpCode {
     IteratorDone,
     PopIterator,
     CreateRange,
+    ToString,
 }

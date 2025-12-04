@@ -23,6 +23,13 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_to_string(&mut self) {
+        let value = self.pop();
+        let string_value = string!(value.to_string());
+        self.push(string_value);
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_string4(&mut self) {
         let string = {
             let frame = self.call_frames.last().unwrap();
