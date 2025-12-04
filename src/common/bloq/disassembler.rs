@@ -37,6 +37,7 @@ impl Bloq {
             OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset),
             OpCode::Multiply => self.simple_instruction(OpCode::Multiply, offset),
             OpCode::Divide => self.simple_instruction(OpCode::Divide, offset),
+            OpCode::FloorDivide => self.simple_instruction(OpCode::FloorDivide, offset),
             OpCode::Nil => self.simple_instruction(OpCode::Nil, offset),
             OpCode::True => self.simple_instruction(OpCode::True, offset),
             OpCode::False => self.simple_instruction(OpCode::False, offset),
@@ -80,6 +81,11 @@ impl Bloq {
             OpCode::CreateSet => self.create_set_instruction(offset),
             OpCode::GetIndex => self.simple_instruction(OpCode::GetIndex, offset),
             OpCode::SetIndex => self.simple_instruction(OpCode::SetIndex, offset),
+            OpCode::GetIterator => self.simple_instruction(OpCode::GetIterator, offset),
+            OpCode::IteratorNext => self.simple_instruction(OpCode::IteratorNext, offset),
+            OpCode::IteratorDone => self.simple_instruction(OpCode::IteratorDone, offset),
+            OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
+            OpCode::CreateRange => self.create_range_instruction(offset),
         }
     }
 
@@ -202,6 +208,12 @@ impl Bloq {
     fn create_set_instruction(&self, offset: usize) -> usize {
         let element_count = self.read_u8(offset + 1);
         println!("CreateSet (elements: {})", element_count);
+        offset + 2
+    }
+
+    fn create_range_instruction(&self, offset: usize) -> usize {
+        let inclusive = self.read_u8(offset + 1);
+        println!("CreateRange (inclusive: {})", inclusive != 0);
         offset + 2
     }
 }

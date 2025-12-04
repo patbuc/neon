@@ -530,6 +530,36 @@ impl CodeGenerator {
             Expr::String { value, location } => {
                 self.emit_string(string!(value.as_str()), *location);
             }
+            Expr::StringInterpolation { parts, location } => {
+                use crate::compiler::ast::InterpolationPart;
+
+                // Generate code for each part and concatenate them
+                let mut first = true;
+                for part in parts {
+                    match part {
+                        InterpolationPart::Literal(s) => {
+                            self.emit_string(string!(s.as_str()), *location);
+                        }
+                        InterpolationPart::Expression(expr) => {
+                            // Generate the expression
+                            self.generate_expr(expr);
+                            // Convert to string using ToString opcode
+                            self.emit_op_code(OpCode::ToString, *location);
+                        }
+                    }
+
+                    // Concatenate with previous parts (skip for first part)
+                    if !first {
+                        self.emit_op_code(OpCode::Add, *location);
+                    }
+                    first = false;
+                }
+
+                // If there are no parts, emit an empty string
+                if parts.is_empty() {
+                    self.emit_string(string!(""), *location);
+                }
+            }
             Expr::Boolean { value, location } => {
                 if *value {
                     self.emit_op_code(OpCode::True, *location);
@@ -628,6 +658,7 @@ impl CodeGenerator {
                             BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
                             BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
                             BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
+                            BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, *location),
                             BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
                             BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
                             BinaryOp::NotEqual => {
@@ -836,6 +867,23 @@ impl CodeGenerator {
 
                 // Emit SetIndex opcode
                 self.emit_op_code(OpCode::SetIndex, *location);
+            }
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                location,
+            } => {
+                // Generate bytecode for range expression
+                // First evaluate the start of the range
+                self.generate_expr(start);
+
+                // Then evaluate the end of the range
+                self.generate_expr(end);
+
+                // Emit CreateRange opcode with inclusive flag
+                self.emit_op_code(OpCode::CreateRange, *location);
+                self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
             }
         }
     }

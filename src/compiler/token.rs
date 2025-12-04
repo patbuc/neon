@@ -10,6 +10,8 @@ pub(crate) enum TokenType {
     RightBracket,
     Comma,
     Dot,
+    DotDot,
+    DotDotEqual,
     Minus,
     MinusMinus,
     Plus,
@@ -19,6 +21,7 @@ pub(crate) enum TokenType {
     Colon,
     NewLine,
     Slash,
+    SlashSlash,
     Star,
 
     Bang,

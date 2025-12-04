@@ -50,7 +50,17 @@ impl Scanner {
             '[' => self.make_token(TokenType::LeftBracket),
             ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
-            '.' => self.make_token(TokenType::Dot),
+            '.' => {
+                if self.matches('.') {
+                    if self.matches('=') {
+                        self.make_token(TokenType::DotDotEqual)
+                    } else {
+                        self.make_token(TokenType::DotDot)
+                    }
+                } else {
+                    self.make_token(TokenType::Dot)
+                }
+            }
             '-' => {
                 if self.matches('-') {
                     self.make_token(TokenType::MinusMinus)
@@ -113,15 +123,25 @@ impl Scanner {
             }
             '/' => {
                 if self.matches('/') {
-                    while self.peek_next() != '\n' && !self.is_at_end() {
-                        self.advance();
+                    // Check if this is a comment or integer division operator
+                    // Comments have whitespace or newline after //
+                    // Integer division has a non-whitespace character
+                    let next_char = self.peek();
+                    if next_char == ' ' || next_char == '\t' || next_char == '\n' || next_char == '\r' || self.is_at_end() {
+                        // This is a comment
+                        while self.peek_next() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        }
+                        if !self.is_at_end() {
+                            self.advance();
+                        }
+                        self.line += 1;
+                        self.column = 1;
+                        self.scan_token()
+                    } else {
+                        // This is the integer division operator
+                        self.make_token(TokenType::SlashSlash)
                     }
-                    if !self.is_at_end() {
-                        self.advance();
-                    }
-                    self.line += 1;
-                    self.column = 1;
-                    self.scan_token()
                 } else {
                     self.make_token(TokenType::Slash)
                 }

@@ -10,7 +10,7 @@ fn test_math_abs_with_string() {
         print Math.abs("string")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -21,7 +21,7 @@ fn test_math_abs_with_boolean() {
         print Math.abs(true)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -32,7 +32,7 @@ fn test_math_abs_with_nil() {
         print Math.abs(nil)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -43,7 +43,7 @@ fn test_math_abs_no_args() {
         print Math.abs()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -54,7 +54,7 @@ fn test_math_abs_too_many_args() {
         print Math.abs(1, 2)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -69,7 +69,7 @@ fn test_math_floor_with_string() {
         print Math.floor("hello")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -80,7 +80,7 @@ fn test_math_floor_with_boolean() {
         print Math.floor(false)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -91,7 +91,7 @@ fn test_math_floor_with_nil() {
         print Math.floor(nil)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -102,7 +102,7 @@ fn test_math_floor_no_args() {
         print Math.floor()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -113,7 +113,7 @@ fn test_math_floor_too_many_args() {
         print Math.floor(1.5, 2.5)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -128,7 +128,7 @@ fn test_math_ceil_with_string() {
         print Math.ceil("world")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -139,7 +139,7 @@ fn test_math_ceil_with_boolean() {
         print Math.ceil(true)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -150,7 +150,7 @@ fn test_math_ceil_with_nil() {
         print Math.ceil(nil)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -161,7 +161,7 @@ fn test_math_ceil_no_args() {
         print Math.ceil()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -172,7 +172,7 @@ fn test_math_ceil_too_many_args() {
         print Math.ceil(1.5, 2.5)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -187,7 +187,7 @@ fn test_math_sqrt_with_negative() {
         print Math.sqrt(-1)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -198,7 +198,7 @@ fn test_math_sqrt_with_string() {
         print Math.sqrt("42")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -209,7 +209,7 @@ fn test_math_sqrt_with_boolean() {
         print Math.sqrt(false)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -220,7 +220,7 @@ fn test_math_sqrt_with_nil() {
         print Math.sqrt(nil)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -231,7 +231,7 @@ fn test_math_sqrt_no_args() {
         print Math.sqrt()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -242,7 +242,7 @@ fn test_math_sqrt_too_many_args() {
         print Math.sqrt(4, 9)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -253,7 +253,7 @@ fn test_math_sqrt_large_negative() {
         print Math.sqrt(-100)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -268,7 +268,7 @@ fn test_math_min_no_args() {
         print Math.min()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -279,7 +279,7 @@ fn test_math_min_with_string_first() {
         print Math.min("hello", 2, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -290,7 +290,7 @@ fn test_math_min_with_string_middle() {
         print Math.min(1, "hello", 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -301,7 +301,7 @@ fn test_math_min_with_string_last() {
         print Math.min(1, 2, "hello")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -312,7 +312,7 @@ fn test_math_min_with_boolean() {
         print Math.min(1, true, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -323,7 +323,7 @@ fn test_math_min_with_nil() {
         print Math.min(1, nil, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -334,7 +334,7 @@ fn test_math_min_all_non_numbers() {
         print Math.min("a", "b", "c")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -345,7 +345,7 @@ fn test_math_min_mixed_types() {
         print Math.min(1, "hello", true, nil, 5)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -360,7 +360,7 @@ fn test_math_max_no_args() {
         print Math.max()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -371,7 +371,7 @@ fn test_math_max_with_string_first() {
         print Math.max("hello", 2, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -382,7 +382,7 @@ fn test_math_max_with_string_middle() {
         print Math.max(1, "hello", 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -393,7 +393,7 @@ fn test_math_max_with_string_last() {
         print Math.max(1, 2, "hello")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -404,7 +404,7 @@ fn test_math_max_with_boolean() {
         print Math.max(1, false, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -415,7 +415,7 @@ fn test_math_max_with_nil() {
         print Math.max(1, nil, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -426,7 +426,7 @@ fn test_math_max_all_non_numbers() {
         print Math.max(true, false, true)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -437,7 +437,7 @@ fn test_math_max_mixed_types() {
         print Math.max(1, "world", false, nil, 5)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -453,7 +453,7 @@ fn test_math_error_in_expression() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -467,7 +467,7 @@ fn test_math_error_in_function_call() {
         print test()
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -480,7 +480,7 @@ fn test_math_error_in_if_condition() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -493,7 +493,7 @@ fn test_math_error_in_while_condition() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -506,7 +506,7 @@ fn test_math_error_does_not_crash_vm() {
         print "After error (unreachable)"
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
     // VM should print "Before error" but not crash
@@ -521,7 +521,7 @@ fn test_multiple_math_errors() {
         print Math.sqrt(-1)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     // Should fail on the first error
     assert_eq!(Result::RuntimeError, result);
@@ -534,7 +534,7 @@ fn test_math_error_with_variables() {
         print Math.floor(x)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -545,7 +545,7 @@ fn test_math_error_with_expression_arg() {
         print Math.abs(5 + "string")
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -556,7 +556,7 @@ fn test_math_nested_error() {
         print Math.abs(Math.sqrt(-5))
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -567,7 +567,7 @@ fn test_math_min_max_combined_error() {
         print Math.min(Math.max(), 5)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
@@ -587,7 +587,7 @@ fn test_math_functions_dont_error_on_valid_input() {
         print Math.max(1, 2, 3)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("5\n3\n3\n4\n1\n3", vm.get_output());
@@ -599,7 +599,7 @@ fn test_math_sqrt_zero_is_valid() {
         print Math.sqrt(0)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0", vm.get_output());
@@ -612,7 +612,7 @@ fn test_math_single_arg_functions_valid() {
         print Math.max(42)
         "#;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42\n42", vm.get_output());

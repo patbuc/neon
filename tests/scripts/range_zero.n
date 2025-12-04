@@ -1,0 +1,11 @@
+// Expected:
+// 0
+// 1
+// 2
+// 3
+// 4
+
+// Test range starting from zero
+for (i in 0..5) {
+    print i
+}

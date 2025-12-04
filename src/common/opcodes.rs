@@ -20,6 +20,7 @@ pub(crate) enum OpCode {
     Subtract,
     Multiply,
     Divide,
+    FloorDivide,
     Modulo,
     Nil,
     True,
@@ -67,4 +68,6 @@ pub(crate) enum OpCode {
     IteratorNext,
     IteratorDone,
     PopIterator,
+    CreateRange,
+    ToString,
 }

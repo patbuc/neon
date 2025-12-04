@@ -95,7 +95,7 @@ fn test_end_to_end_execution() {
     "#;
     let bloq = compile_program(program).unwrap();
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.run_bloq(bloq);
 
     #[cfg(any(test, debug_assertions))]
@@ -119,7 +119,7 @@ fn test_end_to_end_function() {
     "#;
     let bloq = compile_program(program).unwrap();
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.run_bloq(bloq);
 
     #[cfg(any(test, debug_assertions))]
@@ -148,7 +148,7 @@ fn test_end_to_end_forward_reference() {
     "#;
     let bloq = compile_program(program).unwrap();
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.run_bloq(bloq);
 
     #[cfg(any(test, debug_assertions))]
