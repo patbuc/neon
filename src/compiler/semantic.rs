@@ -615,6 +615,14 @@ impl SemanticAnalyzer {
                 self.resolve_expr(start);
                 self.resolve_expr(end);
             }
+            Expr::PostfixIncrement { operand, .. } => {
+                // TODO: Implement postfix increment semantic analysis
+                self.resolve_expr(operand);
+            }
+            Expr::PostfixDecrement { operand, .. } => {
+                // TODO: Implement postfix decrement semantic analysis
+                self.resolve_expr(operand);
+            }
         }
     }
 }
