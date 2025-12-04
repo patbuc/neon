@@ -52,7 +52,7 @@ fn run_repl() {
     println!("Type 'exit' or Ctrl+C to quit");
 
     // REPL has no command-line arguments
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     loop {
         print_prompt();
         let line = read_line();
@@ -90,7 +90,7 @@ fn run_file(path: &String, args: Vec<String>) {
     println!("Running file: {} ", path);
 
     let source = read_file(path);
-    let mut vm = VirtualMachine::new(args);
+    let mut vm = VirtualMachine::with_args(args);
 
     let result: Result = vm.interpret(source);
     match result {
