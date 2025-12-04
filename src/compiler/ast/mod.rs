@@ -203,6 +203,14 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
+    /// Break statement: break
+    Break {
+        location: SourceLocation,
+    },
+    /// Continue statement: continue
+    Continue {
+        location: SourceLocation,
+    },
 }
 
 impl Expr {
@@ -245,7 +253,9 @@ impl Stmt {
             | Stmt::If { location, .. }
             | Stmt::While { location, .. }
             | Stmt::Return { location, .. }
-            | Stmt::ForIn { location, .. } => location,
+            | Stmt::ForIn { location, .. }
+            | Stmt::Break { location }
+            | Stmt::Continue { location } => location,
         }
     }
 }
