@@ -263,7 +263,17 @@ impl Scanner {
         let chr = self.source[self.start];
         match chr {
             'a' => self.check_keyword(1, 2, "nd", TokenType::And),
-            'c' => self.check_keyword(1, 4, "lass", TokenType::Class),
+            'b' => self.check_keyword(1, 4, "reak", TokenType::Break),
+            'c' => {
+                if self.current - self.start > 1 {
+                    return match self.source[self.start + 1] {
+                        'l' => self.check_keyword(2, 3, "ass", TokenType::Class),
+                        'o' => self.check_keyword(2, 6, "ntinue", TokenType::Continue),
+                        _ => TokenType::Identifier,
+                    };
+                }
+                TokenType::Identifier
+            }
             'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
             'i' => {
                 if self.current - self.start > 1 {

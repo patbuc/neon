@@ -423,6 +423,10 @@ impl Parser {
             self.for_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
+        } else if self.match_token(TokenType::Break) {
+            self.break_statement()
+        } else if self.match_token(TokenType::Continue) {
+            self.continue_statement()
         } else {
             self.expression_statement()
         }
@@ -700,6 +704,26 @@ impl Parser {
             "Expecting '\\n' or '\\0' at end of statement.",
         );
         Some(Stmt::Return { value, location })
+    }
+
+    fn break_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after 'break'.",
+        );
+        Some(Stmt::Break { location })
+    }
+
+    fn continue_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after 'continue'.",
+        );
+        Some(Stmt::Continue { location })
     }
 
     // ===== Expressions =====

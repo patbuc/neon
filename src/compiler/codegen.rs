@@ -8,6 +8,16 @@ use crate::common::{Bloq, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 
+/// Loop context for tracking break and continue jump locations
+struct LoopContext {
+    /// Start of the loop (for continue)
+    loop_start: u32,
+    /// Break jump locations to patch when exiting loop
+    break_jumps: Vec<u32>,
+    /// Continue jump locations to patch when starting next iteration
+    continue_jumps: Vec<u32>,
+}
+
 /// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
     /// Stack of bloqs (for nested function compilation)
@@ -16,6 +26,8 @@ pub struct CodeGenerator {
     scope_depth: u32,
     /// Errors encountered during code generation
     errors: Vec<CompilationError>,
+    /// Stack of loop contexts for nested loops
+    loop_contexts: Vec<LoopContext>,
 }
 
 impl CodeGenerator {
@@ -26,6 +38,7 @@ impl CodeGenerator {
             bloqs,
             scope_depth: 0,
             errors: Vec::new(),
+            loop_contexts: Vec::new(),
         }
     }
 
@@ -307,6 +320,13 @@ impl CodeGenerator {
             } => {
                 let loop_start = self.current_bloq().instruction_count() as u32;
 
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
+
                 self.generate_expr(condition);
 
                 let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
@@ -316,10 +336,48 @@ impl CodeGenerator {
 
                 self.patch_jump(exit_jump);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the false case (exiting loop)
+
+                // Pop loop context and patch all break jumps
+                let loop_context = self.loop_contexts.pop().unwrap();
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
             }
             Stmt::Return { value, location } => {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
+            }
+            Stmt::Break { location } => {
+                // Emit a Jump opcode and record its location for later patching
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'break' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .break_jumps
+                    .push(jump_index);
+            }
+            Stmt::Continue { location } => {
+                // Emit a Loop opcode to jump back to loop start
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'continue' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let loop_start = self.loop_contexts.last().unwrap().loop_start;
+                self.emit_loop(loop_start, *location);
             }
             Stmt::ForIn {
                 variable,
@@ -355,6 +413,13 @@ impl CodeGenerator {
 
                 // Mark the start of the loop
                 let loop_start = self.current_bloq().instruction_count() as u32;
+
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
 
                 // Check if iterator has more elements (pushes true if more, false if done)
                 self.emit_op_code(OpCode::IteratorDone, *location);
@@ -393,6 +458,12 @@ impl CodeGenerator {
 
                 // Pop the iterator from the VM's iterator stack
                 self.emit_op_code(OpCode::PopIterator, *location);
+
+                // Pop loop context and patch all break jumps
+                let loop_context = self.loop_contexts.pop().unwrap();
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
 
                 // Exit the loop scope
                 self.scope_depth -= 1;

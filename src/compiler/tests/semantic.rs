@@ -983,3 +983,231 @@ while (i < items.length()) {
     assert!(result.is_ok(), "Valid methods in loops should not error");
 }
 
+// =============================================================================
+// Break and Continue Statement Tests
+// =============================================================================
+
+#[test]
+fn test_break_outside_loop() {
+    let program = r#"
+        var x = 5
+        break
+        print x
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot use 'break' outside of a loop"));
+}
+
+#[test]
+fn test_continue_outside_loop() {
+    let program = r#"
+        var x = 5
+        continue
+        print x
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot use 'continue' outside of a loop"));
+}
+
+#[test]
+fn test_break_in_while_loop_valid() {
+    let program = r#"
+        var x = 0
+        while (x < 10) {
+            if (x == 5) {
+                break
+            }
+            x = x + 1
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_continue_in_while_loop_valid() {
+    let program = r#"
+        var x = 0
+        while (x < 10) {
+            x = x + 1
+            if (x == 5) {
+                continue
+            }
+            print x
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_in_for_loop_valid() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1) {
+            if (i == 5) {
+                break
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_continue_in_for_loop_valid() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1) {
+            if (i == 5) {
+                continue
+            }
+            print i
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_in_for_in_loop_valid() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        for (item in arr) {
+            if (item == 3) {
+                break
+            }
+            print item
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_continue_in_for_in_loop_valid() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        for (item in arr) {
+            if (item == 3) {
+                continue
+            }
+            print item
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_nested_break_valid() {
+    let program = r#"
+        var i = 0
+        while (i < 3) {
+            var j = 0
+            while (j < 3) {
+                if (j == 2) {
+                    break
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_outside_function_in_loop() {
+    let program = r#"
+        fn test() {
+            break
+        }
+        while (true) {
+            test()
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot use 'break' outside of a loop"));
+}
+
+#[test]
+fn test_continue_outside_function_in_loop() {
+    let program = r#"
+        fn test() {
+            continue
+        }
+        while (true) {
+            test()
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot use 'continue' outside of a loop"));
+}
+
