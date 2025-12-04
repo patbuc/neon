@@ -23,6 +23,13 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("String", "toInt", crate::vm::string_functions::native_string_to_int),
     ("String", "toFloat", crate::vm::string_functions::native_string_to_float),
     ("String", "toBool", crate::vm::string_functions::native_string_to_bool),
+    ("String", "trim", crate::vm::string_functions::native_string_trim),
+    ("String", "startsWith", crate::vm::string_functions::native_string_starts_with),
+    ("String", "endsWith", crate::vm::string_functions::native_string_ends_with),
+    ("String", "indexOf", crate::vm::string_functions::native_string_index_of),
+    ("String", "charAt", crate::vm::string_functions::native_string_char_at),
+    ("String", "toUpperCase", crate::vm::string_functions::native_string_to_upper_case),
+    ("String", "toLowerCase", crate::vm::string_functions::native_string_to_lower_case),
     // Number methods
     ("Number", "toString", crate::vm::number_functions::native_number_to_string),
     // Boolean methods
@@ -157,7 +164,7 @@ mod tests {
     #[test]
     fn test_get_methods_for_type_string() {
         let methods = MethodRegistry::get_methods_for_type("String");
-        assert_eq!(methods.len(), 7);
+        assert_eq!(methods.len(), 14);
         assert!(methods.contains(&"len"));
         assert!(methods.contains(&"substring"));
         assert!(methods.contains(&"replace"));
@@ -165,6 +172,13 @@ mod tests {
         assert!(methods.contains(&"toInt"));
         assert!(methods.contains(&"toFloat"));
         assert!(methods.contains(&"toBool"));
+        assert!(methods.contains(&"trim"));
+        assert!(methods.contains(&"startsWith"));
+        assert!(methods.contains(&"endsWith"));
+        assert!(methods.contains(&"indexOf"));
+        assert!(methods.contains(&"charAt"));
+        assert!(methods.contains(&"toUpperCase"));
+        assert!(methods.contains(&"toLowerCase"));
     }
 
     #[test]
@@ -364,6 +378,13 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("String", "toInt"));
         assert!(MethodRegistry::is_valid_method("String", "toFloat"));
         assert!(MethodRegistry::is_valid_method("String", "toBool"));
+        assert!(MethodRegistry::is_valid_method("String", "trim"));
+        assert!(MethodRegistry::is_valid_method("String", "startsWith"));
+        assert!(MethodRegistry::is_valid_method("String", "endsWith"));
+        assert!(MethodRegistry::is_valid_method("String", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("String", "charAt"));
+        assert!(MethodRegistry::is_valid_method("String", "toUpperCase"));
+        assert!(MethodRegistry::is_valid_method("String", "toLowerCase"));
 
         // Number methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("Number", "toString"));
