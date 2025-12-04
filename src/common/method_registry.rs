@@ -15,6 +15,14 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Array", "length", crate::vm::array_functions::native_array_length),
     ("Array", "size", crate::vm::array_functions::native_array_size),
     ("Array", "contains", crate::vm::array_functions::native_array_contains),
+    ("Array", "sort", crate::vm::array_functions::native_array_sort),
+    ("Array", "reverse", crate::vm::array_functions::native_array_reverse),
+    ("Array", "slice", crate::vm::array_functions::native_array_slice),
+    ("Array", "join", crate::vm::array_functions::native_array_join),
+    ("Array", "indexOf", crate::vm::array_functions::native_array_index_of),
+    ("Array", "sum", crate::vm::array_functions::native_array_sum),
+    ("Array", "min", crate::vm::array_functions::native_array_min),
+    ("Array", "max", crate::vm::array_functions::native_array_max),
     // String methods
     ("String", "len", crate::vm::string_functions::native_string_len),
     ("String", "substring", crate::vm::string_functions::native_string_substring),
@@ -146,12 +154,20 @@ mod tests {
     #[test]
     fn test_get_methods_for_type_array() {
         let methods = MethodRegistry::get_methods_for_type("Array");
-        assert_eq!(methods.len(), 5);
+        assert_eq!(methods.len(), 13);
         assert!(methods.contains(&"push"));
         assert!(methods.contains(&"pop"));
         assert!(methods.contains(&"length"));
         assert!(methods.contains(&"size"));
         assert!(methods.contains(&"contains"));
+        assert!(methods.contains(&"sort"));
+        assert!(methods.contains(&"reverse"));
+        assert!(methods.contains(&"slice"));
+        assert!(methods.contains(&"join"));
+        assert!(methods.contains(&"indexOf"));
+        assert!(methods.contains(&"sum"));
+        assert!(methods.contains(&"min"));
+        assert!(methods.contains(&"max"));
     }
 
     #[test]
@@ -221,6 +237,14 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("Array", "push"));
         assert!(MethodRegistry::is_valid_method("Array", "pop"));
         assert!(MethodRegistry::is_valid_method("Array", "length"));
+        assert!(MethodRegistry::is_valid_method("Array", "sort"));
+        assert!(MethodRegistry::is_valid_method("Array", "reverse"));
+        assert!(MethodRegistry::is_valid_method("Array", "slice"));
+        assert!(MethodRegistry::is_valid_method("Array", "join"));
+        assert!(MethodRegistry::is_valid_method("Array", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("Array", "sum"));
+        assert!(MethodRegistry::is_valid_method("Array", "min"));
+        assert!(MethodRegistry::is_valid_method("Array", "max"));
         assert!(!MethodRegistry::is_valid_method("Array", "invalid"));
     }
 
@@ -355,6 +379,14 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("Array", "length"));
         assert!(MethodRegistry::is_valid_method("Array", "size"));
         assert!(MethodRegistry::is_valid_method("Array", "contains"));
+        assert!(MethodRegistry::is_valid_method("Array", "sort"));
+        assert!(MethodRegistry::is_valid_method("Array", "reverse"));
+        assert!(MethodRegistry::is_valid_method("Array", "slice"));
+        assert!(MethodRegistry::is_valid_method("Array", "join"));
+        assert!(MethodRegistry::is_valid_method("Array", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("Array", "sum"));
+        assert!(MethodRegistry::is_valid_method("Array", "min"));
+        assert!(MethodRegistry::is_valid_method("Array", "max"));
 
         // String methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("String", "len"));
