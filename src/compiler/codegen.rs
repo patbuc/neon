@@ -885,6 +885,16 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateRange, *location);
                 self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
             }
+            Expr::PostfixIncrement { operand, location } => {
+                // TODO: Implement postfix increment code generation
+                let _ = (operand, location);
+                unimplemented!("Postfix increment code generation not yet implemented")
+            }
+            Expr::PostfixDecrement { operand, location } => {
+                // TODO: Implement postfix decrement code generation
+                let _ = (operand, location);
+                unimplemented!("Postfix decrement code generation not yet implemented")
+            }
         }
     }
 }
