@@ -780,6 +780,7 @@ impl Parser {
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
                 TokenType::LeftBracket => self.index(expr),
+                TokenType::PlusPlus | TokenType::MinusMinus => self.postfix(expr),
                 _ => {
                     return Some(expr);
                 }
@@ -795,7 +796,7 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket => Precedence::Call,
+            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket | TokenType::PlusPlus | TokenType::MinusMinus => Precedence::Call,
             TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
             TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
@@ -1268,6 +1269,23 @@ impl Parser {
                 index,
                 location,
             })
+        }
+    }
+
+    fn postfix(&self, operand: Expr) -> Option<Expr> {
+        let operator_type = self.previous_token.token_type.clone();
+        let location = self.current_location();
+
+        match operator_type {
+            TokenType::PlusPlus => Some(Expr::PostfixIncrement {
+                operand: Box::new(operand),
+                location,
+            }),
+            TokenType::MinusMinus => Some(Expr::PostfixDecrement {
+                operand: Box::new(operand),
+                location,
+            }),
+            _ => None,
         }
     }
 }
