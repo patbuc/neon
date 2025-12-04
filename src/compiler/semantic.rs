@@ -302,6 +302,27 @@ impl SemanticAnalyzer {
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
             }
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
+                // Resolve the collection expression
+                self.resolve_expr(collection);
+
+                // Enter a new scope for the loop
+                self.symbol_table.enter_scope();
+
+                // Define the loop variable as immutable (always val)
+                self.define_symbol(variable.clone(), SymbolKind::Value, false, *location);
+
+                // Resolve the loop body
+                self.resolve_stmt(body);
+
+                // Exit the loop scope
+                self.symbol_table.exit_scope();
+            }
         }
     }
 

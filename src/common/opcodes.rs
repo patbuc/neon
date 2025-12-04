@@ -63,4 +63,8 @@ pub(crate) enum OpCode {
     CreateSet,
     GetIndex,
     SetIndex,
+    GetIterator,
+    IteratorNext,
+    IteratorDone,
+    PopIterator,
 }
