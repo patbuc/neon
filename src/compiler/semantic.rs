@@ -14,6 +14,7 @@ pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     errors: Vec<CompilationError>,
     type_env: HashMap<String, String>,
+    loop_depth: u32,
 }
 
 impl SemanticAnalyzer {
@@ -53,6 +54,7 @@ impl SemanticAnalyzer {
             symbol_table,
             errors: Vec::new(),
             type_env: HashMap::new(),
+            loop_depth: 0,
         }
     }
 
@@ -297,10 +299,32 @@ impl SemanticAnalyzer {
                 condition, body, ..
             } => {
                 self.resolve_expr(condition);
+                self.loop_depth += 1;
                 self.resolve_stmt(body);
+                self.loop_depth -= 1;
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
+            }
+            Stmt::Break { location } => {
+                if self.loop_depth == 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'break' outside of a loop".to_string(),
+                        *location,
+                    ));
+                }
+            }
+            Stmt::Continue { location } => {
+                if self.loop_depth == 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'continue' outside of a loop".to_string(),
+                        *location,
+                    ));
+                }
             }
             Stmt::ForIn {
                 variable,
@@ -317,8 +341,14 @@ impl SemanticAnalyzer {
                 // Define the loop variable as immutable (always val)
                 self.define_symbol(variable.clone(), SymbolKind::Value, false, *location);
 
+                // Track loop depth for break/continue validation
+                self.loop_depth += 1;
+
                 // Resolve the loop body
                 self.resolve_stmt(body);
+
+                // Exit loop depth tracking
+                self.loop_depth -= 1;
 
                 // Exit the loop scope
                 self.symbol_table.exit_scope();
