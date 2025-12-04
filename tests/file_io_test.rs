@@ -25,7 +25,7 @@ fn cleanup_test_file(path: &PathBuf) {
 
 #[test]
 fn test_file_constructor_from_neon() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = r#"
         var f = File("test.txt")
         print f
@@ -44,7 +44,7 @@ fn test_file_read_basic() {
     let test_file = create_test_file("read_basic.txt", "Hello, World!");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -66,7 +66,7 @@ fn test_file_read_multiline() {
     let test_file = create_test_file("read_multiline.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -87,7 +87,7 @@ fn test_file_read_empty_file() {
     let test_file = create_test_file("read_empty.txt", "");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -112,7 +112,7 @@ fn test_file_read_unicode() {
     let test_file = create_test_file("read_unicode.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -130,7 +130,7 @@ fn test_file_read_unicode() {
 
 #[test]
 fn test_file_read_not_found() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = r#"
         var f = File("/nonexistent/path/to/file.txt")
         var content = f.read()
@@ -148,7 +148,7 @@ fn test_file_read_lines_basic() {
     let test_file = create_test_file("readlines_basic.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -176,7 +176,7 @@ fn test_file_read_lines_with_empty_lines() {
     let test_file = create_test_file("readlines_empty.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -204,7 +204,7 @@ fn test_file_read_lines_crlf() {
     let test_file = create_test_file("readlines_crlf.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -231,7 +231,7 @@ fn test_file_read_lines_empty_file() {
     let test_file = create_test_file("readlines_empty_file.txt", "");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -252,7 +252,7 @@ fn test_file_read_lines_single_line_no_newline() {
     let test_file = create_test_file("readlines_single.txt", "Single line");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -272,7 +272,7 @@ fn test_file_read_lines_single_line_no_newline() {
 
 #[test]
 fn test_file_read_lines_not_found() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = r#"
         var f = File("/nonexistent/path/to/file.txt")
         var lines = f.readLines()
@@ -293,7 +293,7 @@ fn test_file_write_basic() {
     // Ensure file doesn't exist
     let _ = fs::remove_file(&test_file);
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         f.write("Hello from Neon!")
@@ -329,7 +329,7 @@ fn test_file_write_multiline() {
         file.write_all(temp_content.as_bytes()).unwrap();
     }
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -355,7 +355,7 @@ fn test_file_write_empty_content() {
     // Ensure file doesn't exist
     let _ = fs::remove_file(&test_file);
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         f.write("")
@@ -377,7 +377,7 @@ fn test_file_write_file_already_exists() {
     let test_file = create_test_file("write_exists.txt", "Existing content");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         f.write("New content")
@@ -397,7 +397,7 @@ fn test_file_write_file_already_exists() {
 
 #[test]
 fn test_file_write_invalid_directory() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = r#"
         var f = File("/nonexistent/directory/file.txt")
         f.write("content")
@@ -418,7 +418,7 @@ fn test_file_end_to_end_write_then_read() {
     // Ensure file doesn't exist
     let _ = fs::remove_file(&test_file);
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f1 = File("{}")
         f1.write("Test content for end-to-end")
@@ -452,7 +452,7 @@ fn test_file_end_to_end_write_then_read_lines() {
         file.write_all(b"First\nSecond\nThird").unwrap();
     }
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
@@ -479,7 +479,7 @@ fn test_file_multiple_operations_same_file_object() {
     let test_file = create_test_file("multiple_ops.txt", "Line 1\nLine 2\nLine 3");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
@@ -504,7 +504,7 @@ fn test_file_constructor_with_variable_path() {
     let test_file = create_test_file("var_path.txt", "Content");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var path = "{}"
         var f = File(path)
@@ -526,7 +526,7 @@ fn test_file_in_function() {
     let test_file = create_test_file("in_function.txt", "Function test");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         fn readFile(path) {{
             var f = File(path)
@@ -551,7 +551,7 @@ fn test_file_read_lines_in_function() {
     let test_file = create_test_file("readlines_function.txt", "A\nB\nC");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         fn getLines(path) {{
             var f = File(path)
@@ -584,7 +584,7 @@ fn test_file_write_in_function() {
     // Ensure file doesn't exist
     let _ = fs::remove_file(&test_file);
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         fn writeFile(path, content) {{
             var f = File(path)
@@ -611,7 +611,7 @@ fn test_file_practical_example_process_lines() {
     let test_file = create_test_file("process_lines.txt", test_content);
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()

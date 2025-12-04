@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_array_push() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
         let value = Value::Number(3.0);
         let args = vec![array.clone(), value];
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_array_push_to_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
         let value = Value::Number(42.0);
         let args = vec![array.clone(), value];
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_array_push_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
 
         // Too few arguments
@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_array_push_on_non_array() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_array = Value::Number(42.0);
         let value = Value::Number(1.0);
         let args = vec![not_array, value];
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_array_pop() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![
             Value::Number(1.0),
             Value::Number(2.0),
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_array_pop_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
         let args = vec![array];
 
@@ -249,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_array_pop_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![Value::Number(1.0)]);
 
         // Too many arguments
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_array_pop_on_non_array() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_array = Value::Number(42.0);
         let args = vec![not_array];
 
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_array_length() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![
             Value::Number(1.0),
             Value::Number(2.0),
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_array_length_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
         let args = vec![array];
 
@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_array_size_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
         let result = native_array_size(&mut vm, &[array]).unwrap();
         assert_eq!(result, Value::Number(0.0));
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_array_length_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
 
         // Too many arguments
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_array_length_on_non_array() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_array = Value::Number(42.0);
         let args = vec![not_array];
 
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_array_push_different_types() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![Value::Number(1.0)]);
 
         // Push boolean
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_array_operations_sequence() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::new_array(vec![]);
 
         // Start with empty array
@@ -406,7 +406,7 @@ mod tests {
 
     #[test]
     fn test_array_size_with_elements() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
             Value::Number(1.0),
             Value::Number(2.0),
@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn test_array_size_no_args() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let result = native_array_size(&mut vm, &[]);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "array.size() requires an array receiver");
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_array_size_wrong_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let result = native_array_size(&mut vm, &[Value::Number(42.0)]);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "size() can only be called on arrays");
@@ -434,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_array_contains_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
             Value::Number(1.0),
             Value::Number(2.0),
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_array_contains_not_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
             Value::Number(1.0),
             Value::Number(2.0),
@@ -458,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_array_contains_empty_array() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
         let result = native_array_contains(&mut vm, &[array, Value::Number(1.0)]).unwrap();
         assert_eq!(result, Value::Boolean(false));
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn test_array_contains_string() {
         use crate::common::ObjString;
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let string_val = Value::Object(Rc::new(Object::String(ObjString {
             value: "hello".into(),
         })));
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_array_contains_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let array = Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
         let result = native_array_contains(&mut vm, &[array]);
         assert!(result.is_err());
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_array_contains_wrong_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let result = native_array_contains(&mut vm, &[Value::Number(42.0), Value::Number(1.0)]);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "contains() can only be called on arrays");

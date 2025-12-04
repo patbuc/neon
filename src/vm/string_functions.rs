@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_string_len_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello");
         let args = vec![test_str];
 
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_string_len_unicode() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello 🌍");
         let args = vec![test_str];
 
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_string_len_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let args = vec![test_str];
 
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_substring_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let args = vec![test_str, Value::Number(0.0), Value::Number(5.0)];
 
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_substring_middle() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let args = vec![test_str, Value::Number(6.0), Value::Number(11.0)];
 
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_substring_negative_indices() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let args = vec![test_str, Value::Number(-5.0), Value::Number(-1.0)];
 
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_substring_out_of_bounds() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello");
         let args = vec![test_str, Value::Number(0.0), Value::Number(100.0)];
 
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_substring_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello");
         let args = vec![test_str, Value::Number(2.0), Value::Number(2.0)];
 
@@ -342,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_substring_start_greater_than_end() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello");
         // start=5, end=0: should return empty string
         let args = vec![test_str, Value::Number(5.0), Value::Number(0.0)];
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_replace_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let old = string!("world");
         let new = string!("rust");
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_replace_multiple() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("foo bar foo");
         let old = string!("foo");
         let new = string!("baz");
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_replace_not_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let old = string!("xyz");
         let new = string!("abc");
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_replace_empty_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let old = string!("foo");
         let new = string!("bar");
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn test_replace_with_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let old = string!(" ");
         let new = string!("");
@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_split_basic_comma() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("a,b,c");
         let delimiter = string!(",");
         let args = vec![test_str, delimiter];
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_split_delimiter_not_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let delimiter = string!(",");
         let args = vec![test_str, delimiter];
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_split_empty_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let delimiter = string!(",");
         let args = vec![test_str, delimiter];
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_split_empty_delimiter() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello");
         let delimiter = string!("");
         let args = vec![test_str, delimiter];
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_split_multiple_consecutive_delimiters() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("a,,b,,c");
         let delimiter = string!(",");
         let args = vec![test_str, delimiter];
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_split_space_delimiter() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("hello world");
         let delimiter = string!(" ");
         let args = vec![test_str, delimiter];
@@ -571,7 +571,7 @@ mod tests {
     // Tests for String.toInt()
     #[test]
     fn test_to_int_basic_positive() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("123");
         let args = vec![test_str];
 
@@ -581,7 +581,7 @@ mod tests {
 
     #[test]
     fn test_to_int_basic_negative() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("-456");
         let args = vec![test_str];
 
@@ -591,7 +591,7 @@ mod tests {
 
     #[test]
     fn test_to_int_zero() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("0");
         let args = vec![test_str];
 
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_to_int_with_whitespace() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("  789  ");
         let args = vec![test_str];
 
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_to_int_large_number() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("9876543210");
         let args = vec![test_str];
 
@@ -621,7 +621,7 @@ mod tests {
 
     #[test]
     fn test_to_int_invalid_float() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("123.45");
         let args = vec![test_str];
 
@@ -632,7 +632,7 @@ mod tests {
 
     #[test]
     fn test_to_int_invalid_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("abc");
         let args = vec![test_str];
 
@@ -643,7 +643,7 @@ mod tests {
 
     #[test]
     fn test_to_int_empty_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let args = vec![test_str];
 
@@ -653,7 +653,7 @@ mod tests {
 
     #[test]
     fn test_to_int_mixed_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("123abc");
         let args = vec![test_str];
 
@@ -664,7 +664,7 @@ mod tests {
     // Tests for String.toFloat()
     #[test]
     fn test_to_float_basic_integer() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("123");
         let args = vec![test_str];
 
@@ -674,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_to_float_basic_decimal() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("45.67");
         let args = vec![test_str];
 
@@ -684,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_to_float_negative() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("-12.34");
         let args = vec![test_str];
 
@@ -694,7 +694,7 @@ mod tests {
 
     #[test]
     fn test_to_float_zero() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("0.0");
         let args = vec![test_str];
 
@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn test_to_float_with_whitespace() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("  3.14  ");
         let args = vec![test_str];
 
@@ -714,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_to_float_scientific_notation() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("1.23e4");
         let args = vec![test_str];
 
@@ -724,7 +724,7 @@ mod tests {
 
     #[test]
     fn test_to_float_scientific_notation_negative_exponent() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("1.5e-2");
         let args = vec![test_str];
 
@@ -734,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_to_float_no_decimal() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("42");
         let args = vec![test_str];
 
@@ -744,7 +744,7 @@ mod tests {
 
     #[test]
     fn test_to_float_leading_decimal() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!(".5");
         let args = vec![test_str];
 
@@ -754,7 +754,7 @@ mod tests {
 
     #[test]
     fn test_to_float_invalid_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("abc");
         let args = vec![test_str];
 
@@ -765,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_to_float_empty_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let args = vec![test_str];
 
@@ -775,7 +775,7 @@ mod tests {
 
     #[test]
     fn test_to_float_mixed_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("12.34abc");
         let args = vec![test_str];
 
@@ -785,7 +785,7 @@ mod tests {
 
     #[test]
     fn test_to_float_infinity() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("inf");
         let args = vec![test_str];
 
@@ -795,7 +795,7 @@ mod tests {
 
     #[test]
     fn test_to_float_negative_infinity() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("-inf");
         let args = vec![test_str];
 
@@ -806,7 +806,7 @@ mod tests {
     // Tests for String.toBool()
     #[test]
     fn test_to_bool_lowercase_true() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("true");
         let args = vec![test_str];
 
@@ -816,7 +816,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_lowercase_false() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("false");
         let args = vec![test_str];
 
@@ -826,7 +826,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_uppercase_true() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("TRUE");
         let args = vec![test_str];
 
@@ -836,7 +836,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_uppercase_false() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("FALSE");
         let args = vec![test_str];
 
@@ -846,7 +846,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_mixed_case_true() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("TrUe");
         let args = vec![test_str];
 
@@ -856,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_mixed_case_false() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("FaLsE");
         let args = vec![test_str];
 
@@ -866,7 +866,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_with_whitespace_true() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("  true  ");
         let args = vec![test_str];
 
@@ -876,7 +876,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_with_whitespace_false() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("  false  ");
         let args = vec![test_str];
 
@@ -886,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_with_tabs_and_newlines() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("\t\ntrue\n\t");
         let args = vec![test_str];
 
@@ -896,7 +896,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_invalid_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("yes");
         let args = vec![test_str];
 
@@ -907,7 +907,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_invalid_number() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("1");
         let args = vec![test_str];
 
@@ -918,7 +918,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_invalid_zero() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("0");
         let args = vec![test_str];
 
@@ -929,7 +929,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_empty_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("");
         let args = vec![test_str];
 
@@ -940,7 +940,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_partial_match() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("truee");
         let args = vec![test_str];
 
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_mixed_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("true123");
         let args = vec![test_str];
 
@@ -960,7 +960,7 @@ mod tests {
 
     #[test]
     fn test_to_bool_with_surrounding_text() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let test_str = string!("the answer is true");
         let args = vec![test_str];
 

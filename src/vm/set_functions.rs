@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn test_set_add_new_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Number(42.0);
         let args = vec![set.clone(), element];
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_set_add_duplicate_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(42.0)));
         let set = Value::new_set(elements);
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_set_add_string() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = string!("hello");
         let args = vec![set.clone(), element];
@@ -428,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_set_add_boolean() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Boolean(true);
         let args = vec![set.clone(), element];
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_set_add_invalid_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Nil;
         let args = vec![set, element];
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_set_remove_existing_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(42.0)));
         elements.insert(SetKey::Number(OrderedFloat(100.0)));
@@ -492,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_set_remove_nonexistent_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Number(42.0);
         let args = vec![set, element];
@@ -503,7 +503,7 @@ mod tests {
 
     #[test]
     fn test_set_has_existing_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::String(Rc::from("hello")));
         let set = Value::new_set(elements);
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_set_has_nonexistent_element() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = string!("hello");
         let args = vec![set, element];
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_set_size_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_set_size_with_elements() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -551,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_set_clear_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set.clone()];
 
@@ -573,7 +573,7 @@ mod tests {
 
     #[test]
     fn test_set_clear_with_elements() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -599,7 +599,7 @@ mod tests {
 
     #[test]
     fn test_set_add_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -610,7 +610,7 @@ mod tests {
 
     #[test]
     fn test_set_remove_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -621,7 +621,7 @@ mod tests {
 
     #[test]
     fn test_set_has_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -632,7 +632,7 @@ mod tests {
 
     #[test]
     fn test_set_size_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Number(42.0);
         let args = vec![set, element];
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_set_clear_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let element = Value::Number(42.0);
         let args = vec![set, element];
@@ -656,7 +656,7 @@ mod tests {
 
     #[test]
     fn test_set_methods_on_non_set() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_a_set = Value::Number(42.0);
         let element = Value::Number(1.0);
 
@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn test_set_union_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create set1 = {1, 2, 3}
         let mut elements1 = BTreeSet::new();
@@ -744,7 +744,7 @@ mod tests {
 
     #[test]
     fn test_set_union_empty_sets() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let set1 = Value::new_set(BTreeSet::new());
         let set2 = Value::new_set(BTreeSet::new());
@@ -765,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_set_union_one_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -792,7 +792,7 @@ mod tests {
 
     #[test]
     fn test_set_union_mixed_types() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements1 = BTreeSet::new();
         elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     fn test_set_intersection_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create set1 = {1, 2, 3, 4}
         let mut elements1 = BTreeSet::new();
@@ -874,7 +874,7 @@ mod tests {
 
     #[test]
     fn test_set_intersection_no_common_elements() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements1 = BTreeSet::new();
         elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -902,7 +902,7 @@ mod tests {
 
     #[test]
     fn test_set_intersection_empty_sets() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let set1 = Value::new_set(BTreeSet::new());
         let set2 = Value::new_set(BTreeSet::new());
@@ -923,7 +923,7 @@ mod tests {
 
     #[test]
     fn test_set_difference_basic() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create set1 = {1, 2, 3, 4}
         let mut elements1 = BTreeSet::new();
@@ -972,7 +972,7 @@ mod tests {
 
     #[test]
     fn test_set_difference_no_overlap() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements1 = BTreeSet::new();
         elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -1004,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_set_difference_empty_result() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements1 = BTreeSet::new();
         elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -1029,7 +1029,7 @@ mod tests {
 
     #[test]
     fn test_set_difference_empty_sets() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let set1 = Value::new_set(BTreeSet::new());
         let set2 = Value::new_set(BTreeSet::new());
@@ -1050,7 +1050,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_true() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create set1 = {1, 2}
         let mut elements1 = BTreeSet::new();
@@ -1074,7 +1074,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_false() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create set1 = {1, 2, 5}
         let mut elements1 = BTreeSet::new();
@@ -1099,7 +1099,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_equal_sets() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -1116,7 +1116,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_empty_set() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let set1 = Value::new_set(BTreeSet::new());
 
@@ -1133,7 +1133,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_both_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         let set1 = Value::new_set(BTreeSet::new());
         let set2 = Value::new_set(BTreeSet::new());
@@ -1146,7 +1146,7 @@ mod tests {
 
     #[test]
     fn test_set_union_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -1157,7 +1157,7 @@ mod tests {
 
     #[test]
     fn test_set_intersection_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -1168,7 +1168,7 @@ mod tests {
 
     #[test]
     fn test_set_difference_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -1179,7 +1179,7 @@ mod tests {
 
     #[test]
     fn test_set_is_subset_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -1190,7 +1190,7 @@ mod tests {
 
     #[test]
     fn test_set_algebra_on_non_set() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_a_set = Value::Number(42.0);
         let set = Value::new_set(BTreeSet::new());
 
@@ -1213,7 +1213,7 @@ mod tests {
 
     #[test]
     fn test_set_algebra_with_non_set_argument() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let not_a_set = Value::Number(42.0);
 
@@ -1238,7 +1238,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_empty() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let args = vec![set];
 
@@ -1259,7 +1259,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_with_numbers() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(1.0)));
         elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -1292,7 +1292,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_with_strings() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::String(Rc::from("apple")));
         elements.insert(SetKey::String(Rc::from("banana")));
@@ -1332,7 +1332,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_with_booleans() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Boolean(true));
         elements.insert(SetKey::Boolean(false));
@@ -1361,7 +1361,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_mixed_types() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let mut elements = BTreeSet::new();
         elements.insert(SetKey::Number(OrderedFloat(42.0)));
         elements.insert(SetKey::String(Rc::from("hello")));
@@ -1400,7 +1400,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let set = Value::new_set(BTreeSet::new());
         let extra_arg = Value::Number(42.0);
         let args = vec![set, extra_arg];
@@ -1412,7 +1412,7 @@ mod tests {
 
     #[test]
     fn test_set_to_array_on_non_set() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let not_a_set = Value::Number(42.0);
         let args = vec![not_a_set];
 

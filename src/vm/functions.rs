@@ -470,6 +470,18 @@ impl VirtualMachine {
             self.runtime_error("Built-in global 'File' not found");
             return;
         }
+        if index == (u32::MAX - 2) as usize {
+            // This is a request for args from the globals HashMap
+            if let Some(value) = self.globals.get("args") {
+                self.push(value.clone());
+                let frame = self.call_frames.last_mut().unwrap();
+                frame.ip += bits.as_bytes();
+                return;
+            }
+            // If args is not found, this is an internal error
+            self.runtime_error("Built-in global 'args' not found");
+            return;
+        }
 
         // Regular global variables are in the script frame
         // Script frame has slot_start = -1, so globals start at index 0

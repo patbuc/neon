@@ -126,13 +126,16 @@ impl CodeGenerator {
     fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
         // Returns: (index, is_mutable, is_global)
 
-        // Special case: Math and File are built-in globals stored in the VM's globals HashMap
+        // Special case: Math, File, and args are built-in globals stored in the VM's globals HashMap
         // We use sentinel values to signal the VM to look up built-in globals
         if name == "Math" {
             return (Some(u32::MAX), false, true); // u32::MAX = Math
         }
         if name == "File" {
             return (Some(u32::MAX - 1), false, true); // u32::MAX - 1 = File
+        }
+        if name == "args" {
+            return (Some(u32::MAX - 2), false, true); // u32::MAX - 2 = args
         }
 
         // Search in bloq stack from innermost to outermost
