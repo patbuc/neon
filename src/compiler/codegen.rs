@@ -658,6 +658,7 @@ impl CodeGenerator {
                             BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
                             BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
                             BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
+                            BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, *location),
                             BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
                             BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
                             BinaryOp::NotEqual => {

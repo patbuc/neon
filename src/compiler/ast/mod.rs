@@ -8,6 +8,7 @@ pub enum BinaryOp {
     Subtract,
     Multiply,
     Divide,
+    FloorDivide,
     Modulo,
     // Comparison
     Equal,
