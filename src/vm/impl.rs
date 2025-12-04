@@ -293,6 +293,7 @@ impl VirtualMachine {
                         return result;
                     }
                 }
+                OpCode::ToString => self.fn_to_string(),
             }
 
             // Increment IP for the current frame
