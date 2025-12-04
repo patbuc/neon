@@ -8,7 +8,7 @@ use std::assert_eq;
 
 #[test]
 fn can_create_vm() {
-    let vm = VirtualMachine::new();
+    let vm = VirtualMachine::new(Vec::new());
     assert_eq!(0, vm.call_frames.len());
     assert_eq!(0, vm.stack.len());
 }
@@ -28,7 +28,7 @@ fn can_execute_simple_arithmetics() {
     bloq.write_op_code(OpCode::Divide, 0, 0);
     bloq.write_op_code(OpCode::Return, 0, 0);
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
 
     let result = vm.run_bloq(bloq);
     assert_eq!(Result::Ok, result);
@@ -41,7 +41,7 @@ fn can_print_hello_world() {
         print "Hello World 🌍"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
 
     assert_eq!(Result::Ok, result);
@@ -53,7 +53,7 @@ fn can_print_the_answer_to_everything_times_pi() {
         print 42 * 3.14
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
 
     assert_eq!(Result::Ok, result);
@@ -66,7 +66,7 @@ fn can_run_multi_line_statements() {
         print 13
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
 
     assert_eq!(Result::Ok, result);
@@ -79,7 +79,7 @@ fn can_define_a_global_value() {
         print greeting
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
 
     assert_eq!(Result::Ok, result);
@@ -93,7 +93,7 @@ fn can_negate_numbers() {
         print -x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("-42", vm.get_output());
@@ -105,7 +105,7 @@ fn can_compare_numbers_equal() {
         print 42 == 42
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -117,7 +117,7 @@ fn can_compare_numbers_not_equal() {
         print 42 == 43
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -129,7 +129,7 @@ fn can_compare_greater_than() {
         print 43 > 42
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -141,7 +141,7 @@ fn can_compare_less_than() {
         print 41 < 42
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -153,7 +153,7 @@ fn can_use_logical_not() {
         print !false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -166,7 +166,7 @@ fn can_handle_nil() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("nil", vm.get_output());
@@ -179,7 +179,7 @@ fn can_handle_boolean_true() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -192,7 +192,7 @@ fn can_handle_boolean_false() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -204,7 +204,7 @@ fn can_handle_string_concatenation() {
         print "Hello" + " " + "World"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello World", vm.get_output());
@@ -218,7 +218,7 @@ fn can_handle_multiple_global_variables() {
         print x + y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
@@ -232,7 +232,7 @@ fn can_handle_complex_arithmetic() {
         print (x + y) * (x - y)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("75", vm.get_output());
@@ -244,7 +244,7 @@ fn can_handle_string_comparison() {
         print "hello" == "hello"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -256,7 +256,7 @@ fn can_handle_multiple_boolean_operations() {
         print true == !false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -268,7 +268,7 @@ fn can_handle_division_by_integers() {
         print 100 / 20
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("5", vm.get_output());
@@ -280,7 +280,7 @@ fn can_handle_float_division() {
         print 10.0 / 3.0
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3.3333333333333335", vm.get_output());
@@ -293,7 +293,7 @@ fn can_handle_negative_numbers() {
         print -x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
@@ -305,7 +305,7 @@ fn can_handle_boolean_arithmetic() {
         print true == true == true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -320,7 +320,7 @@ fn can_handle_complex_string_operations() {
         print greeting + " " + name + punctuation
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello World!", vm.get_output());
@@ -332,7 +332,7 @@ fn can_handle_multiple_negations() {
         print !!true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -348,7 +348,7 @@ fn can_handle_a_true_if_statement() {
         print "The end"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("The answer to everything\nThe end", vm.get_output());
@@ -364,7 +364,7 @@ fn can_handle_a_false_if_statement() {
         print "The end"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("The end", vm.get_output());
@@ -381,7 +381,7 @@ fn can_handle_a_true_if_else_statement() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("The answer to everything", vm.get_output());
@@ -400,7 +400,7 @@ fn can_handle_multiple_if_else_statements() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("The end", vm.get_output());
@@ -419,7 +419,7 @@ fn can_handle_multiple_if_else_statements_2() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("The beginning", vm.get_output());
@@ -433,7 +433,7 @@ fn can_assign_value_to_variable() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("15", vm.get_output());
@@ -447,7 +447,7 @@ fn cannot_assign_value_to_value() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
@@ -464,7 +464,7 @@ fn cannot_access_undefined_variable() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
@@ -484,7 +484,7 @@ fn can_loop() {
         print "Done"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
@@ -499,7 +499,7 @@ fn can_call_function() {
         greet()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello from function!", vm.get_output());
@@ -515,7 +515,7 @@ fn can_call_function_multiple_times() {
         greet()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello again!\nHello again!", vm.get_output());
@@ -536,7 +536,7 @@ fn can_calculate_fibonacci() {
         print fib(10)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let start = std::time::Instant::now();
     let result = vm.interpret(program.to_string());
     let elapsed = start.elapsed();
@@ -560,7 +560,7 @@ fn can_calculate_fibonacci_20() {
         print fib(20)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let start = std::time::Instant::now();
     let result = vm.interpret(program.to_string());
     let elapsed = start.elapsed();
@@ -581,7 +581,7 @@ fn can_handle_nested_function_calls() {
         greet()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello\nWorld", vm.get_output());
@@ -593,7 +593,7 @@ fn cannot_call_undefined_function() {
         undefined_function()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
@@ -610,7 +610,7 @@ fn can_handle_function_with_no_body() {
         print "Done"
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Done", vm.get_output());
@@ -625,7 +625,7 @@ fn can_use_modulo_operator() {
         print 4 % 5
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n1\n0\n4", vm.get_output());
@@ -644,7 +644,7 @@ fn can_use_struct() {
         print p.y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3\n4", vm.get_output());
@@ -653,7 +653,7 @@ fn can_use_struct() {
 #[test]
 fn can_call_native_function_directly() {
     // Test calling a native function directly (not through VM bytecode)
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
 
     let args = vec![Value::Number(5.0), Value::Number(3.0)];
     let result = native_functions::native_add(&mut vm, &args);
@@ -667,7 +667,7 @@ fn can_call_native_function_directly() {
 
 #[test]
 fn native_function_rejects_wrong_arity() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
 
     let args = vec![Value::Number(5.0)];
     let result = native_functions::native_add(&mut vm, &args);
@@ -678,7 +678,7 @@ fn native_function_rejects_wrong_arity() {
 
 #[test]
 fn native_function_rejects_wrong_types() {
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
 
     let args = vec![Value::Number(5.0), Value::Boolean(true)];
     let result = native_functions::native_add(&mut vm, &args);
@@ -710,7 +710,7 @@ fn test_logical_and_true_true() {
         print true && true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -722,7 +722,7 @@ fn test_logical_and_true_false() {
         print true && false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -734,7 +734,7 @@ fn test_logical_and_false_true() {
         print false && true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -746,7 +746,7 @@ fn test_logical_and_false_false() {
         print false && false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -758,7 +758,7 @@ fn test_logical_or_true_true() {
         print true || true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -770,7 +770,7 @@ fn test_logical_or_true_false() {
         print true || false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -782,7 +782,7 @@ fn test_logical_or_false_true() {
         print false || true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -794,7 +794,7 @@ fn test_logical_or_false_false() {
         print false || false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -806,7 +806,7 @@ fn test_logical_operators_with_comparisons() {
         print 5 > 3 && 10 < 20
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -820,7 +820,7 @@ fn test_logical_operators_with_variables() {
         print x && y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -834,7 +834,7 @@ fn test_logical_or_with_variables() {
         print x || y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -846,7 +846,7 @@ fn test_logical_precedence_or_and() {
         print false || true && false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Should parse as: false || (true && false)
@@ -861,7 +861,7 @@ fn test_logical_precedence_and_or() {
         print true && false || true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Should parse as: (true && false) || true
@@ -876,7 +876,7 @@ fn test_logical_precedence_with_parens() {
         print (false || true) && false
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // (false || true) = true
@@ -894,7 +894,7 @@ fn test_logical_and_short_circuit() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // x should still be 10 because the right side of && should not evaluate
@@ -911,7 +911,7 @@ fn test_logical_or_short_circuit() {
         print x
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // x should still be 10 because the right side of || should not evaluate
@@ -927,7 +927,7 @@ fn test_logical_complex_expression() {
         print (a || b) && c
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // (true || false) = true
@@ -941,7 +941,7 @@ fn test_logical_with_not() {
         print !false && true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // !false = true
@@ -955,7 +955,7 @@ fn test_logical_chained_and() {
         print true && true && true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -967,7 +967,7 @@ fn test_logical_chained_and_with_false() {
         print true && false && true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -979,7 +979,7 @@ fn test_logical_chained_or() {
         print false || false || true
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -995,7 +995,7 @@ fn test_logical_in_if_statement() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Both positive", vm.get_output());
@@ -1014,7 +1014,7 @@ fn test_logical_in_while_loop() {
         print y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3\n0", vm.get_output());
@@ -1027,7 +1027,7 @@ fn test_logical_with_equality() {
         print x == 5 && x > 0
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -1043,7 +1043,7 @@ fn test_logical_all_operators_combined() {
         print (a && b) || (c && !d)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // (true && false) = false
@@ -1064,7 +1064,7 @@ fn test_empty_map_creation() {
         print m
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("{}", vm.get_output());
@@ -1077,7 +1077,7 @@ fn test_map_creation_with_string_keys() {
         print m
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     let output = vm.get_output();
@@ -1092,7 +1092,7 @@ fn test_map_access_string_key() {
         print m["name"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice", vm.get_output());
@@ -1105,7 +1105,7 @@ fn test_map_access_missing_key_returns_nil() {
         print m["missing"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("nil", vm.get_output());
@@ -1119,7 +1119,7 @@ fn test_map_set_new_value() {
         print m["age"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("30", vm.get_output());
@@ -1133,7 +1133,7 @@ fn test_map_update_existing_value() {
         print m["name"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Bob", vm.get_output());
@@ -1146,7 +1146,7 @@ fn test_map_with_number_keys() {
         print m[2]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("two", vm.get_output());
@@ -1160,7 +1160,7 @@ fn test_map_with_boolean_keys() {
         print m[false]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("yes\nno", vm.get_output());
@@ -1175,7 +1175,7 @@ fn test_map_with_mixed_key_types() {
         print m[true]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice\nanswer\nyes", vm.get_output());
@@ -1190,7 +1190,7 @@ fn test_map_with_mixed_value_types() {
         print m["nil"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42\ntrue\nnil", vm.get_output());
@@ -1203,7 +1203,7 @@ fn test_map_nested_in_map() {
         print m["inner"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("{x: 10}", vm.get_output());
@@ -1217,7 +1217,7 @@ fn test_map_assignment_returns_value() {
         print result
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
@@ -1231,7 +1231,7 @@ fn test_map_in_variable_assignment() {
         print m2["x"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1", vm.get_output());
@@ -1244,7 +1244,7 @@ fn test_map_in_expression() {
         print m["x"] + m["y"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("30", vm.get_output());
@@ -1258,7 +1258,7 @@ fn test_map_key_evaluation() {
         print m[key]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1", vm.get_output());
@@ -1272,7 +1272,7 @@ fn test_map_dynamic_key() {
         print m[x + 1]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("two", vm.get_output());
@@ -1287,7 +1287,7 @@ fn test_map_get_method_existing_key() {
         print m.get("name")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice", vm.get_output());
@@ -1300,7 +1300,7 @@ fn test_map_get_method_nonexistent_key() {
         print m.get("missing")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("nil", vm.get_output());
@@ -1313,7 +1313,7 @@ fn test_map_get_method_number_key() {
         print m.get(42)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("answer", vm.get_output());
@@ -1326,7 +1326,7 @@ fn test_map_size_method_empty() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0", vm.get_output());
@@ -1339,7 +1339,7 @@ fn test_map_size_method_with_entries() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3", vm.get_output());
@@ -1352,7 +1352,7 @@ fn test_map_has_method_existing_key() {
         print m.has("name")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -1365,7 +1365,7 @@ fn test_map_has_method_nonexistent_key() {
         print m.has("missing")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("false", vm.get_output());
@@ -1378,7 +1378,7 @@ fn test_map_has_method_boolean_key() {
         print m.has(true)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true", vm.get_output());
@@ -1393,7 +1393,7 @@ fn test_map_remove_method_existing_key() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice\n1", vm.get_output());
@@ -1408,7 +1408,7 @@ fn test_map_remove_method_nonexistent_key() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("nil\n1", vm.get_output());
@@ -1422,7 +1422,7 @@ fn test_map_keys_method_empty() {
         print keys
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[]", vm.get_output());
@@ -1436,7 +1436,7 @@ fn test_map_keys_method_with_entries() {
         print keys
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
@@ -1452,7 +1452,7 @@ fn test_map_values_method_empty() {
         print values
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[]", vm.get_output());
@@ -1466,7 +1466,7 @@ fn test_map_values_method_with_entries() {
         print values
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
@@ -1482,7 +1482,7 @@ fn test_map_entries_method_empty() {
         print entries
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[]", vm.get_output());
@@ -1496,7 +1496,7 @@ fn test_map_entries_method_with_entries() {
         print entries
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Note: HashMap order is not guaranteed, so we just check it's an array
@@ -1515,7 +1515,7 @@ fn test_map_chained_operations() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("true\n2\n3\n2", vm.get_output());
@@ -1529,7 +1529,7 @@ fn test_map_keys_with_different_types() {
         print keys
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Just verify it returns an array
@@ -1547,7 +1547,7 @@ fn test_map_method_after_modification() {
         print m.has("b")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3\ntrue", vm.get_output());
@@ -1562,7 +1562,7 @@ fn test_map_remove_then_size() {
         print m.has("y")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("2\nfalse", vm.get_output());
@@ -1576,7 +1576,7 @@ fn test_map_get_and_bracket_equivalence() {
         print m["key"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("value\nvalue", vm.get_output());
@@ -1591,7 +1591,7 @@ fn test_map_values_reflect_changes() {
         print values
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     // Verify it's an array with 3 elements
@@ -1613,7 +1613,7 @@ fn test_map_with_string_values() {
         print messages.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Hello\nGoodbye\nThank you\n3", vm.get_output());
@@ -1635,7 +1635,7 @@ fn test_map_iteration_with_modification() {
         print m["c"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n11\n12\n13", vm.get_output());
@@ -1656,7 +1656,7 @@ fn test_nested_map_access_chain() {
         print profile["name"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice", vm.get_output());
@@ -1691,7 +1691,7 @@ fn test_map_with_conditional_logic() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("Alice: A\nBob: F\nCharlie: B", vm.get_output());
@@ -1708,7 +1708,7 @@ fn test_map_direct_value_access() {
         print x_val + y_val + z_val
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("60", vm.get_output());
@@ -1735,7 +1735,7 @@ fn test_map_as_function_parameter() {
         print m2.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n3", vm.get_output());
@@ -1753,7 +1753,7 @@ fn test_map_with_computed_keys() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("100\n200\n2", vm.get_output());
@@ -1778,7 +1778,7 @@ fn test_map_update_in_loop() {
         print m["c"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n2\n4\n6", vm.get_output());
@@ -1799,7 +1799,7 @@ fn test_map_multiple_removes() {
         print m.has("d")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("4\n3\n2\nfalse\ntrue\nfalse\ntrue", vm.get_output());
@@ -1827,7 +1827,7 @@ fn test_map_with_struct_values() {
         print unit.y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n0\n1\n1", vm.get_output());
@@ -1842,7 +1842,7 @@ fn test_map_boolean_key_expressions() {
         print m[x < 3]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("yes\nno", vm.get_output());
@@ -1864,7 +1864,7 @@ fn test_map_chaining_operations() {
         print m.has("c")
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3\n2\ntrue\nfalse\ntrue", vm.get_output());
@@ -1892,7 +1892,7 @@ fn test_map_empty_to_full_lifecycle() {
         print m.size()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n[]\n1\n3\n2\n0", vm.get_output());
@@ -1916,7 +1916,7 @@ fn test_map_in_recursive_function() {
         print result[3]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n4\n9", vm.get_output());
@@ -1933,7 +1933,7 @@ fn test_array_literal_empty() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[]", vm.get_output());
@@ -1946,7 +1946,7 @@ fn test_array_literal_single_element() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[42]", vm.get_output());
@@ -1959,7 +1959,7 @@ fn test_array_literal_multiple_elements() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
@@ -1972,7 +1972,7 @@ fn test_array_literal_mixed_types() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, hello, true, nil]", vm.get_output());
@@ -1987,7 +1987,7 @@ fn test_array_indexing_positive() {
         print arr[2]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("10\n20\n30", vm.get_output());
@@ -2002,7 +2002,7 @@ fn test_array_indexing_negative() {
         print arr[-3]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("30\n20\n10", vm.get_output());
@@ -2020,7 +2020,7 @@ fn test_array_index_assignment() {
         print arr[2]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("10\n20\n30", vm.get_output());
@@ -2036,7 +2036,7 @@ fn test_array_index_assignment_negative() {
         print arr[2]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("88\n99", vm.get_output());
@@ -2050,7 +2050,7 @@ fn test_array_push() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, 2, 3, 4]", vm.get_output());
@@ -2066,7 +2066,7 @@ fn test_array_push_multiple() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
@@ -2081,7 +2081,7 @@ fn test_array_pop() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("3\n[1, 2]", vm.get_output());
@@ -2095,7 +2095,7 @@ fn test_array_pop_empty() {
         print result
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("nil", vm.get_output());
@@ -2112,7 +2112,7 @@ fn test_array_length() {
         print arr3.length()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n1\n3", vm.get_output());
@@ -2129,7 +2129,7 @@ fn test_array_length_after_push() {
         print arr.length()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("2\n3\n4", vm.get_output());
@@ -2146,7 +2146,7 @@ fn test_array_length_after_pop() {
         print arr.length()
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("4\n3\n2", vm.get_output());
@@ -2159,7 +2159,7 @@ fn test_array_nested() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[[1, 2], [3, 4]]", vm.get_output());
@@ -2177,7 +2177,7 @@ fn test_array_nested_access() {
         print inner2[1]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
@@ -2192,7 +2192,7 @@ fn test_array_nested_modification() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[[99, 2], [3, 4]]", vm.get_output());
@@ -2208,7 +2208,7 @@ fn test_array_with_variables() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[10, 20, 30]", vm.get_output());
@@ -2221,7 +2221,7 @@ fn test_array_with_expressions() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[2, 6, 5]", vm.get_output());
@@ -2235,7 +2235,7 @@ fn test_array_in_expression() {
         print sum
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("60", vm.get_output());
@@ -2249,7 +2249,7 @@ fn test_array_in_variable_assignment() {
         print arr2
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
@@ -2264,7 +2264,7 @@ fn test_array_dynamic_index() {
         print arr[i + 1]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("20\n30", vm.get_output());
@@ -2279,7 +2279,7 @@ fn test_array_assignment_returns_value() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("99\n[1, 99, 3]", vm.get_output());
@@ -2308,7 +2308,7 @@ fn test_array_as_function_parameter() {
         print arr2[0]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n99", vm.get_output());
@@ -2339,7 +2339,7 @@ fn test_array_with_conditional_logic() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("B\nA\nC", vm.get_output());
@@ -2356,7 +2356,7 @@ fn test_array_in_loop() {
         }
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3", vm.get_output());
@@ -2375,7 +2375,7 @@ fn test_array_accumulation() {
         print sum
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("15", vm.get_output());
@@ -2403,7 +2403,7 @@ fn test_array_push_pop_lifecycle() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n3\n[1, 2, 3]\n2\n[1, 2]\n0\n[]", vm.get_output());
@@ -2423,7 +2423,7 @@ fn test_array_with_map_values() {
         print second["y"]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n4", vm.get_output());
@@ -2445,7 +2445,7 @@ fn test_map_with_array_values() {
         print strings[1]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n3\nb", vm.get_output());
@@ -2463,7 +2463,7 @@ fn test_array_build_with_loop() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[1, 4, 9, 16, 25]", vm.get_output());
@@ -2480,7 +2480,7 @@ fn test_array_reverse_with_negative_indices() {
         print arr[-5]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("5\n4\n3\n2\n1", vm.get_output());
@@ -2503,7 +2503,7 @@ fn test_array_modification_in_function() {
         print result
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("[2, 4, 6]", vm.get_output());
@@ -2521,7 +2521,7 @@ fn test_array_chained_operations() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("5\n4\n[1, 2, 3, 4]", vm.get_output());
@@ -2546,7 +2546,7 @@ fn test_array_with_struct_values() {
         print p2.y
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
@@ -2576,7 +2576,7 @@ fn test_array_empty_to_full_lifecycle() {
         print arr
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("0\n1\n10\n3\n[10, 99, 30]\n0\n[]", vm.get_output());
@@ -2600,7 +2600,7 @@ fn test_array_large_size() {
         print arr[299]
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("300\n0\n255\n256\n299", vm.get_output());
@@ -2627,7 +2627,7 @@ fn test_array_literal_large_size() {
         array_literal
     );
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program);
     assert_eq!(Result::Ok, result);
     assert_eq!("300\n0\n255\n256\n299", vm.get_output());

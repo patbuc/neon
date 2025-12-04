@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_valid_path() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let path = "test.txt";
         let args = vec![Value::Object(Rc::new(Object::String(ObjString {
             value: Rc::from(path),
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_wrong_arg_count_zero() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let args = vec![];
         let result = native_file_constructor(&mut vm, &args);
         assert!(result.is_err());
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_wrong_arg_count_two() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let args = vec![
             Value::Object(Rc::new(Object::String(ObjString {
                 value: Rc::from("test.txt"),
@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_invalid_type_number() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let args = vec![Value::Number(42.0)];
         let result = native_file_constructor(&mut vm, &args);
         assert!(result.is_err());
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_invalid_type_boolean() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let args = vec![Value::Boolean(true)];
         let result = native_file_constructor(&mut vm, &args);
         assert!(result.is_err());
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_invalid_type_nil() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let args = vec![Value::Nil];
         let result = native_file_constructor(&mut vm, &args);
         assert!(result.is_err());
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_with_relative_path() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let path = "../data/input.txt";
         let args = vec![Value::Object(Rc::new(Object::String(ObjString {
             value: Rc::from(path),
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_file_constructor_with_absolute_path() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
         let path = "/home/user/data/input.txt";
         let args = vec![Value::Object(Rc::new(Object::String(ObjString {
             value: Rc::from(path),
@@ -301,7 +301,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with some content
         let temp_dir = std::env::temp_dir();
@@ -339,7 +339,7 @@ mod tests {
     fn test_file_read_empty_file() {
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create an empty temporary file
         let temp_dir = std::env::temp_dir();
@@ -376,7 +376,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with Unicode content
         let temp_dir = std::env::temp_dir();
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_file_read_file_not_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object with a non-existent path
         let file_obj = Value::new_file("/nonexistent/path/to/file.txt".to_string());
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_file_read_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_file_read_invalid_receiver_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call read() on a non-File object
         let args = vec![Value::Object(Rc::new(Object::String(ObjString {
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_file_read_invalid_receiver_primitive() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call read() on a number
         let args = vec![Value::Number(42.0)];
@@ -482,7 +482,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with multiline content
         let temp_dir = std::env::temp_dir();
@@ -522,7 +522,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with multiline content
         let temp_dir = std::env::temp_dir();
@@ -586,7 +586,7 @@ mod tests {
     fn test_file_read_lines_empty_file() {
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create an empty temporary file
         let temp_dir = std::env::temp_dir();
@@ -624,7 +624,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with a single line (no newline at end)
         let temp_dir = std::env::temp_dir();
@@ -672,7 +672,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with Windows-style line endings
         let temp_dir = std::env::temp_dir();
@@ -731,7 +731,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with Unicode content
         let temp_dir = std::env::temp_dir();
@@ -786,7 +786,7 @@ mod tests {
 
     #[test]
     fn test_file_read_lines_file_not_found() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object with a non-existent path
         let file_obj = Value::new_file("/nonexistent/path/to/file.txt".to_string());
@@ -804,7 +804,7 @@ mod tests {
 
     #[test]
     fn test_file_read_lines_wrong_arg_count() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -821,7 +821,7 @@ mod tests {
 
     #[test]
     fn test_file_read_lines_invalid_receiver_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call readLines() on a non-File object
         let args = vec![Value::Object(Rc::new(Object::String(ObjString {
@@ -838,7 +838,7 @@ mod tests {
 
     #[test]
     fn test_file_read_lines_invalid_receiver_primitive() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call readLines() on a number
         let args = vec![Value::Number(42.0)];
@@ -856,7 +856,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file with empty lines
         let temp_dir = std::env::temp_dir();
@@ -918,7 +918,7 @@ mod tests {
     // Tests for File.write()
     #[test]
     fn test_file_write_success() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file path that doesn't exist yet
         let temp_dir = std::env::temp_dir();
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_file_write_empty_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file path that doesn't exist yet
         let temp_dir = std::env::temp_dir();
@@ -982,7 +982,7 @@ mod tests {
 
     #[test]
     fn test_file_write_multiline_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file path that doesn't exist yet
         let temp_dir = std::env::temp_dir();
@@ -1015,7 +1015,7 @@ mod tests {
 
     #[test]
     fn test_file_write_unicode_content() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file path that doesn't exist yet
         let temp_dir = std::env::temp_dir();
@@ -1051,7 +1051,7 @@ mod tests {
         use std::io::Write;
         use std::fs::File;
 
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a temporary file that already exists
         let temp_dir = std::env::temp_dir();
@@ -1088,7 +1088,7 @@ mod tests {
 
     #[test]
     fn test_file_write_wrong_arg_count_zero() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -1105,7 +1105,7 @@ mod tests {
 
     #[test]
     fn test_file_write_wrong_arg_count_too_many() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -1126,7 +1126,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_content_type_number() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -1144,7 +1144,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_content_type_boolean() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -1162,7 +1162,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_content_type_nil() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object
         let file_obj = Value::new_file("test.txt".to_string());
@@ -1180,7 +1180,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_receiver_type() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call write() on a non-File object
         let receiver = Value::Object(Rc::new(Object::String(ObjString {
@@ -1201,7 +1201,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_receiver_primitive() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Try to call write() on a number
         let receiver = Value::Number(42.0);
@@ -1220,7 +1220,7 @@ mod tests {
 
     #[test]
     fn test_file_write_invalid_directory() {
-        let mut vm = VirtualMachine::new();
+        let mut vm = VirtualMachine::new(Vec::new());
 
         // Create a File object with a path in a non-existent directory
         let file_obj = Value::new_file("/nonexistent/directory/file.txt".to_string());
