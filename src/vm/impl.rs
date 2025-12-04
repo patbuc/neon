@@ -288,6 +288,11 @@ impl VirtualMachine {
                     }
                     self.iterator_stack.pop();
                 }
+                OpCode::CreateRange => {
+                    if let Some(result) = self.fn_create_range() {
+                        return result;
+                    }
+                }
             }
 
             // Increment IP for the current frame

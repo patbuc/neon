@@ -10,6 +10,8 @@ pub(crate) enum TokenType {
     RightBracket,
     Comma,
     Dot,
+    DotDot,
+    DotDotEqual,
     Minus,
     Plus,
     Percent,

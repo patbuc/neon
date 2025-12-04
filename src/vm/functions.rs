@@ -919,6 +919,87 @@ impl VirtualMachine {
         frame.ip += 1;
     }
 
+    pub(in crate::vm) fn fn_create_range(&mut self) -> Option<Result> {
+        // Read the inclusive flag from bytecode
+        let inclusive = {
+            let frame = self.call_frames.last().unwrap();
+            frame.function.bloq.read_u8(frame.ip + 1) != 0
+        };
+
+        // Pop end and start values from stack
+        let end_value = self.pop();
+        let start_value = self.pop();
+
+        // Extract numeric values
+        let start = match start_value {
+            Value::Number(n) => n,
+            _ => {
+                self.runtime_error(&format!(
+                    "Range start must be a number, got {}",
+                    start_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        let end = match end_value {
+            Value::Number(n) => n,
+            _ => {
+                self.runtime_error(&format!(
+                    "Range end must be a number, got {}",
+                    end_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Check if both are integers
+        if start.fract() != 0.0 {
+            self.runtime_error(&format!(
+                "Range start must be an integer, got {}",
+                start
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        if end.fract() != 0.0 {
+            self.runtime_error(&format!(
+                "Range end must be an integer, got {}",
+                end
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        let start_int = start as i64;
+        let end_int = end as i64;
+
+        // Build the range array
+        let elements: Vec<Value> = if inclusive {
+            if start_int <= end_int {
+                (start_int..=end_int).map(|i| Value::Number(i as f64)).collect()
+            } else {
+                // Empty range for reverse inclusive ranges
+                Vec::new()
+            }
+        } else {
+            if start_int < end_int {
+                (start_int..end_int).map(|i| Value::Number(i as f64)).collect()
+            } else {
+                // Empty range for reverse exclusive ranges
+                Vec::new()
+            }
+        };
+
+        // Push the new array onto the stack
+        self.push(Value::new_array(elements));
+
+        // Increment IP to skip the inclusive flag byte
+        let frame = self.call_frames.last_mut().unwrap();
+        frame.ip += 1;
+
+        None
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn fn_get_index(&mut self) {
         let index_value = self.pop();

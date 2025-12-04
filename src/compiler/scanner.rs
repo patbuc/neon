@@ -50,7 +50,17 @@ impl Scanner {
             '[' => self.make_token(TokenType::LeftBracket),
             ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
-            '.' => self.make_token(TokenType::Dot),
+            '.' => {
+                if self.matches('.') {
+                    if self.matches('=') {
+                        self.make_token(TokenType::DotDotEqual)
+                    } else {
+                        self.make_token(TokenType::DotDot)
+                    }
+                } else {
+                    self.make_token(TokenType::Dot)
+                }
+            }
             '-' => self.make_token(TokenType::Minus),
             '+' => self.make_token(TokenType::Plus),
             '%' => self.make_token(TokenType::Percent),
