@@ -53,6 +53,7 @@ pub(crate) enum TokenType {
     Val,
     Var,
     While,
+    In,
 
     Error,
 
