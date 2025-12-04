@@ -48,6 +48,7 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Set", "toArray", crate::vm::set_functions::native_set_to_array),
     // File methods
     ("File", "read", crate::vm::file_functions::native_file_read),
+    ("File", "readLines", crate::vm::file_functions::native_file_read_lines),
 ];
 
 /// Get native function implementation for a type and method.
@@ -330,15 +331,16 @@ mod tests {
     #[test]
     fn test_get_methods_for_type_file() {
         let methods = MethodRegistry::get_methods_for_type("File");
-        assert_eq!(methods.len(), 1);
+        assert_eq!(methods.len(), 2);
         assert!(methods.contains(&"read"));
+        assert!(methods.contains(&"readLines"));
     }
 
     #[test]
     fn test_is_valid_method_file() {
         assert!(MethodRegistry::is_valid_method("File", "read"));
+        assert!(MethodRegistry::is_valid_method("File", "readLines"));
         assert!(!MethodRegistry::is_valid_method("File", "write"));
-        assert!(!MethodRegistry::is_valid_method("File", "readLines"));
     }
 
     #[test]
