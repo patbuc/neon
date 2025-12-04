@@ -107,6 +107,7 @@ pub(crate) enum Object {
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
+    File(Rc<str>),
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +196,10 @@ impl Value {
     pub(crate) fn new_set(elements: BTreeSet<SetKey>) -> Self {
         Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(elements)))))
     }
+
+    pub(crate) fn new_file(path: String) -> Self {
+        Value::Object(Rc::new(Object::File(Rc::from(path))))
+    }
 }
 
 pub(crate) struct CallFrame {
@@ -251,6 +256,7 @@ impl Display for Object {
                 }
                 write!(f, "}}")
             }
+            Object::File(path) => write!(f, "<file: {}>", path),
         }
     }
 }
