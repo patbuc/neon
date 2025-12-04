@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_map_get_existing_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
         entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_map_get_nonexistent_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let key = string!("missing");
         let args = vec![map, key];
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_map_size_empty() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let args = vec![map];
 
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_map_size_with_entries() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
         entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_map_has_existing_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
         let map = Value::new_map(entries);
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_map_has_nonexistent_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let key = string!("missing");
         let args = vec![map, key];
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_map_remove_existing_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
         entries.insert(MapKey::String(Rc::from("age")), Value::Number(30.0));
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_map_remove_nonexistent_key() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let key = string!("missing");
         let args = vec![map, key];
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_map_keys() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
         entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(2.0));
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_map_values() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
         entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
@@ -411,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_map_entries() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let mut entries = HashMap::new();
         entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
         entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_map_keys_empty() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let args = vec![map];
 
@@ -468,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_map_values_empty() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let args = vec![map];
 
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_map_entries_empty() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let map = Value::new_map(HashMap::new());
         let args = vec![map];
 

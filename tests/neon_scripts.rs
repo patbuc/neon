@@ -60,7 +60,7 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
         )
     })?;
 
-    let mut vm = VirtualMachine::new(Vec::new());
+    let mut vm = VirtualMachine::new();
     let result = vm.interpret(script.to_string());
 
     assert_eq!(

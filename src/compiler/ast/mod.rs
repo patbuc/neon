@@ -8,6 +8,7 @@ pub enum BinaryOp {
     Subtract,
     Multiply,
     Divide,
+    FloorDivide,
     Modulo,
     // Comparison
     Equal,
@@ -28,6 +29,15 @@ pub enum UnaryOp {
     Not,
 }
 
+/// Parts of an interpolated string
+#[derive(Debug, Clone, PartialEq)]
+pub enum InterpolationPart {
+    /// Literal string part: "Hello "
+    Literal(String),
+    /// Expression part: ${name}
+    Expression(Box<Expr>),
+}
+
 /// Expression nodes
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -39,6 +49,11 @@ pub enum Expr {
     /// String literal: "hello"
     String {
         value: String,
+        location: SourceLocation,
+    },
+    /// String interpolation: "Hello ${name}"
+    StringInterpolation {
+        parts: Vec<InterpolationPart>,
         location: SourceLocation,
     },
     /// Boolean literal: true, false
@@ -133,6 +148,13 @@ pub enum Expr {
         value: Box<Expr>,
         location: SourceLocation,
     },
+    /// Range expression: 1..10 (exclusive), 1..=10 (inclusive)
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+        inclusive: bool,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -219,6 +241,7 @@ impl Expr {
         match self {
             Expr::Number { location, .. }
             | Expr::String { location, .. }
+            | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }
             | Expr::Variable { location, .. }
@@ -234,7 +257,8 @@ impl Expr {
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. }
-            | Expr::IndexAssign { location, .. } => location,
+            | Expr::IndexAssign { location, .. }
+            | Expr::Range { location, .. } => location,
         }
     }
 }
