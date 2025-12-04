@@ -412,3 +412,200 @@ fn test_array_literal_too_large() {
     assert!(err.contains("70000"));
     assert!(err.contains("65535"));
 }
+
+// =============================================================================
+// Postfix Increment/Decrement Tests
+// =============================================================================
+
+#[test]
+fn test_postfix_increment_compiles() {
+    let program = r#"
+    var x = 5
+    x++
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_decrement_compiles() {
+    let program = r#"
+    var x = 10
+    x--
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_increment_in_expression() {
+    let program = r#"
+    var x = 5
+    val y = x++
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_decrement_in_expression() {
+    let program = r#"
+    var x = 10
+    val y = x--
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_increment_in_print() {
+    let program = r#"
+    var x = 5
+    print x++
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_decrement_in_print() {
+    let program = r#"
+    var x = 10
+    print x--
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_multiple_postfix_operations() {
+    let program = r#"
+    var x = 5
+    var y = 10
+    x++
+    y--
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_increment_in_loop() {
+    let program = r#"
+    var i = 0
+    while (i < 5) {
+        i++
+    }
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_operations_with_arithmetic() {
+    let program = r#"
+    var x = 5
+    val y = x++ + 10
+    "#;
+    let bloq = compile_program(program).unwrap();
+    assert!(bloq.instruction_count() > 0);
+}
+
+#[test]
+fn test_postfix_increment_end_to_end() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    var x = 5
+    val old = x++
+    print old
+    print x
+    "#;
+    let bloq = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_bloq(bloq);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "5\n6");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_postfix_decrement_end_to_end() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    var x = 10
+    val old = x--
+    print old
+    print x
+    "#;
+    let bloq = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_bloq(bloq);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "10\n9");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_postfix_increment_multiple_times() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    var x = 0
+    x++
+    x++
+    x++
+    print x
+    "#;
+    let bloq = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_bloq(bloq);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "3");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_postfix_operations_in_function() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    fn increment_and_return(value) {
+        var x = value
+        val old = x++
+        return old
+    }
+
+    val result = increment_and_return(5)
+    print result
+    "#;
+    let bloq = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_bloq(bloq);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        // The function creates a local mutable variable and increments it
+        // Should return the old value (5)
+        assert_eq!(vm.get_output(), "5");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
