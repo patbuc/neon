@@ -3,6 +3,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStruct, Value};
 use crate::compiler::Compiler;
 use crate::vm::math_functions::*;
+use crate::vm::file_functions::*;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
 use std::collections::HashMap;
@@ -23,6 +24,9 @@ impl VirtualMachine {
 
         // Initialize built-in global objects
         globals.insert("Math".to_string(), Self::create_math_object());
+
+        // Initialize built-in global functions
+        globals.insert("File".to_string(), Value::new_native_function("File".to_string(), 1, native_file_constructor));
 
         VirtualMachine {
             call_frames: Vec::new(),
