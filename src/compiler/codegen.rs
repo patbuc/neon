@@ -331,14 +331,48 @@ impl CodeGenerator {
 
                 let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the true case
-                self.generate_stmt(body);
+
+                // Check if this is a desugared C-style for loop (body is Block with 2 statements)
+                // In that case, we need to patch continue jumps after the first statement but before the second (increment)
+                if let Stmt::Block { statements, .. } = body.as_ref() {
+                    if statements.len() == 2 {
+                        // This is likely a desugared for loop: Block([user_body, increment])
+                        // Generate the user body first
+                        self.generate_stmt(&statements[0]);
+
+                        // Now patch continue jumps to point here (before the increment)
+                        let loop_context = self.loop_contexts.last_mut().unwrap();
+                        let continue_jumps = std::mem::take(&mut loop_context.continue_jumps);
+                        for continue_jump in continue_jumps {
+                            self.patch_jump(continue_jump);
+                        }
+
+                        // Generate the increment
+                        self.generate_stmt(&statements[1]);
+                    } else {
+                        // Regular block, generate normally
+                        self.generate_stmt(body);
+                    }
+                } else {
+                    // Not a block, generate normally
+                    self.generate_stmt(body);
+                }
+
+                // Pop loop context
+                let loop_context = self.loop_contexts.pop().unwrap();
+
+                // Patch any remaining continue jumps (for non-desugared while loops)
+                // These should jump to just before the Loop instruction
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
                 self.emit_loop(loop_start, *location);
 
                 self.patch_jump(exit_jump);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the false case (exiting loop)
 
-                // Pop loop context and patch all break jumps
-                let loop_context = self.loop_contexts.pop().unwrap();
+                // Patch all break jumps
                 for break_jump in loop_context.break_jumps {
                     self.patch_jump(break_jump);
                 }
@@ -366,7 +400,9 @@ impl CodeGenerator {
                     .push(jump_index);
             }
             Stmt::Continue { location } => {
-                // Emit a Loop opcode to jump back to loop start
+                // Emit a Jump opcode and record it for later patching
+                // This allows continue to jump to the right place (before the Loop instruction)
+                // which is crucial for C-style for loops where increment comes at the end
                 if self.loop_contexts.is_empty() {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Codegen,
@@ -376,8 +412,12 @@ impl CodeGenerator {
                     ));
                     return;
                 }
-                let loop_start = self.loop_contexts.last().unwrap().loop_start;
-                self.emit_loop(loop_start, *location);
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .continue_jumps
+                    .push(jump_index);
             }
             Stmt::ForIn {
                 variable,
@@ -444,6 +484,13 @@ impl CodeGenerator {
                 // Pop the old loop variable value before getting the next one
                 self.emit_op_code(OpCode::Pop, *location);
 
+                // Patch all continue jumps to point here (just before the Loop)
+                // This allows continue to properly skip to the next iteration
+                let loop_context = self.loop_contexts.pop().unwrap();
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
                 // Jump back to loop start (will push next value)
                 self.emit_loop(loop_start, *location);
 
@@ -459,8 +506,7 @@ impl CodeGenerator {
                 // Pop the iterator from the VM's iterator stack
                 self.emit_op_code(OpCode::PopIterator, *location);
 
-                // Pop loop context and patch all break jumps
-                let loop_context = self.loop_contexts.pop().unwrap();
+                // Patch all break jumps
                 for break_jump in loop_context.break_jumps {
                     self.patch_jump(break_jump);
                 }
