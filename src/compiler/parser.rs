@@ -25,6 +25,7 @@ enum Precedence {
     And,
     Equality,
     Comparison,
+    Range,
     Term,
     Factor,
     Unary,
@@ -40,7 +41,8 @@ impl Precedence {
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
-            Precedence::Comparison => Precedence::Term,
+            Precedence::Comparison => Precedence::Range,
+            Precedence::Range => Precedence::Term,
             Precedence::Term => Precedence::Factor,
             Precedence::Factor => Precedence::Unary,
             Precedence::Unary => Precedence::Call,
@@ -772,6 +774,7 @@ impl Parser {
                 | TokenType::LessEqual
                 | TokenType::AndAnd
                 | TokenType::OrOr => self.binary(expr),
+                TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
                 TokenType::LeftBracket => self.index(expr),
@@ -793,6 +796,7 @@ impl Parser {
             TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket => Precedence::Call,
             TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
+            TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
             TokenType::Greater
             | TokenType::GreaterEqual
             | TokenType::Less
@@ -910,6 +914,22 @@ impl Parser {
         Some(Expr::Unary {
             operator,
             operand,
+            location,
+        })
+    }
+
+    fn range(&mut self, start: Expr) -> Option<Expr> {
+        let operator_type = self.previous_token.token_type.clone();
+        let location = self.current_location();
+
+        let inclusive = operator_type == TokenType::DotDotEqual;
+        let precedence = self.get_precedence(&operator_type).next();
+        let end = Box::new(self.parse_precedence(precedence, false)?);
+
+        Some(Expr::Range {
+            start: Box::new(start),
+            end,
+            inclusive,
             location,
         })
     }
