@@ -10,6 +10,7 @@ pub(crate) mod array_functions;
 pub(crate) mod map_functions;
 pub(crate) mod set_functions;
 mod math_functions;
+pub(crate) mod file_functions;
 #[cfg(test)]
 mod tests;
 

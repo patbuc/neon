@@ -445,7 +445,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
 
-        // Check if this is a built-in global using the sentinel value u32::MAX
+        // Check if this is a built-in global using sentinel values
         if index == u32::MAX as usize {
             // This is a request for Math from the globals HashMap
             if let Some(value) = self.globals.get("Math") {
@@ -456,6 +456,18 @@ impl VirtualMachine {
             }
             // If Math is not found, this is an internal error
             self.runtime_error("Built-in global 'Math' not found");
+            return;
+        }
+        if index == (u32::MAX - 1) as usize {
+            // This is a request for File from the globals HashMap
+            if let Some(value) = self.globals.get("File") {
+                self.push(value.clone());
+                let frame = self.call_frames.last_mut().unwrap();
+                frame.ip += bits.as_bytes();
+                return;
+            }
+            // If File is not found, this is an internal error
+            self.runtime_error("Built-in global 'File' not found");
             return;
         }
 
@@ -662,6 +674,7 @@ impl VirtualMachine {
                 Object::Array(_) => "Array".to_string(),
                 Object::Map(_) => "Map".to_string(),
                 Object::Set(_) => "Set".to_string(),
+                Object::File(_) => "File".to_string(),
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
                     instance.r#struct.name.clone()

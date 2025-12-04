@@ -34,6 +34,21 @@ impl SemanticAnalyzer {
         };
         let _ = symbol_table.define(math_symbol); // Ignore error since this is initial setup
 
+        // Pre-define File as a built-in global function
+        // This corresponds to the File constructor that will be available at runtime
+        let file_symbol = Symbol {
+            name: "File".to_string(),
+            kind: SymbolKind::Function { arity: 1 },
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(file_symbol); // Ignore error since this is initial setup
+
         SemanticAnalyzer {
             symbol_table,
             errors: Vec::new(),
