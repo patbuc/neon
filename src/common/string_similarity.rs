@@ -3,6 +3,8 @@
 /// The Levenshtein distance is the minimum number of single-character edits
 /// (insertions, deletions, or substitutions) required to change one string into another.
 ///
+/// This function uses the `strsim` crate internally for efficient distance calculation.
+///
 /// # Arguments
 /// * `s1` - The first string
 /// * `s2` - The second string
