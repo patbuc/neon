@@ -8,6 +8,16 @@ use crate::common::{Bloq, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 
+/// Loop context for tracking break and continue jump locations
+struct LoopContext {
+    /// Start of the loop (for continue)
+    loop_start: u32,
+    /// Break jump locations to patch when exiting loop
+    break_jumps: Vec<u32>,
+    /// Continue jump locations to patch when starting next iteration
+    continue_jumps: Vec<u32>,
+}
+
 /// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
     /// Stack of bloqs (for nested function compilation)
@@ -16,6 +26,8 @@ pub struct CodeGenerator {
     scope_depth: u32,
     /// Errors encountered during code generation
     errors: Vec<CompilationError>,
+    /// Stack of loop contexts for nested loops
+    loop_contexts: Vec<LoopContext>,
 }
 
 impl CodeGenerator {
@@ -26,6 +38,7 @@ impl CodeGenerator {
             bloqs,
             scope_depth: 0,
             errors: Vec::new(),
+            loop_contexts: Vec::new(),
         }
     }
 
@@ -310,19 +323,104 @@ impl CodeGenerator {
             } => {
                 let loop_start = self.current_bloq().instruction_count() as u32;
 
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
+
                 self.generate_expr(condition);
 
                 let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the true case
-                self.generate_stmt(body);
+
+                // Check if this is a desugared C-style for loop (body is Block with 2 statements)
+                // In that case, we need to patch continue jumps after the first statement but before the second (increment)
+                if let Stmt::Block { statements, .. } = body.as_ref() {
+                    if statements.len() == 2 {
+                        // This is likely a desugared for loop: Block([user_body, increment])
+                        // Generate the user body first
+                        self.generate_stmt(&statements[0]);
+
+                        // Now patch continue jumps to point here (before the increment)
+                        let loop_context = self.loop_contexts.last_mut().unwrap();
+                        let continue_jumps = std::mem::take(&mut loop_context.continue_jumps);
+                        for continue_jump in continue_jumps {
+                            self.patch_jump(continue_jump);
+                        }
+
+                        // Generate the increment
+                        self.generate_stmt(&statements[1]);
+                    } else {
+                        // Regular block, generate normally
+                        self.generate_stmt(body);
+                    }
+                } else {
+                    // Not a block, generate normally
+                    self.generate_stmt(body);
+                }
+
+                // Pop loop context
+                let loop_context = self.loop_contexts.pop().unwrap();
+
+                // Patch any remaining continue jumps (for non-desugared while loops)
+                // These should jump to just before the Loop instruction
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
                 self.emit_loop(loop_start, *location);
 
                 self.patch_jump(exit_jump);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the false case (exiting loop)
+
+                // Patch all break jumps
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
             }
             Stmt::Return { value, location } => {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
+            }
+            Stmt::Break { location } => {
+                // Emit a Jump opcode and record its location for later patching
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'break' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .break_jumps
+                    .push(jump_index);
+            }
+            Stmt::Continue { location } => {
+                // Emit a Jump opcode and record it for later patching
+                // This allows continue to jump to the right place (before the Loop instruction)
+                // which is crucial for C-style for loops where increment comes at the end
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'continue' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .continue_jumps
+                    .push(jump_index);
             }
             Stmt::ForIn {
                 variable,
@@ -359,6 +457,13 @@ impl CodeGenerator {
                 // Mark the start of the loop
                 let loop_start = self.current_bloq().instruction_count() as u32;
 
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
+
                 // Check if iterator has more elements (pushes true if more, false if done)
                 self.emit_op_code(OpCode::IteratorDone, *location);
 
@@ -382,6 +487,13 @@ impl CodeGenerator {
                 // Pop the old loop variable value before getting the next one
                 self.emit_op_code(OpCode::Pop, *location);
 
+                // Patch all continue jumps to point here (just before the Loop)
+                // This allows continue to properly skip to the next iteration
+                let loop_context = self.loop_contexts.pop().unwrap();
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
                 // Jump back to loop start (will push next value)
                 self.emit_loop(loop_start, *location);
 
@@ -396,6 +508,11 @@ impl CodeGenerator {
 
                 // Pop the iterator from the VM's iterator stack
                 self.emit_op_code(OpCode::PopIterator, *location);
+
+                // Patch all break jumps
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
 
                 // Exit the loop scope
                 self.scope_depth -= 1;

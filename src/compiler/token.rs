@@ -36,7 +36,9 @@ pub(crate) enum TokenType {
     Number,
 
     And,
+    Break,
     Class,
+    Continue,
     Else,
     False,
     For,

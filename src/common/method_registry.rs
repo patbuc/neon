@@ -15,6 +15,14 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Array", "length", crate::vm::array_functions::native_array_length),
     ("Array", "size", crate::vm::array_functions::native_array_size),
     ("Array", "contains", crate::vm::array_functions::native_array_contains),
+    ("Array", "sort", crate::vm::array_functions::native_array_sort),
+    ("Array", "reverse", crate::vm::array_functions::native_array_reverse),
+    ("Array", "slice", crate::vm::array_functions::native_array_slice),
+    ("Array", "join", crate::vm::array_functions::native_array_join),
+    ("Array", "indexOf", crate::vm::array_functions::native_array_index_of),
+    ("Array", "sum", crate::vm::array_functions::native_array_sum),
+    ("Array", "min", crate::vm::array_functions::native_array_min),
+    ("Array", "max", crate::vm::array_functions::native_array_max),
     // String methods
     ("String", "len", crate::vm::string_functions::native_string_len),
     ("String", "substring", crate::vm::string_functions::native_string_substring),
@@ -23,6 +31,13 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("String", "toInt", crate::vm::string_functions::native_string_to_int),
     ("String", "toFloat", crate::vm::string_functions::native_string_to_float),
     ("String", "toBool", crate::vm::string_functions::native_string_to_bool),
+    ("String", "trim", crate::vm::string_functions::native_string_trim),
+    ("String", "startsWith", crate::vm::string_functions::native_string_starts_with),
+    ("String", "endsWith", crate::vm::string_functions::native_string_ends_with),
+    ("String", "indexOf", crate::vm::string_functions::native_string_index_of),
+    ("String", "charAt", crate::vm::string_functions::native_string_char_at),
+    ("String", "toUpperCase", crate::vm::string_functions::native_string_to_upper_case),
+    ("String", "toLowerCase", crate::vm::string_functions::native_string_to_lower_case),
     // Number methods
     ("Number", "toString", crate::vm::number_functions::native_number_to_string),
     // Boolean methods
@@ -146,18 +161,26 @@ mod tests {
     #[test]
     fn test_get_methods_for_type_array() {
         let methods = MethodRegistry::get_methods_for_type("Array");
-        assert_eq!(methods.len(), 5);
+        assert_eq!(methods.len(), 13);
         assert!(methods.contains(&"push"));
         assert!(methods.contains(&"pop"));
         assert!(methods.contains(&"length"));
         assert!(methods.contains(&"size"));
         assert!(methods.contains(&"contains"));
+        assert!(methods.contains(&"sort"));
+        assert!(methods.contains(&"reverse"));
+        assert!(methods.contains(&"slice"));
+        assert!(methods.contains(&"join"));
+        assert!(methods.contains(&"indexOf"));
+        assert!(methods.contains(&"sum"));
+        assert!(methods.contains(&"min"));
+        assert!(methods.contains(&"max"));
     }
 
     #[test]
     fn test_get_methods_for_type_string() {
         let methods = MethodRegistry::get_methods_for_type("String");
-        assert_eq!(methods.len(), 7);
+        assert_eq!(methods.len(), 14);
         assert!(methods.contains(&"len"));
         assert!(methods.contains(&"substring"));
         assert!(methods.contains(&"replace"));
@@ -165,6 +188,13 @@ mod tests {
         assert!(methods.contains(&"toInt"));
         assert!(methods.contains(&"toFloat"));
         assert!(methods.contains(&"toBool"));
+        assert!(methods.contains(&"trim"));
+        assert!(methods.contains(&"startsWith"));
+        assert!(methods.contains(&"endsWith"));
+        assert!(methods.contains(&"indexOf"));
+        assert!(methods.contains(&"charAt"));
+        assert!(methods.contains(&"toUpperCase"));
+        assert!(methods.contains(&"toLowerCase"));
     }
 
     #[test]
@@ -221,6 +251,14 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("Array", "push"));
         assert!(MethodRegistry::is_valid_method("Array", "pop"));
         assert!(MethodRegistry::is_valid_method("Array", "length"));
+        assert!(MethodRegistry::is_valid_method("Array", "sort"));
+        assert!(MethodRegistry::is_valid_method("Array", "reverse"));
+        assert!(MethodRegistry::is_valid_method("Array", "slice"));
+        assert!(MethodRegistry::is_valid_method("Array", "join"));
+        assert!(MethodRegistry::is_valid_method("Array", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("Array", "sum"));
+        assert!(MethodRegistry::is_valid_method("Array", "min"));
+        assert!(MethodRegistry::is_valid_method("Array", "max"));
         assert!(!MethodRegistry::is_valid_method("Array", "invalid"));
     }
 
@@ -355,6 +393,14 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("Array", "length"));
         assert!(MethodRegistry::is_valid_method("Array", "size"));
         assert!(MethodRegistry::is_valid_method("Array", "contains"));
+        assert!(MethodRegistry::is_valid_method("Array", "sort"));
+        assert!(MethodRegistry::is_valid_method("Array", "reverse"));
+        assert!(MethodRegistry::is_valid_method("Array", "slice"));
+        assert!(MethodRegistry::is_valid_method("Array", "join"));
+        assert!(MethodRegistry::is_valid_method("Array", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("Array", "sum"));
+        assert!(MethodRegistry::is_valid_method("Array", "min"));
+        assert!(MethodRegistry::is_valid_method("Array", "max"));
 
         // String methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("String", "len"));
@@ -364,6 +410,13 @@ mod tests {
         assert!(MethodRegistry::is_valid_method("String", "toInt"));
         assert!(MethodRegistry::is_valid_method("String", "toFloat"));
         assert!(MethodRegistry::is_valid_method("String", "toBool"));
+        assert!(MethodRegistry::is_valid_method("String", "trim"));
+        assert!(MethodRegistry::is_valid_method("String", "startsWith"));
+        assert!(MethodRegistry::is_valid_method("String", "endsWith"));
+        assert!(MethodRegistry::is_valid_method("String", "indexOf"));
+        assert!(MethodRegistry::is_valid_method("String", "charAt"));
+        assert!(MethodRegistry::is_valid_method("String", "toUpperCase"));
+        assert!(MethodRegistry::is_valid_method("String", "toLowerCase"));
 
         // Number methods from vm/impl.rs
         assert!(MethodRegistry::is_valid_method("Number", "toString"));

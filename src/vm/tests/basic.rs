@@ -2632,3 +2632,272 @@ fn test_array_literal_large_size() {
     assert_eq!(Result::Ok, result);
     assert_eq!("300\n0\n255\n256\n299", vm.get_output());
 }
+
+// =============================================================================
+// Break and Continue Tests
+// =============================================================================
+
+#[test]
+fn test_break_in_while_loop() {
+    let program = r#"
+        var x = 0
+        while (x < 10) {
+            if (x == 5) {
+                break
+            }
+            print x
+            x = x + 1
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0\n1\n2\n3\n4\nDone", vm.get_output());
+}
+
+#[test]
+fn test_continue_in_while_loop() {
+    let program = r#"
+        var x = 0
+        while (x < 5) {
+            x = x + 1
+            if (x == 3) {
+                continue
+            }
+            print x
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n2\n4\n5\nDone", vm.get_output());
+}
+
+#[test]
+fn test_break_in_for_loop() {
+    let program = r#"
+        for (var i = 0; i < 10; i = i + 1) {
+            if (i == 5) {
+                break
+            }
+            print i
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0\n1\n2\n3\n4\nDone", vm.get_output());
+}
+
+#[test]
+fn test_continue_in_for_loop() {
+    let program = r#"
+        for (var i = 0; i < 5; i = i + 1) {
+            if (i == 2) {
+                continue
+            }
+            print i
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0\n1\n3\n4\nDone", vm.get_output());
+}
+
+#[test]
+fn test_break_in_for_in_loop() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        for (item in arr) {
+            if (item == 3) {
+                break
+            }
+            print item
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n2\nDone", vm.get_output());
+}
+
+#[test]
+fn test_continue_in_for_in_loop() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        for (item in arr) {
+            if (item == 3) {
+                continue
+            }
+            print item
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n2\n4\n5\nDone", vm.get_output());
+}
+
+#[test]
+fn test_nested_loops_with_break() {
+    let program = r#"
+        var i = 0
+        while (i < 3) {
+            var j = 0
+            while (j < 3) {
+                if (j == 2) {
+                    break
+                }
+                print "i=" + i.toString() + " j=" + j.toString()
+                j = j + 1
+            }
+            i = i + 1
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("i=0 j=0\ni=0 j=1\ni=1 j=0\ni=1 j=1\ni=2 j=0\ni=2 j=1\nDone", vm.get_output());
+}
+
+#[test]
+fn test_nested_loops_with_continue() {
+    let program = r#"
+        var i = 0
+        while (i < 3) {
+            i = i + 1
+            if (i == 2) {
+                continue
+            }
+            var j = 0
+            while (j < 2) {
+                print "i=" + i.toString() + " j=" + j.toString()
+                j = j + 1
+            }
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("i=1 j=0\ni=1 j=1\ni=3 j=0\ni=3 j=1\nDone", vm.get_output());
+}
+
+#[test]
+fn test_break_with_accumulator() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        var sum = 0
+        for (item in arr) {
+            if (sum > 10) {
+                break
+            }
+            sum = sum + item
+        }
+        print sum
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("15", vm.get_output());
+}
+
+#[test]
+fn test_continue_with_accumulator() {
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        var sum = 0
+        for (item in arr) {
+            if (item == 3) {
+                continue
+            }
+            sum = sum + item
+        }
+        print sum
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("12", vm.get_output());
+}
+
+#[test]
+fn test_break_immediately() {
+    let program = r#"
+        var x = 0
+        while (true) {
+            break
+            x = x + 1
+        }
+        print x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0", vm.get_output());
+}
+
+#[test]
+fn test_multiple_breaks_in_loop() {
+    let program = r#"
+        var x = 0
+        while (x < 10) {
+            if (x == 3) {
+                break
+            }
+            if (x == 7) {
+                break
+            }
+            print x
+            x = x + 1
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0\n1\n2\nDone", vm.get_output());
+}
+
+#[test]
+fn test_multiple_continues_in_loop() {
+    let program = r#"
+        var x = 0
+        while (x < 6) {
+            x = x + 1
+            if (x == 2) {
+                continue
+            }
+            if (x == 4) {
+                continue
+            }
+            print x
+        }
+        print "Done"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1\n3\n5\n6\nDone", vm.get_output());
+}

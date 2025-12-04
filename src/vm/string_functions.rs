@@ -254,6 +254,218 @@ pub fn native_string_split(_vm: &mut VirtualMachine, args: &[Value]) -> Result<V
     Ok(Value::new_array(parts))
 }
 
+/// Native implementation of String.trim()
+/// Returns a new string with leading and trailing whitespace removed
+pub fn native_string_trim(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("trim() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("trim() can only be called on strings".to_string()),
+        },
+        _ => return Err("trim() can only be called on strings".to_string()),
+    };
+
+    let trimmed = obj_string.value.trim();
+    Ok(string!(trimmed))
+}
+
+/// Native implementation of String.startsWith(prefix)
+/// Returns true if the string starts with the given prefix
+pub fn native_string_starts_with(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "startsWith() expects 1 argument (prefix), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("startsWith() can only be called on strings".to_string()),
+        },
+        _ => return Err("startsWith() can only be called on strings".to_string()),
+    };
+
+    // Extract prefix
+    let prefix = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s.value.as_ref(),
+            _ => return Err("startsWith() prefix must be a string".to_string()),
+        },
+        _ => return Err("startsWith() prefix must be a string".to_string()),
+    };
+
+    Ok(Value::Boolean(obj_string.value.starts_with(prefix)))
+}
+
+/// Native implementation of String.endsWith(suffix)
+/// Returns true if the string ends with the given suffix
+pub fn native_string_ends_with(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "endsWith() expects 1 argument (suffix), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("endsWith() can only be called on strings".to_string()),
+        },
+        _ => return Err("endsWith() can only be called on strings".to_string()),
+    };
+
+    // Extract suffix
+    let suffix = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s.value.as_ref(),
+            _ => return Err("endsWith() suffix must be a string".to_string()),
+        },
+        _ => return Err("endsWith() suffix must be a string".to_string()),
+    };
+
+    Ok(Value::Boolean(obj_string.value.ends_with(suffix)))
+}
+
+/// Native implementation of String.indexOf(substring)
+/// Returns the index of the first occurrence of substring, or -1 if not found
+pub fn native_string_index_of(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "indexOf() expects 1 argument (substring), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("indexOf() can only be called on strings".to_string()),
+        },
+        _ => return Err("indexOf() can only be called on strings".to_string()),
+    };
+
+    // Extract substring
+    let substring = match &args[1] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s.value.as_ref(),
+            _ => return Err("indexOf() substring must be a string".to_string()),
+        },
+        _ => return Err("indexOf() substring must be a string".to_string()),
+    };
+
+    // Find the index (character-based, not byte-based)
+    let chars: Vec<char> = obj_string.value.chars().collect();
+    let substring_chars: Vec<char> = substring.chars().collect();
+
+    if substring_chars.is_empty() {
+        return Ok(Value::Number(0.0));
+    }
+
+    for (i, window) in chars.windows(substring_chars.len()).enumerate() {
+        if window == substring_chars.as_slice() {
+            return Ok(Value::Number(i as f64));
+        }
+    }
+
+    Ok(Value::Number(-1.0))
+}
+
+/// Native implementation of String.charAt(index)
+/// Returns the character at the given index as a string of length 1
+pub fn native_string_char_at(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "charAt() expects 1 argument (index), got {}",
+            args.len() - 1
+        ));
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("charAt() can only be called on strings".to_string()),
+        },
+        _ => return Err("charAt() can only be called on strings".to_string()),
+    };
+
+    // Extract index
+    let index_arg = match &args[1] {
+        Value::Number(n) => *n,
+        _ => return Err("charAt() index must be a number".to_string()),
+    };
+
+    // Handle negative indices and bounds checking
+    let chars: Vec<char> = obj_string.value.chars().collect();
+    let str_len = chars.len() as i32;
+
+    let index = if index_arg < 0.0 {
+        (str_len + index_arg as i32).max(0) as usize
+    } else {
+        index_arg as usize
+    };
+
+    if index >= chars.len() {
+        return Err(format!(
+            "charAt() index {} out of bounds (string length: {})",
+            index_arg, chars.len()
+        ));
+    }
+
+    Ok(string!(chars[index].to_string()))
+}
+
+/// Native implementation of String.toUpperCase()
+/// Returns a new string with all characters converted to uppercase
+pub fn native_string_to_upper_case(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toUpperCase() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toUpperCase() can only be called on strings".to_string()),
+        },
+        _ => return Err("toUpperCase() can only be called on strings".to_string()),
+    };
+
+    let uppercase = obj_string.value.to_uppercase();
+    Ok(string!(uppercase))
+}
+
+/// Native implementation of String.toLowerCase()
+/// Returns a new string with all characters converted to lowercase
+pub fn native_string_to_lower_case(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.is_empty() {
+        return Err("toLowerCase() requires a string receiver".to_string());
+    }
+
+    // Extract the string
+    let obj_string = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::String(s) => s,
+            _ => return Err("toLowerCase() can only be called on strings".to_string()),
+        },
+        _ => return Err("toLowerCase() can only be called on strings".to_string()),
+    };
+
+    let lowercase = obj_string.value.to_lowercase();
+    Ok(string!(lowercase))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -966,5 +1178,450 @@ mod tests {
 
         let result = native_string_to_bool(&mut vm, &args);
         assert!(result.is_err());
+    }
+
+    // Tests for String.trim()
+    #[test]
+    fn test_trim_basic() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  hello world  ");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("hello world", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_leading_only() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("  hello");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_trailing_only() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello  ");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_no_whitespace() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_empty_string() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_only_whitespace() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("   ");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("", as_string!(result));
+    }
+
+    #[test]
+    fn test_trim_tabs_and_newlines() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("\t\nhello\n\t");
+        let args = vec![test_str];
+
+        let result = native_string_trim(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    // Tests for String.startsWith()
+    #[test]
+    fn test_starts_with_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let prefix = string!("hello");
+        let args = vec![test_str, prefix];
+
+        let result = native_string_starts_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_starts_with_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let prefix = string!("world");
+        let args = vec![test_str, prefix];
+
+        let result = native_string_starts_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_starts_with_empty_prefix() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let prefix = string!("");
+        let args = vec![test_str, prefix];
+
+        let result = native_string_starts_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_starts_with_exact_match() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let prefix = string!("hello");
+        let args = vec![test_str, prefix];
+
+        let result = native_string_starts_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_starts_with_longer_prefix() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hi");
+        let prefix = string!("hello");
+        let args = vec![test_str, prefix];
+
+        let result = native_string_starts_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    // Tests for String.endsWith()
+    #[test]
+    fn test_ends_with_true() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let suffix = string!("world");
+        let args = vec![test_str, suffix];
+
+        let result = native_string_ends_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_ends_with_false() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let suffix = string!("hello");
+        let args = vec![test_str, suffix];
+
+        let result = native_string_ends_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_ends_with_empty_suffix() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let suffix = string!("");
+        let args = vec![test_str, suffix];
+
+        let result = native_string_ends_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_ends_with_exact_match() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let suffix = string!("hello");
+        let args = vec![test_str, suffix];
+
+        let result = native_string_ends_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_ends_with_longer_suffix() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hi");
+        let suffix = string!("hello");
+        let args = vec![test_str, suffix];
+
+        let result = native_string_ends_with(&mut vm, &args).unwrap();
+        assert_eq!(result, Value::Boolean(false));
+    }
+
+    // Tests for String.indexOf()
+    #[test]
+    fn test_index_of_found_at_start() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let substring = string!("hello");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.0);
+    }
+
+    #[test]
+    fn test_index_of_found_at_end() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let substring = string!("world");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 6.0);
+    }
+
+    #[test]
+    fn test_index_of_found_in_middle() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let substring = string!("lo w");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 3.0);
+    }
+
+    #[test]
+    fn test_index_of_not_found() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello world");
+        let substring = string!("xyz");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), -1.0);
+    }
+
+    #[test]
+    fn test_index_of_empty_substring() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let substring = string!("");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 0.0);
+    }
+
+    #[test]
+    fn test_index_of_single_char() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let substring = string!("l");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 2.0); // First 'l' is at index 2
+    }
+
+    #[test]
+    fn test_index_of_unicode() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello 🌍 world");
+        let substring = string!("🌍");
+        let args = vec![test_str, substring];
+
+        let result = native_string_index_of(&mut vm, &args).unwrap();
+        assert_eq!(as_number!(result), 6.0);
+    }
+
+    // Tests for String.charAt()
+    #[test]
+    fn test_char_at_basic() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str, Value::Number(0.0)];
+
+        let result = native_string_char_at(&mut vm, &args).unwrap();
+        assert_eq!("h", as_string!(result));
+    }
+
+    #[test]
+    fn test_char_at_middle() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str, Value::Number(2.0)];
+
+        let result = native_string_char_at(&mut vm, &args).unwrap();
+        assert_eq!("l", as_string!(result));
+    }
+
+    #[test]
+    fn test_char_at_last() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str, Value::Number(4.0)];
+
+        let result = native_string_char_at(&mut vm, &args).unwrap();
+        assert_eq!("o", as_string!(result));
+    }
+
+    #[test]
+    fn test_char_at_negative_index() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str, Value::Number(-1.0)];
+
+        let result = native_string_char_at(&mut vm, &args).unwrap();
+        assert_eq!("o", as_string!(result));
+    }
+
+    #[test]
+    fn test_char_at_out_of_bounds() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str, Value::Number(10.0)];
+
+        let result = native_string_char_at(&mut vm, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("out of bounds"));
+    }
+
+    #[test]
+    fn test_char_at_unicode() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello 🌍");
+        let args = vec![test_str, Value::Number(6.0)];
+
+        let result = native_string_char_at(&mut vm, &args).unwrap();
+        assert_eq!("🌍", as_string!(result));
+    }
+
+    // Tests for String.toUpperCase()
+    #[test]
+    fn test_to_upper_case_basic() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("HELLO", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_upper_case_mixed() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HeLLo WoRLd");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("HELLO WORLD", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_upper_case_already_upper() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HELLO");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("HELLO", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_upper_case_empty() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_upper_case_numbers_and_symbols() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello123!@#");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("HELLO123!@#", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_upper_case_unicode() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello 🌍");
+        let args = vec![test_str];
+
+        let result = native_string_to_upper_case(&mut vm, &args).unwrap();
+        assert_eq!("HELLO 🌍", as_string!(result));
+    }
+
+    // Tests for String.toLowerCase()
+    #[test]
+    fn test_to_lower_case_basic() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HELLO");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_lower_case_mixed() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HeLLo WoRLd");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("hello world", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_lower_case_already_lower() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("hello");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("hello", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_lower_case_empty() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_lower_case_numbers_and_symbols() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HELLO123!@#");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("hello123!@#", as_string!(result));
+    }
+
+    #[test]
+    fn test_to_lower_case_unicode() {
+        let mut vm = VirtualMachine::new();
+        let test_str = string!("HELLO 🌍");
+        let args = vec![test_str];
+
+        let result = native_string_to_lower_case(&mut vm, &args).unwrap();
+        assert_eq!("hello 🌍", as_string!(result));
     }
 }
