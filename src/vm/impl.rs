@@ -38,6 +38,7 @@ impl VirtualMachine {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
             source: String::new(),
+            iterator_stack: Vec::new(),
         }
     }
 
@@ -245,6 +246,25 @@ impl VirtualMachine {
                 OpCode::CreateSet => self.fn_create_set(),
                 OpCode::GetIndex => self.fn_get_index(),
                 OpCode::SetIndex => self.fn_set_index(),
+                OpCode::GetIterator => {
+                    if let Some(result) = self.fn_get_iterator() {
+                        return result;
+                    }
+                }
+                OpCode::IteratorNext => {
+                    if let Some(result) = self.fn_iterator_next() {
+                        return result;
+                    }
+                }
+                OpCode::IteratorDone => self.fn_iterator_done(),
+                OpCode::PopIterator => {
+                    // Pop the current iterator from the iterator stack
+                    if self.iterator_stack.is_empty() {
+                        self.runtime_error("No iterator to pop");
+                        return Result::RuntimeError;
+                    }
+                    self.iterator_stack.pop();
+                }
             }
 
             // Increment IP for the current frame

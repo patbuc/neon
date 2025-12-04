@@ -1077,4 +1077,152 @@ impl VirtualMachine {
             Value::Nil => None,
         }
     }
+
+    /// GetIterator: Convert a collection to an iterator
+    /// Pops collection from stack, pushes iterator onto iterator stack
+    /// For arrays: iterate over elements directly
+    /// For maps: iterate over keys
+    /// For sets: convert to array and iterate
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_iterator(&mut self) -> Option<Result> {
+        let collection = self.pop();
+
+        // Validate collection type and prepare for iteration
+        let iterator_value = match &collection {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(_) => {
+                    // Arrays can be iterated directly
+                    collection
+                }
+                Object::Map(map_ref) => {
+                    // For maps, we need to iterate over keys
+                    // Convert keys to an array for consistent iteration
+                    let map = map_ref.borrow();
+                    let keys: Vec<Value> = map
+                        .keys()
+                        .map(|k| match k {
+                            crate::common::MapKey::String(s) => {
+                                Value::Object(Rc::new(Object::String(crate::common::ObjString {
+                                    value: Rc::clone(s),
+                                })))
+                            }
+                            crate::common::MapKey::Number(n) => Value::Number(n.into_inner()),
+                            crate::common::MapKey::Boolean(b) => Value::Boolean(*b),
+                        })
+                        .collect();
+
+                    Value::new_array(keys)
+                }
+                Object::Set(set_ref) => {
+                    // For sets, convert to array for iteration
+                    let set = set_ref.borrow();
+                    let elements: Vec<Value> = set
+                        .iter()
+                        .map(|k| match k {
+                            crate::common::SetKey::String(s) => {
+                                Value::Object(Rc::new(Object::String(crate::common::ObjString {
+                                    value: Rc::clone(s),
+                                })))
+                            }
+                            crate::common::SetKey::Number(n) => Value::Number(n.into_inner()),
+                            crate::common::SetKey::Boolean(b) => Value::Boolean(*b),
+                        })
+                        .collect();
+
+                    Value::new_array(elements)
+                }
+                _ => {
+                    self.runtime_error(&format!(
+                        "Cannot iterate over type: {}. Only arrays, maps, and sets are iterable.",
+                        collection
+                    ));
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error(&format!(
+                    "Cannot iterate over type: {}. Only arrays, maps, and sets are iterable.",
+                    collection
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Push new iterator onto the stack
+        self.iterator_stack.push((0, iterator_value));
+        None
+    }
+
+    /// IteratorDone: Check if iteration is complete
+    /// Pushes false if done (no more elements), true if not done (more elements remain)
+    /// This inverted logic allows JumpIfFalse to exit the loop when done
+    #[inline(always)]
+    pub(in crate::vm) fn fn_iterator_done(&mut self) {
+        if let Some((index, collection)) = self.iterator_stack.last() {
+            // Check if we have more elements (NOT done)
+            let has_more = match collection {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::Array(array_ref) => {
+                        let array = array_ref.borrow();
+                        *index < array.len()
+                    }
+                    _ => false, // Should not happen since GetIterator normalizes to arrays
+                },
+                _ => false,
+            };
+
+            self.push(boolean!(has_more));
+        } else {
+            // No iterator initialized - this is an error
+            self.runtime_error("No iterator initialized");
+            self.push(boolean!(false)); // Return false (done/error)
+        }
+    }
+
+    /// IteratorNext: Get the next element from the iterator
+    /// Pushes the next value onto the stack and advances the iterator
+    /// When exiting a loop, pops the iterator from the iterator stack
+    #[inline(always)]
+    pub(in crate::vm) fn fn_iterator_next(&mut self) -> Option<Result> {
+        // Extract values from iterator state to avoid multiple mutable borrows
+        let (value, new_index) = if let Some((index, collection)) = self.iterator_stack.last() {
+            match collection {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::Array(array_ref) => {
+                        let array = array_ref.borrow();
+                        if *index < array.len() {
+                            let value = array[*index].clone();
+                            (Some(value), Some(*index + 1))
+                        } else {
+                            (None, None)
+                        }
+                    }
+                    _ => (None, None),
+                },
+                _ => (None, None),
+            }
+        } else {
+            (None, None)
+        };
+
+        // Now handle the results without holding iterator borrow
+        match (value, new_index) {
+            (Some(v), Some(idx)) => {
+                // Update the iterator index
+                if let Some((index, _)) = self.iterator_stack.last_mut() {
+                    *index = idx;
+                }
+                self.push(v);
+                None
+            }
+            (None, None) if self.iterator_stack.is_empty() => {
+                self.runtime_error("No iterator initialized");
+                Some(Result::RuntimeError)
+            }
+            _ => {
+                self.runtime_error("Iterator exhausted or invalid state");
+                Some(Result::RuntimeError)
+            }
+        }
+    }
 }
