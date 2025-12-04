@@ -600,6 +600,11 @@ impl SemanticAnalyzer {
                 self.resolve_expr(index);
                 self.resolve_expr(value);
             }
+            Expr::Range { start, end, .. } => {
+                // Resolve the start and end expressions
+                self.resolve_expr(start);
+                self.resolve_expr(end);
+            }
         }
     }
 }

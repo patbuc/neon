@@ -1,0 +1,12 @@
+// Expected:
+// 1
+// 2
+// 3
+// 4
+// done
+
+// Test exclusive range with expressions
+for (i in 1..(2 + 3)) {
+    print i
+}
+print "done"

@@ -133,6 +133,13 @@ pub enum Expr {
         value: Box<Expr>,
         location: SourceLocation,
     },
+    /// Range expression: 1..10 (exclusive), 1..=10 (inclusive)
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+        inclusive: bool,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -234,7 +241,8 @@ impl Expr {
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. }
-            | Expr::IndexAssign { location, .. } => location,
+            | Expr::IndexAssign { location, .. }
+            | Expr::Range { location, .. } => location,
         }
     }
 }

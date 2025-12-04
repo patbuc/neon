@@ -837,6 +837,23 @@ impl CodeGenerator {
                 // Emit SetIndex opcode
                 self.emit_op_code(OpCode::SetIndex, *location);
             }
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                location,
+            } => {
+                // Generate bytecode for range expression
+                // First evaluate the start of the range
+                self.generate_expr(start);
+
+                // Then evaluate the end of the range
+                self.generate_expr(end);
+
+                // Emit CreateRange opcode with inclusive flag
+                self.emit_op_code(OpCode::CreateRange, *location);
+                self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
+            }
         }
     }
 }
