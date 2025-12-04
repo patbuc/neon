@@ -26,7 +26,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_true() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let bool_val = Value::Boolean(true);
         let args = vec![bool_val];
 
@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_false() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let bool_val = Value::Boolean(false);
         let args = vec![bool_val];
 
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_no_args() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let args = vec![];
 
         let result = native_boolean_to_string(&mut vm, &args);
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_wrong_type_number() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let args = vec![Value::Number(42.0)];
 
         let result = native_boolean_to_string(&mut vm, &args);
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_wrong_type_string() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
         let args = vec![string!("test")];
 
         let result = native_boolean_to_string(&mut vm, &args);
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_multiple_true_calls() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
 
         for _ in 0..3 {
             let bool_val = Value::Boolean(true);
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_multiple_false_calls() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
 
         for _ in 0..3 {
             let bool_val = Value::Boolean(false);
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_boolean_to_string_alternating() {
-        let mut vm = VirtualMachine::new(Vec::new());
+        let mut vm = VirtualMachine::new();
 
         let test_cases = vec![
             (true, "true"),
