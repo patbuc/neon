@@ -50,10 +50,29 @@ impl SemanticAnalyzer {
         };
         let _ = symbol_table.define(file_symbol); // Ignore error since this is initial setup
 
+        // Pre-define args as a built-in global constant (array)
+        // This corresponds to the command-line arguments array that will be available at runtime
+        let args_symbol = Symbol {
+            name: "args".to_string(),
+            kind: SymbolKind::Value,
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(args_symbol); // Ignore error since this is initial setup
+
+        let mut type_env = HashMap::new();
+        // Track that args is an Array type for method validation
+        type_env.insert("args".to_string(), "Array".to_string());
+
         SemanticAnalyzer {
             symbol_table,
             errors: Vec::new(),
-            type_env: HashMap::new(),
+            type_env,
             loop_depth: 0,
         }
     }

@@ -8,7 +8,7 @@ fn test_math_min_variadic() {
         print Math.min(42)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n3\n42", vm.get_output());
@@ -22,7 +22,7 @@ fn test_math_max_variadic() {
         print Math.max(42)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("8\n7\n42", vm.get_output());
@@ -35,7 +35,7 @@ fn test_math_min_max_negative() {
         print Math.max(-5, -2, -8)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("-8\n-2", vm.get_output());
@@ -48,7 +48,7 @@ fn test_math_min_max_mixed() {
         print Math.max(10, -3, 5, -10)
         "#;
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("-10\n10", vm.get_output());

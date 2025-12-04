@@ -1,6 +1,6 @@
 use crate::common::constants::VARIADIC_ARITY;
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStruct, Value};
+use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStruct, Value, Object, ObjString};
 use crate::compiler::Compiler;
 use crate::vm::math_functions::*;
 use crate::vm::file_functions::*;
@@ -14,12 +14,12 @@ use log::info;
 
 impl Default for VirtualMachine {
     fn default() -> Self {
-        Self::new()
+        Self::new(Vec::new())
     }
 }
 
 impl VirtualMachine {
-    pub fn new() -> Self {
+    pub fn new(args: Vec<String>) -> Self {
         let mut globals = HashMap::new();
 
         // Initialize built-in global objects
@@ -27,6 +27,10 @@ impl VirtualMachine {
 
         // Initialize built-in global functions
         globals.insert("File".to_string(), Value::new_native_function("File".to_string(), 1, native_file_constructor));
+
+        // Initialize args array with command-line arguments
+        let args_array = Self::create_args_array(args);
+        globals.insert("args".to_string(), args_array);
 
         VirtualMachine {
             call_frames: Vec::new(),
@@ -40,6 +44,19 @@ impl VirtualMachine {
             source: String::new(),
             iterator_stack: Vec::new(),
         }
+    }
+
+    /// Creates an array containing command-line arguments as strings
+    fn create_args_array(args: Vec<String>) -> Value {
+        let elements: Vec<Value> = args
+            .into_iter()
+            .map(|arg| {
+                Value::Object(Rc::new(Object::String(ObjString {
+                    value: Rc::from(arg.as_str()),
+                })))
+            })
+            .collect();
+        Value::new_array(elements)
     }
 
     /// Creates the Math built-in object with all math functions as fields

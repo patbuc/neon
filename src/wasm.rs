@@ -12,7 +12,7 @@ impl NeonVM {
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
         NeonVM {
-            vm: VirtualMachine::new(),
+            vm: VirtualMachine::new(Vec::new()),
         }
     }
 
@@ -59,7 +59,7 @@ struct InterpretResult {
 #[wasm_bindgen]
 pub fn interpret_once(source: String) -> JsValue {
     console_error_panic_hook::set_once();
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::new(Vec::new());
     let result = vm.interpret(source);
 
     match result {
