@@ -46,6 +46,8 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Set", "difference", crate::vm::set_functions::native_set_difference),
     ("Set", "isSubset", crate::vm::set_functions::native_set_is_subset),
     ("Set", "toArray", crate::vm::set_functions::native_set_to_array),
+    // File methods
+    ("File", "read", crate::vm::file_functions::native_file_read),
 ];
 
 /// Get native function implementation for a type and method.
@@ -323,6 +325,20 @@ mod tests {
         // Method names are case-sensitive
         assert!(!MethodRegistry::is_valid_method("Array", "Push"));
         assert!(!MethodRegistry::is_valid_method("String", "LEN"));
+    }
+
+    #[test]
+    fn test_get_methods_for_type_file() {
+        let methods = MethodRegistry::get_methods_for_type("File");
+        assert_eq!(methods.len(), 1);
+        assert!(methods.contains(&"read"));
+    }
+
+    #[test]
+    fn test_is_valid_method_file() {
+        assert!(MethodRegistry::is_valid_method("File", "read"));
+        assert!(!MethodRegistry::is_valid_method("File", "write"));
+        assert!(!MethodRegistry::is_valid_method("File", "readLines"));
     }
 
     #[test]

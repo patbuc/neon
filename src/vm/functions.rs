@@ -674,6 +674,7 @@ impl VirtualMachine {
                 Object::Array(_) => "Array".to_string(),
                 Object::Map(_) => "Map".to_string(),
                 Object::Set(_) => "Set".to_string(),
+                Object::File(_) => "File".to_string(),
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
                     instance.r#struct.name.clone()
