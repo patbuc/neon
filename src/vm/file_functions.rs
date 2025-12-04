@@ -63,6 +63,57 @@ pub fn native_file_read(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Valu
     }
 }
 
+/// Native implementation of File.readLines()
+/// Reads the file and returns an array of strings, one per line
+/// Line endings (\n, \r\n) are stripped from each line
+pub fn native_file_read_lines(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!("readLines() expects 0 arguments (only receiver), got {}", args.len() - 1));
+    }
+
+    // Extract the File object from args[0] (the receiver)
+    let file_path = match &args[0] {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::File(path) => path,
+            _ => return Err("readLines() can only be called on File objects".to_string()),
+        },
+        _ => return Err("readLines() can only be called on File objects".to_string()),
+    };
+
+    // Read the file contents using std::fs::read_to_string
+    match std::fs::read_to_string(file_path.as_ref()) {
+        Ok(contents) => {
+            // Split by lines - this automatically strips \n and \r\n line endings
+            let lines: Vec<Value> = contents
+                .lines()
+                .map(|line| {
+                    Value::Object(Rc::new(Object::String(ObjString {
+                        value: Rc::from(line),
+                    })))
+                })
+                .collect();
+
+            // Return an array of string values
+            Ok(Value::new_array(lines))
+        }
+        Err(e) => {
+            // Return descriptive error message based on error kind
+            let error_msg = match e.kind() {
+                std::io::ErrorKind::NotFound => {
+                    format!("File not found: {}", file_path.as_ref())
+                }
+                std::io::ErrorKind::PermissionDenied => {
+                    format!("Permission denied: {}", file_path.as_ref())
+                }
+                _ => {
+                    format!("Failed to read file '{}': {}", file_path.as_ref(), e)
+                }
+            };
+            Err(error_msg)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,6 +457,405 @@ mod tests {
                     assert_eq!(s.value.as_ref(), test_content);
                 }
                 _ => panic!("Expected String object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    // Tests for File.readLines()
+    #[test]
+    fn test_file_read_lines_success() {
+        use std::io::Write;
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create a temporary file with multiline content
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines.txt");
+        let test_content = "Line 1\nLine 2\nLine 3";
+
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(test_content.as_bytes()).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result is an array
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 3);
+
+                    // Check each line
+                    if let Value::Object(line_obj) = &elements[0] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 1");
+                        } else {
+                            panic!("Expected String object");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[1] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 2");
+                        } else {
+                            panic!("Expected String object");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[2] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 3");
+                        } else {
+                            panic!("Expected String object");
+                        }
+                    }
+                }
+                _ => panic!("Expected Array object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    #[test]
+    fn test_file_read_lines_empty_file() {
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create an empty temporary file
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines_empty.txt");
+
+        {
+            File::create(&file_path).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result is an empty array
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 0);
+                }
+                _ => panic!("Expected Array object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    #[test]
+    fn test_file_read_lines_single_line() {
+        use std::io::Write;
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create a temporary file with a single line (no newline at end)
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines_single.txt");
+        let test_content = "Single line";
+
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(test_content.as_bytes()).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 1);
+
+                    if let Value::Object(line_obj) = &elements[0] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Single line");
+                        } else {
+                            panic!("Expected String object");
+                        }
+                    }
+                }
+                _ => panic!("Expected Array object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    #[test]
+    fn test_file_read_lines_crlf() {
+        use std::io::Write;
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create a temporary file with Windows-style line endings
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines_crlf.txt");
+        let test_content = "Line 1\r\nLine 2\r\nLine 3";
+
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(test_content.as_bytes()).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result - line endings should be stripped
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 3);
+
+                    // Verify each line has no line endings
+                    if let Value::Object(line_obj) = &elements[0] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 1");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[1] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 2");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[2] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 3");
+                        }
+                    }
+                }
+                _ => panic!("Expected Array object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    #[test]
+    fn test_file_read_lines_unicode() {
+        use std::io::Write;
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create a temporary file with Unicode content
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines_unicode.txt");
+        let test_content = "Hello 世界\nΚαλημέρα κόσμε\n🌍🌎🌏";
+
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(test_content.as_bytes()).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 3);
+
+                    if let Value::Object(line_obj) = &elements[0] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Hello 世界");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[1] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Καλημέρα κόσμε");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[2] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "🌍🌎🌏");
+                        }
+                    }
+                }
+                _ => panic!("Expected Array object"),
+            },
+            _ => panic!("Expected Object value"),
+        }
+
+        // Clean up
+        std::fs::remove_file(file_path).ok();
+    }
+
+    #[test]
+    fn test_file_read_lines_file_not_found() {
+        let mut vm = VirtualMachine::new();
+
+        // Create a File object with a non-existent path
+        let file_obj = Value::new_file("/nonexistent/path/to/file.txt".to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args);
+
+        // Verify it returns an error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("File not found"));
+        assert!(error_msg.contains("/nonexistent/path/to/file.txt"));
+    }
+
+    #[test]
+    fn test_file_read_lines_wrong_arg_count() {
+        let mut vm = VirtualMachine::new();
+
+        // Create a File object
+        let file_obj = Value::new_file("test.txt".to_string());
+
+        // Call readLines() with extra arguments
+        let args = vec![file_obj, Value::Number(42.0)];
+        let result = native_file_read_lines(&mut vm, &args);
+
+        // Verify it returns an error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("expects 0 arguments"));
+    }
+
+    #[test]
+    fn test_file_read_lines_invalid_receiver_type() {
+        let mut vm = VirtualMachine::new();
+
+        // Try to call readLines() on a non-File object
+        let args = vec![Value::Object(Rc::new(Object::String(ObjString {
+            value: Rc::from("not a file"),
+        })))];
+
+        let result = native_file_read_lines(&mut vm, &args);
+
+        // Verify it returns an error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("can only be called on File objects"));
+    }
+
+    #[test]
+    fn test_file_read_lines_invalid_receiver_primitive() {
+        let mut vm = VirtualMachine::new();
+
+        // Try to call readLines() on a number
+        let args = vec![Value::Number(42.0)];
+
+        let result = native_file_read_lines(&mut vm, &args);
+
+        // Verify it returns an error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("can only be called on File objects"));
+    }
+
+    #[test]
+    fn test_file_read_lines_empty_lines() {
+        use std::io::Write;
+        use std::fs::File;
+
+        let mut vm = VirtualMachine::new();
+
+        // Create a temporary file with empty lines
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_file_read_lines_empty_lines.txt");
+        let test_content = "Line 1\n\nLine 3\n\n";
+
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(test_content.as_bytes()).unwrap();
+        }
+
+        // Create a File object
+        let file_obj = Value::new_file(file_path.to_str().unwrap().to_string());
+        let args = vec![file_obj];
+
+        // Call readLines()
+        let result = native_file_read_lines(&mut vm, &args).unwrap();
+
+        // Verify the result includes empty lines
+        match result {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => {
+                    let elements = arr.borrow();
+                    assert_eq!(elements.len(), 4);
+
+                    if let Value::Object(line_obj) = &elements[0] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 1");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[1] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[2] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "Line 3");
+                        }
+                    }
+
+                    if let Value::Object(line_obj) = &elements[3] {
+                        if let Object::String(s) = line_obj.as_ref() {
+                            assert_eq!(s.value.as_ref(), "");
+                        }
+                    }
+                }
+                _ => panic!("Expected Array object"),
             },
             _ => panic!("Expected Object value"),
         }
