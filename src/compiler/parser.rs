@@ -745,6 +745,7 @@ impl Parser {
         let mut expr = match self.previous_token.token_type {
             TokenType::Number => self.number(),
             TokenType::String => self.string(),
+            TokenType::InterpolatedString => self.interpolated_string(),
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang => self.unary(),
@@ -821,6 +822,71 @@ impl Parser {
         let value = token_value[1..token_value.len() - 1].to_string();
         let location = self.current_location();
         Some(Expr::String { value, location })
+    }
+
+    fn interpolated_string(&mut self) -> Option<Expr> {
+        use crate::compiler::ast::InterpolationPart;
+
+        let token_value = &self.previous_token.token;
+        let location = self.current_location();
+
+        // Remove surrounding quotes
+        let content = &token_value[1..token_value.len() - 1];
+
+        let mut parts = Vec::new();
+        let mut current_literal = String::new();
+        let mut chars = content.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '$' && chars.peek() == Some(&'{') {
+                // Start of interpolation
+                chars.next(); // consume '{'
+
+                // Save any pending literal
+                if !current_literal.is_empty() {
+                    parts.push(InterpolationPart::Literal(current_literal.clone()));
+                    current_literal.clear();
+                }
+
+                // Extract the expression between ${ and }
+                let mut expr_str = String::new();
+                let mut brace_depth = 1;
+
+                while let Some(ch) = chars.next() {
+                    if ch == '{' {
+                        brace_depth += 1;
+                        expr_str.push(ch);
+                    } else if ch == '}' {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            break;
+                        }
+                        expr_str.push(ch);
+                    } else {
+                        expr_str.push(ch);
+                    }
+                }
+
+                // Parse the expression
+                let mut expr_parser = Parser::new(&expr_str);
+                expr_parser.advance();
+                if let Some(expr) = expr_parser.expression(true) {
+                    parts.push(InterpolationPart::Expression(Box::new(expr)));
+                } else {
+                    // If parsing fails, treat it as an empty string
+                    parts.push(InterpolationPart::Literal(String::new()));
+                }
+            } else {
+                current_literal.push(ch);
+            }
+        }
+
+        // Add any remaining literal
+        if !current_literal.is_empty() {
+            parts.push(InterpolationPart::Literal(current_literal));
+        }
+
+        Some(Expr::StringInterpolation { parts, location })
     }
 
     fn literal(&self) -> Option<Expr> {

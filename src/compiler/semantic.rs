@@ -158,6 +158,7 @@ impl SemanticAnalyzer {
             // Literal types
             Expr::Number { .. } => Some("Number".to_string()),
             Expr::String { .. } => Some("String".to_string()),
+            Expr::StringInterpolation { .. } => Some("String".to_string()),
             Expr::Boolean { .. } => Some("Boolean".to_string()),
             Expr::ArrayLiteral { .. } => Some("Array".to_string()),
             Expr::MapLiteral { .. } => Some("Map".to_string()),
@@ -379,6 +380,15 @@ impl SemanticAnalyzer {
         match expr {
             Expr::Number { .. } | Expr::String { .. } | Expr::Boolean { .. } | Expr::Nil { .. } => {
                 // Literals need no resolution
+            }
+            Expr::StringInterpolation { parts, .. } => {
+                use crate::compiler::ast::InterpolationPart;
+                // Resolve all expression parts
+                for part in parts {
+                    if let InterpolationPart::Expression(expr) = part {
+                        self.resolve_expr(expr);
+                    }
+                }
             }
             Expr::Variable { name, location } => {
                 // Check if variable is defined
