@@ -14,12 +14,13 @@ use log::info;
 
 impl Default for VirtualMachine {
     fn default() -> Self {
-        Self::new(Vec::new())
+        Self::new()
     }
 }
 
 impl VirtualMachine {
-    pub fn new(args: Vec<String>) -> Self {
+    /// Creates a new VirtualMachine with command-line arguments
+    pub fn with_args(args: Vec<String>) -> Self {
         let mut globals = HashMap::new();
 
         // Initialize built-in global objects
@@ -44,6 +45,11 @@ impl VirtualMachine {
             source: String::new(),
             iterator_stack: Vec::new(),
         }
+    }
+
+    /// Creates a new VirtualMachine with no command-line arguments
+    pub fn new() -> Self {
+        Self::with_args(vec![])
     }
 
     /// Creates an array containing command-line arguments as strings
