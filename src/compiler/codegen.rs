@@ -321,6 +321,82 @@ impl CodeGenerator {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
             }
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
+                // For-in loop code generation strategy:
+                // Unlike C-style for loops, we don't desugar this - we use iterator opcodes
+                //
+                // Bytecode structure:
+                //   <evaluate collection>
+                //   GetIterator              ; Convert collection to iterator state (VM internal)
+                //   loop_start:
+                //   IteratorDone            ; Check if has more (pushes true if more, false if done)
+                //   JumpIfFalse exit_jump   ; If false (done), exit loop
+                //   Pop                     ; Pop the true value (has more)
+                //   IteratorNext            ; Get next value (pushes value onto stack)
+                //   <body with loop variable>
+                //   Pop                     ; Pop the loop variable value
+                //   Loop loop_start         ; Jump back
+                //   exit_jump:
+                //   Pop                     ; Pop the false value (done)
+
+                // Evaluate the collection expression
+                self.generate_expr(collection);
+
+                // Convert collection to iterator (stores iterator state in VM)
+                self.emit_op_code(OpCode::GetIterator, *location);
+
+                // Enter a block scope for the loop
+                self.scope_depth += 1;
+
+                // Mark the start of the loop
+                let loop_start = self.current_bloq().instruction_count() as u32;
+
+                // Check if iterator has more elements (pushes true if more, false if done)
+                self.emit_op_code(OpCode::IteratorDone, *location);
+
+                // JumpIfFalse exits when false (done/no more elements)
+                let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+
+                // Pop the true value (has more elements, continuing loop)
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Get next value from iterator (pushes value)
+                self.emit_op_code(OpCode::IteratorNext, *location);
+
+                // Define the loop variable (value is already on stack from IteratorNext)
+                let local = Local::new(variable.clone(), self.scope_depth, false);
+                self.current_bloq()
+                    .define_local(local, location.line, location.column);
+
+                // Generate the loop body
+                self.generate_stmt(body);
+
+                // Pop the old loop variable value before getting the next one
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Jump back to loop start (will push next value)
+                self.emit_loop(loop_start, *location);
+
+                // Patch the exit jump
+                self.patch_jump(exit_jump);
+
+                // Pop the false value (done/no more elements)
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Note: The loop variable has already been popped in the last iteration
+                // before jumping back. So we don't need to pop it here.
+
+                // Pop the iterator from the VM's iterator stack
+                self.emit_op_code(OpCode::PopIterator, *location);
+
+                // Exit the loop scope
+                self.scope_depth -= 1;
+            }
         }
     }
 

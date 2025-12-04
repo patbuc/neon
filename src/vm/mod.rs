@@ -57,6 +57,10 @@ pub struct VirtualMachine {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     source: String,
+    /// Iterator stack: Vec of (current_index, collection_value)
+    /// Used for for-in loops to track iteration progress
+    /// Supports nested for-in loops by maintaining a stack of iterators
+    iterator_stack: Vec<(usize, Value)>,
 }
 
 // Test-only methods
