@@ -1211,3 +1211,317 @@ fn test_continue_outside_function_in_loop() {
     assert!(errors[0].message.contains("Cannot use 'continue' outside of a loop"));
 }
 
+// =============================================================================
+// Postfix Increment/Decrement Operator Tests
+// =============================================================================
+
+#[test]
+fn test_postfix_increment_on_undefined_variable() {
+    let program = r#"
+        x++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Undefined variable 'x'"));
+}
+
+#[test]
+fn test_postfix_decrement_on_undefined_variable() {
+    let program = r#"
+        y--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Undefined variable 'y'"));
+}
+
+#[test]
+fn test_postfix_increment_on_immutable_variable() {
+    let program = r#"
+        val x = 5
+        x++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot modify immutable variable 'x'"));
+}
+
+#[test]
+fn test_postfix_decrement_on_immutable_variable() {
+    let program = r#"
+        val x = 10
+        x--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Cannot modify immutable variable 'x'"));
+}
+
+#[test]
+fn test_postfix_increment_on_mutable_variable_valid() {
+    let program = r#"
+        var x = 5
+        x++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_postfix_decrement_on_mutable_variable_valid() {
+    let program = r#"
+        var x = 10
+        x--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_postfix_increment_on_array_element_fails() {
+    let program = r#"
+        var arr = [1, 2, 3]
+        arr[0]++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Increment operator can only be applied to variables"));
+}
+
+#[test]
+fn test_postfix_decrement_on_array_element_fails() {
+    let program = r#"
+        var arr = [1, 2, 3]
+        arr[0]--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Decrement operator can only be applied to variables"));
+}
+
+#[test]
+fn test_postfix_increment_on_field_access_fails() {
+    let program = r#"
+        var p = { "x": 5, "y": 10 }
+        p.x++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+}
+
+#[test]
+fn test_postfix_decrement_on_field_access_fails() {
+    let program = r#"
+        var p = { "x": 5, "y": 10 }
+        p.y--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Decrement operator can only be applied to variables")));
+}
+
+#[test]
+fn test_postfix_increment_on_function_call_fails() {
+    let program = r#"
+        fn getValue() {
+            return 5
+        }
+        getValue()++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+}
+
+#[test]
+fn test_postfix_increment_in_expression() {
+    let program = r#"
+        var x = 5
+        val y = x++ + 10
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_postfix_decrement_in_expression() {
+    let program = r#"
+        var x = 10
+        val y = x-- * 2
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_multiple_postfix_operations() {
+    let program = r#"
+        var a = 5
+        var b = 10
+        a++
+        b--
+        var c = a++ + b--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_postfix_in_loop() {
+    let program = r#"
+        var i = 0
+        while (i < 10) {
+            print i
+            i++
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_postfix_multiple_errors() {
+    let program = r#"
+        val x = 5
+        val y = 10
+        x++
+        y--
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 2);
+    assert!(errors.iter().any(|e| e.message.contains("Cannot modify immutable variable 'x'")));
+    assert!(errors.iter().any(|e| e.message.contains("Cannot modify immutable variable 'y'")));
+}
+
+#[test]
+fn test_postfix_on_literal_fails() {
+    let program = r#"
+        5++
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+}
+
+#[test]
+fn test_postfix_in_function_parameters() {
+    let program = r#"
+        fn process(x) {
+            return x * 2
+        }
+        var num = 5
+        val result = process(num++)
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+

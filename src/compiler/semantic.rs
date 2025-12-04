@@ -224,6 +224,30 @@ impl SemanticAnalyzer {
 
     // ===== Then: Reference Resolution =====
 
+    /// Helper method to check if a variable exists and is mutable
+    fn check_variable_mutability(&mut self, name: &str, location: SourceLocation) {
+        match self.symbol_table.resolve(name) {
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+            }
+            Some(symbol) => {
+                if !symbol.is_mutable {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        format!("Cannot modify immutable variable '{}'", name),
+                        location,
+                    ));
+                }
+            }
+        }
+    }
+
     fn resolve_statements(&mut self, statements: &[Stmt]) {
         for stmt in statements {
             self.resolve_stmt(stmt);
@@ -615,13 +639,39 @@ impl SemanticAnalyzer {
                 self.resolve_expr(start);
                 self.resolve_expr(end);
             }
-            Expr::PostfixIncrement { operand, .. } => {
-                // TODO: Implement postfix increment semantic analysis
-                self.resolve_expr(operand);
+            Expr::PostfixIncrement { operand, location } => {
+                // Postfix increment can only be applied to simple variables
+                match operand.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        // Check if variable exists and is mutable
+                        self.check_variable_mutability(name, *location);
+                    }
+                    _ => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            "Increment operator can only be applied to variables".to_string(),
+                            *location,
+                        ));
+                    }
+                }
             }
-            Expr::PostfixDecrement { operand, .. } => {
-                // TODO: Implement postfix decrement semantic analysis
-                self.resolve_expr(operand);
+            Expr::PostfixDecrement { operand, location } => {
+                // Postfix decrement can only be applied to simple variables
+                match operand.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        // Check if variable exists and is mutable
+                        self.check_variable_mutability(name, *location);
+                    }
+                    _ => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            "Decrement operator can only be applied to variables".to_string(),
+                            *location,
+                        ));
+                    }
+                }
             }
         }
     }
