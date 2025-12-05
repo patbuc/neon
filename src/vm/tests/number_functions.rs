@@ -1,7 +1,6 @@
 use crate::common::Value;
 use crate::vm::VirtualMachine;
 use crate::vm::number_functions::*;
-use crate::string;
 use crate::as_string;
 
 #[test]
@@ -47,11 +46,11 @@ fn test_number_to_string_negative_integer() {
 #[test]
 fn test_number_to_string_negative_decimal() {
     let mut vm = VirtualMachine::new();
-    let num = Value::Number(-3.14);
+    let num = Value::Number(-3.15);
     let args = vec![num];
 
     let result = native_number_to_string(&mut vm, &args).unwrap();
-    assert_eq!("-3.14", as_string!(result).value.as_ref());
+    assert_eq!("-3.15", as_string!(result).value.as_ref());
 }
 
 #[test]

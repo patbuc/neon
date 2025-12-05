@@ -30,9 +30,9 @@ fn test_abs_zero() {
 #[test]
 fn test_abs_decimal() {
     let mut vm = VirtualMachine::new();
-    let args = vec![Value::Number(-3.14)];
+    let args = vec![Value::Number(-3.15)];
     let result = native_math_abs(&mut vm, &args).unwrap();
-    assert_eq!(as_number!(result), 3.14);
+    assert_eq!(as_number!(result), 3.15);
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_sqrt_decimal() {
     let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(2.0)];
     let result = native_math_sqrt(&mut vm, &args).unwrap();
-    assert!((as_number!(result) - 1.4142135623730951).abs() < 1e-10);
+    assert!((as_number!(result) - std::f64::consts::SQRT_2).abs() < 1e-10);
 }
 
 #[test]
