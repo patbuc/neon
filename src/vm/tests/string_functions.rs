@@ -450,11 +450,11 @@ fn test_to_float_zero() {
 #[test]
 fn test_to_float_with_whitespace() {
     let mut vm = VirtualMachine::new();
-    let test_str = string!("  3.14  ");
+    let test_str = string!("  3.15  ");
     let args = vec![test_str];
 
     let result = native_string_to_float(&mut vm, &args).unwrap();
-    assert_eq!(as_number!(result), 3.14);
+    assert_eq!(as_number!(result), 3.15);
 }
 
 #[test]
