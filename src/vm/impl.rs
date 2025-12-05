@@ -42,6 +42,7 @@ impl VirtualMachine {
             string_buffer: String::new(),
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
+            runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
         }
@@ -322,7 +323,16 @@ impl VirtualMachine {
 
     pub(in crate::vm) fn runtime_error(&mut self, error: &str) {
         let source_location = self.get_current_source_location();
-        eprintln!("[{}] {}", source_location, error);
+        let error_message = format!("[{}] {}", source_location, error);
+
+        // Always print to stderr for native/debug builds
+        eprintln!("{}", error_message);
+
+        // Also capture in buffer for WASM and testing
+        if !self.runtime_errors.is_empty() {
+            self.runtime_errors.push('\n');
+        }
+        self.runtime_errors.push_str(&error_message);
     }
 
     #[cfg(all(target_arch = "wasm32", not(test)))]
@@ -352,6 +362,14 @@ impl VirtualMachine {
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 
+    pub fn get_runtime_errors(&self) -> String {
+        self.runtime_errors.clone()
+    }
+
+    pub fn clear_runtime_errors(&mut self) {
+        self.runtime_errors.clear();
+    }
+
     fn get_current_source_location(&self) -> String {
         if let Some(frame) = self.call_frames.last() {
             if let Some(location) = frame.function.bloq.get_source_location(frame.ip) {
@@ -368,6 +386,7 @@ impl VirtualMachine {
         self.call_frames.clear();
         self.stack.clear();
         self.bloq = None;
+        self.runtime_errors.clear();
     }
 
     /// Look up a native method for a given type and method name.
