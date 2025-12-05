@@ -155,6 +155,16 @@ pub enum Expr {
         inclusive: bool,
         location: SourceLocation,
     },
+    /// Postfix increment: x++
+    PostfixIncrement {
+        operand: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Postfix decrement: x--
+    PostfixDecrement {
+        operand: Box<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -258,7 +268,9 @@ impl Expr {
             | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. }
             | Expr::IndexAssign { location, .. }
-            | Expr::Range { location, .. } => location,
+            | Expr::Range { location, .. }
+            | Expr::PostfixIncrement { location, .. }
+            | Expr::PostfixDecrement { location, .. } => location,
         }
     }
 }

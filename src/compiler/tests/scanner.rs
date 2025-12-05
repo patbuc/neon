@@ -121,3 +121,33 @@ fn can_scan_complex_logical_expression() {
     assert_eq!(x[10].token_type, TokenType::Number);
     assert_eq!(x[11].token_type, TokenType::Eof);
 }
+
+#[test]
+fn can_scan_plusplus_operator() {
+    let script = "x++";
+
+    let scanner = Scanner::new(script);
+    let x: Vec<Token> = collect_tokens(scanner);
+
+    assert_eq!(x.len(), 3);
+    assert_eq!(x[0].token_type, TokenType::Identifier);
+    assert_eq!(x[0].token, "x");
+    assert_eq!(x[1].token_type, TokenType::PlusPlus);
+    assert_eq!(x[1].token, "++");
+    assert_eq!(x[2].token_type, TokenType::Eof);
+}
+
+#[test]
+fn can_scan_minusminus_operator() {
+    let script = "x--";
+
+    let scanner = Scanner::new(script);
+    let x: Vec<Token> = collect_tokens(scanner);
+
+    assert_eq!(x.len(), 3);
+    assert_eq!(x[0].token_type, TokenType::Identifier);
+    assert_eq!(x[0].token, "x");
+    assert_eq!(x[1].token_type, TokenType::MinusMinus);
+    assert_eq!(x[1].token, "--");
+    assert_eq!(x[2].token_type, TokenType::Eof);
+}
