@@ -436,7 +436,13 @@ impl Parser {
 
         let then_branch = Box::new(self.statement()?);
         let else_branch = if self.match_token(TokenType::Else) {
-            Some(Box::new(self.statement()?))
+            // Check for 'else if' syntax
+            if self.check(TokenType::If) {
+                self.advance();
+                Some(Box::new(self.if_statement()?))
+            } else {
+                Some(Box::new(self.statement()?))
+            }
         } else {
             None
         };
