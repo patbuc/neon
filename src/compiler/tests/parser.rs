@@ -1176,6 +1176,261 @@ fn test_parse_index_with_expression_key() {
     }
 }
 
+// ===== Postfix Increment/Decrement Tests =====
+
+#[test]
+fn test_parse_postfix_increment() {
+    let program = r#"
+        var x = 5
+        x++
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the postfix increment
+    match &stmts[1] {
+        Stmt::Expression { expr, .. } => {
+            match expr {
+                Expr::PostfixIncrement { operand, .. } => {
+                    match operand.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                        _ => panic!("Expected Variable as operand"),
+                    }
+                }
+                _ => panic!("Expected PostfixIncrement expression"),
+            }
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_postfix_decrement() {
+    let program = r#"
+        var y = 10
+        y--
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the postfix decrement
+    match &stmts[1] {
+        Stmt::Expression { expr, .. } => {
+            match expr {
+                Expr::PostfixDecrement { operand, .. } => {
+                    match operand.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "y"),
+                        _ => panic!("Expected Variable as operand"),
+                    }
+                }
+                _ => panic!("Expected PostfixDecrement expression"),
+            }
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_postfix_in_expression() {
+    let program = r#"
+        var x = 5
+        val y = x++
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be val y = x++
+    match &stmts[1] {
+        Stmt::Val { name, initializer: Some(expr), .. } => {
+            assert_eq!(name, "y");
+            match expr {
+                Expr::PostfixIncrement { operand, .. } => {
+                    match operand.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                        _ => panic!("Expected Variable as operand"),
+                    }
+                }
+                _ => panic!("Expected PostfixIncrement expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_postfix_with_field_access() {
+    let program = r#"
+        obj.counter++
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    // Should be obj.counter++
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => {
+            match expr {
+                Expr::PostfixIncrement { operand, .. } => {
+                    match operand.as_ref() {
+                        Expr::GetField { object, field, .. } => {
+                            match object.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "obj"),
+                                _ => panic!("Expected Variable as object"),
+                            }
+                            assert_eq!(field, "counter");
+                        }
+                        _ => panic!("Expected GetField as operand"),
+                    }
+                }
+                _ => panic!("Expected PostfixIncrement expression"),
+            }
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_postfix_with_array_index() {
+    let program = r#"
+        arr[0]++
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    // Should be arr[0]++
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => {
+            match expr {
+                Expr::PostfixIncrement { operand, .. } => {
+                    match operand.as_ref() {
+                        Expr::Index { object, index, .. } => {
+                            match object.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "arr"),
+                                _ => panic!("Expected Variable as object"),
+                            }
+                            match index.as_ref() {
+                                Expr::Number { value, .. } => assert_eq!(*value, 0.0),
+                                _ => panic!("Expected Number as index"),
+                            }
+                        }
+                        _ => panic!("Expected Index as operand"),
+                    }
+                }
+                _ => panic!("Expected PostfixIncrement expression"),
+            }
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_postfix_precedence() {
+    // Postfix should bind tighter than binary operators
+    let program = r#"
+        val result = x++ + 5
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    // Should parse as (x++) + 5, not x++ (+ 5)
+    match &stmts[0] {
+        Stmt::Val { initializer: Some(expr), .. } => {
+            match expr {
+                Expr::Binary { left, right, .. } => {
+                    // Left should be x++
+                    match left.as_ref() {
+                        Expr::PostfixIncrement { operand, .. } => {
+                            match operand.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                                _ => panic!("Expected Variable as operand"),
+                            }
+                        }
+                        _ => panic!("Expected PostfixIncrement as left operand"),
+                    }
+                    // Right should be 5
+                    match right.as_ref() {
+                        Expr::Number { value, .. } => assert_eq!(*value, 5.0),
+                        _ => panic!("Expected Number as right operand"),
+                    }
+                }
+                _ => panic!("Expected Binary expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
 // ===== Error Cases =====
 
 #[test]

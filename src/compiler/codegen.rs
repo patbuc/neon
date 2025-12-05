@@ -885,6 +885,124 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::CreateRange, *location);
                 self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
             }
+            Expr::PostfixIncrement { operand, location } => {
+                // Postfix increment: x++
+                // Returns the OLD value before incrementing
+                // Bytecode sequence:
+                //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
+                //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
+                //   3. Constant(1.0)          - push 1
+                //   4. Add                    - compute new value (old + 1)
+                //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
+                //   6. Pop                    - pop new value, leaving old value on stack
+
+                // Semantic analysis ensures operand is a Variable
+                if let Expr::Variable { name, .. } = operand.as_ref() {
+                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    if let Some(index) = maybe_index {
+                        // Load old value (return value)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Load old value again (for modification)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Push 1 and add
+                        self.emit_constant(number!(1.0), *location);
+                        self.emit_op_code(OpCode::Add, *location);
+
+                        // Store new value
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::SetLocal, index, *location);
+                        }
+
+                        // Pop the new value, leaving old value on stack
+                        self.emit_op_code(OpCode::Pop, *location);
+                    } else {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::UndefinedSymbol,
+                            format!("Undefined variable '{}'", name),
+                            *location,
+                        ));
+                    }
+                } else {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Postfix increment operand must be a variable".to_string(),
+                        *location,
+                    ));
+                }
+            }
+            Expr::PostfixDecrement { operand, location } => {
+                // Postfix decrement: x--
+                // Returns the OLD value before decrementing
+                // Bytecode sequence:
+                //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
+                //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
+                //   3. Constant(1.0)          - push 1
+                //   4. Subtract               - compute new value (old - 1)
+                //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
+                //   6. Pop                    - pop new value, leaving old value on stack
+
+                // Semantic analysis ensures operand is a Variable
+                if let Expr::Variable { name, .. } = operand.as_ref() {
+                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    if let Some(index) = maybe_index {
+                        // Load old value (return value)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Load old value again (for modification)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Push 1 and subtract
+                        self.emit_constant(number!(1.0), *location);
+                        self.emit_op_code(OpCode::Subtract, *location);
+
+                        // Store new value
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::SetLocal, index, *location);
+                        }
+
+                        // Pop the new value, leaving old value on stack
+                        self.emit_op_code(OpCode::Pop, *location);
+                    } else {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::UndefinedSymbol,
+                            format!("Undefined variable '{}'", name),
+                            *location,
+                        ));
+                    }
+                } else {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Postfix decrement operand must be a variable".to_string(),
+                        *location,
+                    ));
+                }
+            }
         }
     }
 }
