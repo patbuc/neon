@@ -1,5 +1,5 @@
 use crate::compiler::parser::Parser;
-use crate::compiler::ast::Stmt;
+use crate::compiler::ast::{Expr, Stmt};
 
 #[test]
 fn test_parse_number() {
