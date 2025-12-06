@@ -1,0 +1,147 @@
+// Comprehensive highlighting test for Neon language
+// This file demonstrates all syntax highlighting features
+
+// 1. Variables (val and var keywords)
+val immutable = 42
+var mutable = 3.14159
+
+// 2. Functions
+fn add(a, b) {
+  return a + b
+}
+
+fn greet(name) {
+  print "Hello, ${name}!"
+}
+
+// 3. Structs
+struct Point {
+  x
+  y
+}
+
+struct Person {
+  name
+  age
+  email
+}
+
+// 4. Control flow - if/else
+val x = 10
+val y = 20
+
+if (x < y) {
+  print "x is less than y"
+} else {
+  print "x is greater than or equal to y"
+}
+
+// 5. Loops - while
+var counter = 0
+while (counter < 5) {
+  print "Counter: ${counter}"
+  counter++
+}
+
+// 6. Loops - for-in
+val numbers = [1, 2, 3, 4, 5]
+for (num in numbers) {
+  if (num % 2 == 0) {
+    print "Even: ${num}"
+  } else {
+    print "Odd: ${num}"
+  }
+}
+
+// 7. Loops - C-style for
+for (var i = 0; i < 10; i++) {
+  if (i == 5) {
+    break
+  }
+  if (i == 3) {
+    continue
+  }
+  print "i = ${i}"
+}
+
+// 8. Collections
+val array = [10, 20, 30, 40, 50]
+val map = {"name": "Alice", "age": 30, "city": "NYC"}
+val set = {1, 2, 3, 4, 5}
+
+// 9. Operators - arithmetic
+val sum = 10 + 20
+val diff = 50 - 30
+val product = 5 * 6
+val quotient = 100 / 4
+val floor_div = 17 // 3
+val modulo = 17 % 3
+
+// 10. Operators - comparison
+val equal = x == y
+val not_equal = x != y
+val less = x < y
+val less_eq = x <= y
+val greater = x > y
+val greater_eq = x >= y
+
+// 11. Operators - logical
+val and_result = true && false
+val or_result = true || false
+val not_result = !true
+
+// 12. Operators - postfix
+var value = 10
+value++
+value--
+
+// 13. Range operators
+val range = 1..100
+val inclusive_range = 0..=10
+
+// 14. Method calls and field access
+val length = array.len()
+val substring = "hello world".substring(0, 5)
+val point = Point
+val x_coord = point.x
+
+// 15. String interpolation
+val name = "Alice"
+val age = 30
+print "Name: ${name}, Age: ${age}"
+print "Next year: ${age + 1}"
+print "Calculation: ${add(10, 20)}"
+
+// 16. Escape sequences
+val escaped = "Line 1\nLine 2\tTabbed\r\nWindows line"
+val hex_escape = "Hex: \x41"
+val unicode = "Unicode: \u0041"
+
+// 17. Nested structures and complex expressions
+fn process(data) {
+  for (item in data) {
+    if (item.value > 0) {
+      val result = item.compute(10, 20)
+      print "Result: ${result}"
+
+      if (result > 100) {
+        return result
+      }
+    }
+  }
+}
+
+// 18. Booleans and nil
+val flag_true = true
+val flag_false = false
+val nothing = nil
+
+// 19. Complex nested expressions
+val complex = ((10 + 20) * 3 - 5) / 2
+val logical_complex = (x > 5 && y < 30) || (x == 0)
+
+// 20. Assignment expressions
+var assign_test = 100
+assign_test = assign_test + 50
+array[0] = 999
+point.x = 42
