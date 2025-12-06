@@ -1,0 +1,30 @@
+name = "Neon"
+grammar = "neon"
+path_suffixes = ["neon", "n"]
+line_comments = ["// "]
+
+# Bracket pairs for auto-closing and highlighting
+[[brackets]]
+start = "{"
+end = "}"
+close = true
+newline = true
+
+[[brackets]]
+start = "["
+end = "]"
+close = true
+newline = true
+
+[[brackets]]
+start = "("
+end = ")"
+close = true
+newline = true
+
+# Auto-pairs for quotes
+[[brackets]]
+start = "\""
+end = "\""
+close = true
+not_in = ["string", "comment"]

@@ -1,0 +1,12 @@
+id = "neon"
+name = "Neon"
+version = "0.1.0"
+schema_version = 1
+authors = ["patbuc"]
+description = "Neon programming language support for Zed"
+repository = "https://github.com/patbuc/neon"
+
+[grammars.neon]
+repository = "https://github.com/patbuc/neon"
+commit = "main"
+path = "tree-sitter-neon"
