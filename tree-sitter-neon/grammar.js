@@ -11,16 +11,22 @@ module.exports = grammar({
   conflicts: $ => [
     [$.map_literal, $.set_literal],
     [$.field_expression, $.method_call_expression],
+    [$.for_statement],
+    [$.block, $.map_literal],
+    [$.block, $.set_literal],
+    [$.expression_statement, $.set_literal],
   ],
 
   rules: {
     source_file: $ => repeat($.declaration),
 
-    comment: $ => token(prec(-1, seq('//', /[ \t][^\r\n]*/))),
+    comment: $ => token(prec(-1, seq('//', /[^\r\n]*/))),
 
     declaration: $ => choice(
       $.val_declaration,
       $.var_declaration,
+      $.function_declaration,
+      $.struct_declaration,
       $.statement,
     ),
 
@@ -36,14 +42,104 @@ module.exports = grammar({
       optional(seq('=', field('value', $.expression))),
     ),
 
+    function_declaration: $ => seq(
+      'fn',
+      field('name', $.identifier),
+      field('parameters', $.parameter_list),
+      field('body', $.block),
+    ),
+
+    parameter_list: $ => seq(
+      '(',
+      optional(seq(
+        $.identifier,
+        repeat(seq(',', $.identifier)),
+        optional(','),
+      )),
+      ')',
+    ),
+
+    struct_declaration: $ => seq(
+      'struct',
+      field('name', $.identifier),
+      '{',
+      optional(seq(
+        $.identifier,
+        repeat(seq(optional(','), $.identifier)),
+        optional(','),
+      )),
+      '}',
+    ),
+
     statement: $ => choice(
       $.expression_statement,
       $.print_statement,
+      $.block,
+      $.if_statement,
+      $.while_statement,
+      $.for_statement,
+      $.return_statement,
+      $.break_statement,
+      $.continue_statement,
     ),
 
     expression_statement: $ => $.expression,
 
     print_statement: $ => seq('print', $.expression),
+
+    block: $ => seq(
+      '{',
+      repeat($.declaration),
+      '}',
+    ),
+
+    if_statement: $ => prec.right(seq(
+      'if',
+      '(',
+      field('condition', $.expression),
+      ')',
+      field('consequence', $.statement),
+      optional(seq('else', field('alternative', $.statement))),
+    )),
+
+    while_statement: $ => seq(
+      'while',
+      '(',
+      field('condition', $.expression),
+      ')',
+      field('body', $.statement),
+    ),
+
+    for_statement: $ => choice(
+      // For-in: for (item in collection)
+      seq(
+        'for',
+        '(',
+        field('variable', $.identifier),
+        'in',
+        field('collection', $.expression),
+        ')',
+        field('body', $.statement),
+      ),
+      // C-style: for (init; cond; incr)
+      seq(
+        'for',
+        '(',
+        field('initializer', choice($.val_declaration, $.var_declaration)),
+        ';',
+        field('condition', $.expression),
+        ';',
+        field('increment', $.expression),
+        ')',
+        field('body', $.statement),
+      ),
+    ),
+
+    return_statement: $ => seq('return', $.expression),
+
+    break_statement: $ => 'break',
+
+    continue_statement: $ => 'continue',
 
     // Expression hierarchy following Neon precedence (lowest to highest):
     // Assignment < Or < And < Equality < Comparison < Range < Term < Factor < Unary < Call < Primary
