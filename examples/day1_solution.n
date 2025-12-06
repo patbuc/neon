@@ -1,0 +1,59 @@
+// Advent of Code Day 1: Secret Entrance
+// Simulate a circular dial (0-99) through L/R rotations
+// Count how many times the dial points to 0
+
+// Read input file from command line arguments
+if (args.length() < 1) {
+    print "Usage: neon day1_solution.n <input_file>"
+    print "No arguments provided"
+}
+
+val filename = args[0]
+val file = File(filename)
+val lines = file.readLines()
+
+// Start at position 50
+var position = 50
+var zero_count = 0
+
+// Check initial position
+if (position == 0) {
+    zero_count = zero_count + 1
+}
+
+// Process each instruction
+for (line in lines) {
+    val trimmed = line.trim()
+
+    // Skip empty lines
+    if (trimmed.len() == 0) {
+        continue
+    }
+
+    // Parse direction (first character) and distance (rest)
+    val direction = trimmed.charAt(0)
+    val distance_str = trimmed.substring(1, trimmed.len())
+    val distance = distance_str.toInt()
+
+    // Apply rotation
+    if (direction == "L") {
+        position = position - distance
+    } else {
+        position = position + distance
+    }
+
+    // Wrap around the circular dial (0-99)
+    position = position % 100
+
+    // Handle negative modulo (Rust's remainder can be negative)
+    if (position < 0) {
+        position = position + 100
+    }
+
+    // Count if we landed on 0
+    if (position == 0) {
+        zero_count = zero_count + 1
+    }
+}
+
+print "Password: " + zero_count.toString()
