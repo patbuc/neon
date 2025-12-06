@@ -208,9 +208,14 @@ fn test_else_if_bytecode_simple() {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 |
-            OpCode::String | OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand (Call uses 1 byte for arg count)
+            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+                offset += 2; // OpCode (1 byte) + 1-byte operand
+            }
+            OpCode::String => {
+                offset += 2; // OpCode (1 byte) + 1-byte string index
+            }
+            OpCode::Call => {
+                offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
             OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
             OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
@@ -270,9 +275,14 @@ fn test_else_if_bytecode_multiple_branches() {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 |
-            OpCode::String | OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand (Call uses 1 byte for arg count)
+            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+                offset += 2; // OpCode (1 byte) + 1-byte operand
+            }
+            OpCode::String => {
+                offset += 2; // OpCode (1 byte) + 1-byte string index
+            }
+            OpCode::Call => {
+                offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
             OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
             OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
@@ -326,9 +336,14 @@ fn test_else_if_bytecode_without_final_else() {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 |
-            OpCode::String | OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand (Call uses 1 byte for arg count)
+            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+                offset += 2; // OpCode (1 byte) + 1-byte operand
+            }
+            OpCode::String => {
+                offset += 2; // OpCode (1 byte) + 1-byte string index
+            }
+            OpCode::Call => {
+                offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
             OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
             OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
