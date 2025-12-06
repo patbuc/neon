@@ -1,0 +1,14 @@
+// Simple test for highlighting
+
+// Variables
+val x = 5
+var y = 10
+
+// Functions
+fn add(a, b) {
+  return a + b
+}
+
+// String interpolation
+val name = "Alice"
+print "Result: ${add(10, 20)}"
