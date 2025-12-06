@@ -1,0 +1,102 @@
+// Else-if syntax demonstration
+// This example showcases practical use cases for if-else-if chains
+
+print "=== Grade Calculator ==="
+
+// Example 1: Grade calculation based on score
+val score = 85
+print "Score:"
+print score
+
+if (score >= 90) {
+    print "Grade: A - Excellent!"
+} else if (score >= 80) {
+    print "Grade: B - Good job!"
+} else if (score >= 70) {
+    print "Grade: C - Satisfactory"
+} else if (score >= 60) {
+    print "Grade: D - Needs improvement"
+} else {
+    print "Grade: F - Failed"
+}
+
+print ""
+print "=== Number Classification ==="
+
+// Example 2: Number classification (positive/negative/zero)
+var num = -5
+print "Number:"
+print num
+
+if (num > 0) {
+    print "Classification: Positive number"
+} else if (num < 0) {
+    print "Classification: Negative number"
+} else {
+    print "Classification: Zero"
+}
+
+print ""
+
+num = 0
+print "Number:"
+print num
+
+if (num > 0) {
+    print "Classification: Positive number"
+} else if (num < 0) {
+    print "Classification: Negative number"
+} else {
+    print "Classification: Zero"
+}
+
+print ""
+print "=== Range Checker ==="
+
+// Example 3: Range checking for temperature
+val temp = 75
+print "Temperature (F):"
+print temp
+
+if (temp >= 100) {
+    print "Status: Extremely hot!"
+} else if (temp >= 80) {
+    print "Status: Hot"
+} else if (temp >= 60) {
+    print "Status: Comfortable"
+} else if (temp >= 40) {
+    print "Status: Cool"
+} else if (temp >= 20) {
+    print "Status: Cold"
+} else {
+    print "Status: Freezing!"
+}
+
+print ""
+print "=== Nested Else-If Example ==="
+
+// Example 4: Nested else-if demonstrating complex logic
+val age = 25
+val hasLicense = true
+
+print "Age:"
+print age
+print "Has License:"
+print hasLicense
+
+if (age < 16) {
+    print "Status: Too young to drive"
+} else if (age >= 16) {
+    if (hasLicense) {
+        if (age < 21) {
+            print "Status: Can drive with restrictions"
+        } else {
+            print "Status: Can drive without restrictions"
+        }
+    } else {
+        print "Status: Need to get a license"
+    }
+}
+
+print ""
+print "=== All tests completed! ==="
