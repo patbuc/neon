@@ -8,10 +8,15 @@ module.exports = grammar({
 
   word: $ => $.identifier,
 
+  conflicts: $ => [
+    [$.map_literal, $.set_literal],
+    [$.field_expression, $.method_call_expression],
+  ],
+
   rules: {
     source_file: $ => repeat($.declaration),
 
-    comment: $ => token(seq('//', /.*/)),
+    comment: $ => token(prec(-1, seq('//', /[ \t][^\r\n]*/))),
 
     declaration: $ => choice(
       $.val_declaration,
@@ -40,31 +45,167 @@ module.exports = grammar({
 
     print_statement: $ => seq('print', $.expression),
 
+    // Expression hierarchy following Neon precedence (lowest to highest):
+    // Assignment < Or < And < Equality < Comparison < Range < Term < Factor < Unary < Call < Primary
     expression: $ => choice(
+      $.assignment_expression,
       $.binary_expression,
       $.unary_expression,
+      $.postfix_expression,
+      $.call_expression,
+      $.method_call_expression,
+      $.field_expression,
+      $.index_expression,
+      $.range_expression,
       $.primary_expression,
     ),
 
-    binary_expression: $ => choice(
-      prec.left(1, seq(field('left', $.expression), '+', field('right', $.expression))),
-      prec.left(1, seq(field('left', $.expression), '-', field('right', $.expression))),
-      prec.left(2, seq(field('left', $.expression), '*', field('right', $.expression))),
-      prec.left(2, seq(field('left', $.expression), '/', field('right', $.expression))),
-    ),
-
-    unary_expression: $ => prec(3, seq(
-      choice('-', '!'),
-      $.expression,
+    // Assignment: x = 5, obj.field = 5, arr[0] = 5
+    assignment_expression: $ => prec.right(0, seq(
+      field('left', choice(
+        $.identifier,
+        $.field_expression,
+        $.index_expression,
+      )),
+      '=',
+      field('right', $.expression),
     )),
 
+    // Binary expressions with precedence matching parser.rs
+    binary_expression: $ => {
+      const table = [
+        [prec.left, 1, '||'],          // Or
+        [prec.left, 2, '&&'],          // And
+        [prec.left, 3, choice('==', '!=')],  // Equality
+        [prec.left, 4, choice('<', '<=', '>', '>=')],  // Comparison
+        [prec.left, 6, choice('+', '-')],    // Term
+        [prec.left, 7, choice('*', '/', '//', '%')],  // Factor
+      ];
+
+      return choice(...table.map(([fn, precedence, operator]) =>
+        fn(precedence, seq(
+          field('left', $.expression),
+          field('operator', operator),
+          field('right', $.expression),
+        ))
+      ));
+    },
+
+    // Unary: -x, !flag
+    unary_expression: $ => prec(8, seq(
+      field('operator', choice('-', '!')),
+      field('operand', $.expression),
+    )),
+
+    // Postfix: x++, x--
+    postfix_expression: $ => prec(9, seq(
+      field('operand', $.expression),
+      field('operator', choice('++', '--')),
+    )),
+
+    // Call: foo(), add(1, 2, 3)
+    call_expression: $ => prec(10, seq(
+      field('function', $.expression),
+      field('arguments', $.argument_list),
+    )),
+
+    // Method call: arr.push(5), str.len()
+    method_call_expression: $ => prec(10, seq(
+      field('object', $.expression),
+      '.',
+      field('method', $.identifier),
+      field('arguments', $.argument_list),
+    )),
+
+    // Field access: point.x, obj.field.nested
+    field_expression: $ => prec(10, seq(
+      field('object', $.expression),
+      '.',
+      field('field', $.identifier),
+    )),
+
+    // Index access: arr[0], map["key"]
+    index_expression: $ => prec(10, seq(
+      field('object', $.expression),
+      '[',
+      field('index', $.expression),
+      ']',
+    )),
+
+    // Range: 1..10, 0..=100
+    range_expression: $ => prec.left(5, seq(
+      field('start', $.expression),
+      field('operator', choice('..', '..=')),
+      field('end', $.expression),
+    )),
+
+    // Argument list for function/method calls
+    argument_list: $ => seq(
+      '(',
+      optional(seq(
+        $.expression,
+        repeat(seq(',', $.expression)),
+        optional(','),
+      )),
+      ')',
+    ),
+
+    // Primary expressions (highest precedence)
     primary_expression: $ => choice(
       $.identifier,
       $.number,
       $.string,
       $.boolean,
       $.nil,
-      seq('(', $.expression, ')'),
+      $.array_literal,
+      $.map_literal,
+      $.set_literal,
+      $.grouped_expression,
+    ),
+
+    // Array literal: [1, 2, 3], [[1, 2], [3, 4]]
+    array_literal: $ => seq(
+      '[',
+      optional(seq(
+        $.expression,
+        repeat(seq(',', $.expression)),
+        optional(','),
+      )),
+      ']',
+    ),
+
+    // Map literal: {"key": "value", "num": 42}
+    map_literal: $ => seq(
+      '{',
+      optional(seq(
+        $.map_entry,
+        repeat(seq(',', $.map_entry)),
+        optional(','),
+      )),
+      '}',
+    ),
+
+    // Map entry: key: value
+    map_entry: $ => seq(
+      field('key', $.expression),
+      ':',
+      field('value', $.expression),
+    ),
+
+    // Set literal: {1, 2, 3, 4}
+    set_literal: $ => seq(
+      '{',
+      $.expression,
+      repeat(seq(',', $.expression)),
+      optional(','),
+      '}',
+    ),
+
+    // Grouped expression: (expr)
+    grouped_expression: $ => seq(
+      '(',
+      $.expression,
+      ')',
     ),
 
     string: $ => seq(
