@@ -1,0 +1,104 @@
+name: Tree-sitter Grammar Tests
+
+on:
+  push:
+    branches: [ main, aoc-main ]
+    paths:
+      - 'tree-sitter-neon/**'
+      - '.github/workflows/tree-sitter.yml'
+  pull_request:
+    paths:
+      - 'tree-sitter-neon/**'
+      - '.github/workflows/tree-sitter.yml'
+
+jobs:
+  test:
+    name: Test Grammar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: tree-sitter-neon
+        run: npm install
+
+      - name: Generate parser
+        working-directory: tree-sitter-neon
+        run: npx tree-sitter generate
+
+      - name: Run corpus tests
+        working-directory: tree-sitter-neon
+        run: npx tree-sitter test
+
+      - name: Parse example files
+        working-directory: tree-sitter-neon
+        run: |
+          echo "Parsing example files..."
+          shopt -s nullglob
+          for file in ../examples/*.n ../examples/*.neon; do
+            if [ -f "$file" ]; then
+              echo "Parsing $(basename "$file")..."
+              npx tree-sitter parse "$file" --quiet || exit 1
+            fi
+          done
+
+      - name: Parse test files
+        working-directory: tree-sitter-neon
+        run: |
+          echo "Parsing test files..."
+          success=0
+          total=0
+          for file in ../tests/scripts/*.n; do
+            if [ -f "$file" ]; then
+              total=$((total + 1))
+              if npx tree-sitter parse "$file" --quiet 2>/dev/null; then
+                success=$((success + 1))
+              fi
+            fi
+          done
+          echo "$success/$total test files parsed successfully"
+          if [ $success -lt 50 ]; then
+            echo "Error: Less than 50 test files parsed successfully"
+            exit 1
+          fi
+
+      - name: Test highlighting
+        working-directory: tree-sitter-neon
+        run: npx tree-sitter highlight test_comprehensive.n > /dev/null
+
+  lint:
+    name: Lint Queries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: tree-sitter-neon
+        run: npm install
+
+      - name: Generate parser
+        working-directory: tree-sitter-neon
+        run: npx tree-sitter generate
+
+      - name: Validate highlight queries
+        working-directory: tree-sitter-neon
+        run: |
+          if ! npx tree-sitter highlight test_comprehensive.n > /dev/null 2>&1; then
+            echo "Error: Highlight queries are invalid"
+            exit 1
+          fi
+          echo "✓ Highlight queries are valid"
