@@ -1,0 +1,22 @@
+// neon.30.n - Maps with mixed value types
+
+// Expected:
+// 42
+// Hello
+// true
+// nil
+// 4
+
+// Map with different value types
+val mixed = {
+    "number": 42,
+    "string": "Hello",
+    "boolean": true,
+    "null": nil
+}
+
+print mixed["number"]    // 42
+print mixed["string"]    // Hello
+print mixed["boolean"]   // true
+print mixed["null"]      // nil
+print mixed.size()       // 4

@@ -1,0 +1,22 @@
+// neon.33.n - Dynamic map keys with expressions
+
+// Expected:
+// 100
+// 200
+// 300
+// 600
+
+// Use dynamic keys
+val key1 = "x"
+val key2 = "y"
+val key3 = "z"
+
+val coords = {key1: 100, key2: 200, key3: 300}
+
+print coords["x"]    // 100
+print coords["y"]    // 200
+print coords["z"]    // 300
+
+// Use expression as key
+val sum = coords[key1] + coords[key2] + coords[key3]
+print sum            // 600

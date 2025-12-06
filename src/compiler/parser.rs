@@ -25,6 +25,7 @@ enum Precedence {
     And,
     Equality,
     Comparison,
+    Range,
     Term,
     Factor,
     Unary,
@@ -40,7 +41,8 @@ impl Precedence {
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
-            Precedence::Comparison => Precedence::Term,
+            Precedence::Comparison => Precedence::Range,
+            Precedence::Range => Precedence::Term,
             Precedence::Term => Precedence::Factor,
             Precedence::Factor => Precedence::Unary,
             Precedence::Unary => Precedence::Call,
@@ -230,6 +232,32 @@ impl Parser {
         })
     }
 
+    /// Parses a val (immutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `val identifier [= expression]`
+    fn val_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
+
+        Some(Stmt::Val {
+            name,
+            initializer,
+            location,
+        })
+    }
+
     fn var_declaration(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
@@ -248,6 +276,32 @@ impl Parser {
             TokenType::Eof,
             "Expecting '\\n' or '\\0' after variable declaration.",
         );
+
+        Some(Stmt::Var {
+            name,
+            initializer,
+            location,
+        })
+    }
+
+    /// Parses a var (mutable variable) declaration without requiring a newline terminator.
+    ///
+    /// This helper method is used in for loop initialization clauses where the declaration
+    /// is followed by a semicolon instead of a newline.
+    ///
+    /// Syntax: `var identifier [= expression]`
+    fn var_declaration_no_terminator(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            self.expression(false)
+        } else {
+            None
+        };
 
         Some(Stmt::Var {
             name,
@@ -367,8 +421,14 @@ impl Parser {
             self.if_statement()
         } else if self.match_token(TokenType::While) {
             self.while_statement()
+        } else if self.match_token(TokenType::For) {
+            self.for_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
+        } else if self.match_token(TokenType::Break) {
+            self.break_statement()
+        } else if self.match_token(TokenType::Continue) {
+            self.continue_statement()
         } else {
             self.expression_statement()
         }
@@ -477,6 +537,172 @@ impl Parser {
         })
     }
 
+    /// Parses for loops: supports both C-style and for-in loops
+    ///
+    /// # Syntax Options
+    /// 1. C-style for loop:
+    ///    ```neon
+    ///    for (val|var identifier = expression; condition; increment) statement
+    ///    ```
+    ///
+    /// 2. For-in loop:
+    ///    ```neon
+    ///    for (identifier in collection) statement
+    ///    ```
+    ///
+    /// # C-style For Loop Desugaring
+    /// The C-style for loop is transformed into a while loop:
+    ///
+    /// ```neon
+    /// for (val i = 0; i < 10; i = i + 1) {
+    ///     print i
+    /// }
+    /// ```
+    ///
+    /// Becomes:
+    ///
+    /// ```neon
+    /// {
+    ///     val i = 0
+    ///     while (i < 10) {
+    ///         print i
+    ///         i = i + 1
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # For-in Loop Structure
+    /// For-in loops iterate over collections (arrays, maps, sets):
+    ///
+    /// ```neon
+    /// for (item in collection) {
+    ///     print item
+    /// }
+    /// ```
+    ///
+    /// - The loop variable is always immutable (implicit val)
+    /// - Maps iterate over keys (use map[key] to access values)
+    /// - Arrays iterate over elements
+    /// - Sets iterate over elements (converted to array internally)
+    fn for_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'for'.") {
+            return None;
+        }
+
+        // Look ahead to determine if this is a for-in loop or C-style for loop
+        // For-in: for (identifier in collection)
+        // C-style: for (val/var identifier = ...)
+
+        // Check if we have an identifier followed by 'in' keyword
+        if self.check(TokenType::Identifier) {
+            // Save the current position in case we need to backtrack
+            let identifier = self.current_token.token.clone();
+            self.advance(); // consume identifier
+
+            // Check for 'in' keyword
+            if self.match_token(TokenType::In) {
+                // This is a for-in loop
+                return self.for_in_loop(identifier, location);
+            } else {
+                // This is not a for-in loop, report error
+                // User wrote: for (identifier ...
+                // Expected either: for (identifier in ...) or for (val/var identifier ...)
+                self.report_error_at_current(
+                    "Expecting 'in' after identifier in for-in loop, or 'val'/'var' for C-style for loop.".to_string()
+                );
+                return None;
+            }
+        }
+
+        // Not a for-in loop, parse as C-style for loop
+        // Parse init clause - must be val or var declaration
+        let init = if self.match_token(TokenType::Val) {
+            self.val_declaration_no_terminator()?
+        } else if self.match_token(TokenType::Var) {
+            self.var_declaration_no_terminator()?
+        } else {
+            self.report_error_at_current("Expecting 'val' or 'var' in for loop initializer.".to_string());
+            return None;
+        };
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop initializer.") {
+            return None;
+        }
+
+        // Parse condition expression
+        let condition = self.expression(false)?;
+
+        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop condition.") {
+            return None;
+        }
+
+        // Parse increment - any expression is allowed
+        let increment_expr = self.expression(false)?;
+        let increment_location = self.current_location();
+        let increment = Stmt::Expression {
+            expr: increment_expr,
+            location: increment_location,
+        };
+
+        if !self.consume(TokenType::RightParen, "Expecting ')' after for clauses.") {
+            return None;
+        }
+
+        // Parse loop body
+        let body = self.statement()?;
+        let body_location = body.location().clone();
+
+        // Desugar to: Block { init, While { condition, Block { body, increment } } }
+        let while_body = Stmt::Block {
+            statements: vec![body, increment],
+            location: body_location,
+        };
+
+        let while_loop = Stmt::While {
+            condition,
+            body: Box::new(while_body),
+            location: body_location,
+        };
+
+        Some(Stmt::Block {
+            statements: vec![init, while_loop],
+            location,
+        })
+    }
+
+    /// Parses a for-in loop after detecting 'identifier in' pattern
+    ///
+    /// # Syntax
+    /// ```neon
+    /// for (variable in collection) statement
+    /// ```
+    ///
+    /// # Behavior
+    /// - Loop variable is always immutable (implicit val)
+    /// - Arrays: iterate over elements
+    /// - Maps: iterate over keys
+    /// - Sets: iterate over elements
+    fn for_in_loop(&mut self, variable: String, location: SourceLocation) -> Option<Stmt> {
+        // Parse collection expression
+        let collection = self.expression(false)?;
+
+        if !self.consume(TokenType::RightParen, "Expecting ')' after for-in clauses.") {
+            return None;
+        }
+
+        // Parse loop body
+        let body = Box::new(self.statement()?);
+
+        Some(Stmt::ForIn {
+            variable,
+            collection,
+            body,
+            location,
+        })
+    }
+
     fn return_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         let value = self.expression(false)?;
@@ -486,6 +712,26 @@ impl Parser {
             "Expecting '\\n' or '\\0' at end of statement.",
         );
         Some(Stmt::Return { value, location })
+    }
+
+    fn break_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after 'break'.",
+        );
+        Some(Stmt::Break { location })
+    }
+
+    fn continue_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after 'continue'.",
+        );
+        Some(Stmt::Continue { location })
     }
 
     // ===== Expressions =====
@@ -505,10 +751,13 @@ impl Parser {
         let mut expr = match self.previous_token.token_type {
             TokenType::Number => self.number(),
             TokenType::String => self.string(),
+            TokenType::InterpolatedString => self.interpolated_string(),
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang => self.unary(),
             TokenType::Identifier => self.variable(),
+            TokenType::LeftBrace => self.brace_literal(),
+            TokenType::LeftBracket => self.array_literal(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -523,15 +772,21 @@ impl Parser {
                 | TokenType::Minus
                 | TokenType::Star
                 | TokenType::Slash
+                | TokenType::SlashSlash
                 | TokenType::Percent
                 | TokenType::EqualEqual
                 | TokenType::BangEqual
                 | TokenType::Greater
                 | TokenType::GreaterEqual
                 | TokenType::Less
-                | TokenType::LessEqual => self.binary(expr),
+                | TokenType::LessEqual
+                | TokenType::AndAnd
+                | TokenType::OrOr => self.binary(expr),
+                TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
+                TokenType::LeftBracket => self.index(expr),
+                TokenType::PlusPlus | TokenType::MinusMinus => self.postfix(expr),
                 _ => {
                     return Some(expr);
                 }
@@ -547,14 +802,17 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot => Precedence::Call,
-            TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
+            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket | TokenType::PlusPlus | TokenType::MinusMinus => Precedence::Call,
+            TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
+            TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
             TokenType::Greater
             | TokenType::GreaterEqual
             | TokenType::Less
             | TokenType::LessEqual => Precedence::Comparison,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality,
+            TokenType::AndAnd => Precedence::And,
+            TokenType::OrOr => Precedence::Or,
             _ => Precedence::None,
         }
     }
@@ -572,6 +830,71 @@ impl Parser {
         let value = token_value[1..token_value.len() - 1].to_string();
         let location = self.current_location();
         Some(Expr::String { value, location })
+    }
+
+    fn interpolated_string(&mut self) -> Option<Expr> {
+        use crate::compiler::ast::InterpolationPart;
+
+        let token_value = &self.previous_token.token;
+        let location = self.current_location();
+
+        // Remove surrounding quotes
+        let content = &token_value[1..token_value.len() - 1];
+
+        let mut parts = Vec::new();
+        let mut current_literal = String::new();
+        let mut chars = content.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '$' && chars.peek() == Some(&'{') {
+                // Start of interpolation
+                chars.next(); // consume '{'
+
+                // Save any pending literal
+                if !current_literal.is_empty() {
+                    parts.push(InterpolationPart::Literal(current_literal.clone()));
+                    current_literal.clear();
+                }
+
+                // Extract the expression between ${ and }
+                let mut expr_str = String::new();
+                let mut brace_depth = 1;
+
+                while let Some(ch) = chars.next() {
+                    if ch == '{' {
+                        brace_depth += 1;
+                        expr_str.push(ch);
+                    } else if ch == '}' {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            break;
+                        }
+                        expr_str.push(ch);
+                    } else {
+                        expr_str.push(ch);
+                    }
+                }
+
+                // Parse the expression
+                let mut expr_parser = Parser::new(&expr_str);
+                expr_parser.advance();
+                if let Some(expr) = expr_parser.expression(true) {
+                    parts.push(InterpolationPart::Expression(Box::new(expr)));
+                } else {
+                    // If parsing fails, treat it as an empty string
+                    parts.push(InterpolationPart::Literal(String::new()));
+                }
+            } else {
+                current_literal.push(ch);
+            }
+        }
+
+        // Add any remaining literal
+        if !current_literal.is_empty() {
+            parts.push(InterpolationPart::Literal(current_literal));
+        }
+
+        Some(Expr::StringInterpolation { parts, location })
     }
 
     fn literal(&self) -> Option<Expr> {
@@ -630,6 +953,7 @@ impl Parser {
             TokenType::Minus => BinaryOp::Subtract,
             TokenType::Star => BinaryOp::Multiply,
             TokenType::Slash => BinaryOp::Divide,
+            TokenType::SlashSlash => BinaryOp::FloorDivide,
             TokenType::Percent => BinaryOp::Modulo,
             TokenType::EqualEqual => BinaryOp::Equal,
             TokenType::BangEqual => BinaryOp::NotEqual,
@@ -637,6 +961,8 @@ impl Parser {
             TokenType::GreaterEqual => BinaryOp::GreaterEqual,
             TokenType::Less => BinaryOp::Less,
             TokenType::LessEqual => BinaryOp::LessEqual,
+            TokenType::AndAnd => BinaryOp::And,
+            TokenType::OrOr => BinaryOp::Or,
             _ => return None,
         };
 
@@ -663,6 +989,22 @@ impl Parser {
         Some(Expr::Unary {
             operator,
             operand,
+            location,
+        })
+    }
+
+    fn range(&mut self, start: Expr) -> Option<Expr> {
+        let operator_type = self.previous_token.token_type.clone();
+        let location = self.current_location();
+
+        let inclusive = operator_type == TokenType::DotDotEqual;
+        let precedence = self.get_precedence(&operator_type).next();
+        let end = Box::new(self.parse_precedence(precedence, false)?);
+
+        Some(Expr::Range {
+            start: Box::new(start),
+            end,
+            inclusive,
             location,
         })
     }
@@ -705,7 +1047,38 @@ impl Parser {
         }
         let field = self.previous_token.token.clone();
 
-        if self.match_token(TokenType::Equal) {
+        // Check if this is a method call: obj.method(args)
+        if self.check(TokenType::LeftParen) {
+            self.advance(); // consume '('
+            let method_location = self.current_location();
+            let mut arguments = Vec::new();
+
+            self.skip_new_lines();
+            if !self.check(TokenType::RightParen) {
+                loop {
+                    if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
+                        self.report_error_at_current("Can't have more than 255 arguments.".to_string());
+                    }
+                    arguments.push(self.expression(false)?);
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                    self.skip_new_lines();
+                }
+            }
+            self.skip_new_lines();
+
+            if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
+                return None;
+            }
+
+            Some(Expr::MethodCall {
+                object: Box::new(object),
+                method: field,
+                arguments,
+                location: method_location,
+            })
+        } else if self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
                 object: Box::new(object),
@@ -719,6 +1092,206 @@ impl Parser {
                 field,
                 location,
             })
+        }
+    }
+
+    fn brace_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+
+        self.skip_new_lines();
+
+        // Handle empty braces: {} - treat as empty map (consistent with Python, JavaScript, etc.)
+        if self.check(TokenType::RightBrace) {
+            self.advance();
+            return Some(Expr::MapLiteral {
+                entries: Vec::new(),
+                location,
+            });
+        }
+
+        // Parse first expression to determine if this is a set or map
+        let first_expr = self.expression(false)?;
+
+        self.skip_new_lines();
+
+        // Check if next token is a colon (map) or comma/closing brace (set)
+        if self.match_token(TokenType::Colon) {
+            // This is a map literal: {key: value, ...}
+            let mut entries = Vec::new();
+
+            // Parse first value
+            let first_value = self.expression(false)?;
+            entries.push((first_expr, first_value));
+
+            self.skip_new_lines();
+
+            // Parse remaining key-value pairs
+            if self.match_token(TokenType::Comma) {
+                self.skip_new_lines();
+
+                // Allow trailing comma
+                if !self.check(TokenType::RightBrace) {
+                    loop {
+                        // Parse key
+                        let key = self.expression(false)?;
+
+                        // Expect colon
+                        if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
+                            return None;
+                        }
+
+                        // Parse value
+                        let value = self.expression(false)?;
+
+                        entries.push((key, value));
+
+                        self.skip_new_lines();
+
+                        // Check for comma or end of map
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+
+                        self.skip_new_lines();
+
+                        // Allow trailing comma
+                        if self.check(TokenType::RightBrace) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
+                return None;
+            }
+
+            Some(Expr::MapLiteral { entries, location })
+        } else {
+            // This is a set literal: {elem1, elem2, ...}
+            let mut elements = Vec::new();
+            elements.push(first_expr);
+
+            self.skip_new_lines();
+
+            // Parse remaining elements
+            if self.match_token(TokenType::Comma) {
+                self.skip_new_lines();
+
+                // Allow trailing comma
+                if !self.check(TokenType::RightBrace) {
+                    loop {
+                        // Parse element
+                        let element = self.expression(false)?;
+                        elements.push(element);
+
+                        self.skip_new_lines();
+
+                        // Check for comma or end of set
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+
+                        self.skip_new_lines();
+
+                        // Allow trailing comma
+                        if self.check(TokenType::RightBrace) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
+                return None;
+            }
+
+            Some(Expr::SetLiteral { elements, location })
+        }
+    }
+
+    fn array_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let mut elements = Vec::new();
+
+        self.skip_new_lines();
+
+        // Handle empty array: []
+        if self.check(TokenType::RightBracket) {
+            self.advance();
+            return Some(Expr::ArrayLiteral { elements, location });
+        }
+
+        // Parse comma-separated elements
+        loop {
+            // Parse element expression
+            let element = self.expression(false)?;
+            elements.push(element);
+
+            self.skip_new_lines();
+
+            // Check for comma or end of array
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+
+            self.skip_new_lines();
+
+            // Allow trailing comma
+            if self.check(TokenType::RightBracket) {
+                break;
+            }
+        }
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after array elements.") {
+            return None;
+        }
+
+        Some(Expr::ArrayLiteral { elements, location })
+    }
+
+    fn index(&mut self, object: Expr) -> Option<Expr> {
+        let location = self.current_location();
+
+        // Parse index expression
+        let index = Box::new(self.expression(false)?);
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
+            return None;
+        }
+
+        // Check if this is an index assignment: expr[index] = value
+        if self.match_token(TokenType::Equal) {
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::IndexAssign {
+                object: Box::new(object),
+                index,
+                value,
+                location,
+            })
+        } else {
+            Some(Expr::Index {
+                object: Box::new(object),
+                index,
+                location,
+            })
+        }
+    }
+
+    fn postfix(&self, operand: Expr) -> Option<Expr> {
+        let operator_type = self.previous_token.token_type.clone();
+        let location = self.current_location();
+
+        match operator_type {
+            TokenType::PlusPlus => Some(Expr::PostfixIncrement {
+                operand: Box::new(operand),
+                location,
+            }),
+            TokenType::MinusMinus => Some(Expr::PostfixDecrement {
+                operand: Box::new(operand),
+                location,
+            }),
+            _ => None,
         }
     }
 }

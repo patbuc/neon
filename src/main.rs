@@ -16,7 +16,9 @@ fn main() {
     if args.len() == 1 {
         run_repl();
     } else if args.len() >= 2 {
-        run_file(&args[1]);
+        // Pass all arguments after the script path to the script
+        let script_args = args[2..].to_vec();
+        run_file(&args[1], script_args);
     } else {
         exit(64);
     }
@@ -49,6 +51,7 @@ fn print_tagline() {
 fn run_repl() {
     println!("Type 'exit' or Ctrl+C to quit");
 
+    // REPL has no command-line arguments
     let mut vm = VirtualMachine::new();
     loop {
         print_prompt();
@@ -83,11 +86,11 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn run_file(path: &String) {
+fn run_file(path: &String, args: Vec<String>) {
     println!("Running file: {} ", path);
 
     let source = read_file(path);
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::with_args(args);
 
     let result: Result = vm.interpret(source);
     match result {

@@ -1,0 +1,37 @@
+// Expected:
+// 3
+// 3
+// -4
+// 2
+// 5
+// -3
+// 1
+// 0
+// -1
+
+// Basic integer division
+print 10//3
+
+// Another basic case
+print 7//2
+
+// Floor division with negative dividend (rounds toward negative infinity)
+print -7//2
+
+// Even division
+print 10//4
+
+// Larger numbers
+print 25//5
+
+// Negative divisor
+print 10//-4
+
+// Both positive, result is 1
+print 5//4
+
+// Small dividend
+print 1//2
+
+// Negative dividend, positive divisor
+print -1//2

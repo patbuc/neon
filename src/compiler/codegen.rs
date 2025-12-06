@@ -8,6 +8,16 @@ use crate::common::{Bloq, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 
+/// Loop context for tracking break and continue jump locations
+struct LoopContext {
+    /// Start of the loop (for continue)
+    loop_start: u32,
+    /// Break jump locations to patch when exiting loop
+    break_jumps: Vec<u32>,
+    /// Continue jump locations to patch when starting next iteration
+    continue_jumps: Vec<u32>,
+}
+
 /// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
     /// Stack of bloqs (for nested function compilation)
@@ -16,14 +26,19 @@ pub struct CodeGenerator {
     scope_depth: u32,
     /// Errors encountered during code generation
     errors: Vec<CompilationError>,
+    /// Stack of loop contexts for nested loops
+    loop_contexts: Vec<LoopContext>,
 }
 
 impl CodeGenerator {
     pub fn new() -> Self {
+        let bloqs = vec![Bloq::new("main")];
+
         CodeGenerator {
-            bloqs: vec![Bloq::new("main")],
+            bloqs,
             scope_depth: 0,
             errors: Vec::new(),
+            loop_contexts: Vec::new(),
         }
     }
 
@@ -123,13 +138,27 @@ impl CodeGenerator {
 
     fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
         // Returns: (index, is_mutable, is_global)
+
+        // Special case: Math, File, and args are built-in globals stored in the VM's globals HashMap
+        // We use sentinel values to signal the VM to look up built-in globals
+        if name == "Math" {
+            return (Some(u32::MAX), false, true); // u32::MAX = Math
+        }
+        if name == "File" {
+            return (Some(u32::MAX - 1), false, true); // u32::MAX - 1 = File
+        }
+        if name == "args" {
+            return (Some(u32::MAX - 2), false, true); // u32::MAX - 2 = args
+        }
+
         // Search in bloq stack from innermost to outermost
         let current_bloq_idx = self.bloqs.len() - 1;
 
         // First try to find in current bloq (parameters and locals)
         let current_result = self.bloqs[current_bloq_idx].get_local_index(name);
         if current_result.0.is_some() {
-            return (current_result.0, current_result.1, false);
+            let index = current_result.0.unwrap();
+            return (Some(index), current_result.1, false);
         }
 
         // Then try to find in parent bloqs (global scope for nested functions)
@@ -137,7 +166,7 @@ impl CodeGenerator {
             for bloq_idx in (0..current_bloq_idx).rev() {
                 let index = self.bloqs[bloq_idx].get_local_index(name);
                 if index.0.is_some() {
-                    return (index.0, index.1, true); // is_global = true
+                    return (Some(index.0.unwrap()), index.1, true); // is_global = true
                 }
             }
         }
@@ -276,9 +305,11 @@ impl CodeGenerator {
                 self.generate_expr(condition);
 
                 let then_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                self.emit_op_code(OpCode::Pop, *location); // Pop condition if true (not jumping)
                 self.generate_stmt(then_branch);
                 let else_jump = self.emit_jump(OpCode::Jump, *location);
                 self.patch_jump(then_jump);
+                self.emit_op_code(OpCode::Pop, *location); // Pop condition if false (jumped here)
 
                 if let Some(else_stmt) = else_branch {
                     self.generate_stmt(else_stmt);
@@ -292,18 +323,199 @@ impl CodeGenerator {
             } => {
                 let loop_start = self.current_bloq().instruction_count() as u32;
 
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
+
                 self.generate_expr(condition);
 
                 let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
                 self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the true case
-                self.generate_stmt(body);
+
+                // Check if this is a desugared C-style for loop (body is Block with 2 statements)
+                // In that case, we need to patch continue jumps after the first statement but before the second (increment)
+                if let Stmt::Block { statements, .. } = body.as_ref() {
+                    if statements.len() == 2 {
+                        // This is likely a desugared for loop: Block([user_body, increment])
+                        // Generate the user body first
+                        self.generate_stmt(&statements[0]);
+
+                        // Now patch continue jumps to point here (before the increment)
+                        let loop_context = self.loop_contexts.last_mut().unwrap();
+                        let continue_jumps = std::mem::take(&mut loop_context.continue_jumps);
+                        for continue_jump in continue_jumps {
+                            self.patch_jump(continue_jump);
+                        }
+
+                        // Generate the increment
+                        self.generate_stmt(&statements[1]);
+                    } else {
+                        // Regular block, generate normally
+                        self.generate_stmt(body);
+                    }
+                } else {
+                    // Not a block, generate normally
+                    self.generate_stmt(body);
+                }
+
+                // Pop loop context
+                let loop_context = self.loop_contexts.pop().unwrap();
+
+                // Patch any remaining continue jumps (for non-desugared while loops)
+                // These should jump to just before the Loop instruction
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
                 self.emit_loop(loop_start, *location);
 
                 self.patch_jump(exit_jump);
+                self.emit_op_code(OpCode::Pop, *location); // Pop the condition value for the false case (exiting loop)
+
+                // Patch all break jumps
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
             }
             Stmt::Return { value, location } => {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
+            }
+            Stmt::Break { location } => {
+                // Emit a Jump opcode and record its location for later patching
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'break' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .break_jumps
+                    .push(jump_index);
+            }
+            Stmt::Continue { location } => {
+                // Emit a Jump opcode and record it for later patching
+                // This allows continue to jump to the right place (before the Loop instruction)
+                // which is crucial for C-style for loops where increment comes at the end
+                if self.loop_contexts.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'continue' outside of a loop".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
+                let jump_index = self.emit_jump(OpCode::Jump, *location);
+                self.loop_contexts
+                    .last_mut()
+                    .unwrap()
+                    .continue_jumps
+                    .push(jump_index);
+            }
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
+                // For-in loop code generation strategy:
+                // Unlike C-style for loops, we don't desugar this - we use iterator opcodes
+                //
+                // Bytecode structure:
+                //   <evaluate collection>
+                //   GetIterator              ; Convert collection to iterator state (VM internal)
+                //   loop_start:
+                //   IteratorDone            ; Check if has more (pushes true if more, false if done)
+                //   JumpIfFalse exit_jump   ; If false (done), exit loop
+                //   Pop                     ; Pop the true value (has more)
+                //   IteratorNext            ; Get next value (pushes value onto stack)
+                //   <body with loop variable>
+                //   Pop                     ; Pop the loop variable value
+                //   Loop loop_start         ; Jump back
+                //   exit_jump:
+                //   Pop                     ; Pop the false value (done)
+
+                // Evaluate the collection expression
+                self.generate_expr(collection);
+
+                // Convert collection to iterator (stores iterator state in VM)
+                self.emit_op_code(OpCode::GetIterator, *location);
+
+                // Enter a block scope for the loop
+                self.scope_depth += 1;
+
+                // Mark the start of the loop
+                let loop_start = self.current_bloq().instruction_count() as u32;
+
+                // Push loop context for break/continue tracking
+                self.loop_contexts.push(LoopContext {
+                    loop_start,
+                    break_jumps: Vec::new(),
+                    continue_jumps: Vec::new(),
+                });
+
+                // Check if iterator has more elements (pushes true if more, false if done)
+                self.emit_op_code(OpCode::IteratorDone, *location);
+
+                // JumpIfFalse exits when false (done/no more elements)
+                let exit_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+
+                // Pop the true value (has more elements, continuing loop)
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Get next value from iterator (pushes value)
+                self.emit_op_code(OpCode::IteratorNext, *location);
+
+                // Define the loop variable (value is already on stack from IteratorNext)
+                let local = Local::new(variable.clone(), self.scope_depth, false);
+                self.current_bloq()
+                    .define_local(local, location.line, location.column);
+
+                // Generate the loop body
+                self.generate_stmt(body);
+
+                // Pop the old loop variable value before getting the next one
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Patch all continue jumps to point here (just before the Loop)
+                // This allows continue to properly skip to the next iteration
+                let loop_context = self.loop_contexts.pop().unwrap();
+                for continue_jump in loop_context.continue_jumps {
+                    self.patch_jump(continue_jump);
+                }
+
+                // Jump back to loop start (will push next value)
+                self.emit_loop(loop_start, *location);
+
+                // Patch the exit jump
+                self.patch_jump(exit_jump);
+
+                // Pop the false value (done/no more elements)
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Note: The loop variable has already been popped in the last iteration
+                // before jumping back. So we don't need to pop it here.
+
+                // Pop the iterator from the VM's iterator stack
+                self.emit_op_code(OpCode::PopIterator, *location);
+
+                // Patch all break jumps
+                for break_jump in loop_context.break_jumps {
+                    self.patch_jump(break_jump);
+                }
+
+                // Exit the loop scope
+                self.scope_depth -= 1;
             }
         }
     }
@@ -317,6 +529,36 @@ impl CodeGenerator {
             }
             Expr::String { value, location } => {
                 self.emit_string(string!(value.as_str()), *location);
+            }
+            Expr::StringInterpolation { parts, location } => {
+                use crate::compiler::ast::InterpolationPart;
+
+                // Generate code for each part and concatenate them
+                let mut first = true;
+                for part in parts {
+                    match part {
+                        InterpolationPart::Literal(s) => {
+                            self.emit_string(string!(s.as_str()), *location);
+                        }
+                        InterpolationPart::Expression(expr) => {
+                            // Generate the expression
+                            self.generate_expr(expr);
+                            // Convert to string using ToString opcode
+                            self.emit_op_code(OpCode::ToString, *location);
+                        }
+                    }
+
+                    // Concatenate with previous parts (skip for first part)
+                    if !first {
+                        self.emit_op_code(OpCode::Add, *location);
+                    }
+                    first = false;
+                }
+
+                // If there are no parts, emit an empty string
+                if parts.is_empty() {
+                    self.emit_string(string!(""), *location);
+                }
             }
             Expr::Boolean { value, location } => {
                 if *value {
@@ -376,29 +618,65 @@ impl CodeGenerator {
                 right,
                 location,
             } => {
-                self.generate_expr(left);
-                self.generate_expr(right);
-
+                // Handle short-circuit operators specially
                 match operator {
-                    BinaryOp::Add => self.emit_op_code(OpCode::Add, *location),
-                    BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
-                    BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
-                    BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
-                    BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
-                    BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
-                    BinaryOp::NotEqual => {
-                        self.emit_op_code(OpCode::Equal, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    BinaryOp::And => {
+                        // For `a && b`:
+                        // 1. Evaluate left operand
+                        self.generate_expr(left);
+                        // 2. If false, skip right operand and result is false
+                        let end_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                        // 3. Left was true, pop it and evaluate right
+                        self.emit_op_code(OpCode::Pop, *location);
+                        self.generate_expr(right);
+                        // 4. Patch jump to end (if left was false, we skip here with false on stack)
+                        self.patch_jump(end_jump);
                     }
-                    BinaryOp::Greater => self.emit_op_code(OpCode::Greater, *location),
-                    BinaryOp::GreaterEqual => {
-                        self.emit_op_code(OpCode::Less, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    BinaryOp::Or => {
+                        // For `a || b`:
+                        // 1. Evaluate left operand
+                        self.generate_expr(left);
+                        // 2. If false, jump to evaluate right operand
+                        let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+                        // 3. Left was true, jump to end with true result
+                        let end_jump = self.emit_jump(OpCode::Jump, *location);
+                        // 4. Patch else jump (left was false, need to evaluate right)
+                        self.patch_jump(else_jump);
+                        // 5. Pop false value and evaluate right
+                        self.emit_op_code(OpCode::Pop, *location);
+                        self.generate_expr(right);
+                        // 6. Patch end jump (left was true, skip right evaluation)
+                        self.patch_jump(end_jump);
                     }
-                    BinaryOp::Less => self.emit_op_code(OpCode::Less, *location),
-                    BinaryOp::LessEqual => {
-                        self.emit_op_code(OpCode::Greater, *location);
-                        self.emit_op_code(OpCode::Not, *location);
+                    _ => {
+                        // Regular binary operators: evaluate both operands first
+                        self.generate_expr(left);
+                        self.generate_expr(right);
+
+                        match operator {
+                            BinaryOp::Add => self.emit_op_code(OpCode::Add, *location),
+                            BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
+                            BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
+                            BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
+                            BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, *location),
+                            BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
+                            BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
+                            BinaryOp::NotEqual => {
+                                self.emit_op_code(OpCode::Equal, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::Greater => self.emit_op_code(OpCode::Greater, *location),
+                            BinaryOp::GreaterEqual => {
+                                self.emit_op_code(OpCode::Less, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::Less => self.emit_op_code(OpCode::Less, *location),
+                            BinaryOp::LessEqual => {
+                                self.emit_op_code(OpCode::Greater, *location);
+                                self.emit_op_code(OpCode::Not, *location);
+                            }
+                            BinaryOp::And | BinaryOp::Or => unreachable!(),
+                        }
                     }
                 }
             }
@@ -459,6 +737,271 @@ impl CodeGenerator {
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
+            }
+            Expr::MethodCall {
+                object,
+                method,
+                arguments,
+                location,
+            } => {
+                // Evaluate the receiver object
+                self.generate_expr(object);
+
+                // Evaluate all arguments
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+
+                // Add method name to string constants
+                let method_string = string!(method.as_str());
+                let method_index = self.current_bloq().add_string(method_string);
+
+                // Emit CallMethod instruction with appropriate variant based on method_index size
+                let (opcode, index_bytes) = if method_index <= 0xFF {
+                    (OpCode::CallMethod, 1)
+                } else if method_index <= 0xFFFF {
+                    (OpCode::CallMethod2, 2)
+                } else {
+                    (OpCode::CallMethod4, 4)
+                };
+
+                self.emit_op_code(opcode, *location);
+                self.current_bloq().write_u8(arguments.len() as u8);
+
+                // Write method index with appropriate size
+                match index_bytes {
+                    1 => self.current_bloq().write_u8(method_index as u8),
+                    2 => self.current_bloq().write_u16(method_index as u16),
+                    4 => self.current_bloq().write_u32(method_index),
+                    _ => unreachable!(),
+                }
+            }
+            Expr::MapLiteral { entries, location } => {
+                // Generate bytecode for map literal creation
+                // Strategy: emit code for each key, then each value, then CreateMap
+                // This allows the VM to pop pairs from the stack in order
+
+                // First, generate code for all keys
+                for (key, _) in entries {
+                    self.generate_expr(key);
+                }
+
+                // Then, generate code for all values
+                for (_, value) in entries {
+                    self.generate_expr(value);
+                }
+
+                // Emit CreateMap with the count of entries
+                self.emit_op_code(OpCode::CreateMap, *location);
+                self.current_bloq().write_u8(entries.len() as u8);
+            }
+            Expr::ArrayLiteral { elements, location } => {
+                // Generate bytecode for array literal creation
+                // Strategy: emit code for each element, then CreateArray
+                // This allows the VM to pop elements from the stack in order
+
+                // Check if array size exceeds u16 limit
+                if elements.len() > u16::MAX as usize {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        format!(
+                            "array literal too large: {} elements (maximum is {})",
+                            elements.len(),
+                            u16::MAX
+                        ),
+                        *location,
+                    ));
+                    return;
+                }
+
+                // Generate code for all elements
+                for element in elements {
+                    self.generate_expr(element);
+                }
+
+                // Emit CreateArray with the count of elements
+                self.emit_op_code(OpCode::CreateArray, *location);
+                self.current_bloq().write_u16(elements.len() as u16);
+            }
+            Expr::SetLiteral { elements, location } => {
+                // Generate code for each element expression
+                for element in elements {
+                    self.generate_expr(element);
+                }
+
+                // Emit CreateSet with the count of elements
+                self.emit_op_code(OpCode::CreateSet, *location);
+                self.current_bloq().write_u8(elements.len() as u8);
+            }
+            Expr::Index {
+                object,
+                index,
+                location,
+            } => {
+                // Generate bytecode for index access (map["key"] or array[0])
+                // First evaluate the object being indexed
+                self.generate_expr(object);
+
+                // Then evaluate the index expression
+                self.generate_expr(index);
+
+                // Emit GetIndex opcode
+                self.emit_op_code(OpCode::GetIndex, *location);
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                location,
+            } => {
+                // Generate bytecode for index assignment (map["key"] = value)
+                // First evaluate the object being indexed
+                self.generate_expr(object);
+
+                // Then evaluate the index expression
+                self.generate_expr(index);
+
+                // Finally evaluate the value to be assigned
+                self.generate_expr(value);
+
+                // Emit SetIndex opcode
+                self.emit_op_code(OpCode::SetIndex, *location);
+            }
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                location,
+            } => {
+                // Generate bytecode for range expression
+                // First evaluate the start of the range
+                self.generate_expr(start);
+
+                // Then evaluate the end of the range
+                self.generate_expr(end);
+
+                // Emit CreateRange opcode with inclusive flag
+                self.emit_op_code(OpCode::CreateRange, *location);
+                self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
+            }
+            Expr::PostfixIncrement { operand, location } => {
+                // Postfix increment: x++
+                // Returns the OLD value before incrementing
+                // Bytecode sequence:
+                //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
+                //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
+                //   3. Constant(1.0)          - push 1
+                //   4. Add                    - compute new value (old + 1)
+                //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
+                //   6. Pop                    - pop new value, leaving old value on stack
+
+                // Semantic analysis ensures operand is a Variable
+                if let Expr::Variable { name, .. } = operand.as_ref() {
+                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    if let Some(index) = maybe_index {
+                        // Load old value (return value)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Load old value again (for modification)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Push 1 and add
+                        self.emit_constant(number!(1.0), *location);
+                        self.emit_op_code(OpCode::Add, *location);
+
+                        // Store new value
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::SetLocal, index, *location);
+                        }
+
+                        // Pop the new value, leaving old value on stack
+                        self.emit_op_code(OpCode::Pop, *location);
+                    } else {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::UndefinedSymbol,
+                            format!("Undefined variable '{}'", name),
+                            *location,
+                        ));
+                    }
+                } else {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Postfix increment operand must be a variable".to_string(),
+                        *location,
+                    ));
+                }
+            }
+            Expr::PostfixDecrement { operand, location } => {
+                // Postfix decrement: x--
+                // Returns the OLD value before decrementing
+                // Bytecode sequence:
+                //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
+                //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
+                //   3. Constant(1.0)          - push 1
+                //   4. Subtract               - compute new value (old - 1)
+                //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
+                //   6. Pop                    - pop new value, leaving old value on stack
+
+                // Semantic analysis ensures operand is a Variable
+                if let Expr::Variable { name, .. } = operand.as_ref() {
+                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    if let Some(index) = maybe_index {
+                        // Load old value (return value)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Load old value again (for modification)
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::GetLocal, index, *location);
+                        }
+
+                        // Push 1 and subtract
+                        self.emit_constant(number!(1.0), *location);
+                        self.emit_op_code(OpCode::Subtract, *location);
+
+                        // Store new value
+                        if is_global {
+                            self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
+                        } else {
+                            self.emit_op_code_variant(OpCode::SetLocal, index, *location);
+                        }
+
+                        // Pop the new value, leaving old value on stack
+                        self.emit_op_code(OpCode::Pop, *location);
+                    } else {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Codegen,
+                            CompilationErrorKind::UndefinedSymbol,
+                            format!("Undefined variable '{}'", name),
+                            *location,
+                        ));
+                    }
+                } else {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Codegen,
+                        CompilationErrorKind::Other,
+                        "Postfix decrement operand must be a variable".to_string(),
+                        *location,
+                    ));
+                }
             }
         }
     }

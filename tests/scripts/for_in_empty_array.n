@@ -1,0 +1,10 @@
+// Expected:
+// before
+// after
+
+val arr = []
+print "before"
+for (x in arr) {
+    print x
+}
+print "after"

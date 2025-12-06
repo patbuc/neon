@@ -1,0 +1,16 @@
+// Expected:
+// 1
+// a
+// b
+// 2
+// a
+// b
+
+val nums = [1, 2]
+val letters = ["a", "b"]
+for (n in nums) {
+    print n
+    for (l in letters) {
+        print l
+    }
+}

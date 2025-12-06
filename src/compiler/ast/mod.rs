@@ -8,6 +8,7 @@ pub enum BinaryOp {
     Subtract,
     Multiply,
     Divide,
+    FloorDivide,
     Modulo,
     // Comparison
     Equal,
@@ -16,6 +17,9 @@ pub enum BinaryOp {
     GreaterEqual,
     Less,
     LessEqual,
+    // Logical
+    And,
+    Or,
 }
 
 /// Unary operators
@@ -23,6 +27,15 @@ pub enum BinaryOp {
 pub enum UnaryOp {
     Negate,
     Not,
+}
+
+/// Parts of an interpolated string
+#[derive(Debug, Clone, PartialEq)]
+pub enum InterpolationPart {
+    /// Literal string part: "Hello "
+    Literal(String),
+    /// Expression part: ${name}
+    Expression(Box<Expr>),
 }
 
 /// Expression nodes
@@ -36,6 +49,11 @@ pub enum Expr {
     /// String literal: "hello"
     String {
         value: String,
+        location: SourceLocation,
+    },
+    /// String interpolation: "Hello ${name}"
+    StringInterpolation {
+        parts: Vec<InterpolationPart>,
         location: SourceLocation,
     },
     /// Boolean literal: true, false
@@ -93,6 +111,58 @@ pub enum Expr {
     /// Grouping expression: (expr)
     Grouping {
         expr: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Method call: obj.method(args)
+    MethodCall {
+        object: Box<Expr>,
+        method: String,
+        arguments: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Map literal: {"key": value, "key2": value2}
+    MapLiteral {
+        entries: Vec<(Expr, Expr)>,
+        location: SourceLocation,
+    },
+    /// Array literal: [1, 2, 3]
+    ArrayLiteral {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Set literal: {1, 2, 3}
+    SetLiteral {
+        elements: Vec<Expr>,
+        location: SourceLocation,
+    },
+    /// Index access: map["key"], array[0]
+    Index {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Index assignment: map["key"] = value
+    IndexAssign {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        value: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Range expression: 1..10 (exclusive), 1..=10 (inclusive)
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+        inclusive: bool,
+        location: SourceLocation,
+    },
+    /// Postfix increment: x++
+    PostfixIncrement {
+        operand: Box<Expr>,
+        location: SourceLocation,
+    },
+    /// Postfix decrement: x--
+    PostfixDecrement {
+        operand: Box<Expr>,
         location: SourceLocation,
     },
 }
@@ -158,6 +228,21 @@ pub enum Stmt {
         value: Expr,
         location: SourceLocation,
     },
+    /// For-in loop: for (variable in collection) body
+    ForIn {
+        variable: String,
+        collection: Expr,
+        body: Box<Stmt>,
+        location: SourceLocation,
+    },
+    /// Break statement: break
+    Break {
+        location: SourceLocation,
+    },
+    /// Continue statement: continue
+    Continue {
+        location: SourceLocation,
+    },
 }
 
 impl Expr {
@@ -166,6 +251,7 @@ impl Expr {
         match self {
             Expr::Number { location, .. }
             | Expr::String { location, .. }
+            | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }
             | Expr::Variable { location, .. }
@@ -175,7 +261,16 @@ impl Expr {
             | Expr::Call { location, .. }
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
-            | Expr::Grouping { location, .. } => location,
+            | Expr::Grouping { location, .. }
+            | Expr::MethodCall { location, .. }
+            | Expr::MapLiteral { location, .. }
+            | Expr::ArrayLiteral { location, .. }
+            | Expr::SetLiteral { location, .. }
+            | Expr::Index { location, .. }
+            | Expr::IndexAssign { location, .. }
+            | Expr::Range { location, .. }
+            | Expr::PostfixIncrement { location, .. }
+            | Expr::PostfixDecrement { location, .. } => location,
         }
     }
 }
@@ -193,7 +288,10 @@ impl Stmt {
             | Stmt::Block { location, .. }
             | Stmt::If { location, .. }
             | Stmt::While { location, .. }
-            | Stmt::Return { location, .. } => location,
+            | Stmt::Return { location, .. }
+            | Stmt::ForIn { location, .. }
+            | Stmt::Break { location }
+            | Stmt::Continue { location } => location,
         }
     }
 }

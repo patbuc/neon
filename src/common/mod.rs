@@ -1,12 +1,24 @@
 use std::cell::RefCell;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use ordered_float::OrderedFloat;
 
 pub(crate) mod bloq;
 pub(crate) mod opcodes;
 pub mod errors;
 pub mod constants;
 pub mod error_renderer;
+pub mod string_similarity;
+pub mod method_registry;
+
+#[cfg(test)]
+mod tests;
+
+// Forward declare VirtualMachine for NativeFn signature
+// We can't import VirtualMachine directly as it would create a circular dependency
+// The actual implementation will be in vm/mod.rs
+pub type NativeFn = fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, String>;
 
 #[derive(Debug)]
 pub(crate) struct Bloq {
@@ -69,12 +81,36 @@ pub(crate) enum Value {
     Nil,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum MapKey {
+    String(Rc<str>),
+    Number(OrderedFloat<f64>),
+    Boolean(bool),
+}
+
+pub(crate) type SetKey = MapKey;
+
+impl Display for MapKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MapKey::String(s) => write!(f, "{}", s),
+            MapKey::Number(n) => write!(f, "{}", n),
+            MapKey::Boolean(b) => write!(f, "{}", b),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
+    NativeFunction(ObjNativeFunction),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
+    Array(Rc<RefCell<Vec<Value>>>),
+    Map(Rc<RefCell<HashMap<MapKey, Value>>>),
+    Set(Rc<RefCell<BTreeSet<SetKey>>>),
+    File(Rc<str>),
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +123,32 @@ pub(crate) struct ObjFunction {
     pub name: String,
     pub arity: u8,
     pub bloq: Rc<Bloq>,
+}
+
+#[derive(Clone)]
+pub(crate) struct ObjNativeFunction {
+    pub name: String,
+    pub arity: u8,
+    pub function: NativeFn,
+}
+
+impl std::fmt::Debug for ObjNativeFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjNativeFunction")
+            .field("name", &self.name)
+            .field("arity", &self.arity)
+            .field("function", &"<native fn>")
+            .finish()
+    }
+}
+
+impl PartialEq for ObjNativeFunction {
+    fn eq(&self, other: &Self) -> bool {
+        // Native functions are equal if they have the same name, arity, and function pointer
+        self.name == other.name
+            && self.arity == other.arity
+            && (self.function as usize) == (other.function as usize)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +179,30 @@ impl Value {
             bloq: Rc::new(bloq),
         }))))
     }
+
+    pub(crate) fn new_native_function(name: String, arity: u8, function: NativeFn) -> Self {
+        Value::Object(Rc::new(Object::NativeFunction(ObjNativeFunction {
+            name,
+            arity,
+            function,
+        })))
+    }
+
+    pub(crate) fn new_array(elements: Vec<Value>) -> Self {
+        Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
+    }
+
+    pub(crate) fn new_map(entries: HashMap<MapKey, Value>) -> Self {
+        Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
+    }
+
+    pub(crate) fn new_set(elements: BTreeSet<SetKey>) -> Self {
+        Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(elements)))))
+    }
+
+    pub(crate) fn new_file(path: String) -> Self {
+        Value::Object(Rc::new(Object::File(Rc::from(path))))
+    }
 }
 
 pub(crate) struct CallFrame {
@@ -130,11 +216,50 @@ impl Display for Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
+            Object::NativeFunction(native_fn) => write!(f, "<native fn {}>", native_fn.name),
             Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
             Object::Instance(obj_instance) => {
                 let instance = obj_instance;
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
             }
+            Object::Array(array) => {
+                let elements = array.borrow();
+                write!(f, "[")?;
+                for (i, value) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", value)?;
+                }
+                write!(f, "]")
+            }
+            Object::Map(map) => {
+                let entries = map.borrow();
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in entries.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}: {}", key, value)?;
+                }
+                write!(f, "}}")
+            }
+            Object::Set(set) => {
+                let elements = set.borrow();
+                write!(f, "{{")?;
+                let mut first = true;
+                for element in elements.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}", element)?;
+                }
+                write!(f, "}}")
+            }
+            Object::File(path) => write!(f, "<file: {}>", path),
         }
     }
 }

@@ -15,12 +15,52 @@ I’m building neon for one simple reason: to teach myself a few things.
 
 ## State
 
-Right now, neon doesn’t do much — it’s purely experimental and entirely useless and will happily crash in interesting
+Right now, neon doesn't do much — it's purely experimental and entirely useless and will happily crash in interesting
 ways.
+
+## Language Features
+
+Neon currently supports the following operators:
+
+### Logical Operators
+
+- `&&` (logical AND) - Returns `true` if both operands are truthy, otherwise returns `false`
+- `||` (logical OR) - Returns `true` if either operand is truthy, otherwise returns `false`
+- `!` (logical NOT) - Negates a boolean value
+
+**Short-circuit evaluation:** Both `&&` and `||` use short-circuit evaluation, meaning the right operand is only
+evaluated if necessary.
+
+**Operator precedence:** `||` has lower precedence than `&&`, so `a || b && c` is evaluated as `a || (b && c)`.
+
+Example:
+```neon
+val t = true
+val f = false
+print t && f    // false
+print t || f    // true
+print !t        // false
+```
+
+### Comparison Operators
+
+- `==` (equal)
+- `!=` (not equal)
+- `<` (less than)
+- `<=` (less than or equal)
+- `>` (greater than)
+- `>=` (greater than or equal)
+
+### Arithmetic Operators
+
+- `+` (addition and string concatenation)
+- `-` (subtraction)
+- `*` (multiplication)
+- `/` (division)
 
 ## Goal
 
-I wanted to make neon self-hosted someday, but I am not sur anymore. Goals may appear (or disappear) as the project
+I wanted to make neon self-hosted someday, but I am not sure anymore. Goals may appear (or disappear) as the project
 evolves.
 
 ## Inspiration
