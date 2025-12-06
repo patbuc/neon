@@ -1,0 +1,79 @@
+// This file tests all Neon language features for highlighting
+
+// Variables
+val immutable = 42
+var mutable = 3.14159
+
+// Functions
+fn greet(name) {
+  print "Hello, ${name}!"
+}
+
+fn fibonacci(n) {
+  if (n <= 1) {
+    return n
+  }
+  return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+// Structs
+struct Point {
+  x
+  y
+}
+
+// Control flow
+val numbers = [1, 2, 3, 4, 5]
+for (num in numbers) {
+  if (num % 2 == 0) {
+    print "Even: ${num}"
+  } else {
+    print "Odd: ${num}"
+  }
+}
+
+// While loops
+var counter = 0
+while (counter < 10) {
+  counter++
+}
+
+// Collections
+val array = [10, 20, 30]
+val map = {"key": "value", "count": 42}
+val set = {1, 2, 3, 4, 5}
+
+// Operators
+val sum = 10 + 20
+val product = 5 * 6
+val floor_div = 17 // 3
+val modulo = 17 % 3
+val comparison = x >= y && a < b
+val range = 1..100
+val inclusive = 0..=10
+
+// Method calls
+val length = array.len()
+val substring = "hello".substring(0, 3)
+
+// String interpolation
+val name = "Alice"
+val age = 30
+print "Name: ${name}, Age: ${age + 1}"
+
+// Escape sequences
+val escaped = "Line 1\nLine 2\tTabbed"
+
+// Nested structures
+fn process(data) {
+  for (item in data) {
+    if (item.value > 0) {
+      val result = item.compute(10, 20)
+      print "Result: ${result}"
+    }
+  }
+}
+
+// Booleans and nil
+val flag = true
+val nothing = nil
