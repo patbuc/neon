@@ -58,6 +58,16 @@ print !t        // false
 - `*` (multiplication)
 - `/` (division)
 
+## Editor Support
+
+Neon has full Tree-sitter grammar support for syntax highlighting in modern editors:
+
+- **Zed**: See [editors/zed/](editors/zed/)
+- **Neovim**: Via nvim-treesitter
+- **Helix**: Native Tree-sitter support
+
+See [docs/TREE_SITTER.md](docs/TREE_SITTER.md) for details.
+
 ## Goal
 
 I wanted to make neon self-hosted someday, but I am not sure anymore. Goals may appear (or disappear) as the project

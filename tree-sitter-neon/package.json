@@ -3,12 +3,23 @@
   "version": "0.1.0",
   "description": "Tree-sitter grammar for Neon programming language",
   "main": "bindings/node",
-  "keywords": ["parser", "lexer", "neon", "tree-sitter"],
+  "keywords": [
+    "parser",
+    "lexer",
+    "neon",
+    "tree-sitter",
+    "syntax-highlighting",
+    "grammar"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/patbuc/neon.git",
     "directory": "tree-sitter-neon"
   },
+  "bugs": {
+    "url": "https://github.com/patbuc/neon/issues"
+  },
+  "homepage": "https://github.com/patbuc/neon/tree/main/tree-sitter-neon",
   "author": "patbuc",
   "license": "MIT",
   "dependencies": {
@@ -21,12 +32,21 @@
     "test": "tree-sitter test",
     "generate": "tree-sitter generate",
     "build": "tree-sitter generate && node-gyp build",
-    "parse": "tree-sitter parse"
+    "parse": "tree-sitter parse",
+    "highlight": "tree-sitter highlight"
   },
   "tree-sitter": [{
     "scope": "source.neon",
     "file-types": ["neon", "n"],
     "highlights": "queries/highlights.scm",
-    "injections": "queries/injections.scm"
-  }]
+    "injections": "queries/injections.scm",
+    "locals": "queries/locals.scm"
+  }],
+  "files": [
+    "grammar.js",
+    "binding.gyp",
+    "bindings",
+    "queries",
+    "src"
+  ]
 }
