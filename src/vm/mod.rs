@@ -12,7 +12,7 @@ pub(crate) mod set_functions;
 mod math_functions;
 pub(crate) mod file_functions;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 // Native functions for testing and built-in operations
 pub mod native_functions {
@@ -64,28 +64,3 @@ pub struct VirtualMachine {
     iterator_stack: Vec<(usize, Value)>,
 }
 
-// Test-only methods
-#[cfg(test)]
-impl VirtualMachine {
-    pub(crate) fn run_bloq(&mut self, bloq: Bloq) -> Result {
-        use crate::common::ObjFunction;
-        use std::rc::Rc;
-
-        // Create a synthetic function for the test bloq
-        let test_function = Rc::new(ObjFunction {
-            name: "<test>".to_string(),
-            arity: 0,
-            bloq: Rc::new(bloq),
-        });
-
-        // Create the initial call frame
-        let frame = CallFrame {
-            function: test_function,
-            ip: 0,
-            slot_start: -1, // Like script frame, no function object on stack
-        };
-        self.call_frames.push(frame);
-
-        self.run(&Bloq::new("dummy"))
-    }
-}

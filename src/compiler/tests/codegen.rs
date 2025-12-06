@@ -3,6 +3,9 @@ use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
+#[cfg(test)]
+use crate::vm::tests::helpers::VmTestHelpers;
+
 fn compile_program(source: &str) -> Result<Bloq, String> {
     // Parse
     let mut parser = Parser::new(source);

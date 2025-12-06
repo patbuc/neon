@@ -3,6 +3,7 @@ use crate::common::Bloq;
 use crate::common::Value;
 use crate::vm::{Result, VirtualMachine};
 use crate::vm::native_functions;
+use crate::vm::tests::helpers::VmTestHelpers;
 use crate::{as_number, number};
 use std::assert_eq;
 
