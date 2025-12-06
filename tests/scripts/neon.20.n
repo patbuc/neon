@@ -1,0 +1,17 @@
+// Expected:
+// 5
+// 11
+// 7
+// 0
+
+val str1 = "hello"
+print str1.len()
+
+val str2 = "hello world"
+print str2.len()
+
+val str3 = "hello 🌍"
+print str3.len()
+
+val str4 = ""
+print str4.len()

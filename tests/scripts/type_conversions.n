@@ -1,0 +1,205 @@
+// Type Conversions Integration Test
+// Tests all type conversion methods with comprehensive cases
+
+// Expected:
+// === String to Int ===
+// 42
+// -100
+// 0
+// 9876543210
+// 50
+// === String to Float ===
+// 3.14
+// -2.5
+// 0
+// 123
+// 12300
+// 0.015
+// 2.5
+// === String to Bool ===
+// true
+// false
+// true
+// false
+// true
+// false
+// === Number to String ===
+// 42
+// -99
+// 0
+// 3.14159
+// -2.718
+// 1000000
+// === Boolean to String ===
+// true
+// false
+// === Chaining Conversions ===
+// 42
+// 3.14
+// true
+// false
+// 100
+// === Conversions in Expressions ===
+// 142
+// The answer is 42
+// Value: true
+// Result: 3.14
+// === Conversions in Variables ===
+// 50
+// 2.5
+// true
+// Number as string: 123
+// Bool as string: false
+// === Edge Cases ===
+// 9876543210
+// 0.001
+// true
+// 999
+// 200
+// === Mixed Type Operations ===
+// 150
+// Combined: 150
+// Status: true
+// Value is 42.5
+// === Whitespace Handling ===
+// 42
+// 3.14
+// true
+// false
+// === Case Insensitive Bool Parsing ===
+// true
+// true
+// false
+// false
+// === Zero and Negative Values ===
+// 0
+// -1
+// 0
+// -3.14
+// === Large Numbers ===
+// 9876543210
+// 1000000
+
+print "=== String to Int ==="
+print "42".toInt()
+print "-100".toInt()
+print "0".toInt()
+print "9876543210".toInt()
+val int_from_str = "50".toInt()
+print int_from_str
+
+print "=== String to Float ==="
+print "3.14".toFloat()
+print "-2.5".toFloat()
+print "0.0".toFloat()
+print "123".toFloat()
+print "1.23e4".toFloat()
+print "1.5e-2".toFloat()
+val float_from_str = "2.5".toFloat()
+print float_from_str
+
+print "=== String to Bool ==="
+print "true".toBool()
+print "false".toBool()
+print "TRUE".toBool()
+print "FALSE".toBool()
+print "TrUe".toBool()
+print "  false  ".toBool()
+
+print "=== Number to String ==="
+val n1 = 42
+print n1.toString()
+val n2 = -99
+print n2.toString()
+val n3 = 0
+print n3.toString()
+val n4 = 3.14159
+print n4.toString()
+val n5 = -2.718
+print n5.toString()
+val n6 = 1000000
+print n6.toString()
+
+print "=== Boolean to String ==="
+val b1 = true
+print b1.toString()
+val b2 = false
+print b2.toString()
+
+print "=== Chaining Conversions ==="
+print "42".toInt().toString().toInt()
+print "3.14".toFloat().toString().toFloat()
+print "true".toBool().toString().toBool()
+print "false".toBool().toString().toBool()
+print "100".toInt()
+
+print "=== Conversions in Expressions ==="
+print "100".toInt() + 42
+print "The answer is " + 42.toString()
+print "Value: " + true.toString()
+print "Result: " + 3.14.toString()
+
+print "=== Conversions in Variables ==="
+val str_num = "50"
+val converted_int = str_num.toInt()
+print converted_int
+
+val str_float = "2.5"
+val converted_float = str_float.toFloat()
+print converted_float
+
+val str_bool = "true"
+val converted_bool = str_bool.toBool()
+print converted_bool
+
+val num_to_str = 123.toString()
+print "Number as string: " + num_to_str
+
+val bool_to_str = false.toString()
+print "Bool as string: " + bool_to_str
+
+print "=== Edge Cases ==="
+// Large number
+print "9876543210".toInt()
+// Very small float
+print "0.001".toFloat()
+// Whitespace handling
+print "  true  ".toBool()
+// Integer as float, then back
+val round_trip = "999".toFloat().toString().toInt()
+print round_trip
+// Multiple conversions
+val multi = "100".toInt() + "100".toInt()
+print multi
+
+print "=== Mixed Type Operations ==="
+val a = "50".toInt()
+val b = "100".toInt()
+print a + b
+print "Combined: " + (a + b).toString()
+val c = "true".toBool()
+print "Status: " + c.toString()
+val d = "42.5".toFloat()
+print "Value is " + d.toString()
+
+print "=== Whitespace Handling ==="
+print "  42  ".toInt()
+print "  3.14  ".toFloat()
+print "  true  ".toBool()
+print "  false  ".toBool()
+
+print "=== Case Insensitive Bool Parsing ==="
+print "TRUE".toBool()
+print "True".toBool()
+print "FALSE".toBool()
+print "False".toBool()
+
+print "=== Zero and Negative Values ==="
+print "0".toInt()
+print "-1".toInt()
+print "0.0".toFloat()
+print "-3.14".toFloat()
+
+print "=== Large Numbers ==="
+print "9876543210".toInt()
+print "1000000".toInt()

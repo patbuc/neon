@@ -1,23 +1,79 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+use crate::common::method_registry::MethodRegistry;
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
+use std::collections::HashMap;
 
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     errors: Vec<CompilationError>,
+    type_env: HashMap<String, String>,
+    loop_depth: u32,
 }
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
+        let mut symbol_table = SymbolTable::new();
+        // Pre-define Math as a built-in global constant
+        // This corresponds to the Math object that will be available at runtime
+        let math_symbol = Symbol {
+            name: "Math".to_string(),
+            kind: SymbolKind::Value,
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(math_symbol); // Ignore error since this is initial setup
+
+        // Pre-define File as a built-in global function
+        // This corresponds to the File constructor that will be available at runtime
+        let file_symbol = Symbol {
+            name: "File".to_string(),
+            kind: SymbolKind::Function { arity: 1 },
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(file_symbol); // Ignore error since this is initial setup
+
+        // Pre-define args as a built-in global constant (array)
+        // This corresponds to the command-line arguments array that will be available at runtime
+        let args_symbol = Symbol {
+            name: "args".to_string(),
+            kind: SymbolKind::Value,
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(args_symbol); // Ignore error since this is initial setup
+
+        let mut type_env = HashMap::new();
+        // Track that args is an Array type for method validation
+        type_env.insert("args".to_string(), "Array".to_string());
+
         SemanticAnalyzer {
-            symbol_table: SymbolTable::new(),
+            symbol_table,
             errors: Vec::new(),
+            type_env,
+            loop_depth: 0,
         }
     }
 
@@ -96,7 +152,101 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Infer the type of an expression based on its structure
+    fn infer_expr_type(&self, expr: &Expr) -> Option<String> {
+        match expr {
+            // Literal types
+            Expr::Number { .. } => Some("Number".to_string()),
+            Expr::String { .. } => Some("String".to_string()),
+            Expr::StringInterpolation { .. } => Some("String".to_string()),
+            Expr::Boolean { .. } => Some("Boolean".to_string()),
+            Expr::ArrayLiteral { .. } => Some("Array".to_string()),
+            Expr::MapLiteral { .. } => Some("Map".to_string()),
+            Expr::SetLiteral { .. } => Some("Set".to_string()),
+            Expr::Nil { .. } => Some("Nil".to_string()),
+
+            // Variable lookup
+            Expr::Variable { name, .. } => {
+                self.type_env.get(name).cloned()
+            }
+
+            // Grouping - infer from inner expression
+            Expr::Grouping { expr, .. } => {
+                self.infer_expr_type(expr)
+            }
+
+            // Method calls with known return types
+            Expr::MethodCall { object, method, .. } => {
+                let object_type = self.infer_expr_type(object)?;
+                match (object_type.as_str(), method.as_str()) {
+                    ("Map", "keys") => Some("Array".to_string()),
+                    ("Map", "values") => Some("Array".to_string()),
+                    ("Set", "toArray") => Some("Array".to_string()),
+                    ("String", "split") => Some("Array".to_string()),
+                    ("Array", "join") => Some("String".to_string()),
+                    ("Array", "map") => Some("Array".to_string()),
+                    ("Array", "filter") => Some("Array".to_string()),
+                    _ => None,
+                }
+            }
+
+            // Binary operations - basic type inference
+            Expr::Binary { operator, .. } => {
+                use crate::compiler::ast::BinaryOp;
+                match operator {
+                    BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply |
+                    BinaryOp::Divide | BinaryOp::FloorDivide | BinaryOp::Modulo => {
+                        // Arithmetic operations return Number
+                        Some("Number".to_string())
+                    }
+                    BinaryOp::Equal | BinaryOp::NotEqual | BinaryOp::Greater |
+                    BinaryOp::GreaterEqual | BinaryOp::Less | BinaryOp::LessEqual |
+                    BinaryOp::And | BinaryOp::Or => {
+                        // Comparison and logical operations return Boolean
+                        Some("Boolean".to_string())
+                    }
+                }
+            }
+
+            // Unary operations
+            Expr::Unary { operator, .. } => {
+                use crate::compiler::ast::UnaryOp;
+                match operator {
+                    UnaryOp::Negate => Some("Number".to_string()),
+                    UnaryOp::Not => Some("Boolean".to_string()),
+                }
+            }
+
+            // For other expressions, we can't infer the type
+            _ => None,
+        }
+    }
+
     // ===== Then: Reference Resolution =====
+
+    /// Helper method to check if a variable exists and is mutable
+    fn check_variable_mutability(&mut self, name: &str, location: SourceLocation) {
+        match self.symbol_table.resolve(name) {
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+            }
+            Some(symbol) => {
+                if !symbol.is_mutable {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        format!("Cannot modify immutable variable '{}'", name),
+                        location,
+                    ));
+                }
+            }
+        }
+    }
 
     fn resolve_statements(&mut self, statements: &[Stmt]) {
         for stmt in statements {
@@ -114,6 +264,10 @@ impl SemanticAnalyzer {
                 // Resolve initializer first (if any)
                 if let Some(init) = initializer {
                     self.resolve_expr(init);
+                    // Infer and track type if possible
+                    if let Some(inferred_type) = self.infer_expr_type(init) {
+                        self.type_env.insert(name.clone(), inferred_type);
+                    }
                 }
                 // Then define the variable in current scope
                 self.define_symbol(name.clone(), SymbolKind::Value, false, *location);
@@ -126,6 +280,10 @@ impl SemanticAnalyzer {
                 // Resolve initializer first (if any)
                 if let Some(init) = initializer {
                     self.resolve_expr(init);
+                    // Infer and track type if possible
+                    if let Some(inferred_type) = self.infer_expr_type(init) {
+                        self.type_env.insert(name.clone(), inferred_type);
+                    }
                 }
                 // Then define the variable in current scope
                 self.define_symbol(name.clone(), SymbolKind::Variable, true, *location);
@@ -185,10 +343,59 @@ impl SemanticAnalyzer {
                 condition, body, ..
             } => {
                 self.resolve_expr(condition);
+                self.loop_depth += 1;
                 self.resolve_stmt(body);
+                self.loop_depth -= 1;
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
+            }
+            Stmt::Break { location } => {
+                if self.loop_depth == 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'break' outside of a loop".to_string(),
+                        *location,
+                    ));
+                }
+            }
+            Stmt::Continue { location } => {
+                if self.loop_depth == 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Cannot use 'continue' outside of a loop".to_string(),
+                        *location,
+                    ));
+                }
+            }
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
+                // Resolve the collection expression
+                self.resolve_expr(collection);
+
+                // Enter a new scope for the loop
+                self.symbol_table.enter_scope();
+
+                // Define the loop variable as immutable (always val)
+                self.define_symbol(variable.clone(), SymbolKind::Value, false, *location);
+
+                // Track loop depth for break/continue validation
+                self.loop_depth += 1;
+
+                // Resolve the loop body
+                self.resolve_stmt(body);
+
+                // Exit loop depth tracking
+                self.loop_depth -= 1;
+
+                // Exit the loop scope
+                self.symbol_table.exit_scope();
             }
         }
     }
@@ -197,6 +404,15 @@ impl SemanticAnalyzer {
         match expr {
             Expr::Number { .. } | Expr::String { .. } | Expr::Boolean { .. } | Expr::Nil { .. } => {
                 // Literals need no resolution
+            }
+            Expr::StringInterpolation { parts, .. } => {
+                use crate::compiler::ast::InterpolationPart;
+                // Resolve all expression parts
+                for part in parts {
+                    if let InterpolationPart::Expression(expr) = part {
+                        self.resolve_expr(expr);
+                    }
+                }
             }
             Expr::Variable { name, location } => {
                 // Check if variable is defined
@@ -235,6 +451,14 @@ impl SemanticAnalyzer {
                                 format!("Cannot assign to immutable variable '{}'", name),
                                 *location,
                             ));
+                        } else {
+                            // Update type tracking for mutable variables
+                            if let Some(new_type) = self.infer_expr_type(value) {
+                                self.type_env.insert(name.clone(), new_type);
+                            } else {
+                                // If we can't infer the new type, remove from tracking
+                                self.type_env.remove(name);
+                            }
                         }
                     }
                 }
@@ -324,6 +548,130 @@ impl SemanticAnalyzer {
             }
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
+            }
+            Expr::MethodCall {
+                object,
+                method,
+                arguments,
+                location,
+            } => {
+                // Resolve the object and all arguments
+                self.resolve_expr(object);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+
+                // Validate method if we can infer the object's type
+                if let Some(object_type) = self.infer_expr_type(object) {
+                    // Check if the method is valid for this type
+                    if !MethodRegistry::is_valid_method(&object_type, method) {
+                        // Method is invalid - try to suggest a correction
+                        let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(&object_type, method) {
+                            // We found a close match - suggest it
+                            format!(
+                                "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                                object_type, method, suggestion
+                            )
+                        } else {
+                            // No close match - list available methods
+                            let available_methods = MethodRegistry::get_methods_for_type(&object_type);
+                            if available_methods.is_empty() {
+                                format!(
+                                    "Type '{}' has no method named '{}' and no available methods",
+                                    object_type, method
+                                )
+                            } else {
+                                format!(
+                                    "Type '{}' has no method named '{}'. Available methods: {}",
+                                    object_type,
+                                    method,
+                                    available_methods.join(", ")
+                                )
+                            }
+                        };
+
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            error_message,
+                            *location,
+                        ));
+                    }
+                }
+            }
+            Expr::MapLiteral { entries, .. } => {
+                // Resolve all key-value pairs in the map literal
+                for (key, value) in entries {
+                    self.resolve_expr(key);
+                    self.resolve_expr(value);
+                }
+            }
+            Expr::ArrayLiteral { elements, .. } => {
+                // Resolve all elements in the array literal
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
+            Expr::SetLiteral { elements, .. } => {
+                // Resolve all elements in the set literal
+                for element in elements {
+                    self.resolve_expr(element);
+                }
+            }
+            Expr::Index { object, index, .. } => {
+                // Resolve the object and index expression
+                self.resolve_expr(object);
+                self.resolve_expr(index);
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                // Resolve the object, index, and value expressions
+                self.resolve_expr(object);
+                self.resolve_expr(index);
+                self.resolve_expr(value);
+            }
+            Expr::Range { start, end, .. } => {
+                // Resolve the start and end expressions
+                self.resolve_expr(start);
+                self.resolve_expr(end);
+            }
+            Expr::PostfixIncrement { operand, location } => {
+                // Postfix increment can only be applied to simple variables
+                match operand.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        // Check if variable exists and is mutable
+                        self.check_variable_mutability(name, *location);
+                    }
+                    _ => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            "Increment operator can only be applied to variables".to_string(),
+                            *location,
+                        ));
+                    }
+                }
+            }
+            Expr::PostfixDecrement { operand, location } => {
+                // Postfix decrement can only be applied to simple variables
+                match operand.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        // Check if variable exists and is mutable
+                        self.check_variable_mutability(name, *location);
+                    }
+                    _ => {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            "Decrement operator can only be applied to variables".to_string(),
+                            *location,
+                        ));
+                    }
+                }
             }
         }
     }

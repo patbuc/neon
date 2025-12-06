@@ -39,12 +39,15 @@ impl NeonVM {
                 })
                 .unwrap()
             }
-            Result::RuntimeError => serde_wasm_bindgen::to_value(&InterpretResult {
-                success: false,
-                output: None,
-                error: Some("Runtime error".to_string()),
-            })
-            .unwrap(),
+            Result::RuntimeError => {
+                let errors = self.vm.get_runtime_errors();
+                serde_wasm_bindgen::to_value(&InterpretResult {
+                    success: false,
+                    output: None,
+                    error: Some(errors),
+                })
+                .unwrap()
+            }
         }
     }
 }
@@ -81,11 +84,14 @@ pub fn interpret_once(source: String) -> JsValue {
             })
             .unwrap()
         }
-        Result::RuntimeError => serde_wasm_bindgen::to_value(&InterpretResult {
-            success: false,
-            output: None,
-            error: Some("Runtime error".to_string()),
-        })
-        .unwrap(),
+        Result::RuntimeError => {
+            let errors = vm.get_runtime_errors();
+            serde_wasm_bindgen::to_value(&InterpretResult {
+                success: false,
+                output: None,
+                error: Some(errors),
+            })
+            .unwrap()
+        }
     }
 }

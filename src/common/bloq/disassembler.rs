@@ -37,6 +37,7 @@ impl Bloq {
             OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset),
             OpCode::Multiply => self.simple_instruction(OpCode::Multiply, offset),
             OpCode::Divide => self.simple_instruction(OpCode::Divide, offset),
+            OpCode::FloorDivide => self.simple_instruction(OpCode::FloorDivide, offset),
             OpCode::Nil => self.simple_instruction(OpCode::Nil, offset),
             OpCode::True => self.simple_instruction(OpCode::True, offset),
             OpCode::False => self.simple_instruction(OpCode::False, offset),
@@ -72,6 +73,19 @@ impl Bloq {
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
             OpCode::SetField2 => self.field_instruction(OpCode::SetField2, offset),
             OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
+            OpCode::CallMethod => self.call_method_instruction(OpCode::CallMethod, offset),
+            OpCode::CallMethod2 => self.call_method_instruction(OpCode::CallMethod2, offset),
+            OpCode::CallMethod4 => self.call_method_instruction(OpCode::CallMethod4, offset),
+            OpCode::CreateMap => self.create_map_instruction(offset),
+            OpCode::CreateArray => self.create_array_instruction(offset),
+            OpCode::CreateSet => self.create_set_instruction(offset),
+            OpCode::GetIndex => self.simple_instruction(OpCode::GetIndex, offset),
+            OpCode::SetIndex => self.simple_instruction(OpCode::SetIndex, offset),
+            OpCode::GetIterator => self.simple_instruction(OpCode::GetIterator, offset),
+            OpCode::IteratorNext => self.simple_instruction(OpCode::IteratorNext, offset),
+            OpCode::IteratorDone => self.simple_instruction(OpCode::IteratorDone, offset),
+            OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
+            OpCode::CreateRange => self.create_range_instruction(offset),
         }
     }
 
@@ -158,6 +172,48 @@ impl Bloq {
     fn call_instruction(&self, offset: usize) -> usize {
         let arg_count = self.read_u8(offset + 1);
         println!("Call (args: {})", arg_count);
+        offset + 2
+    }
+
+    fn call_method_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let arg_count = self.read_u8(offset + 1);
+
+        let (method_index, index_size) = match op_code {
+            OpCode::CallMethod => (self.read_u8(offset + 2) as usize, 1),
+            OpCode::CallMethod2 => (self.read_u16(offset + 2) as usize, 2),
+            OpCode::CallMethod4 => (self.read_u32(offset + 2) as usize, 4),
+            _ => panic!("Invalid opcode for call_method_instruction"),
+        };
+
+        let method_name = self.read_string(method_index);
+        println!(
+            "{:?} (args: {}, method: '{}')",
+            op_code, arg_count, method_name
+        );
+        offset + 1 + 1 + index_size
+    }
+
+    fn create_map_instruction(&self, offset: usize) -> usize {
+        let entry_count = self.read_u8(offset + 1);
+        println!("CreateMap (entries: {})", entry_count);
+        offset + 2
+    }
+
+    fn create_array_instruction(&self, offset: usize) -> usize {
+        let element_count = self.read_u16(offset + 1);
+        println!("CreateArray (elements: {})", element_count);
+        offset + 3
+    }
+
+    fn create_set_instruction(&self, offset: usize) -> usize {
+        let element_count = self.read_u8(offset + 1);
+        println!("CreateSet (elements: {})", element_count);
+        offset + 2
+    }
+
+    fn create_range_instruction(&self, offset: usize) -> usize {
+        let inclusive = self.read_u8(offset + 1);
+        println!("CreateRange (inclusive: {})", inclusive != 0);
         offset + 2
     }
 }

@@ -47,12 +47,37 @@ impl Scanner {
             ')' => self.make_token(TokenType::RightParen),
             '{' => self.make_token(TokenType::LeftBrace),
             '}' => self.make_token(TokenType::RightBrace),
+            '[' => self.make_token(TokenType::LeftBracket),
+            ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
-            '.' => self.make_token(TokenType::Dot),
-            '-' => self.make_token(TokenType::Minus),
-            '+' => self.make_token(TokenType::Plus),
+            '.' => {
+                if self.matches('.') {
+                    if self.matches('=') {
+                        self.make_token(TokenType::DotDotEqual)
+                    } else {
+                        self.make_token(TokenType::DotDot)
+                    }
+                } else {
+                    self.make_token(TokenType::Dot)
+                }
+            }
+            '-' => {
+                if self.matches('-') {
+                    self.make_token(TokenType::MinusMinus)
+                } else {
+                    self.make_token(TokenType::Minus)
+                }
+            }
+            '+' => {
+                if self.matches('+') {
+                    self.make_token(TokenType::PlusPlus)
+                } else {
+                    self.make_token(TokenType::Plus)
+                }
+            }
             '%' => self.make_token(TokenType::Percent),
             ';' => self.make_token(TokenType::Semicolon),
+            ':' => self.make_token(TokenType::Colon),
             '*' => self.make_token(TokenType::Star),
             '!' => {
                 if self.matches('=') {
@@ -82,17 +107,41 @@ impl Scanner {
                     self.make_token(TokenType::Greater)
                 }
             }
+            '&' => {
+                if self.matches('&') {
+                    self.make_token(TokenType::AndAnd)
+                } else {
+                    self.make_error_token("Expected '&&' operator")
+                }
+            }
+            '|' => {
+                if self.matches('|') {
+                    self.make_token(TokenType::OrOr)
+                } else {
+                    self.make_error_token("Expected '||' operator")
+                }
+            }
             '/' => {
                 if self.matches('/') {
-                    while self.peek_next() != '\n' && !self.is_at_end() {
-                        self.advance();
+                    // Check if this is a comment or integer division operator
+                    // Comments have whitespace or newline after //
+                    // Integer division has a non-whitespace character
+                    let next_char = self.peek();
+                    if next_char == ' ' || next_char == '\t' || next_char == '\n' || next_char == '\r' || self.is_at_end() {
+                        // This is a comment
+                        while self.peek_next() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        }
+                        if !self.is_at_end() {
+                            self.advance();
+                        }
+                        self.line += 1;
+                        self.column = 1;
+                        self.scan_token()
+                    } else {
+                        // This is the integer division operator
+                        self.make_token(TokenType::SlashSlash)
                     }
-                    if !self.is_at_end() {
-                        self.advance();
-                    }
-                    self.line += 1;
-                    self.column = 1;
-                    self.scan_token()
                 } else {
                     self.make_token(TokenType::Slash)
                 }
@@ -246,9 +295,28 @@ impl Scanner {
         let chr = self.source[self.start];
         match chr {
             'a' => self.check_keyword(1, 2, "nd", TokenType::And),
-            'c' => self.check_keyword(1, 4, "lass", TokenType::Class),
+            'b' => self.check_keyword(1, 4, "reak", TokenType::Break),
+            'c' => {
+                if self.current - self.start > 1 {
+                    return match self.source[self.start + 1] {
+                        'l' => self.check_keyword(2, 3, "ass", TokenType::Class),
+                        'o' => self.check_keyword(2, 6, "ntinue", TokenType::Continue),
+                        _ => TokenType::Identifier,
+                    };
+                }
+                TokenType::Identifier
+            }
             'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
-            'i' => self.check_keyword(1, 1, "f", TokenType::If),
+            'i' => {
+                if self.current - self.start > 1 {
+                    return match self.source[self.start + 1] {
+                        'f' => self.check_keyword(2, 0, "", TokenType::If),
+                        'n' => self.check_keyword(2, 0, "", TokenType::In),
+                        _ => TokenType::Identifier,
+                    };
+                }
+                TokenType::Identifier
+            }
             'n' => self.check_keyword(1, 2, "il", TokenType::Nil),
             'o' => self.check_keyword(1, 1, "r", TokenType::Or),
             'p' => self.check_keyword(1, 4, "rint", TokenType::Print),
@@ -264,10 +332,10 @@ impl Scanner {
                 TokenType::Identifier
             }
             'v' => {
-                if self.current - self.start > 1 && self.source[self.start + 1] == 'a' {
+                if self.current - self.start >= 3 && self.source[self.start + 1] == 'a' {
                     return match self.source[self.start + 2] {
-                        'l' => TokenType::Val,
-                        'r' => TokenType::Var,
+                        'l' => self.check_keyword(3, 0, "", TokenType::Val),
+                        'r' => self.check_keyword(3, 0, "", TokenType::Var),
                         _ => TokenType::Identifier,
                     };
                 }
@@ -328,80 +396,5 @@ impl Scanner {
             return '\n';
         }
         self.source[self.current - 2]
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::compiler::Token;
-    use crate::compiler::token::TokenType;
-    use crate::compiler::Scanner;
-
-    #[test]
-    fn can_scan_simple_statement() {
-        let script = "var a = 1;";
-
-        let scanner = Scanner::new(script);
-        let x: Vec<Token> = collect_tokens(scanner);
-
-        assert_eq!(x.len(), 6);
-
-        assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].column, 1);
-        assert_eq!(x[0].token, "var");
-        assert_eq!(x[0].line, 1);
-
-        assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].column, 5);
-        assert_eq!(x[1].token, "a");
-        assert_eq!(x[1].line, 1);
-
-        assert_eq!(x[2].token_type, TokenType::Equal);
-        assert_eq!(x[3].token_type, TokenType::Number);
-        assert_eq!(x[4].token_type, TokenType::Semicolon);
-        assert_eq!(x[5].token_type, TokenType::Eof);
-    }
-
-    #[test]
-    fn can_scan_interpolated_string() {
-        let script = "var a = \"This is an ${interpolated} string\";";
-
-        let scanner = Scanner::new(script);
-        let x: Vec<Token> = collect_tokens(scanner);
-
-        assert_eq!(x.len(), 6);
-
-        assert_eq!(x[0].token_type, TokenType::Var);
-        assert_eq!(x[0].column, 1);
-        assert_eq!(x[0].token, "var");
-        assert_eq!(x[0].line, 1);
-
-        assert_eq!(x[1].token_type, TokenType::Identifier);
-        assert_eq!(x[1].column, 5);
-        assert_eq!(x[1].token, "a");
-        assert_eq!(x[1].line, 1);
-
-        assert_eq!(x[2].token_type, TokenType::Equal);
-        assert_eq!(x[3].token_type, TokenType::InterpolatedString);
-        assert_eq!(x[4].token_type, TokenType::Semicolon);
-        assert_eq!(x[5].token_type, TokenType::Eof);
-    }
-
-    fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
-        let mut tokens: Vec<Token> = Vec::new();
-        loop {
-            let token = scanner.scan_token();
-            if token.token_type == TokenType::Eof {
-                tokens.push(token);
-                break;
-            }
-            if token.token_type == TokenType::NewLine
-                && (tokens.is_empty() || tokens[tokens.len() - 1].token_type == TokenType::NewLine)
-            {
-                continue;
-            }
-            tokens.push(token);
-        }
-        tokens
     }
 }

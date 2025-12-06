@@ -1,0 +1,16 @@
+// neon.38.n - Maps in arithmetic expressions
+
+// Expected:
+// 30
+// 10
+// 200
+// 2
+
+// Map with coordinates
+val point = {"x": 20, "y": 10}
+
+// Use map values in expressions
+print point["x"] + point["y"]    // 30
+print point["x"] - point["y"]    // 10
+print point["x"] * point["y"]    // 200
+print point["x"] / point["y"]    // 2
