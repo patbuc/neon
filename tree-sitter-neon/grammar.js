@@ -1,6 +1,12 @@
 module.exports = grammar({
   name: 'neon',
 
+  externals: $ => [
+    $.string_content,
+    $.string_interpolation_start,
+    $.string_interpolation_end,
+  ],
+
   extras: $ => [
     /\s/,
     $.comment,
@@ -307,11 +313,28 @@ module.exports = grammar({
     string: $ => seq(
       '"',
       repeat(choice(
-        token.immediate(prec(1, /[^"\\$]+/)),
-        /\\./,
+        $.string_content,
+        $.escape_sequence,
+        $.string_interpolation,
       )),
       '"',
     ),
+
+    string_interpolation: $ => seq(
+      $.string_interpolation_start,
+      $.expression,
+      $.string_interpolation_end,
+    ),
+
+    escape_sequence: $ => token.immediate(seq(
+      '\\',
+      choice(
+        /[\\'"nrt]/,        // Basic escapes
+        /x[0-9a-fA-F]{2}/,  // Hex escape \xHH
+        /u[0-9a-fA-F]{4}/,  // Unicode escape \uHHHH
+        /U[0-9a-fA-F]{8}/,  // Unicode escape \UHHHHHHHH
+      ),
+    )),
 
     number: $ => token(choice(
       /\d+\.\d+/,

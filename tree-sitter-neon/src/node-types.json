@@ -822,7 +822,48 @@
   {
     "type": "string",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "string_content",
+          "named": true
+        },
+        {
+          "type": "string_interpolation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "string_interpolation",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "string_interpolation_end",
+          "named": true
+        },
+        {
+          "type": "string_interpolation_start",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "struct_declaration",
@@ -1087,6 +1128,10 @@
     "named": false
   },
   {
+    "type": "escape_sequence",
+    "named": true
+  },
+  {
     "type": "false",
     "named": false
   },
@@ -1125,6 +1170,18 @@
   {
     "type": "return",
     "named": false
+  },
+  {
+    "type": "string_content",
+    "named": true
+  },
+  {
+    "type": "string_interpolation_end",
+    "named": true
+  },
+  {
+    "type": "string_interpolation_start",
+    "named": true
   },
   {
     "type": "struct",
