@@ -1,0 +1,1 @@
+/home/patbuc/code/neon/tree-sitter-neon/queries/highlights.scm

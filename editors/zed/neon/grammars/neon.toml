@@ -1,0 +1,3 @@
+repository = "https://github.com/patbuc/neon"
+commit = "main"
+path = "tree-sitter-neon"
