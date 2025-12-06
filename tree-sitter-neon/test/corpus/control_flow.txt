@@ -1,0 +1,37 @@
+================================================================================
+If statement
+================================================================================
+
+if (x > 5) print x
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (declaration
+    (statement
+      (if_statement
+        condition: (expression
+          (binary_expression
+            left: (expression (primary_expression (identifier)))
+            right: (expression (primary_expression (number)))))
+        consequence: (statement
+          (print_statement
+            (expression (primary_expression (identifier)))))))))
+
+================================================================================
+For-in loop
+================================================================================
+
+for (item in arr) print item
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (declaration
+    (statement
+      (for_statement
+        variable: (identifier)
+        collection: (expression (primary_expression (identifier)))
+        body: (statement
+          (print_statement
+            (expression (primary_expression (identifier)))))))))

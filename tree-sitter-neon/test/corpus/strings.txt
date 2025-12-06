@@ -1,0 +1,34 @@
+================================================================================
+Simple string
+================================================================================
+
+"hello"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (declaration
+    (statement
+      (expression_statement
+        (expression (primary_expression (string (string_content))))))))
+
+================================================================================
+String interpolation
+================================================================================
+
+"Value: ${x}"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (declaration
+    (statement
+      (expression_statement
+        (expression
+          (primary_expression
+            (string
+              (string_content)
+              (string_interpolation
+                (string_interpolation_start)
+                (expression (primary_expression (identifier)))
+                (string_interpolation_end)))))))))
