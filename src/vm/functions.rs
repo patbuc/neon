@@ -145,6 +145,21 @@ impl VirtualMachine {
     }
 
     fn call_function(&mut self, arg_count: usize, func: &&Rc<ObjFunction>) -> Option<Result> {
+        // Fast path for zero-argument functions
+        if arg_count == 0 && func.arity == 0 {
+            let slot_start = (self.stack.len() - 1) as isize;
+
+            let current_frame = self.call_frames.last_mut().unwrap();
+            current_frame.ip += 2;
+
+            self.call_frames.push(CallFrame {
+                function: Rc::clone(func),
+                ip: 0,
+                slot_start,
+            });
+            return None;
+        }
+
         // Check arity
         if arg_count != func.arity as usize {
             self.runtime_error(&format!(
