@@ -1,0 +1,23 @@
+fn handleRoot(req) {
+    return "Welcome to Neon HTTP Server!"
+}
+
+fn handleEcho(req) {
+    return "Method: " + req.method() + ", Path: " + req.path()
+}
+
+fn handleApiData(req) {
+    if (req.method() == "POST") {
+        return "Received: " + req.body()
+    }
+    return "Send POST request"
+}
+
+val server = HttpServer(3000)
+
+server.on("/", handleRoot)
+server.on("/echo", handleEcho)
+server.on("/api/data", handleApiData)
+
+print("Server starting on port 3000...")
+server.start()

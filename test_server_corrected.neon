@@ -1,0 +1,24 @@
+// HTTP Server Test with correct Neon syntax (named functions)
+val server = HttpServer(3000)
+
+fn handleRoot(req) {
+    return "Welcome to Neon HTTP Server!"
+}
+
+fn handleEcho(req) {
+    return "Method: " + req.method() + ", Path: " + req.path()
+}
+
+fn handleData(req) {
+    if (req.method() == "POST") {
+        return "Received: " + req.body()
+    }
+    return "Send POST request"
+}
+
+server.on("/", handleRoot)
+server.on("/echo", handleEcho)
+server.on("/api/data", handleData)
+
+print("Server starting on port 3000...")
+server.start()

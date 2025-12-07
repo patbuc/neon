@@ -1,0 +1,4 @@
+// Minimal test - just check if HttpServer is defined
+print("Testing HttpServer...")
+val server = HttpServer(8080)
+print("HttpServer created successfully!")

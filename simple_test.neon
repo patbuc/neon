@@ -1,0 +1,7 @@
+print("Test 1: Basic print")
+
+val f = File("test.txt")
+print("Test 2: File works!")
+
+val h = HttpServer(8080)
+print("Test 3: HttpServer works!")
