@@ -50,6 +50,21 @@ impl SemanticAnalyzer {
         };
         let _ = symbol_table.define(file_symbol); // Ignore error since this is initial setup
 
+        // Pre-define HttpServer as a built-in global function
+        // This corresponds to the HttpServer constructor that will be available at runtime
+        let http_server_symbol = Symbol {
+            name: "HttpServer".to_string(),
+            kind: SymbolKind::Function { arity: 1 },
+            is_mutable: false,
+            scope_depth: 0,
+            location: SourceLocation {
+                offset: 0,
+                line: 0,
+                column: 0,
+            },
+        };
+        let _ = symbol_table.define(http_server_symbol); // Ignore error since this is initial setup
+
         // Pre-define args as a built-in global constant (array)
         // This corresponds to the command-line arguments array that will be available at runtime
         let args_symbol = Symbol {
