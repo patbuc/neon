@@ -11,6 +11,7 @@ pub(crate) mod map_functions;
 pub(crate) mod set_functions;
 mod math_functions;
 pub(crate) mod file_functions;
+pub(crate) mod http_functions;
 #[cfg(test)]
 mod tests;
 

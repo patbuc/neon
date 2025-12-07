@@ -1,0 +1,13 @@
+// Basic HTTP server example
+val server = HttpServer(8080)
+
+server.on("/", func(req) {
+    return "Welcome to Neon HTTP Server!"
+})
+
+server.on("/echo", func(req) {
+    return "Method: " + req.method() + ", Path: " + req.path()
+})
+
+print("Starting server on port 8080...")
+server.start()
