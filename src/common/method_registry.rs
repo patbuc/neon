@@ -65,6 +65,14 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("File", "read", crate::vm::file_functions::native_file_read),
     ("File", "readLines", crate::vm::file_functions::native_file_read_lines),
     ("File", "write", crate::vm::file_functions::native_file_write),
+    // HttpServer methods
+    ("HttpServer", "on", crate::vm::http_functions::native_http_server_on),
+    ("HttpServer", "start", crate::vm::http_functions::native_http_server_start),
+    // HttpRequest methods
+    ("HttpRequest", "method", crate::vm::http_functions::native_http_request_method),
+    ("HttpRequest", "path", crate::vm::http_functions::native_http_request_path),
+    ("HttpRequest", "body", crate::vm::http_functions::native_http_request_body),
+    ("HttpRequest", "header", crate::vm::http_functions::native_http_request_header),
 ];
 
 /// Get native function implementation for a type and method.

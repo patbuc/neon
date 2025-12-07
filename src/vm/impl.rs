@@ -4,6 +4,7 @@ use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStru
 use crate::compiler::Compiler;
 use crate::vm::math_functions::*;
 use crate::vm::file_functions::*;
+use crate::vm::http_functions::*;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
 use std::collections::HashMap;
@@ -28,6 +29,10 @@ impl VirtualMachine {
 
         // Initialize built-in global functions
         globals.insert("File".to_string(), Value::new_native_function("File".to_string(), 1, native_file_constructor));
+        globals.insert(
+            "HttpServer".to_string(),
+            Value::new_native_function("HttpServer".to_string(), 1, native_http_server_constructor)
+        );
 
         // Initialize args array with command-line arguments
         let args_array = Self::create_args_array(args);
@@ -387,6 +392,47 @@ impl VirtualMachine {
         self.stack.clear();
         self.bloq = None;
         self.runtime_errors.clear();
+    }
+
+    /// Call a Neon function from native code with arguments
+    pub(crate) fn call_function_with_args(
+        &mut self,
+        function: &Value,
+        args: Vec<Value>
+    ) -> std::result::Result<Value, String> {
+        match function {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Function(func) => {
+                    // Push function and arguments onto stack
+                    self.push(function.clone());
+                    for arg in &args {
+                        self.push(arg.clone());
+                    }
+
+                    // Create call frame
+                    let arg_count = args.len();
+                    let slot_start = self.stack.len() as isize - arg_count as isize - 1;
+                    let frame = CallFrame {
+                        function: Rc::clone(func),
+                        ip: 0,
+                        slot_start,
+                    };
+                    self.call_frames.push(frame);
+
+                    // Execute
+                    match self.run(&func.bloq) {
+                        Result::Ok => Ok(self.pop()),
+                        Result::RuntimeError => Err(self.runtime_errors.clone()),
+                        Result::CompileError => Err("Unexpected compile error".to_string()),
+                    }
+                }
+                Object::NativeFunction(native_fn) => {
+                    (native_fn.function)(self, &args)
+                }
+                _ => Err("Not a function".to_string()),
+            },
+            _ => Err("Not a function".to_string()),
+        }
     }
 
     /// Look up a native method for a given type and method name.

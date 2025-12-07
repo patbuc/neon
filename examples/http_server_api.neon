@@ -1,0 +1,21 @@
+// REST API example
+val server = HttpServer(3000)
+
+server.on("/api/users", func(req) {
+    val method = req.method()
+
+    if method == "GET" {
+        return "[{\"id\": 1, \"name\": \"Alice\"}, {\"id\": 2, \"name\": \"Bob\"}]"
+    } else if method == "POST" {
+        return "Created: " + req.body()
+    } else {
+        return "Method not allowed"
+    }
+})
+
+server.on("/api/status", func(req) {
+    return "Server running"
+})
+
+print("API server on port 3000")
+server.start()

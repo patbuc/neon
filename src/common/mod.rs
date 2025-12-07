@@ -100,6 +100,22 @@ impl Display for MapKey {
     }
 }
 
+/// HTTP Server object - stores port, routes, and server state
+#[derive(Debug)]
+pub(crate) struct ObjHttpServer {
+    pub port: u16,
+    pub routes: HashMap<String, Value>,
+}
+
+/// HTTP Request object - immutable wrapper around request data
+#[derive(Debug)]
+pub(crate) struct ObjHttpRequest {
+    pub method: String,
+    pub path: String,
+    pub body: String,
+    pub headers: HashMap<String, String>,
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Object {
     String(ObjString),
@@ -111,6 +127,8 @@ pub(crate) enum Object {
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<str>),
+    HttpServer(Rc<RefCell<ObjHttpServer>>),
+    HttpRequest(Rc<ObjHttpRequest>),
 }
 
 #[derive(Debug, Clone)]
@@ -260,6 +278,13 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
+            Object::HttpServer(srv) => {
+                let server = srv.borrow();
+                write!(f, "<HttpServer port:{}>", server.port)
+            }
+            Object::HttpRequest(req) => {
+                write!(f, "<HttpRequest {} {}>", req.method, req.path)
+            }
         }
     }
 }
@@ -299,6 +324,18 @@ impl PartialEq for ObjInstance {
     fn eq(&self, other: &Self) -> bool {
         // Instances are equal if they point to the same struct and have same field values
         self.r#struct.name == other.r#struct.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjHttpServer {
+    fn eq(&self, other: &Self) -> bool {
+        self.port == other.port
+    }
+}
+
+impl PartialEq for ObjHttpRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.method == other.method && self.path == other.path
     }
 }
 
