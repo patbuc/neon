@@ -183,14 +183,26 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        // Collect arguments from the stack
+        // Get arguments from the stack without copying
         // Arguments are at stack positions: [stack.len() - arg_count .. stack.len()]
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count;
-        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
+
+        // SAFETY: We create a slice from raw parts to avoid Vec allocation.
+        // This is safe because:
+        // 1. The pointer is valid for the duration of the slice
+        // 2. Native functions only read from args, they don't modify these stack positions
+        // 3. The slice lifetime is limited to this function call
+        // 4. We pop these arguments immediately after the call
+        let args: &[Value] = unsafe {
+            std::slice::from_raw_parts(
+                self.stack.as_ptr().add(args_start),
+                arg_count
+            )
+        };
 
         // Call the native function
-        let result = (native_fn.function)(self, &args);
+        let result = (native_fn.function)(self, args);
 
         // Pop arguments and the native function object from the stack
         let n = arg_count + 1;
@@ -646,14 +658,23 @@ impl VirtualMachine {
                                 };
                             }
                             Object::NativeFunction(native_fn) => {
-                                // Collect arguments from the stack (receiver + args)
+                                // Get arguments from the stack without copying (receiver + args)
                                 // Stack: [receiver, arg1, arg2, ...]
                                 let stack_len = self.stack.len();
                                 let receiver_index = stack_len - arg_count - 1;
-                                let args: Vec<Value> = self.stack[receiver_index + 1..stack_len].to_vec();
+                                let args_start = receiver_index + 1;
+
+                                // SAFETY: Create slice from raw parts to avoid Vec allocation.
+                                // Safe because native functions only read args, not modify stack.
+                                let args: &[Value] = unsafe {
+                                    std::slice::from_raw_parts(
+                                        self.stack.as_ptr().add(args_start),
+                                        arg_count
+                                    )
+                                };
 
                                 // Call the native function
-                                let result = (native_fn.function)(self, &args);
+                                let result = (native_fn.function)(self, args);
 
                                 // Pop receiver and arguments from the stack
                                 let n = arg_count + 1;
@@ -729,14 +750,23 @@ impl VirtualMachine {
             }
         };
 
-        // Collect arguments from the stack (receiver + args)
+        // Get arguments from the stack without copying (receiver + args)
         // Stack: [receiver, arg1, arg2, ...]
         let stack_len = self.stack.len();
         let receiver_index = stack_len - arg_count - 1;
-        let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
+        let args_count = arg_count + 1; // Include receiver as args[0]
+
+        // SAFETY: Create slice from raw parts to avoid Vec allocation.
+        // Safe because native methods only read args, not modify stack.
+        let args: &[Value] = unsafe {
+            std::slice::from_raw_parts(
+                self.stack.as_ptr().add(receiver_index),
+                args_count
+            )
+        };
 
         // Call the native method
-        let result = native_fn(self, &args);
+        let result = native_fn(self, args);
 
         // Pop receiver and arguments from the stack
         let n = arg_count + 1;

@@ -34,7 +34,7 @@ impl VirtualMachine {
         globals.insert("args".to_string(), args_array);
 
         VirtualMachine {
-            call_frames: Vec::new(),
+            call_frames: Vec::with_capacity(128), // Pre-allocate to avoid reallocations during recursion
             stack: Vec::new(),
             bloq: None,
             globals,

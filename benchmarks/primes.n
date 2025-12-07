@@ -1,0 +1,32 @@
+// Prime number counting benchmark
+// Tests arithmetic operations, conditionals, and nested loops
+
+fn is_prime(n) {
+    if (n <= 1) {
+        return false
+    }
+    if (n == 2) {
+        return true
+    }
+    if (n//2 * 2 == n) {
+        return false
+    }
+    var i = 3
+    while (i * i <= n) {
+        if (n//i * i == n) {
+            return false
+        }
+        i = i + 2
+    }
+    return true
+}
+
+var count = 0
+var n = 2
+while (n < 10000) {
+    if (is_prime(n)) {
+        count = count + 1
+    }
+    n = n + 1
+}
+print count

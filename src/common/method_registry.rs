@@ -4,6 +4,8 @@
 /// a complete list of all valid methods for each built-in type in the Neon language.
 use crate::common::string_similarity::find_closest_match;
 use crate::common::NativeFn;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 /// Static registry of all native methods - SINGLE SOURCE OF TRUTH.
 ///
@@ -67,12 +69,21 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("File", "write", crate::vm::file_functions::native_file_write),
 ];
 
+lazy_static! {
+    /// Fast O(1) lookup cache for native methods.
+    /// Built once at startup from NATIVE_METHODS array.
+    static ref METHOD_CACHE: HashMap<(&'static str, &'static str), NativeFn> = {
+        NATIVE_METHODS
+            .iter()
+            .map(|(t, m, f)| ((*t, *m), *f))
+            .collect()
+    };
+}
+
 /// Get native function implementation for a type and method.
+/// Uses O(1) HashMap lookup instead of O(n) linear search.
 pub fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
-    NATIVE_METHODS
-        .iter()
-        .find(|(t, m, _)| *t == type_name && *m == method_name)
-        .map(|(_, _, f)| *f)
+    METHOD_CACHE.get(&(type_name, method_name)).copied()
 }
 
 /// Get all method names for a given type.
