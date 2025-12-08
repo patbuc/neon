@@ -183,6 +183,14 @@ impl SemanticAnalyzer {
                     ("Map", "values") => Some("Array".to_string()),
                     ("Set", "toArray") => Some("Array".to_string()),
                     ("String", "split") => Some("Array".to_string()),
+                    ("String", "charAt") => Some("String".to_string()),
+                    ("String", "toUpperCase") => Some("String".to_string()),
+                    ("String", "toLowerCase") => Some("String".to_string()),
+                    ("String", "trim") => Some("String".to_string()),
+                    ("String", "toString") => Some("String".to_string()),
+                    ("String", "toInt") => Some("Number".to_string()),
+                    ("String", "toFloat") => Some("Number".to_string()),
+                    ("Number", "toString") => Some("String".to_string()),
                     ("Array", "join") => Some("String".to_string()),
                     ("Array", "map") => Some("Array".to_string()),
                     ("Array", "filter") => Some("Array".to_string()),
@@ -191,10 +199,25 @@ impl SemanticAnalyzer {
             }
 
             // Binary operations - basic type inference
-            Expr::Binary { operator, .. } => {
+            Expr::Binary { operator, left, right, .. } => {
                 use crate::compiler::ast::BinaryOp;
                 match operator {
-                    BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply |
+                    BinaryOp::Add => {
+                        // Add can be either string concatenation or numeric addition
+                        let left_type = self.infer_expr_type(left);
+                        let right_type = self.infer_expr_type(right);
+
+                        // If both operands are strings, result is string
+                        if let (Some(lt), Some(rt)) = (left_type, right_type) {
+                            if lt == "String" && rt == "String" {
+                                return Some("String".to_string());
+                            }
+                        }
+
+                        // Otherwise, assume numeric addition
+                        Some("Number".to_string())
+                    }
+                    BinaryOp::Subtract | BinaryOp::Multiply |
                     BinaryOp::Divide | BinaryOp::FloorDivide | BinaryOp::Modulo => {
                         // Arithmetic operations return Number
                         Some("Number".to_string())
