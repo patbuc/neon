@@ -63,7 +63,6 @@ impl Parser {
         }
     }
 
-    /// Parse the source code into an AST
     pub fn parse(&mut self) -> CompilationResult<Vec<Stmt>> {
         let mut statements = Vec::new();
 
@@ -321,7 +320,6 @@ impl Parser {
             return None;
         }
 
-        // Parse parameters
         let mut params = Vec::new();
         if !self.check(TokenType::RightParen) {
             loop {
@@ -350,7 +348,6 @@ impl Parser {
             return None;
         }
 
-        // Parse function body
         let body = self.block_statements()?;
 
         Some(Stmt::Fn {
@@ -372,7 +369,6 @@ impl Parser {
             return None;
         }
 
-        // Parse field list
         let mut fields = Vec::new();
         self.skip_new_lines();
 
@@ -623,11 +619,16 @@ impl Parser {
         } else if self.match_token(TokenType::Var) {
             self.var_declaration_no_terminator()?
         } else {
-            self.report_error_at_current("Expecting 'val' or 'var' in for loop initializer.".to_string());
+            self.report_error_at_current(
+                "Expecting 'val' or 'var' in for loop initializer.".to_string(),
+            );
             return None;
         };
 
-        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop initializer.") {
+        if !self.consume(
+            TokenType::Semicolon,
+            "Expecting ';' after loop initializer.",
+        ) {
             return None;
         }
 
@@ -652,7 +653,7 @@ impl Parser {
 
         // Parse loop body
         let body = self.statement()?;
-        let body_location = body.location().clone();
+        let body_location = *body.location();
 
         // Desugar to: Block { init, While { condition, Block { body, increment } } }
         let while_body = Stmt::Block {
@@ -747,7 +748,6 @@ impl Parser {
 
         self.advance();
 
-        // Get prefix expression
         let mut expr = match self.previous_token.token_type {
             TokenType::Number => self.number(),
             TokenType::String => self.string(),
@@ -764,7 +764,6 @@ impl Parser {
             }
         }?;
 
-        // Parse infix expressions
         while precedence <= self.get_precedence(&self.current_token.token_type) {
             self.advance();
             expr = match self.previous_token.token_type {
@@ -802,8 +801,14 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket | TokenType::PlusPlus | TokenType::MinusMinus => Precedence::Call,
-            TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => Precedence::Factor,
+            TokenType::LeftParen
+            | TokenType::Dot
+            | TokenType::LeftBracket
+            | TokenType::PlusPlus
+            | TokenType::MinusMinus => Precedence::Call,
+            TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => {
+                Precedence::Factor
+            }
             TokenType::Plus | TokenType::Minus => Precedence::Term,
             TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
             TokenType::Greater
@@ -838,7 +843,6 @@ impl Parser {
         let token_value = &self.previous_token.token;
         let location = self.current_location();
 
-        // Remove surrounding quotes
         let content = &token_value[1..token_value.len() - 1];
 
         let mut parts = Vec::new();
@@ -847,20 +851,17 @@ impl Parser {
 
         while let Some(ch) = chars.next() {
             if ch == '$' && chars.peek() == Some(&'{') {
-                // Start of interpolation
-                chars.next(); // consume '{'
+                chars.next();
 
-                // Save any pending literal
                 if !current_literal.is_empty() {
                     parts.push(InterpolationPart::Literal(current_literal.clone()));
                     current_literal.clear();
                 }
 
-                // Extract the expression between ${ and }
                 let mut expr_str = String::new();
                 let mut brace_depth = 1;
 
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if ch == '{' {
                         brace_depth += 1;
                         expr_str.push(ch);
@@ -875,13 +876,11 @@ impl Parser {
                     }
                 }
 
-                // Parse the expression
                 let mut expr_parser = Parser::new(&expr_str);
                 expr_parser.advance();
                 if let Some(expr) = expr_parser.expression(true) {
                     parts.push(InterpolationPart::Expression(Box::new(expr)));
                 } else {
-                    // If parsing fails, treat it as an empty string
                     parts.push(InterpolationPart::Literal(String::new()));
                 }
             } else {
@@ -889,7 +888,6 @@ impl Parser {
             }
         }
 
-        // Add any remaining literal
         if !current_literal.is_empty() {
             parts.push(InterpolationPart::Literal(current_literal));
         }
@@ -926,7 +924,6 @@ impl Parser {
         let name = self.previous_token.token.clone();
         let location = self.current_location();
 
-        // Check for assignment
         if self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::Assign {
@@ -1057,7 +1054,9 @@ impl Parser {
             if !self.check(TokenType::RightParen) {
                 loop {
                     if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
-                        self.report_error_at_current("Can't have more than 255 arguments.".to_string());
+                        self.report_error_at_current(
+                            "Can't have more than 255 arguments.".to_string(),
+                        );
                     }
                     arguments.push(self.expression(false)?);
                     if !self.match_token(TokenType::Comma) {
@@ -1100,7 +1099,6 @@ impl Parser {
 
         self.skip_new_lines();
 
-        // Handle empty braces: {} - treat as empty map (consistent with Python, JavaScript, etc.)
         if self.check(TokenType::RightBrace) {
             self.advance();
             return Some(Expr::MapLiteral {
@@ -1109,52 +1107,41 @@ impl Parser {
             });
         }
 
-        // Parse first expression to determine if this is a set or map
         let first_expr = self.expression(false)?;
 
         self.skip_new_lines();
 
-        // Check if next token is a colon (map) or comma/closing brace (set)
         if self.match_token(TokenType::Colon) {
-            // This is a map literal: {key: value, ...}
             let mut entries = Vec::new();
 
-            // Parse first value
             let first_value = self.expression(false)?;
             entries.push((first_expr, first_value));
 
             self.skip_new_lines();
 
-            // Parse remaining key-value pairs
             if self.match_token(TokenType::Comma) {
                 self.skip_new_lines();
 
-                // Allow trailing comma
                 if !self.check(TokenType::RightBrace) {
                     loop {
-                        // Parse key
                         let key = self.expression(false)?;
 
-                        // Expect colon
                         if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
                             return None;
                         }
 
-                        // Parse value
                         let value = self.expression(false)?;
 
                         entries.push((key, value));
 
                         self.skip_new_lines();
 
-                        // Check for comma or end of map
                         if !self.match_token(TokenType::Comma) {
                             break;
                         }
 
                         self.skip_new_lines();
 
-                        // Allow trailing comma
                         if self.check(TokenType::RightBrace) {
                             break;
                         }
@@ -1168,33 +1155,27 @@ impl Parser {
 
             Some(Expr::MapLiteral { entries, location })
         } else {
-            // This is a set literal: {elem1, elem2, ...}
             let mut elements = Vec::new();
             elements.push(first_expr);
 
             self.skip_new_lines();
 
-            // Parse remaining elements
             if self.match_token(TokenType::Comma) {
                 self.skip_new_lines();
 
-                // Allow trailing comma
                 if !self.check(TokenType::RightBrace) {
                     loop {
-                        // Parse element
                         let element = self.expression(false)?;
                         elements.push(element);
 
                         self.skip_new_lines();
 
-                        // Check for comma or end of set
                         if !self.match_token(TokenType::Comma) {
                             break;
                         }
 
                         self.skip_new_lines();
 
-                        // Allow trailing comma
                         if self.check(TokenType::RightBrace) {
                             break;
                         }
@@ -1216,28 +1197,23 @@ impl Parser {
 
         self.skip_new_lines();
 
-        // Handle empty array: []
         if self.check(TokenType::RightBracket) {
             self.advance();
             return Some(Expr::ArrayLiteral { elements, location });
         }
 
-        // Parse comma-separated elements
         loop {
-            // Parse element expression
             let element = self.expression(false)?;
             elements.push(element);
 
             self.skip_new_lines();
 
-            // Check for comma or end of array
             if !self.match_token(TokenType::Comma) {
                 break;
             }
 
             self.skip_new_lines();
 
-            // Allow trailing comma
             if self.check(TokenType::RightBracket) {
                 break;
             }
@@ -1253,14 +1229,12 @@ impl Parser {
     fn index(&mut self, object: Expr) -> Option<Expr> {
         let location = self.current_location();
 
-        // Parse index expression
         let index = Box::new(self.expression(false)?);
 
         if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
             return None;
         }
 
-        // Check if this is an index assignment: expr[index] = value
         if self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::IndexAssign {

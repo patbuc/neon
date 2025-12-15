@@ -10,38 +10,138 @@ use crate::common::NativeFn;
 /// Format: (type_name, method_name, function)
 const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     // Array methods
-    ("Array", "push", crate::vm::array_functions::native_array_push),
+    (
+        "Array",
+        "push",
+        crate::vm::array_functions::native_array_push,
+    ),
     ("Array", "pop", crate::vm::array_functions::native_array_pop),
-    ("Array", "length", crate::vm::array_functions::native_array_length),
-    ("Array", "size", crate::vm::array_functions::native_array_size),
-    ("Array", "contains", crate::vm::array_functions::native_array_contains),
-    ("Array", "sort", crate::vm::array_functions::native_array_sort),
-    ("Array", "reverse", crate::vm::array_functions::native_array_reverse),
-    ("Array", "slice", crate::vm::array_functions::native_array_slice),
-    ("Array", "join", crate::vm::array_functions::native_array_join),
-    ("Array", "indexOf", crate::vm::array_functions::native_array_index_of),
+    (
+        "Array",
+        "length",
+        crate::vm::array_functions::native_array_length,
+    ),
+    (
+        "Array",
+        "size",
+        crate::vm::array_functions::native_array_size,
+    ),
+    (
+        "Array",
+        "contains",
+        crate::vm::array_functions::native_array_contains,
+    ),
+    (
+        "Array",
+        "sort",
+        crate::vm::array_functions::native_array_sort,
+    ),
+    (
+        "Array",
+        "reverse",
+        crate::vm::array_functions::native_array_reverse,
+    ),
+    (
+        "Array",
+        "slice",
+        crate::vm::array_functions::native_array_slice,
+    ),
+    (
+        "Array",
+        "join",
+        crate::vm::array_functions::native_array_join,
+    ),
+    (
+        "Array",
+        "indexOf",
+        crate::vm::array_functions::native_array_index_of,
+    ),
     ("Array", "sum", crate::vm::array_functions::native_array_sum),
     ("Array", "min", crate::vm::array_functions::native_array_min),
     ("Array", "max", crate::vm::array_functions::native_array_max),
     // String methods
-    ("String", "len", crate::vm::string_functions::native_string_len),
-    ("String", "substring", crate::vm::string_functions::native_string_substring),
-    ("String", "replace", crate::vm::string_functions::native_string_replace),
-    ("String", "split", crate::vm::string_functions::native_string_split),
-    ("String", "toInt", crate::vm::string_functions::native_string_to_int),
-    ("String", "toFloat", crate::vm::string_functions::native_string_to_float),
-    ("String", "toBool", crate::vm::string_functions::native_string_to_bool),
-    ("String", "trim", crate::vm::string_functions::native_string_trim),
-    ("String", "startsWith", crate::vm::string_functions::native_string_starts_with),
-    ("String", "endsWith", crate::vm::string_functions::native_string_ends_with),
-    ("String", "indexOf", crate::vm::string_functions::native_string_index_of),
-    ("String", "charAt", crate::vm::string_functions::native_string_char_at),
-    ("String", "toUpperCase", crate::vm::string_functions::native_string_to_upper_case),
-    ("String", "toLowerCase", crate::vm::string_functions::native_string_to_lower_case),
+    (
+        "String",
+        "len",
+        crate::vm::string_functions::native_string_len,
+    ),
+    (
+        "String",
+        "substring",
+        crate::vm::string_functions::native_string_substring,
+    ),
+    (
+        "String",
+        "replace",
+        crate::vm::string_functions::native_string_replace,
+    ),
+    (
+        "String",
+        "split",
+        crate::vm::string_functions::native_string_split,
+    ),
+    (
+        "String",
+        "toInt",
+        crate::vm::string_functions::native_string_to_int,
+    ),
+    (
+        "String",
+        "toFloat",
+        crate::vm::string_functions::native_string_to_float,
+    ),
+    (
+        "String",
+        "toBool",
+        crate::vm::string_functions::native_string_to_bool,
+    ),
+    (
+        "String",
+        "trim",
+        crate::vm::string_functions::native_string_trim,
+    ),
+    (
+        "String",
+        "startsWith",
+        crate::vm::string_functions::native_string_starts_with,
+    ),
+    (
+        "String",
+        "endsWith",
+        crate::vm::string_functions::native_string_ends_with,
+    ),
+    (
+        "String",
+        "indexOf",
+        crate::vm::string_functions::native_string_index_of,
+    ),
+    (
+        "String",
+        "charAt",
+        crate::vm::string_functions::native_string_char_at,
+    ),
+    (
+        "String",
+        "toUpperCase",
+        crate::vm::string_functions::native_string_to_upper_case,
+    ),
+    (
+        "String",
+        "toLowerCase",
+        crate::vm::string_functions::native_string_to_lower_case,
+    ),
     // Number methods
-    ("Number", "toString", crate::vm::number_functions::native_number_to_string),
+    (
+        "Number",
+        "toString",
+        crate::vm::number_functions::native_number_to_string,
+    ),
     // Boolean methods
-    ("Boolean", "toString", crate::vm::boolean_functions::native_boolean_to_string),
+    (
+        "Boolean",
+        "toString",
+        crate::vm::boolean_functions::native_boolean_to_string,
+    ),
     // Map methods
     ("Map", "get", crate::vm::map_functions::native_map_get),
     ("Map", "size", crate::vm::map_functions::native_map_size),
@@ -49,7 +149,11 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Map", "remove", crate::vm::map_functions::native_map_remove),
     ("Map", "keys", crate::vm::map_functions::native_map_keys),
     ("Map", "values", crate::vm::map_functions::native_map_values),
-    ("Map", "entries", crate::vm::map_functions::native_map_entries),
+    (
+        "Map",
+        "entries",
+        crate::vm::map_functions::native_map_entries,
+    ),
     // Set methods
     ("Set", "add", crate::vm::set_functions::native_set_add),
     ("Set", "remove", crate::vm::set_functions::native_set_remove),
@@ -57,25 +161,47 @@ const NATIVE_METHODS: &[(&str, &str, NativeFn)] = &[
     ("Set", "size", crate::vm::set_functions::native_set_size),
     ("Set", "clear", crate::vm::set_functions::native_set_clear),
     ("Set", "union", crate::vm::set_functions::native_set_union),
-    ("Set", "intersection", crate::vm::set_functions::native_set_intersection),
-    ("Set", "difference", crate::vm::set_functions::native_set_difference),
-    ("Set", "isSubset", crate::vm::set_functions::native_set_is_subset),
-    ("Set", "toArray", crate::vm::set_functions::native_set_to_array),
+    (
+        "Set",
+        "intersection",
+        crate::vm::set_functions::native_set_intersection,
+    ),
+    (
+        "Set",
+        "difference",
+        crate::vm::set_functions::native_set_difference,
+    ),
+    (
+        "Set",
+        "isSubset",
+        crate::vm::set_functions::native_set_is_subset,
+    ),
+    (
+        "Set",
+        "toArray",
+        crate::vm::set_functions::native_set_to_array,
+    ),
     // File methods
     ("File", "read", crate::vm::file_functions::native_file_read),
-    ("File", "readLines", crate::vm::file_functions::native_file_read_lines),
-    ("File", "write", crate::vm::file_functions::native_file_write),
+    (
+        "File",
+        "readLines",
+        crate::vm::file_functions::native_file_read_lines,
+    ),
+    (
+        "File",
+        "write",
+        crate::vm::file_functions::native_file_write,
+    ),
 ];
 
-/// Get native function implementation for a type and method.
-pub fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
+pub(crate) fn get_native_method(type_name: &str, method_name: &str) -> Option<NativeFn> {
     NATIVE_METHODS
         .iter()
         .find(|(t, m, _)| *t == type_name && *m == method_name)
         .map(|(_, _, f)| *f)
 }
 
-/// Get all method names for a given type.
 pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
     NATIVE_METHODS
         .iter()
@@ -88,8 +214,6 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
 pub struct MethodRegistry;
 
 impl MethodRegistry {
-    /// Returns a slice of valid method names for the given type.
-    ///
     /// # Arguments
     /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
     ///
@@ -107,8 +231,6 @@ impl MethodRegistry {
         get_methods_for_type(type_name)
     }
 
-    /// Checks if a method is valid for the given type.
-    ///
     /// # Arguments
     /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
     /// * `method_name` - The name of the method to validate
@@ -127,8 +249,6 @@ impl MethodRegistry {
         get_native_method(type_name, method_name).is_some()
     }
 
-    /// Suggests a similar method name if the given method is invalid.
-    ///
     /// Uses Levenshtein distance to find the closest matching method name
     /// within a threshold of 2 edits.
     ///

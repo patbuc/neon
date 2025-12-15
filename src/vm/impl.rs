@@ -1,9 +1,11 @@
 use crate::common::constants::VARIADIC_ARITY;
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjStruct, Value, Object, ObjString};
+use crate::common::{
+    BitsSize, Bloq, CallFrame, ObjFunction, ObjInstance, ObjString, ObjStruct, Object, Value,
+};
 use crate::compiler::Compiler;
-use crate::vm::math_functions::*;
 use crate::vm::file_functions::*;
+use crate::vm::math_functions::*;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
 use std::collections::HashMap;
@@ -19,25 +21,12 @@ impl Default for VirtualMachine {
 }
 
 impl VirtualMachine {
-    /// Creates a new VirtualMachine with command-line arguments
     pub fn with_args(args: Vec<String>) -> Self {
-        let mut globals = HashMap::new();
-
-        // Initialize built-in global objects
-        globals.insert("Math".to_string(), Self::create_math_object());
-
-        // Initialize built-in global functions
-        globals.insert("File".to_string(), Value::new_native_function("File".to_string(), 1, native_file_constructor));
-
-        // Initialize args array with command-line arguments
-        let args_array = Self::create_args_array(args);
-        globals.insert("args".to_string(), args_array);
-
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             bloq: None,
-            globals,
+            globals: VirtualMachine::create_global_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
             compilation_errors: String::new(),
@@ -48,79 +37,13 @@ impl VirtualMachine {
         }
     }
 
-    /// Creates a new VirtualMachine with no command-line arguments
     pub fn new() -> Self {
         Self::with_args(vec![])
-    }
-
-    /// Creates an array containing command-line arguments as strings
-    fn create_args_array(args: Vec<String>) -> Value {
-        let elements: Vec<Value> = args
-            .into_iter()
-            .map(|arg| {
-                Value::Object(Rc::new(Object::String(ObjString {
-                    value: Rc::from(arg.as_str()),
-                })))
-            })
-            .collect();
-        Value::new_array(elements)
-    }
-
-    /// Creates the Math built-in object with all math functions as fields
-    /// The Math object is a struct-like object with function fields
-    fn create_math_object() -> Value {
-        // Create the Math struct definition with field names
-        let math_struct = Rc::new(ObjStruct {
-            name: "Math".to_string(),
-            fields: vec![
-                "abs".to_string(),
-                "floor".to_string(),
-                "ceil".to_string(),
-                "sqrt".to_string(),
-                "min".to_string(),
-                "max".to_string(),
-            ],
-        });
-
-        // Create an instance of the Math struct with native function values
-        let mut fields = HashMap::new();
-        fields.insert(
-            "abs".to_string(),
-            Value::new_native_function("abs".to_string(), 1, native_math_abs),
-        );
-        fields.insert(
-            "floor".to_string(),
-            Value::new_native_function("floor".to_string(), 1, native_math_floor),
-        );
-        fields.insert(
-            "ceil".to_string(),
-            Value::new_native_function("ceil".to_string(), 1, native_math_ceil),
-        );
-        fields.insert(
-            "sqrt".to_string(),
-            Value::new_native_function("sqrt".to_string(), 1, native_math_sqrt),
-        );
-        fields.insert(
-            "min".to_string(),
-            Value::new_native_function("min".to_string(), VARIADIC_ARITY, native_math_min),
-        );
-        fields.insert(
-            "max".to_string(),
-            Value::new_native_function("max".to_string(), VARIADIC_ARITY, native_math_max),
-        );
-
-        let math_instance = ObjInstance {
-            r#struct: math_struct,
-            fields,
-        };
-
-        Value::new_object(math_instance)
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
         self.reset();
 
-        // Store source for error reporting
         self.source = source.clone();
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -142,14 +65,12 @@ impl VirtualMachine {
 
         let bloq = bloq.unwrap();
 
-        // Create a synthetic function for the script
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
             bloq: Rc::new(bloq),
         });
 
-        // Create the initial call frame
         // Use -1 for slot_start since the script has no function object on the stack
         let frame = CallFrame {
             function: script_function,
@@ -158,7 +79,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Bloq::new("dummy")); // bloq param is not used anymore
+        let result = self.run(&Bloq::new("dummy"));
         self.bloq = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -179,7 +100,6 @@ impl VirtualMachine {
             let ip = frame.ip;
             let op_code = OpCode::from_u8(frame.function.bloq.read_u8(ip));
 
-            // Track whether we should increment IP at the end
             let mut should_increment_ip = true;
 
             match op_code {
@@ -187,7 +107,6 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_return() {
                         return result;
                     }
-                    // Don't increment IP after return since we switched frames
                     should_increment_ip = false;
                 }
                 OpCode::Constant => self.fn_constant(),
@@ -239,7 +158,6 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_call() {
                         return result;
                     }
-                    // Don't increment IP after call since we pushed a new frame or instantiated
                     should_increment_ip = false;
                 }
                 OpCode::GetField => self.fn_get_field(BitsSize::Eight),
@@ -283,7 +201,6 @@ impl VirtualMachine {
                 }
                 OpCode::IteratorDone => self.fn_iterator_done(),
                 OpCode::PopIterator => {
-                    // Pop the current iterator from the iterator stack
                     if self.iterator_stack.is_empty() {
                         self.runtime_error("No iterator to pop");
                         return Result::RuntimeError;
@@ -298,7 +215,6 @@ impl VirtualMachine {
                 OpCode::ToString => self.fn_to_string(),
             }
 
-            // Increment IP for the current frame
             if should_increment_ip {
                 let frame = self.call_frames.last_mut().unwrap();
                 frame.ip += 1;
@@ -325,10 +241,8 @@ impl VirtualMachine {
         let source_location = self.get_current_source_location();
         let error_message = format!("[{}] {}", source_location, error);
 
-        // Always print to stderr for native/debug builds
         eprintln!("{}", error_message);
 
-        // Also capture in buffer for WASM and testing
         if !self.runtime_errors.is_empty() {
             self.runtime_errors.push('\n');
         }
@@ -389,20 +303,85 @@ impl VirtualMachine {
         self.runtime_errors.clear();
     }
 
-    /// Look up a native method for a given type and method name.
-    ///
-    /// This function provides runtime dispatch for native methods. The method registry
-    /// (MethodRegistry) is used at compile-time to validate method calls.
-    ///
-    /// The dispatch table is automatically generated by the define_native_methods! macro
-    /// in src/common/method_registry.rs to ensure consistency with compile-time validation.
-    ///
-    /// Note: In debug builds, we verify consistency with the MethodRegistry to catch
-    /// any discrepancies between compile-time validation and runtime dispatch.
     pub(in crate::vm) fn get_native_method(
         type_name: &str,
         method_name: &str,
     ) -> Option<crate::common::NativeFn> {
         crate::common::method_registry::get_native_method(type_name, method_name)
+    }
+
+    fn create_global_objects(args: Vec<String>) -> HashMap<String, Value> {
+        let mut globals = HashMap::new();
+
+        globals.insert("Math".to_string(), Self::create_math_object());
+
+        globals.insert(
+            "File".to_string(),
+            Value::new_native_function("File".to_string(), 1, native_file_constructor),
+        );
+
+        let args_array = Self::create_args_array(args);
+        globals.insert("args".to_string(), args_array);
+        globals
+    }
+
+    fn create_args_array(args: Vec<String>) -> Value {
+        let elements: Vec<Value> = args
+            .into_iter()
+            .map(|arg| {
+                Value::Object(Rc::new(Object::String(ObjString {
+                    value: Rc::from(arg.as_str()),
+                })))
+            })
+            .collect();
+        Value::new_array(elements)
+    }
+
+    /// The Math object is a struct-like object with function fields
+    fn create_math_object() -> Value {
+        let math_struct = Rc::new(ObjStruct {
+            name: "Math".to_string(),
+            fields: vec![
+                "abs".to_string(),
+                "floor".to_string(),
+                "ceil".to_string(),
+                "sqrt".to_string(),
+                "min".to_string(),
+                "max".to_string(),
+            ],
+        });
+
+        let mut fields = HashMap::new();
+        fields.insert(
+            "abs".to_string(),
+            Value::new_native_function("abs".to_string(), 1, native_math_abs),
+        );
+        fields.insert(
+            "floor".to_string(),
+            Value::new_native_function("floor".to_string(), 1, native_math_floor),
+        );
+        fields.insert(
+            "ceil".to_string(),
+            Value::new_native_function("ceil".to_string(), 1, native_math_ceil),
+        );
+        fields.insert(
+            "sqrt".to_string(),
+            Value::new_native_function("sqrt".to_string(), 1, native_math_sqrt),
+        );
+        fields.insert(
+            "min".to_string(),
+            Value::new_native_function("min".to_string(), VARIADIC_ARITY, native_math_min),
+        );
+        fields.insert(
+            "max".to_string(),
+            Value::new_native_function("max".to_string(), VARIADIC_ARITY, native_math_max),
+        );
+
+        let math_instance = ObjInstance {
+            r#struct: math_struct,
+            fields,
+        };
+
+        Value::new_object(math_instance)
     }
 }

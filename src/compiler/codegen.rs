@@ -20,13 +20,9 @@ struct LoopContext {
 
 /// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
-    /// Stack of bloqs (for nested function compilation)
     bloqs: Vec<Bloq>,
-    /// Current scope depth for tracking locals
     scope_depth: u32,
-    /// Errors encountered during code generation
     errors: Vec<CompilationError>,
-    /// Stack of loop contexts for nested loops
     loop_contexts: Vec<LoopContext>,
 }
 
@@ -42,7 +38,6 @@ impl CodeGenerator {
         }
     }
 
-    /// Generate bytecode from the AST
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Bloq> {
         // First: Define all functions and structs with placeholders
         // This allows forward references to work
