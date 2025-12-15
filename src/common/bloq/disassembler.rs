@@ -86,6 +86,7 @@ impl Bloq {
             OpCode::IteratorDone => self.simple_instruction(OpCode::IteratorDone, offset),
             OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
             OpCode::CreateRange => self.create_range_instruction(offset),
+            OpCode::ToString => self.simple_instruction(OpCode::ToString, offset),
         }
     }
 
