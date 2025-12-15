@@ -1,16 +1,16 @@
+use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use ordered_float::OrderedFloat;
 
 pub(crate) mod bloq;
-pub(crate) mod opcodes;
-pub mod errors;
 pub mod constants;
 pub mod error_renderer;
-pub mod string_similarity;
+pub mod errors;
 pub mod method_registry;
+pub(crate) mod opcodes;
+pub mod string_similarity;
 
 #[cfg(test)]
 mod tests;
@@ -18,7 +18,7 @@ mod tests;
 // Forward declare VirtualMachine for NativeFn signature
 // We can't import VirtualMachine directly as it would create a circular dependency
 // The actual implementation will be in vm/mod.rs
-pub type NativeFn = fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, String>;
+pub(crate) type NativeFn = fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, String>;
 
 #[derive(Debug)]
 pub(crate) struct Bloq {
@@ -160,7 +160,7 @@ pub(crate) struct ObjStruct {
 #[derive(Debug, Clone)]
 pub(crate) struct ObjInstance {
     pub r#struct: Rc<ObjStruct>,
-    pub fields: std::collections::HashMap<String, Value>,
+    pub fields: HashMap<String, Value>,
 }
 
 impl Value {

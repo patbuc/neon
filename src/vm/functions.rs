@@ -1,5 +1,5 @@
 use crate::common::constants::VARIADIC_ARITY;
-use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value, ObjNativeFunction};
+use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -116,13 +116,12 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        // Create instance with fields
         let field_count = r#struct.fields.len();
         let mut fields = HashMap::with_capacity(field_count);
         let stack_len = self.stack.len();
         let stack_slice = &self.stack[stack_len - arg_count..stack_len];
         for (field_name, value) in r#struct.fields.iter().zip(stack_slice.iter()) {
-            fields.insert(field_name.clone(), value.clone()); // If Value is not Copy
+            fields.insert(field_name.clone(), value.clone());
         }
 
         let instance = ObjInstance {
@@ -130,22 +129,18 @@ impl VirtualMachine {
             fields,
         };
 
-        // Pop arguments and struct definition
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
         self.stack.drain(start..);
 
-        // Push instance
         self.push(Value::new_object(instance));
 
-        // Increment IP to skip Call opcode and arg count
         let current_frame = self.call_frames.last_mut().unwrap();
         current_frame.ip += 2;
         None
     }
 
     fn call_function(&mut self, arg_count: usize, func: &&Rc<ObjFunction>) -> Option<Result> {
-        // Check arity
         if arg_count != func.arity as usize {
             self.runtime_error(&format!(
                 "Expected {} arguments but got {}.",
@@ -157,7 +152,6 @@ impl VirtualMachine {
         // Calculate slot_start: current stack size - arg_count - 1 (for the function itself)
         let slot_start = (self.stack.len() - arg_count - 1) as isize;
 
-        // Create a new call frame
         let new_frame = CallFrame {
             function: Rc::clone(func),
             ip: 0,
@@ -173,8 +167,12 @@ impl VirtualMachine {
         None
     }
 
-    fn call_native_function(&mut self, arg_count: usize, native_fn: &ObjNativeFunction) -> Option<Result> {
-        // Check arity (VARIADIC_ARITY means variadic function - any number of args allowed)
+    fn call_native_function(
+        &mut self,
+        arg_count: usize,
+        native_fn: &ObjNativeFunction,
+    ) -> Option<Result> {
+        // VARIADIC_ARITY means variadic function - any number of args allowed
         if native_fn.arity != VARIADIC_ARITY && arg_count != native_fn.arity as usize {
             self.runtime_error(&format!(
                 "Expected {} arguments but got {}.",
@@ -183,27 +181,20 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        // Collect arguments from the stack
-        // Arguments are at stack positions: [stack.len() - arg_count .. stack.len()]
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count;
         let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
 
-        // Call the native function
         let result = (native_fn.function)(self, &args);
 
-        // Pop arguments and the native function object from the stack
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
         self.stack.drain(start..);
 
-        // Handle the result
         match result {
             Ok(value) => {
-                // Push the return value onto the stack
                 self.push(value);
 
-                // Increment IP to skip Call opcode and arg count
                 let current_frame = self.call_frames.last_mut().unwrap();
                 current_frame.ip += 2;
 
@@ -218,15 +209,10 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_return(&mut self) -> Option<Result> {
-        // Get the return value (top of stack)
         let return_value = self.pop();
-
-        // Pop the current call frame
         let frame = self.call_frames.pop().unwrap();
 
-        // If this was the last frame, we're done
         if self.call_frames.is_empty() {
-            // Push the return value back for the script/test to access
             self.push(return_value);
             return Some(Result::Ok);
         }
@@ -234,7 +220,6 @@ impl VirtualMachine {
         // Clear the stack back to the slot_start (removing arguments and locals)
         self.stack.truncate(frame.slot_start as usize);
 
-        // Push the return value
         self.push(return_value);
 
         None
@@ -319,7 +304,6 @@ impl VirtualMachine {
     }
 
     fn fn_add_object(&mut self, a: &Object, b: &Object) -> Option<Result> {
-        // match on ObjString
         match (a, b) {
             (Object::String(obj_a), Object::String(obj_b)) => {
                 let mut combined = String::with_capacity(obj_a.value.len() + obj_b.value.len());
@@ -505,7 +489,11 @@ impl VirtualMachine {
 
         // Make sure we don't go out of bounds
         if absolute_index >= self.stack.len() {
-            self.runtime_error(&format!("Global variable index {} out of bounds (stack size: {})", absolute_index, self.stack.len()));
+            self.runtime_error(&format!(
+                "Global variable index {} out of bounds (stack size: {})",
+                absolute_index,
+                self.stack.len()
+            ));
             return;
         }
 
@@ -531,7 +519,6 @@ impl VirtualMachine {
         let field_name_index = self.read_bits(&bits);
         let instance_value = self.peek(0);
 
-        // Read the field name from strings
         let field_name = {
             let frame = self.call_frames.last().unwrap();
             let field_value = frame.function.bloq.read_string(field_name_index);
@@ -557,8 +544,8 @@ impl VirtualMachine {
 
                     if let Some(value) = instance.fields.get(&field_name) {
                         let value = value.clone();
-                        self.pop(); // Pop instance
-                        self.push(value); // Push field value
+                        self.pop();
+                        self.push(value);
                     } else {
                         self.runtime_error(&format!("Undefined field '{}'.", field_name));
                         return;
@@ -581,15 +568,13 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_call_method(&mut self, bits: BitsSize) -> Option<Result> {
-        // Calculate index size and IP increment based on variant
         let index_size = match bits {
             BitsSize::Eight => 1,
             BitsSize::Sixteen => 2,
             BitsSize::ThirtyTwo => 4,
         };
-        let ip_increment = 1 + 1 + index_size; // opcode + arg_count + method_index
+        let ip_increment = 1 + 1 + index_size;
 
-        // Read arg count and method name index
         let frame = self.call_frames.last().unwrap();
         let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
         let method_name_index = match bits {
@@ -598,7 +583,6 @@ impl VirtualMachine {
             BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
         };
 
-        // Read the method name from strings
         let method_name = {
             let frame = self.call_frames.last().unwrap();
             let method_value = frame.function.bloq.read_string(method_name_index);
@@ -617,8 +601,6 @@ impl VirtualMachine {
             }
         };
 
-        // Get the receiver (object) from the stack
-        // Stack layout: [receiver, arg1, arg2, ...]
         let receiver = self.peek(arg_count);
 
         // Check if receiver is an instance with the method as a function field
@@ -627,46 +609,36 @@ impl VirtualMachine {
             if let Object::Instance(instance_ref) = obj.as_ref() {
                 let instance = instance_ref.borrow();
                 if let Some(field_value) = instance.fields.get(&method_name) {
-                    // The "method" is actually a function field - call it
                     let function_value = field_value.clone();
-                    drop(instance); // Drop the borrow before calling
+                    drop(instance);
 
-                    // Handle different function types
                     match &function_value {
                         Value::Object(func_obj) => match func_obj.as_ref() {
                             Object::Function(func) => {
-                                // Call user-defined function
                                 return if let Some(result) = self.call_function(arg_count, &func) {
                                     Some(result)
                                 } else {
-                                    // Increment IP for CallMethod (opcode + arg_count + method_name_index)
                                     let current_frame = self.call_frames.last_mut().unwrap();
                                     current_frame.ip += ip_increment;
                                     None
                                 };
                             }
                             Object::NativeFunction(native_fn) => {
-                                // Collect arguments from the stack (receiver + args)
-                                // Stack: [receiver, arg1, arg2, ...]
                                 let stack_len = self.stack.len();
                                 let receiver_index = stack_len - arg_count - 1;
-                                let args: Vec<Value> = self.stack[receiver_index + 1..stack_len].to_vec();
+                                let args: Vec<Value> =
+                                    self.stack[receiver_index + 1..stack_len].to_vec();
 
-                                // Call the native function
                                 let result = (native_fn.function)(self, &args);
 
-                                // Pop receiver and arguments from the stack
                                 let n = arg_count + 1;
                                 let start = self.stack.len().saturating_sub(n);
                                 self.stack.drain(start..);
 
-                                // Handle the result
                                 return match result {
                                     Ok(value) => {
-                                        // Push the return value onto the stack
                                         self.push(value);
 
-                                        // Increment IP for CallMethod (opcode + arg_count + method_name_index)
                                         let current_frame = self.call_frames.last_mut().unwrap();
                                         current_frame.ip += ip_increment;
 
@@ -692,7 +664,6 @@ impl VirtualMachine {
             }
         }
 
-        // Determine the type of the receiver for native method lookup
         let type_name = match &receiver {
             Value::Number(_) => "Number".to_string(),
             Value::Boolean(_) => "Boolean".to_string(),
@@ -707,17 +678,22 @@ impl VirtualMachine {
                     instance.r#struct.name.clone()
                 }
                 _ => {
-                    self.runtime_error(&format!("Type does not support method calls: {:?}", receiver));
+                    self.runtime_error(&format!(
+                        "Type does not support method calls: {:?}",
+                        receiver
+                    ));
                     return Some(Result::RuntimeError);
                 }
             },
             _ => {
-                self.runtime_error(&format!("Cannot call methods on primitive type: {:?}", receiver));
+                self.runtime_error(&format!(
+                    "Cannot call methods on primitive type: {:?}",
+                    receiver
+                ));
                 return Some(Result::RuntimeError);
             }
         };
 
-        // Look up the native method
         let native_fn = match VirtualMachine::get_native_method(&type_name, &method_name) {
             Some(f) => f,
             None => {
@@ -729,27 +705,20 @@ impl VirtualMachine {
             }
         };
 
-        // Collect arguments from the stack (receiver + args)
-        // Stack: [receiver, arg1, arg2, ...]
         let stack_len = self.stack.len();
         let receiver_index = stack_len - arg_count - 1;
         let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
 
-        // Call the native method
         let result = native_fn(self, &args);
 
-        // Pop receiver and arguments from the stack
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
         self.stack.drain(start..);
 
-        // Handle the result
         match result {
             Ok(value) => {
-                // Push the return value onto the stack
                 self.push(value);
 
-                // Increment IP to skip CallMethod opcode, arg count, and method name index
                 let current_frame = self.call_frames.last_mut().unwrap();
                 current_frame.ip += ip_increment;
 
@@ -765,10 +734,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_set_field(&mut self, bits: BitsSize) {
         let field_name_index = self.read_bits(&bits);
-        let value = self.peek(0); // Value to set
-        let instance_value = self.peek(1); // Instance
+        let value = self.peek(0);
+        let instance_value = self.peek(1);
 
-        // Read the field name from strings
         let field_name = {
             let frame = self.call_frames.last().unwrap();
             let field_value = frame.function.bloq.read_string(field_name_index);
@@ -791,7 +759,6 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Instance(instance_ref) => {
                     let mut instance = instance_ref.borrow_mut();
-                    // Verify field exists in struct definition
                     if !instance.r#struct.fields.contains(&field_name) {
                         self.runtime_error(&format!("Undefined field '{}'.", field_name));
                         return;
@@ -799,10 +766,9 @@ impl VirtualMachine {
 
                     instance.fields.insert(field_name, value.clone());
 
-                    // Pop value and instance, push value back (assignment expression returns the value)
-                    self.pop(); // Pop value
-                    self.pop(); // Pop instance
-                    self.push(value); // Push value back
+                    self.pop();
+                    self.pop();
+                    self.push(value);
                 }
                 _ => {
                     self.runtime_error("Only instances have fields.");
@@ -821,24 +787,19 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_create_map(&mut self) {
-        // Read the count of entries from bytecode
         let count = {
             let frame = self.call_frames.last().unwrap();
             frame.function.bloq.read_u8(frame.ip + 1) as usize
         };
 
-        // Pop key-value pairs from stack and build the map
-        // Stack layout from compiler: [key1, key2, ..., keyN, value1, value2, ..., valueN]
         let stack_len = self.stack.len();
         let pairs_start = stack_len - (count * 2);
 
         let mut map = HashMap::with_capacity(count);
         for i in 0..count {
-            // Keys are in the first half, values in the second half
             let key_value = &self.stack[pairs_start + i];
             let value = &self.stack[pairs_start + count + i];
 
-            // Convert Value to MapKey
             let key = match Self::value_to_map_key(key_value) {
                 Some(k) => k,
                 None => {
@@ -853,53 +814,40 @@ impl VirtualMachine {
             map.insert(key, value.clone());
         }
 
-        // Pop all key-value pairs from stack
         self.stack.drain(pairs_start..);
 
-        // Push the new map onto the stack
         self.push(Value::new_map(map));
 
-        // Increment IP to skip the count byte
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 1;
     }
 
     pub(in crate::vm) fn fn_create_array(&mut self) {
-        // Read the count of elements from bytecode
         let count = {
             let frame = self.call_frames.last().unwrap();
             frame.function.bloq.read_u16(frame.ip + 1) as usize
         };
 
-        // Pop elements from stack and build the array
-        // Stack layout: [elem0, elem1, ..., elemN]
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
 
-        // Collect elements into a Vec
         let elements: Vec<Value> = self.stack[elements_start..stack_len].to_vec();
 
-        // Pop all elements from stack
         self.stack.drain(elements_start..);
 
-        // Push the new array onto the stack
         self.push(Value::new_array(elements));
 
-        // Increment IP to skip the count bytes (u16 = 2 bytes)
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 2;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn fn_create_set(&mut self) {
-        // Read the count of elements from bytecode
         let count = {
             let frame = self.call_frames.last().unwrap();
             frame.function.bloq.read_u8(frame.ip + 1) as usize
         };
 
-        // Pop elements from stack and build the set
-        // Stack layout from compiler: [element1, element2, ..., elementN]
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
 
@@ -907,7 +855,6 @@ impl VirtualMachine {
         for i in 0..count {
             let element_value = &self.stack[elements_start + i];
 
-            // Convert Value to SetKey
             let key = match Self::value_to_map_key(element_value) {
                 Some(k) => k,
                 None => {
@@ -919,33 +866,26 @@ impl VirtualMachine {
                 }
             };
 
-            // Insert into set (duplicates are automatically handled by HashSet)
             set.insert(key);
         }
 
-        // Pop all elements from stack
         self.stack.drain(elements_start..);
 
-        // Push the new set onto the stack
         self.push(Value::new_set(set));
 
-        // Increment IP to skip the count byte
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 1;
     }
 
     pub(in crate::vm) fn fn_create_range(&mut self) -> Option<Result> {
-        // Read the inclusive flag from bytecode
         let inclusive = {
             let frame = self.call_frames.last().unwrap();
             frame.function.bloq.read_u8(frame.ip + 1) != 0
         };
 
-        // Pop end and start values from stack
         let end_value = self.pop();
         let start_value = self.pop();
 
-        // Extract numeric values
         let start = match start_value {
             Value::Number(n) => n,
             _ => {
@@ -960,55 +900,42 @@ impl VirtualMachine {
         let end = match end_value {
             Value::Number(n) => n,
             _ => {
-                self.runtime_error(&format!(
-                    "Range end must be a number, got {}",
-                    end_value
-                ));
+                self.runtime_error(&format!("Range end must be a number, got {}", end_value));
                 return Some(Result::RuntimeError);
             }
         };
 
-        // Check if both are integers
         if start.fract() != 0.0 {
-            self.runtime_error(&format!(
-                "Range start must be an integer, got {}",
-                start
-            ));
+            self.runtime_error(&format!("Range start must be an integer, got {}", start));
             return Some(Result::RuntimeError);
         }
 
         if end.fract() != 0.0 {
-            self.runtime_error(&format!(
-                "Range end must be an integer, got {}",
-                end
-            ));
+            self.runtime_error(&format!("Range end must be an integer, got {}", end));
             return Some(Result::RuntimeError);
         }
 
         let start_int = start as i64;
         let end_int = end as i64;
 
-        // Build the range array
         let elements: Vec<Value> = if inclusive {
             if start_int <= end_int {
-                (start_int..=end_int).map(|i| Value::Number(i as f64)).collect()
+                (start_int..=end_int)
+                    .map(|i| Value::Number(i as f64))
+                    .collect()
             } else {
-                // Empty range for reverse inclusive ranges
                 Vec::new()
             }
+        } else if start_int < end_int {
+            (start_int..end_int)
+                .map(|i| Value::Number(i as f64))
+                .collect()
         } else {
-            if start_int < end_int {
-                (start_int..end_int).map(|i| Value::Number(i as f64)).collect()
-            } else {
-                // Empty range for reverse exclusive ranges
-                Vec::new()
-            }
+            Vec::new()
         };
 
-        // Push the new array onto the stack
         self.push(Value::new_array(elements));
 
-        // Increment IP to skip the inclusive flag byte
         let frame = self.call_frames.last_mut().unwrap();
         frame.ip += 1;
 
@@ -1040,7 +967,6 @@ impl VirtualMachine {
                     self.push(result);
                 }
                 Object::Array(array_ref) => {
-                    // Extract index as number
                     let index = match index_value {
                         Value::Number(n) => n as i32,
                         _ => {
@@ -1055,14 +981,8 @@ impl VirtualMachine {
                     let array = array_ref.borrow();
                     let len = array.len() as i32;
 
-                    // Normalize negative indices
-                    let actual_index = if index < 0 {
-                        len + index
-                    } else {
-                        index
-                    };
+                    let actual_index = if index < 0 { len + index } else { index };
 
-                    // Bounds check
                     if actual_index < 0 || actual_index >= len {
                         self.runtime_error(&format!(
                             "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
@@ -1114,11 +1034,9 @@ impl VirtualMachine {
                     let mut map = map_ref.borrow_mut();
                     map.insert(key, value.clone());
 
-                    // Push the value back (assignment expression returns the value)
                     self.push(value);
                 }
                 Object::Array(array_ref) => {
-                    // Extract index as number
                     let index = match index_value {
                         Value::Number(n) => n as i32,
                         _ => {
@@ -1133,14 +1051,8 @@ impl VirtualMachine {
                     let mut array = array_ref.borrow_mut();
                     let len = array.len() as i32;
 
-                    // Normalize negative indices
-                    let actual_index = if index < 0 {
-                        len + index
-                    } else {
-                        index
-                    };
+                    let actual_index = if index < 0 { len + index } else { index };
 
-                    // Bounds check
                     if actual_index < 0 || actual_index >= len {
                         self.runtime_error(&format!(
                             "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
@@ -1151,7 +1063,6 @@ impl VirtualMachine {
 
                     array[actual_index as usize] = value.clone();
 
-                    // Push the value back (assignment expression returns the value)
                     self.push(value);
                 }
                 _ => {
@@ -1170,7 +1081,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Convert a Value to a MapKey if possible
     fn value_to_map_key(value: &Value) -> Option<crate::common::MapKey> {
         use crate::common::MapKey;
         use ordered_float::OrderedFloat;
@@ -1195,16 +1105,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_get_iterator(&mut self) -> Option<Result> {
         let collection = self.pop();
 
-        // Validate collection type and prepare for iteration
         let iterator_value = match &collection {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(_) => {
-                    // Arrays can be iterated directly
-                    collection
-                }
+                Object::Array(_) => collection,
                 Object::Map(map_ref) => {
-                    // For maps, we need to iterate over keys
-                    // Convert keys to an array for consistent iteration
                     let map = map_ref.borrow();
                     let keys: Vec<Value> = map
                         .keys()
@@ -1222,7 +1126,6 @@ impl VirtualMachine {
                     Value::new_array(keys)
                 }
                 Object::Set(set_ref) => {
-                    // For sets, convert to array for iteration
                     let set = set_ref.borrow();
                     let elements: Vec<Value> = set
                         .iter()
@@ -1256,7 +1159,6 @@ impl VirtualMachine {
             }
         };
 
-        // Push new iterator onto the stack
         self.iterator_stack.push((0, iterator_value));
         None
     }
@@ -1267,23 +1169,21 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_done(&mut self) {
         if let Some((index, collection)) = self.iterator_stack.last() {
-            // Check if we have more elements (NOT done)
             let has_more = match collection {
                 Value::Object(obj) => match obj.as_ref() {
                     Object::Array(array_ref) => {
                         let array = array_ref.borrow();
                         *index < array.len()
                     }
-                    _ => false, // Should not happen since GetIterator normalizes to arrays
+                    _ => false,
                 },
                 _ => false,
             };
 
             self.push(boolean!(has_more));
         } else {
-            // No iterator initialized - this is an error
             self.runtime_error("No iterator initialized");
-            self.push(boolean!(false)); // Return false (done/error)
+            self.push(boolean!(false));
         }
     }
 
@@ -1292,7 +1192,6 @@ impl VirtualMachine {
     /// When exiting a loop, pops the iterator from the iterator stack
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_next(&mut self) -> Option<Result> {
-        // Extract values from iterator state to avoid multiple mutable borrows
         let (value, new_index) = if let Some((index, collection)) = self.iterator_stack.last() {
             match collection {
                 Value::Object(obj) => match obj.as_ref() {
@@ -1313,10 +1212,8 @@ impl VirtualMachine {
             (None, None)
         };
 
-        // Now handle the results without holding iterator borrow
         match (value, new_index) {
             (Some(v), Some(idx)) => {
-                // Update the iterator index
                 if let Some((index, _)) = self.iterator_stack.last_mut() {
                     *index = idx;
                 }

@@ -1,10 +1,8 @@
-use crate::common::{Value, Object, MapKey};
+use crate::common::{MapKey, Object, Value};
 use crate::vm::VirtualMachine;
-use std::rc::Rc;
 use ordered_float::OrderedFloat;
+use std::rc::Rc;
 
-/// Native implementation of Map.get(key)
-/// Returns the value associated with the key, or nil if not found
 pub fn native_map_get(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
@@ -38,8 +36,6 @@ pub fn native_map_get(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value,
     Ok(map.get(&key).cloned().unwrap_or(Value::Nil))
 }
 
-/// Native implementation of Map.size()
-/// Returns the number of entries in the map
 pub fn native_map_size(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("size() expects no arguments".to_string());
@@ -58,8 +54,6 @@ pub fn native_map_size(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value
     Ok(Value::Number(map.len() as f64))
 }
 
-/// Native implementation of Map.has(key)
-/// Returns true if the map contains the key, false otherwise
 pub fn native_map_has(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
@@ -93,8 +87,6 @@ pub fn native_map_has(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value,
     Ok(Value::Boolean(map.contains_key(&key)))
 }
 
-/// Native implementation of Map.remove(key)
-/// Removes the entry with the given key and returns its value, or nil if not found
 pub fn native_map_remove(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
@@ -128,8 +120,6 @@ pub fn native_map_remove(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Val
     Ok(map.remove(&key).unwrap_or(Value::Nil))
 }
 
-/// Native implementation of Map.keys()
-/// Returns an array of all keys in the map
 pub fn native_map_keys(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("keys() expects no arguments".to_string());
@@ -146,12 +136,10 @@ pub fn native_map_keys(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value
 
     // Collect keys into an array
     let map = map_ref.borrow();
-    let keys: Vec<Value> = map.keys().map(|key| map_key_to_value(key)).collect();
+    let keys: Vec<Value> = map.keys().map(map_key_to_value).collect();
     Ok(Value::new_array(keys))
 }
 
-/// Native implementation of Map.values()
-/// Returns an array of all values in the map
 pub fn native_map_values(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("values() expects no arguments".to_string());
@@ -172,8 +160,6 @@ pub fn native_map_values(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Val
     Ok(Value::new_array(values))
 }
 
-/// Native implementation of Map.entries()
-/// Returns an array of [key, value] arrays
 pub fn native_map_entries(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("entries() expects no arguments".to_string());
@@ -192,14 +178,11 @@ pub fn native_map_entries(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Va
     let map = map_ref.borrow();
     let entries: Vec<Value> = map
         .iter()
-        .map(|(key, value)| {
-            Value::new_array(vec![map_key_to_value(key), value.clone()])
-        })
+        .map(|(key, value)| Value::new_array(vec![map_key_to_value(key), value.clone()]))
         .collect();
     Ok(Value::new_array(entries))
 }
 
-/// Helper function to convert a Value to a MapKey
 fn value_to_map_key(value: &Value) -> Option<MapKey> {
     match value {
         Value::Object(obj) => match obj.as_ref() {
@@ -212,7 +195,6 @@ fn value_to_map_key(value: &Value) -> Option<MapKey> {
     }
 }
 
-/// Helper function to convert a MapKey back to a Value
 fn map_key_to_value(key: &MapKey) -> Value {
     match key {
         MapKey::String(s) => {
