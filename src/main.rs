@@ -10,10 +10,9 @@ use neon::vm::{Result, VirtualMachine};
 fn main() {
     setup_logging();
 
-    print_tagline();
-
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
+        print_tagline();
         run_repl();
     } else if args.len() >= 2 {
         // Pass all arguments after the script path to the script
