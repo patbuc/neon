@@ -96,18 +96,18 @@ impl VirtualMachine {
             frame.function.bloq.disassemble_bloq();
         }
         loop {
-            let frame = self.call_frames.last_mut().unwrap();
-            let ip = frame.ip;
-            let op_code = OpCode::from_u8(frame.function.bloq.read_u8(ip));
-
-            let mut should_increment_ip = true;
+            let op_code = {
+                let frame = self.current_frame();
+                let ip = frame.ip;
+                OpCode::from_u8(frame.function.bloq.read_u8(ip))
+            };
 
             match op_code {
                 OpCode::Return => {
                     if let Some(result) = self.fn_return() {
                         return result;
                     }
-                    should_increment_ip = false;
+                    continue;
                 }
                 OpCode::Constant => self.fn_constant(),
                 OpCode::Constant2 => self.fn_constant2(),
@@ -158,7 +158,7 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_call() {
                         return result;
                     }
-                    should_increment_ip = false;
+                    continue;
                 }
                 OpCode::GetField => self.fn_get_field(BitsSize::Eight),
                 OpCode::GetField2 => self.fn_get_field(BitsSize::Sixteen),
@@ -170,19 +170,19 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_call_method(BitsSize::Eight) {
                         return result;
                     }
-                    should_increment_ip = false;
+                    continue;
                 }
                 OpCode::CallMethod2 => {
                     if let Some(result) = self.fn_call_method(BitsSize::Sixteen) {
                         return result;
                     }
-                    should_increment_ip = false;
+                    continue;
                 }
                 OpCode::CallMethod4 => {
                     if let Some(result) = self.fn_call_method(BitsSize::ThirtyTwo) {
                         return result;
                     }
-                    should_increment_ip = false;
+                    continue;
                 }
                 OpCode::CreateMap => self.fn_create_map(),
                 OpCode::CreateArray => self.fn_create_array(),
@@ -214,12 +214,22 @@ impl VirtualMachine {
                 }
                 OpCode::ToString => self.fn_to_string(),
             }
-
-            if should_increment_ip {
-                let frame = self.call_frames.last_mut().unwrap();
-                frame.ip += 1;
-            }
+            self.current_frame_mut().ip += 1;
         }
+    }
+
+    #[inline(always)]
+    pub(crate) fn current_frame(&self) -> &CallFrame {
+        // Single point of access with debug assertion
+        debug_assert!(!self.call_frames.is_empty());
+        unsafe { self.call_frames.get_unchecked(self.call_frames.len() - 1) }
+    }
+
+    #[inline(always)]
+    pub(crate) fn current_frame_mut(&mut self) -> &mut CallFrame {
+        let len = self.call_frames.len();
+        debug_assert!(len > 0);
+        unsafe { self.call_frames.get_unchecked_mut(len - 1) }
     }
 
     #[inline(always)]
