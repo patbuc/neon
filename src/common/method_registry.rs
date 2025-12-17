@@ -1,4 +1,5 @@
 use crate::common::constants::VARIADIC_ARITY;
+use crate::common::stdlib;
 use crate::common::string_similarity::find_closest_match;
 use crate::common::NativeFn;
 
@@ -36,242 +37,469 @@ impl NativeCallable {
 /// Format: (type_name, method_name, NativeCallable)
 const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     // Math static methods
-    ("Math", "abs", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_abs,
-        arity: 1,
-    }),
-    ("Math", "floor", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_floor,
-        arity: 1,
-    }),
-    ("Math", "ceil", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_ceil,
-        arity: 1,
-    }),
-    ("Math", "sqrt", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_sqrt,
-        arity: 1,
-    }),
-    ("Math", "min", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_min,
-        arity: VARIADIC_ARITY,
-    }),
-    ("Math", "max", NativeCallable::StaticMethod {
-        function: crate::common::builtin::math_functions::native_math_max,
-        arity: VARIADIC_ARITY,
-    }),
+    (
+        "Math",
+        "abs",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_abs,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "floor",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_floor,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "ceil",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_ceil,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "sqrt",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_sqrt,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "min",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_min,
+            arity: VARIADIC_ARITY,
+        },
+    ),
+    (
+        "Math",
+        "max",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_max,
+            arity: VARIADIC_ARITY,
+        },
+    ),
     // Array instance methods
-    ("Array", "push", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_push,
-        arity: 1,
-    }),
-    ("Array", "pop", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_pop,
-        arity: 0,
-    }),
-    ("Array", "length", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_length,
-        arity: 0,
-    }),
-    ("Array", "size", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_size,
-        arity: 0,
-    }),
-    ("Array", "contains", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_contains,
-        arity: 1,
-    }),
-    ("Array", "sort", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_sort,
-        arity: 0,
-    }),
-    ("Array", "reverse", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_reverse,
-        arity: 0,
-    }),
-    ("Array", "slice", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_slice,
-        arity: 2,
-    }),
-    ("Array", "join", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_join,
-        arity: 1,
-    }),
-    ("Array", "indexOf", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_index_of,
-        arity: 1,
-    }),
-    ("Array", "sum", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_sum,
-        arity: 0,
-    }),
-    ("Array", "min", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_min,
-        arity: 0,
-    }),
-    ("Array", "max", NativeCallable::InstanceMethod {
-        function: crate::vm::array_functions::native_array_max,
-        arity: 0,
-    }),
+    (
+        "Array",
+        "push",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_push,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "pop",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_pop,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "length",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_length,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_size,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "contains",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_contains,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "sort",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_sort,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "reverse",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_reverse,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "slice",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_slice,
+            arity: 2,
+        },
+    ),
+    (
+        "Array",
+        "join",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_join,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "indexOf",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_index_of,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "sum",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_sum,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "min",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_min,
+            arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "max",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_max,
+            arity: 0,
+        },
+    ),
     // String instance methods
-    ("String", "len", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_len,
-        arity: 0,
-    }),
-    ("String", "substring", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_substring,
-        arity: 2,
-    }),
-    ("String", "replace", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_replace,
-        arity: 2,
-    }),
-    ("String", "split", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_split,
-        arity: 1,
-    }),
-    ("String", "toInt", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_to_int,
-        arity: 0,
-    }),
-    ("String", "toFloat", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_to_float,
-        arity: 0,
-    }),
-    ("String", "toBool", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_to_bool,
-        arity: 0,
-    }),
-    ("String", "trim", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_trim,
-        arity: 0,
-    }),
-    ("String", "startsWith", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_starts_with,
-        arity: 1,
-    }),
-    ("String", "endsWith", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_ends_with,
-        arity: 1,
-    }),
-    ("String", "indexOf", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_index_of,
-        arity: 1,
-    }),
-    ("String", "charAt", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_char_at,
-        arity: 1,
-    }),
-    ("String", "toUpperCase", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_to_upper_case,
-        arity: 0,
-    }),
-    ("String", "toLowerCase", NativeCallable::InstanceMethod {
-        function: crate::vm::string_functions::native_string_to_lower_case,
-        arity: 0,
-    }),
+    (
+        "String",
+        "len",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_len,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "substring",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_substring,
+            arity: 2,
+        },
+    ),
+    (
+        "String",
+        "replace",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_replace,
+            arity: 2,
+        },
+    ),
+    (
+        "String",
+        "split",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_split,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
+        "toInt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_to_int,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "toFloat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_to_float,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "toBool",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_to_bool,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "trim",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_trim,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "startsWith",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_starts_with,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
+        "endsWith",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_ends_with,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
+        "indexOf",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_index_of,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
+        "charAt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_char_at,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
+        "toUpperCase",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_to_upper_case,
+            arity: 0,
+        },
+    ),
+    (
+        "String",
+        "toLowerCase",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_to_lower_case,
+            arity: 0,
+        },
+    ),
     // Number instance methods
-    ("Number", "toString", NativeCallable::InstanceMethod {
-        function: crate::vm::number_functions::native_number_to_string,
-        arity: 0,
-    }),
+    (
+        "Number",
+        "toString",
+        NativeCallable::InstanceMethod {
+            function: stdlib::number_functions::native_number_to_string,
+            arity: 0,
+        },
+    ),
     // Boolean instance methods
-    ("Boolean", "toString", NativeCallable::InstanceMethod {
-        function: crate::vm::boolean_functions::native_boolean_to_string,
-        arity: 0,
-    }),
+    (
+        "Boolean",
+        "toString",
+        NativeCallable::InstanceMethod {
+            function: stdlib::boolean_functions::native_boolean_to_string,
+            arity: 0,
+        },
+    ),
     // Map instance methods
-    ("Map", "get", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_get,
-        arity: 1,
-    }),
-    ("Map", "size", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_size,
-        arity: 0,
-    }),
-    ("Map", "has", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_has,
-        arity: 1,
-    }),
-    ("Map", "remove", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_remove,
-        arity: 1,
-    }),
-    ("Map", "keys", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_keys,
-        arity: 0,
-    }),
-    ("Map", "values", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_values,
-        arity: 0,
-    }),
-    ("Map", "entries", NativeCallable::InstanceMethod {
-        function: crate::vm::map_functions::native_map_entries,
-        arity: 0,
-    }),
+    (
+        "Map",
+        "get",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_get,
+            arity: 1,
+        },
+    ),
+    (
+        "Map",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_size,
+            arity: 0,
+        },
+    ),
+    (
+        "Map",
+        "has",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_has,
+            arity: 1,
+        },
+    ),
+    (
+        "Map",
+        "remove",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_remove,
+            arity: 1,
+        },
+    ),
+    (
+        "Map",
+        "keys",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_keys,
+            arity: 0,
+        },
+    ),
+    (
+        "Map",
+        "values",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_values,
+            arity: 0,
+        },
+    ),
+    (
+        "Map",
+        "entries",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_entries,
+            arity: 0,
+        },
+    ),
     // Set instance methods
-    ("Set", "add", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_add,
-        arity: 1,
-    }),
-    ("Set", "remove", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_remove,
-        arity: 1,
-    }),
-    ("Set", "has", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_has,
-        arity: 1,
-    }),
-    ("Set", "size", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_size,
-        arity: 0,
-    }),
-    ("Set", "clear", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_clear,
-        arity: 0,
-    }),
-    ("Set", "union", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_union,
-        arity: 1,
-    }),
-    ("Set", "intersection", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_intersection,
-        arity: 1,
-    }),
-    ("Set", "difference", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_difference,
-        arity: 1,
-    }),
-    ("Set", "isSubset", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_is_subset,
-        arity: 1,
-    }),
-    ("Set", "toArray", NativeCallable::InstanceMethod {
-        function: crate::vm::set_functions::native_set_to_array,
-        arity: 0,
-    }),
+    (
+        "Set",
+        "add",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_add,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "remove",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_remove,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "has",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_has,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_size,
+            arity: 0,
+        },
+    ),
+    (
+        "Set",
+        "clear",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_clear,
+            arity: 0,
+        },
+    ),
+    (
+        "Set",
+        "union",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_union,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "intersection",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_intersection,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "difference",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_difference,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "isSubset",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_is_subset,
+            arity: 1,
+        },
+    ),
+    (
+        "Set",
+        "toArray",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_to_array,
+            arity: 0,
+        },
+    ),
     // File constructor
-    ("File", "new", NativeCallable::Constructor {
-        function: crate::vm::file_functions::native_file_constructor,
-        arity: 1,
-    }),
+    (
+        "File",
+        "new",
+        NativeCallable::Constructor {
+            function: stdlib::file_functions::native_file_constructor,
+            arity: 1,
+        },
+    ),
     // File instance methods
-    ("File", "read", NativeCallable::InstanceMethod {
-        function: crate::vm::file_functions::native_file_read,
-        arity: 0,
-    }),
-    ("File", "readLines", NativeCallable::InstanceMethod {
-        function: crate::vm::file_functions::native_file_read_lines,
-        arity: 0,
-    }),
-    ("File", "write", NativeCallable::InstanceMethod {
-        function: crate::vm::file_functions::native_file_write,
-        arity: 1,
-    }),
+    (
+        "File",
+        "read",
+        NativeCallable::InstanceMethod {
+            function: stdlib::file_functions::native_file_read,
+            arity: 0,
+        },
+    ),
+    (
+        "File",
+        "readLines",
+        NativeCallable::InstanceMethod {
+            function: stdlib::file_functions::native_file_read_lines,
+            arity: 0,
+        },
+    ),
+    (
+        "File",
+        "write",
+        NativeCallable::InstanceMethod {
+            function: stdlib::file_functions::native_file_write,
+            arity: 1,
+        },
+    ),
 ];
 
 /// Get a native method by type and method name (O(n) - use for runtime fallback only)
-pub(crate) fn get_native_method(type_name: &str, method_name: &str) -> Option<&'static NativeCallable> {
+pub(crate) fn get_native_method(
+    type_name: &str,
+    method_name: &str,
+) -> Option<&'static NativeCallable> {
     NATIVE_METHODS
         .iter()
         .find(|(t, m, _)| *t == type_name && *m == method_name)

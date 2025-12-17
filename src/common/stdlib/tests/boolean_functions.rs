@@ -1,7 +1,6 @@
-use crate::as_string;
+use crate::common::stdlib::boolean_functions::*;
 use crate::common::Value;
-use crate::string;
-use crate::vm::boolean_functions::*;
+use crate::{as_string, string};
 
 #[test]
 fn test_boolean_to_string_true() {

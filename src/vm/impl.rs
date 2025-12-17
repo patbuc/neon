@@ -19,7 +19,7 @@ impl VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
             bloq: None,
-            builtin: common::builtin::create_builtin_objects(args),
+            builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
             compilation_errors: String::new(),

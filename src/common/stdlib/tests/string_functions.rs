@@ -1,8 +1,6 @@
-use crate::as_number;
-use crate::as_string;
+use crate::common::stdlib::string_functions::*;
 use crate::common::Value;
-use crate::string;
-use crate::vm::string_functions::*;
+use crate::{as_number, as_string, string};
 
 #[test]
 fn test_string_len_basic() {

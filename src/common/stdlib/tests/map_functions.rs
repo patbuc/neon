@@ -1,7 +1,6 @@
-use crate::as_number;
+use crate::common::stdlib::map_functions::*;
 use crate::common::{MapKey, Object, Value};
-use crate::string;
-use crate::vm::map_functions::*;
+use crate::{as_number, string};
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 use std::rc::Rc;

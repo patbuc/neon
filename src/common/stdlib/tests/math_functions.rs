@@ -1,10 +1,9 @@
 use crate::as_number;
+use crate::common::stdlib::math_functions::*;
 use crate::common::Value;
-use crate::vm::VirtualMachine;
 
 #[test]
 fn test_abs_positive() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0)];
     let result = native_math_abs(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -12,7 +11,6 @@ fn test_abs_positive() {
 
 #[test]
 fn test_abs_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(-5.0)];
     let result = native_math_abs(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -20,7 +18,6 @@ fn test_abs_negative() {
 
 #[test]
 fn test_abs_zero() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(0.0)];
     let result = native_math_abs(&args).unwrap();
     assert_eq!(as_number!(result), 0.0);
@@ -28,7 +25,6 @@ fn test_abs_zero() {
 
 #[test]
 fn test_abs_decimal() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(-3.15)];
     let result = native_math_abs(&args).unwrap();
     assert_eq!(as_number!(result), 3.15);
@@ -36,7 +32,6 @@ fn test_abs_decimal() {
 
 #[test]
 fn test_abs_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Boolean(true)];
     let result = native_math_abs(&args);
     assert!(result.is_err());
@@ -45,7 +40,6 @@ fn test_abs_invalid_type() {
 
 #[test]
 fn test_abs_wrong_arg_count() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0), Value::Number(3.0)];
     let result = native_math_abs(&args);
     assert!(result.is_err());
@@ -54,7 +48,6 @@ fn test_abs_wrong_arg_count() {
 
 #[test]
 fn test_floor_positive() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.7)];
     let result = native_math_floor(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -62,7 +55,6 @@ fn test_floor_positive() {
 
 #[test]
 fn test_floor_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(-5.3)];
     let result = native_math_floor(&args).unwrap();
     assert_eq!(as_number!(result), -6.0);
@@ -70,7 +62,6 @@ fn test_floor_negative() {
 
 #[test]
 fn test_floor_integer() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0)];
     let result = native_math_floor(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -78,7 +69,6 @@ fn test_floor_integer() {
 
 #[test]
 fn test_floor_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Nil];
     let result = native_math_floor(&args);
     assert!(result.is_err());
@@ -87,7 +77,6 @@ fn test_floor_invalid_type() {
 
 #[test]
 fn test_ceil_positive() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.3)];
     let result = native_math_ceil(&args).unwrap();
     assert_eq!(as_number!(result), 6.0);
@@ -95,7 +84,6 @@ fn test_ceil_positive() {
 
 #[test]
 fn test_ceil_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(-5.7)];
     let result = native_math_ceil(&args).unwrap();
     assert_eq!(as_number!(result), -5.0);
@@ -103,7 +91,6 @@ fn test_ceil_negative() {
 
 #[test]
 fn test_ceil_integer() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0)];
     let result = native_math_ceil(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -111,7 +98,6 @@ fn test_ceil_integer() {
 
 #[test]
 fn test_ceil_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Boolean(false)];
     let result = native_math_ceil(&args);
     assert!(result.is_err());
@@ -120,7 +106,6 @@ fn test_ceil_invalid_type() {
 
 #[test]
 fn test_sqrt_positive() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(16.0)];
     let result = native_math_sqrt(&args).unwrap();
     assert_eq!(as_number!(result), 4.0);
@@ -128,7 +113,6 @@ fn test_sqrt_positive() {
 
 #[test]
 fn test_sqrt_zero() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(0.0)];
     let result = native_math_sqrt(&args).unwrap();
     assert_eq!(as_number!(result), 0.0);
@@ -136,7 +120,6 @@ fn test_sqrt_zero() {
 
 #[test]
 fn test_sqrt_decimal() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(2.0)];
     let result = native_math_sqrt(&args).unwrap();
     assert!((as_number!(result) - std::f64::consts::SQRT_2).abs() < 1e-10);
@@ -144,7 +127,6 @@ fn test_sqrt_decimal() {
 
 #[test]
 fn test_sqrt_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(-4.0)];
     let result = native_math_sqrt(&args);
     assert!(result.is_err());
@@ -153,7 +135,6 @@ fn test_sqrt_negative() {
 
 #[test]
 fn test_sqrt_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Nil];
     let result = native_math_sqrt(&args);
     assert!(result.is_err());
@@ -162,7 +143,6 @@ fn test_sqrt_invalid_type() {
 
 #[test]
 fn test_min_single() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0)];
     let result = native_math_min(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -170,7 +150,6 @@ fn test_min_single() {
 
 #[test]
 fn test_min_multiple() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(5.0),
         Value::Number(2.0),
@@ -183,7 +162,6 @@ fn test_min_multiple() {
 
 #[test]
 fn test_min_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(-5.0),
         Value::Number(-2.0),
@@ -195,7 +173,6 @@ fn test_min_negative() {
 
 #[test]
 fn test_min_mixed() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(5.0),
         Value::Number(-2.0),
@@ -208,7 +185,6 @@ fn test_min_mixed() {
 
 #[test]
 fn test_min_empty() {
-    let mut vm = VirtualMachine::new();
     let args = vec![];
     let result = native_math_min(&args);
     assert!(result.is_err());
@@ -217,7 +193,6 @@ fn test_min_empty() {
 
 #[test]
 fn test_min_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0), Value::Boolean(true), Value::Number(3.0)];
     let result = native_math_min(&args);
     assert!(result.is_err());
@@ -226,7 +201,6 @@ fn test_min_invalid_type() {
 
 #[test]
 fn test_max_single() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0)];
     let result = native_math_max(&args).unwrap();
     assert_eq!(as_number!(result), 5.0);
@@ -234,7 +208,6 @@ fn test_max_single() {
 
 #[test]
 fn test_max_multiple() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(5.0),
         Value::Number(2.0),
@@ -247,7 +220,6 @@ fn test_max_multiple() {
 
 #[test]
 fn test_max_negative() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(-5.0),
         Value::Number(-2.0),
@@ -259,7 +231,6 @@ fn test_max_negative() {
 
 #[test]
 fn test_max_mixed() {
-    let mut vm = VirtualMachine::new();
     let args = vec![
         Value::Number(5.0),
         Value::Number(-2.0),
@@ -272,7 +243,6 @@ fn test_max_mixed() {
 
 #[test]
 fn test_max_empty() {
-    let mut vm = VirtualMachine::new();
     let args = vec![];
     let result = native_math_max(&args);
     assert!(result.is_err());
@@ -281,7 +251,6 @@ fn test_max_empty() {
 
 #[test]
 fn test_max_invalid_type() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0), Value::Nil, Value::Number(3.0)];
     let result = native_math_max(&args);
     assert!(result.is_err());
@@ -290,7 +259,6 @@ fn test_max_invalid_type() {
 
 #[test]
 fn test_min_max_same_value() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(5.0), Value::Number(5.0), Value::Number(5.0)];
 
     let min_result = native_math_min(&args).unwrap();
@@ -302,7 +270,6 @@ fn test_min_max_same_value() {
 
 #[test]
 fn test_min_max_two_values() {
-    let mut vm = VirtualMachine::new();
     let args = vec![Value::Number(3.0), Value::Number(7.0)];
 
     let min_result = native_math_min(&args).unwrap();
@@ -314,7 +281,6 @@ fn test_min_max_two_values() {
 
 #[test]
 fn test_sqrt_perfect_squares() {
-    let mut vm = VirtualMachine::new();
     let test_cases = vec![
         (1.0, 1.0),
         (4.0, 2.0),
@@ -332,8 +298,6 @@ fn test_sqrt_perfect_squares() {
 
 #[test]
 fn test_floor_ceil_edge_cases() {
-    let mut vm = VirtualMachine::new();
-
     // Test 0.5
     let args = vec![Value::Number(0.5)];
     assert_eq!(as_number!(native_math_floor(&args).unwrap()), 0.0);
