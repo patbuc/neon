@@ -1,705 +1,461 @@
-use crate::common::stdlib::array_functions::*;
-use crate::common::Object;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::vm::{Result, VirtualMachine};
+
+// ============================================================================
+// Array.push() - Success Cases
+// ============================================================================
 
 #[test]
 fn test_array_push() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-    ]);
-    let value = crate::common::Value::Number(3.0);
-    let args = vec![array.clone(), value];
+    let program = r#"
+        val arr = [1, 2]
+        arr.push(3)
+        print arr
+        arr.push(4)
+        print arr
+    "#;
 
-    let result = native_array_push(&args).unwrap();
-
-    // push returns nil
-    assert_eq!(result, crate::common::Value::Nil);
-
-    // Verify the array was modified
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 3);
-                assert_eq!(contents[0], crate::common::Value::Number(1.0));
-                assert_eq!(contents[1], crate::common::Value::Number(2.0));
-                assert_eq!(contents[2], crate::common::Value::Number(3.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n[1, 2, 3, 4]", vm.get_output());
 }
 
 #[test]
 fn test_array_push_to_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let value = crate::common::Value::Number(42.0);
-    let args = vec![array.clone(), value];
+    let program = r#"
+        val arr = []
+        arr.push(42)
+        print arr
+    "#;
 
-    let result = native_array_push(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Nil);
-
-    // Verify the array was modified
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 1);
-                assert_eq!(contents[0], crate::common::Value::Number(42.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
-}
-
-#[test]
-fn test_array_push_wrong_arg_count() {
-    let array = crate::common::Value::new_array(vec![]);
-
-    // Too few arguments
-    let args = vec![array.clone()];
-    let result = native_array_push(&args);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "push() expects 1 argument (value), got 0"
-    );
-
-    // Too many arguments
-    let args = vec![
-        array,
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-    ];
-    let result = native_array_push(&args);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "push() expects 1 argument (value), got 2"
-    );
-}
-
-#[test]
-fn test_array_push_on_non_array() {
-    let not_array = crate::common::Value::Number(42.0);
-    let value = crate::common::Value::Number(1.0);
-    let args = vec![not_array, value];
-
-    let result = native_array_push(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "push() can only be called on arrays");
-}
-
-#[test]
-fn test_array_pop() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array.clone()];
-
-    let result = native_array_pop(&args).unwrap();
-
-    // pop returns the last element
-    assert_eq!(result, crate::common::Value::Number(3.0));
-
-    // Verify the array was modified
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 2);
-                assert_eq!(contents[0], crate::common::Value::Number(1.0));
-                assert_eq!(contents[1], crate::common::Value::Number(2.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
-}
-
-#[test]
-fn test_array_pop_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let args = vec![array];
-
-    let result = native_array_pop(&args).unwrap();
-
-    // pop on empty array returns nil
-    assert_eq!(result, crate::common::Value::Nil);
-}
-
-#[test]
-fn test_array_pop_wrong_arg_count() {
-    let array = crate::common::Value::new_array(vec![crate::common::Value::Number(1.0)]);
-
-    // Too many arguments
-    let args = vec![array, crate::common::Value::Number(1.0)];
-    let result = native_array_pop(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "pop() expects no arguments");
-}
-
-#[test]
-fn test_array_pop_on_non_array() {
-    let not_array = crate::common::Value::Number(42.0);
-    let args = vec![not_array];
-
-    let result = native_array_pop(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "pop() can only be called on arrays");
-}
-
-#[test]
-fn test_array_length() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array];
-
-    let result = native_array_length(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(3.0));
-}
-
-#[test]
-fn test_array_length_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let args = vec![array];
-
-    let result = native_array_length(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(0.0));
-}
-
-#[test]
-fn test_array_size_empty() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
-    let result = native_array_size(&[array]).unwrap();
-    assert_eq!(result, crate::common::Value::Number(0.0));
-}
-
-#[test]
-fn test_array_length_wrong_arg_count() {
-    let array = crate::common::Value::new_array(vec![]);
-
-    // Too many arguments
-    let args = vec![array, crate::common::Value::Number(1.0)];
-    let result = native_array_length(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "length() expects no arguments");
-}
-
-#[test]
-fn test_array_length_on_non_array() {
-    let not_array = crate::common::Value::Number(42.0);
-    let args = vec![not_array];
-
-    let result = native_array_length(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "length() can only be called on arrays");
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[42]", vm.get_output());
 }
 
 #[test]
 fn test_array_push_different_types() {
-    let array = crate::common::Value::new_array(vec![crate::common::Value::Number(1.0)]);
+    let program = r#"
+        val arr = [1]
+        arr.push("hello")
+        arr.push(true)
+        arr.push(nil)
+        print arr
+    "#;
 
-    // Push boolean
-    let args = vec![array.clone(), crate::common::Value::Boolean(true)];
-    native_array_push(&args).unwrap();
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, hello, true, nil]", vm.get_output());
+}
 
-    // Push nil
-    let args = vec![array.clone(), crate::common::Value::Nil];
-    native_array_push(&args).unwrap();
+// ============================================================================
+// Array.pop() - Success Cases
+// ============================================================================
 
-    // Verify array contents
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 3);
-                assert_eq!(contents[0], crate::common::Value::Number(1.0));
-                assert_eq!(contents[1], crate::common::Value::Boolean(true));
-                assert_eq!(contents[2], crate::common::Value::Nil);
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+#[test]
+fn test_array_pop() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        print arr.pop()
+        print arr
+        print arr.pop()
+        print arr
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n[1, 2]\n2\n[1]", vm.get_output());
+}
+
+// ============================================================================
+// Array.length() and Array.size() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_array_length() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        print arr.length()
+        print [].length()
+        print ["a", "b"].length()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n0\n2", vm.get_output());
 }
 
 #[test]
-fn test_array_operations_sequence() {
-    let array = crate::common::Value::new_array(vec![]);
+fn test_array_size() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        print arr.size()
+        print [].size()
+    "#;
 
-    // Start with empty array
-    let args = vec![array.clone()];
-    let len = native_array_length(&args).unwrap();
-    assert_eq!(len, crate::common::Value::Number(0.0));
-
-    // Push three elements
-    let args = vec![array.clone(), crate::common::Value::Number(1.0)];
-    native_array_push(&args).unwrap();
-
-    let args = vec![array.clone(), crate::common::Value::Number(2.0)];
-    native_array_push(&args).unwrap();
-
-    let args = vec![array.clone(), crate::common::Value::Number(3.0)];
-    native_array_push(&args).unwrap();
-
-    // Check length
-    let args = vec![array.clone()];
-    let len = native_array_length(&args).unwrap();
-    assert_eq!(len, crate::common::Value::Number(3.0));
-
-    // Pop one element
-    let args = vec![array.clone()];
-    let popped = native_array_pop(&args).unwrap();
-    assert_eq!(popped, crate::common::Value::Number(3.0));
-
-    // Check length again
-    let args = vec![array.clone()];
-    let len = native_array_length(&args).unwrap();
-    assert_eq!(len, crate::common::Value::Number(2.0));
-
-    // Verify final contents
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 2);
-                assert_eq!(contents[0], crate::common::Value::Number(1.0));
-                assert_eq!(contents[1], crate::common::Value::Number(2.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n0", vm.get_output());
 }
+
+// ============================================================================
+// Array.contains() - Success Cases
+// ============================================================================
 
 #[test]
-fn test_array_size_with_elements() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ])))));
-    let result = native_array_size(&[array]).unwrap();
-    assert_eq!(result, crate::common::Value::Number(3.0));
+fn test_array_contains() {
+    let program = r#"
+        val arr = [1, 2, 3, "hello"]
+        print arr.contains(2)
+        print arr.contains(5)
+        print arr.contains("hello")
+        print arr.contains("world")
+        print [].contains(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse\ntrue\nfalse\nfalse", vm.get_output());
 }
+
+// ============================================================================
+// Array.sort() - Success Cases
+// ============================================================================
 
 #[test]
-fn test_array_size_no_args() {
-    let result = native_array_size(&[]);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "array.size() requires an array receiver"
-    );
+fn test_array_sort() {
+    let program = r#"
+        val nums = [3, 1, 4, 1, 5, 9, 2, 6]
+        nums.sort()
+        print nums
+
+        val strs = ["zebra", "apple", "mango", "banana"]
+        strs.sort()
+        print strs
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 1, 2, 3, 4, 5, 6, 9]\n[apple, banana, mango, zebra]", vm.get_output());
 }
 
-#[test]
-fn test_array_size_wrong_type() {
-    let result = native_array_size(&[crate::common::Value::Number(42.0)]);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "size() can only be called on arrays");
-}
-
-#[test]
-fn test_array_contains_found() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ])))));
-    let result = native_array_contains(&[array, crate::common::Value::Number(2.0)]).unwrap();
-    assert_eq!(result, crate::common::Value::Boolean(true));
-}
-
-#[test]
-fn test_array_contains_not_found() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ])))));
-    let result = native_array_contains(&[array, crate::common::Value::Number(5.0)]).unwrap();
-    assert_eq!(result, crate::common::Value::Boolean(false));
-}
-
-#[test]
-fn test_array_contains_empty_array() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
-    let result = native_array_contains(&[array, crate::common::Value::Number(1.0)]).unwrap();
-    assert_eq!(result, crate::common::Value::Boolean(false));
-}
-
-#[test]
-fn test_array_contains_string() {
-    use crate::common::ObjString;
-
-    let string_val = crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: "hello".into(),
-    })));
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![
-        string_val.clone(),
-        crate::common::Value::Number(2.0),
-    ])))));
-    let result = native_array_contains(&[array, string_val]).unwrap();
-    assert_eq!(result, crate::common::Value::Boolean(true));
-}
-
-#[test]
-fn test_array_contains_wrong_arg_count() {
-    let array = crate::common::Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(vec![])))));
-    let result = native_array_contains(&[array]);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("expects 1 argument"));
-}
-
-#[test]
-fn test_array_contains_wrong_type() {
-    let result = native_array_contains(&[
-        crate::common::Value::Number(42.0),
-        crate::common::Value::Number(1.0),
-    ]);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "contains() can only be called on arrays"
-    );
-}
-
-#[test]
-fn test_array_sort_numbers() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(3.0),
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(4.0),
-        crate::common::Value::Number(1.5),
-        crate::common::Value::Number(9.0),
-    ]);
-    let args = vec![array.clone()];
-
-    let result = native_array_sort(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Nil);
-
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 5);
-                assert_eq!(contents[0], crate::common::Value::Number(1.0));
-                assert_eq!(contents[1], crate::common::Value::Number(1.5));
-                assert_eq!(contents[2], crate::common::Value::Number(3.0));
-                assert_eq!(contents[3], crate::common::Value::Number(4.0));
-                assert_eq!(contents[4], crate::common::Value::Number(9.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
-}
-
-#[test]
-fn test_array_sort_strings() {
-    use crate::common::ObjString;
-
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "cherry".into(),
-        }))),
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "apple".into(),
-        }))),
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "banana".into(),
-        }))),
-    ]);
-    let args = vec![array.clone()];
-
-    let result = native_array_sort(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Nil);
-
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 3);
-                if let crate::common::Value::Object(obj) = &contents[0] {
-                    if let Object::String(s) = obj.as_ref() {
-                        assert_eq!(s.value.as_ref(), "apple");
-                    }
-                }
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
-}
+// ============================================================================
+// Array.reverse() - Success Cases
+// ============================================================================
 
 #[test]
 fn test_array_reverse() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array.clone()];
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        arr.reverse()
+        print arr
 
-    let result = native_array_reverse(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Nil);
+        val single = [42]
+        single.reverse()
+        print single
 
-    match array {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 3);
-                assert_eq!(contents[0], crate::common::Value::Number(3.0));
-                assert_eq!(contents[1], crate::common::Value::Number(2.0));
-                assert_eq!(contents[2], crate::common::Value::Number(1.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+        val empty = []
+        empty.reverse()
+        print empty
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[5, 4, 3, 2, 1]\n[42]\n[]", vm.get_output());
 }
+
+// ============================================================================
+// Array.slice() - Success Cases
+// ============================================================================
 
 #[test]
 fn test_array_slice() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-        crate::common::Value::Number(4.0),
-        crate::common::Value::Number(5.0),
-    ]);
-    let args = vec![
-        array,
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(4.0),
-    ];
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        print arr.slice(1, 3)
+        print arr.slice(0, 2)
+        print arr.slice(2, 5)
+    "#;
 
-    let result = native_array_slice(&args).unwrap();
-
-    match result {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 3);
-                assert_eq!(contents[0], crate::common::Value::Number(2.0));
-                assert_eq!(contents[1], crate::common::Value::Number(3.0));
-                assert_eq!(contents[2], crate::common::Value::Number(4.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[2, 3]\n[1, 2]\n[3, 4, 5]", vm.get_output());
 }
 
 #[test]
 fn test_array_slice_negative_indices() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-        crate::common::Value::Number(4.0),
-        crate::common::Value::Number(5.0),
-    ]);
-    let args = vec![
-        array,
-        crate::common::Value::Number(-3.0),
-        crate::common::Value::Number(-1.0),
-    ];
+    let program = r#"
+        val arr = [1, 2, 3, 4, 5]
+        print arr.slice(-3, -1)
+        print arr.slice(-2, 5)
+    "#;
 
-    let result = native_array_slice(&args).unwrap();
-
-    match result {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => {
-                let contents = arr.borrow();
-                assert_eq!(contents.len(), 2);
-                assert_eq!(contents[0], crate::common::Value::Number(3.0));
-                assert_eq!(contents[1], crate::common::Value::Number(4.0));
-            }
-            _ => panic!("Expected array"),
-        },
-        _ => panic!("Expected object"),
-    }
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[3, 4]\n[4, 5]", vm.get_output());
 }
+
+// ============================================================================
+// Array.join() - Success Cases
+// ============================================================================
 
 #[test]
 fn test_array_join() {
-    use crate::common::ObjString;
+    let program = r#"
+        val arr = ["hello", "world", "test"]
+        print arr.join(", ")
+        print arr.join("")
+        print arr.join(" - ")
 
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let delimiter =
-        crate::common::Value::Object(Rc::new(Object::String(ObjString { value: ", ".into() })));
-    let args = vec![array, delimiter];
+        val nums = [1, 2, 3]
+        print nums.join(", ")
 
-    let result = native_array_join(&args).unwrap();
+        print [].join(", ")
+    "#;
 
-    match result {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => {
-                assert_eq!(s.value.as_ref(), "1, 2, 3");
-            }
-            _ => panic!("Expected string"),
-        },
-        _ => panic!("Expected object"),
-    }
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("hello, world, test\nhelloworldtest\nhello - world - test\n1, 2, 3", vm.get_output());
 }
+
+// ============================================================================
+// Array.indexOf() - Success Cases
+// ============================================================================
 
 #[test]
-fn test_array_index_of_found() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array, crate::common::Value::Number(2.0)];
+fn test_array_index_of() {
+    let program = r#"
+        val arr = [10, 20, 30, 40, 20]
+        print arr.indexOf(20)
+        print arr.indexOf(40)
+        print arr.indexOf(99)
+        print [].indexOf(1)
+    "#;
 
-    let result = native_array_index_of(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(1.0));
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("1\n3\n-1\n-1", vm.get_output());
 }
 
-#[test]
-fn test_array_index_of_not_found() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array, crate::common::Value::Number(5.0)];
-
-    let result = native_array_index_of(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(-1.0));
-}
+// ============================================================================
+// Array.sum() - Success Cases
+// ============================================================================
 
 #[test]
 fn test_array_sum() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(2.0),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array];
+    let program = r#"
+        val nums = [1, 2, 3, 4, 5]
+        print nums.sum()
 
-    let result = native_array_sum(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(6.0));
+        val decimals = [1.5, 2.5, 3.0]
+        print decimals.sum()
+
+        print [].sum()
+
+        print [42].sum()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("15\n7\n0\n42", vm.get_output());
 }
 
-#[test]
-fn test_array_sum_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let args = vec![array];
+// ============================================================================
+// Array.min() - Success Cases
+// ============================================================================
 
-    let result = native_array_sum(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(0.0));
+#[test]
+fn test_array_min() {
+    let program = r#"
+        val nums = [5, 2, 8, 1, 9]
+        print nums.min()
+
+        val negatives = [-5, -2, -10]
+        print negatives.min()
+
+        print [42].min()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("1\n-10\n42", vm.get_output());
 }
 
-#[test]
-fn test_array_sum_non_numeric() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Boolean(true),
-        crate::common::Value::Number(3.0),
-    ]);
-    let args = vec![array];
-
-    let result = native_array_sum(&args);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .contains("requires all elements to be numbers"));
-}
+// ============================================================================
+// Array.max() - Success Cases
+// ============================================================================
 
 #[test]
-fn test_array_min_numbers() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(3.0),
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(4.0),
-    ]);
-    let args = vec![array];
+fn test_array_max() {
+    let program = r#"
+        val nums = [5, 2, 8, 1, 9]
+        print nums.max()
 
-    let result = native_array_min(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(1.0));
-}
+        val negatives = [-5, -2, -10]
+        print negatives.max()
 
-#[test]
-fn test_array_min_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let args = vec![array];
+        print [42].max()
+    "#;
 
-    let result = native_array_min(&args);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "min() cannot be called on an empty array"
-    );
-}
-
-#[test]
-fn test_array_max_numbers() {
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Number(3.0),
-        crate::common::Value::Number(1.0),
-        crate::common::Value::Number(4.0),
-    ]);
-    let args = vec![array];
-
-    let result = native_array_max(&args).unwrap();
-    assert_eq!(result, crate::common::Value::Number(4.0));
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("9\n-2\n42", vm.get_output());
 }
 
 #[test]
 fn test_array_max_strings() {
-    use crate::common::ObjString;
+    let program = r#"
+        val strs = ["zebra", "apple", "mango"]
+        print strs.max()
+    "#;
 
-    let array = crate::common::Value::new_array(vec![
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "apple".into(),
-        }))),
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "banana".into(),
-        }))),
-        crate::common::Value::Object(Rc::new(Object::String(ObjString {
-            value: "cherry".into(),
-        }))),
-    ]);
-    let args = vec![array];
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("zebra", vm.get_output());
+}
 
-    let result = native_array_max(&args).unwrap();
-    match result {
-        crate::common::Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => {
-                assert_eq!(s.value.as_ref(), "cherry");
-            }
-            _ => panic!("Expected string"),
-        },
-        _ => panic!("Expected object"),
-    }
+// ============================================================================
+// Array Operations - Combined Tests
+// ============================================================================
+
+#[test]
+fn test_array_operations_sequence() {
+    let program = r#"
+        val arr = []
+        arr.push(1)
+        arr.push(2)
+        arr.push(3)
+        print arr.length()
+        print arr.contains(2)
+        arr.reverse()
+        print arr
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\ntrue\n[3, 2, 1]", vm.get_output());
+}
+
+// ============================================================================
+// Array Functions - Error Cases
+// ============================================================================
+
+#[test]
+fn test_array_push_wrong_arg_count() {
+    let program = r#"
+        val arr = []
+        arr.push()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_push_on_non_array() {
+    let program = r#"
+        val x = 42
+        x.push(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_pop_wrong_arg_count() {
+    let program = r#"
+        val arr = [1, 2]
+        arr.pop(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_pop_on_non_array() {
+    let program = r#"
+        val x = "not an array"
+        x.pop()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_length_wrong_arg_count() {
+    let program = r#"
+        val arr = [1, 2]
+        arr.length(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_length_on_non_array() {
+    let program = r#"
+        val x = 123
+        x.length()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_contains_wrong_arg_count() {
+    let program = r#"
+        val arr = [1, 2]
+        arr.contains()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_contains_wrong_type() {
+    let program = r#"
+        val x = true
+        x.contains(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_sum_non_numeric() {
+    let program = r#"
+        val arr = [1, "two", 3]
+        arr.sum()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_min_empty() {
+    let program = r#"
+        val arr = []
+        arr.min()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
 }
 
 #[test]
 fn test_array_max_empty() {
-    let array = crate::common::Value::new_array(vec![]);
-    let args = vec![array];
+    let program = r#"
+        val arr = []
+        arr.max()
+    "#;
 
-    let result = native_array_max(&args);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "max() cannot be called on an empty array"
-    );
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
 }

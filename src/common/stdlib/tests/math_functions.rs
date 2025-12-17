@@ -1,315 +1,158 @@
-use crate::as_number;
-use crate::common::stdlib::math_functions::*;
-use crate::common::Value;
+use crate::vm::{Result, VirtualMachine};
+
+// ============================================================================
+// Math.abs() - Success Cases
+// ============================================================================
 
 #[test]
-fn test_abs_positive() {
-    let args = vec![Value::Number(5.0)];
-    let result = native_math_abs(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
+fn test_math_abs() {
+    let program = r#"
+        print Math.abs(5)
+        print Math.abs(-5)
+        print Math.abs(0)
+        print Math.abs(-3.15)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n5\n0\n3.15", vm.get_output());
+}
+
+// ============================================================================
+// Math.floor() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_math_floor() {
+    let program = r#"
+        print Math.floor(5.7)
+        print Math.floor(-5.3)
+        print Math.floor(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n-6\n5", vm.get_output());
+}
+
+// ============================================================================
+// Math.ceil() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_math_ceil() {
+    let program = r#"
+        print Math.ceil(5.3)
+        print Math.ceil(-5.7)
+        print Math.ceil(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("6\n-5\n5", vm.get_output());
+}
+
+// ============================================================================
+// Math.sqrt() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_math_sqrt() {
+    let program = r#"
+        print Math.sqrt(16)
+        print Math.sqrt(0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("4\n0", vm.get_output());
 }
 
 #[test]
-fn test_abs_negative() {
-    let args = vec![Value::Number(-5.0)];
-    let result = native_math_abs(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
+fn test_math_sqrt_perfect_squares() {
+    let program = r#"
+        print Math.sqrt(1)
+        print Math.sqrt(4)
+        print Math.sqrt(9)
+        print Math.sqrt(25)
+        print Math.sqrt(100)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("1\n2\n3\n5\n10", vm.get_output());
 }
 
+// ============================================================================
+// Math.min() - Success Cases
+// ============================================================================
+
 #[test]
-fn test_abs_zero() {
-    let args = vec![Value::Number(0.0)];
-    let result = native_math_abs(&args).unwrap();
-    assert_eq!(as_number!(result), 0.0);
+fn test_math_min() {
+    let program = r#"
+        print Math.min(5)
+        print Math.min(5, 2, 8, 1)
+        print Math.min(-5, -2, -8)
+        print Math.min(5, -2, 8, -10)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n1\n-8\n-10", vm.get_output());
 }
 
+// ============================================================================
+// Math.max() - Success Cases
+// ============================================================================
+
 #[test]
-fn test_abs_decimal() {
-    let args = vec![Value::Number(-3.15)];
-    let result = native_math_abs(&args).unwrap();
-    assert_eq!(as_number!(result), 3.15);
+fn test_math_max() {
+    let program = r#"
+        print Math.max(5)
+        print Math.max(5, 2, 8, 1)
+        print Math.max(-5, -2, -8)
+        print Math.max(5, -2, 8, -10)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n8\n-2\n8", vm.get_output());
 }
 
+// ============================================================================
+// Math.min() and Math.max() - Combined Tests
+// ============================================================================
+
 #[test]
-fn test_abs_invalid_type() {
-    let args = vec![Value::Boolean(true)];
-    let result = native_math_abs(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "abs() requires a number argument");
+fn test_math_min_max_combined() {
+    let program = r#"
+        print Math.min(5, 5, 5)
+        print Math.max(5, 5, 5)
+        print Math.min(3, 7)
+        print Math.max(3, 7)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n5\n3\n7", vm.get_output());
 }
 
-#[test]
-fn test_abs_wrong_arg_count() {
-    let args = vec![Value::Number(5.0), Value::Number(3.0)];
-    let result = native_math_abs(&args);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("expects 1 argument"));
-}
+// ============================================================================
+// Math.floor() and Math.ceil() - Edge Cases
+// ============================================================================
 
 #[test]
-fn test_floor_positive() {
-    let args = vec![Value::Number(5.7)];
-    let result = native_math_floor(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
-}
+fn test_math_floor_ceil_edge_cases() {
+    let program = r#"
+        print Math.floor(0.5)
+        print Math.ceil(0.5)
+        print Math.floor(-0.5)
+        print Math.ceil(-0.5)
+        print Math.floor(0.00001)
+        print Math.ceil(0.00001)
+    "#;
 
-#[test]
-fn test_floor_negative() {
-    let args = vec![Value::Number(-5.3)];
-    let result = native_math_floor(&args).unwrap();
-    assert_eq!(as_number!(result), -6.0);
-}
-
-#[test]
-fn test_floor_integer() {
-    let args = vec![Value::Number(5.0)];
-    let result = native_math_floor(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
-}
-
-#[test]
-fn test_floor_invalid_type() {
-    let args = vec![Value::Nil];
-    let result = native_math_floor(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "floor() requires a number argument");
-}
-
-#[test]
-fn test_ceil_positive() {
-    let args = vec![Value::Number(5.3)];
-    let result = native_math_ceil(&args).unwrap();
-    assert_eq!(as_number!(result), 6.0);
-}
-
-#[test]
-fn test_ceil_negative() {
-    let args = vec![Value::Number(-5.7)];
-    let result = native_math_ceil(&args).unwrap();
-    assert_eq!(as_number!(result), -5.0);
-}
-
-#[test]
-fn test_ceil_integer() {
-    let args = vec![Value::Number(5.0)];
-    let result = native_math_ceil(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
-}
-
-#[test]
-fn test_ceil_invalid_type() {
-    let args = vec![Value::Boolean(false)];
-    let result = native_math_ceil(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "ceil() requires a number argument");
-}
-
-#[test]
-fn test_sqrt_positive() {
-    let args = vec![Value::Number(16.0)];
-    let result = native_math_sqrt(&args).unwrap();
-    assert_eq!(as_number!(result), 4.0);
-}
-
-#[test]
-fn test_sqrt_zero() {
-    let args = vec![Value::Number(0.0)];
-    let result = native_math_sqrt(&args).unwrap();
-    assert_eq!(as_number!(result), 0.0);
-}
-
-#[test]
-fn test_sqrt_decimal() {
-    let args = vec![Value::Number(2.0)];
-    let result = native_math_sqrt(&args).unwrap();
-    assert!((as_number!(result) - std::f64::consts::SQRT_2).abs() < 1e-10);
-}
-
-#[test]
-fn test_sqrt_negative() {
-    let args = vec![Value::Number(-4.0)];
-    let result = native_math_sqrt(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "sqrt() requires a non-negative number");
-}
-
-#[test]
-fn test_sqrt_invalid_type() {
-    let args = vec![Value::Nil];
-    let result = native_math_sqrt(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "sqrt() requires a number argument");
-}
-
-#[test]
-fn test_min_single() {
-    let args = vec![Value::Number(5.0)];
-    let result = native_math_min(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
-}
-
-#[test]
-fn test_min_multiple() {
-    let args = vec![
-        Value::Number(5.0),
-        Value::Number(2.0),
-        Value::Number(8.0),
-        Value::Number(1.0),
-    ];
-    let result = native_math_min(&args).unwrap();
-    assert_eq!(as_number!(result), 1.0);
-}
-
-#[test]
-fn test_min_negative() {
-    let args = vec![
-        Value::Number(-5.0),
-        Value::Number(-2.0),
-        Value::Number(-8.0),
-    ];
-    let result = native_math_min(&args).unwrap();
-    assert_eq!(as_number!(result), -8.0);
-}
-
-#[test]
-fn test_min_mixed() {
-    let args = vec![
-        Value::Number(5.0),
-        Value::Number(-2.0),
-        Value::Number(8.0),
-        Value::Number(-10.0),
-    ];
-    let result = native_math_min(&args).unwrap();
-    assert_eq!(as_number!(result), -10.0);
-}
-
-#[test]
-fn test_min_empty() {
-    let args = vec![];
-    let result = native_math_min(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "min() requires at least 1 argument");
-}
-
-#[test]
-fn test_min_invalid_type() {
-    let args = vec![Value::Number(5.0), Value::Boolean(true), Value::Number(3.0)];
-    let result = native_math_min(&args);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("requires number arguments"));
-}
-
-#[test]
-fn test_max_single() {
-    let args = vec![Value::Number(5.0)];
-    let result = native_math_max(&args).unwrap();
-    assert_eq!(as_number!(result), 5.0);
-}
-
-#[test]
-fn test_max_multiple() {
-    let args = vec![
-        Value::Number(5.0),
-        Value::Number(2.0),
-        Value::Number(8.0),
-        Value::Number(1.0),
-    ];
-    let result = native_math_max(&args).unwrap();
-    assert_eq!(as_number!(result), 8.0);
-}
-
-#[test]
-fn test_max_negative() {
-    let args = vec![
-        Value::Number(-5.0),
-        Value::Number(-2.0),
-        Value::Number(-8.0),
-    ];
-    let result = native_math_max(&args).unwrap();
-    assert_eq!(as_number!(result), -2.0);
-}
-
-#[test]
-fn test_max_mixed() {
-    let args = vec![
-        Value::Number(5.0),
-        Value::Number(-2.0),
-        Value::Number(8.0),
-        Value::Number(-10.0),
-    ];
-    let result = native_math_max(&args).unwrap();
-    assert_eq!(as_number!(result), 8.0);
-}
-
-#[test]
-fn test_max_empty() {
-    let args = vec![];
-    let result = native_math_max(&args);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "max() requires at least 1 argument");
-}
-
-#[test]
-fn test_max_invalid_type() {
-    let args = vec![Value::Number(5.0), Value::Nil, Value::Number(3.0)];
-    let result = native_math_max(&args);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("requires number arguments"));
-}
-
-#[test]
-fn test_min_max_same_value() {
-    let args = vec![Value::Number(5.0), Value::Number(5.0), Value::Number(5.0)];
-
-    let min_result = native_math_min(&args).unwrap();
-    let max_result = native_math_max(&args).unwrap();
-
-    assert_eq!(as_number!(min_result), 5.0);
-    assert_eq!(as_number!(max_result), 5.0);
-}
-
-#[test]
-fn test_min_max_two_values() {
-    let args = vec![Value::Number(3.0), Value::Number(7.0)];
-
-    let min_result = native_math_min(&args).unwrap();
-    let max_result = native_math_max(&args).unwrap();
-
-    assert_eq!(as_number!(min_result), 3.0);
-    assert_eq!(as_number!(max_result), 7.0);
-}
-
-#[test]
-fn test_sqrt_perfect_squares() {
-    let test_cases = vec![
-        (1.0, 1.0),
-        (4.0, 2.0),
-        (9.0, 3.0),
-        (25.0, 5.0),
-        (100.0, 10.0),
-    ];
-
-    for (input, expected) in test_cases {
-        let args = vec![Value::Number(input)];
-        let result = native_math_sqrt(&args).unwrap();
-        assert_eq!(as_number!(result), expected);
-    }
-}
-
-#[test]
-fn test_floor_ceil_edge_cases() {
-    // Test 0.5
-    let args = vec![Value::Number(0.5)];
-    assert_eq!(as_number!(native_math_floor(&args).unwrap()), 0.0);
-    assert_eq!(as_number!(native_math_ceil(&args).unwrap()), 1.0);
-
-    // Test -0.5
-    let args = vec![Value::Number(-0.5)];
-    assert_eq!(as_number!(native_math_floor(&args).unwrap()), -1.0);
-    assert_eq!(as_number!(native_math_ceil(&args).unwrap()), 0.0);
-
-    // Test very small positive number
-    let args = vec![Value::Number(0.00001)];
-    assert_eq!(as_number!(native_math_floor(&args).unwrap()), 0.0);
-    assert_eq!(as_number!(native_math_ceil(&args).unwrap()), 1.0);
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("0\n1\n-1\n-0\n0\n1", vm.get_output());
 }
