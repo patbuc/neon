@@ -134,6 +134,90 @@ impl Parser {
         }
     }
 
+    fn parse_comma_separated_list<T, F>(
+        &mut self,
+        closing_token: TokenType,
+        max_count: Option<usize>,
+        max_count_error: &str,
+        mut parse_element: F,
+    ) -> Option<Vec<T>>
+    where
+        F: FnMut(&mut Self) -> Option<T>,
+    {
+        let mut items = Vec::new();
+
+        self.skip_new_lines();
+        if !self.check(closing_token.clone()) {
+            loop {
+                // Check max count if specified
+                if let Some(max) = max_count {
+                    if items.len() >= max {
+                        self.report_error_at_current(max_count_error.to_string());
+                    }
+                }
+
+                // Parse element using provided closure
+                items.push(parse_element(self)?);
+                self.skip_new_lines();
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+                self.skip_new_lines();
+
+                // Support trailing comma
+                if self.check(closing_token.clone()) {
+                    break;
+                }
+            }
+        }
+        self.skip_new_lines();
+        Some(items)
+    }
+
+    fn parse_expression_list(
+        &mut self,
+        closing_token: TokenType,
+        max_count: Option<usize>,
+        max_count_error: &str,
+    ) -> Option<Vec<Expr>> {
+        self.parse_comma_separated_list(closing_token, max_count, max_count_error, |parser| {
+            parser.expression(false)
+        })
+    }
+
+    fn parse_parameter_list(&mut self) -> Option<Vec<String>> {
+        self.parse_comma_separated_list(
+            TokenType::RightParen,
+            Some(crate::common::constants::MAX_FUNCTION_PARAMS),
+            "Can't have more than 255 parameters.",
+            |parser| {
+                if !parser.consume(TokenType::Identifier, "Expect parameter name.") {
+                    return None;
+                }
+                Some(parser.previous_token.token.clone())
+            },
+        )
+    }
+
+    fn parse_map_entry_list(&mut self) -> Option<Vec<(Expr, Expr)>> {
+        self.parse_comma_separated_list(TokenType::RightBrace, None, "", |parser| {
+            let key = parser.expression(false)?;
+            if !parser.consume(TokenType::Colon, "Expect ':' after map key.") {
+                return None;
+            }
+            let value = parser.expression(false)?;
+            Some((key, value))
+        })
+    }
+
+    fn parse_arguments(&mut self) -> Option<Vec<Expr>> {
+        self.parse_expression_list(
+            TokenType::RightParen,
+            Some(crate::common::constants::MAX_CALL_ARGUMENTS),
+            "Can't have more than 255 arguments.",
+        )
+    }
+
     fn current_location(&self) -> SourceLocation {
         SourceLocation {
             offset: self.previous_token.offset,
@@ -205,7 +289,11 @@ impl Parser {
         }
     }
 
-    fn val_declaration(&mut self) -> Option<Stmt> {
+    fn parse_variable_declaration(
+        &mut self,
+        is_mutable: bool,
+        require_terminator: bool,
+    ) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expecting variable name.") {
             return None;
         }
@@ -218,128 +306,50 @@ impl Parser {
             None
         };
 
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after value declaration.",
-        );
+        if require_terminator {
+            let decl_type = if is_mutable { "variable" } else { "value" };
+            self.consume_either(
+                TokenType::NewLine,
+                TokenType::Eof,
+                &format!("Expecting '\\n' or '\\0' after {} declaration.", decl_type),
+            );
+        }
 
-        Some(Stmt::Val {
-            name,
-            initializer,
-            location,
+        Some(if is_mutable {
+            Stmt::Var {
+                name,
+                initializer,
+                location,
+            }
+        } else {
+            Stmt::Val {
+                name,
+                initializer,
+                location,
+            }
         })
     }
 
-    /// Parses a val (immutable variable) declaration without requiring a newline terminator.
-    ///
-    /// This helper method is used in for loop initialization clauses where the declaration
-    /// is followed by a semicolon instead of a newline.
-    ///
-    /// Syntax: `val identifier [= expression]`
-    fn val_declaration_no_terminator(&mut self) -> Option<Stmt> {
-        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
-            return None;
-        }
-        let name = self.previous_token.token.clone();
-        let location = self.current_location();
-
-        let initializer = if self.match_token(TokenType::Equal) {
-            self.expression(false)
-        } else {
-            None
-        };
-
-        Some(Stmt::Val {
-            name,
-            initializer,
-            location,
-        })
+    fn val_declaration(&mut self) -> Option<Stmt> {
+        self.parse_variable_declaration(false, true)
     }
 
     fn var_declaration(&mut self) -> Option<Stmt> {
-        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
-            return None;
-        }
-        let name = self.previous_token.token.clone();
-        let location = self.current_location();
-
-        let initializer = if self.match_token(TokenType::Equal) {
-            self.expression(false)
-        } else {
-            None
-        };
-
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after variable declaration.",
-        );
-
-        Some(Stmt::Var {
-            name,
-            initializer,
-            location,
-        })
-    }
-
-    /// Parses a var (mutable variable) declaration without requiring a newline terminator.
-    ///
-    /// This helper method is used in for loop initialization clauses where the declaration
-    /// is followed by a semicolon instead of a newline.
-    ///
-    /// Syntax: `var identifier [= expression]`
-    fn var_declaration_no_terminator(&mut self) -> Option<Stmt> {
-        if !self.consume(TokenType::Identifier, "Expecting variable name.") {
-            return None;
-        }
-        let name = self.previous_token.token.clone();
-        let location = self.current_location();
-
-        let initializer = if self.match_token(TokenType::Equal) {
-            self.expression(false)
-        } else {
-            None
-        };
-
-        Some(Stmt::Var {
-            name,
-            initializer,
-            location,
-        })
+        self.parse_variable_declaration(true, true)
     }
 
     fn fn_declaration(&mut self) -> Option<Stmt> {
         if !self.consume(TokenType::Identifier, "Expect function name.") {
             return None;
         }
+
         let name = self.previous_token.token.clone();
         let location = self.current_location();
-
         if !self.consume(TokenType::LeftParen, "Expect '(' after function name.") {
             return None;
         }
 
-        let mut params = Vec::new();
-        if !self.check(TokenType::RightParen) {
-            loop {
-                if params.len() >= crate::common::constants::MAX_FUNCTION_PARAMS {
-                    self.report_error_at_current(
-                        "Can't have more than 255 parameters.".to_string(),
-                    );
-                }
-
-                if !self.consume(TokenType::Identifier, "Expect parameter name.") {
-                    return None;
-                }
-                params.push(self.previous_token.token.clone());
-
-                if !self.match_token(TokenType::Comma) {
-                    break;
-                }
-            }
-        }
-
+        let params = self.parse_parameter_list()?;
         if !self.consume(TokenType::RightParen, "Expect ')' after parameters.") {
             return None;
         }
@@ -349,7 +359,6 @@ impl Parser {
         }
 
         let body = self.block_statements()?;
-
         Some(Stmt::Fn {
             name,
             params,
@@ -533,53 +542,6 @@ impl Parser {
         })
     }
 
-    /// Parses for loops: supports both C-style and for-in loops
-    ///
-    /// # Syntax Options
-    /// 1. C-style for loop:
-    ///    ```neon
-    ///    for (val|var identifier = expression; condition; increment) statement
-    ///    ```
-    ///
-    /// 2. For-in loop:
-    ///    ```neon
-    ///    for (identifier in collection) statement
-    ///    ```
-    ///
-    /// # C-style For Loop Desugaring
-    /// The C-style for loop is transformed into a while loop:
-    ///
-    /// ```neon
-    /// for (val i = 0; i < 10; i = i + 1) {
-    ///     print i
-    /// }
-    /// ```
-    ///
-    /// Becomes:
-    ///
-    /// ```neon
-    /// {
-    ///     val i = 0
-    ///     while (i < 10) {
-    ///         print i
-    ///         i = i + 1
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// # For-in Loop Structure
-    /// For-in loops iterate over collections (arrays, maps, sets):
-    ///
-    /// ```neon
-    /// for (item in collection) {
-    ///     print item
-    /// }
-    /// ```
-    ///
-    /// - The loop variable is always immutable (implicit val)
-    /// - Maps iterate over keys (use map[key] to access values)
-    /// - Arrays iterate over elements
-    /// - Sets iterate over elements (converted to array internally)
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
@@ -615,9 +577,9 @@ impl Parser {
         // Not a for-in loop, parse as C-style for loop
         // Parse init clause - must be val or var declaration
         let init = if self.match_token(TokenType::Val) {
-            self.val_declaration_no_terminator()?
+            self.parse_variable_declaration(false, false)?
         } else if self.match_token(TokenType::Var) {
-            self.var_declaration_no_terminator()?
+            self.parse_variable_declaration(true, false)?
         } else {
             self.report_error_at_current(
                 "Expecting 'val' or 'var' in for loop initializer.".to_string(),
@@ -673,18 +635,6 @@ impl Parser {
         })
     }
 
-    /// Parses a for-in loop after detecting 'identifier in' pattern
-    ///
-    /// # Syntax
-    /// ```neon
-    /// for (variable in collection) statement
-    /// ```
-    ///
-    /// # Behavior
-    /// - Loop variable is always immutable (implicit val)
-    /// - Arrays: iterate over elements
-    /// - Maps: iterate over keys
-    /// - Sets: iterate over elements
     fn for_in_loop(&mut self, variable: String, location: SourceLocation) -> Option<Stmt> {
         // Parse collection expression
         let collection = self.expression(false)?;
@@ -1008,22 +958,7 @@ impl Parser {
 
     fn call(&mut self, callee: Expr) -> Option<Expr> {
         let location = self.current_location();
-        let mut arguments = Vec::new();
-
-        self.skip_new_lines();
-        if !self.check(TokenType::RightParen) {
-            loop {
-                if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
-                    self.report_error_at_current("Can't have more than 255 arguments.".to_string());
-                }
-                arguments.push(self.expression(false)?);
-                if !self.match_token(TokenType::Comma) {
-                    break;
-                }
-                self.skip_new_lines();
-            }
-        }
-        self.skip_new_lines();
+        let arguments = self.parse_arguments()?;
 
         if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
             return None;
@@ -1048,24 +983,7 @@ impl Parser {
         if self.check(TokenType::LeftParen) {
             self.advance(); // consume '('
             let method_location = self.current_location();
-            let mut arguments = Vec::new();
-
-            self.skip_new_lines();
-            if !self.check(TokenType::RightParen) {
-                loop {
-                    if arguments.len() >= crate::common::constants::MAX_CALL_ARGUMENTS {
-                        self.report_error_at_current(
-                            "Can't have more than 255 arguments.".to_string(),
-                        );
-                    }
-                    arguments.push(self.expression(false)?);
-                    if !self.match_token(TokenType::Comma) {
-                        break;
-                    }
-                    self.skip_new_lines();
-                }
-            }
-            self.skip_new_lines();
+            let arguments = self.parse_arguments()?;
 
             if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
                 return None;
@@ -1094,6 +1012,36 @@ impl Parser {
         }
     }
 
+    fn parse_map_entries(&mut self, first_entry: (Expr, Expr)) -> Option<Vec<(Expr, Expr)>> {
+        let mut entries = vec![first_entry];
+        self.skip_new_lines();
+
+        if self.match_token(TokenType::Comma) {
+            self.skip_new_lines();
+            if !self.check(TokenType::RightBrace) {
+                let rest = self.parse_map_entry_list()?;
+                entries.extend(rest);
+            }
+        }
+
+        Some(entries)
+    }
+
+    fn parse_set_elements(&mut self, first_element: Expr) -> Option<Vec<Expr>> {
+        let mut elements = vec![first_element];
+        self.skip_new_lines();
+
+        if self.match_token(TokenType::Comma) {
+            self.skip_new_lines();
+            if !self.check(TokenType::RightBrace) {
+                let rest = self.parse_expression_list(TokenType::RightBrace, None, "")?;
+                elements.extend(rest);
+            }
+        }
+
+        Some(elements)
+    }
+
     fn brace_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
@@ -1112,42 +1060,9 @@ impl Parser {
         self.skip_new_lines();
 
         if self.match_token(TokenType::Colon) {
-            let mut entries = Vec::new();
-
+            // Map literal
             let first_value = self.expression(false)?;
-            entries.push((first_expr, first_value));
-
-            self.skip_new_lines();
-
-            if self.match_token(TokenType::Comma) {
-                self.skip_new_lines();
-
-                if !self.check(TokenType::RightBrace) {
-                    loop {
-                        let key = self.expression(false)?;
-
-                        if !self.consume(TokenType::Colon, "Expect ':' after map key.") {
-                            return None;
-                        }
-
-                        let value = self.expression(false)?;
-
-                        entries.push((key, value));
-
-                        self.skip_new_lines();
-
-                        if !self.match_token(TokenType::Comma) {
-                            break;
-                        }
-
-                        self.skip_new_lines();
-
-                        if self.check(TokenType::RightBrace) {
-                            break;
-                        }
-                    }
-                }
-            }
+            let entries = self.parse_map_entries((first_expr, first_value))?;
 
             if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
                 return None;
@@ -1155,33 +1070,8 @@ impl Parser {
 
             Some(Expr::MapLiteral { entries, location })
         } else {
-            let mut elements = Vec::new();
-            elements.push(first_expr);
-
-            self.skip_new_lines();
-
-            if self.match_token(TokenType::Comma) {
-                self.skip_new_lines();
-
-                if !self.check(TokenType::RightBrace) {
-                    loop {
-                        let element = self.expression(false)?;
-                        elements.push(element);
-
-                        self.skip_new_lines();
-
-                        if !self.match_token(TokenType::Comma) {
-                            break;
-                        }
-
-                        self.skip_new_lines();
-
-                        if self.check(TokenType::RightBrace) {
-                            break;
-                        }
-                    }
-                }
-            }
+            // Set literal
+            let elements = self.parse_set_elements(first_expr)?;
 
             if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
                 return None;
@@ -1193,31 +1083,8 @@ impl Parser {
 
     fn array_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
-        let mut elements = Vec::new();
 
-        self.skip_new_lines();
-
-        if self.check(TokenType::RightBracket) {
-            self.advance();
-            return Some(Expr::ArrayLiteral { elements, location });
-        }
-
-        loop {
-            let element = self.expression(false)?;
-            elements.push(element);
-
-            self.skip_new_lines();
-
-            if !self.match_token(TokenType::Comma) {
-                break;
-            }
-
-            self.skip_new_lines();
-
-            if self.check(TokenType::RightBracket) {
-                break;
-            }
-        }
+        let elements = self.parse_expression_list(TokenType::RightBracket, None, "")?;
 
         if !self.consume(TokenType::RightBracket, "Expect ']' after array elements.") {
             return None;

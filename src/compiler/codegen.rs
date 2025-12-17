@@ -9,17 +9,12 @@ use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 use indexmap::IndexMap;
 
-/// Loop context for tracking break and continue jump locations
 struct LoopContext {
-    /// Start of the loop (for continue)
     loop_start: u32,
-    /// Break jump locations to patch when exiting loop
     break_jumps: Vec<u32>,
-    /// Continue jump locations to patch when starting next iteration
     continue_jumps: Vec<u32>,
 }
 
-/// Code generator that walks the AST and emits bytecode
 pub struct CodeGenerator {
     bloqs: Vec<Bloq>,
     scope_depth: u32,
@@ -98,6 +93,46 @@ impl CodeGenerator {
     fn emit_op_code_variant(&mut self, op_code: OpCode, index: u32, location: SourceLocation) {
         self.current_bloq()
             .write_op_code_variant(op_code, index, location.line, location.column);
+    }
+
+    fn emit_variable_get(&mut self, name: &str, location: SourceLocation) -> Option<()> {
+        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
+        if let Some(index) = maybe_index {
+            if is_global {
+                self.emit_op_code_variant(OpCode::GetGlobal, index, location);
+            } else {
+                self.emit_op_code_variant(OpCode::GetLocal, index, location);
+            }
+            Some(())
+        } else {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Codegen,
+                CompilationErrorKind::UndefinedSymbol,
+                format!("Undefined variable '{}'", name),
+                location,
+            ));
+            None
+        }
+    }
+
+    fn emit_variable_set(&mut self, name: &str, location: SourceLocation) -> Option<()> {
+        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
+        if let Some(index) = maybe_index {
+            if is_global {
+                self.emit_op_code_variant(OpCode::SetGlobal, index, location);
+            } else {
+                self.emit_op_code_variant(OpCode::SetLocal, index, location);
+            }
+            Some(())
+        } else {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Codegen,
+                CompilationErrorKind::UndefinedSymbol,
+                format!("Undefined variable '{}'", name),
+                location,
+            ));
+            None
+        }
     }
 
     fn emit_constant(&mut self, value: Value, location: SourceLocation) {
@@ -844,126 +879,52 @@ impl CodeGenerator {
         self.current_bloq().write_u16(elements.len() as u16);
     }
 
-    fn generate_postfix_increment_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        // Postfix increment: x++
-        // Returns the OLD value before incrementing
-        // Bytecode sequence:
-        //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
-        //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
-        //   3. Constant(1.0)          - push 1
-        //   4. Add                    - compute new value (old + 1)
-        //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
-        //   6. Pop                    - pop new value, leaving old value on stack
-
+    fn generate_postfix_operation(
+        &mut self,
+        operand: &Expr,
+        operation: OpCode,
+        operation_name: &str,
+        location: SourceLocation,
+    ) {
         // Semantic analysis ensures operand is a Variable
         if let Expr::Variable { name, .. } = operand {
-            let (maybe_index, _is_mutable, is_global, _is_builtin) =
-                self.get_variable_index(name);
-            if let Some(index) = maybe_index {
-                // Load old value (return value)
-                if is_global {
-                    self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::GetLocal, index, location);
-                }
-
-                // Load old value again (for modification)
-                if is_global {
-                    self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::GetLocal, index, location);
-                }
-
-                // Push 1 and add
-                self.emit_constant(number!(1.0), location);
-                self.emit_op_code(OpCode::Add, location);
-
-                // Store new value
-                if is_global {
-                    self.emit_op_code_variant(OpCode::SetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::SetLocal, index, location);
-                }
-
-                // Pop the new value, leaving old value on stack
-                self.emit_op_code(OpCode::Pop, location);
-            } else {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::UndefinedSymbol,
-                    format!("Undefined variable '{}'", name),
-                    location,
-                ));
+            // Load old value (will be the return value)
+            if self.emit_variable_get(name, location).is_none() {
+                return;
             }
+
+            // Load old value again (for modification)
+            if self.emit_variable_get(name, location).is_none() {
+                return;
+            }
+
+            // Push 1 and perform operation (add or subtract)
+            self.emit_constant(number!(1.0), location);
+            self.emit_op_code(operation, location);
+
+            // Store new value
+            if self.emit_variable_set(name, location).is_none() {
+                return;
+            }
+
+            // Pop the new value, leaving old value on stack
+            self.emit_op_code(OpCode::Pop, location);
         } else {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Codegen,
                 CompilationErrorKind::Other,
-                "Postfix increment operand must be a variable".to_string(),
+                format!("Postfix {} operand must be a variable", operation_name),
                 location,
             ));
         }
     }
 
+    fn generate_postfix_increment_expr(&mut self, operand: &Expr, location: SourceLocation) {
+        self.generate_postfix_operation(operand, OpCode::Add, "increment", location);
+    }
+
     fn generate_postfix_decrement_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        // Postfix decrement: x--
-        // Returns the OLD value before decrementing
-        // Bytecode sequence:
-        //   1. GetLocal/GetGlobal(x)  - get old value (will be return value)
-        //   2. GetLocal/GetGlobal(x)  - get old value again (for modification)
-        //   3. Constant(1.0)          - push 1
-        //   4. Subtract               - compute new value (old - 1)
-        //   5. SetLocal/SetGlobal(x)  - store new value (leaves new value on stack)
-        //   6. Pop                    - pop new value, leaving old value on stack
-
-        // Semantic analysis ensures operand is a Variable
-        if let Expr::Variable { name, .. } = operand {
-            let (maybe_index, _is_mutable, is_global, _is_builtin) =
-                self.get_variable_index(name);
-            if let Some(index) = maybe_index {
-                // Load old value (return value)
-                if is_global {
-                    self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::GetLocal, index, location);
-                }
-
-                // Load old value again (for modification)
-                if is_global {
-                    self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::GetLocal, index, location);
-                }
-
-                // Push 1 and subtract
-                self.emit_constant(number!(1.0), location);
-                self.emit_op_code(OpCode::Subtract, location);
-
-                // Store new value
-                if is_global {
-                    self.emit_op_code_variant(OpCode::SetGlobal, index, location);
-                } else {
-                    self.emit_op_code_variant(OpCode::SetLocal, index, location);
-                }
-
-                // Pop the new value, leaving old value on stack
-                self.emit_op_code(OpCode::Pop, location);
-            } else {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::UndefinedSymbol,
-                    format!("Undefined variable '{}'", name),
-                    location,
-                ));
-            }
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
-                "Postfix decrement operand must be a variable".to_string(),
-                location,
-            ));
-        }
+        self.generate_postfix_operation(operand, OpCode::Subtract, "decrement", location);
     }
 
     fn generate_expr(&mut self, expr: &Expr) {
@@ -1075,7 +1036,6 @@ impl CodeGenerator {
         self.builtin.keys().any(|k| k == name)
     }
 
-    /// Check if a name is a static namespace (e.g., Math, JSON, OS)
     fn is_static_namespace(&self, name: &str) -> bool {
         matches!(name, "Math")
     }
