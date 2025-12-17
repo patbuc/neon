@@ -79,6 +79,12 @@ impl Bloq {
             OpCode::CallMethod => self.call_method_instruction(OpCode::CallMethod, offset),
             OpCode::CallMethod2 => self.call_method_instruction(OpCode::CallMethod2, offset),
             OpCode::CallMethod4 => self.call_method_instruction(OpCode::CallMethod4, offset),
+            OpCode::CallStaticMethod => self.call_static_method_instruction(OpCode::CallStaticMethod, offset),
+            OpCode::CallStaticMethod2 => self.call_static_method_instruction(OpCode::CallStaticMethod2, offset),
+            OpCode::CallStaticMethod4 => self.call_static_method_instruction(OpCode::CallStaticMethod4, offset),
+            OpCode::CallConstructor => self.call_constructor_instruction(OpCode::CallConstructor, offset),
+            OpCode::CallConstructor2 => self.call_constructor_instruction(OpCode::CallConstructor2, offset),
+            OpCode::CallConstructor4 => self.call_constructor_instruction(OpCode::CallConstructor4, offset),
             OpCode::CreateMap => self.create_map_instruction(offset),
             OpCode::CreateArray => self.create_array_instruction(offset),
             OpCode::CreateSet => self.create_set_instruction(offset),
@@ -193,6 +199,40 @@ impl Bloq {
         println!(
             "{:?} (args: {}, method: '{}')",
             op_code, arg_count, method_name
+        );
+        offset + 1 + 1 + index_size
+    }
+
+    fn call_static_method_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let arg_count = self.read_u8(offset + 1);
+
+        let (registry_index, index_size) = match op_code {
+            OpCode::CallStaticMethod => (self.read_u8(offset + 2) as usize, 1),
+            OpCode::CallStaticMethod2 => (self.read_u16(offset + 2) as usize, 2),
+            OpCode::CallStaticMethod4 => (self.read_u32(offset + 2) as usize, 4),
+            _ => panic!("Invalid opcode for call_static_method_instruction"),
+        };
+
+        println!(
+            "{:?} (args: {}, registry_index: {})",
+            op_code, arg_count, registry_index
+        );
+        offset + 1 + 1 + index_size
+    }
+
+    fn call_constructor_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let arg_count = self.read_u8(offset + 1);
+
+        let (registry_index, index_size) = match op_code {
+            OpCode::CallConstructor => (self.read_u8(offset + 2) as usize, 1),
+            OpCode::CallConstructor2 => (self.read_u16(offset + 2) as usize, 2),
+            OpCode::CallConstructor4 => (self.read_u32(offset + 2) as usize, 4),
+            _ => panic!("Invalid opcode for call_constructor_instruction"),
+        };
+
+        println!(
+            "{:?} (args: {}, registry_index: {})",
+            op_code, arg_count, registry_index
         );
         offset + 1 + 1 + index_size
     }
