@@ -22,6 +22,7 @@ pub(crate) struct Bloq {
 #[derive(Debug)]
 pub(crate) struct Local {
     pub name: String,
+    #[allow(dead_code)]
     pub depth: u32,
     pub is_mutable: bool,
 }
