@@ -1,11 +1,9 @@
 use crate::as_string;
 use crate::common::Value;
 use crate::vm::number_functions::*;
-use crate::vm::VirtualMachine;
 
 #[test]
 fn test_number_to_string_integer() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(123.0);
     let args = vec![num];
 
@@ -15,7 +13,6 @@ fn test_number_to_string_integer() {
 
 #[test]
 fn test_number_to_string_decimal() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(45.67);
     let args = vec![num];
 
@@ -25,7 +22,6 @@ fn test_number_to_string_decimal() {
 
 #[test]
 fn test_number_to_string_zero() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(0.0);
     let args = vec![num];
 
@@ -35,7 +31,6 @@ fn test_number_to_string_zero() {
 
 #[test]
 fn test_number_to_string_negative_integer() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(-42.0);
     let args = vec![num];
 
@@ -45,7 +40,6 @@ fn test_number_to_string_negative_integer() {
 
 #[test]
 fn test_number_to_string_negative_decimal() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(-3.15);
     let args = vec![num];
 
@@ -55,7 +49,6 @@ fn test_number_to_string_negative_decimal() {
 
 #[test]
 fn test_number_to_string_large_integer() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(1000000.0);
     let args = vec![num];
 
@@ -65,7 +58,6 @@ fn test_number_to_string_large_integer() {
 
 #[test]
 fn test_number_to_string_small_decimal() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(0.001);
     let args = vec![num];
 
@@ -75,7 +67,6 @@ fn test_number_to_string_small_decimal() {
 
 #[test]
 fn test_number_to_string_infinity() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(f64::INFINITY);
     let args = vec![num];
 
@@ -85,7 +76,6 @@ fn test_number_to_string_infinity() {
 
 #[test]
 fn test_number_to_string_negative_infinity() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(f64::NEG_INFINITY);
     let args = vec![num];
 
@@ -95,7 +85,6 @@ fn test_number_to_string_negative_infinity() {
 
 #[test]
 fn test_number_to_string_nan() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(f64::NAN);
     let args = vec![num];
 
@@ -105,7 +94,6 @@ fn test_number_to_string_nan() {
 
 #[test]
 fn test_number_to_string_no_args() {
-    let vm = VirtualMachine::new();
     let args = vec![];
 
     let result = native_number_to_string(&args);
@@ -118,7 +106,6 @@ fn test_number_to_string_no_args() {
 
 #[test]
 fn test_number_to_string_wrong_type() {
-    let vm = VirtualMachine::new();
     let args = vec![Value::Boolean(true)];
 
     let result = native_number_to_string(&args);
@@ -131,7 +118,6 @@ fn test_number_to_string_wrong_type() {
 
 #[test]
 fn test_number_to_string_scientific_notation() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(1.23e10);
     let args = vec![num];
 
@@ -142,7 +128,6 @@ fn test_number_to_string_scientific_notation() {
 
 #[test]
 fn test_number_to_string_very_small() {
-    let vm = VirtualMachine::new();
     let num = Value::Number(1.23e-10);
     let args = vec![num];
 
