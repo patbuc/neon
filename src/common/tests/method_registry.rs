@@ -212,7 +212,8 @@ fn test_case_sensitive() {
 #[test]
 fn test_get_methods_for_type_file() {
     let methods = MethodRegistry::get_methods_for_type("File");
-    assert_eq!(methods.len(), 3);
+    assert_eq!(methods.len(), 4);
+    assert!(methods.contains(&"new"));
     assert!(methods.contains(&"read"));
     assert!(methods.contains(&"readLines"));
     assert!(methods.contains(&"write"));

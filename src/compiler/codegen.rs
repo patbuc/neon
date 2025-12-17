@@ -697,17 +697,65 @@ impl CodeGenerator {
                 arguments,
                 location,
             } => {
-                // Evaluate the callee
-                self.generate_expr(callee);
+                // Check if this is a constructor call (e.g., File("path"))
+                let is_constructor = if let Expr::Variable { name, .. } = callee.as_ref() {
+                    name == "File" // For now, only File is a constructor in the registry
+                } else {
+                    false
+                };
 
-                // Evaluate all arguments
-                for arg in arguments {
-                    self.generate_expr(arg);
+                if is_constructor {
+                    // Constructor call: File("path")
+                    // Extract constructor name
+                    let constructor_name = if let Expr::Variable { name, .. } = callee.as_ref() {
+                        name.clone()
+                    } else {
+                        unreachable!("Already checked this is a Variable")
+                    };
+
+                    // Look up the registry index at compile time (O(n) once, not per call!)
+                    // If not found, emit index 0 and let runtime handle the error
+                    let registry_index = crate::common::method_registry::get_native_method_index(&constructor_name, "new")
+                        .unwrap_or(0);
+
+                    // Evaluate all arguments (no callee!)
+                    for arg in arguments {
+                        self.generate_expr(arg);
+                    }
+
+                    // Determine opcode variant based on registry index size
+                    let (opcode, index_bytes) = if registry_index <= 0xFF {
+                        (OpCode::CallConstructor, 1)
+                    } else if registry_index <= 0xFFFF {
+                        (OpCode::CallConstructor2, 2)
+                    } else {
+                        (OpCode::CallConstructor4, 4)
+                    };
+
+                    self.emit_op_code(opcode, *location);
+                    self.current_bloq().write_u8(arguments.len() as u8);
+
+                    // Write registry index (O(1) lookup at runtime!)
+                    match index_bytes {
+                        1 => self.current_bloq().write_u8(registry_index as u8),
+                        2 => self.current_bloq().write_u16(registry_index as u16),
+                        4 => self.current_bloq().write_u32(registry_index as u32),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // Regular function call
+                    // Evaluate the callee
+                    self.generate_expr(callee);
+
+                    // Evaluate all arguments
+                    for arg in arguments {
+                        self.generate_expr(arg);
+                    }
+
+                    // Emit call instruction
+                    self.emit_op_code(OpCode::Call, *location);
+                    self.current_bloq().write_u8(arguments.len() as u8);
                 }
-
-                // Emit call instruction
-                self.emit_op_code(OpCode::Call, *location);
-                self.current_bloq().write_u8(arguments.len() as u8);
             }
             Expr::GetField {
                 object,
@@ -744,36 +792,84 @@ impl CodeGenerator {
                 arguments,
                 location,
             } => {
-                // Evaluate the receiver object
-                self.generate_expr(object);
-
-                // Evaluate all arguments
-                for arg in arguments {
-                    self.generate_expr(arg);
-                }
-
-                // Add method name to string constants
-                let method_string = string!(method.as_str());
-                let method_index = self.current_bloq().add_string(method_string);
-
-                // Emit CallMethod instruction with appropriate variant based on method_index size
-                let (opcode, index_bytes) = if method_index <= 0xFF {
-                    (OpCode::CallMethod, 1)
-                } else if method_index <= 0xFFFF {
-                    (OpCode::CallMethod2, 2)
+                // Check if this is a static method call (e.g., Math.abs)
+                let is_static_call = if let Expr::Variable { name, .. } = object.as_ref() {
+                    self.is_static_namespace(name)
                 } else {
-                    (OpCode::CallMethod4, 4)
+                    false
                 };
 
-                self.emit_op_code(opcode, *location);
-                self.current_bloq().write_u8(arguments.len() as u8);
+                if is_static_call {
+                    // Static method call: Math.abs(x)
+                    // Extract namespace name
+                    let namespace_name = if let Expr::Variable { name, .. } = object.as_ref() {
+                        name.clone()
+                    } else {
+                        unreachable!("Already checked this is a Variable")
+                    };
 
-                // Write method index with appropriate size
-                match index_bytes {
-                    1 => self.current_bloq().write_u8(method_index as u8),
-                    2 => self.current_bloq().write_u16(method_index as u16),
-                    4 => self.current_bloq().write_u32(method_index),
-                    _ => unreachable!(),
+                    // Look up the registry index at compile time (O(n) once, not per call!)
+                    // If not found, emit index 0 and let runtime handle the error with proper type checking
+                    let registry_index = crate::common::method_registry::get_native_method_index(&namespace_name, method)
+                        .unwrap_or(0);
+
+                    // Evaluate all arguments (no receiver!)
+                    for arg in arguments {
+                        self.generate_expr(arg);
+                    }
+
+                    // Determine opcode variant based on registry index size
+                    let (opcode, index_bytes) = if registry_index <= 0xFF {
+                        (OpCode::CallStaticMethod, 1)
+                    } else if registry_index <= 0xFFFF {
+                        (OpCode::CallStaticMethod2, 2)
+                    } else {
+                        (OpCode::CallStaticMethod4, 4)
+                    };
+
+                    self.emit_op_code(opcode, *location);
+                    self.current_bloq().write_u8(arguments.len() as u8);
+
+                    // Write registry index (O(1) lookup at runtime!)
+                    match index_bytes {
+                        1 => self.current_bloq().write_u8(registry_index as u8),
+                        2 => self.current_bloq().write_u16(registry_index as u16),
+                        4 => self.current_bloq().write_u32(registry_index as u32),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // Instance method call: arr.push(x)
+                    // Evaluate the receiver object
+                    self.generate_expr(object);
+
+                    // Evaluate all arguments
+                    for arg in arguments {
+                        self.generate_expr(arg);
+                    }
+
+                    // Add method name to string constants
+                    let method_string = string!(method.as_str());
+                    let method_index = self.current_bloq().add_string(method_string);
+
+                    // Emit CallMethod instruction with appropriate variant based on method_index size
+                    let (opcode, index_bytes) = if method_index <= 0xFF {
+                        (OpCode::CallMethod, 1)
+                    } else if method_index <= 0xFFFF {
+                        (OpCode::CallMethod2, 2)
+                    } else {
+                        (OpCode::CallMethod4, 4)
+                    };
+
+                    self.emit_op_code(opcode, *location);
+                    self.current_bloq().write_u8(arguments.len() as u8);
+
+                    // Write method index with appropriate size
+                    match index_bytes {
+                        1 => self.current_bloq().write_u8(method_index as u8),
+                        2 => self.current_bloq().write_u16(method_index as u16),
+                        4 => self.current_bloq().write_u32(method_index),
+                        _ => unreachable!(),
+                    }
                 }
             }
             Expr::MapLiteral { entries, location } => {
@@ -1010,6 +1106,11 @@ impl CodeGenerator {
 
     fn is_builtin(&self, name: &str) -> bool {
         self.builtin.keys().any(|k| k == name)
+    }
+
+    /// Check if a name is a static namespace (e.g., Math, JSON, OS)
+    fn is_static_namespace(&self, name: &str) -> bool {
+        matches!(name, "Math")
     }
 
     fn get_builtin_index(&self, name: &str) -> Option<usize> {

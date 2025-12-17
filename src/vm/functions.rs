@@ -644,8 +644,8 @@ impl VirtualMachine {
             }
         };
 
-        let native_fn = match VirtualMachine::get_native_method(&type_name, &method_name) {
-            Some(f) => f,
+        let native_callable = match VirtualMachine::get_native_method(&type_name, &method_name) {
+            Some(callable) => callable,
             None => {
                 self.runtime_error(&format!(
                     "Undefined method '{}' for type '{}'",
@@ -659,7 +659,7 @@ impl VirtualMachine {
         let receiver_index = stack_len - arg_count - 1;
         let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
 
-        let result = native_fn(&args);
+        let result = native_callable.function()(&args);
 
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
@@ -1176,6 +1176,114 @@ impl VirtualMachine {
             }
             _ => {
                 self.runtime_error("Iterator exhausted or invalid state");
+                Some(Result::RuntimeError)
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_call_static_method(&mut self, bits: BitsSize) -> Option<Result> {
+        // Read registry index directly from bytecode (O(1) at runtime!)
+        let (arg_count, registry_index, ip_increment) = {
+            let frame = self.current_frame();
+            let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+
+            let registry_index = match bits {
+                BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
+                BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
+                BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+            };
+
+            let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index
+            (arg_count, registry_index, ip_increment)
+        };
+
+        // Direct array index lookup - O(1)!
+        let native_callable = match crate::common::method_registry::get_native_method_by_index(registry_index) {
+            Some(callable) => callable,
+            None => {
+                self.runtime_error(&format!(
+                    "Invalid registry index: {}",
+                    registry_index
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Pop arguments from stack (no receiver for static methods!)
+        let stack_len = self.stack.len();
+        let args_start = stack_len - arg_count;
+        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
+
+        // Call the native function
+        let result = native_callable.function()(&args);
+
+        // Clean up stack
+        self.stack.drain(args_start..);
+
+        match result {
+            Ok(value) => {
+                self.push(value);
+                let current_frame = self.current_frame_mut();
+                current_frame.ip += ip_increment;
+                None
+            }
+            Err(error_msg) => {
+                self.runtime_error(&error_msg);
+                Some(Result::RuntimeError)
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_call_constructor(&mut self, bits: BitsSize) -> Option<Result> {
+        // Read registry index directly from bytecode (O(1) at runtime!)
+        let (arg_count, registry_index, ip_increment) = {
+            let frame = self.current_frame();
+            let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+
+            let registry_index = match bits {
+                BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
+                BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
+                BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+            };
+
+            let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index
+            (arg_count, registry_index, ip_increment)
+        };
+
+        // Direct array index lookup - O(1)!
+        let native_callable = match crate::common::method_registry::get_native_method_by_index(registry_index) {
+            Some(callable) => callable,
+            None => {
+                self.runtime_error(&format!(
+                    "Invalid registry index: {}",
+                    registry_index
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Pop arguments from stack
+        let stack_len = self.stack.len();
+        let args_start = stack_len - arg_count;
+        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
+
+        // Call the constructor function
+        let result = native_callable.function()(&args);
+
+        // Clean up stack
+        self.stack.drain(args_start..);
+
+        match result {
+            Ok(value) => {
+                self.push(value);
+                let current_frame = self.current_frame_mut();
+                current_frame.ip += ip_increment;
+                None
+            }
+            Err(error_msg) => {
+                self.runtime_error(&error_msg);
                 Some(Result::RuntimeError)
             }
         }

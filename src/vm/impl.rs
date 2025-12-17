@@ -180,6 +180,42 @@ impl VirtualMachine {
                     }
                     continue;
                 }
+                OpCode::CallStaticMethod => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::Eight) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::CallStaticMethod2 => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::Sixteen) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::CallStaticMethod4 => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::Eight) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor2 => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::Sixteen) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor4 => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                    continue;
+                }
                 OpCode::CreateMap => self.fn_create_map(),
                 OpCode::CreateArray => self.fn_create_array(),
                 OpCode::CreateSet => self.fn_create_set(),
@@ -312,7 +348,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn get_native_method(
         type_name: &str,
         method_name: &str,
-    ) -> Option<crate::common::NativeFn> {
+    ) -> Option<&'static crate::common::method_registry::NativeCallable> {
         crate::common::method_registry::get_native_method(type_name, method_name)
     }
 }
