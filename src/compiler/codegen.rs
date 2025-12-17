@@ -7,6 +7,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{Bloq, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
+use indexmap::IndexMap;
 
 /// Loop context for tracking break and continue jump locations
 struct LoopContext {
@@ -24,10 +25,11 @@ pub struct CodeGenerator {
     scope_depth: u32,
     errors: Vec<CompilationError>,
     loop_contexts: Vec<LoopContext>,
+    builtin: indexmap::IndexMap<String, Value>,
 }
 
 impl CodeGenerator {
-    pub fn new() -> Self {
+    pub fn new(builtin: IndexMap<String, Value>) -> Self {
         let bloqs = vec![Bloq::new("main")];
 
         CodeGenerator {
@@ -35,6 +37,7 @@ impl CodeGenerator {
             scope_depth: 0,
             errors: Vec::new(),
             loop_contexts: Vec::new(),
+            builtin,
         }
     }
 
@@ -131,19 +134,15 @@ impl CodeGenerator {
             .emit_loop(loop_start, location.line, location.column);
     }
 
-    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool) {
-        // Returns: (index, is_mutable, is_global)
+    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool, bool) {
+        // Returns: (index, is_mutable, is_global, is_builtin)
 
-        // Special case: Math, File, and args are built-in globals stored in the VM's globals HashMap
-        // We use sentinel values to signal the VM to look up built-in globals
-        if name == "Math" {
-            return (Some(u32::MAX), false, true); // u32::MAX = Math
-        }
-        if name == "File" {
-            return (Some(u32::MAX - 1), false, true); // u32::MAX - 1 = File
-        }
-        if name == "args" {
-            return (Some(u32::MAX - 2), false, true); // u32::MAX - 2 = args
+        if self.is_builtin(name) {
+            let index = self.get_builtin_index(name);
+            if let Some(index) = index {
+                return (Some(index as u32), false, true, true); // is_global = true, is_builtin = true
+            }
+            return (None, false, false, false);
         }
 
         // Search in bloq stack from innermost to outermost
@@ -153,7 +152,7 @@ impl CodeGenerator {
         let current_result = self.bloqs[current_bloq_idx].get_local_index(name);
         if current_result.0.is_some() {
             let index = current_result.0.unwrap();
-            return (Some(index), current_result.1, false);
+            return (Some(index), current_result.1, false, false);
         }
 
         // Then try to find in parent bloqs (global scope for nested functions)
@@ -161,12 +160,12 @@ impl CodeGenerator {
             for bloq_idx in (0..current_bloq_idx).rev() {
                 let index = self.bloqs[bloq_idx].get_local_index(name);
                 if index.0.is_some() {
-                    return (Some(index.0.unwrap()), index.1, true); // is_global = true
+                    return (Some(index.0.unwrap()), index.1, true, false); // is_global = true
                 }
             }
         }
 
-        (None, false, false)
+        (None, false, false, false)
     }
 
     // ===== Statement Generation =====
@@ -247,7 +246,7 @@ impl CodeGenerator {
                 self.emit_constant(function_value, *location);
 
                 // Get the index of the function variable we defined earlier
-                let (index, _is_mutable, is_global) = self.get_variable_index(name);
+                let (index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
                 let index = match index {
                     Some(idx) => idx,
                     None => {
@@ -566,9 +565,12 @@ impl CodeGenerator {
                 self.emit_op_code(OpCode::Nil, *location);
             }
             Expr::Variable { name, location } => {
-                let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                let (maybe_index, _is_mutable, is_global, is_builtin) =
+                    self.get_variable_index(name);
                 if let Some(index) = maybe_index {
-                    if is_global {
+                    if is_builtin {
+                        self.emit_op_code_variant(OpCode::GetBuiltin, index, *location);
+                    } else if is_global {
                         self.emit_op_code_variant(OpCode::GetGlobal, index, *location);
                     } else {
                         self.emit_op_code_variant(OpCode::GetLocal, index, *location);
@@ -591,7 +593,8 @@ impl CodeGenerator {
                 self.generate_expr(value);
 
                 // Get the variable index
-                let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                let (maybe_index, _is_mutable, is_global, _is_builtin) =
+                    self.get_variable_index(name);
                 if let Some(index) = maybe_index {
                     if is_global {
                         self.emit_op_code_variant(OpCode::SetGlobal, index, *location);
@@ -653,7 +656,9 @@ impl CodeGenerator {
                             BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, *location),
                             BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, *location),
                             BinaryOp::Divide => self.emit_op_code(OpCode::Divide, *location),
-                            BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, *location),
+                            BinaryOp::FloorDivide => {
+                                self.emit_op_code(OpCode::FloorDivide, *location)
+                            }
                             BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, *location),
                             BinaryOp::Equal => self.emit_op_code(OpCode::Equal, *location),
                             BinaryOp::NotEqual => {
@@ -893,7 +898,8 @@ impl CodeGenerator {
 
                 // Semantic analysis ensures operand is a Variable
                 if let Expr::Variable { name, .. } = operand.as_ref() {
-                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    let (maybe_index, _is_mutable, is_global, _is_builtin) =
+                        self.get_variable_index(name);
                     if let Some(index) = maybe_index {
                         // Load old value (return value)
                         if is_global {
@@ -952,7 +958,8 @@ impl CodeGenerator {
 
                 // Semantic analysis ensures operand is a Variable
                 if let Expr::Variable { name, .. } = operand.as_ref() {
-                    let (maybe_index, _is_mutable, is_global) = self.get_variable_index(name);
+                    let (maybe_index, _is_mutable, is_global, _is_builtin) =
+                        self.get_variable_index(name);
                     if let Some(index) = maybe_index {
                         // Load old value (return value)
                         if is_global {
@@ -999,5 +1006,13 @@ impl CodeGenerator {
                 }
             }
         }
+    }
+
+    fn is_builtin(&self, name: &str) -> bool {
+        self.builtin.keys().any(|k| k == name)
+    }
+
+    fn get_builtin_index(&self, name: &str) -> Option<usize> {
+        self.builtin.get_index_of(name)
     }
 }

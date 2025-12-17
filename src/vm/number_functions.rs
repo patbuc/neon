@@ -1,11 +1,10 @@
 use crate::common::Value;
-use crate::vm::VirtualMachine;
 use crate::string;
 
 /// Native implementation of Number.toString()
 /// Converts a number to its string representation
 /// Handles edge case: removes trailing ".0" for integer values
-pub fn native_number_to_string(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_number_to_string(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("number.toString() requires a number receiver".to_string());
     }

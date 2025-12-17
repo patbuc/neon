@@ -1,9 +1,8 @@
 use crate::common::{MapKey, Object, Value};
-use crate::vm::VirtualMachine;
 use ordered_float::OrderedFloat;
 use std::rc::Rc;
 
-pub fn native_map_get(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_get(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "get() expects 1 argument (key), got {}",
@@ -36,7 +35,7 @@ pub fn native_map_get(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value,
     Ok(map.get(&key).cloned().unwrap_or(Value::Nil))
 }
 
-pub fn native_map_size(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_size(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("size() expects no arguments".to_string());
     }
@@ -54,7 +53,7 @@ pub fn native_map_size(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value
     Ok(Value::Number(map.len() as f64))
 }
 
-pub fn native_map_has(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_has(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "has() expects 1 argument (key), got {}",
@@ -87,7 +86,7 @@ pub fn native_map_has(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value,
     Ok(Value::Boolean(map.contains_key(&key)))
 }
 
-pub fn native_map_remove(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_remove(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "remove() expects 1 argument (key), got {}",
@@ -120,7 +119,7 @@ pub fn native_map_remove(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Val
     Ok(map.remove(&key).unwrap_or(Value::Nil))
 }
 
-pub fn native_map_keys(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_keys(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("keys() expects no arguments".to_string());
     }
@@ -140,7 +139,7 @@ pub fn native_map_keys(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value
     Ok(Value::new_array(keys))
 }
 
-pub fn native_map_values(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_values(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("values() expects no arguments".to_string());
     }
@@ -160,7 +159,7 @@ pub fn native_map_values(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Val
     Ok(Value::new_array(values))
 }
 
-pub fn native_map_entries(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_map_entries(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("entries() expects no arguments".to_string());
     }

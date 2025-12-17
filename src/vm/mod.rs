@@ -7,7 +7,6 @@ pub(crate) mod file_functions;
 mod functions;
 mod r#impl;
 pub(crate) mod map_functions;
-mod math_functions;
 pub(crate) mod number_functions;
 pub(crate) mod set_functions;
 pub(crate) mod string_functions;
@@ -17,11 +16,11 @@ mod tests;
 // Native functions for testing and built-in operations
 pub mod native_functions {
     use crate::common::Value;
-    use crate::vm::VirtualMachine;
+    
 
     /// Test native function that adds two numbers
     /// This demonstrates how native functions work and can be used for testing
-    pub(crate) fn native_add(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+    pub(crate) fn native_add(args: &[Value]) -> Result<Value, String> {
         if args.len() != 2 {
             return Err(format!(
                 "native_add expects 2 arguments, got {}",
@@ -54,7 +53,7 @@ pub struct VirtualMachine {
     stack: Vec<Value>,
     bloq: Option<Bloq>,
     /// Global built-in values (like Math) stored separately from the call stack
-    globals: std::collections::HashMap<String, Value>,
+    builtin: indexmap::IndexMap<String, Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,
     compilation_errors: String,

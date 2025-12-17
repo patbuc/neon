@@ -1,10 +1,9 @@
-use crate::common::{Object, Value, ObjString};
-use crate::vm::VirtualMachine;
+use crate::common::{ObjString, Object, Value};
 use std::rc::Rc;
 
 /// Native implementation of File(path) constructor
 /// Creates a new File object with the given path
-pub fn native_file_constructor(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("File() expects 1 argument, got {}", args.len()));
     }
@@ -23,9 +22,12 @@ pub fn native_file_constructor(_vm: &mut VirtualMachine, args: &[Value]) -> Resu
 
 /// Native implementation of File.read()
 /// Reads the entire contents of the file and returns it as a string
-pub fn native_file_read(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err(format!("read() expects 0 arguments (only receiver), got {}", args.len() - 1));
+        return Err(format!(
+            "read() expects 0 arguments (only receiver), got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the File object from args[0] (the receiver)
@@ -66,9 +68,12 @@ pub fn native_file_read(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Valu
 /// Native implementation of File.readLines()
 /// Reads the file and returns an array of strings, one per line
 /// Line endings (\n, \r\n) are stripped from each line
-pub fn native_file_read_lines(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err(format!("readLines() expects 0 arguments (only receiver), got {}", args.len() - 1));
+        return Err(format!(
+            "readLines() expects 0 arguments (only receiver), got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the File object from args[0] (the receiver)
@@ -116,9 +121,12 @@ pub fn native_file_read_lines(_vm: &mut VirtualMachine, args: &[Value]) -> Resul
 
 /// Native implementation of File.write()
 /// Writes content to the file, fails if file already exists for safety
-pub fn native_file_write(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_file_write(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
-        return Err(format!("write() expects 1 argument, got {}", args.len() - 1));
+        return Err(format!(
+            "write() expects 1 argument, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the File object from args[0] (the receiver)

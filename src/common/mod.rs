@@ -12,13 +12,14 @@ pub mod method_registry;
 pub(crate) mod opcodes;
 pub mod string_similarity;
 
+pub(crate) mod builtin;
 #[cfg(test)]
 mod tests;
 
 // Forward declare VirtualMachine for NativeFn signature
 // We can't import VirtualMachine directly as it would create a circular dependency
 // The actual implementation will be in vm/mod.rs
-pub(crate) type NativeFn = fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, String>;
+pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 
 #[derive(Debug)]
 pub(crate) struct Bloq {

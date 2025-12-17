@@ -1,3 +1,4 @@
+use crate::common::builtin::create_builtin_objects;
 use crate::common::Bloq;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
@@ -17,7 +18,7 @@ fn compile_program(source: &str) -> Result<Bloq, String> {
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation
-    let mut codegen = CodeGenerator::new();
+    let mut codegen = CodeGenerator::new(create_builtin_objects(vec![]));
     codegen
         .generate(&ast)
         .map_err(|e| format!("Codegen error: {:?}", e))
@@ -203,12 +204,22 @@ fn test_else_if_bytecode_simple() {
                 jump_count += 1;
                 offset += 5; // OpCode (1 byte) + offset (4 bytes)
             }
-            OpCode::Constant | OpCode::SetLocal | OpCode::GetLocal |
-            OpCode::GetGlobal | OpCode::SetGlobal | OpCode::GetField | OpCode::SetField => {
+            OpCode::Constant
+            | OpCode::SetLocal
+            | OpCode::GetLocal
+            | OpCode::GetGlobal
+            | OpCode::SetGlobal
+            | OpCode::GetField
+            | OpCode::SetField => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
-            OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+            OpCode::Constant2
+            | OpCode::SetLocal2
+            | OpCode::GetLocal2
+            | OpCode::GetGlobal2
+            | OpCode::SetGlobal2
+            | OpCode::GetField2
+            | OpCode::SetField2 => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::String => {
@@ -217,8 +228,13 @@ fn test_else_if_bytecode_simple() {
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
-            OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
-            OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
+            OpCode::Constant4
+            | OpCode::SetLocal4
+            | OpCode::GetLocal4
+            | OpCode::GetGlobal4
+            | OpCode::SetGlobal4
+            | OpCode::GetField4
+            | OpCode::SetField4 => {
                 offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
@@ -228,10 +244,16 @@ fn test_else_if_bytecode_simple() {
     }
 
     // We should have 2 JumpIfFalse (one for each condition)
-    assert_eq!(jump_if_false_count, 2, "Expected 2 JumpIfFalse instructions for if and else-if conditions");
+    assert_eq!(
+        jump_if_false_count, 2,
+        "Expected 2 JumpIfFalse instructions for if and else-if conditions"
+    );
 
     // We should have 2 Jump instructions (one after each then-branch)
-    assert_eq!(jump_count, 2, "Expected 2 Jump instructions to skip remaining branches");
+    assert_eq!(
+        jump_count, 2,
+        "Expected 2 Jump instructions to skip remaining branches"
+    );
 }
 
 #[test]
@@ -270,12 +292,22 @@ fn test_else_if_bytecode_multiple_branches() {
                 jump_count += 1;
                 offset += 5; // OpCode (1 byte) + offset (4 bytes)
             }
-            OpCode::Constant | OpCode::SetLocal | OpCode::GetLocal |
-            OpCode::GetGlobal | OpCode::SetGlobal | OpCode::GetField | OpCode::SetField => {
+            OpCode::Constant
+            | OpCode::SetLocal
+            | OpCode::GetLocal
+            | OpCode::GetGlobal
+            | OpCode::SetGlobal
+            | OpCode::GetField
+            | OpCode::SetField => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
-            OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+            OpCode::Constant2
+            | OpCode::SetLocal2
+            | OpCode::GetLocal2
+            | OpCode::GetGlobal2
+            | OpCode::SetGlobal2
+            | OpCode::GetField2
+            | OpCode::SetField2 => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::String => {
@@ -284,8 +316,13 @@ fn test_else_if_bytecode_multiple_branches() {
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
-            OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
-            OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
+            OpCode::Constant4
+            | OpCode::SetLocal4
+            | OpCode::GetLocal4
+            | OpCode::GetGlobal4
+            | OpCode::SetGlobal4
+            | OpCode::GetField4
+            | OpCode::SetField4 => {
                 offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
@@ -295,10 +332,16 @@ fn test_else_if_bytecode_multiple_branches() {
     }
 
     // We should have 4 JumpIfFalse (one for each condition)
-    assert_eq!(jump_if_false_count, 4, "Expected 4 JumpIfFalse instructions for all conditions");
+    assert_eq!(
+        jump_if_false_count, 4,
+        "Expected 4 JumpIfFalse instructions for all conditions"
+    );
 
     // We should have 4 Jump instructions (one after each then-branch)
-    assert_eq!(jump_count, 4, "Expected 4 Jump instructions to skip remaining branches");
+    assert_eq!(
+        jump_count, 4,
+        "Expected 4 Jump instructions to skip remaining branches"
+    );
 }
 
 #[test]
@@ -331,12 +374,22 @@ fn test_else_if_bytecode_without_final_else() {
                 jump_count += 1;
                 offset += 5; // OpCode (1 byte) + offset (4 bytes)
             }
-            OpCode::Constant | OpCode::SetLocal | OpCode::GetLocal |
-            OpCode::GetGlobal | OpCode::SetGlobal | OpCode::GetField | OpCode::SetField => {
+            OpCode::Constant
+            | OpCode::SetLocal
+            | OpCode::GetLocal
+            | OpCode::GetGlobal
+            | OpCode::SetGlobal
+            | OpCode::GetField
+            | OpCode::SetField => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
-            OpCode::Constant2 | OpCode::SetLocal2 | OpCode::GetLocal2 |
-            OpCode::GetGlobal2 | OpCode::SetGlobal2 | OpCode::GetField2 | OpCode::SetField2 => {
+            OpCode::Constant2
+            | OpCode::SetLocal2
+            | OpCode::GetLocal2
+            | OpCode::GetGlobal2
+            | OpCode::SetGlobal2
+            | OpCode::GetField2
+            | OpCode::SetField2 => {
                 offset += 2; // OpCode (1 byte) + 1-byte operand
             }
             OpCode::String => {
@@ -345,8 +398,13 @@ fn test_else_if_bytecode_without_final_else() {
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
             }
-            OpCode::Constant4 | OpCode::SetLocal4 | OpCode::GetLocal4 |
-            OpCode::GetGlobal4 | OpCode::SetGlobal4 | OpCode::GetField4 | OpCode::SetField4 => {
+            OpCode::Constant4
+            | OpCode::SetLocal4
+            | OpCode::GetLocal4
+            | OpCode::GetGlobal4
+            | OpCode::SetGlobal4
+            | OpCode::GetField4
+            | OpCode::SetField4 => {
                 offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
@@ -356,7 +414,10 @@ fn test_else_if_bytecode_without_final_else() {
     }
 
     // We should have 2 JumpIfFalse (one for each condition)
-    assert_eq!(jump_if_false_count, 2, "Expected 2 JumpIfFalse instructions");
+    assert_eq!(
+        jump_if_false_count, 2,
+        "Expected 2 JumpIfFalse instructions"
+    );
 
     // We should have 2 Jump instructions (one after each then-branch)
     assert_eq!(jump_count, 2, "Expected 2 Jump instructions");
