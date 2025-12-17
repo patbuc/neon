@@ -1,4 +1,4 @@
-use crate::common::builtin::create_builtin_objects;
+use crate::common::stdlib::create_builtin_objects;
 use crate::common::Bloq;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
@@ -497,6 +497,8 @@ fn test_else_if_end_to_end_execution() {
 
     assert_eq!(result, crate::vm::Result::Ok);
 }
+
+#[test]
 fn test_map_literal_empty() {
     let program = r#"
     val m = {}

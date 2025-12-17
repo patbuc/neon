@@ -1,39 +1,10 @@
 use crate::common::{Bloq, CallFrame, Value};
 use std::fmt::Debug;
 
-pub(crate) mod array_functions;
-pub(crate) mod boolean_functions;
-pub(crate) mod file_functions;
 mod functions;
 mod r#impl;
-pub(crate) mod map_functions;
-pub(crate) mod number_functions;
-pub(crate) mod set_functions;
-pub(crate) mod string_functions;
 #[cfg(test)]
 mod tests;
-
-// Native functions for testing and built-in operations
-pub mod native_functions {
-    use crate::common::Value;
-    
-
-    /// Test native function that adds two numbers
-    /// This demonstrates how native functions work and can be used for testing
-    pub(crate) fn native_add(args: &[Value]) -> Result<Value, String> {
-        if args.len() != 2 {
-            return Err(format!(
-                "native_add expects 2 arguments, got {}",
-                args.len()
-            ));
-        }
-
-        match (&args[0], &args[1]) {
-            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-            _ => Err("native_add requires two number arguments".to_string()),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Result {

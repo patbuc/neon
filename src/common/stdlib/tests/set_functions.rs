@@ -1,7 +1,6 @@
-use crate::as_number;
+use crate::common::stdlib::set_functions::*;
 use crate::common::{Object, SetKey, Value};
-use crate::string;
-use crate::vm::set_functions::*;
+use crate::{as_number, string};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeSet;
 use std::rc::Rc;

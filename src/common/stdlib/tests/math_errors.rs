@@ -1,8 +1,9 @@
-use crate::vm::{Result, VirtualMachine};
-
 // =============================================================================
 // Math.abs() Error Cases
 // =============================================================================
+
+use crate::vm::Result;
+use crate::vm::VirtualMachine;
 
 #[test]
 fn test_math_abs_with_string() {

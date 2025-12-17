@@ -1,6 +1,6 @@
 use crate::as_string;
+use crate::common::stdlib::number_functions::native_number_to_string;
 use crate::common::Value;
-use crate::vm::number_functions::*;
 
 #[test]
 fn test_number_to_string_integer() {

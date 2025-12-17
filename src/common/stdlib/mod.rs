@@ -2,15 +2,25 @@ use crate::common::{ObjString, Object, Value};
 use indexmap::IndexMap;
 use std::rc::Rc;
 
-pub mod math_functions;
+pub(crate) mod array_functions;
+pub(crate) mod boolean_functions;
+pub(crate) mod file_functions;
+pub(crate) mod map_functions;
+pub(crate) mod math_functions;
+pub(crate) mod number_functions;
+pub(crate) mod set_functions;
+pub(crate) mod string_functions;
 
-/// Create builtin objects for the VM.
+#[cfg(test)]
+mod tests;
+
+/// Create stdlib objects for the VM.
 /// Math and File are now handled through the unified registry system.
 /// Only runtime values like args remain as builtins.
 pub(crate) fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
     let mut builtin = IndexMap::new();
 
-    // args is a runtime value, so it remains a builtin
+    // args is a runtime value, so it remains a stdlib
     builtin.insert("args".to_string(), create_args_array(args));
 
     builtin

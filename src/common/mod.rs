@@ -12,7 +12,7 @@ pub mod method_registry;
 pub(crate) mod opcodes;
 pub mod string_similarity;
 
-pub(crate) mod builtin;
+pub(crate) mod stdlib;
 #[cfg(test)]
 mod tests;
 

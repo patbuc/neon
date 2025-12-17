@@ -1,5 +1,5 @@
+use crate::common::stdlib::array_functions::*;
 use crate::common::Object;
-use crate::vm::array_functions::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 

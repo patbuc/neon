@@ -1,5 +1,5 @@
+use crate::common::stdlib::file_functions::*;
 use crate::common::{ObjString, Object};
-use crate::vm::file_functions::*;
 use std::rc::Rc;
 
 #[test]
