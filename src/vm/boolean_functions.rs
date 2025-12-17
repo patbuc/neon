@@ -1,11 +1,10 @@
 use crate::common::Value;
-use crate::vm::VirtualMachine;
 use crate::string;
 
 /// Native implementation of Boolean.toString()
 /// Converts a boolean to its string representation
 /// Returns "true" for true values and "false" for false values
-pub fn native_boolean_to_string(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
+pub fn native_boolean_to_string(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("boolean.toString() requires a boolean receiver".to_string());
     }

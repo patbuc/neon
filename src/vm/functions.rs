@@ -184,7 +184,7 @@ impl VirtualMachine {
         let args_start = stack_len - arg_count;
         let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
 
-        let result = (native_fn.function)(self, &args);
+        let result = (native_fn.function)(&args);
 
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
@@ -418,47 +418,20 @@ impl VirtualMachine {
         frame.ip -= offset as usize;
     }
 
+    pub(in crate::vm) fn fn_get_builtin(&mut self, bits: BitsSize) {
+        let index = self.read_bits(&bits);
+        if let Some(entry) = self.builtin.get_index(index) {
+            self.push(entry.1.clone());
+        } else {
+            self.runtime_error(&format!("Built-in global at index {} not found", index));
+        }
+        let frame = self.current_frame_mut();
+        frame.ip += bits.as_bytes();
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) {
         let index = self.read_bits(&bits);
-
-        // Check if this is a built-in global using sentinel values
-        if index == u32::MAX as usize {
-            // This is a request for Math from the globals HashMap
-            if let Some(value) = self.globals.get("Math") {
-                self.push(value.clone());
-                let frame = self.current_frame_mut();
-                frame.ip += bits.as_bytes();
-                return;
-            }
-            // If Math is not found, this is an internal error
-            self.runtime_error("Built-in global 'Math' not found");
-            return;
-        }
-        if index == (u32::MAX - 1) as usize {
-            // This is a request for File from the globals HashMap
-            if let Some(value) = self.globals.get("File") {
-                self.push(value.clone());
-                let frame = self.current_frame_mut();
-                frame.ip += bits.as_bytes();
-                return;
-            }
-            // If File is not found, this is an internal error
-            self.runtime_error("Built-in global 'File' not found");
-            return;
-        }
-        if index == (u32::MAX - 2) as usize {
-            // This is a request for args from the globals HashMap
-            if let Some(value) = self.globals.get("args") {
-                self.push(value.clone());
-                let frame = self.current_frame_mut();
-                frame.ip += bits.as_bytes();
-                return;
-            }
-            // If args is not found, this is an internal error
-            self.runtime_error("Built-in global 'args' not found");
-            return;
-        }
 
         // Regular global variables are in the script frame
         // Script frame has slot_start = -1, so globals start at index 0
@@ -606,7 +579,7 @@ impl VirtualMachine {
                                 let args: Vec<Value> =
                                     self.stack[receiver_index + 1..stack_len].to_vec();
 
-                                let result = (native_fn.function)(self, &args);
+                                let result = (native_fn.function)(&args);
 
                                 let n = arg_count + 1;
                                 let start = self.stack.len().saturating_sub(n);
@@ -686,7 +659,7 @@ impl VirtualMachine {
         let receiver_index = stack_len - arg_count - 1;
         let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
 
-        let result = native_fn(self, &args);
+        let result = native_fn(&args);
 
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);

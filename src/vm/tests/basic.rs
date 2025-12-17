@@ -1,8 +1,8 @@
 use crate::common::opcodes::OpCode;
 use crate::common::Bloq;
 use crate::common::Value;
-use crate::vm::{Result, VirtualMachine};
 use crate::vm::native_functions;
+use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
 
@@ -653,10 +653,10 @@ fn can_use_struct() {
 #[test]
 fn can_call_native_function_directly() {
     // Test calling a native function directly (not through VM bytecode)
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     let args = vec![Value::Number(5.0), Value::Number(3.0)];
-    let result = native_functions::native_add(&mut vm, &args);
+    let result = native_functions::native_add(&args);
 
     assert!(result.is_ok());
     match result.unwrap() {
@@ -667,10 +667,10 @@ fn can_call_native_function_directly() {
 
 #[test]
 fn native_function_rejects_wrong_arity() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     let args = vec![Value::Number(5.0)];
-    let result = native_functions::native_add(&mut vm, &args);
+    let result = native_functions::native_add(&args);
 
     assert!(result.is_err());
     assert_eq!("native_add expects 2 arguments, got 1", result.unwrap_err());
@@ -678,23 +678,23 @@ fn native_function_rejects_wrong_arity() {
 
 #[test]
 fn native_function_rejects_wrong_types() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     let args = vec![Value::Number(5.0), Value::Boolean(true)];
-    let result = native_functions::native_add(&mut vm, &args);
+    let result = native_functions::native_add(&args);
 
     assert!(result.is_err());
-    assert_eq!("native_add requires two number arguments", result.unwrap_err());
+    assert_eq!(
+        "native_add requires two number arguments",
+        result.unwrap_err()
+    );
 }
 
 #[test]
 fn can_create_and_display_native_function() {
     // Test that we can create a NativeFunction value and display it
-    let native_fn = Value::new_native_function(
-        "test_add".to_string(),
-        2,
-        native_functions::native_add
-    );
+    let native_fn =
+        Value::new_native_function("test_add".to_string(), 2, native_functions::native_add);
 
     let display = format!("{}", native_fn);
     assert_eq!("<native fn test_add>", display);
@@ -2772,7 +2772,10 @@ fn test_nested_loops_with_break() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
-    assert_eq!("i=0 j=0\ni=0 j=1\ni=1 j=0\ni=1 j=1\ni=2 j=0\ni=2 j=1\nDone", vm.get_output());
+    assert_eq!(
+        "i=0 j=0\ni=0 j=1\ni=1 j=0\ni=1 j=1\ni=2 j=0\ni=2 j=1\nDone",
+        vm.get_output()
+    );
 }
 
 #[test]

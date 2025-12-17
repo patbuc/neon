@@ -1,14 +1,16 @@
-use crate::common::Bloq;
+use crate::common::{Bloq, Value};
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
+use indexmap::IndexMap;
 
 impl Compiler {
-    pub(crate) fn new() -> Compiler {
+    pub(crate) fn new(builtin: IndexMap<String, Value>) -> Compiler {
         Compiler {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
+            builtin,
         }
     }
 
@@ -53,7 +55,7 @@ impl Compiler {
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new();
+        let mut codegen = CodeGenerator::new(self.builtin.clone());
         match codegen.generate(&ast) {
             Ok(bloq) => Some(bloq),
             Err(errors) => {

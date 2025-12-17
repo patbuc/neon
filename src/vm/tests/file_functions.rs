@@ -1,17 +1,19 @@
-use crate::common::{Object, ObjString};
+use crate::common::{ObjString, Object};
 use crate::vm::file_functions::*;
 use crate::vm::VirtualMachine;
 use std::rc::Rc;
 
 #[test]
 fn test_file_constructor_valid_path() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let path = "test.txt";
-    let args = vec![crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: Rc::from(path),
-    })))];
+    let args = vec![crate::common::Value::Object(Rc::new(Object::String(
+        ObjString {
+            value: Rc::from(path),
+        },
+    )))];
 
-    let result = native_file_constructor(&mut vm, &args).unwrap();
+    let result = native_file_constructor(&args).unwrap();
 
     match result {
         crate::common::Value::Object(obj) => match obj.as_ref() {
@@ -26,16 +28,16 @@ fn test_file_constructor_valid_path() {
 
 #[test]
 fn test_file_constructor_wrong_arg_count_zero() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let args = vec![];
-    let result = native_file_constructor(&mut vm, &args);
+    let result = native_file_constructor(&args);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "File() expects 1 argument, got 0");
 }
 
 #[test]
 fn test_file_constructor_wrong_arg_count_two() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let args = vec![
         crate::common::Value::Object(Rc::new(Object::String(ObjString {
             value: Rc::from("test.txt"),
@@ -44,56 +46,49 @@ fn test_file_constructor_wrong_arg_count_two() {
             value: Rc::from("extra.txt"),
         }))),
     ];
-    let result = native_file_constructor(&mut vm, &args);
+    let result = native_file_constructor(&args);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "File() expects 1 argument, got 2");
 }
 
 #[test]
 fn test_file_constructor_invalid_type_number() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let args = vec![crate::common::Value::Number(42.0)];
-    let result = native_file_constructor(&mut vm, &args);
+    let result = native_file_constructor(&args);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "File() requires a string argument"
-    );
+    assert_eq!(result.unwrap_err(), "File() requires a string argument");
 }
 
 #[test]
 fn test_file_constructor_invalid_type_boolean() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let args = vec![crate::common::Value::Boolean(true)];
-    let result = native_file_constructor(&mut vm, &args);
+    let result = native_file_constructor(&args);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "File() requires a string argument"
-    );
+    assert_eq!(result.unwrap_err(), "File() requires a string argument");
 }
 
 #[test]
 fn test_file_constructor_invalid_type_nil() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let args = vec![crate::common::Value::Nil];
-    let result = native_file_constructor(&mut vm, &args);
+    let result = native_file_constructor(&args);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        "File() requires a string argument"
-    );
+    assert_eq!(result.unwrap_err(), "File() requires a string argument");
 }
 
 #[test]
 fn test_file_constructor_with_relative_path() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let path = "../data/input.txt";
-    let args = vec![crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: Rc::from(path),
-    })))];
+    let args = vec![crate::common::Value::Object(Rc::new(Object::String(
+        ObjString {
+            value: Rc::from(path),
+        },
+    )))];
 
-    let result = native_file_constructor(&mut vm, &args).unwrap();
+    let result = native_file_constructor(&args).unwrap();
 
     match result {
         crate::common::Value::Object(obj) => match obj.as_ref() {
@@ -108,13 +103,15 @@ fn test_file_constructor_with_relative_path() {
 
 #[test]
 fn test_file_constructor_with_absolute_path() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
     let path = "/home/user/data/input.txt";
-    let args = vec![crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: Rc::from(path),
-    })))];
+    let args = vec![crate::common::Value::Object(Rc::new(Object::String(
+        ObjString {
+            value: Rc::from(path),
+        },
+    )))];
 
-    let result = native_file_constructor(&mut vm, &args).unwrap();
+    let result = native_file_constructor(&args).unwrap();
 
     match result {
         crate::common::Value::Object(obj) => match obj.as_ref() {
@@ -130,10 +127,10 @@ fn test_file_constructor_with_absolute_path() {
 // Tests for File.read()
 #[test]
 fn test_file_read_success() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with some content
     let temp_dir = std::env::temp_dir();
@@ -150,7 +147,7 @@ fn test_file_read_success() {
     let args = vec![file_obj];
 
     // Call read()
-    let result = native_file_read(&mut vm, &args).unwrap();
+    let result = native_file_read(&args).unwrap();
 
     // Verify the result
     match result {
@@ -171,7 +168,7 @@ fn test_file_read_success() {
 fn test_file_read_empty_file() {
     use std::fs::File;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create an empty temporary file
     let temp_dir = std::env::temp_dir();
@@ -186,7 +183,7 @@ fn test_file_read_empty_file() {
     let args = vec![file_obj];
 
     // Call read()
-    let result = native_file_read(&mut vm, &args).unwrap();
+    let result = native_file_read(&args).unwrap();
 
     // Verify the result is an empty string
     match result {
@@ -205,10 +202,10 @@ fn test_file_read_empty_file() {
 
 #[test]
 fn test_file_read_unicode_content() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with Unicode content
     let temp_dir = std::env::temp_dir();
@@ -225,7 +222,7 @@ fn test_file_read_unicode_content() {
     let args = vec![file_obj];
 
     // Call read()
-    let result = native_file_read(&mut vm, &args).unwrap();
+    let result = native_file_read(&args).unwrap();
 
     // Verify the result
     match result {
@@ -244,14 +241,14 @@ fn test_file_read_unicode_content() {
 
 #[test]
 fn test_file_read_file_not_found() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object with a non-existent path
     let file_obj = crate::common::Value::new_file("/nonexistent/path/to/file.txt".to_string());
     let args = vec![file_obj];
 
     // Call read()
-    let result = native_file_read(&mut vm, &args);
+    let result = native_file_read(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -262,14 +259,14 @@ fn test_file_read_file_not_found() {
 
 #[test]
 fn test_file_read_wrong_arg_count() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
 
     // Call read() with extra arguments
     let args = vec![file_obj, crate::common::Value::Number(42.0)];
-    let result = native_file_read(&mut vm, &args);
+    let result = native_file_read(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -279,14 +276,16 @@ fn test_file_read_wrong_arg_count() {
 
 #[test]
 fn test_file_read_invalid_receiver_type() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call read() on a non-File object
-    let args = vec![crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: Rc::from("not a file"),
-    })))];
+    let args = vec![crate::common::Value::Object(Rc::new(Object::String(
+        ObjString {
+            value: Rc::from("not a file"),
+        },
+    )))];
 
-    let result = native_file_read(&mut vm, &args);
+    let result = native_file_read(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -296,12 +295,12 @@ fn test_file_read_invalid_receiver_type() {
 
 #[test]
 fn test_file_read_invalid_receiver_primitive() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call read() on a number
     let args = vec![crate::common::Value::Number(42.0)];
 
-    let result = native_file_read(&mut vm, &args);
+    let result = native_file_read(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -311,10 +310,10 @@ fn test_file_read_invalid_receiver_primitive() {
 
 #[test]
 fn test_file_read_multiline_content() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with multiline content
     let temp_dir = std::env::temp_dir();
@@ -331,7 +330,7 @@ fn test_file_read_multiline_content() {
     let args = vec![file_obj];
 
     // Call read()
-    let result = native_file_read(&mut vm, &args).unwrap();
+    let result = native_file_read(&args).unwrap();
 
     // Verify the result
     match result {
@@ -351,10 +350,10 @@ fn test_file_read_multiline_content() {
 // Tests for File.readLines()
 #[test]
 fn test_file_read_lines_success() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with multiline content
     let temp_dir = std::env::temp_dir();
@@ -371,7 +370,7 @@ fn test_file_read_lines_success() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result is an array
     match result {
@@ -418,7 +417,7 @@ fn test_file_read_lines_success() {
 fn test_file_read_lines_empty_file() {
     use std::fs::File;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create an empty temporary file
     let temp_dir = std::env::temp_dir();
@@ -433,7 +432,7 @@ fn test_file_read_lines_empty_file() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result is an empty array
     match result {
@@ -453,10 +452,10 @@ fn test_file_read_lines_empty_file() {
 
 #[test]
 fn test_file_read_lines_single_line() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with a single line (no newline at end)
     let temp_dir = std::env::temp_dir();
@@ -473,7 +472,7 @@ fn test_file_read_lines_single_line() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result
     match result {
@@ -501,10 +500,10 @@ fn test_file_read_lines_single_line() {
 
 #[test]
 fn test_file_read_lines_crlf() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with Windows-style line endings
     let temp_dir = std::env::temp_dir();
@@ -521,7 +520,7 @@ fn test_file_read_lines_crlf() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result - line endings should be stripped
     match result {
@@ -560,10 +559,10 @@ fn test_file_read_lines_crlf() {
 
 #[test]
 fn test_file_read_lines_unicode() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with Unicode content
     let temp_dir = std::env::temp_dir();
@@ -580,7 +579,7 @@ fn test_file_read_lines_unicode() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result
     match result {
@@ -618,14 +617,14 @@ fn test_file_read_lines_unicode() {
 
 #[test]
 fn test_file_read_lines_file_not_found() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object with a non-existent path
     let file_obj = crate::common::Value::new_file("/nonexistent/path/to/file.txt".to_string());
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args);
+    let result = native_file_read_lines(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -636,14 +635,14 @@ fn test_file_read_lines_file_not_found() {
 
 #[test]
 fn test_file_read_lines_wrong_arg_count() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
 
     // Call readLines() with extra arguments
     let args = vec![file_obj, crate::common::Value::Number(42.0)];
-    let result = native_file_read_lines(&mut vm, &args);
+    let result = native_file_read_lines(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -653,14 +652,16 @@ fn test_file_read_lines_wrong_arg_count() {
 
 #[test]
 fn test_file_read_lines_invalid_receiver_type() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call readLines() on a non-File object
-    let args = vec![crate::common::Value::Object(Rc::new(Object::String(ObjString {
-        value: Rc::from("not a file"),
-    })))];
+    let args = vec![crate::common::Value::Object(Rc::new(Object::String(
+        ObjString {
+            value: Rc::from("not a file"),
+        },
+    )))];
 
-    let result = native_file_read_lines(&mut vm, &args);
+    let result = native_file_read_lines(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -670,12 +671,12 @@ fn test_file_read_lines_invalid_receiver_type() {
 
 #[test]
 fn test_file_read_lines_invalid_receiver_primitive() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call readLines() on a number
     let args = vec![crate::common::Value::Number(42.0)];
 
-    let result = native_file_read_lines(&mut vm, &args);
+    let result = native_file_read_lines(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -685,10 +686,10 @@ fn test_file_read_lines_invalid_receiver_primitive() {
 
 #[test]
 fn test_file_read_lines_empty_lines() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file with empty lines
     let temp_dir = std::env::temp_dir();
@@ -705,7 +706,7 @@ fn test_file_read_lines_empty_lines() {
     let args = vec![file_obj];
 
     // Call readLines()
-    let result = native_file_read_lines(&mut vm, &args).unwrap();
+    let result = native_file_read_lines(&args).unwrap();
 
     // Verify the result includes empty lines
     match result {
@@ -750,7 +751,7 @@ fn test_file_read_lines_empty_lines() {
 // Tests for File.write()
 #[test]
 fn test_file_write_success() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file path that doesn't exist yet
     let temp_dir = std::env::temp_dir();
@@ -767,7 +768,7 @@ fn test_file_write_success() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args).unwrap();
+    let result = native_file_write(&args).unwrap();
 
     // Verify the result is Nil
     assert_eq!(result, crate::common::Value::Nil);
@@ -782,7 +783,7 @@ fn test_file_write_success() {
 
 #[test]
 fn test_file_write_empty_content() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file path that doesn't exist yet
     let temp_dir = std::env::temp_dir();
@@ -799,7 +800,7 @@ fn test_file_write_empty_content() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args).unwrap();
+    let result = native_file_write(&args).unwrap();
 
     // Verify the result is Nil
     assert_eq!(result, crate::common::Value::Nil);
@@ -814,7 +815,7 @@ fn test_file_write_empty_content() {
 
 #[test]
 fn test_file_write_multiline_content() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file path that doesn't exist yet
     let temp_dir = std::env::temp_dir();
@@ -832,7 +833,7 @@ fn test_file_write_multiline_content() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args).unwrap();
+    let result = native_file_write(&args).unwrap();
 
     // Verify the result is Nil
     assert_eq!(result, crate::common::Value::Nil);
@@ -847,7 +848,7 @@ fn test_file_write_multiline_content() {
 
 #[test]
 fn test_file_write_unicode_content() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file path that doesn't exist yet
     let temp_dir = std::env::temp_dir();
@@ -865,7 +866,7 @@ fn test_file_write_unicode_content() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args).unwrap();
+    let result = native_file_write(&args).unwrap();
 
     // Verify the result is Nil
     assert_eq!(result, crate::common::Value::Nil);
@@ -880,10 +881,10 @@ fn test_file_write_unicode_content() {
 
 #[test]
 fn test_file_write_file_already_exists() {
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a temporary file that already exists
     let temp_dir = std::env::temp_dir();
@@ -902,7 +903,7 @@ fn test_file_write_file_already_exists() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -920,14 +921,14 @@ fn test_file_write_file_already_exists() {
 
 #[test]
 fn test_file_write_wrong_arg_count_zero() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
 
     // Call write() with no content argument
     let args = vec![file_obj];
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -937,7 +938,7 @@ fn test_file_write_wrong_arg_count_zero() {
 
 #[test]
 fn test_file_write_wrong_arg_count_too_many() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
@@ -948,7 +949,7 @@ fn test_file_write_wrong_arg_count_too_many() {
 
     // Call write() with too many arguments
     let args = vec![file_obj, content, extra];
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -958,7 +959,7 @@ fn test_file_write_wrong_arg_count_too_many() {
 
 #[test]
 fn test_file_write_invalid_content_type_number() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
@@ -966,7 +967,7 @@ fn test_file_write_invalid_content_type_number() {
 
     // Call write() with a number instead of string
     let args = vec![file_obj, content];
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -976,7 +977,7 @@ fn test_file_write_invalid_content_type_number() {
 
 #[test]
 fn test_file_write_invalid_content_type_boolean() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
@@ -984,7 +985,7 @@ fn test_file_write_invalid_content_type_boolean() {
 
     // Call write() with a boolean instead of string
     let args = vec![file_obj, content];
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -994,7 +995,7 @@ fn test_file_write_invalid_content_type_boolean() {
 
 #[test]
 fn test_file_write_invalid_content_type_nil() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object
     let file_obj = crate::common::Value::new_file("test.txt".to_string());
@@ -1002,7 +1003,7 @@ fn test_file_write_invalid_content_type_nil() {
 
     // Call write() with nil instead of string
     let args = vec![file_obj, content];
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -1012,7 +1013,7 @@ fn test_file_write_invalid_content_type_nil() {
 
 #[test]
 fn test_file_write_invalid_receiver_type() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call write() on a non-File object
     let receiver = crate::common::Value::Object(Rc::new(Object::String(ObjString {
@@ -1023,7 +1024,7 @@ fn test_file_write_invalid_receiver_type() {
     })));
     let args = vec![receiver, content];
 
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -1033,7 +1034,7 @@ fn test_file_write_invalid_receiver_type() {
 
 #[test]
 fn test_file_write_invalid_receiver_primitive() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Try to call write() on a number
     let receiver = crate::common::Value::Number(42.0);
@@ -1042,7 +1043,7 @@ fn test_file_write_invalid_receiver_primitive() {
     })));
     let args = vec![receiver, content];
 
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error
     assert!(result.is_err());
@@ -1052,7 +1053,7 @@ fn test_file_write_invalid_receiver_primitive() {
 
 #[test]
 fn test_file_write_invalid_directory() {
-    let mut vm = VirtualMachine::new();
+    let vm = VirtualMachine::new();
 
     // Create a File object with a path in a non-existent directory
     let file_obj = crate::common::Value::new_file("/nonexistent/directory/file.txt".to_string());
@@ -1062,7 +1063,7 @@ fn test_file_write_invalid_directory() {
     let args = vec![file_obj, content];
 
     // Call write()
-    let result = native_file_write(&mut vm, &args);
+    let result = native_file_write(&args);
 
     // Verify it returns an error (either directory not found or failed to write)
     assert!(result.is_err());
