@@ -3,11 +3,9 @@ use crate::as_string;
 use crate::common::Value;
 use crate::string;
 use crate::vm::string_functions::*;
-use crate::vm::VirtualMachine;
 
 #[test]
 fn test_string_len_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str];
 
@@ -17,7 +15,6 @@ fn test_string_len_basic() {
 
 #[test]
 fn test_string_len_unicode() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello 🌍");
     let args = vec![test_str];
 
@@ -27,7 +24,6 @@ fn test_string_len_unicode() {
 
 #[test]
 fn test_string_len_empty() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -37,7 +33,6 @@ fn test_string_len_empty() {
 
 #[test]
 fn test_substring_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let args = vec![test_str, Value::Number(0.0), Value::Number(5.0)];
 
@@ -47,7 +42,6 @@ fn test_substring_basic() {
 
 #[test]
 fn test_substring_middle() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let args = vec![test_str, Value::Number(6.0), Value::Number(11.0)];
 
@@ -57,7 +51,6 @@ fn test_substring_middle() {
 
 #[test]
 fn test_substring_negative_indices() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let args = vec![test_str, Value::Number(-5.0), Value::Number(-1.0)];
 
@@ -67,7 +60,6 @@ fn test_substring_negative_indices() {
 
 #[test]
 fn test_substring_out_of_bounds() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(0.0), Value::Number(100.0)];
 
@@ -77,7 +69,6 @@ fn test_substring_out_of_bounds() {
 
 #[test]
 fn test_substring_empty() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(2.0), Value::Number(2.0)];
 
@@ -87,7 +78,6 @@ fn test_substring_empty() {
 
 #[test]
 fn test_substring_start_greater_than_end() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     // start=5, end=0: should return empty string
     let args = vec![test_str, Value::Number(5.0), Value::Number(0.0)];
@@ -98,7 +88,6 @@ fn test_substring_start_greater_than_end() {
 
 #[test]
 fn test_replace_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let old = string!("world");
     let new = string!("rust");
@@ -110,7 +99,6 @@ fn test_replace_basic() {
 
 #[test]
 fn test_replace_multiple() {
-    let vm = VirtualMachine::new();
     let test_str = string!("foo bar foo");
     let old = string!("foo");
     let new = string!("baz");
@@ -122,7 +110,6 @@ fn test_replace_multiple() {
 
 #[test]
 fn test_replace_not_found() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let old = string!("xyz");
     let new = string!("abc");
@@ -134,7 +121,6 @@ fn test_replace_not_found() {
 
 #[test]
 fn test_replace_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let old = string!("foo");
     let new = string!("bar");
@@ -146,7 +132,6 @@ fn test_replace_empty_string() {
 
 #[test]
 fn test_replace_with_empty() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let old = string!(" ");
     let new = string!("");
@@ -158,7 +143,6 @@ fn test_replace_with_empty() {
 
 #[test]
 fn test_split_basic_comma() {
-    let vm = VirtualMachine::new();
     let test_str = string!("a,b,c");
     let delimiter = string!(",");
     let args = vec![test_str, delimiter];
@@ -183,7 +167,6 @@ fn test_split_basic_comma() {
 
 #[test]
 fn test_split_delimiter_not_found() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let delimiter = string!(",");
     let args = vec![test_str, delimiter];
@@ -205,7 +188,6 @@ fn test_split_delimiter_not_found() {
 
 #[test]
 fn test_split_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let delimiter = string!(",");
     let args = vec![test_str, delimiter];
@@ -227,7 +209,6 @@ fn test_split_empty_string() {
 
 #[test]
 fn test_split_empty_delimiter() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let delimiter = string!("");
     let args = vec![test_str, delimiter];
@@ -253,7 +234,6 @@ fn test_split_empty_delimiter() {
 
 #[test]
 fn test_split_multiple_consecutive_delimiters() {
-    let vm = VirtualMachine::new();
     let test_str = string!("a,,b,,c");
     let delimiter = string!(",");
     let args = vec![test_str, delimiter];
@@ -282,7 +262,6 @@ fn test_split_multiple_consecutive_delimiters() {
 
 #[test]
 fn test_split_space_delimiter() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let delimiter = string!(" ");
     let args = vec![test_str, delimiter];
@@ -306,7 +285,6 @@ fn test_split_space_delimiter() {
 // Tests for String.toInt()
 #[test]
 fn test_to_int_basic_positive() {
-    let vm = VirtualMachine::new();
     let test_str = string!("123");
     let args = vec![test_str];
 
@@ -316,7 +294,6 @@ fn test_to_int_basic_positive() {
 
 #[test]
 fn test_to_int_basic_negative() {
-    let vm = VirtualMachine::new();
     let test_str = string!("-456");
     let args = vec![test_str];
 
@@ -326,7 +303,6 @@ fn test_to_int_basic_negative() {
 
 #[test]
 fn test_to_int_zero() {
-    let vm = VirtualMachine::new();
     let test_str = string!("0");
     let args = vec![test_str];
 
@@ -336,7 +312,6 @@ fn test_to_int_zero() {
 
 #[test]
 fn test_to_int_with_whitespace() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  789  ");
     let args = vec![test_str];
 
@@ -346,7 +321,6 @@ fn test_to_int_with_whitespace() {
 
 #[test]
 fn test_to_int_large_number() {
-    let vm = VirtualMachine::new();
     let test_str = string!("9876543210");
     let args = vec![test_str];
 
@@ -356,7 +330,6 @@ fn test_to_int_large_number() {
 
 #[test]
 fn test_to_int_invalid_float() {
-    let vm = VirtualMachine::new();
     let test_str = string!("123.45");
     let args = vec![test_str];
 
@@ -367,7 +340,6 @@ fn test_to_int_invalid_float() {
 
 #[test]
 fn test_to_int_invalid_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("abc");
     let args = vec![test_str];
 
@@ -378,7 +350,6 @@ fn test_to_int_invalid_string() {
 
 #[test]
 fn test_to_int_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -388,7 +359,6 @@ fn test_to_int_empty_string() {
 
 #[test]
 fn test_to_int_mixed_content() {
-    let vm = VirtualMachine::new();
     let test_str = string!("123abc");
     let args = vec![test_str];
 
@@ -399,7 +369,6 @@ fn test_to_int_mixed_content() {
 // Tests for String.toFloat()
 #[test]
 fn test_to_float_basic_integer() {
-    let vm = VirtualMachine::new();
     let test_str = string!("123");
     let args = vec![test_str];
 
@@ -409,7 +378,6 @@ fn test_to_float_basic_integer() {
 
 #[test]
 fn test_to_float_basic_decimal() {
-    let vm = VirtualMachine::new();
     let test_str = string!("45.67");
     let args = vec![test_str];
 
@@ -419,7 +387,6 @@ fn test_to_float_basic_decimal() {
 
 #[test]
 fn test_to_float_negative() {
-    let vm = VirtualMachine::new();
     let test_str = string!("-12.34");
     let args = vec![test_str];
 
@@ -429,7 +396,6 @@ fn test_to_float_negative() {
 
 #[test]
 fn test_to_float_zero() {
-    let vm = VirtualMachine::new();
     let test_str = string!("0.0");
     let args = vec![test_str];
 
@@ -439,7 +405,6 @@ fn test_to_float_zero() {
 
 #[test]
 fn test_to_float_with_whitespace() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  3.15  ");
     let args = vec![test_str];
 
@@ -449,7 +414,6 @@ fn test_to_float_with_whitespace() {
 
 #[test]
 fn test_to_float_scientific_notation() {
-    let vm = VirtualMachine::new();
     let test_str = string!("1.23e4");
     let args = vec![test_str];
 
@@ -459,7 +423,6 @@ fn test_to_float_scientific_notation() {
 
 #[test]
 fn test_to_float_scientific_notation_negative_exponent() {
-    let vm = VirtualMachine::new();
     let test_str = string!("1.5e-2");
     let args = vec![test_str];
 
@@ -469,7 +432,6 @@ fn test_to_float_scientific_notation_negative_exponent() {
 
 #[test]
 fn test_to_float_no_decimal() {
-    let vm = VirtualMachine::new();
     let test_str = string!("42");
     let args = vec![test_str];
 
@@ -479,7 +441,6 @@ fn test_to_float_no_decimal() {
 
 #[test]
 fn test_to_float_leading_decimal() {
-    let vm = VirtualMachine::new();
     let test_str = string!(".5");
     let args = vec![test_str];
 
@@ -489,7 +450,6 @@ fn test_to_float_leading_decimal() {
 
 #[test]
 fn test_to_float_invalid_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("abc");
     let args = vec![test_str];
 
@@ -500,7 +460,6 @@ fn test_to_float_invalid_string() {
 
 #[test]
 fn test_to_float_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -510,7 +469,6 @@ fn test_to_float_empty_string() {
 
 #[test]
 fn test_to_float_mixed_content() {
-    let vm = VirtualMachine::new();
     let test_str = string!("12.34abc");
     let args = vec![test_str];
 
@@ -520,7 +478,6 @@ fn test_to_float_mixed_content() {
 
 #[test]
 fn test_to_float_infinity() {
-    let vm = VirtualMachine::new();
     let test_str = string!("inf");
     let args = vec![test_str];
 
@@ -530,7 +487,6 @@ fn test_to_float_infinity() {
 
 #[test]
 fn test_to_float_negative_infinity() {
-    let vm = VirtualMachine::new();
     let test_str = string!("-inf");
     let args = vec![test_str];
 
@@ -541,7 +497,6 @@ fn test_to_float_negative_infinity() {
 // Tests for String.toBool()
 #[test]
 fn test_to_bool_lowercase_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("true");
     let args = vec![test_str];
 
@@ -551,7 +506,6 @@ fn test_to_bool_lowercase_true() {
 
 #[test]
 fn test_to_bool_lowercase_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("false");
     let args = vec![test_str];
 
@@ -561,7 +515,6 @@ fn test_to_bool_lowercase_false() {
 
 #[test]
 fn test_to_bool_uppercase_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("TRUE");
     let args = vec![test_str];
 
@@ -571,7 +524,6 @@ fn test_to_bool_uppercase_true() {
 
 #[test]
 fn test_to_bool_uppercase_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("FALSE");
     let args = vec![test_str];
 
@@ -581,7 +533,6 @@ fn test_to_bool_uppercase_false() {
 
 #[test]
 fn test_to_bool_mixed_case_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("TrUe");
     let args = vec![test_str];
 
@@ -591,7 +542,6 @@ fn test_to_bool_mixed_case_true() {
 
 #[test]
 fn test_to_bool_mixed_case_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("FaLsE");
     let args = vec![test_str];
 
@@ -601,7 +551,6 @@ fn test_to_bool_mixed_case_false() {
 
 #[test]
 fn test_to_bool_with_whitespace_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  true  ");
     let args = vec![test_str];
 
@@ -611,7 +560,6 @@ fn test_to_bool_with_whitespace_true() {
 
 #[test]
 fn test_to_bool_with_whitespace_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  false  ");
     let args = vec![test_str];
 
@@ -621,7 +569,6 @@ fn test_to_bool_with_whitespace_false() {
 
 #[test]
 fn test_to_bool_with_tabs_and_newlines() {
-    let vm = VirtualMachine::new();
     let test_str = string!("\t\ntrue\n\t");
     let args = vec![test_str];
 
@@ -631,7 +578,6 @@ fn test_to_bool_with_tabs_and_newlines() {
 
 #[test]
 fn test_to_bool_invalid_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("yes");
     let args = vec![test_str];
 
@@ -642,7 +588,6 @@ fn test_to_bool_invalid_string() {
 
 #[test]
 fn test_to_bool_invalid_number() {
-    let vm = VirtualMachine::new();
     let test_str = string!("1");
     let args = vec![test_str];
 
@@ -653,7 +598,6 @@ fn test_to_bool_invalid_number() {
 
 #[test]
 fn test_to_bool_invalid_zero() {
-    let vm = VirtualMachine::new();
     let test_str = string!("0");
     let args = vec![test_str];
 
@@ -664,7 +608,6 @@ fn test_to_bool_invalid_zero() {
 
 #[test]
 fn test_to_bool_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -675,7 +618,6 @@ fn test_to_bool_empty_string() {
 
 #[test]
 fn test_to_bool_partial_match() {
-    let vm = VirtualMachine::new();
     let test_str = string!("truee");
     let args = vec![test_str];
 
@@ -685,7 +627,6 @@ fn test_to_bool_partial_match() {
 
 #[test]
 fn test_to_bool_mixed_content() {
-    let vm = VirtualMachine::new();
     let test_str = string!("true123");
     let args = vec![test_str];
 
@@ -695,7 +636,6 @@ fn test_to_bool_mixed_content() {
 
 #[test]
 fn test_to_bool_with_surrounding_text() {
-    let vm = VirtualMachine::new();
     let test_str = string!("the answer is true");
     let args = vec![test_str];
 
@@ -706,7 +646,6 @@ fn test_to_bool_with_surrounding_text() {
 // Tests for String.trim()
 #[test]
 fn test_trim_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  hello world  ");
     let args = vec![test_str];
 
@@ -716,7 +655,6 @@ fn test_trim_basic() {
 
 #[test]
 fn test_trim_leading_only() {
-    let vm = VirtualMachine::new();
     let test_str = string!("  hello");
     let args = vec![test_str];
 
@@ -726,7 +664,6 @@ fn test_trim_leading_only() {
 
 #[test]
 fn test_trim_trailing_only() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello  ");
     let args = vec![test_str];
 
@@ -736,7 +673,6 @@ fn test_trim_trailing_only() {
 
 #[test]
 fn test_trim_no_whitespace() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str];
 
@@ -746,7 +682,6 @@ fn test_trim_no_whitespace() {
 
 #[test]
 fn test_trim_empty_string() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -756,7 +691,6 @@ fn test_trim_empty_string() {
 
 #[test]
 fn test_trim_only_whitespace() {
-    let vm = VirtualMachine::new();
     let test_str = string!("   ");
     let args = vec![test_str];
 
@@ -766,7 +700,6 @@ fn test_trim_only_whitespace() {
 
 #[test]
 fn test_trim_tabs_and_newlines() {
-    let vm = VirtualMachine::new();
     let test_str = string!("\t\nhello\n\t");
     let args = vec![test_str];
 
@@ -777,7 +710,6 @@ fn test_trim_tabs_and_newlines() {
 // Tests for String.startsWith()
 #[test]
 fn test_starts_with_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let prefix = string!("hello");
     let args = vec![test_str, prefix];
@@ -788,7 +720,6 @@ fn test_starts_with_true() {
 
 #[test]
 fn test_starts_with_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let prefix = string!("world");
     let args = vec![test_str, prefix];
@@ -799,7 +730,6 @@ fn test_starts_with_false() {
 
 #[test]
 fn test_starts_with_empty_prefix() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let prefix = string!("");
     let args = vec![test_str, prefix];
@@ -810,7 +740,6 @@ fn test_starts_with_empty_prefix() {
 
 #[test]
 fn test_starts_with_exact_match() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let prefix = string!("hello");
     let args = vec![test_str, prefix];
@@ -821,7 +750,6 @@ fn test_starts_with_exact_match() {
 
 #[test]
 fn test_starts_with_longer_prefix() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hi");
     let prefix = string!("hello");
     let args = vec![test_str, prefix];
@@ -833,7 +761,6 @@ fn test_starts_with_longer_prefix() {
 // Tests for String.endsWith()
 #[test]
 fn test_ends_with_true() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let suffix = string!("world");
     let args = vec![test_str, suffix];
@@ -844,7 +771,6 @@ fn test_ends_with_true() {
 
 #[test]
 fn test_ends_with_false() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let suffix = string!("hello");
     let args = vec![test_str, suffix];
@@ -855,7 +781,6 @@ fn test_ends_with_false() {
 
 #[test]
 fn test_ends_with_empty_suffix() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let suffix = string!("");
     let args = vec![test_str, suffix];
@@ -866,7 +791,6 @@ fn test_ends_with_empty_suffix() {
 
 #[test]
 fn test_ends_with_exact_match() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let suffix = string!("hello");
     let args = vec![test_str, suffix];
@@ -877,7 +801,6 @@ fn test_ends_with_exact_match() {
 
 #[test]
 fn test_ends_with_longer_suffix() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hi");
     let suffix = string!("hello");
     let args = vec![test_str, suffix];
@@ -889,7 +812,6 @@ fn test_ends_with_longer_suffix() {
 // Tests for String.indexOf()
 #[test]
 fn test_index_of_found_at_start() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let substring = string!("hello");
     let args = vec![test_str, substring];
@@ -900,7 +822,6 @@ fn test_index_of_found_at_start() {
 
 #[test]
 fn test_index_of_found_at_end() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let substring = string!("world");
     let args = vec![test_str, substring];
@@ -911,7 +832,6 @@ fn test_index_of_found_at_end() {
 
 #[test]
 fn test_index_of_found_in_middle() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let substring = string!("lo w");
     let args = vec![test_str, substring];
@@ -922,7 +842,6 @@ fn test_index_of_found_in_middle() {
 
 #[test]
 fn test_index_of_not_found() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello world");
     let substring = string!("xyz");
     let args = vec![test_str, substring];
@@ -933,7 +852,6 @@ fn test_index_of_not_found() {
 
 #[test]
 fn test_index_of_empty_substring() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let substring = string!("");
     let args = vec![test_str, substring];
@@ -944,7 +862,6 @@ fn test_index_of_empty_substring() {
 
 #[test]
 fn test_index_of_single_char() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let substring = string!("l");
     let args = vec![test_str, substring];
@@ -955,7 +872,6 @@ fn test_index_of_single_char() {
 
 #[test]
 fn test_index_of_unicode() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello 🌍 world");
     let substring = string!("🌍");
     let args = vec![test_str, substring];
@@ -967,7 +883,6 @@ fn test_index_of_unicode() {
 // Tests for String.charAt()
 #[test]
 fn test_char_at_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(0.0)];
 
@@ -977,7 +892,6 @@ fn test_char_at_basic() {
 
 #[test]
 fn test_char_at_middle() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(2.0)];
 
@@ -987,7 +901,6 @@ fn test_char_at_middle() {
 
 #[test]
 fn test_char_at_last() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(4.0)];
 
@@ -997,7 +910,6 @@ fn test_char_at_last() {
 
 #[test]
 fn test_char_at_negative_index() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(-1.0)];
 
@@ -1007,7 +919,6 @@ fn test_char_at_negative_index() {
 
 #[test]
 fn test_char_at_out_of_bounds() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str, Value::Number(10.0)];
 
@@ -1018,7 +929,6 @@ fn test_char_at_out_of_bounds() {
 
 #[test]
 fn test_char_at_unicode() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello 🌍");
     let args = vec![test_str, Value::Number(6.0)];
 
@@ -1029,7 +939,6 @@ fn test_char_at_unicode() {
 // Tests for String.toUpperCase()
 #[test]
 fn test_to_upper_case_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str];
 
@@ -1039,7 +948,6 @@ fn test_to_upper_case_basic() {
 
 #[test]
 fn test_to_upper_case_mixed() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HeLLo WoRLd");
     let args = vec![test_str];
 
@@ -1049,7 +957,6 @@ fn test_to_upper_case_mixed() {
 
 #[test]
 fn test_to_upper_case_already_upper() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HELLO");
     let args = vec![test_str];
 
@@ -1059,7 +966,6 @@ fn test_to_upper_case_already_upper() {
 
 #[test]
 fn test_to_upper_case_empty() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -1069,7 +975,6 @@ fn test_to_upper_case_empty() {
 
 #[test]
 fn test_to_upper_case_numbers_and_symbols() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello123!@#");
     let args = vec![test_str];
 
@@ -1079,7 +984,6 @@ fn test_to_upper_case_numbers_and_symbols() {
 
 #[test]
 fn test_to_upper_case_unicode() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello 🌍");
     let args = vec![test_str];
 
@@ -1090,7 +994,6 @@ fn test_to_upper_case_unicode() {
 // Tests for String.toLowerCase()
 #[test]
 fn test_to_lower_case_basic() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HELLO");
     let args = vec![test_str];
 
@@ -1100,7 +1003,6 @@ fn test_to_lower_case_basic() {
 
 #[test]
 fn test_to_lower_case_mixed() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HeLLo WoRLd");
     let args = vec![test_str];
 
@@ -1110,7 +1012,6 @@ fn test_to_lower_case_mixed() {
 
 #[test]
 fn test_to_lower_case_already_lower() {
-    let vm = VirtualMachine::new();
     let test_str = string!("hello");
     let args = vec![test_str];
 
@@ -1120,7 +1021,6 @@ fn test_to_lower_case_already_lower() {
 
 #[test]
 fn test_to_lower_case_empty() {
-    let vm = VirtualMachine::new();
     let test_str = string!("");
     let args = vec![test_str];
 
@@ -1130,7 +1030,6 @@ fn test_to_lower_case_empty() {
 
 #[test]
 fn test_to_lower_case_numbers_and_symbols() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HELLO123!@#");
     let args = vec![test_str];
 
@@ -1140,7 +1039,6 @@ fn test_to_lower_case_numbers_and_symbols() {
 
 #[test]
 fn test_to_lower_case_unicode() {
-    let vm = VirtualMachine::new();
     let test_str = string!("HELLO 🌍");
     let args = vec![test_str];
 

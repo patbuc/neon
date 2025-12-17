@@ -2,14 +2,12 @@ use crate::as_number;
 use crate::common::{Object, SetKey, Value};
 use crate::string;
 use crate::vm::set_functions::*;
-use crate::vm::VirtualMachine;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
 #[test]
 fn test_set_add_new_element() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Number(42.0);
     let args = vec![set.clone(), element];
@@ -33,7 +31,6 @@ fn test_set_add_new_element() {
 
 #[test]
 fn test_set_add_duplicate_element() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(42.0)));
     let set = Value::new_set(elements);
@@ -58,7 +55,6 @@ fn test_set_add_duplicate_element() {
 
 #[test]
 fn test_set_add_string() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = string!("hello");
     let args = vec![set.clone(), element];
@@ -82,7 +78,6 @@ fn test_set_add_string() {
 
 #[test]
 fn test_set_add_boolean() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Boolean(true);
     let args = vec![set.clone(), element];
@@ -106,7 +101,6 @@ fn test_set_add_boolean() {
 
 #[test]
 fn test_set_add_invalid_type() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Nil;
     let args = vec![set, element];
@@ -118,7 +112,6 @@ fn test_set_add_invalid_type() {
 
 #[test]
 fn test_set_remove_existing_element() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(42.0)));
     elements.insert(SetKey::Number(OrderedFloat(100.0)));
@@ -146,7 +139,6 @@ fn test_set_remove_existing_element() {
 
 #[test]
 fn test_set_remove_nonexistent_element() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Number(42.0);
     let args = vec![set, element];
@@ -157,7 +149,6 @@ fn test_set_remove_nonexistent_element() {
 
 #[test]
 fn test_set_has_existing_element() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::String(Rc::from("hello")));
     let set = Value::new_set(elements);
@@ -170,7 +161,6 @@ fn test_set_has_existing_element() {
 
 #[test]
 fn test_set_has_nonexistent_element() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = string!("hello");
     let args = vec![set, element];
@@ -181,7 +171,6 @@ fn test_set_has_nonexistent_element() {
 
 #[test]
 fn test_set_size_empty() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -191,7 +180,6 @@ fn test_set_size_empty() {
 
 #[test]
 fn test_set_size_with_elements() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(1.0)));
     elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -205,7 +193,6 @@ fn test_set_size_with_elements() {
 
 #[test]
 fn test_set_clear_empty() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set.clone()];
 
@@ -227,7 +214,6 @@ fn test_set_clear_empty() {
 
 #[test]
 fn test_set_clear_with_elements() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(1.0)));
     elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -253,7 +239,6 @@ fn test_set_clear_with_elements() {
 
 #[test]
 fn test_set_add_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -264,7 +249,6 @@ fn test_set_add_wrong_arg_count() {
 
 #[test]
 fn test_set_remove_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -275,7 +259,6 @@ fn test_set_remove_wrong_arg_count() {
 
 #[test]
 fn test_set_has_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -286,7 +269,6 @@ fn test_set_has_wrong_arg_count() {
 
 #[test]
 fn test_set_size_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Number(42.0);
     let args = vec![set, element];
@@ -298,7 +280,6 @@ fn test_set_size_wrong_arg_count() {
 
 #[test]
 fn test_set_clear_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let element = Value::Number(42.0);
     let args = vec![set, element];
@@ -310,7 +291,6 @@ fn test_set_clear_wrong_arg_count() {
 
 #[test]
 fn test_set_methods_on_non_set() {
-    let vm = VirtualMachine::new();
     let not_a_set = Value::Number(42.0);
     let element = Value::Number(1.0);
 
@@ -349,8 +329,6 @@ fn test_set_methods_on_non_set() {
 
 #[test]
 fn test_set_union_basic() {
-    let vm = VirtualMachine::new();
-
     // Create set1 = {1, 2, 3}
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -408,8 +386,6 @@ fn test_set_union_basic() {
 
 #[test]
 fn test_set_union_empty_sets() {
-    let vm = VirtualMachine::new();
-
     let set1 = Value::new_set(BTreeSet::new());
     let set2 = Value::new_set(BTreeSet::new());
 
@@ -429,8 +405,6 @@ fn test_set_union_empty_sets() {
 
 #[test]
 fn test_set_union_one_empty() {
-    let vm = VirtualMachine::new();
-
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(1.0)));
     elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -456,8 +430,6 @@ fn test_set_union_one_empty() {
 
 #[test]
 fn test_set_union_mixed_types() {
-    let vm = VirtualMachine::new();
-
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
     elements1.insert(SetKey::String(Rc::from("hello")));
@@ -489,8 +461,6 @@ fn test_set_union_mixed_types() {
 
 #[test]
 fn test_set_intersection_basic() {
-    let vm = VirtualMachine::new();
-
     // Create set1 = {1, 2, 3, 4}
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -538,8 +508,6 @@ fn test_set_intersection_basic() {
 
 #[test]
 fn test_set_intersection_no_common_elements() {
-    let vm = VirtualMachine::new();
-
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
     elements1.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -566,8 +534,6 @@ fn test_set_intersection_no_common_elements() {
 
 #[test]
 fn test_set_intersection_empty_sets() {
-    let vm = VirtualMachine::new();
-
     let set1 = Value::new_set(BTreeSet::new());
     let set2 = Value::new_set(BTreeSet::new());
 
@@ -587,8 +553,6 @@ fn test_set_intersection_empty_sets() {
 
 #[test]
 fn test_set_difference_basic() {
-    let vm = VirtualMachine::new();
-
     // Create set1 = {1, 2, 3, 4}
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -636,8 +600,6 @@ fn test_set_difference_basic() {
 
 #[test]
 fn test_set_difference_no_overlap() {
-    let vm = VirtualMachine::new();
-
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
     elements1.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -668,8 +630,6 @@ fn test_set_difference_no_overlap() {
 
 #[test]
 fn test_set_difference_empty_result() {
-    let vm = VirtualMachine::new();
-
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
     elements1.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -693,8 +653,6 @@ fn test_set_difference_empty_result() {
 
 #[test]
 fn test_set_difference_empty_sets() {
-    let vm = VirtualMachine::new();
-
     let set1 = Value::new_set(BTreeSet::new());
     let set2 = Value::new_set(BTreeSet::new());
 
@@ -714,8 +672,6 @@ fn test_set_difference_empty_sets() {
 
 #[test]
 fn test_set_is_subset_true() {
-    let vm = VirtualMachine::new();
-
     // Create set1 = {1, 2}
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -738,8 +694,6 @@ fn test_set_is_subset_true() {
 
 #[test]
 fn test_set_is_subset_false() {
-    let vm = VirtualMachine::new();
-
     // Create set1 = {1, 2, 5}
     let mut elements1 = BTreeSet::new();
     elements1.insert(SetKey::Number(OrderedFloat(1.0)));
@@ -763,8 +717,6 @@ fn test_set_is_subset_false() {
 
 #[test]
 fn test_set_is_subset_equal_sets() {
-    let vm = VirtualMachine::new();
-
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(1.0)));
     elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -780,8 +732,6 @@ fn test_set_is_subset_equal_sets() {
 
 #[test]
 fn test_set_is_subset_empty_set() {
-    let vm = VirtualMachine::new();
-
     let set1 = Value::new_set(BTreeSet::new());
 
     let mut elements = BTreeSet::new();
@@ -797,8 +747,6 @@ fn test_set_is_subset_empty_set() {
 
 #[test]
 fn test_set_is_subset_both_empty() {
-    let vm = VirtualMachine::new();
-
     let set1 = Value::new_set(BTreeSet::new());
     let set2 = Value::new_set(BTreeSet::new());
 
@@ -810,7 +758,6 @@ fn test_set_is_subset_both_empty() {
 
 #[test]
 fn test_set_union_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -821,7 +768,6 @@ fn test_set_union_wrong_arg_count() {
 
 #[test]
 fn test_set_intersection_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -832,7 +778,6 @@ fn test_set_intersection_wrong_arg_count() {
 
 #[test]
 fn test_set_difference_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -843,7 +788,6 @@ fn test_set_difference_wrong_arg_count() {
 
 #[test]
 fn test_set_is_subset_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -854,7 +798,6 @@ fn test_set_is_subset_wrong_arg_count() {
 
 #[test]
 fn test_set_algebra_on_non_set() {
-    let vm = VirtualMachine::new();
     let not_a_set = Value::Number(42.0);
     let set = Value::new_set(BTreeSet::new());
 
@@ -885,7 +828,6 @@ fn test_set_algebra_on_non_set() {
 
 #[test]
 fn test_set_algebra_with_non_set_argument() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let not_a_set = Value::Number(42.0);
 
@@ -918,7 +860,6 @@ fn test_set_algebra_with_non_set_argument() {
 
 #[test]
 fn test_set_to_array_empty() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let args = vec![set];
 
@@ -939,7 +880,6 @@ fn test_set_to_array_empty() {
 
 #[test]
 fn test_set_to_array_with_numbers() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(1.0)));
     elements.insert(SetKey::Number(OrderedFloat(2.0)));
@@ -978,7 +918,6 @@ fn test_set_to_array_with_numbers() {
 
 #[test]
 fn test_set_to_array_with_strings() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::String(Rc::from("apple")));
     elements.insert(SetKey::String(Rc::from("banana")));
@@ -1018,7 +957,6 @@ fn test_set_to_array_with_strings() {
 
 #[test]
 fn test_set_to_array_with_booleans() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Boolean(true));
     elements.insert(SetKey::Boolean(false));
@@ -1051,7 +989,6 @@ fn test_set_to_array_with_booleans() {
 
 #[test]
 fn test_set_to_array_mixed_types() {
-    let vm = VirtualMachine::new();
     let mut elements = BTreeSet::new();
     elements.insert(SetKey::Number(OrderedFloat(42.0)));
     elements.insert(SetKey::String(Rc::from("hello")));
@@ -1094,7 +1031,6 @@ fn test_set_to_array_mixed_types() {
 
 #[test]
 fn test_set_to_array_wrong_arg_count() {
-    let vm = VirtualMachine::new();
     let set = Value::new_set(BTreeSet::new());
     let extra_arg = Value::Number(42.0);
     let args = vec![set, extra_arg];
@@ -1106,7 +1042,6 @@ fn test_set_to_array_wrong_arg_count() {
 
 #[test]
 fn test_set_to_array_on_non_set() {
-    let vm = VirtualMachine::new();
     let not_a_set = Value::Number(42.0);
     let args = vec![not_a_set];
 

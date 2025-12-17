@@ -2,14 +2,12 @@ use crate::as_number;
 use crate::common::{MapKey, Object, Value};
 use crate::string;
 use crate::vm::map_functions::*;
-use crate::vm::VirtualMachine;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 #[test]
 fn test_map_get_existing_key() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
@@ -29,7 +27,6 @@ fn test_map_get_existing_key() {
 
 #[test]
 fn test_map_get_nonexistent_key() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let key = string!("missing");
     let args = vec![map, key];
@@ -40,7 +37,6 @@ fn test_map_get_nonexistent_key() {
 
 #[test]
 fn test_map_size_empty() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let args = vec![map];
 
@@ -50,7 +46,6 @@ fn test_map_size_empty() {
 
 #[test]
 fn test_map_size_with_entries() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
     entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
@@ -64,7 +59,6 @@ fn test_map_size_with_entries() {
 
 #[test]
 fn test_map_has_existing_key() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
     let map = Value::new_map(entries);
@@ -77,7 +71,6 @@ fn test_map_has_existing_key() {
 
 #[test]
 fn test_map_has_nonexistent_key() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let key = string!("missing");
     let args = vec![map, key];
@@ -88,7 +81,6 @@ fn test_map_has_nonexistent_key() {
 
 #[test]
 fn test_map_remove_existing_key() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
     entries.insert(MapKey::String(Rc::from("age")), Value::Number(30.0));
@@ -123,7 +115,6 @@ fn test_map_remove_existing_key() {
 
 #[test]
 fn test_map_remove_nonexistent_key() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let key = string!("missing");
     let args = vec![map, key];
@@ -134,7 +125,6 @@ fn test_map_remove_nonexistent_key() {
 
 #[test]
 fn test_map_keys() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(2.0));
@@ -160,7 +150,6 @@ fn test_map_keys() {
 
 #[test]
 fn test_map_values() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
     entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
@@ -185,7 +174,6 @@ fn test_map_values() {
 
 #[test]
 fn test_map_entries() {
-    let vm = VirtualMachine::new();
     let mut entries = HashMap::new();
     entries.insert(MapKey::String(Rc::from("name")), string!("Alice"));
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
@@ -222,7 +210,6 @@ fn test_map_entries() {
 
 #[test]
 fn test_map_keys_empty() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let args = vec![map];
 
@@ -242,7 +229,6 @@ fn test_map_keys_empty() {
 
 #[test]
 fn test_map_values_empty() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let args = vec![map];
 
@@ -262,7 +248,6 @@ fn test_map_values_empty() {
 
 #[test]
 fn test_map_entries_empty() {
-    let vm = VirtualMachine::new();
     let map = Value::new_map(HashMap::new());
     let args = vec![map];
 

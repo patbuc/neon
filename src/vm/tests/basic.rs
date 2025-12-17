@@ -653,7 +653,6 @@ fn can_use_struct() {
 #[test]
 fn can_call_native_function_directly() {
     // Test calling a native function directly (not through VM bytecode)
-    let vm = VirtualMachine::new();
 
     let args = vec![Value::Number(5.0), Value::Number(3.0)];
     let result = native_functions::native_add(&args);
@@ -667,8 +666,6 @@ fn can_call_native_function_directly() {
 
 #[test]
 fn native_function_rejects_wrong_arity() {
-    let vm = VirtualMachine::new();
-
     let args = vec![Value::Number(5.0)];
     let result = native_functions::native_add(&args);
 
@@ -678,8 +675,6 @@ fn native_function_rejects_wrong_arity() {
 
 #[test]
 fn native_function_rejects_wrong_types() {
-    let vm = VirtualMachine::new();
-
     let args = vec![Value::Number(5.0), Value::Boolean(true)];
     let result = native_functions::native_add(&args);
 
