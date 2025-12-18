@@ -127,6 +127,10 @@ impl SemanticAnalyzer {
                         *location,
                     );
                 }
+                Stmt::Export { declaration, .. } => {
+                    // Recursively collect from the exported declaration
+                    self.collect_declarations(&[*declaration.clone()]);
+                }
                 _ => {}
             }
         }
@@ -321,6 +325,23 @@ impl SemanticAnalyzer {
             }
             Stmt::ForIn { variable, collection, body, location } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
+            }
+            Stmt::Import { module_path, location } => {
+                // For now, just validate that the module path is not empty
+                if module_path.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Module path cannot be empty".to_string(),
+                        *location,
+                    ));
+                }
+                // Module system semantic checks will be implemented in later phases
+            }
+            Stmt::Export { declaration, .. } => {
+                // Resolve the declaration being exported
+                self.resolve_stmt(declaration);
+                // Module system export validation will be implemented in later phases
             }
         }
     }

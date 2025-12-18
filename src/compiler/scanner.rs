@@ -308,12 +308,22 @@ impl Scanner {
                 }
                 TokenType::Identifier
             }
-            'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
+            'e' => {
+                if self.current - self.start > 1 {
+                    return match self.source[self.start + 1] {
+                        'l' => self.check_keyword(2, 2, "se", TokenType::Else),
+                        'x' => self.check_keyword(2, 4, "port", TokenType::Export),
+                        _ => TokenType::Identifier,
+                    };
+                }
+                TokenType::Identifier
+            }
             'i' => {
                 if self.current - self.start > 1 {
                     return match self.source[self.start + 1] {
                         'f' => self.check_keyword(2, 0, "", TokenType::If),
                         'n' => self.check_keyword(2, 0, "", TokenType::In),
+                        'm' => self.check_keyword(2, 4, "port", TokenType::Import),
                         _ => TokenType::Identifier,
                     };
                 }

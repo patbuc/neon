@@ -611,6 +611,15 @@ impl CodeGenerator {
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
             }
+            Stmt::Import { .. } => {
+                // Module system not yet implemented in codegen
+                // For now, imports are a no-op - they'll be handled in later phases
+            }
+            Stmt::Export { declaration, .. } => {
+                // Module system not yet implemented in codegen
+                // For now, just generate code for the underlying declaration
+                self.generate_stmt(declaration);
+            }
         }
     }
 

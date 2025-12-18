@@ -265,7 +265,10 @@ impl Parser {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
-                | TokenType::Return => return,
+                | TokenType::Print
+                | TokenType::Return
+                | TokenType::Import
+                | TokenType::Export => return,
                 _ => {}
             }
             self.advance();
@@ -275,7 +278,11 @@ impl Parser {
     // ===== Declarations =====
 
     fn declaration(&mut self) -> Option<Stmt> {
-        if self.match_token(TokenType::Val) {
+        if self.match_token(TokenType::Import) {
+            self.import_declaration()
+        } else if self.match_token(TokenType::Export) {
+            self.export_declaration()
+        } else if self.match_token(TokenType::Val) {
             self.val_declaration()
         } else if self.match_token(TokenType::Var) {
             self.var_declaration()
@@ -405,6 +412,52 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            location,
+        })
+    }
+
+    fn import_declaration(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        if !self.consume(TokenType::Identifier, "Expect module path after 'import'.") {
+            return None;
+        }
+
+        let module_path = self.previous_token.token.clone();
+
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after import declaration.",
+        );
+
+        Some(Stmt::Import {
+            module_path,
+            location,
+        })
+    }
+
+    fn export_declaration(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        // Parse the declaration to be exported (fn, val, var, struct)
+        let declaration = if self.match_token(TokenType::Fn) {
+            Box::new(self.fn_declaration()?)
+        } else if self.match_token(TokenType::Val) {
+            Box::new(self.val_declaration()?)
+        } else if self.match_token(TokenType::Var) {
+            Box::new(self.var_declaration()?)
+        } else if self.match_token(TokenType::Struct) {
+            Box::new(self.struct_declaration()?)
+        } else {
+            self.report_error_at_current(
+                "Expect declaration after 'export' (fn, val, var, or struct).".to_string(),
+            );
+            return None;
+        };
+
+        Some(Stmt::Export {
+            declaration,
             location,
         })
     }
