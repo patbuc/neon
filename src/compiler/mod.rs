@@ -3,6 +3,7 @@ use crate::compiler::token::TokenType;
 pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
+pub(crate) mod module_resolver;
 pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
@@ -38,6 +39,8 @@ pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     builtin: indexmap::IndexMap<String, crate::common::Value>,
+    module_resolver: module_resolver::ModuleResolver,
+    current_file_path: Option<std::path::PathBuf>,
 }
 
 impl Compiler {
