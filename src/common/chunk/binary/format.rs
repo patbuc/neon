@@ -1,4 +1,4 @@
-use crate::binary::BinaryError;
+use crate::common::chunk::binary::BinaryError;
 use crate::common::Chunk;
 use serde::{Deserialize, Serialize};
 
@@ -67,7 +67,6 @@ impl Default for BinaryHeader {
 pub struct BinaryFormat {
     /// Format header with version information
     pub header: BinaryHeader,
-
     // TODO: Add chunk field in next task
     // pub chunk: Chunk,
 }
@@ -87,20 +86,6 @@ impl Default for BinaryFormat {
     }
 }
 
-/// Serializes a Chunk into binary format
-///
-/// The binary format consists of:
-/// 1. Magic number (4 bytes): ASCII "NEON"
-/// 2. Format version (2 bytes)
-/// 3. Reserved bytes (10 bytes)
-/// 4. Bincode-encoded chunk data
-///
-/// # Arguments
-/// * `chunk` - The chunk to serialize
-///
-/// # Returns
-/// * `Ok(Vec<u8>)` - The serialized binary data
-/// * `Err(BinaryError)` - If serialization fails
 pub fn serialize_chunk(chunk: &Chunk) -> Result<Vec<u8>, BinaryError> {
     // Create header
     let header = BinaryHeader::new();
@@ -119,16 +104,6 @@ pub fn serialize_chunk(chunk: &Chunk) -> Result<Vec<u8>, BinaryError> {
     Ok(result)
 }
 
-/// Deserializes a Chunk from binary format
-///
-/// Validates the magic number and version before deserializing the chunk.
-///
-/// # Arguments
-/// * `bytes` - The binary data to deserialize
-///
-/// # Returns
-/// * `Ok(Chunk)` - The deserialized chunk
-/// * `Err(BinaryError)` - If deserialization fails or format is invalid
 pub fn deserialize_chunk(bytes: &[u8]) -> Result<Chunk, BinaryError> {
     // First, deserialize just the header to validate it
     let header: BinaryHeader = bincode::deserialize(bytes).map_err(|e| {
@@ -236,8 +211,7 @@ mod tests {
         // Verify the chunk name matches
         // Note: We can't directly compare chunks since they don't implement Eq,
         // but we can verify they serialize to the same binary representation
-        let reserialized =
-            serialize_chunk(&deserialized).expect("Re-serialization should succeed");
+        let reserialized = serialize_chunk(&deserialized).expect("Re-serialization should succeed");
         assert_eq!(serialized, reserialized);
     }
 
@@ -276,8 +250,8 @@ mod tests {
 
         // Calculate original header size
         let original_header = BinaryHeader::new();
-        let original_header_size = bincode::serialized_size(&original_header)
-            .expect("Should calculate size") as usize;
+        let original_header_size =
+            bincode::serialized_size(&original_header).expect("Should calculate size") as usize;
 
         // Replace the header in the serialized data
         serialized.splice(0..original_header_size, modified_header_bytes);

@@ -6,7 +6,7 @@ use std::fs::File;
 use std::path::Path;
 use std::{env, io};
 
-use neon::binary::{read_binary_file, write_binary_file, BinaryError};
+use neon::common::chunk::binary::{read_binary_file, write_binary_file, BinaryError};
 use neon::common::stdlib::create_builtin_objects;
 use neon::compiler::Compiler;
 use neon::vm::{Result, VirtualMachine};
@@ -174,11 +174,8 @@ fn run_compile(args: &[String]) {
     let chunk = match compiler.compile(&source) {
         Some(chunk) => chunk,
         None => {
-            let formatted_errors = format_compilation_errors(
-                &compiler.get_structured_errors(),
-                input_path,
-                &source,
-            );
+            let formatted_errors =
+                format_compilation_errors(&compiler.get_structured_errors(), input_path, &source);
             eprintln!("{}", formatted_errors);
             exit(65);
         }
@@ -196,12 +193,7 @@ fn run_compile(args: &[String]) {
         exit(66);
     }
 
-    println!(
-        "{} Compiled {} -> {}",
-        "✓".green(),
-        input_path,
-        output_path
-    );
+    println!("{} Compiled {} -> {}", "✓".green(), input_path, output_path);
 }
 
 fn run_binary(args: &[String]) {
@@ -270,7 +262,10 @@ fn format_compilation_errors(
 }
 
 fn print_help() {
-    println!("Neon {} - a toy language you didn't wait for", env!("CARGO_PKG_VERSION"));
+    println!(
+        "Neon {} - a toy language you didn't wait for",
+        env!("CARGO_PKG_VERSION")
+    );
     println!();
     println!("Usage:");
     println!("  neon                     Start interactive REPL");
