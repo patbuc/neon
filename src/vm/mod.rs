@@ -1,5 +1,8 @@
-use crate::common::{CallFrame, Chunk, Value};
+use crate::common::{CallFrame, Chunk, ModuleState, Value};
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 mod functions;
 mod r#impl;
@@ -35,6 +38,9 @@ pub struct VirtualMachine {
     /// Used for for-in loops to track iteration progress
     /// Supports nested for-in loops by maintaining a stack of iterators
     iterator_stack: Vec<(usize, Value)>,
+    /// Module cache: Maps canonical module paths to compiled module states
+    /// Ensures modules are loaded and initialized only once
+    module_cache: HashMap<PathBuf, Rc<ModuleState>>,
 }
 
 // Test-only methods

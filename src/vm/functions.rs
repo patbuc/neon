@@ -444,13 +444,36 @@ impl VirtualMachine {
                         return;
                     }
                 }
+                Object::Module(module_state) => {
+                    // Look up the export in the module's exports map
+                    if let Some(&global_index) = module_state.exports.get(&field_name) {
+                        // Get the value from the module's globals
+                        if global_index < module_state.globals.len() {
+                            let value = module_state.globals[global_index].clone();
+                            self.pop();
+                            self.push(value);
+                        } else {
+                            self.runtime_error(&format!(
+                                "Module export '{}' has invalid global index {}",
+                                field_name, global_index
+                            ));
+                            return;
+                        }
+                    } else {
+                        self.runtime_error(&format!(
+                            "Module does not export '{}'.",
+                            field_name
+                        ));
+                        return;
+                    }
+                }
                 _ => {
-                    self.runtime_error("Only instances have fields.");
+                    self.runtime_error("Only instances and modules have fields.");
                     return;
                 }
             },
             _ => {
-                self.runtime_error("Only instances have fields.");
+                self.runtime_error("Only instances and modules have fields.");
                 return;
             }
         }
@@ -1212,25 +1235,140 @@ impl VirtualMachine {
         if args.is_empty() {
             return Err("print() expects at least 1 argument".to_string());
         }
-        
+
         // Join all arguments with spaces
         let output = args.iter()
             .map(|v: &Value| v.to_string())
             .collect::<Vec<_>>()
             .join(" ");
-        
+
         // For test/debug/WASM contexts - append to VM's string buffer
         #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
             self.string_buffer.push_str(&format!("{}\n", output));
         }
-        
+
         // For normal execution (non-WASM) - print(to stdout)
         #[cfg(not(target_arch = "wasm32"))]
         {
             println!("{}", output);
         }
-        
+
         Ok(Value::Nil)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_load_module(&mut self, bits: BitsSize) -> Option<Result> {
+        use crate::common::{ModuleState, Object};
+        use crate::compiler::Compiler;
+        use std::collections::HashMap;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Read the module path from the string constant
+        let module_path_str = {
+            let frame = self.current_frame();
+            let string_index = match bits {
+                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 1) as usize,
+                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 1) as usize,
+                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 1) as usize,
+            };
+
+            let string_value = frame.function.chunk.read_string(string_index);
+            match string_value {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::String(s) => s.value.to_string(),
+                    _ => {
+                        self.runtime_error("Module path must be a string");
+                        return Some(Result::RuntimeError);
+                    }
+                },
+                _ => {
+                    self.runtime_error("Module path must be a string");
+                    return Some(Result::RuntimeError);
+                }
+            }
+        };
+
+        // Convert to PathBuf and canonicalize
+        let module_path = match PathBuf::from(&module_path_str).canonicalize() {
+            Ok(path) => path,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot resolve module path '{}': {}", module_path_str, e));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Check module cache
+        if let Some(cached_module) = self.module_cache.get(&module_path) {
+            // Module already loaded, push it onto the stack
+            let module_value = Value::new_module(
+                cached_module.globals.clone(),
+                cached_module.exports.clone(),
+                cached_module.path.clone(),
+            );
+            self.push(module_value);
+
+            let frame = self.current_frame_mut();
+            frame.ip += bits.as_bytes();
+            return None;
+        }
+
+        // Load module file
+        let module_source = match fs::read_to_string(&module_path) {
+            Ok(source) => source,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot read module file '{}': {}", module_path.display(), e));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Compile the module
+        let mut compiler = Compiler::new(self.builtin.clone());
+        let module_chunk = match compiler.compile_with_path(&module_source, Some(module_path.clone())) {
+            Some(chunk) => chunk,
+            None => {
+                self.runtime_error(&format!(
+                    "Module compilation failed for '{}': {}",
+                    module_path.display(),
+                    compiler.get_compilation_errors()
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Create a call frame for module initialization
+        let module_function = Rc::new(crate::common::ObjFunction {
+            name: format!("<module: {}>", module_path.display()),
+            arity: 0,
+            chunk: Rc::new(module_chunk),
+        });
+
+        // For now, create an empty module (without proper initialization)
+        // TODO: Properly execute module initialization and collect exports
+        // This requires a more sophisticated approach that doesn't cause stack overflow
+
+        let exports = HashMap::new();
+        let globals = Vec::new();
+
+        // Create module state
+        let module_state = Rc::new(ModuleState {
+            globals: globals.clone(),
+            exports: exports.clone(),
+            path: module_path.clone(),
+        });
+
+        // Cache the module
+        self.module_cache.insert(module_path.clone(), Rc::clone(&module_state));
+
+        // Push the module object onto the stack
+        let module_value = Value::new_module(globals, exports, module_path);
+        self.push(module_value);
+
+        // Advance IP
+        let frame = self.current_frame_mut();
+        frame.ip += bits.as_bytes();
+
+        None
     }
 }

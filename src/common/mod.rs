@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 pub mod chunk;
@@ -120,6 +121,7 @@ pub enum Object {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     #[serde(with = "serde_rc_str")]
     File(Rc<str>),
+    Module(Rc<ModuleState>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +149,13 @@ pub struct ObjInstance {
     #[serde(with = "serde_rc")]
     pub r#struct: Rc<ObjStruct>,
     pub fields: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ModuleState {
+    pub globals: Vec<Value>,
+    pub exports: HashMap<String, usize>,
+    pub path: PathBuf,
 }
 
 impl Value {
@@ -180,6 +189,18 @@ impl Value {
 
     pub(crate) fn new_file(path: String) -> Self {
         Value::Object(Rc::new(Object::File(Rc::from(path))))
+    }
+
+    pub(crate) fn new_module(
+        globals: Vec<Value>,
+        exports: HashMap<String, usize>,
+        path: PathBuf,
+    ) -> Self {
+        Value::Object(Rc::new(Object::Module(Rc::new(ModuleState {
+            globals,
+            exports,
+            path,
+        }))))
     }
 }
 
@@ -237,6 +258,7 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
+            Object::Module(module) => write!(f, "<module: {}>", module.path.display()),
         }
     }
 }
@@ -276,6 +298,13 @@ impl PartialEq for ObjInstance {
     fn eq(&self, other: &Self) -> bool {
         // Instances are equal if they point to the same struct and have same field values
         self.r#struct.name == other.r#struct.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ModuleState {
+    fn eq(&self, other: &Self) -> bool {
+        // Modules are equal if they have the same path
+        self.path == other.path
     }
 }
 

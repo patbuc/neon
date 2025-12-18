@@ -419,11 +419,21 @@ impl Parser {
     fn import_declaration(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        if !self.consume(TokenType::Identifier, "Expect module path after 'import'.") {
+        // Accept either an identifier (for relative paths like ./module) or a string literal
+        let module_path = if self.check(TokenType::String) {
+            self.advance();
+            // Strip quotes from string literal
+            let token_value = &self.previous_token.token;
+            token_value[1..token_value.len() - 1].to_string()
+        } else if self.check(TokenType::Identifier) {
+            self.advance();
+            self.previous_token.token.clone()
+        } else {
+            self.report_error_at_current(
+                "Expect module path (identifier or string) after 'import'.".to_string(),
+            );
             return None;
-        }
-
-        let module_path = self.previous_token.token.clone();
+        };
 
         self.consume_either(
             TokenType::NewLine,

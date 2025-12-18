@@ -27,6 +27,7 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            module_cache: std::collections::HashMap::new(),
         }
     }
 
@@ -301,10 +302,20 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
-                OpCode::LoadModule | OpCode::LoadModule2 | OpCode::LoadModule4 => {
-                    // Module loading will be implemented in Phase 5
-                    // For now, this is a placeholder to allow compilation
-                    panic!("LoadModule opcode not yet implemented - Phase 5")
+                OpCode::LoadModule => {
+                    if let Some(result) = self.fn_load_module(BitsSize::Eight) {
+                        return result;
+                    }
+                }
+                OpCode::LoadModule2 => {
+                    if let Some(result) = self.fn_load_module(BitsSize::Sixteen) {
+                        return result;
+                    }
+                }
+                OpCode::LoadModule4 => {
+                    if let Some(result) = self.fn_load_module(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
                 }
             }
             self.current_frame_mut().ip += 1;
