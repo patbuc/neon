@@ -1,0 +1,22 @@
+// Expected:
+// 0
+// 1
+// 1
+// 2
+// 3
+// 5
+// 8
+// 13
+// 21
+// 34
+
+fn fibonacci(n) {
+    if (n <= 1) {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+for (var i = 0; i < 10; i = i + 1) {
+    print fibonacci(i)
+}

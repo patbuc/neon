@@ -1,0 +1,14 @@
+// Expected:
+// 42
+// 4
+// 3
+// 4
+// 20
+// 10
+
+print Math.abs(-42)
+print Math.sqrt(16)
+print Math.floor(3.7)
+print Math.ceil(3.2)
+print Math.max(10, 20)
+print Math.min(10, 20)

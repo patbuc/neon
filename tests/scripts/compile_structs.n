@@ -1,0 +1,31 @@
+// Expected:
+// Alice
+// 30
+// Bob
+// 10
+// 20
+// 30
+// 40
+
+struct Person {
+    name
+    age
+}
+
+struct Point {
+    x
+    y
+}
+
+val p = Person("Alice", 30)
+print p.name
+print p.age
+p.name = "Bob"
+print p.name
+
+val pt1 = Point(10, 20)
+val pt2 = Point(30, 40)
+print pt1.x
+print pt1.y
+print pt2.x
+print pt2.y
