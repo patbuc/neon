@@ -301,6 +301,11 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
+                OpCode::LoadModule | OpCode::LoadModule2 | OpCode::LoadModule4 => {
+                    // Module loading will be implemented in Phase 5
+                    // For now, this is a placeholder to allow compilation
+                    panic!("LoadModule opcode not yet implemented - Phase 5")
+                }
             }
             self.current_frame_mut().ip += 1;
         }

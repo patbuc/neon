@@ -78,4 +78,7 @@ pub(crate) enum OpCode {
     PopIterator,
     CreateRange,
     ToString,
+    LoadModule,
+    LoadModule2,
+    LoadModule4,
 }

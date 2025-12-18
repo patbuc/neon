@@ -61,6 +61,29 @@ impl CodeGenerator {
                     self.current_chunk()
                         .define_local(local, location.line, location.column);
                 }
+                Stmt::Export { declaration, .. } => {
+                    // Handle exported functions and structs in first pass
+                    match declaration.as_ref() {
+                        Stmt::Fn { name, location, .. } => {
+                            self.emit_op_code(OpCode::Nil, *location);
+                            let local = Local::new(name.clone(), self.scope_depth, false);
+                            self.current_chunk()
+                                .define_local(local, location.line, location.column);
+                        }
+                        Stmt::Struct {
+                            name,
+                            fields,
+                            location,
+                        } => {
+                            let struct_value = Value::new_struct(name.clone(), fields.clone());
+                            self.emit_constant(struct_value, *location);
+                            let local = Local::new(name.clone(), self.scope_depth, false);
+                            self.current_chunk()
+                                .define_local(local, location.line, location.column);
+                        }
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
         }
@@ -546,6 +569,43 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
+    fn generate_import_stmt(&mut self, module_path: &str, location: SourceLocation) {
+        // Import statement code generation strategy:
+        // 1. Store module path as a string constant
+        // 2. Emit LoadModule opcode with the string constant index
+        // 3. Define a local variable for the module (uses last component of path)
+        //
+        // Bytecode structure:
+        //   LoadModule <string_index>  ; Pushes loaded Module object onto stack
+        //   SetLocal <module_var>      ; Define local variable for module
+        //
+        // Example: `import math` generates:
+        //   LoadModule 0  ; where string[0] = "math"
+        //   SetLocal 0    ; module stored in local variable
+
+        // Store module path as string constant
+        let module_path_value = string!(module_path);
+        let string_index = self.current_chunk().add_string(module_path_value);
+
+        // Emit LoadModule opcode with string index
+        self.emit_op_code_variant(OpCode::LoadModule, string_index, location);
+
+        // Extract module name from path (last component)
+        // For "foo/bar/baz" -> "baz"
+        // For "math" -> "math"
+        let module_name = module_path
+            .split('/')
+            .last()
+            .unwrap_or(module_path)
+            .to_string();
+
+        // Define local variable for the module
+        // The Module object is already on the stack from LoadModule
+        let local = Local::new(module_name, self.scope_depth, false);
+        self.current_chunk()
+            .define_local(local, location.line, location.column);
+    }
+
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
@@ -611,9 +671,11 @@ impl CodeGenerator {
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
             }
-            Stmt::Import { .. } => {
-                // Module system not yet implemented in codegen
-                // For now, imports are a no-op - they'll be handled in later phases
+            Stmt::Import {
+                module_path,
+                location,
+            } => {
+                self.generate_import_stmt(module_path, *location);
             }
             Stmt::Export { declaration, .. } => {
                 // Module system not yet implemented in codegen
