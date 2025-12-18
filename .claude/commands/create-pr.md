@@ -138,8 +138,11 @@ if [[ -n "$(git status --porcelain)" ]]; then
   echo "WARNING: Found uncommitted changes. This shouldn't happen if all tasks were committed."
   echo "Creating fallback commit..."
 
+  # Get repository root
+  neon_repo=$(git rev-parse --show-toplevel)
+
   # Source commit utilities for watermark validation
-  source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+  source "${neon_repo}/.claude/utils/commit-utils.sh"
 
   commit_message="feat: {feature description}"
 

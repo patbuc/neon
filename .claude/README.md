@@ -65,7 +65,7 @@ Contains Claude Code permissions. Currently allows:
 - `Bash(find:*)`
 - `Bash(cat:*)`
 - `Bash(xargs ls:*)`
-- `Bash(git -C /home/patbuc/code/neon log --oneline -15)`
+- `Bash(git log --oneline -15)`
 - `Bash(cargo test:*)`
 
 Add more permissions as needed.
