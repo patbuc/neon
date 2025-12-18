@@ -4,6 +4,10 @@
 /// Neon bytecode to/from a binary format that can be saved to disk and
 /// executed later.
 
+pub mod error;
 pub mod format;
 
-pub use format::{BinaryFormat, BinaryHeader, FORMAT_VERSION, MAGIC_NUMBER};
+pub use error::BinaryError;
+pub use format::{
+    deserialize_chunk, serialize_chunk, BinaryFormat, BinaryHeader, FORMAT_VERSION, MAGIC_NUMBER,
+};
