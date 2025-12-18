@@ -10,6 +10,7 @@ use crate::{number, string};
 use indexmap::IndexMap;
 
 struct LoopContext {
+    #[allow(dead_code)]
     loop_start: u32,
     break_jumps: Vec<u32>,
     continue_jumps: Vec<u32>,

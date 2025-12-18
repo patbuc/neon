@@ -2,7 +2,7 @@ use crate::compiler::token::TokenType;
 
 pub(crate) mod ast;
 pub(crate) mod codegen;
-pub(crate) mod compiler;
+pub(crate) mod compiler_impl;
 pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
