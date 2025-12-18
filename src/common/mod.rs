@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-pub(crate) mod chunk;
+pub mod chunk;
 pub mod constants;
 pub mod error_renderer;
 pub mod errors;
@@ -25,27 +25,27 @@ pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 pub struct Chunk {
     #[allow(dead_code)]
     pub name: String,
-    pub(crate) constants: Constants,
-    pub(crate) strings: Constants,
-    pub(crate) instructions: Vec<u8>,
-    pub(crate) source_locations: Vec<SourceLocation>,
-    pub(crate) locals: Vec<Local>,
+    pub constants: Constants,
+    pub strings: Constants,
+    pub instructions: Vec<u8>,
+    pub source_locations: Vec<SourceLocation>,
+    pub locals: Vec<Local>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Local {
+pub struct Local {
     pub name: String,
     pub depth: u32,
     pub is_mutable: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Constants {
+pub struct Constants {
     values: Vec<Value>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub(crate) struct SourceLocation {
+pub struct SourceLocation {
     pub offset: usize,
     pub line: u32,
     pub column: u32,
@@ -84,14 +84,14 @@ pub enum Value {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub(crate) enum MapKey {
+pub enum MapKey {
     #[serde(with = "serde_rc_str")]
     String(Rc<str>),
     Number(OrderedFloat<f64>),
     Boolean(bool),
 }
 
-pub(crate) type SetKey = MapKey;
+pub type SetKey = MapKey;
 
 impl Display for MapKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -123,7 +123,7 @@ pub enum Object {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ObjString {
+pub struct ObjString {
     #[serde(with = "serde_rc_str")]
     pub value: Rc<str>,
 }
@@ -137,13 +137,13 @@ pub struct ObjFunction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ObjStruct {
+pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ObjInstance {
+pub struct ObjInstance {
     #[serde(with = "serde_rc")]
     pub r#struct: Rc<ObjStruct>,
     pub fields: HashMap<String, Value>,

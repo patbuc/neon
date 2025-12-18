@@ -1,37 +1,10 @@
-use crate::binary::error::BinaryError;
-use crate::binary::format::{deserialize_chunk, serialize_chunk};
+use crate::common::chunk::binary::error::BinaryError;
+use crate::common::chunk::binary::format::{deserialize_chunk, serialize_chunk};
 use crate::common::Chunk;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 
-/// Writes a compiled chunk to a binary file (.nbc)
-///
-/// This function serializes the chunk using the Neon binary format and writes
-/// it to the specified file path. The file will be created if it doesn't exist,
-/// or overwritten if it does.
-///
-/// # Arguments
-/// * `path` - The file path where the binary should be written
-/// * `chunk` - The compiled chunk to serialize
-///
-/// # Returns
-/// * `Ok(())` - If the write operation succeeds
-/// * `Err(BinaryError)` - If serialization or I/O fails
-///
-/// # Errors
-/// * `BinaryError::SerializationError` - If chunk serialization fails
-/// * `BinaryError::IoError` - If file creation or writing fails (e.g., permission denied)
-///
-/// # Example
-/// ```ignore
-/// use neon::binary::io::write_binary_file;
-/// use neon::common::Chunk;
-/// use std::path::Path;
-///
-/// let chunk = Chunk::new("my_program");
-/// write_binary_file(Path::new("output.nbc"), &chunk)?;
-/// ```
 pub fn write_binary_file(path: &Path, chunk: &Chunk) -> Result<(), BinaryError> {
     // Serialize the chunk to binary format
     let binary_data = serialize_chunk(chunk)?;
@@ -54,32 +27,6 @@ pub fn write_binary_file(path: &Path, chunk: &Chunk) -> Result<(), BinaryError> 
     Ok(())
 }
 
-/// Reads a compiled chunk from a binary file (.nbc)
-///
-/// This function reads a Neon binary file and deserializes it back into a Chunk
-/// that can be executed by the VM.
-///
-/// # Arguments
-/// * `path` - The file path to read from
-///
-/// # Returns
-/// * `Ok(Chunk)` - The deserialized chunk
-/// * `Err(BinaryError)` - If I/O or deserialization fails
-///
-/// # Errors
-/// * `BinaryError::IoError` - If file reading fails (e.g., file not found, permission denied)
-/// * `BinaryError::DeserializationError` - If the file content cannot be deserialized
-/// * `BinaryError::InvalidFormat` - If the file is not a valid Neon binary
-/// * `BinaryError::UnsupportedVersion` - If the binary format version is not supported
-///
-/// # Example
-/// ```ignore
-/// use neon::binary::io::read_binary_file;
-/// use std::path::Path;
-///
-/// let chunk = read_binary_file(Path::new("program.nbc"))?;
-/// // Execute the chunk with the VM
-/// ```
 pub fn read_binary_file(path: &Path) -> Result<Chunk, BinaryError> {
     // Open and read the file
     let mut file = File::open(path).map_err(|e| {
@@ -126,7 +73,8 @@ mod tests {
         let read_chunk = read_binary_file(&file_path).expect("Read should succeed");
 
         // Verify the chunks match by comparing their serialized forms
-        let original_serialized = serialize_chunk(&original_chunk).expect("Serialization should succeed");
+        let original_serialized =
+            serialize_chunk(&original_chunk).expect("Serialization should succeed");
         let read_serialized = serialize_chunk(&read_chunk).expect("Serialization should succeed");
         assert_eq!(original_serialized, read_serialized);
     }
