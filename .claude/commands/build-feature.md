@@ -37,14 +37,20 @@ branch_name="feature/${feature_slug}"
 Create a new worktree for isolated development:
 
 ```bash
+# Get repository root dynamically
+neon_repo=$(git rev-parse --show-toplevel)
+
 # Ensure we're in the main repo
-cd /home/patbuc/code/neon
+cd "${neon_repo}"
+
+# Set worktree base directory (allow override via environment variable)
+worktree_base="${NEON_WORKTREE_BASE:-$(dirname "${neon_repo}")/neon-worktrees}"
 
 # Get absolute path for worktree
-worktree_path="/home/patbuc/code/neon-worktrees/${feature_slug}"
+worktree_path="${worktree_base}/${feature_slug}"
 
 # Create worktree directory if it doesn't exist
-mkdir -p /home/patbuc/code/neon-worktrees
+mkdir -p "${worktree_base}"
 
 # Create new worktree with new branch based on aoc-main
 git worktree add "${worktree_path}" -b "${branch_name}" aoc-main
@@ -68,7 +74,7 @@ cd "${worktree_path}"
 Create a workflow state file at `.claude/workflows/{feature-slug}-state.json` with:
 - feature description
 - branch name (feature/{feature-slug})
-- worktree_path: "/home/patbuc/code/neon-worktrees/{feature-slug}"
+- worktree_path: "{worktree_base}/{feature-slug}" (dynamically determined)
 - status: "planning"
 - tasks: []
 - current_task_index: 0
@@ -77,7 +83,7 @@ Create a workflow state file at `.claude/workflows/{feature-slug}-state.json` wi
 - iterations: 0
 - created_at: ISO timestamp
 
-Store the state file in the main repo (not the worktree) at `/home/patbuc/code/neon/.claude/workflows/{feature-slug}-state.json`
+Store the state file in the main repo (not the worktree) at `${neon_repo}/.claude/workflows/{feature-slug}-state.json`
 
 ### 3. Planning Phase
 
@@ -208,11 +214,14 @@ If status == "task_completed":
   ```bash
   cd {worktree_path}
 
+  # Get repository root
+  neon_repo=$(git rev-parse --show-toplevel)
+
   # Source commit utilities
-  source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+  source "${neon_repo}/.claude/utils/commit-utils.sh"
 
   # Get current task info from state file
-  state_file="/home/patbuc/code/neon/.claude/workflows/{feature-slug}-state.json"
+  state_file="${neon_repo}/.claude/workflows/{feature-slug}-state.json"
   current_task=$(jq -r ".tasks[.current_task_index]" "$state_file")
   task_description=$(echo "$current_task" | jq -r '.description')
 
@@ -381,11 +390,14 @@ If Copilot provided suggestions:
 ```bash
 cd {worktree_path}
 
+# Get repository root
+neon_repo=$(git rev-parse --show-toplevel)
+
 # Source utilities
-source /home/patbuc/code/neon/.claude/utils/commit-utils.sh
+source "${neon_repo}/.claude/utils/commit-utils.sh"
 
 # Get state file
-state_file="/home/patbuc/code/neon/.claude/workflows/{feature-slug}-state.json"
+state_file="${neon_repo}/.claude/workflows/{feature-slug}-state.json"
 
 # Fetch Copilot review comments
 pr_number=$(jq -r '.pr_number' "$state_file")

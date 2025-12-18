@@ -59,7 +59,7 @@ The system tracks workflow state in JSON files:
 {
   "feature": "Feature description",
   "branch": "feature/feature-name",
-  "worktree_path": "/home/patbuc/code/neon-worktrees/feature-name",
+  "worktree_path": "<worktree-base>/feature-name",
   "status": "planning|coding|testing|reviewing|pr_created|copilot_reviewing|addressing_copilot_feedback|completed",
   "current_phase": "current phase name",
   "tasks": [
@@ -107,7 +107,7 @@ The system tracks workflow state in JSON files:
 
 The orchestration system uses git worktrees to isolate feature development:
 
-- **Worktree Location**: `/home/patbuc/code/neon-worktrees/{feature-slug}/`
+- **Worktree Location**: `<repo-parent>/neon-worktrees/{feature-slug}/` (configurable via `NEON_WORKTREE_BASE`)
 - **Branch Naming**: `feature/{feature-slug}` (auto-generated from feature description)
 - **Benefits**:
   - Isolated development environment per feature
@@ -139,6 +139,44 @@ To use the GitHub Copilot code review integration:
    ```
 
 Without the extension, you can still manually add Copilot as a reviewer through the GitHub web UI.
+
+## Configuration
+
+### Worktree Location
+
+By default, worktrees are created in a sibling directory to your repository:
+- **Repository**: `/path/to/neon`
+- **Worktrees**: `/path/to/neon-worktrees/`
+
+The system uses dynamic path detection:
+```bash
+# Repository root is detected using git
+neon_repo=$(git rev-parse --show-toplevel)
+
+# Worktree base defaults to sibling directory
+worktree_base="${NEON_WORKTREE_BASE:-$(dirname "${neon_repo}")/neon-worktrees}"
+```
+
+#### Customizing Worktree Location
+
+To use a custom worktree location, set the `NEON_WORKTREE_BASE` environment variable:
+
+```bash
+# Temporary (current session only)
+export NEON_WORKTREE_BASE="/custom/path/to/worktrees"
+
+# Permanent (add to ~/.bashrc or ~/.zshrc)
+echo 'export NEON_WORKTREE_BASE="/custom/path/to/worktrees"' >> ~/.bashrc
+```
+
+Examples:
+- Default: Repository at `/Users/you/neon` → Worktrees at `/Users/you/neon-worktrees/`
+- Custom: `NEON_WORKTREE_BASE=/tmp/neon-dev` → Worktrees at `/tmp/neon-dev/`
+
+This makes the configuration portable across:
+- Different users
+- Different operating systems (Linux, macOS, WSL)
+- Different directory structures
 
 ## Usage
 
@@ -461,13 +499,13 @@ rm .claude/workflows/completed-feature-state.json
 
 List all worktrees:
 ```bash
-cd /home/patbuc/code/neon
 git worktree list
 ```
 
 Remove a completed feature worktree:
 ```bash
-git worktree remove /home/patbuc/code/neon-worktrees/feature-name
+# Replace <worktree-path> with the actual path from git worktree list
+git worktree remove <worktree-path>
 git branch -d feature/feature-name  # Delete the branch if merged
 ```
 
