@@ -209,6 +209,7 @@ pub enum Stmt {
 }
 
 impl Expr {
+    #[allow(dead_code)]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Expr::Number { location, .. }

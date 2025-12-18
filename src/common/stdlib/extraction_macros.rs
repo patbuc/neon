@@ -19,8 +19,6 @@
 //! let delimiter = extract_string_value!(args, 1, "delimiter", "split")?;
 //! ```
 
-use crate::common::{Object, Value};
-
 /// Extract a typed receiver (args[0]) from the arguments slice.
 ///
 /// Returns a `Result` with the extracted typed reference or an error message.
