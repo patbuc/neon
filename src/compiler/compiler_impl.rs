@@ -69,9 +69,12 @@ impl Compiler {
             }
         };
 
+        // Extract exports from semantic analyzer
+        let exports = analyzer.exports().clone();
+
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new(self.builtin.clone());
-        match codegen.generate(&ast) {
+        match codegen.generate_with_exports(&ast, exports) {
             Ok(chunk) => Some(chunk),
             Err(errors) => {
                 // Store structured errors

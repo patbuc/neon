@@ -1337,6 +1337,11 @@ impl VirtualMachine {
             }
         };
 
+        // Execute module initialization
+        // We need to run the module code and capture its globals
+        // Save the current stack position to know where module globals start
+        let stack_base = self.stack.len();
+
         // Create a call frame for module initialization
         let module_function = Rc::new(crate::common::ObjFunction {
             name: format!("<module: {}>", module_path.display()),
@@ -1344,12 +1349,212 @@ impl VirtualMachine {
             chunk: Rc::new(module_chunk),
         });
 
-        // For now, create an empty module (without proper initialization)
-        // TODO: Properly execute module initialization and collect exports
-        // This requires a more sophisticated approach that doesn't cause stack overflow
+        // Create a module frame similar to a script frame (slot_start = -1)
+        // but offset by the current stack position
+        let module_frame = CallFrame {
+            function: Rc::clone(&module_function),
+            ip: 0,
+            slot_start: stack_base as isize - 1,
+        };
 
-        let exports = HashMap::new();
-        let globals = Vec::new();
+        // Push the module frame and execute
+        self.call_frames.push(module_frame);
+
+        // Execute the module by continuing the run loop
+        // The module will execute until it hits a Return opcode
+        // We don't call self.run() to avoid recursion - instead we let the current
+        // run loop continue, and it will execute the module frame naturally
+
+        // Actually, we need to execute synchronously here to collect globals
+        // Let's execute the module inline
+        loop {
+            use crate::common::opcodes::OpCode;
+
+            let frame_index = self.call_frames.len() - 1;
+            let op_code = {
+                let frame = &self.call_frames[frame_index];
+                let ip = frame.ip;
+                OpCode::from_u8(frame.function.chunk.read_u8(ip))
+            };
+
+            // Execute the instruction
+            match op_code {
+                OpCode::Return => {
+                    // Module initialization complete
+                    self.call_frames.pop();
+                    break;
+                }
+                OpCode::Constant => self.fn_constant(),
+                OpCode::Constant2 => self.fn_constant2(),
+                OpCode::Constant4 => self.fn_constant4(),
+                OpCode::Negate => {
+                    if let Some(result) = self.fn_negate() {
+                        return Some(result);
+                    }
+                }
+                OpCode::Add => {
+                    if let Some(result) = self.fn_add() {
+                        return Some(result);
+                    }
+                }
+                OpCode::Subtract => self.fn_subtract(),
+                OpCode::Multiply => self.fn_multiply(),
+                OpCode::Divide => self.fn_divide(),
+                OpCode::FloorDivide => self.fn_floor_divide(),
+                OpCode::Modulo => self.fn_modulo(),
+                OpCode::Nil => self.push(Value::Nil),
+                OpCode::True => self.push(Value::Boolean(true)),
+                OpCode::False => self.push(Value::Boolean(false)),
+                OpCode::Equal => self.fn_equal(),
+                OpCode::Greater => self.fn_greater(),
+                OpCode::Less => self.fn_less(),
+                OpCode::Not => self.fn_not(),
+                OpCode::String => self.fn_string(),
+                OpCode::String2 => self.fn_string2(),
+                OpCode::String4 => self.fn_string4(),
+                OpCode::Print => self.fn_print(),
+                OpCode::Pop => { self.pop(); },
+                OpCode::GetLocal => self.fn_get_local(BitsSize::Eight),
+                OpCode::GetLocal2 => self.fn_get_local(BitsSize::Sixteen),
+                OpCode::GetLocal4 => self.fn_get_local(BitsSize::ThirtyTwo),
+                OpCode::SetLocal => self.fn_set_local(BitsSize::Eight),
+                OpCode::SetLocal2 => self.fn_set_local(BitsSize::Sixteen),
+                OpCode::SetLocal4 => self.fn_set_local(BitsSize::ThirtyTwo),
+                OpCode::GetBuiltin => self.fn_get_builtin(BitsSize::Eight),
+                OpCode::GetBuiltin2 => self.fn_get_builtin(BitsSize::Sixteen),
+                OpCode::GetBuiltin4 => self.fn_get_builtin(BitsSize::ThirtyTwo),
+                OpCode::GetGlobal => self.fn_get_global(BitsSize::Eight),
+                OpCode::GetGlobal2 => self.fn_get_global(BitsSize::Sixteen),
+                OpCode::GetGlobal4 => self.fn_get_global(BitsSize::ThirtyTwo),
+                OpCode::SetGlobal => self.fn_set_global(BitsSize::Eight),
+                OpCode::SetGlobal2 => self.fn_set_global(BitsSize::Sixteen),
+                OpCode::SetGlobal4 => self.fn_set_global(BitsSize::ThirtyTwo),
+                OpCode::JumpIfFalse => self.fn_jump_if_false(),
+                OpCode::Jump => self.fn_jump(),
+                OpCode::Loop => self.fn_loop(),
+                OpCode::Call => {
+                    if let Some(result) = self.fn_call() {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::GetField => self.fn_get_field(BitsSize::Eight),
+                OpCode::GetField2 => self.fn_get_field(BitsSize::Sixteen),
+                OpCode::GetField4 => self.fn_get_field(BitsSize::ThirtyTwo),
+                OpCode::SetField => self.fn_set_field(BitsSize::Eight),
+                OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
+                OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
+                OpCode::CallMethod => {
+                    if let Some(result) = self.fn_call_method(BitsSize::Eight) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallMethod2 => {
+                    if let Some(result) = self.fn_call_method(BitsSize::Sixteen) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallMethod4 => {
+                    if let Some(result) = self.fn_call_method(BitsSize::ThirtyTwo) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallStaticMethod => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::Eight) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallStaticMethod2 => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::Sixteen) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallStaticMethod4 => {
+                    if let Some(result) = self.fn_call_static_method(BitsSize::ThirtyTwo) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::Eight) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor2 => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::Sixteen) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CallConstructor4 => {
+                    if let Some(result) = self.fn_call_constructor(BitsSize::ThirtyTwo) {
+                        return Some(result);
+                    }
+                    continue;
+                }
+                OpCode::CreateMap => self.fn_create_map(),
+                OpCode::CreateArray => self.fn_create_array(),
+                OpCode::CreateSet => self.fn_create_set(),
+                OpCode::GetIndex => self.fn_get_index(),
+                OpCode::SetIndex => self.fn_set_index(),
+                OpCode::GetIterator => {
+                    if let Some(result) = self.fn_get_iterator() {
+                        return Some(result);
+                    }
+                }
+                OpCode::IteratorNext => {
+                    if let Some(result) = self.fn_iterator_next() {
+                        return Some(result);
+                    }
+                }
+                OpCode::IteratorDone => self.fn_iterator_done(),
+                OpCode::PopIterator => {
+                    if self.iterator_stack.is_empty() {
+                        self.runtime_error("No iterator to pop");
+                        return Some(Result::RuntimeError);
+                    }
+                    self.iterator_stack.pop();
+                }
+                OpCode::CreateRange => {
+                    if let Some(result) = self.fn_create_range() {
+                        return Some(result);
+                    }
+                }
+                OpCode::ToString => self.fn_to_string(),
+                OpCode::LoadModule => {
+                    // Nested module loading not supported during module initialization
+                    self.runtime_error("Cannot load modules during module initialization");
+                    return Some(Result::RuntimeError);
+                }
+                OpCode::LoadModule2 => {
+                    self.runtime_error("Cannot load modules during module initialization");
+                    return Some(Result::RuntimeError);
+                }
+                OpCode::LoadModule4 => {
+                    self.runtime_error("Cannot load modules during module initialization");
+                    return Some(Result::RuntimeError);
+                }
+            }
+
+            // Advance IP for next instruction
+            let frame_index = self.call_frames.len() - 1;
+            if frame_index < self.call_frames.len() {
+                self.call_frames[frame_index].ip += 1;
+            }
+        }
+
+        // Collect module globals from the stack
+        // Everything from stack_base onwards are the module's globals
+        let globals: Vec<Value> = self.stack[stack_base..].to_vec();
+
+        // Get export information from the compiled chunk
+        let exports = module_function.chunk.exports.clone();
 
         // Create module state
         let module_state = Rc::new(ModuleState {
@@ -1361,11 +1566,14 @@ impl VirtualMachine {
         // Cache the module
         self.module_cache.insert(module_path.clone(), Rc::clone(&module_state));
 
+        // Clean up: remove module globals from stack since they're now in the module
+        self.stack.truncate(stack_base);
+
         // Push the module object onto the stack
         let module_value = Value::new_module(globals, exports, module_path);
         self.push(module_value);
 
-        // Advance IP
+        // Advance IP of the calling frame
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
 

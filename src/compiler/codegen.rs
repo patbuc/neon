@@ -38,6 +38,14 @@ impl CodeGenerator {
     }
 
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
+        self.generate_with_exports(statements, std::collections::HashMap::new())
+    }
+
+    pub fn generate_with_exports(
+        &mut self,
+        statements: &[Stmt],
+        exports: std::collections::HashMap<String, crate::compiler::module_resolver::ExportedSymbol>,
+    ) -> CompilationResult<Chunk> {
         // First: Define all functions and structs with placeholders
         // This allows forward references to work
         for stmt in statements {
@@ -91,6 +99,18 @@ impl CodeGenerator {
         // Then: Generate code for all statements
         for stmt in statements {
             self.generate_stmt(stmt);
+        }
+
+        // Wire up export information to the chunk
+        // Map export names to their global indices in the chunk
+        for (export_name, _export_symbol) in exports.iter() {
+            // Find the global index for this symbol
+            let (maybe_index, _, is_global, _) = self.get_variable_index(export_name);
+            if let Some(index) = maybe_index {
+                if is_global {
+                    self.current_chunk().exports.insert(export_name.clone(), index as usize);
+                }
+            }
         }
 
         // Emit final return

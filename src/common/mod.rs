@@ -31,6 +31,9 @@ pub struct Chunk {
     pub instructions: Vec<u8>,
     pub source_locations: Vec<SourceLocation>,
     pub locals: Vec<Local>,
+    /// Export information: maps exported symbol names to their global indices
+    /// Only populated for module chunks, empty for regular scripts
+    pub exports: HashMap<String, usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
