@@ -88,10 +88,10 @@ large.add(2)
 large.add(3)
 large.add(4)
 
-print(small.isSubset(large)  // true)
-print(small.isSubset(small)  // true (set is subset of itself))
-print(large.isSubset(small)  // false)
-print(setA.isSubset(setB)    // false)
+print(small.isSubset(large)) // true
+print(small.isSubset(small)) // true (set is subset of itself)
+print(large.isSubset(small)) // false
+print(setA.isSubset(setB))   // false
 
 // Test 5: Empty set operations
 print("")
@@ -106,7 +106,7 @@ filled.add(3)
 
 print(empty.union(filled))
 print(empty.intersection(filled))
-print(filled.difference(filled)  // empty result)
+print(filled.difference(filled)) // empty result
 
 // Test 6: String sets
 print("")
@@ -152,7 +152,7 @@ guestPerms.add("read")
 print(adminPerms)
 print(adminPerms.has("admin"))
 print(userPerms.has("admin"))
-print(adminPerms.intersection(userPerms)  // common permissions)
-print(adminPerms.difference(userPerms)    // admin-only permissions)
-print(guestPerms.isSubset(userPerms)      // guest has fewer perms)
-print(userPerms.isSubset(adminPerms)      // user has subset of admin perms)
+print(adminPerms.intersection(userPerms)) // common permissions
+print(adminPerms.difference(userPerms))   // admin-only permissions
+print(guestPerms.isSubset(userPerms))     // guest has fewer perms
+print(userPerms.isSubset(adminPerms))     // user has subset of admin perms

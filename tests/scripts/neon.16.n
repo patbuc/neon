@@ -23,14 +23,14 @@ struct Line {
 val line = Line(Point(0, 0), Point(10, 10))
 
 // Access nested fields
-print(line.start.x  )      // 0)
-print(line.start.y  )      // 0)
-print(line.end.x    )      // 10)
-print(line.end.y    )      // 10)
+print(line.start.x) // 0
+print(line.start.y) // 0
+print(line.end.x)   // 10
+print(line.end.y)   // 10
 
 // Mutate nested fields
 line.end.x = 5
 line.end.y = 5
 
-print(line.end.x    )      // 5)
-print(line.end.y    )      // 5)
+print(line.end.x)   // 5
+print(line.end.y)   // 5

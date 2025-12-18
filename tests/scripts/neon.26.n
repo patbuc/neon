@@ -12,17 +12,17 @@
 
 // Map with number keys
 val numbers = {1: "one", 2: "two", 3: "three"}
-print(numbers[1]       )      // one)
-print(numbers[2]       )      // two)
-print(numbers[3]       )      // three)
+print(numbers[1])  // one
+print(numbers[2])  // two
+print(numbers[3])  // three
 
 // Map with boolean keys
 val bools = {true: "yes", false: "no"}
-print(bools[true]      )      // yes)
-print(bools[false]     )      // no)
+print(bools[true])  // yes
+print(bools[false]) // no
 
 // Map with mixed key types
 val mixed = {"str": "string key", 42: 42, true: true}
-print(mixed["str"]     )      // string key)
-print(mixed[42]        )      // 42)
-print(mixed[true]      )      // true)
+print(mixed["str"]) // string key
+print(mixed[42])    // 42
+print(mixed[true])  // true

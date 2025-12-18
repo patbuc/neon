@@ -13,10 +13,10 @@ val key3 = "z"
 
 val coords = {key1: 100, key2: 200, key3: 300}
 
-print(coords["x"]    )      // 100)
-print(coords["y"]    )      // 200)
-print(coords["z"]    )      // 300)
+print(coords["x"]) // 100
+print(coords["y"]) // 200
+print(coords["z"]) // 300
 
 // Use expression as key
 val sum = coords[key1] + coords[key2] + coords[key3]
-print(sum            )      // 600)
+print(sum)         // 600

@@ -15,7 +15,7 @@ val config = {
 }
 
 // Read configuration values
-print(config["host"]      )      // localhost)
-print(config["port"]      )      // 8080)
-print(config["debug"]     )      // true)
-print(config["timeout"]   )      // 30)
+print(config["host"])    // localhost
+print(config["port"])    // 8080
+print(config["debug"])   // true
+print(config["timeout"]) // 30

@@ -23,7 +23,7 @@ val game = Game(
 )
 
 // Access and modify
-print(game.player1.name     )      // Alice)
+print(game.player1.name) // Alice
 game.player1.score = 105
 game.round = game.round + 1
 
@@ -36,4 +36,4 @@ fn get_winner(g) {
 }
 
 val winner = get_winner(game)
-print(winner.name           )      // Alice)
+print(winner.name) // Alice

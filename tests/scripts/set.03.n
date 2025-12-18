@@ -119,11 +119,11 @@ print("")
 print("Duplicate handling")
 val dups = {1}
 dups.clear()
-print(dups.add(1)     // true (added))
-print(dups.add(2)     // true (added))
-print(dups.add(1)     // false (duplicate))
-print(dups.add(2)     // false (duplicate))
-print(dups.add(3)     // true (added))
+print(dups.add(1)) // true (added)
+print(dups.add(2)) // true (added)
+print(dups.add(1)) // false (duplicate)
+print(dups.add(2)) // false (duplicate)
+print(dups.add(3)) // true (added)
 dups.add(3)           // duplicate
 print(dups)
 print(dups.size())
@@ -139,7 +139,7 @@ print(bools)
 print(bools.size())
 print(bools.has(true))
 print(bools.has(false))
-print(bools.has(42)  // wrong type)
+print(bools.has(42)) // wrong type
 
 // Test 8: Zero and negative numbers
 print("")
