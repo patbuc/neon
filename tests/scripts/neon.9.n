@@ -6,15 +6,15 @@
 // zero is not nil
 
 val a = nil
-print a           // nil
+print(a)           // nil
 if (a == nil) {
-    print "is nil"
+    print("is nil")
 } else {
-    print "not nil"
+    print("not nil")
 }
 val b = 0
 if (b == nil) {
-    print "zero is nil"
+    print("zero is nil")
 } else {
-    print "zero is not nil"
+    print("zero is not nil")
 }

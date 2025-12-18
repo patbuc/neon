@@ -8,20 +8,6 @@ use std::rc::Rc;
 
 impl VirtualMachine {
     #[inline(always)]
-    pub(in crate::vm) fn fn_print(&mut self) {
-        let value = self.pop();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        println!("{}", value);
-
-        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
-        {
-            self.string_buffer.push_str(value.to_string().as_str());
-            self.string_buffer.push('\n');
-        }
-    }
-
-    #[inline(always)]
     pub(in crate::vm) fn fn_to_string(&mut self) {
         let value = self.pop();
         let string_value = string!(value.to_string());
@@ -1142,8 +1128,17 @@ impl VirtualMachine {
         let args_start = stack_len - arg_count;
         let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
 
-        // Call the native function
-        let result = native_callable.function()(&args);
+        // Special handling for print function to integrate with VM string buffer
+        let result = if registry_index == 0 {
+            // The print function is at index 0 in the registry - handle specially
+            match self.handle_print_function(&args) {
+                Ok(value) => Ok(value),
+                Err(error) => Err(error),
+            }
+        } else {
+            // Call the native function normally
+            native_callable.function()(&args)
+        };
 
         // Clean up stack
         self.stack.drain(args_start..);
@@ -1212,5 +1207,33 @@ impl VirtualMachine {
                 Some(Result::RuntimeError)
             }
         }
+    }
+
+    /// Special handling for print function to integrate with VM string buffer
+    /// This ensures print output goes to the correct place in test/debug/WASM contexts
+    fn handle_print_function(&mut self, args: &[Value]) -> std::result::Result<Value, String> {
+        if args.is_empty() {
+            return Err("print() expects at least 1 argument".to_string());
+        }
+        
+        // Join all arguments with spaces
+        let output = args.iter()
+            .map(|v: &Value| v.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+        
+        // For test/debug/WASM contexts - append to VM's string buffer
+        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+        {
+            self.string_buffer.push_str(&format!("{}\n", output));
+        }
+        
+        // For normal execution (non-WASM) - print to stdout
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            println!("{}", output);
+        }
+        
+        Ok(Value::Nil)
     }
 }

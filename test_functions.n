@@ -1,12 +1,12 @@
 fn hello() {
-   print "world"
+   print("world")
 }
 
 hello()
 
 fn greet() {
-   print "Hello from function!"
+   print("Hello from function!")
 }
 
 greet()
-print "Done"
+print("Done")

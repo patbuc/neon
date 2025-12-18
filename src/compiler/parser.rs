@@ -265,7 +265,6 @@ impl Parser {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
-                | TokenType::Print
                 | TokenType::Return => return,
                 _ => {}
             }
@@ -413,9 +412,7 @@ impl Parser {
     // ===== Statements =====
 
     fn statement(&mut self) -> Option<Stmt> {
-        if self.match_token(TokenType::Print) {
-            self.print_statement()
-        } else if self.match_token(TokenType::LeftBrace) {
+        if self.match_token(TokenType::LeftBrace) {
             let location = self.current_location();
             let statements = self.block_statements()?;
             Some(Stmt::Block {
@@ -437,17 +434,6 @@ impl Parser {
         } else {
             self.expression_statement()
         }
-    }
-
-    fn print_statement(&mut self) -> Option<Stmt> {
-        let location = self.current_location();
-        let expr = self.expression(false)?;
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' at end of statement.",
-        );
-        Some(Stmt::Print { expr, location })
     }
 
     fn expression_statement(&mut self) -> Option<Stmt> {

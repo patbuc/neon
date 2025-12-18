@@ -13,5 +13,5 @@
 // Test range with arithmetic expressions
 val base = 2
 for (i in base..(base + 10)) {
-    print i
+    print(i)
 }

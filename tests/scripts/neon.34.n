@@ -30,13 +30,13 @@ val scores = {
 
 // Access nested struct properties
 val s1 = students["student1"]
-print s1.name
-print s1.age
-print s1.city
-print scores["student1"]
+print(s1.name)
+print(s1.age)
+print(s1.city)
+print(scores["student1"])
 
 val s2 = students["student2"]
-print s2.name
-print s2.age
-print s2.city
-print scores["student2"]
+print(s2.name)
+print(s2.age)
+print(s2.city)
+print(scores["student2"])

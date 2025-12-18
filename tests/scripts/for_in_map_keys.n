@@ -2,8 +2,8 @@
 // iterating map
 
 val m = {"a": 1, "b": 2, "c": 3}
-print "iterating map"
+print("iterating map")
 for (key in m) {
-    // Just iterate, don't print since order is not guaranteed
+    // Just iterate, don't print(since order is not guaranteed)
     val dummy = key
 }

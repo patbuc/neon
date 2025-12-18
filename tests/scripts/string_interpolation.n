@@ -9,30 +9,30 @@
 
 // Interpolation with variable
 var name = "Alice"
-print "Hello ${name}"
+print("Hello ${name}")
 
 // Multiple expressions
 var x = 5
 var y = 3
-print "${x} + ${y} = ${x + y}"
+print("${x} + ${y} = ${x + y}")
 
 // Interpolation with number
 var answer = 42
-print "The answer is ${answer}"
+print("The answer is ${answer}")
 
 // Interpolation with array
 var arr = [1, 2, 3]
-print "${arr}"
+print("${arr}")
 
 // Interpolation with boolean
 var flag = true
-print "${flag}"
+print("${flag}")
 
 // Interpolation with float
 var pi = 3.14
-print "${pi}"
+print("${pi}")
 
 // Complex expression
 var a = 10
 var b = 10
-print "Result: ${a * b}"
+print("Result: ${a * b}")

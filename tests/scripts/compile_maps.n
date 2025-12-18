@@ -4,7 +4,7 @@
 // New York
 
 var person = {"name": "Alice", "age": 30}
-print person["name"]
-print person["age"]
+print(person["name"])
+print(person["age"])
 person["city"] = "New York"
-print person["city"]
+print(person["city"])

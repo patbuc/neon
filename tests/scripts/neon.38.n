@@ -10,7 +10,7 @@
 val point = {"x": 20, "y": 10}
 
 // Use map values in expressions
-print point["x"] + point["y"]    // 30
-print point["x"] - point["y"]    // 10
-print point["x"] * point["y"]    // 200
-print point["x"] / point["y"]    // 2
+print(point["x"] + point["y"]    )      // 30)
+print(point["x"] - point["y"]    )      // 10)
+print(point["x"] * point["y"]    )      // 200)
+print(point["x"] / point["y"]    )      // 2)

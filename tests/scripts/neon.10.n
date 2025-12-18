@@ -8,6 +8,6 @@
 val a = 8
 val b = -a
 val c = -b
-print b           // -8
-print c           // 8
-print -(-(-a))    // -8
+print(b           )      // -8)
+print(c           )      // 8)
+print(-(-(-a))    // -8)

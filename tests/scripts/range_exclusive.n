@@ -6,5 +6,5 @@
 
 // Test exclusive range with for-in loop
 for (i in 1..5) {
-    print i
+    print(i)
 }

@@ -187,7 +187,6 @@ impl VirtualMachine {
                 OpCode::String => self.fn_string(),
                 OpCode::String2 => self.fn_string2(),
                 OpCode::String4 => self.fn_string4(),
-                OpCode::Print => self.fn_print(),
                 OpCode::Pop => _ = self.pop(),
                 OpCode::GetLocal => self.fn_get_local(BitsSize::Eight),
                 OpCode::GetLocal2 => self.fn_get_local(BitsSize::Sixteen),

@@ -9,9 +9,9 @@
 val person = {"name": "Alice", "status": "Active", "city": "NYC"}
 
 // Use map values in string concatenation
-print "Name: " + person["name"] + ", Status: " + person["status"]
-print "Hello from " + person["city"]
+print("Name: " + person["name"] + ", Status: " + person["status"])
+print("Hello from " + person["city"])
 
 // Map with grade
 val grade = {"value": "A"}
-print "Grade: " + grade["value"]
+print("Grade: " + grade["value"])
