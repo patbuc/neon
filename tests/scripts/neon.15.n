@@ -25,10 +25,10 @@ fn move_point(pt, dx, dy) {
 
 // Create instances
 val p1 = Point(3, 4)
-print(distance_squared(p1)  // 25)
+print(distance_squared(p1)) // 25
 
 val p2 = Point(0, 0)
-print(distance_squared(p2)  // 0)
+print(distance_squared(p2)) // 0
 
 val p3 = move_point(p1, 2, 1)
-print(distance_squared(p3)  // 5*5 + 5*5 = 25 + 25 = 50)
+print(distance_squared(p3)) // 5*5 + 5*5 = 25 + 25 = 50

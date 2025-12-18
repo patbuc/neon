@@ -49,21 +49,21 @@ fn contains(rect, pt) {
 val rect = Rectangle(Point(0, 0), Point(10, 5))
 
 // Calculate area
-print(area(rect)  // 50)
+print(area(rect)) // 50
 
 // Test point containment
 val p1 = Point(-1, 2)
-print(contains(rect, p1)  // 0 (outside))
+print(contains(rect, p1)) // 0 (outside)
 
 val p2 = Point(5, 2)
-print(contains(rect, p2)  // 1 (inside))
+print(contains(rect, p2)) // 1 (inside)
 
 // Move the rectangle
 rect.top_left = Point(5, 5)
 rect.bottom_right = Point(15, 15)
 
-print(rect.top_left.x      )      // 5)
-print(rect.bottom_right.x  )      // 15)
+print(rect.top_left.x)     // 5
+print(rect.bottom_right.x) // 15
 
 // New area after moving
-print(area(rect)  // 100)
+print(area(rect)) // 100

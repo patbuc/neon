@@ -12,23 +12,23 @@
 
 // Start with empty map
 var squares = {}
-print(squares.size()  // 0)
+print(squares.size()) // 0
 
 // Add entries one by one
 squares[1] = 1
-print(squares.size()  // 1)
+print(squares.size()) // 1
 
 squares[2] = 4
-print(squares.size()  // 2)
+print(squares.size()) // 2
 
 squares[3] = 9
-print(squares.size()  // 3)
+print(squares.size()) // 3
 
 // Update existing entry
 squares[2] = 99
-print(squares.size()  // 3 (size unchanged))
+print(squares.size()) // 3 (size unchanged)
 
 // Verify values
-print(squares[1]      )      // 1)
-print(squares[2]      )      // 99)
-print(squares[3]      )      // 9)
+print(squares[1]) // 1
+print(squares[2]) // 99
+print(squares[3]) // 9
