@@ -105,7 +105,6 @@ impl Display for MapKey {
 pub(crate) enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
-    NativeFunction(ObjNativeFunction),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
@@ -124,32 +123,6 @@ pub(crate) struct ObjFunction {
     pub name: String,
     pub arity: u8,
     pub bloq: Rc<Bloq>,
-}
-
-#[derive(Clone)]
-pub(crate) struct ObjNativeFunction {
-    pub name: String,
-    pub arity: u8,
-    pub function: NativeFn,
-}
-
-impl std::fmt::Debug for ObjNativeFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ObjNativeFunction")
-            .field("name", &self.name)
-            .field("arity", &self.arity)
-            .field("function", &"<native fn>")
-            .finish()
-    }
-}
-
-impl PartialEq for ObjNativeFunction {
-    fn eq(&self, other: &Self) -> bool {
-        // Native functions are equal if they have the same name, arity, and function pointer
-        self.name == other.name
-            && self.arity == other.arity
-            && (self.function as usize) == (other.function as usize)
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -181,14 +154,6 @@ impl Value {
         }))))
     }
 
-    pub(crate) fn new_native_function(name: String, arity: u8, function: NativeFn) -> Self {
-        Value::Object(Rc::new(Object::NativeFunction(ObjNativeFunction {
-            name,
-            arity,
-            function,
-        })))
-    }
-
     pub(crate) fn new_array(elements: Vec<Value>) -> Self {
         Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
     }
@@ -217,7 +182,6 @@ impl Display for Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
-            Object::NativeFunction(native_fn) => write!(f, "<native fn {}>", native_fn.name),
             Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
             Object::Instance(obj_instance) => {
                 let instance = obj_instance;

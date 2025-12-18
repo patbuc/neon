@@ -1,5 +1,5 @@
 use crate::common::constants::VARIADIC_ARITY;
-use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -83,11 +83,6 @@ impl VirtualMachine {
                         return Some(value);
                     }
                 }
-                Object::NativeFunction(native_fn) => {
-                    if let Some(value) = self.call_native_function(arg_count, native_fn) {
-                        return Some(value);
-                    }
-                }
                 Object::Struct(instance) => {
                     if let Some(value) = self.instantiate_struct(arg_count, instance) {
                         return Some(value);
@@ -164,44 +159,6 @@ impl VirtualMachine {
 
         self.call_frames.push(new_frame);
         None
-    }
-
-    fn call_native_function(
-        &mut self,
-        arg_count: usize,
-        native_fn: &ObjNativeFunction,
-    ) -> Option<Result> {
-        // VARIADIC_ARITY means variadic function - any number of args allowed
-        if native_fn.arity != VARIADIC_ARITY && arg_count != native_fn.arity as usize {
-            self.runtime_error(&format!(
-                "Expected {} arguments but got {}.",
-                native_fn.arity, arg_count
-            ));
-            return Some(Result::RuntimeError);
-        }
-
-        let stack_len = self.stack.len();
-        let args_start = stack_len - arg_count;
-        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
-
-        let result = (native_fn.function)(&args);
-
-        let n = arg_count + 1;
-        let start = self.stack.len().saturating_sub(n);
-        self.stack.drain(start..);
-
-        match result {
-            Ok(value) => {
-                self.push(value);
-                let current_frame = self.current_frame_mut();
-                current_frame.ip += 2;
-                None
-            }
-            Err(error_msg) => {
-                self.runtime_error(&error_msg);
-                Some(Result::RuntimeError)
-            }
-        }
     }
 
     #[inline(always)]
@@ -571,33 +528,6 @@ impl VirtualMachine {
                                     let current_frame = self.current_frame_mut();
                                     current_frame.ip += ip_increment;
                                     None
-                                };
-                            }
-                            Object::NativeFunction(native_fn) => {
-                                let stack_len = self.stack.len();
-                                let receiver_index = stack_len - arg_count - 1;
-                                let args: Vec<Value> =
-                                    self.stack[receiver_index + 1..stack_len].to_vec();
-
-                                let result = (native_fn.function)(&args);
-
-                                let n = arg_count + 1;
-                                let start = self.stack.len().saturating_sub(n);
-                                self.stack.drain(start..);
-
-                                return match result {
-                                    Ok(value) => {
-                                        self.push(value);
-
-                                        let current_frame = self.current_frame_mut();
-                                        current_frame.ip += ip_increment;
-
-                                        None
-                                    }
-                                    Err(error_msg) => {
-                                        self.runtime_error(&error_msg);
-                                        Some(Result::RuntimeError)
-                                    }
                                 };
                             }
                             _ => {
@@ -1199,16 +1129,14 @@ impl VirtualMachine {
         };
 
         // Direct array index lookup - O(1)!
-        let native_callable = match crate::common::method_registry::get_native_method_by_index(registry_index) {
-            Some(callable) => callable,
-            None => {
-                self.runtime_error(&format!(
-                    "Invalid registry index: {}",
-                    registry_index
-                ));
-                return Some(Result::RuntimeError);
-            }
-        };
+        let native_callable =
+            match crate::common::method_registry::get_native_method_by_index(registry_index) {
+                Some(callable) => callable,
+                None => {
+                    self.runtime_error(&format!("Invalid registry index: {}", registry_index));
+                    return Some(Result::RuntimeError);
+                }
+            };
 
         // Pop arguments from stack (no receiver for static methods!)
         let stack_len = self.stack.len();
@@ -1253,16 +1181,14 @@ impl VirtualMachine {
         };
 
         // Direct array index lookup - O(1)!
-        let native_callable = match crate::common::method_registry::get_native_method_by_index(registry_index) {
-            Some(callable) => callable,
-            None => {
-                self.runtime_error(&format!(
-                    "Invalid registry index: {}",
-                    registry_index
-                ));
-                return Some(Result::RuntimeError);
-            }
-        };
+        let native_callable =
+            match crate::common::method_registry::get_native_method_by_index(registry_index) {
+                Some(callable) => callable,
+                None => {
+                    self.runtime_error(&format!("Invalid registry index: {}", registry_index));
+                    return Some(Result::RuntimeError);
+                }
+            };
 
         // Pop arguments from stack
         let stack_len = self.stack.len();
