@@ -1,10 +1,10 @@
 use crate::common::stdlib::create_builtin_objects;
-use crate::common::Bloq;
+use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
-fn compile_program(source: &str) -> Result<Bloq, String> {
+fn compile_program(source: &str) -> Result<Chunk, String> {
     // Parse
     let mut parser = Parser::new(source);
     let ast = parser
@@ -26,26 +26,26 @@ fn compile_program(source: &str) -> Result<Bloq, String> {
 
 #[test]
 fn test_simple_number() {
-    let bloq = compile_program("42\n").unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program("42\n").unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
 fn test_val_declaration() {
-    let bloq = compile_program("val x = 5\n").unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program("val x = 5\n").unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
 fn test_binary_expression() {
-    let bloq = compile_program("1 + 2\n").unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program("1 + 2\n").unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
 fn test_variable_reference() {
-    let bloq = compile_program("val x = 5\nprint x\n").unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program("val x = 5\nprint x\n").unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -56,8 +56,8 @@ fn test_function() {
     }
     val result = add(1, 2)
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -68,8 +68,8 @@ fn test_if_statement() {
         print x
     }
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -80,8 +80,8 @@ fn test_while_loop() {
         i = i + 1
     }
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -94,10 +94,10 @@ fn test_end_to_end_execution() {
     val sum = x + y
     print sum
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -118,10 +118,10 @@ fn test_end_to_end_function() {
     val result = add(15, 27)
     print result
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -147,10 +147,10 @@ fn test_end_to_end_forward_reference() {
 
     print foo()
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -175,7 +175,7 @@ fn test_else_if_bytecode_simple() {
         print 3
     }
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     // Verify that bytecode contains the expected jump instructions
     // Pattern should be:
@@ -193,8 +193,8 @@ fn test_else_if_bytecode_simple() {
     let mut jump_count = 0;
 
     let mut offset = 0;
-    while offset < bloq.instruction_count() {
-        let op = OpCode::from_u8(bloq.read_u8(offset));
+    while offset < chunk.instruction_count() {
+        let op = OpCode::from_u8(chunk.read_u8(offset));
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -275,14 +275,14 @@ fn test_else_if_bytecode_multiple_branches() {
         print 5
     }
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut jump_if_false_count = 0;
     let mut jump_count = 0;
 
     let mut offset = 0;
-    while offset < bloq.instruction_count() {
-        let op = OpCode::from_u8(bloq.read_u8(offset));
+    while offset < chunk.instruction_count() {
+        let op = OpCode::from_u8(chunk.read_u8(offset));
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -357,14 +357,14 @@ fn test_else_if_bytecode_without_final_else() {
         print 7
     }
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut jump_if_false_count = 0;
     let mut jump_count = 0;
 
     let mut offset = 0;
-    while offset < bloq.instruction_count() {
-        let op = OpCode::from_u8(bloq.read_u8(offset));
+    while offset < chunk.instruction_count() {
+        let op = OpCode::from_u8(chunk.read_u8(offset));
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -436,21 +436,24 @@ fn test_else_if_bytecode_jump_offsets() {
         print 3
     }
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     // Verify the bytecode compiles and has instructions
-    assert!(bloq.instruction_count() > 0, "Bytecode should not be empty");
+    assert!(
+        chunk.instruction_count() > 0,
+        "Bytecode should not be empty"
+    );
 
     // Walk through bytecode to find and verify jump instructions
     let mut i = 0;
     let mut jumps = Vec::new();
 
-    while i < bloq.instruction_count() {
-        let op = crate::common::opcodes::OpCode::from_u8(bloq.read_u8(i));
+    while i < chunk.instruction_count() {
+        let op = crate::common::opcodes::OpCode::from_u8(chunk.read_u8(i));
         match op {
             crate::common::opcodes::OpCode::JumpIfFalse | crate::common::opcodes::OpCode::Jump => {
                 // Read the 4-byte offset
-                let offset = bloq.read_u32(i + 1);
+                let offset = chunk.read_u32(i + 1);
                 let target = i + 5 + offset as usize;
                 jumps.push((i, op, target));
                 i += 5; // OpCode (1 byte) + offset (4 bytes)
@@ -462,7 +465,7 @@ fn test_else_if_bytecode_jump_offsets() {
     // Verify jumps are pointing to valid locations within bytecode
     for (pos, _op, target) in &jumps {
         assert!(
-            *target <= bloq.instruction_count(),
+            *target <= chunk.instruction_count(),
             "Jump at position {} targets invalid offset {}",
             pos,
             target
@@ -485,10 +488,10 @@ fn test_else_if_end_to_end_execution() {
         print 30
     }
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -503,8 +506,8 @@ fn test_map_literal_empty() {
     let program = r#"
     val m = {}
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -512,8 +515,8 @@ fn test_map_literal_single_entry() {
     let program = r#"
     val m = {"name": "Alice"}
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -525,8 +528,8 @@ fn test_map_literal_multiple_entries() {
         "city": "New York"
     }
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -535,8 +538,8 @@ fn test_map_index_access() {
     val m = {"key": "value"}
     val result = m["key"]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -545,8 +548,8 @@ fn test_map_index_assignment() {
     var m = {"x": 10}
     m["x"] = 20
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -556,8 +559,8 @@ fn test_map_dynamic_key_access() {
     val key = "a"
     val value = m[key]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -566,8 +569,8 @@ fn test_map_nested_operations() {
     val outer = {"inner": {"value": 42}}
     val result = outer["inner"]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -577,8 +580,8 @@ fn test_map_with_expressions_as_keys() {
     val key2 = "second"
     val m = {key1: 100, key2: 200}
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -587,8 +590,8 @@ fn test_map_with_number_keys() {
     val m = {1: "one", 2: "two", 3: "three"}
     val value = m[2]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 // =============================================================================
@@ -600,8 +603,8 @@ fn test_array_literal_empty() {
     let program = r#"
     val arr = []
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -609,8 +612,8 @@ fn test_array_literal_single_element() {
     let program = r#"
     val arr = [42]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -618,8 +621,8 @@ fn test_array_literal_multiple_elements() {
     let program = r#"
     val arr = [1, 2, 3, 4, 5]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -627,8 +630,8 @@ fn test_array_literal_mixed_types() {
     let program = r#"
     val arr = [1, "hello", true, nil]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -637,8 +640,8 @@ fn test_array_index_access() {
     val arr = [1, 2, 3]
     val result = arr[0]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -647,8 +650,8 @@ fn test_array_index_assignment() {
     var arr = [1, 2, 3]
     arr[0] = 99
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -657,8 +660,8 @@ fn test_array_negative_indexing() {
     val arr = [1, 2, 3]
     val last = arr[-1]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -668,8 +671,8 @@ fn test_array_nested() {
     val inner = arr[0]
     val value = inner[1]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -677,8 +680,8 @@ fn test_array_with_expressions() {
     let program = r#"
     val arr = [1 + 1, 2 * 3, 10 - 5]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -688,8 +691,8 @@ fn test_array_dynamic_index() {
     val i = 1
     val value = arr[i]
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -698,8 +701,8 @@ fn test_array_method_push() {
     var arr = [1, 2, 3]
     arr.push(4)
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -708,8 +711,8 @@ fn test_array_method_pop() {
     var arr = [1, 2, 3]
     val last = arr.pop()
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -718,8 +721,8 @@ fn test_array_method_length() {
     val arr = [1, 2, 3]
     val len = arr.length()
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -730,8 +733,8 @@ fn test_array_in_map() {
         "data": [4, 5, 6]
     }
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -762,8 +765,8 @@ fn test_postfix_increment_compiles() {
     var x = 5
     x++
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -772,8 +775,8 @@ fn test_postfix_decrement_compiles() {
     var x = 10
     x--
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -782,8 +785,8 @@ fn test_postfix_increment_in_expression() {
     var x = 5
     val y = x++
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -792,8 +795,8 @@ fn test_postfix_decrement_in_expression() {
     var x = 10
     val y = x--
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -802,8 +805,8 @@ fn test_postfix_increment_in_print() {
     var x = 5
     print x++
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -812,8 +815,8 @@ fn test_postfix_decrement_in_print() {
     var x = 10
     print x--
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -824,8 +827,8 @@ fn test_multiple_postfix_operations() {
     x++
     y--
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -836,8 +839,8 @@ fn test_postfix_increment_in_loop() {
         i++
     }
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -846,8 +849,8 @@ fn test_postfix_operations_with_arithmetic() {
     var x = 5
     val y = x++ + 10
     "#;
-    let bloq = compile_program(program).unwrap();
-    assert!(bloq.instruction_count() > 0);
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
 }
 
 #[test]
@@ -860,10 +863,10 @@ fn test_postfix_increment_end_to_end() {
     print old
     print x
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -883,10 +886,10 @@ fn test_postfix_decrement_end_to_end() {
     print old
     print x
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -907,10 +910,10 @@ fn test_postfix_increment_multiple_times() {
     x++
     print x
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {
@@ -934,10 +937,10 @@ fn test_postfix_operations_in_function() {
     val result = increment_and_return(5)
     print result
     "#;
-    let bloq = compile_program(program).unwrap();
+    let chunk = compile_program(program).unwrap();
 
     let mut vm = VirtualMachine::new();
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
 
     #[cfg(any(test, debug_assertions))]
     {

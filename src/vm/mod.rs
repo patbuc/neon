@@ -1,4 +1,4 @@
-use crate::common::{Bloq, CallFrame, Value};
+use crate::common::{CallFrame, Chunk, Value};
 use std::fmt::Debug;
 
 mod functions;
@@ -22,7 +22,7 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
-    bloq: Option<Bloq>,
+    chunk: Option<Chunk>,
     /// Global built-in values (like Math) stored separately from the call stack
     builtin: indexmap::IndexMap<String, Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
@@ -40,15 +40,15 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_bloq(&mut self, bloq: Bloq) -> Result {
+    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
         use crate::common::ObjFunction;
         use std::rc::Rc;
 
-        // Create a synthetic function for the test bloq
+        // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {
             name: "<test>".to_string(),
             arity: 0,
-            bloq: Rc::new(bloq),
+            chunk: Rc::new(chunk),
         });
 
         // Create the initial call frame
@@ -59,6 +59,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Bloq::new("dummy"))
+        self.run(&Chunk::new("dummy"))
     }
 }

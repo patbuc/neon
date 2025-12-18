@@ -1,10 +1,10 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Bloq;
+use crate::common::Chunk;
 
 #[cfg(feature = "disassemble")]
-impl Bloq {
+impl Chunk {
     #[allow(dead_code)]
-    pub(crate) fn disassemble_bloq(&self) {
+    pub(crate) fn disassemble_chunk(&self) {
         println!();
         println!("=== <{}>  ===", self.name);
 
@@ -79,12 +79,24 @@ impl Bloq {
             OpCode::CallMethod => self.call_method_instruction(OpCode::CallMethod, offset),
             OpCode::CallMethod2 => self.call_method_instruction(OpCode::CallMethod2, offset),
             OpCode::CallMethod4 => self.call_method_instruction(OpCode::CallMethod4, offset),
-            OpCode::CallStaticMethod => self.call_static_method_instruction(OpCode::CallStaticMethod, offset),
-            OpCode::CallStaticMethod2 => self.call_static_method_instruction(OpCode::CallStaticMethod2, offset),
-            OpCode::CallStaticMethod4 => self.call_static_method_instruction(OpCode::CallStaticMethod4, offset),
-            OpCode::CallConstructor => self.call_constructor_instruction(OpCode::CallConstructor, offset),
-            OpCode::CallConstructor2 => self.call_constructor_instruction(OpCode::CallConstructor2, offset),
-            OpCode::CallConstructor4 => self.call_constructor_instruction(OpCode::CallConstructor4, offset),
+            OpCode::CallStaticMethod => {
+                self.call_static_method_instruction(OpCode::CallStaticMethod, offset)
+            }
+            OpCode::CallStaticMethod2 => {
+                self.call_static_method_instruction(OpCode::CallStaticMethod2, offset)
+            }
+            OpCode::CallStaticMethod4 => {
+                self.call_static_method_instruction(OpCode::CallStaticMethod4, offset)
+            }
+            OpCode::CallConstructor => {
+                self.call_constructor_instruction(OpCode::CallConstructor, offset)
+            }
+            OpCode::CallConstructor2 => {
+                self.call_constructor_instruction(OpCode::CallConstructor2, offset)
+            }
+            OpCode::CallConstructor4 => {
+                self.call_constructor_instruction(OpCode::CallConstructor4, offset)
+            }
             OpCode::CreateMap => self.create_map_instruction(offset),
             OpCode::CreateArray => self.create_array_instruction(offset),
             OpCode::CreateSet => self.create_set_instruction(offset),
@@ -105,11 +117,11 @@ impl Bloq {
     }
 
     fn field_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_field_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_field_index(chunk: &Chunk, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::GetField | OpCode::SetField => (bloq.read_u8(offset) as usize, 1),
-                OpCode::GetField2 | OpCode::SetField2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::GetField4 | OpCode::SetField4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::GetField | OpCode::SetField => (chunk.read_u8(offset) as usize, 1),
+                OpCode::GetField2 | OpCode::SetField2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::GetField4 | OpCode::SetField4 => (chunk.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode for field instruction"),
             }
         }
@@ -121,11 +133,11 @@ impl Bloq {
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_constant_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_constant_index(chunk: &Chunk, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::Constant => (bloq.read_u8(offset) as usize, 1),
-                OpCode::Constant2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::Constant4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::Constant => (chunk.read_u8(offset) as usize, 1),
+                OpCode::Constant2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::Constant4 => (chunk.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode"),
             }
         }
@@ -137,20 +149,20 @@ impl Bloq {
     }
 
     fn variable_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        fn get_variable_index(bloq: &Bloq, op_code: &OpCode, offset: usize) -> (usize, usize) {
+        fn get_variable_index(chunk: &Chunk, op_code: &OpCode, offset: usize) -> (usize, usize) {
             match op_code {
-                OpCode::GetLocal => (bloq.read_u8(offset) as usize, 1),
-                OpCode::GetLocal2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::GetLocal4 => (bloq.read_u32(offset) as usize, 4),
-                OpCode::SetLocal => (bloq.read_u8(offset) as usize, 1),
-                OpCode::SetLocal2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::SetLocal4 => (bloq.read_u32(offset) as usize, 4),
-                OpCode::GetGlobal => (bloq.read_u8(offset) as usize, 1),
-                OpCode::GetGlobal2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::GetGlobal4 => (bloq.read_u32(offset) as usize, 4),
-                OpCode::SetGlobal => (bloq.read_u8(offset) as usize, 1),
-                OpCode::SetGlobal2 => (bloq.read_u16(offset) as usize, 2),
-                OpCode::SetGlobal4 => (bloq.read_u32(offset) as usize, 4),
+                OpCode::GetLocal => (chunk.read_u8(offset) as usize, 1),
+                OpCode::GetLocal2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::GetLocal4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::SetLocal => (chunk.read_u8(offset) as usize, 1),
+                OpCode::SetLocal2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::SetLocal4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::GetGlobal => (chunk.read_u8(offset) as usize, 1),
+                OpCode::GetGlobal2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::GetGlobal4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::SetGlobal => (chunk.read_u8(offset) as usize, 1),
+                OpCode::SetGlobal2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::SetGlobal4 => (chunk.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode {}", op_code),
             }
         }

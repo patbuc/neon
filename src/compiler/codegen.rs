@@ -4,7 +4,7 @@ use crate::common::errors::{
 /// Code generator for the multi-pass compiler
 /// Generates bytecode from AST using symbol table information
 use crate::common::opcodes::OpCode;
-use crate::common::{Bloq, Local, SourceLocation, Value};
+use crate::common::{Chunk, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 use indexmap::IndexMap;
@@ -16,7 +16,7 @@ struct LoopContext {
 }
 
 pub struct CodeGenerator {
-    bloqs: Vec<Bloq>,
+    chunks: Vec<Chunk>,
     scope_depth: u32,
     errors: Vec<CompilationError>,
     loop_contexts: Vec<LoopContext>,
@@ -25,10 +25,10 @@ pub struct CodeGenerator {
 
 impl CodeGenerator {
     pub fn new(builtin: IndexMap<String, Value>) -> Self {
-        let bloqs = vec![Bloq::new("main")];
+        let chunks = vec![Chunk::new("main")];
 
         CodeGenerator {
-            bloqs,
+            chunks,
             scope_depth: 0,
             errors: Vec::new(),
             loop_contexts: Vec::new(),
@@ -36,7 +36,7 @@ impl CodeGenerator {
         }
     }
 
-    pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Bloq> {
+    pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
         // First: Define all functions and structs with placeholders
         // This allows forward references to work
         for stmt in statements {
@@ -45,7 +45,7 @@ impl CodeGenerator {
                     // Define function with nil placeholder
                     self.emit_op_code(OpCode::Nil, *location);
                     let local = Local::new(name.clone(), self.scope_depth, false);
-                    self.current_bloq()
+                    self.current_chunk()
                         .define_local(local, location.line, location.column);
                 }
                 Stmt::Struct {
@@ -57,7 +57,7 @@ impl CodeGenerator {
                     let struct_value = Value::new_struct(name.clone(), fields.clone());
                     self.emit_constant(struct_value, *location);
                     let local = Local::new(name.clone(), self.scope_depth, false);
-                    self.current_bloq()
+                    self.current_chunk()
                         .define_local(local, location.line, location.column);
                 }
                 _ => {}
@@ -73,7 +73,7 @@ impl CodeGenerator {
         self.emit_return();
 
         if self.errors.is_empty() {
-            Ok(self.bloqs.pop().unwrap())
+            Ok(self.chunks.pop().unwrap())
         } else {
             Err(self.errors.clone())
         }
@@ -81,17 +81,17 @@ impl CodeGenerator {
 
     // ===== Helper Methods =====
 
-    fn current_bloq(&mut self) -> &mut Bloq {
-        self.bloqs.last_mut().unwrap()
+    fn current_chunk(&mut self) -> &mut Chunk {
+        self.chunks.last_mut().unwrap()
     }
 
     fn emit_op_code(&mut self, op_code: OpCode, location: SourceLocation) {
-        self.current_bloq()
+        self.current_chunk()
             .write_op_code(op_code, location.line, location.column);
     }
 
     fn emit_op_code_variant(&mut self, op_code: OpCode, index: u32, location: SourceLocation) {
-        self.current_bloq()
+        self.current_chunk()
             .write_op_code_variant(op_code, index, location.line, location.column);
     }
 
@@ -136,12 +136,12 @@ impl CodeGenerator {
     }
 
     fn emit_constant(&mut self, value: Value, location: SourceLocation) {
-        self.current_bloq()
+        self.current_chunk()
             .write_constant(value, location.line, location.column);
     }
 
     fn emit_string(&mut self, value: Value, location: SourceLocation) {
-        self.current_bloq()
+        self.current_chunk()
             .write_string(value, location.line, location.column);
     }
 
@@ -156,16 +156,16 @@ impl CodeGenerator {
     }
 
     fn emit_jump(&mut self, op_code: OpCode, location: SourceLocation) -> u32 {
-        self.current_bloq()
+        self.current_chunk()
             .emit_jump(op_code, location.line, location.column)
     }
 
     fn patch_jump(&mut self, offset: u32) {
-        self.current_bloq().patch_jump(offset);
+        self.current_chunk().patch_jump(offset);
     }
 
     fn emit_loop(&mut self, loop_start: u32, location: SourceLocation) {
-        self.current_bloq()
+        self.current_chunk()
             .emit_loop(loop_start, location.line, location.column);
     }
 
@@ -180,20 +180,20 @@ impl CodeGenerator {
             return (None, false, false, false);
         }
 
-        // Search in bloq stack from innermost to outermost
-        let current_bloq_idx = self.bloqs.len() - 1;
+        // Search in chunk stack from innermost to outermost
+        let current_chunk_idx = self.chunks.len() - 1;
 
-        // First try to find in current bloq (parameters and locals)
-        let current_result = self.bloqs[current_bloq_idx].get_local_index(name);
+        // First try to find in current chunk (parameters and locals)
+        let current_result = self.chunks[current_chunk_idx].get_local_index(name);
         if current_result.0.is_some() {
             let index = current_result.0.unwrap();
             return (Some(index), current_result.1, false, false);
         }
 
-        // Then try to find in parent bloqs (global scope for nested functions)
-        if current_bloq_idx > 0 {
-            for bloq_idx in (0..current_bloq_idx).rev() {
-                let index = self.bloqs[bloq_idx].get_local_index(name);
+        // Then try to find in parent chunks (global scope for nested functions)
+        if current_chunk_idx > 0 {
+            for chunk_idx in (0..current_chunk_idx).rev() {
+                let index = self.chunks[chunk_idx].get_local_index(name);
                 if index.0.is_some() {
                     return (Some(index.0.unwrap()), index.1, true, false); // is_global = true
                 }
@@ -205,7 +205,12 @@ impl CodeGenerator {
 
     // ===== Statement Generation =====
 
-    fn generate_val_stmt(&mut self, name: &str, initializer: &Option<Expr>, location: SourceLocation) {
+    fn generate_val_stmt(
+        &mut self,
+        name: &str,
+        initializer: &Option<Expr>,
+        location: SourceLocation,
+    ) {
         // Generate initializer or nil
         if let Some(init) = initializer {
             self.generate_expr(init);
@@ -215,11 +220,16 @@ impl CodeGenerator {
 
         // Define local variable
         let local = Local::new(name.to_string(), self.scope_depth, false);
-        self.current_bloq()
+        self.current_chunk()
             .define_local(local, location.line, location.column);
     }
 
-    fn generate_var_stmt(&mut self, name: &str, initializer: &Option<Expr>, location: SourceLocation) {
+    fn generate_var_stmt(
+        &mut self,
+        name: &str,
+        initializer: &Option<Expr>,
+        location: SourceLocation,
+    ) {
         // Generate initializer or nil
         if let Some(init) = initializer {
             self.generate_expr(init);
@@ -229,16 +239,22 @@ impl CodeGenerator {
 
         // Define local variable (mutable)
         let local = Local::new(name.to_string(), self.scope_depth, true);
-        self.current_bloq()
+        self.current_chunk()
             .define_local(local, location.line, location.column);
     }
 
-    fn generate_fn_stmt(&mut self, name: &str, params: &[String], body: &[Stmt], location: SourceLocation) {
+    fn generate_fn_stmt(
+        &mut self,
+        name: &str,
+        params: &[String],
+        body: &[Stmt],
+        location: SourceLocation,
+    ) {
         // Function was already defined with nil placeholder
         // Now compile the function body and replace the placeholder
 
-        // Create a new bloq for the function
-        self.bloqs.push(Bloq::new(&format!("function_{}", name)));
+        // Create a new chunk for the function
+        self.chunks.push(Chunk::new(&format!("function_{}", name)));
 
         // Enter function scope
         self.scope_depth += 1;
@@ -246,7 +262,7 @@ impl CodeGenerator {
         // Define parameters as local variables in the function scope
         for param in params {
             let param_local = Local::new(param.clone(), self.scope_depth, false);
-            self.current_bloq().add_parameter(param_local);
+            self.current_chunk().add_parameter(param_local);
         }
 
         // Compile function body
@@ -260,9 +276,9 @@ impl CodeGenerator {
         // Exit function scope
         self.scope_depth -= 1;
 
-        let function_bloq = self.bloqs.pop().unwrap();
+        let function_chunk = self.chunks.pop().unwrap();
         let function_value =
-            Value::new_function(name.to_string(), params.len() as u8, function_bloq);
+            Value::new_function(name.to_string(), params.len() as u8, function_chunk);
 
         // Replace the nil placeholder with the actual function
         self.emit_constant(function_value, location);
@@ -309,7 +325,13 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
-    fn generate_if_stmt(&mut self, condition: &Expr, then_branch: &Stmt, else_branch: &Option<Box<Stmt>>, location: SourceLocation) {
+    fn generate_if_stmt(
+        &mut self,
+        condition: &Expr,
+        then_branch: &Stmt,
+        else_branch: &Option<Box<Stmt>>,
+        location: SourceLocation,
+    ) {
         self.generate_expr(condition);
 
         let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
@@ -326,7 +348,7 @@ impl CodeGenerator {
     }
 
     fn generate_while_stmt(&mut self, condition: &Expr, body: &Stmt, location: SourceLocation) {
-        let loop_start = self.current_bloq().instruction_count() as u32;
+        let loop_start = self.current_chunk().instruction_count() as u32;
 
         // Push loop context for break/continue tracking
         self.loop_contexts.push(LoopContext {
@@ -431,7 +453,13 @@ impl CodeGenerator {
             .push(jump_index);
     }
 
-    fn generate_for_in_stmt(&mut self, variable: &str, collection: &Expr, body: &Stmt, location: SourceLocation) {
+    fn generate_for_in_stmt(
+        &mut self,
+        variable: &str,
+        collection: &Expr,
+        body: &Stmt,
+        location: SourceLocation,
+    ) {
         // For-in loop code generation strategy:
         // Unlike C-style for loops, we don't desugar this - we use iterator opcodes
         //
@@ -459,7 +487,7 @@ impl CodeGenerator {
         self.scope_depth += 1;
 
         // Mark the start of the loop
-        let loop_start = self.current_bloq().instruction_count() as u32;
+        let loop_start = self.current_chunk().instruction_count() as u32;
 
         // Push loop context for break/continue tracking
         self.loop_contexts.push(LoopContext {
@@ -482,7 +510,7 @@ impl CodeGenerator {
 
         // Define the loop variable (value is already on stack from IteratorNext)
         let local = Local::new(variable.to_string(), self.scope_depth, false);
-        self.current_bloq()
+        self.current_chunk()
             .define_local(local, location.line, location.column);
 
         // Generate the loop body
@@ -524,13 +552,26 @@ impl CodeGenerator {
 
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Val { name, initializer, location } => {
+            Stmt::Val {
+                name,
+                initializer,
+                location,
+            } => {
                 self.generate_val_stmt(name, initializer, *location);
             }
-            Stmt::Var { name, initializer, location } => {
+            Stmt::Var {
+                name,
+                initializer,
+                location,
+            } => {
                 self.generate_var_stmt(name, initializer, *location);
             }
-            Stmt::Fn { name, params, body, location } => {
+            Stmt::Fn {
+                name,
+                params,
+                body,
+                location,
+            } => {
                 self.generate_fn_stmt(name, params, body, *location);
             }
             Stmt::Struct { .. } => {
@@ -545,10 +586,19 @@ impl CodeGenerator {
             Stmt::Block { statements, .. } => {
                 self.generate_block_stmt(statements);
             }
-            Stmt::If { condition, then_branch, else_branch, location } => {
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+                location,
+            } => {
                 self.generate_if_stmt(condition, then_branch, else_branch, *location);
             }
-            Stmt::While { condition, body, location } => {
+            Stmt::While {
+                condition,
+                body,
+                location,
+            } => {
                 self.generate_while_stmt(condition, body, *location);
             }
             Stmt::Return { value, location } => {
@@ -560,7 +610,12 @@ impl CodeGenerator {
             Stmt::Continue { location } => {
                 self.generate_continue_stmt(*location);
             }
-            Stmt::ForIn { variable, collection, body, location } => {
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
             }
         }
@@ -568,7 +623,11 @@ impl CodeGenerator {
 
     // ===== Expression Generation =====
 
-    fn generate_string_interpolation_expr(&mut self, parts: &[crate::compiler::ast::InterpolationPart], location: SourceLocation) {
+    fn generate_string_interpolation_expr(
+        &mut self,
+        parts: &[crate::compiler::ast::InterpolationPart],
+        location: SourceLocation,
+    ) {
         use crate::compiler::ast::InterpolationPart;
 
         // Generate code for each part and concatenate them
@@ -600,8 +659,7 @@ impl CodeGenerator {
     }
 
     fn generate_variable_expr(&mut self, name: &str, location: SourceLocation) {
-        let (maybe_index, _is_mutable, is_global, is_builtin) =
-            self.get_variable_index(name);
+        let (maybe_index, _is_mutable, is_global, is_builtin) = self.get_variable_index(name);
         if let Some(index) = maybe_index {
             if is_builtin {
                 self.emit_op_code_variant(OpCode::GetBuiltin, index, location);
@@ -625,8 +683,7 @@ impl CodeGenerator {
         self.generate_expr(value);
 
         // Get the variable index
-        let (maybe_index, _is_mutable, is_global, _is_builtin) =
-            self.get_variable_index(name);
+        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
         if let Some(index) = maybe_index {
             if is_global {
                 self.emit_op_code_variant(OpCode::SetGlobal, index, location);
@@ -643,7 +700,13 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_binary_expr(&mut self, left: &Expr, operator: &BinaryOp, right: &Expr, location: SourceLocation) {
+    fn generate_binary_expr(
+        &mut self,
+        left: &Expr,
+        operator: &BinaryOp,
+        right: &Expr,
+        location: SourceLocation,
+    ) {
         // Handle short-circuit operators specially
         match operator {
             BinaryOp::And => {
@@ -684,9 +747,7 @@ impl CodeGenerator {
                     BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, location),
                     BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, location),
                     BinaryOp::Divide => self.emit_op_code(OpCode::Divide, location),
-                    BinaryOp::FloorDivide => {
-                        self.emit_op_code(OpCode::FloorDivide, location)
-                    }
+                    BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, location),
                     BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, location),
                     BinaryOp::Equal => self.emit_op_code(OpCode::Equal, location),
                     BinaryOp::NotEqual => {
@@ -728,8 +789,9 @@ impl CodeGenerator {
 
             // Look up the registry index at compile time (O(n) once, not per call!)
             // If not found, emit index 0 and let runtime handle the error
-            let registry_index = crate::common::method_registry::get_native_method_index(&constructor_name, "new")
-                .unwrap_or(0);
+            let registry_index =
+                crate::common::method_registry::get_native_method_index(&constructor_name, "new")
+                    .unwrap_or(0);
 
             // Evaluate all arguments (no callee!)
             for arg in arguments {
@@ -746,13 +808,13 @@ impl CodeGenerator {
             };
 
             self.emit_op_code(opcode, location);
-            self.current_bloq().write_u8(arguments.len() as u8);
+            self.current_chunk().write_u8(arguments.len() as u8);
 
             // Write registry index (O(1) lookup at runtime!)
             match index_bytes {
-                1 => self.current_bloq().write_u8(registry_index as u8),
-                2 => self.current_bloq().write_u16(registry_index as u16),
-                4 => self.current_bloq().write_u32(registry_index as u32),
+                1 => self.current_chunk().write_u8(registry_index as u8),
+                2 => self.current_chunk().write_u16(registry_index as u16),
+                4 => self.current_chunk().write_u32(registry_index as u32),
                 _ => unreachable!(),
             }
         } else {
@@ -767,11 +829,17 @@ impl CodeGenerator {
 
             // Emit call instruction
             self.emit_op_code(OpCode::Call, location);
-            self.current_bloq().write_u8(arguments.len() as u8);
+            self.current_chunk().write_u8(arguments.len() as u8);
         }
     }
 
-    fn generate_method_call_expr(&mut self, object: &Expr, method: &str, arguments: &[Expr], location: SourceLocation) {
+    fn generate_method_call_expr(
+        &mut self,
+        object: &Expr,
+        method: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
         // Check if this is a static method call (e.g., Math.abs)
         let is_static_call = if let Expr::Variable { name, .. } = object {
             self.is_static_namespace(name)
@@ -790,8 +858,9 @@ impl CodeGenerator {
 
             // Look up the registry index at compile time (O(n) once, not per call!)
             // If not found, emit index 0 and let runtime handle the error with proper type checking
-            let registry_index = crate::common::method_registry::get_native_method_index(&namespace_name, method)
-                .unwrap_or(0);
+            let registry_index =
+                crate::common::method_registry::get_native_method_index(&namespace_name, method)
+                    .unwrap_or(0);
 
             // Evaluate all arguments (no receiver!)
             for arg in arguments {
@@ -808,13 +877,13 @@ impl CodeGenerator {
             };
 
             self.emit_op_code(opcode, location);
-            self.current_bloq().write_u8(arguments.len() as u8);
+            self.current_chunk().write_u8(arguments.len() as u8);
 
             // Write registry index (O(1) lookup at runtime!)
             match index_bytes {
-                1 => self.current_bloq().write_u8(registry_index as u8),
-                2 => self.current_bloq().write_u16(registry_index as u16),
-                4 => self.current_bloq().write_u32(registry_index as u32),
+                1 => self.current_chunk().write_u8(registry_index as u8),
+                2 => self.current_chunk().write_u16(registry_index as u16),
+                4 => self.current_chunk().write_u32(registry_index as u32),
                 _ => unreachable!(),
             }
         } else {
@@ -829,7 +898,7 @@ impl CodeGenerator {
 
             // Add method name to string constants
             let method_string = string!(method);
-            let method_index = self.current_bloq().add_string(method_string);
+            let method_index = self.current_chunk().add_string(method_string);
 
             // Emit CallMethod instruction with appropriate variant based on method_index size
             let (opcode, index_bytes) = if method_index <= 0xFF {
@@ -841,13 +910,13 @@ impl CodeGenerator {
             };
 
             self.emit_op_code(opcode, location);
-            self.current_bloq().write_u8(arguments.len() as u8);
+            self.current_chunk().write_u8(arguments.len() as u8);
 
             // Write method index with appropriate size
             match index_bytes {
-                1 => self.current_bloq().write_u8(method_index as u8),
-                2 => self.current_bloq().write_u16(method_index as u16),
-                4 => self.current_bloq().write_u32(method_index),
+                1 => self.current_chunk().write_u8(method_index as u8),
+                2 => self.current_chunk().write_u16(method_index as u16),
+                4 => self.current_chunk().write_u32(method_index),
                 _ => unreachable!(),
             }
         }
@@ -876,7 +945,7 @@ impl CodeGenerator {
 
         // Emit CreateArray with the count of elements
         self.emit_op_code(OpCode::CreateArray, location);
-        self.current_bloq().write_u16(elements.len() as u16);
+        self.current_chunk().write_u16(elements.len() as u16);
     }
 
     fn generate_postfix_operation(
@@ -951,39 +1020,70 @@ impl CodeGenerator {
             Expr::Variable { name, location } => {
                 self.generate_variable_expr(name, *location);
             }
-            Expr::Assign { name, value, location } => {
+            Expr::Assign {
+                name,
+                value,
+                location,
+            } => {
                 self.generate_assign_expr(name, value, *location);
             }
-            Expr::Binary { left, operator, right, location } => {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+                location,
+            } => {
                 self.generate_binary_expr(left, operator, right, *location);
             }
-            Expr::Unary { operator, operand, location } => {
+            Expr::Unary {
+                operator,
+                operand,
+                location,
+            } => {
                 self.generate_expr(operand);
                 match operator {
                     UnaryOp::Negate => self.emit_op_code(OpCode::Negate, *location),
                     UnaryOp::Not => self.emit_op_code(OpCode::Not, *location),
                 }
             }
-            Expr::Call { callee, arguments, location } => {
+            Expr::Call {
+                callee,
+                arguments,
+                location,
+            } => {
                 self.generate_call_expr(callee, arguments, *location);
             }
-            Expr::GetField { object, field, location } => {
+            Expr::GetField {
+                object,
+                field,
+                location,
+            } => {
                 self.generate_expr(object);
                 let field_string = string!(field.as_str());
-                let field_index = self.current_bloq().add_string(field_string);
+                let field_index = self.current_chunk().add_string(field_string);
                 self.emit_op_code_variant(OpCode::GetField, field_index, *location);
             }
-            Expr::SetField { object, field, value, location } => {
+            Expr::SetField {
+                object,
+                field,
+                value,
+                location,
+            } => {
                 self.generate_expr(object);
                 self.generate_expr(value);
                 let field_string = string!(field.as_str());
-                let field_index = self.current_bloq().add_string(field_string);
+                let field_index = self.current_chunk().add_string(field_string);
                 self.emit_op_code_variant(OpCode::SetField, field_index, *location);
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
             }
-            Expr::MethodCall { object, method, arguments, location } => {
+            Expr::MethodCall {
+                object,
+                method,
+                arguments,
+                location,
+            } => {
                 self.generate_method_call_expr(object, method, arguments, *location);
             }
             Expr::MapLiteral { entries, location } => {
@@ -994,7 +1094,7 @@ impl CodeGenerator {
                     self.generate_expr(value);
                 }
                 self.emit_op_code(OpCode::CreateMap, *location);
-                self.current_bloq().write_u8(entries.len() as u8);
+                self.current_chunk().write_u8(entries.len() as u8);
             }
             Expr::ArrayLiteral { elements, location } => {
                 self.generate_array_literal_expr(elements, *location);
@@ -1004,24 +1104,39 @@ impl CodeGenerator {
                     self.generate_expr(element);
                 }
                 self.emit_op_code(OpCode::CreateSet, *location);
-                self.current_bloq().write_u8(elements.len() as u8);
+                self.current_chunk().write_u8(elements.len() as u8);
             }
-            Expr::Index { object, index, location } => {
+            Expr::Index {
+                object,
+                index,
+                location,
+            } => {
                 self.generate_expr(object);
                 self.generate_expr(index);
                 self.emit_op_code(OpCode::GetIndex, *location);
             }
-            Expr::IndexAssign { object, index, value, location } => {
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                location,
+            } => {
                 self.generate_expr(object);
                 self.generate_expr(index);
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::SetIndex, *location);
             }
-            Expr::Range { start, end, inclusive, location } => {
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                location,
+            } => {
                 self.generate_expr(start);
                 self.generate_expr(end);
                 self.emit_op_code(OpCode::CreateRange, *location);
-                self.current_bloq().write_u8(if *inclusive { 1 } else { 0 });
+                self.current_chunk()
+                    .write_u8(if *inclusive { 1 } else { 0 });
             }
             Expr::PostfixIncrement { operand, location } => {
                 self.generate_postfix_increment_expr(operand, *location);

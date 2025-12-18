@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
+use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
@@ -18,7 +18,7 @@ impl VirtualMachine {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
-            bloq: None,
+            chunk: None,
             builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
@@ -43,25 +43,25 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new(self.builtin.clone());
-        let bloq = compiler.compile(&source);
+        let chunk = compiler.compile(&source);
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
-        if bloq.is_none() {
+        if chunk.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
             self.structured_errors = compiler.get_structured_errors();
             return Result::CompileError;
         }
 
-        let bloq = bloq.unwrap();
+        let chunk = chunk.unwrap();
 
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
-            bloq: Rc::new(bloq),
+            chunk: Rc::new(chunk),
         });
 
         // Use -1 for slot_start since the script has no function object on the stack
@@ -72,8 +72,8 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Bloq::new("dummy"));
-        self.bloq = None;
+        let result = self.run(&Chunk::new("dummy"));
+        self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -82,17 +82,17 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _bloq: &Bloq) -> Result {
+    pub(in crate::vm) fn run(&mut self, _chunk: &Chunk) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
-            frame.function.bloq.disassemble_bloq();
+            frame.function.chunk.disassemble_chunk();
         }
         loop {
             let op_code = {
                 let frame = self.current_frame();
                 let ip = frame.ip;
-                OpCode::from_u8(frame.function.bloq.read_u8(ip))
+                OpCode::from_u8(frame.function.chunk.read_u8(ip))
             };
 
             match op_code {
@@ -328,7 +328,7 @@ impl VirtualMachine {
 
     fn get_current_source_location(&self) -> String {
         if let Some(frame) = self.call_frames.last() {
-            if let Some(location) = frame.function.bloq.get_source_location(frame.ip) {
+            if let Some(location) = frame.function.chunk.get_source_location(frame.ip) {
                 format!("{}:{}", location.line, location.column)
             } else {
                 "unknown".to_string()
@@ -341,7 +341,7 @@ impl VirtualMachine {
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
-        self.bloq = None;
+        self.chunk = None;
         self.runtime_errors.clear();
     }
 
