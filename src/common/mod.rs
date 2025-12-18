@@ -11,9 +11,8 @@ pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
+pub mod stdlib;
 pub mod string_similarity;
-
-pub(crate) mod stdlib;
 #[cfg(test)]
 mod tests;
 
@@ -25,7 +24,7 @@ pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Chunk {
     #[allow(dead_code)]
-    pub(crate) name: String,
+    pub name: String,
     pub(crate) constants: Constants,
     pub(crate) strings: Constants,
     pub(crate) instructions: Vec<u8>,
@@ -76,7 +75,7 @@ impl BitsSize {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub(crate) enum Value {
+pub enum Value {
     Number(f64),
     #[serde(with = "serde_rc")]
     Object(Rc<Object>),
@@ -105,7 +104,7 @@ impl Display for MapKey {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub(crate) enum Object {
+pub enum Object {
     String(ObjString),
     #[serde(with = "serde_rc")]
     Function(Rc<ObjFunction>),
@@ -130,7 +129,7 @@ pub(crate) struct ObjString {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ObjFunction {
+pub struct ObjFunction {
     pub name: String,
     pub arity: u8,
     #[serde(with = "serde_rc")]
@@ -184,7 +183,7 @@ impl Value {
     }
 }
 
-pub(crate) struct CallFrame {
+pub struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
