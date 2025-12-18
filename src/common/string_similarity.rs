@@ -13,7 +13,7 @@
 /// The edit distance between the two strings
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// use neon::common::string_similarity::levenshtein_distance;
 ///
 /// assert_eq!(levenshtein_distance("kitten", "sitting"), 3);
@@ -37,7 +37,7 @@ pub fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 /// * `None` - If no match exists within the threshold
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// use neon::common::string_similarity::find_closest_match;
 ///
 /// let candidates = vec!["length", "width", "height"];

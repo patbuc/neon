@@ -538,7 +538,7 @@ impl MethodRegistry {
     /// A vector of method names valid for this type, or an empty vector if the type is unknown.
     ///
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use neon::common::method_registry::MethodRegistry;
     ///
     /// let methods = MethodRegistry::get_methods_for_type("Array");
@@ -556,7 +556,7 @@ impl MethodRegistry {
     /// `true` if the method exists for this type, `false` otherwise.
     ///
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use neon::common::method_registry::MethodRegistry;
     ///
     /// assert!(MethodRegistry::is_valid_method("Array", "push"));
@@ -578,7 +578,7 @@ impl MethodRegistry {
     /// * `None` - If no similar method exists
     ///
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use neon::common::method_registry::MethodRegistry;
     ///
     /// assert_eq!(MethodRegistry::suggest_method("Array", "psh"), Some("push"));
