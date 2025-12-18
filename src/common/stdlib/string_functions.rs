@@ -1,4 +1,5 @@
 use crate::common::{Object, Value};
+use crate::{extract_receiver, extract_arg, extract_string_value};
 use crate::string;
 
 /// Native implementation of String.len()
@@ -8,16 +9,9 @@ pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
         return Err("string.len() requires a string receiver".to_string());
     }
 
-    match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(obj_string) => {
-                let len = obj_string.value.chars().count();
-                Ok(Value::Number(len as f64))
-            }
-            _ => Err("len() can only be called on strings".to_string()),
-        },
-        _ => Err("len() can only be called on strings".to_string()),
-    }
+    let obj_string = extract_receiver!(args, String, "len")?;
+    let len = obj_string.value.chars().count();
+    Ok(Value::Number(len as f64))
 }
 
 /// Native implementation of String.substring(start, end)
@@ -32,24 +26,11 @@ pub fn native_string_substring(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("substring() can only be called on strings".to_string()),
-        },
-        _ => return Err("substring() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "substring")?;
 
     // Extract start and end indices
-    let start_arg = match &args[1] {
-        Value::Number(n) => *n,
-        _ => return Err("substring() start index must be a number".to_string()),
-    };
-
-    let end_arg = match &args[2] {
-        Value::Number(n) => *n,
-        _ => return Err("substring() end index must be a number".to_string()),
-    };
+    let start_arg = extract_arg!(args, 1, Number, "start index", "substring")?;
+    let end_arg = extract_arg!(args, 2, Number, "end index", "substring")?;
 
     // Collect characters for proper Unicode handling
     let chars: Vec<char> = obj_string.value.chars().collect();
@@ -89,31 +70,13 @@ pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("replace() can only be called on strings".to_string()),
-        },
-        _ => return Err("replace() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "replace")?;
 
     // Extract old substring
-    let old_str = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("replace() old argument must be a string".to_string()),
-        },
-        _ => return Err("replace() old argument must be a string".to_string()),
-    };
+    let old_str = extract_string_value!(args, 1, "old", "replace");
 
     // Extract new substring
-    let new_str = match &args[2] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("replace() new argument must be a string".to_string()),
-        },
-        _ => return Err("replace() new argument must be a string".to_string()),
-    };
+    let new_str = extract_string_value!(args, 2, "new", "replace");
 
     // Perform replacement
     let result = obj_string.value.replace(old_str, new_str);
@@ -129,13 +92,7 @@ pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("toInt() can only be called on strings".to_string()),
-        },
-        _ => return Err("toInt() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "toInt")?;
 
     // Trim whitespace and parse as i64
     let trimmed = obj_string.value.trim();
@@ -157,13 +114,7 @@ pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("toFloat() can only be called on strings".to_string()),
-        },
-        _ => return Err("toFloat() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "toFloat")?;
 
     // Trim whitespace and parse as f64
     let trimmed = obj_string.value.trim();
@@ -185,13 +136,7 @@ pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("toBool() can only be called on strings".to_string()),
-        },
-        _ => return Err("toBool() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "toBool")?;
 
     // Trim whitespace and convert to lowercase for case-insensitive comparison
     let normalized = obj_string.value.trim().to_lowercase();
@@ -217,22 +162,10 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("split() can only be called on strings".to_string()),
-        },
-        _ => return Err("split() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "split")?;
 
     // Extract delimiter
-    let delimiter = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("split() delimiter must be a string".to_string()),
-        },
-        _ => return Err("split() delimiter must be a string".to_string()),
-    };
+    let delimiter = extract_string_value!(args, 1, "delimiter", "split");
 
     // Handle edge cases
     let parts: Vec<Value> = if delimiter.is_empty() {
@@ -265,13 +198,7 @@ pub fn native_string_trim(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("trim() can only be called on strings".to_string()),
-        },
-        _ => return Err("trim() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "trim")?;
 
     let trimmed = obj_string.value.trim();
     Ok(string!(trimmed))
@@ -288,22 +215,10 @@ pub fn native_string_starts_with(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("startsWith() can only be called on strings".to_string()),
-        },
-        _ => return Err("startsWith() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "startsWith")?;
 
     // Extract prefix
-    let prefix = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("startsWith() prefix must be a string".to_string()),
-        },
-        _ => return Err("startsWith() prefix must be a string".to_string()),
-    };
+    let prefix = extract_string_value!(args, 1, "prefix", "startsWith");
 
     Ok(Value::Boolean(obj_string.value.starts_with(prefix)))
 }
@@ -319,22 +234,10 @@ pub fn native_string_ends_with(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("endsWith() can only be called on strings".to_string()),
-        },
-        _ => return Err("endsWith() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "endsWith")?;
 
     // Extract suffix
-    let suffix = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("endsWith() suffix must be a string".to_string()),
-        },
-        _ => return Err("endsWith() suffix must be a string".to_string()),
-    };
+    let suffix = extract_string_value!(args, 1, "suffix", "endsWith");
 
     Ok(Value::Boolean(obj_string.value.ends_with(suffix)))
 }
@@ -350,22 +253,10 @@ pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("indexOf() can only be called on strings".to_string()),
-        },
-        _ => return Err("indexOf() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "indexOf")?;
 
     // Extract substring
-    let substring = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("indexOf() substring must be a string".to_string()),
-        },
-        _ => return Err("indexOf() substring must be a string".to_string()),
-    };
+    let substring = extract_string_value!(args, 1, "substring", "indexOf");
 
     // Find the index (character-based, not byte-based)
     let chars: Vec<char> = obj_string.value.chars().collect();
@@ -395,19 +286,10 @@ pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("charAt() can only be called on strings".to_string()),
-        },
-        _ => return Err("charAt() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "charAt")?;
 
     // Extract index
-    let index_arg = match &args[1] {
-        Value::Number(n) => *n,
-        _ => return Err("charAt() index must be a number".to_string()),
-    };
+    let index_arg = extract_arg!(args, 1, Number, "index", "charAt")?;
 
     // Handle negative indices and bounds checking
     let chars: Vec<char> = obj_string.value.chars().collect();
@@ -438,13 +320,7 @@ pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("toUpperCase() can only be called on strings".to_string()),
-        },
-        _ => return Err("toUpperCase() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "toUpperCase")?;
 
     let uppercase = obj_string.value.to_uppercase();
     Ok(string!(uppercase))
@@ -458,13 +334,7 @@ pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s,
-            _ => return Err("toLowerCase() can only be called on strings".to_string()),
-        },
-        _ => return Err("toLowerCase() can only be called on strings".to_string()),
-    };
+    let obj_string = extract_receiver!(args, String, "toLowerCase")?;
 
     let lowercase = obj_string.value.to_lowercase();
     Ok(string!(lowercase))

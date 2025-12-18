@@ -1,4 +1,5 @@
 use crate::common::{Object, Value};
+use crate::{extract_receiver, extract_arg, extract_string_value};
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil
@@ -11,13 +12,7 @@ pub fn native_array_push(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("push() can only be called on arrays".to_string()),
-        },
-        _ => return Err("push() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "push")?;
 
     // Push the value onto the array
     let mut array = array_ref.borrow_mut();
@@ -34,13 +29,7 @@ pub fn native_array_pop(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("pop() can only be called on arrays".to_string()),
-        },
-        _ => return Err("pop() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "pop")?;
 
     // Pop the last element
     let mut array = array_ref.borrow_mut();
@@ -55,13 +44,7 @@ pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("length() can only be called on arrays".to_string()),
-        },
-        _ => return Err("length() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "length")?;
 
     let array = array_ref.borrow();
     Ok(Value::Number(array.len() as f64))
@@ -74,16 +57,9 @@ pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
         return Err("array.size() requires an array receiver".to_string());
     }
 
-    match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(array) => {
-                let elements = array.borrow();
-                Ok(Value::Number(elements.len() as f64))
-            }
-            _ => Err("size() can only be called on arrays".to_string()),
-        },
-        _ => Err("size() can only be called on arrays".to_string()),
-    }
+    let array_ref = extract_receiver!(args, Array, "size")?;
+    let elements = array_ref.borrow();
+    Ok(Value::Number(elements.len() as f64))
 }
 
 /// Native implementation of Array.contains(element)
@@ -97,13 +73,7 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("contains() can only be called on arrays".to_string()),
-        },
-        _ => return Err("contains() can only be called on arrays".to_string()),
-    };
+    let array = extract_receiver!(args, Array, "contains")?;
 
     // Get the element to search for
     let element = &args[1];
@@ -123,13 +93,7 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("sort() can only be called on arrays".to_string()),
-        },
-        _ => return Err("sort() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "sort")?;
 
     // Sort the array
     let mut array = array_ref.borrow_mut();
@@ -161,13 +125,7 @@ pub fn native_array_reverse(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("reverse() can only be called on arrays".to_string()),
-        },
-        _ => return Err("reverse() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "reverse")?;
 
     // Reverse the array
     let mut array = array_ref.borrow_mut();
@@ -187,25 +145,13 @@ pub fn native_array_slice(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("slice() can only be called on arrays".to_string()),
-        },
-        _ => return Err("slice() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "slice")?;
 
     // Extract start index
-    let start = match &args[1] {
-        Value::Number(n) => *n as i64,
-        _ => return Err("slice() start index must be a number".to_string()),
-    };
+    let start = extract_arg!(args, 1, Number, "start index", "slice")? as i64;
 
     // Extract end index
-    let end = match &args[2] {
-        Value::Number(n) => *n as i64,
-        _ => return Err("slice() end index must be a number".to_string()),
-    };
+    let end = extract_arg!(args, 2, Number, "end index", "slice")? as i64;
 
     let array = array_ref.borrow();
     let len = array.len() as i64;
@@ -244,22 +190,10 @@ pub fn native_array_join(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("join() can only be called on arrays".to_string()),
-        },
-        _ => return Err("join() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "join")?;
 
     // Extract delimiter
-    let delimiter = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("join() delimiter must be a string".to_string()),
-        },
-        _ => return Err("join() delimiter must be a string".to_string()),
-    };
+    let delimiter = extract_string_value!(args, 1, "delimiter", "join");
 
     let array = array_ref.borrow();
     let parts: Vec<String> = array.iter().map(|v| format!("{}", v)).collect();
@@ -283,13 +217,7 @@ pub fn native_array_index_of(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("indexOf() can only be called on arrays".to_string()),
-        },
-        _ => return Err("indexOf() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "indexOf")?;
 
     let element = &args[1];
     let array = array_ref.borrow();
@@ -311,13 +239,7 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("sum() can only be called on arrays".to_string()),
-        },
-        _ => return Err("sum() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "sum")?;
 
     let array = array_ref.borrow();
     let mut sum = 0.0;
@@ -345,13 +267,7 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("min() can only be called on arrays".to_string()),
-        },
-        _ => return Err("min() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "min")?;
 
     let array = array_ref.borrow();
 
@@ -388,13 +304,7 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the array
-    let array_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Array(arr) => arr,
-            _ => return Err("max() can only be called on arrays".to_string()),
-        },
-        _ => return Err("max() can only be called on arrays".to_string()),
-    };
+    let array_ref = extract_receiver!(args, Array, "max")?;
 
     let array = array_ref.borrow();
 

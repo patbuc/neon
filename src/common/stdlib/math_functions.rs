@@ -1,4 +1,5 @@
 use crate::common::Value;
+use crate::extract_arg;
 
 /// Native implementation of Math.abs(x)
 /// Returns the absolute value of a number
@@ -7,10 +8,8 @@ pub fn native_math_abs(args: &[Value]) -> Result<Value, String> {
         return Err(format!("abs() expects 1 argument, got {}", args.len()));
     }
 
-    match &args[0] {
-        Value::Number(n) => Ok(Value::Number(n.abs())),
-        _ => Err("abs() requires a number argument".to_string()),
-    }
+    let n = extract_arg!(args, 0, Number, "x", "abs")?;
+    Ok(Value::Number(n.abs()))
 }
 
 /// Native implementation of Math.floor(x)
@@ -20,10 +19,8 @@ pub fn native_math_floor(args: &[Value]) -> Result<Value, String> {
         return Err(format!("floor() expects 1 argument, got {}", args.len()));
     }
 
-    match &args[0] {
-        Value::Number(n) => Ok(Value::Number(n.floor())),
-        _ => Err("floor() requires a number argument".to_string()),
-    }
+    let n = extract_arg!(args, 0, Number, "x", "floor")?;
+    Ok(Value::Number(n.floor()))
 }
 
 /// Native implementation of Math.ceil(x)
@@ -33,10 +30,8 @@ pub fn native_math_ceil(args: &[Value]) -> Result<Value, String> {
         return Err(format!("ceil() expects 1 argument, got {}", args.len()));
     }
 
-    match &args[0] {
-        Value::Number(n) => Ok(Value::Number(n.ceil())),
-        _ => Err("ceil() requires a number argument".to_string()),
-    }
+    let n = extract_arg!(args, 0, Number, "x", "ceil")?;
+    Ok(Value::Number(n.ceil()))
 }
 
 /// Native implementation of Math.sqrt(x)
@@ -46,15 +41,11 @@ pub fn native_math_sqrt(args: &[Value]) -> Result<Value, String> {
         return Err(format!("sqrt() expects 1 argument, got {}", args.len()));
     }
 
-    match &args[0] {
-        Value::Number(n) => {
-            if *n < 0.0 {
-                return Err("sqrt() requires a non-negative number".to_string());
-            }
-            Ok(Value::Number(n.sqrt()))
-        }
-        _ => Err("sqrt() requires a number argument".to_string()),
+    let n = extract_arg!(args, 0, Number, "x", "sqrt")?;
+    if n < 0.0 {
+        return Err("sqrt() requires a non-negative number".to_string());
     }
+    Ok(Value::Number(n.sqrt()))
 }
 
 /// Native implementation of Math.min(...args)
@@ -64,24 +55,12 @@ pub fn native_math_min(args: &[Value]) -> Result<Value, String> {
         return Err("min() requires at least 1 argument".to_string());
     }
 
-    let mut min_value = match &args[0] {
-        Value::Number(n) => *n,
-        _ => return Err("min() requires number arguments".to_string()),
-    };
+    let mut min_value = extract_arg!(args, 0, Number, "first argument", "min")?;
 
-    for (i, arg) in args.iter().enumerate().skip(1) {
-        match arg {
-            Value::Number(n) => {
-                if *n < min_value {
-                    min_value = *n;
-                }
-            }
-            _ => {
-                return Err(format!(
-                    "min() requires number arguments, got non-number at position {}",
-                    i
-                ))
-            }
+    for i in 1..args.len() {
+        let n = extract_arg!(args, i, Number, &format!("argument {}", i), "min")?;
+        if n < min_value {
+            min_value = n;
         }
     }
 
@@ -95,24 +74,12 @@ pub fn native_math_max(args: &[Value]) -> Result<Value, String> {
         return Err("max() requires at least 1 argument".to_string());
     }
 
-    let mut max_value = match &args[0] {
-        Value::Number(n) => *n,
-        _ => return Err("max() requires number arguments".to_string()),
-    };
+    let mut max_value = extract_arg!(args, 0, Number, "first argument", "max")?;
 
-    for (i, arg) in args.iter().enumerate().skip(1) {
-        match arg {
-            Value::Number(n) => {
-                if *n > max_value {
-                    max_value = *n;
-                }
-            }
-            _ => {
-                return Err(format!(
-                    "max() requires number arguments, got non-number at position {}",
-                    i
-                ))
-            }
+    for i in 1..args.len() {
+        let n = extract_arg!(args, i, Number, &format!("argument {}", i), "max")?;
+        if n > max_value {
+            max_value = n;
         }
     }
 

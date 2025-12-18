@@ -1,4 +1,5 @@
 use crate::common::{MapKey, Object, Value};
+use crate::extract_receiver;
 use ordered_float::OrderedFloat;
 use std::rc::Rc;
 
@@ -11,13 +12,7 @@ pub fn native_map_get(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("get() can only be called on maps".to_string()),
-        },
-        _ => return Err("get() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "get")?;
 
     // Convert key to MapKey
     let key = match value_to_map_key(&args[1]) {
@@ -41,13 +36,7 @@ pub fn native_map_size(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("size() can only be called on maps".to_string()),
-        },
-        _ => return Err("size() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "size")?;
 
     let map = map_ref.borrow();
     Ok(Value::Number(map.len() as f64))
@@ -62,13 +51,7 @@ pub fn native_map_has(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("has() can only be called on maps".to_string()),
-        },
-        _ => return Err("has() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "has")?;
 
     // Convert key to MapKey
     let key = match value_to_map_key(&args[1]) {
@@ -95,13 +78,7 @@ pub fn native_map_remove(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("remove() can only be called on maps".to_string()),
-        },
-        _ => return Err("remove() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "remove")?;
 
     // Convert key to MapKey
     let key = match value_to_map_key(&args[1]) {
@@ -125,13 +102,7 @@ pub fn native_map_keys(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("keys() can only be called on maps".to_string()),
-        },
-        _ => return Err("keys() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "keys")?;
 
     // Collect keys into an array
     let map = map_ref.borrow();
@@ -145,13 +116,7 @@ pub fn native_map_values(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("values() can only be called on maps".to_string()),
-        },
-        _ => return Err("values() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "values")?;
 
     // Collect values into an array
     let map = map_ref.borrow();
@@ -165,13 +130,7 @@ pub fn native_map_entries(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the map
-    let map_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Map(m) => m,
-            _ => return Err("entries() can only be called on maps".to_string()),
-        },
-        _ => return Err("entries() can only be called on maps".to_string()),
-    };
+    let map_ref = extract_receiver!(args, Map, "entries")?;
 
     // Collect entries as [key, value] arrays
     let map = map_ref.borrow();

@@ -11,6 +11,9 @@ pub(crate) mod number_functions;
 pub(crate) mod set_functions;
 pub(crate) mod string_functions;
 
+#[macro_use]
+pub(crate) mod extraction_macros;
+
 #[cfg(test)]
 mod tests;
 
