@@ -1,4 +1,5 @@
 use crate::common::{ObjString, Object, Value};
+use crate::{extract_arg, extract_receiver, extract_string_value};
 use std::rc::Rc;
 
 /// Native implementation of File(path) constructor
@@ -8,16 +9,8 @@ pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
         return Err(format!("File() expects 1 argument, got {}", args.len()));
     }
 
-    match &args[0] {
-        Value::Object(obj) => {
-            if let Object::String(s) = obj.as_ref() {
-                Ok(Value::new_file(s.value.to_string()))
-            } else {
-                Err("File() requires a string argument".to_string())
-            }
-        }
-        _ => Err("File() requires a string argument".to_string()),
-    }
+    let s = extract_arg!(args, 0, String, "path", "File")?;
+    Ok(Value::new_file(s.value.to_string()))
 }
 
 /// Native implementation of File.read()
@@ -30,14 +23,7 @@ pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the File object from args[0] (the receiver)
-    let file_path = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::File(path) => path,
-            _ => return Err("read() can only be called on File objects".to_string()),
-        },
-        _ => return Err("read() can only be called on File objects".to_string()),
-    };
+    let file_path = extract_receiver!(args, File, "read")?;
 
     // Read the file contents using std::fs::read_to_string
     match std::fs::read_to_string(file_path.as_ref()) {
@@ -76,14 +62,7 @@ pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the File object from args[0] (the receiver)
-    let file_path = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::File(path) => path,
-            _ => return Err("readLines() can only be called on File objects".to_string()),
-        },
-        _ => return Err("readLines() can only be called on File objects".to_string()),
-    };
+    let file_path = extract_receiver!(args, File, "readLines")?;
 
     // Read the file contents using std::fs::read_to_string
     match std::fs::read_to_string(file_path.as_ref()) {
@@ -129,23 +108,8 @@ pub fn native_file_write(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the File object from args[0] (the receiver)
-    let file_path = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::File(path) => path,
-            _ => return Err("write() can only be called on File objects".to_string()),
-        },
-        _ => return Err("write() can only be called on File objects".to_string()),
-    };
-
-    // Extract the content string from args[1]
-    let content = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => s.value.as_ref(),
-            _ => return Err("write() requires a string argument".to_string()),
-        },
-        _ => return Err("write() requires a string argument".to_string()),
-    };
+    let file_path = extract_receiver!(args, File, "write")?;
+    let content = extract_string_value!(args, 1, "content", "write");
 
     // Check if file already exists
     if std::path::Path::new(file_path.as_ref()).exists() {

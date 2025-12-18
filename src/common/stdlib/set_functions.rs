@@ -1,4 +1,5 @@
 use crate::common::{Object, SetKey, Value};
+use crate::{extract_arg, extract_receiver};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -13,14 +14,7 @@ pub fn native_set_add(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("add() can only be called on sets".to_string()),
-        },
-        _ => return Err("add() can only be called on sets".to_string()),
-    };
+    let set_ref = extract_receiver!(args, Set, "add")?;
 
     // Convert element to SetKey
     let key = match value_to_set_key(&args[1]) {
@@ -49,14 +43,7 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("remove() can only be called on sets".to_string()),
-        },
-        _ => return Err("remove() can only be called on sets".to_string()),
-    };
+    let set_ref = extract_receiver!(args, Set, "remove")?;
 
     // Convert element to SetKey
     let key = match value_to_set_key(&args[1]) {
@@ -85,14 +72,7 @@ pub fn native_set_has(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("has() can only be called on sets".to_string()),
-        },
-        _ => return Err("has() can only be called on sets".to_string()),
-    };
+    let set_ref = extract_receiver!(args, Set, "has")?;
 
     // Convert element to SetKey
     let key = match value_to_set_key(&args[1]) {
@@ -117,15 +97,7 @@ pub fn native_set_size(args: &[Value]) -> Result<Value, String> {
         return Err("size() expects no arguments".to_string());
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("size() can only be called on sets".to_string()),
-        },
-        _ => return Err("size() can only be called on sets".to_string()),
-    };
-
+    let set_ref = extract_receiver!(args, Set, "size")?;
     let set = set_ref.borrow();
     Ok(Value::Number(set.len() as f64))
 }
@@ -137,16 +109,7 @@ pub fn native_set_clear(args: &[Value]) -> Result<Value, String> {
         return Err("clear() expects no arguments".to_string());
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("clear() can only be called on sets".to_string()),
-        },
-        _ => return Err("clear() can only be called on sets".to_string()),
-    };
-
-    // Clear the set
+    let set_ref = extract_receiver!(args, Set, "clear")?;
     let mut set = set_ref.borrow_mut();
     set.clear();
     Ok(Value::Nil)
@@ -162,25 +125,9 @@ pub fn native_set_union(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the first set (receiver)
-    let set1_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("union() can only be called on sets".to_string()),
-        },
-        _ => return Err("union() can only be called on sets".to_string()),
-    };
+    let set1_ref = extract_receiver!(args, Set, "union")?;
+    let set2_ref = extract_arg!(args, 1, Set, "other set", "union")?;
 
-    // Extract the second set (argument)
-    let set2_ref = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("union() requires a set as argument".to_string()),
-        },
-        _ => return Err("union() requires a set as argument".to_string()),
-    };
-
-    // Create union of both sets
     let set1 = set1_ref.borrow();
     let set2 = set2_ref.borrow();
     let union_set: BTreeSet<SetKey> = set1.union(&*set2).cloned().collect();
@@ -198,25 +145,9 @@ pub fn native_set_intersection(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the first set (receiver)
-    let set1_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("intersection() can only be called on sets".to_string()),
-        },
-        _ => return Err("intersection() can only be called on sets".to_string()),
-    };
+    let set1_ref = extract_receiver!(args, Set, "intersection")?;
+    let set2_ref = extract_arg!(args, 1, Set, "other set", "intersection")?;
 
-    // Extract the second set (argument)
-    let set2_ref = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("intersection() requires a set as argument".to_string()),
-        },
-        _ => return Err("intersection() requires a set as argument".to_string()),
-    };
-
-    // Create intersection of both sets
     let set1 = set1_ref.borrow();
     let set2 = set2_ref.borrow();
     let intersection_set: BTreeSet<SetKey> = set1.intersection(&*set2).cloned().collect();
@@ -234,25 +165,9 @@ pub fn native_set_difference(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the first set (receiver)
-    let set1_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("difference() can only be called on sets".to_string()),
-        },
-        _ => return Err("difference() can only be called on sets".to_string()),
-    };
+    let set1_ref = extract_receiver!(args, Set, "difference")?;
+    let set2_ref = extract_arg!(args, 1, Set, "other set", "difference")?;
 
-    // Extract the second set (argument)
-    let set2_ref = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("difference() requires a set as argument".to_string()),
-        },
-        _ => return Err("difference() requires a set as argument".to_string()),
-    };
-
-    // Create difference of both sets
     let set1 = set1_ref.borrow();
     let set2 = set2_ref.borrow();
     let difference_set: BTreeSet<SetKey> = set1.difference(&*set2).cloned().collect();
@@ -270,25 +185,9 @@ pub fn native_set_is_subset(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    // Extract the first set (receiver)
-    let set1_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("isSubset() can only be called on sets".to_string()),
-        },
-        _ => return Err("isSubset() can only be called on sets".to_string()),
-    };
+    let set1_ref = extract_receiver!(args, Set, "isSubset")?;
+    let set2_ref = extract_arg!(args, 1, Set, "other set", "isSubset")?;
 
-    // Extract the second set (argument)
-    let set2_ref = match &args[1] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("isSubset() requires a set as argument".to_string()),
-        },
-        _ => return Err("isSubset() requires a set as argument".to_string()),
-    };
-
-    // Check if first set is a subset of second set
     let set1 = set1_ref.borrow();
     let set2 = set2_ref.borrow();
     let is_subset = set1.is_subset(&*set2);
@@ -327,16 +226,7 @@ pub fn native_set_to_array(args: &[Value]) -> Result<Value, String> {
         return Err("toArray() expects no arguments".to_string());
     }
 
-    // Extract the set
-    let set_ref = match &args[0] {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::Set(s) => s,
-            _ => return Err("toArray() can only be called on sets".to_string()),
-        },
-        _ => return Err("toArray() can only be called on sets".to_string()),
-    };
-
-    // Convert set elements to array
+    let set_ref = extract_receiver!(args, Set, "toArray")?;
     let set = set_ref.borrow();
     let array_elements: Vec<Value> = set.iter().map(set_key_to_value).collect();
 
