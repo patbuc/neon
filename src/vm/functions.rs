@@ -33,8 +33,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_string4(&mut self) {
         let frame = self.current_frame_mut();
         let string = {
-            let string_index = frame.function.bloq.read_u32(frame.ip + 1) as usize;
-            frame.function.bloq.read_string(string_index)
+            let string_index = frame.function.chunk.read_u32(frame.ip + 1) as usize;
+            frame.function.chunk.read_string(string_index)
         };
         frame.ip += 4;
         self.push(string);
@@ -44,8 +44,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_string2(&mut self) {
         let frame = self.current_frame_mut();
         let string = {
-            let string_index = frame.function.bloq.read_u16(frame.ip + 1) as usize;
-            frame.function.bloq.read_string(string_index)
+            let string_index = frame.function.chunk.read_u16(frame.ip + 1) as usize;
+            frame.function.chunk.read_string(string_index)
         };
         frame.ip += 2;
         self.push(string);
@@ -55,8 +55,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_string(&mut self) {
         let frame = self.current_frame_mut();
         let string = {
-            let string_index = frame.function.bloq.read_u8(frame.ip + 1) as usize;
-            frame.function.bloq.read_string(string_index)
+            let string_index = frame.function.chunk.read_u8(frame.ip + 1) as usize;
+            frame.function.chunk.read_string(string_index)
         };
         frame.ip += 1;
         self.push(string);
@@ -71,7 +71,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
         let frame = self.current_frame();
-        let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+        let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
 
         // Get the callable from the stack (it's at position -arg_count - 1)
         let callable_value = self.peek(arg_count);
@@ -287,8 +287,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_constant4(&mut self) {
         let frame = self.current_frame_mut();
         let constant = {
-            let constant_index = frame.function.bloq.read_u32(frame.ip + 1) as usize;
-            frame.function.bloq.read_constant(constant_index)
+            let constant_index = frame.function.chunk.read_u32(frame.ip + 1) as usize;
+            frame.function.chunk.read_constant(constant_index)
         };
         frame.ip += 4;
         self.push(constant);
@@ -298,8 +298,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_constant2(&mut self) {
         let frame = self.current_frame_mut();
         let constant = {
-            let constant_index = frame.function.bloq.read_u16(frame.ip + 1) as usize;
-            frame.function.bloq.read_constant(constant_index)
+            let constant_index = frame.function.chunk.read_u16(frame.ip + 1) as usize;
+            frame.function.chunk.read_constant(constant_index)
         };
         frame.ip += 2;
         self.push(constant);
@@ -309,8 +309,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_constant(&mut self) {
         let frame = self.current_frame_mut();
         let constant = {
-            let constant_index = frame.function.bloq.read_u8(frame.ip + 1) as usize;
-            frame.function.bloq.read_constant(constant_index)
+            let constant_index = frame.function.chunk.read_u8(frame.ip + 1) as usize;
+            frame.function.chunk.read_constant(constant_index)
         };
         frame.ip += 1;
         self.push(constant);
@@ -331,9 +331,9 @@ impl VirtualMachine {
     fn read_bits(&mut self, bits: &BitsSize) -> usize {
         let frame = self.current_frame();
         match bits {
-            BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 1) as usize,
-            BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 1) as usize,
-            BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 1) as usize,
+            BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 1) as usize,
+            BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 1) as usize,
+            BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 1) as usize,
         }
     }
 
@@ -350,7 +350,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_jump_if_false(&mut self) {
         let peeked_value = self.peek(0);
         let frame = self.current_frame_mut();
-        let offset = frame.function.bloq.read_u32(frame.ip + 1);
+        let offset = frame.function.chunk.read_u32(frame.ip + 1);
         frame.ip += 4;
         if is_false_like!(peeked_value) {
             // Don't pop! Leave the value on the stack for logical operators
@@ -362,7 +362,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_jump(&mut self) {
         let frame = self.current_frame_mut();
-        let offset = frame.function.bloq.read_u32(frame.ip + 1);
+        let offset = frame.function.chunk.read_u32(frame.ip + 1);
         frame.ip += 4;
         frame.ip += offset as usize;
     }
@@ -370,7 +370,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_loop(&mut self) {
         let frame = self.current_frame_mut();
-        let offset = frame.function.bloq.read_u32(frame.ip + 1);
+        let offset = frame.function.chunk.read_u32(frame.ip + 1);
         frame.ip += 4;
         frame.ip -= offset as usize;
     }
@@ -429,7 +429,7 @@ impl VirtualMachine {
 
         let field_name = {
             let frame = self.current_frame();
-            let field_value = frame.function.bloq.read_string(field_name_index);
+            let field_value = frame.function.chunk.read_string(field_name_index);
             match field_value {
                 Value::Object(obj) => match obj.as_ref() {
                     Object::String(s) => s.value.to_string(),
@@ -484,15 +484,15 @@ impl VirtualMachine {
         let ip_increment = 1 + 1 + index_size;
 
         let frame = self.current_frame();
-        let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+        let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
         let method_name_index = match bits {
-            BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
-            BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
-            BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+            BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
+            BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
+            BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
         };
 
         let method_name = {
-            let method_value = frame.function.bloq.read_string(method_name_index);
+            let method_value = frame.function.chunk.read_string(method_name_index);
             match method_value {
                 Value::Object(obj) => match obj.as_ref() {
                     Object::String(s) => s.value.to_string(),
@@ -619,7 +619,7 @@ impl VirtualMachine {
 
         let field_name = {
             let frame = self.current_frame();
-            let field_value = frame.function.bloq.read_string(field_name_index);
+            let field_value = frame.function.chunk.read_string(field_name_index);
             match field_value {
                 Value::Object(obj) => match obj.as_ref() {
                     Object::String(s) => s.value.to_string(),
@@ -669,7 +669,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_map(&mut self) {
         let count = {
             let frame = self.current_frame();
-            frame.function.bloq.read_u8(frame.ip + 1) as usize
+            frame.function.chunk.read_u8(frame.ip + 1) as usize
         };
 
         let stack_len = self.stack.len();
@@ -705,7 +705,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_array(&mut self) {
         let count = {
             let frame = self.current_frame();
-            frame.function.bloq.read_u16(frame.ip + 1) as usize
+            frame.function.chunk.read_u16(frame.ip + 1) as usize
         };
 
         let stack_len = self.stack.len();
@@ -725,7 +725,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_set(&mut self) {
         let count = {
             let frame = self.current_frame();
-            frame.function.bloq.read_u8(frame.ip + 1) as usize
+            frame.function.chunk.read_u8(frame.ip + 1) as usize
         };
 
         let stack_len = self.stack.len();
@@ -760,7 +760,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_range(&mut self) -> Option<Result> {
         let inclusive = {
             let frame = self.current_frame();
-            frame.function.bloq.read_u8(frame.ip + 1) != 0
+            frame.function.chunk.read_u8(frame.ip + 1) != 0
         };
 
         let end_value = self.pop();
@@ -1116,12 +1116,12 @@ impl VirtualMachine {
         // Read registry index directly from bytecode (O(1) at runtime!)
         let (arg_count, registry_index, ip_increment) = {
             let frame = self.current_frame();
-            let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+            let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
 
             let registry_index = match bits {
-                BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
-                BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
-                BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
+                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
+                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
             };
 
             let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index
@@ -1168,12 +1168,12 @@ impl VirtualMachine {
         // Read registry index directly from bytecode (O(1) at runtime!)
         let (arg_count, registry_index, ip_increment) = {
             let frame = self.current_frame();
-            let arg_count = frame.function.bloq.read_u8(frame.ip + 1) as usize;
+            let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
 
             let registry_index = match bits {
-                BitsSize::Eight => frame.function.bloq.read_u8(frame.ip + 2) as usize,
-                BitsSize::Sixteen => frame.function.bloq.read_u16(frame.ip + 2) as usize,
-                BitsSize::ThirtyTwo => frame.function.bloq.read_u32(frame.ip + 2) as usize,
+                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
+                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
+                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
             };
 
             let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index

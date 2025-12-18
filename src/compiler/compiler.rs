@@ -1,4 +1,4 @@
-use crate::common::{Bloq, Value};
+use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
@@ -14,7 +14,7 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: &str) -> Option<Bloq> {
+    pub(crate) fn compile(&mut self, source: &str) -> Option<Chunk> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
         // Pass 2: Semantic analysis
@@ -57,7 +57,7 @@ impl Compiler {
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new(self.builtin.clone());
         match codegen.generate(&ast) {
-            Ok(bloq) => Some(bloq),
+            Ok(chunk) => Some(chunk),
             Err(errors) => {
                 // Store structured errors
                 self.structured_errors = errors.clone();

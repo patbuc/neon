@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-pub(crate) mod bloq;
+pub(crate) mod chunk;
 pub mod constants;
 pub mod error_renderer;
 pub mod errors;
@@ -22,7 +22,7 @@ mod tests;
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 
 #[derive(Debug)]
-pub(crate) struct Bloq {
+pub(crate) struct Chunk {
     #[allow(dead_code)]
     name: String,
     constants: Constants,
@@ -122,7 +122,7 @@ pub(crate) struct ObjString {
 pub(crate) struct ObjFunction {
     pub name: String,
     pub arity: u8,
-    pub bloq: Rc<Bloq>,
+    pub chunk: Rc<Chunk>,
 }
 
 #[derive(Debug, Clone)]
@@ -146,11 +146,11 @@ impl Value {
         Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct { name, fields }))))
     }
 
-    pub(crate) fn new_function(name: String, arity: u8, bloq: Bloq) -> Self {
+    pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
         Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
             name,
             arity,
-            bloq: Rc::new(bloq),
+            chunk: Rc::new(chunk),
         }))))
     }
 
@@ -250,7 +250,7 @@ impl PartialEq<&ObjString> for &str {
 impl PartialEq for ObjFunction {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.arity == other.arity
-        // We don't compare bloqs as they're complex and functions with same name/arity are considered equal
+        // We don't compare chunks as they're complex and functions with same name/arity are considered equal
     }
 }
 

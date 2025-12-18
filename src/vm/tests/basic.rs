@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Bloq;
+use crate::common::Chunk;
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
@@ -13,22 +13,22 @@ fn can_create_vm() {
 
 #[test]
 fn can_execute_simple_arithmetics() {
-    let mut bloq = Bloq::new("ZeBloq");
+    let mut chunk = Chunk::new("ZeChunk");
 
-    bloq.write_constant(number!(1.0), 0, 0);
-    bloq.write_constant(number!(2.0), 0, 0);
-    bloq.write_op_code(OpCode::Add, 0, 0);
-    bloq.write_constant(number!(3.0), 0, 0);
-    bloq.write_op_code(OpCode::Multiply, 0, 0);
-    bloq.write_constant(number!(2.0), 0, 0);
-    bloq.write_op_code(OpCode::Subtract, 0, 0);
-    bloq.write_constant(number!(2.0), 0, 0);
-    bloq.write_op_code(OpCode::Divide, 0, 0);
-    bloq.write_op_code(OpCode::Return, 0, 0);
+    chunk.write_constant(number!(1.0), 0, 0);
+    chunk.write_constant(number!(2.0), 0, 0);
+    chunk.write_op_code(OpCode::Add, 0, 0);
+    chunk.write_constant(number!(3.0), 0, 0);
+    chunk.write_op_code(OpCode::Multiply, 0, 0);
+    chunk.write_constant(number!(2.0), 0, 0);
+    chunk.write_op_code(OpCode::Subtract, 0, 0);
+    chunk.write_constant(number!(2.0), 0, 0);
+    chunk.write_op_code(OpCode::Divide, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
 
     let mut vm = VirtualMachine::new();
 
-    let result = vm.run_bloq(bloq);
+    let result = vm.run_chunk(chunk);
     assert_eq!(Result::Ok, result);
     assert_eq!(3.5, as_number!(vm.pop()));
 }

@@ -1,9 +1,9 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Bloq, Constants, Local, SourceLocation, Value};
+use crate::common::{Chunk, Constants, Local, SourceLocation, Value};
 
-impl Bloq {
+impl Chunk {
     pub(crate) fn new(name: &str) -> Self {
-        Bloq {
+        Chunk {
             name: String::from(name),
             constants: Constants::new(),
             strings: Constants::new(),
@@ -14,7 +14,7 @@ impl Bloq {
     }
 }
 
-impl Bloq {
+impl Chunk {
     pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, column: u32) {
         self.source_locations.push(SourceLocation {
             offset: self.instructions.len(),
@@ -176,7 +176,7 @@ impl Bloq {
     }
 }
 
-impl Bloq {
+impl Chunk {
     pub(crate) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
         let mut result = Option::default();
         let mut low = 0;
