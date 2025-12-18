@@ -1525,3 +1525,158 @@ fn test_postfix_in_function_parameters() {
     assert!(result.is_ok());
 }
 
+// =============================================================================
+// Module System Semantic Analysis Tests
+// =============================================================================
+
+#[test]
+fn test_export_function_collected() {
+    let program = r#"
+        export fn add(a, b) {
+            return a + b
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+    // Check that the export was collected
+    let exports = analyzer.exports();
+    assert_eq!(exports.len(), 1);
+    assert!(exports.contains_key("add"));
+}
+
+#[test]
+fn test_export_variable_collected() {
+    let program = r#"
+        export var counter = 0
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+    let exports = analyzer.exports();
+    assert_eq!(exports.len(), 1);
+    assert!(exports.contains_key("counter"));
+}
+
+#[test]
+fn test_export_val_collected() {
+    let program = r#"
+        export val PI = 3.14159
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+
+    assert!(result.is_ok());
+    let exports = analyzer.exports();
+    assert_eq!(exports.len(), 1);
+    assert!(exports.contains_key("PI"));
+}
+
+#[test]
+fn test_export_struct_collected() {
+    let program = r#"
+        export struct Point {
+            x
+            y
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+    let exports = analyzer.exports();
+    assert_eq!(exports.len(), 1);
+    assert!(exports.contains_key("Point"));
+}
+
+#[test]
+fn test_multiple_exports_collected() {
+    let program = r#"
+        export fn add(a, b) {
+            return a + b
+        }
+
+        export fn multiply(a, b) {
+            return a * b
+        }
+
+        export val PI = 3.14159
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+    let exports = analyzer.exports();
+    assert_eq!(exports.len(), 3);
+    assert!(exports.contains_key("add"));
+    assert!(exports.contains_key("multiply"));
+    assert!(exports.contains_key("PI"));
+}
+
+#[test]
+fn test_import_basic_syntax() {
+    // Import statements should parse and analyze without error during semantic analysis
+    // (actual module resolution happens in a separate phase)
+    let program = r#"
+        import math
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    // Should succeed - import resolution happens later
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_export_and_local_declarations() {
+    let program = r#"
+        export fn publicFunc() {
+            return 42
+        }
+
+        fn privateFunc() {
+            return 21
+        }
+
+        val x = publicFunc()
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+    let exports = analyzer.exports();
+    // Only publicFunc should be exported
+    assert_eq!(exports.len(), 1);
+    assert!(exports.contains_key("publicFunc"));
+    assert!(!exports.contains_key("privateFunc"));
+}
+
