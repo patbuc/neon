@@ -5,5 +5,5 @@
 
 val words = ["hello", "world", "neon"]
 for (word in words) {
-    print word
+    print(word)
 }

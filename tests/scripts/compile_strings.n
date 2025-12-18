@@ -7,10 +7,10 @@
 
 val greeting = "Hello"
 val name = "World"
-print greeting + " " + name
-print "Length: " + greeting.len().toString()
+print(greeting + " " + name)
+print("Length: " + greeting.len().toString())
 
 val s = "Hello World"
-print s.len()
-print s.toUpperCase()
-print s.toLowerCase()
+print(s.len())
+print(s.toUpperCase())
+print(s.toLowerCase())

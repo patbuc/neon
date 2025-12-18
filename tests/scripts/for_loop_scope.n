@@ -4,7 +4,7 @@
 // 2
 
 for (var i = 0; i < 3; i = i + 1) {
-    print i
+    print(i)
 }
 // Note: i is not accessible outside the loop (will error if uncommented)
-// print i
+// print(i)

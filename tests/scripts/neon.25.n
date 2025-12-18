@@ -13,20 +13,20 @@
 val person = {"name": "Alice", "age": 30}
 
 // Access values
-print person["name"]   // Alice
-print person["age"]    // 30
+print(person["name"]   )      // Alice)
+print(person["age"]    )      // 30)
 
 // Access missing key returns nil
-print person["missing"]  // nil
+print(person["missing"]  )      // nil)
 
 // Modify values
 person["name"] = "Bob"
-print person["name"]   // Bob
+print(person["name"]   )      // Bob)
 
 // Add new key
 person["city"] = "NYC"
-print person.size()    // 3
+print(person.size()    // 3)
 
 // Check key existence
-print person.has("city")     // true
-print person.has("country")  // false
+print(person.has("city")     // true)
+print(person.has("country")  // false)

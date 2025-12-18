@@ -337,9 +337,6 @@ impl SemanticAnalyzer {
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
             }
-            Stmt::Print { expr, .. } => {
-                self.resolve_expr(expr);
-            }
             Stmt::Expression { expr, .. } => {
                 self.resolve_expr(expr);
             }
@@ -507,46 +504,62 @@ impl SemanticAnalyzer {
                 arguments,
                 location,
             } => {
-                self.resolve_expr(callee);
+                // Check if this is a global function call first
+                let is_global_function = if let Expr::Variable { name, .. } = callee.as_ref() {
+                    crate::common::method_registry::get_native_method_index("", name).is_some()
+                } else {
+                    false
+                };
 
-                // Validate that callee is a function if it's a variable reference
-                if let Expr::Variable { name, .. } = callee.as_ref() {
-                    if let Some(symbol) = self.symbol_table.resolve(name) {
-                        match &symbol.kind {
-                            SymbolKind::Function { arity } => {
-                                // Check arity matches
-                                if arguments.len() != *arity as usize {
+                if is_global_function {
+                    // Don't resolve the callee as a variable for global functions
+                    // Just validate the arguments
+                    for arg in arguments {
+                        self.resolve_expr(arg);
+                    }
+                } else {
+                    // Regular function call - resolve callee as normal
+                    self.resolve_expr(callee);
+
+                    // Validate that callee is a function if it's a variable reference
+                    if let Expr::Variable { name, .. } = callee.as_ref() {
+                        if let Some(symbol) = self.symbol_table.resolve(name) {
+                            match &symbol.kind {
+                                SymbolKind::Function { arity } => {
+                                    // Check arity matches
+                                    if arguments.len() != *arity as usize {
+                                        self.errors.push(CompilationError::new(
+                                            CompilationPhase::Semantic,
+                                            CompilationErrorKind::ArityExceeded,
+                                            format!(
+                                                "Function '{}' expects {} arguments but got {}",
+                                                name,
+                                                arity,
+                                                arguments.len()
+                                            ),
+                                            *location,
+                                        ));
+                                    }
+                                }
+                                SymbolKind::Struct { .. } => {
+                                    // Calling a struct is valid (constructor)
+                                }
+                                _ => {
                                     self.errors.push(CompilationError::new(
                                         CompilationPhase::Semantic,
-                                        CompilationErrorKind::ArityExceeded,
-                                        format!(
-                                            "Function '{}' expects {} arguments but got {}",
-                                            name,
-                                            arity,
-                                            arguments.len()
-                                        ),
+                                        CompilationErrorKind::UnexpectedToken,
+                                        format!("'{}' is not a function", name),
                                         *location,
                                     ));
                                 }
                             }
-                            SymbolKind::Struct { .. } => {
-                                // Calling a struct is valid (constructor)
-                            }
-                            _ => {
-                                self.errors.push(CompilationError::new(
-                                    CompilationPhase::Semantic,
-                                    CompilationErrorKind::UnexpectedToken,
-                                    format!("'{}' is not a function", name),
-                                    *location,
-                                ));
-                            }
                         }
                     }
-                }
 
-                // Resolve all arguments
-                for arg in arguments {
-                    self.resolve_expr(arg);
+                    // Resolve all arguments
+                    for arg in arguments {
+                        self.resolve_expr(arg);
+                    }
                 }
             }
             Expr::GetField {

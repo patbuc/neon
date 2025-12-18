@@ -131,39 +131,39 @@ fn nested_sum(n) {
   return sum
 }
 
-print "=== Fibonacci (recursive) ==="
-print fibonacci(0)
-print fibonacci(1)
-print fibonacci(5)
-print fibonacci(8)
+print("=== Fibonacci (recursive) ===")
+print(fibonacci(0))
+print(fibonacci(1))
+print(fibonacci(5))
+print(fibonacci(8))
 
-print "=== Factorial ==="
-print factorial(0)
-print factorial(5)
-print factorial(6)
+print("=== Factorial ===")
+print(factorial(0))
+print(factorial(5))
+print(factorial(6))
 
-print "=== Primes ==="
-print is_prime(2)
-print is_prime(3)
-print is_prime(4)
-print is_prime(17)
-print count_primes(10)
-print count_primes(20)
+print("=== Primes ===")
+print(is_prime(2))
+print(is_prime(3))
+print(is_prime(4))
+print(is_prime(17))
+print(count_primes(10))
+print(count_primes(20))
 
-print "=== Sum of Squares ==="
-print sum_of_squares(5)
-print sum_of_squares(10)
+print("=== Sum of Squares ===")
+print(sum_of_squares(5))
+print(sum_of_squares(10))
 
-print "=== Power ==="
-print power(2, 0)
-print power(2, 3)
-print power(3, 4)
+print("=== Power ===")
+print(power(2, 0))
+print(power(2, 3))
+print(power(3, 4))
 
-print "=== Ackermann (small values) ==="
-print ackermann(0, 0)
-print ackermann(1, 2)
-print ackermann(2, 2)
+print("=== Ackermann (small values) ===")
+print(ackermann(0, 0))
+print(ackermann(1, 2))
+print(ackermann(2, 2))
 
-print "=== Nested loops ==="
-print nested_sum(3)
-print nested_sum(5)
+print("=== Nested loops ===")
+print(nested_sum(3))
+print(nested_sum(5))

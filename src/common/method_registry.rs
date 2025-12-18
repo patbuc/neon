@@ -49,6 +49,15 @@ impl NativeCallable {
 ///
 /// Format: (type_name, method_name, NativeCallable)
 const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
+    // Global functions
+    (
+        "",
+        "print",
+        NativeCallable::StaticMethod {
+            function: stdlib::system_functions::native_system_print,
+            arity: VARIADIC_ARITY,
+        },
+    ),
     // Math static methods
     (
         "Math",

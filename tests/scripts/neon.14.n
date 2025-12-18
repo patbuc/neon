@@ -18,15 +18,15 @@ struct Point {
 val p = Point(10, 20)
 
 // Read fields
-print p.x  // 10
-print p.y  // 20
+print(p.x  )      // 10)
+print(p.y  )      // 20)
 
 // Mutate fields
 p.x = 50
-print p.x  // 50
-print p.y  // 20
+print(p.x  )      // 50)
+print(p.y  )      // 20)
 
 // Create another instance
 val p2 = Point(100, 30)
-print p2.x  // 100
-print p2.y  // 30
+print(p2.x  )      // 100)
+print(p2.y  )      // 30)

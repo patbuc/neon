@@ -5,13 +5,13 @@
 // helloworld
 
 val str1 = "hello world"
-print str1.replace("world", "rust")
+print(str1.replace("world", "rust"))
 
 val str2 = "foo bar foo"
-print str2.replace("foo", "baz")
+print(str2.replace("foo", "baz"))
 
 val str3 = "hello world"
-print str3.replace("xyz", "abc")
+print(str3.replace("xyz", "abc"))
 
 val str4 = "hello world"
-print str4.replace(" ", "")
+print(str4.replace(" ", ""))

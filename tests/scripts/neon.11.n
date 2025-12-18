@@ -9,7 +9,7 @@
 val a = 1
 val b = 2
 val c = 3
-print a + b + c         // 6
-print a * b * c         // 6
-print (a + b) * c       // 9
-print a + b * c         // 7
+print(a + b + c)        // 6
+print(a * b * c)        // 6
+print((a + b) * c)      // 9
+print(a + b * c)        // 7

@@ -41,63 +41,63 @@
 // false
 
 // Test 1: Creating empty set
-print "Creating empty set"
+print("Creating empty set")
 val empty = {1}
 empty.clear()
-print empty
-print empty.size()
+print(empty)
+print(empty.size())
 
 // Test 2: Adding elements to a set
-print ""
-print "Adding elements"
+print("")
+print("Adding elements")
 val numbers = {1}
 numbers.clear()
-print numbers.add(1)
-print numbers.add(2)
-print numbers.add(3)
-print numbers
-print numbers.size()
+print(numbers.add(1))
+print(numbers.add(2))
+print(numbers.add(3))
+print(numbers)
+print(numbers.size())
 
 // Test 3: Testing has() method
-print ""
-print "Testing has()"
-print numbers.has(1)
-print numbers.has(3)
-print numbers.has(99)
+print("")
+print("Testing has()")
+print(numbers.has(1))
+print(numbers.has(3))
+print(numbers.has(99))
 
 // Test 4: Adding duplicate element
-print ""
-print "Adding duplicate"
-print numbers.add(2)
-print numbers
-print numbers.size()
+print("")
+print("Adding duplicate")
+print(numbers.add(2))
+print(numbers)
+print(numbers.size())
 
 // Test 5: Removing elements
-print ""
-print "Removing elements"
-print numbers.remove(2)
-print numbers
-print numbers.size()
-print numbers.remove(2)
-print numbers
+print("")
+print("Removing elements")
+print(numbers.remove(2))
+print(numbers)
+print(numbers.size())
+print(numbers.remove(2))
+print(numbers)
 
 // Test 6: Mixed type set (numbers, strings, booleans)
-print ""
-print "Mixed type set"
+print("")
+print("Mixed type set")
 val mixed = {1}
 mixed.clear()
 mixed.add(1)
 mixed.add("hello")
 mixed.add(true)
-print mixed
-print mixed.has(1)
-print mixed.has("hello")
-print mixed.has(true)
+print(mixed)
+print(mixed.has(1))
+print(mixed.has("hello"))
+print(mixed.has(true))
 
 // Test 7: Clearing a set
-print ""
-print "Clearing set"
+print("")
+print("Clearing set")
 numbers.clear()
-print numbers
-print numbers.size()
-print numbers.has(1)
+print(numbers)
+print(numbers.size())
+print(numbers.has(1))

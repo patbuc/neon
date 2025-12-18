@@ -4,7 +4,7 @@
 // [t, e, s, t]
 // [no delimiter]
 
-print "a,b,c".split(",")
-print "hello world".split(" ")
-print "test".split("")
-print "no delimiter".split(",")
+print("a,b,c".split(","))
+print("hello world".split(" "))
+print("test".split(""))
+print("no delimiter".split(","))

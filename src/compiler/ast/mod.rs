@@ -167,10 +167,6 @@ pub enum Stmt {
         fields: Vec<String>,
         location: SourceLocation,
     },
-    Print {
-        expr: Expr,
-        location: SourceLocation,
-    },
     Expression {
         expr: Expr,
         location: SourceLocation,
@@ -245,7 +241,6 @@ impl Stmt {
             | Stmt::Var { location, .. }
             | Stmt::Fn { location, .. }
             | Stmt::Struct { location, .. }
-            | Stmt::Print { location, .. }
             | Stmt::Expression { location, .. }
             | Stmt::Block { location, .. }
             | Stmt::If { location, .. }

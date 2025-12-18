@@ -9,8 +9,8 @@
 val nums = [1, 2]
 val letters = ["a", "b"]
 for (n in nums) {
-    print n
+    print(n)
     for (l in letters) {
-        print l
+        print(l)
     }
 }

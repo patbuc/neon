@@ -7,10 +7,10 @@
 // 3.14
 // 2.5
 
-print Math.abs(-5)
-print Math.abs(5)
-print Math.abs(0)
-print Math.abs(-42)
-print Math.abs(100)
-print Math.abs(-3.14)
-print Math.abs(2.5)
+print(Math.abs(-5))
+print(Math.abs(5))
+print(Math.abs(0))
+print(Math.abs(-42))
+print(Math.abs(100))
+print(Math.abs(-3.14))
+print(Math.abs(2.5))

@@ -10,6 +10,7 @@ pub(crate) mod math_functions;
 pub(crate) mod number_functions;
 pub(crate) mod set_functions;
 pub(crate) mod string_functions;
+pub(crate) mod system_functions;
 
 #[macro_use]
 pub(crate) mod extraction_macros;
