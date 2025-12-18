@@ -7,11 +7,23 @@ use crate::common::NativeFn;
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum NativeCallable {
     /// Static method (no receiver): Math.abs(x), JSON.parse(s)
-    StaticMethod { function: NativeFn, arity: u8 },
+    StaticMethod {
+        function: NativeFn,
+        #[allow(dead_code)]
+        arity: u8,
+    },
     /// Instance method (receiver as first arg): arr.push(x), str.len()
-    InstanceMethod { function: NativeFn, arity: u8 },
+    InstanceMethod {
+        function: NativeFn,
+        #[allow(dead_code)]
+        arity: u8,
+    },
     /// Constructor (creates new instance): File(path)
-    Constructor { function: NativeFn, arity: u8 },
+    Constructor {
+        function: NativeFn,
+        #[allow(dead_code)]
+        arity: u8,
+    },
 }
 
 impl NativeCallable {
@@ -23,6 +35,7 @@ impl NativeCallable {
         }
     }
 
+    #[allow(dead_code)]
     pub fn arity(&self) -> u8 {
         match self {
             NativeCallable::StaticMethod { arity, .. } => *arity,

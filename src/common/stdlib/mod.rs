@@ -20,7 +20,7 @@ mod tests;
 /// Create stdlib objects for the VM.
 /// Math and File are now handled through the unified registry system.
 /// Only runtime values like args remain as builtins.
-pub(crate) fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
+pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
     let mut builtin = IndexMap::new();
 
     // args is a runtime value, so it remains a stdlib

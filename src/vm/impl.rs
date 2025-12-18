@@ -81,6 +81,63 @@ impl VirtualMachine {
         result
     }
 
+    /// Executes a pre-compiled chunk of bytecode.
+    ///
+    /// This method is used to execute bytecode that has been compiled and serialized
+    /// previously (e.g., loaded from a .nbc file). It initializes the VM state and
+    /// executes the chunk identically to how `interpret()` would execute freshly
+    /// compiled source code.
+    ///
+    /// # Arguments
+    ///
+    /// * `chunk` - The pre-compiled chunk to execute
+    ///
+    /// # Returns
+    ///
+    /// * `Result::Ok` - Execution completed successfully
+    /// * `Result::RuntimeError` - A runtime error occurred during execution
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut vm = VirtualMachine::new();
+    /// let chunk = Chunk::deserialize(&bytecode)?;
+    /// let result = vm.execute_chunk(chunk);
+    /// ```
+    pub fn execute_chunk(&mut self, chunk: Chunk) -> Result {
+        self.reset();
+
+        // Use a placeholder for source since we're executing pre-compiled bytecode
+        self.source = "<compiled>".to_string();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let start = std::time::Instant::now();
+
+        // Wrap the chunk in a function object
+        let script_function = Rc::new(ObjFunction {
+            name: "<compiled>".to_string(),
+            arity: 0,
+            chunk: Rc::new(chunk),
+        });
+
+        // Create the initial call frame
+        // Use -1 for slot_start since the script has no function object on the stack
+        let frame = CallFrame {
+            function: script_function,
+            ip: 0,
+            slot_start: -1,
+        };
+        self.call_frames.push(frame);
+
+        let result = self.run(&Chunk::new("dummy"));
+        self.chunk = None;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        info!("Run time: {}ms", start.elapsed().as_millis());
+
+        result
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn run(&mut self, _chunk: &Chunk) -> Result {
         #[cfg(feature = "disassemble")]

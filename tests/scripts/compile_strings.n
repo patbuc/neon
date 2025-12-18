@@ -1,0 +1,16 @@
+// Expected:
+// Hello World
+// Length: 5
+// 11
+// HELLO WORLD
+// hello world
+
+val greeting = "Hello"
+val name = "World"
+print greeting + " " + name
+print "Length: " + greeting.len().toString()
+
+val s = "Hello World"
+print s.len()
+print s.toUpperCase()
+print s.toLowerCase()
