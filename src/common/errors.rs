@@ -3,14 +3,14 @@ use std::fmt::{Display, Formatter};
 use crate::common::SourceLocation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CompilationPhase {
+pub enum CompilationPhase {
     Parse,
     Semantic,
     Codegen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CompilationErrorKind {
+pub enum CompilationErrorKind {
     UnexpectedToken,
     DuplicateSymbol,
     UndefinedSymbol,
@@ -36,7 +36,7 @@ impl Display for CompilationErrorKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct CompilationError {
+pub struct CompilationError {
     pub phase: CompilationPhase,
     pub kind: CompilationErrorKind,
     pub message: String,
@@ -44,7 +44,7 @@ pub(crate) struct CompilationError {
 }
 
 impl CompilationError {
-    pub(crate) fn new(
+    pub fn new(
         phase: CompilationPhase,
         kind: CompilationErrorKind,
         message: impl Into<String>,
