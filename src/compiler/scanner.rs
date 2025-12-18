@@ -170,8 +170,10 @@ impl Scanner {
             if self.peek() == '$' && self.peek_next() == '{' {
                 placeholder_start = Some(self.current);
             }
-            if self.peek() == '}' && placeholder_start.is_some() {
-                placeholders.push((placeholder_start.unwrap(), self.current));
+            if self.peek() == '}' {
+                if let Some(start) = placeholder_start {
+                    placeholders.push((start, self.current));
+                }
             }
             if self.peek() == '\n' {
                 self.line += 1;

@@ -1,4 +1,3 @@
-use crate::common::constants::VARIADIC_ARITY;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;

@@ -6,7 +6,7 @@ use crate::compiler::Compiler;
 use indexmap::IndexMap;
 
 impl Compiler {
-    pub(crate) fn new(builtin: IndexMap<String, Value>) -> Compiler {
+    pub fn new(builtin: IndexMap<String, Value>) -> Compiler {
         Compiler {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
@@ -14,7 +14,7 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: &str) -> Option<Chunk> {
+    pub fn compile(&mut self, source: &str) -> Option<Chunk> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
         // Pass 2: Semantic analysis

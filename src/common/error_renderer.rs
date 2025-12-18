@@ -11,7 +11,7 @@ impl ErrorRenderer {
         ErrorRenderer { use_color }
     }
 
-    pub(crate) fn render_errors(
+    pub fn render_errors(
         &self,
         errors: &[CompilationError],
         source: &str,

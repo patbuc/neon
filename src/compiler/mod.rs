@@ -2,7 +2,7 @@ use crate::compiler::token::TokenType;
 
 pub(crate) mod ast;
 pub(crate) mod codegen;
-pub(crate) mod compiler;
+pub(crate) mod compiler_impl;
 pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
@@ -34,18 +34,18 @@ pub(crate) struct Scanner {
 }
 
 #[derive(Debug)]
-pub(crate) struct Compiler {
+pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     builtin: indexmap::IndexMap<String, crate::common::Value>,
 }
 
 impl Compiler {
-    pub(crate) fn get_compilation_errors(&self) -> String {
+    pub fn get_compilation_errors(&self) -> String {
         self.compilation_errors.clone()
     }
 
-    pub(crate) fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
+    pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
     }
 }

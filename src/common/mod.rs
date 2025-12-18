@@ -1,18 +1,18 @@
 use ordered_float::OrderedFloat;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-pub(crate) mod chunk;
+pub mod chunk;
 pub mod constants;
 pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
+pub mod stdlib;
 pub mod string_similarity;
-
-pub(crate) mod stdlib;
 #[cfg(test)]
 mod tests;
 
@@ -21,31 +21,31 @@ mod tests;
 // The actual implementation will be in vm/mod.rs
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 
-#[derive(Debug)]
-pub(crate) struct Chunk {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Chunk {
     #[allow(dead_code)]
-    name: String,
-    constants: Constants,
-    strings: Constants,
-    instructions: Vec<u8>,
-    source_locations: Vec<SourceLocation>,
-    locals: Vec<Local>,
+    pub name: String,
+    pub constants: Constants,
+    pub strings: Constants,
+    pub instructions: Vec<u8>,
+    pub source_locations: Vec<SourceLocation>,
+    pub locals: Vec<Local>,
 }
 
-#[derive(Debug)]
-pub(crate) struct Local {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Local {
     pub name: String,
     pub depth: u32,
     pub is_mutable: bool,
 }
 
-#[derive(Debug)]
-struct Constants {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Constants {
     values: Vec<Value>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct SourceLocation {
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SourceLocation {
     pub offset: usize,
     pub line: u32,
     pub column: u32,
@@ -74,22 +74,24 @@ impl BitsSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Value {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Value {
     Number(f64),
+    #[serde(with = "serde_rc")]
     Object(Rc<Object>),
     Boolean(bool),
     Nil,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) enum MapKey {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum MapKey {
+    #[serde(with = "serde_rc_str")]
     String(Rc<str>),
     Number(OrderedFloat<f64>),
     Boolean(bool),
 }
 
-pub(crate) type SetKey = MapKey;
+pub type SetKey = MapKey;
 
 impl Display for MapKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -101,38 +103,48 @@ impl Display for MapKey {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub(crate) enum Object {
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum Object {
     String(ObjString),
+    #[serde(with = "serde_rc")]
     Function(Rc<ObjFunction>),
+    #[serde(with = "serde_rc")]
     Struct(Rc<ObjStruct>),
+    #[serde(with = "serde_rc_refcell")]
     Instance(Rc<RefCell<ObjInstance>>),
+    #[serde(with = "serde_rc_refcell")]
     Array(Rc<RefCell<Vec<Value>>>),
+    #[serde(with = "serde_rc_refcell")]
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
+    #[serde(with = "serde_rc_refcell")]
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
+    #[serde(with = "serde_rc_str")]
     File(Rc<str>),
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ObjString {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjString {
+    #[serde(with = "serde_rc_str")]
     pub value: Rc<str>,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ObjFunction {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjFunction {
     pub name: String,
     pub arity: u8,
+    #[serde(with = "serde_rc")]
     pub chunk: Rc<Chunk>,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ObjStruct {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct ObjInstance {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjInstance {
+    #[serde(with = "serde_rc")]
     pub r#struct: Rc<ObjStruct>,
     pub fields: HashMap<String, Value>,
 }
@@ -171,7 +183,7 @@ impl Value {
     }
 }
 
-pub(crate) struct CallFrame {
+pub struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
@@ -279,5 +291,68 @@ impl Display for Value {
                 Value::Object(val) => format!("{}", val),
             }
         )
+    }
+}
+
+// Serde helper modules for Rc and RefCell serialization
+mod serde_rc {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::rc::Rc;
+
+    pub fn serialize<S, T>(value: &Rc<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        (**value).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Rc<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        T::deserialize(deserializer).map(Rc::new)
+    }
+}
+
+mod serde_rc_str {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::rc::Rc;
+
+    pub fn serialize<S>(value: &Rc<str>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_ref().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Rc<str>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer).map(|s| Rc::from(s.as_str()))
+    }
+}
+
+mod serde_rc_refcell {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    pub fn serialize<S, T>(value: &Rc<RefCell<T>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        value.borrow().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Rc<RefCell<T>>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        T::deserialize(deserializer).map(|t| Rc::new(RefCell::new(t)))
     }
 }
