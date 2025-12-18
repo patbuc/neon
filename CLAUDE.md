@@ -58,34 +58,40 @@ When implementing language features, changes typically flow through:
 **IMPORTANT**: Never add watermarks, signatures, or co-authorship attributions to commit messages.
 
 When creating commits:
-- Write clear, concise commit messages following conventional commit format
+- Write clear, concise commit messages WITHOUT type prefixes
+- DO NOT use prefixes like `feat:`, `fix:`, `refactor:`, etc. in the main message
+- Put the commit type in the description/body instead
 - DO NOT add "Generated with Claude Code" footers
 - DO NOT add "Co-Authored-By: Claude" trailers
 - DO NOT list changed files or obvious details visible in `git diff`
 - Focus on the intent and high-level summary of WHY, not WHAT
 - Keep commit messages professional and focused on the change itself
 
-**Commit Types**:
-- `feat:` - New feature or language capability
-- `fix:` - Bug fix
-- `refactor:` - Code restructuring without behavior change
-- `perf:` - Performance improvement
-- `test:` - Adding or updating tests
-- `docs:` - Documentation only
-- `chore:` - Build, tooling, dependencies
-
-**Scope Examples**: `feat(parser):`, `fix(vm):`, `refactor(stdlib):`
+**Commit Types** (for description only):
+- Feature - New feature or language capability
+- Fix - Bug fix
+- Refactor - Code restructuring without behavior change
+- Performance - Performance improvement
+- Test - Adding or updating tests
+- Documentation - Documentation only
+- Chore - Build, tooling, dependencies
 
 Example of correct commit message:
+```
+Add array support to parser
+
+Feature: Implement array literal parsing and validation
+```
+
+Example of incorrect commit messages (DO NOT DO THIS):
 ```
 feat: Add array support to parser
 
 Implement array literal parsing and validation
 ```
 
-Example of incorrect commit messages (DO NOT DO THIS):
 ```
-feat: Add array support to parser
+Add array support to parser
 
 Implement array literal parsing and validation
 
@@ -95,7 +101,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ```
-feat: Add array support to parser
+Add array support to parser
 
 Changes:
 - Modified parser.rs to add array parsing
@@ -151,6 +157,6 @@ See `.claude/ORCHESTRATION.md` for complete documentation.
 
 **Commit Messages**:
 - ✅ Clean, professional messages focused on intent
-- ✅ Use conventional commit format with types
+- ✅ No prefixes in main message (put type in description)
 - ❌ No watermarks or attribution footers
 - ❌ No file lists or obvious details from git diff
