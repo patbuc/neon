@@ -227,7 +227,7 @@ fn can_handle_complex_arithmetic() {
     let program = r#"
         val x = 10
         val y = 5
-        print (x + y) * (x - y)
+        print(((x + y) * (x - y)))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -821,7 +821,7 @@ fn test_logical_precedence_and_or() {
 #[test]
 fn test_logical_precedence_with_parens() {
     let program = r#"
-        print (false || true) && false
+        print((false || true) && false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -872,7 +872,7 @@ fn test_logical_complex_expression() {
         val a = true
         val b = false
         val c = true
-        print (a || b) && c
+        print((a || b) && c)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -988,7 +988,7 @@ fn test_logical_all_operators_combined() {
         val b = false
         val c = true
         val d = false
-        print (a && b) || (c && !d)
+        print((a && b) || (c && !d))
         "#;
 
     let mut vm = VirtualMachine::new();
