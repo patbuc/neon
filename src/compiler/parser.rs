@@ -975,9 +975,15 @@ impl Parser {
                 return None;
             }
 
-            Some(Expr::MethodCall {
+            // Convert obj.method(args) to Call { callee: GetField { object: obj, field: method }, arguments }
+            let get_field_expr = Expr::GetField {
                 object: Box::new(object),
-                method: field,
+                field,
+                location,
+            };
+
+            Some(Expr::Call {
+                callee: Box::new(get_field_expr),
                 arguments,
                 location: method_location,
             })
