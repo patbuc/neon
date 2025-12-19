@@ -117,10 +117,10 @@ fn test_round_trip_file(source: &str, expected_output: &str) {
 #[test]
 fn test_simple_arithmetic() {
     let source = r#"
-        print 2 + 3
-        print 10 - 4
-        print 5 * 6
-        print 20 / 4
+        print(2 + 3)
+        print(10 - 4)
+        print(5 * 6)
+        print(20 / 4)
     "#;
     let expected = "5\n6\n30\n5";
     test_round_trip(source, expected);
@@ -131,9 +131,9 @@ fn test_simple_variables() {
     let source = r#"
         var x = 10
         var y = 20
-        print x + y
+        print(x + y)
         x = 15
-        print x + y
+        print(x + y)
     "#;
     let expected = "30\n35";
     test_round_trip(source, expected);
@@ -144,8 +144,8 @@ fn test_string_operations() {
     let source = r#"
         var greeting = "Hello"
         var name = "World"
-        print greeting + " " + name
-        print "Length: " + greeting.len().toString()
+         print(greeting + " " + name)
+         print("Length: " + greeting.len().toString())
     "#;
     let expected = "Hello World\nLength: 5";
     test_round_trip(source, expected);
@@ -154,11 +154,11 @@ fn test_string_operations() {
 #[test]
 fn test_boolean_operations() {
     let source = r#"
-        print true
-        print false
-        print true && false
-        print true || false
-        print !false
+        print(true)
+        print(false)
+        print(true && false)
+        print(true || false)
+        print(!false)
     "#;
     let expected = "true\nfalse\nfalse\ntrue\ntrue";
     test_round_trip(source, expected);
@@ -167,12 +167,12 @@ fn test_boolean_operations() {
 #[test]
 fn test_comparison_operators() {
     let source = r#"
-        print 5 > 3
-        print 3 < 5
-        print 5 >= 5
-        print 3 <= 3
-        print 5 == 5
-        print 5 != 3
+        print(5 > 3)
+        print(3 < 5)
+        print(5 >= 5)
+        print(3 <= 3)
+        print(5 == 5)
+        print(5 != 3)
     "#;
     let expected = "true\ntrue\ntrue\ntrue\ntrue\ntrue";
     test_round_trip(source, expected);
@@ -187,15 +187,15 @@ fn test_if_else() {
     let source = r#"
         var x = 10
         if (x > 5) {
-            print "x is greater than 5"
+            print("x is greater than 5")
         } else {
-            print "x is not greater than 5"
+            print("x is not greater than 5")
         }
 
         if (x < 5) {
-            print "x is less than 5"
+            print("x is less than 5")
         } else {
-            print "x is not less than 5"
+            print("x is not less than 5")
         }
     "#;
     let expected = "x is greater than 5\nx is not less than 5";
@@ -206,7 +206,7 @@ fn test_if_else() {
 fn test_for_loop() {
     let source = r#"
         for (var i = 0; i < 5; i = i + 1) {
-            print i
+            print(i)
         }
     "#;
     let expected = "0\n1\n2\n3\n4";
@@ -218,7 +218,7 @@ fn test_for_loop_nested() {
     let source = r#"
         for (var i = 0; i < 3; i = i + 1) {
             for (var j = 0; j < 2; j = j + 1) {
-                print i.toString() + "," + j.toString()
+                print(i.toString() + "," + j.toString())
             }
         }
     "#;
@@ -231,7 +231,7 @@ fn test_while_loop() {
     let source = r#"
         var i = 0
         while (i < 5) {
-            print i
+            print(i)
             i = i + 1
         }
     "#;
@@ -247,7 +247,7 @@ fn test_while_loop() {
 fn test_simple_function() {
     let source = r#"
         fn greet(name) {
-            print "Hello, " + name
+            print("Hello, " + name)
         }
 
         greet("Alice")
@@ -264,8 +264,8 @@ fn test_function_with_return() {
             return a + b
         }
 
-        print add(3, 5)
-        print add(10, 20)
+        print(add(3, 5))
+        print(add(10, 20))
     "#;
     let expected = "8\n30";
     test_round_trip(source, expected);
@@ -281,8 +281,8 @@ fn test_recursive_function() {
             return n * factorial(n - 1)
         }
 
-        print factorial(5)
-        print factorial(6)
+        print(factorial(5))
+        print(factorial(6))
     "#;
     let expected = "120\n720";
     test_round_trip(source, expected);
@@ -319,12 +319,12 @@ fn test_recursive_function() {
 fn test_array_operations() {
     let source = r#"
         var arr = [1, 2, 3, 4, 5]
-        print arr[0]
-        print arr[2]
-        print arr.size()
+        print(arr[0])
+        print(arr[2])
+        print(arr.size())
         arr.push(6)
-        print arr[5]
-        print arr.size()
+        print(arr[5])
+        print(arr.size())
     "#;
     let expected = "1\n3\n5\n6\n6";
     test_round_trip(source, expected);
@@ -335,7 +335,7 @@ fn test_array_for_in() {
     let source = r#"
         val arr = [10, 20, 30]
         for (x in arr) {
-            print x
+            print(x)
         }
     "#;
     let expected = "10\n20\n30";
@@ -346,9 +346,9 @@ fn test_array_for_in() {
 fn test_nested_arrays() {
     let source = r#"
         var matrix = [[1, 2], [3, 4], [5, 6]]
-        print matrix[0][0]
-        print matrix[1][1]
-        print matrix[2][0]
+        print(matrix[0][0])
+        print(matrix[1][1])
+        print(matrix[2][0])
     "#;
     let expected = "1\n4\n5";
     test_round_trip(source, expected);
@@ -362,10 +362,10 @@ fn test_nested_arrays() {
 fn test_map_operations() {
     let source = r#"
         var person = {"name": "Alice", "age": 30}
-        print person["name"]
-        print person["age"]
+        print(person["name"])
+        print(person["age"])
         person["city"] = "New York"
-        print person["city"]
+        print(person["city"])
     "#;
     let expected = "Alice\n30\nNew York";
     test_round_trip(source, expected);
@@ -376,7 +376,7 @@ fn test_map_for_in() {
     let source = r#"
         val map = {"a": 1, "b": 2}
         for (key in map.keys()) {
-            print key + ": " + map[key].toString()
+            print(key + ": " + map[key].toString())
         }
     "#;
     // Note: Map iteration order might vary, so we test both possibilities
@@ -415,9 +415,9 @@ fn test_set_operations() {
         s.add(1)
         s.add(2)
         s.add(3)
-        print s.size()
-        print s.has(2)
-        print s.has(5)
+        print(s.size())
+        print(s.has(2))
+        print(s.has(5))
     "#;
     let expected = "3\ntrue\nfalse";
     test_round_trip(source, expected);
@@ -436,10 +436,10 @@ fn test_struct_and_instance() {
         }
 
         val p = Person("Alice", 30)
-        print p.name
-        print p.age
+        print(p.name)
+        print(p.age)
         p.name = "Bob"
-        print p.name
+        print(p.name)
     "#;
     let expected = "Alice\n30\nBob";
     test_round_trip(source, expected);
@@ -455,10 +455,10 @@ fn test_struct_with_multiple_fields() {
 
         val p1 = Point(10, 20)
         val p2 = Point(30, 40)
-        print p1.x
-        print p1.y
-        print p2.x
-        print p2.y
+        print(p1.x)
+        print(p1.y)
+        print(p2.x)
+        print(p2.y)
     "#;
     let expected = "10\n20\n30\n40";
     test_round_trip(source, expected);
@@ -471,9 +471,9 @@ fn test_struct_with_multiple_fields() {
 #[test]
 fn test_file_io_round_trip() {
     let source = r#"
-        print "Compiled and executed from binary"
+         print("Compiled and executed from binary")
         var x = 42
-        print x
+         print(x)
     "#;
     let expected = "Compiled and executed from binary\n42";
     test_round_trip_file(source, expected);
@@ -490,7 +490,7 @@ fn test_file_io_complex_program() {
         }
 
         for (var i = 0; i < 10; i = i + 1) {
-            print fibonacci(i)
+            print(fibonacci(i))
         }
     "#;
     let expected = "0\n1\n1\n2\n3\n5\n8\n13\n21\n34";
@@ -524,7 +524,7 @@ fn test_unsupported_version() {
     use neon::common::chunk::binary::BinaryHeader;
 
     // Create a valid chunk by compiling source
-    let source = "print 42";
+    let source = "print(42)";
     let chunk = compile_source(source).expect("Compilation should succeed");
     let serialized = serialize_chunk(&chunk).expect("Serialization should succeed");
 
@@ -561,7 +561,7 @@ fn test_unsupported_version() {
 #[test]
 fn test_truncated_binary_data() {
     // Create valid binary and truncate it
-    let source = "print 42";
+    let source = "print(42)";
     let chunk = compile_source(source).expect("Compilation should succeed");
     let serialized = serialize_chunk(&chunk).expect("Serialization should succeed");
 
@@ -575,7 +575,7 @@ fn test_truncated_binary_data() {
 #[test]
 fn test_corrupted_chunk_data() {
     // Create valid binary and corrupt the chunk section
-    let source = "print 42";
+    let source = "print(42)";
     let chunk = compile_source(source).expect("Compilation should succeed");
     let mut serialized = serialize_chunk(&chunk).expect("Serialization should succeed");
 
@@ -621,7 +621,7 @@ fn test_file_not_found() {
 fn test_write_to_read_only_location() {
     // Try to write to a path that should fail (root directory on Unix)
     let readonly_path = PathBuf::from("/readonly_test.nbc");
-    let source = "print 42";
+    let source = "print(42)";
     let chunk = compile_source(source).expect("Compilation should succeed");
 
     let result = write_binary_file(&readonly_path, &chunk);
@@ -662,7 +662,7 @@ fn test_verify_magic_number_in_file() {
     let binary_path = temp_dir.path().join("test.nbc");
 
     // Compile and write
-    let source = "print 42";
+    let source = "print(42)";
     let chunk = compile_source(source).expect("Compilation should succeed");
     write_binary_file(&binary_path, &chunk).expect("Writing should succeed");
 
@@ -702,17 +702,17 @@ fn test_comprehensive_program() {
         }
 
         val p = Point(10, 20)
-        print p.x + p.y
+        print(p.x + p.y)
 
         // Test array access without for-in loop
         val numbers = [1, 2, 3, 4, 5]
-        print numbers[0] + numbers[4]
+        print(numbers[0] + numbers[4])
 
         // Test function
         fn double(x) {
             return x * 2
         }
-        print double(5)
+        print(double(5))
     "#;
     let expected = "30\n6\n10";
     test_round_trip(source, expected);
@@ -721,12 +721,12 @@ fn test_comprehensive_program() {
 #[test]
 fn test_math_operations() {
     let source = r#"
-        print Math.abs(-42)
-        print Math.sqrt(16)
-        print Math.floor(3.7)
-        print Math.ceil(3.2)
-        print Math.max(10, 20)
-        print Math.min(10, 20)
+        print(Math.abs(-42))
+        print(Math.sqrt(16))
+        print(Math.floor(3.7))
+        print(Math.ceil(3.2))
+        print(Math.max(10, 20))
+        print(Math.min(10, 20))
     "#;
     let expected = "42\n4\n3\n4\n20\n10";
     test_round_trip(source, expected);
@@ -740,7 +740,7 @@ fn test_range_operations() {
     // This test uses a single exclusive range
     let source = r#"
         for (i in 0..5) {
-            print i
+            print(i)
         }
     "#;
     let expected = "0\n1\n2\n3\n4";
@@ -750,10 +750,10 @@ fn test_range_operations() {
 #[test]
 fn test_string_methods() {
     let source = r#"
-        var s = "Hello World"
-        print s.len()
-        print s.toUpperCase()
-        print s.toLowerCase()
+         var s = "Hello World"
+         print(s.len())
+         print(s.toUpperCase())
+         print(s.toLowerCase())
     "#;
     let expected = "11\nHELLO WORLD\nhello world";
     test_round_trip(source, expected);
