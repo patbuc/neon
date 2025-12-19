@@ -1131,10 +1131,7 @@ impl VirtualMachine {
         // Special handling for print(function to integrate with VM string buffer)
         let result = if registry_index == 0 {
             // The print(function is at index 0 in the registry - handle specially)
-            match self.handle_print_function(&args) {
-                Ok(value) => Ok(value),
-                Err(error) => Err(error),
-            }
+            self.handle_print_function(&args)
         } else {
             // Call the native function normally
             native_callable.function()(&args)

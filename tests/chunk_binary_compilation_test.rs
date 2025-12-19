@@ -594,9 +594,9 @@ fn test_corrupted_chunk_data() {
     // The test passes if either:
     // 1. Deserialization fails (expected)
     // 2. Deserialization succeeds but execution fails (also acceptable)
-    if result.is_ok() {
+    if let Ok(chunk) = result {
         // If deserialization somehow succeeded, execution should fail
-        let (_exec_result, _output) = execute_chunk(result.unwrap());
+        let (_exec_result, _output) = execute_chunk(chunk);
         // We don't assert on execution result as corrupted data might still be valid
         // This test mainly verifies the error handling path exists
     }
