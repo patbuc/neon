@@ -1128,9 +1128,9 @@ impl VirtualMachine {
         let args_start = stack_len - arg_count;
         let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
 
-        // Special handling for print function to integrate with VM string buffer
+        // Special handling for print(function to integrate with VM string buffer)
         let result = if registry_index == 0 {
-            // The print function is at index 0 in the registry - handle specially
+            // The print(function is at index 0 in the registry - handle specially)
             match self.handle_print_function(&args) {
                 Ok(value) => Ok(value),
                 Err(error) => Err(error),
@@ -1209,8 +1209,8 @@ impl VirtualMachine {
         }
     }
 
-    /// Special handling for print function to integrate with VM string buffer
-    /// This ensures print output goes to the correct place in test/debug/WASM contexts
+    /// Special handling for print(function to integrate with VM string buffer)
+    /// This ensures print(output goes to the correct place in test/debug/WASM contexts)
     fn handle_print_function(&mut self, args: &[Value]) -> std::result::Result<Value, String> {
         if args.is_empty() {
             return Err("print() expects at least 1 argument".to_string());
@@ -1228,7 +1228,7 @@ impl VirtualMachine {
             self.string_buffer.push_str(&format!("{}\n", output));
         }
         
-        // For normal execution (non-WASM) - print to stdout
+        // For normal execution (non-WASM) - print(to stdout)
         #[cfg(not(target_arch = "wasm32"))]
         {
             println!("{}", output);

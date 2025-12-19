@@ -3,9 +3,9 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_math_min_variadic() {
     let program = r#"
-        print Math.min(5, 2, 8, 1)
-        print Math.min(3, 7)
-        print Math.min(42)
+        print(Math.min(5, 2, 8, 1))
+        print(Math.min(3, 7))
+        print(Math.min(42))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -17,9 +17,9 @@ fn test_math_min_variadic() {
 #[test]
 fn test_math_max_variadic() {
     let program = r#"
-        print Math.max(5, 2, 8, 1)
-        print Math.max(3, 7)
-        print Math.max(42)
+        print(Math.max(5, 2, 8, 1))
+        print(Math.max(3, 7))
+        print(Math.max(42))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -31,8 +31,8 @@ fn test_math_max_variadic() {
 #[test]
 fn test_math_min_max_negative() {
     let program = r#"
-        print Math.min(-5, -2, -8)
-        print Math.max(-5, -2, -8)
+        print(Math.min(-5, -2, -8))
+        print(Math.max(-5, -2, -8))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -44,8 +44,8 @@ fn test_math_min_max_negative() {
 #[test]
 fn test_math_min_max_mixed() {
     let program = r#"
-        print Math.min(10, -3, 5, -10)
-        print Math.max(10, -3, 5, -10)
+        print(Math.min(10, -3, 5, -10))
+        print(Math.max(10, -3, 5, -10))
         "#;
 
     let mut vm = VirtualMachine::new();

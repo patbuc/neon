@@ -44,7 +44,7 @@ fn test_binary_expression() {
 
 #[test]
 fn test_variable_reference() {
-    let chunk = compile_program("val x = 5\nprint x\n").unwrap();
+    let chunk = compile_program("val x = 5\nprint(x)\n").unwrap();
     assert!(chunk.instruction_count() > 0);
 }
 
@@ -65,7 +65,7 @@ fn test_if_statement() {
     let program = r#"
     val x = 10
     if (x > 5) {
-        print x
+        print(x)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -92,7 +92,7 @@ fn test_end_to_end_execution() {
     val x = 10
     val y = 20
     val sum = x + y
-    print sum
+    print(sum)
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -116,7 +116,7 @@ fn test_end_to_end_function() {
         return a + b
     }
     val result = add(15, 27)
-    print result
+    print(result)
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -145,7 +145,7 @@ fn test_end_to_end_forward_reference() {
         return 99
     }
 
-    print foo()
+    print(foo())
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -168,11 +168,11 @@ fn test_else_if_bytecode_simple() {
     let program = r#"
     val x = 5
     if (x == 1) {
-        print 1
+        print(1)
     } else if (x == 2) {
-        print 2
+        print(2)
     } else {
-        print 3
+        print(3)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -264,15 +264,15 @@ fn test_else_if_bytecode_multiple_branches() {
     let program = r#"
     val x = 10
     if (x < 5) {
-        print 1
+        print(1)
     } else if (x < 10) {
-        print 2
+        print(2)
     } else if (x < 15) {
-        print 3
+        print(3)
     } else if (x < 20) {
-        print 4
+        print(4)
     } else {
-        print 5
+        print(5)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -352,9 +352,9 @@ fn test_else_if_bytecode_without_final_else() {
     let program = r#"
     val x = 7
     if (x == 5) {
-        print 5
+        print(5)
     } else if (x == 7) {
-        print 7
+        print(7)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -429,11 +429,11 @@ fn test_else_if_bytecode_jump_offsets() {
     let program = r#"
     val x = 5
     if (x == 1) {
-        print 1
+        print(1)
     } else if (x == 2) {
-        print 2
+        print(2)
     } else {
-        print 3
+        print(3)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -481,11 +481,11 @@ fn test_else_if_end_to_end_execution() {
     let program = r#"
     val x = 15
     if (x < 10) {
-        print 10
+        print(10)
     } else if (x < 20) {
-        print 20
+        print(20)
     } else {
-        print 30
+        print(30)
     }
     "#;
     let chunk = compile_program(program).unwrap();
@@ -803,7 +803,7 @@ fn test_postfix_decrement_in_expression() {
 fn test_postfix_increment_in_print() {
     let program = r#"
     var x = 5
-    print x++
+    print(x++)
     "#;
     let chunk = compile_program(program).unwrap();
     assert!(chunk.instruction_count() > 0);
@@ -813,7 +813,7 @@ fn test_postfix_increment_in_print() {
 fn test_postfix_decrement_in_print() {
     let program = r#"
     var x = 10
-    print x--
+    print(x--)
     "#;
     let chunk = compile_program(program).unwrap();
     assert!(chunk.instruction_count() > 0);
@@ -860,8 +860,8 @@ fn test_postfix_increment_end_to_end() {
     let program = r#"
     var x = 5
     val old = x++
-    print old
-    print x
+    print(old)
+    print(x)
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -883,8 +883,8 @@ fn test_postfix_decrement_end_to_end() {
     let program = r#"
     var x = 10
     val old = x--
-    print old
-    print x
+    print(old)
+    print(x)
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -908,7 +908,7 @@ fn test_postfix_increment_multiple_times() {
     x++
     x++
     x++
-    print x
+    print(x)
     "#;
     let chunk = compile_program(program).unwrap();
 
@@ -935,7 +935,7 @@ fn test_postfix_operations_in_function() {
     }
 
     val result = increment_and_return(5)
-    print result
+    print(result)
     "#;
     let chunk = compile_program(program).unwrap();
 

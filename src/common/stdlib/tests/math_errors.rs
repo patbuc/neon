@@ -8,7 +8,7 @@ use crate::vm::VirtualMachine;
 #[test]
 fn test_math_abs_with_string() {
     let program = r#"
-        print Math.abs("string")
+        print(Math.abs("string"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -19,7 +19,7 @@ fn test_math_abs_with_string() {
 #[test]
 fn test_math_abs_with_boolean() {
     let program = r#"
-        print Math.abs(true)
+        print(Math.abs(true))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -30,7 +30,7 @@ fn test_math_abs_with_boolean() {
 #[test]
 fn test_math_abs_with_nil() {
     let program = r#"
-        print Math.abs(nil)
+        print(Math.abs(nil))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -41,7 +41,7 @@ fn test_math_abs_with_nil() {
 #[test]
 fn test_math_abs_no_args() {
     let program = r#"
-        print Math.abs()
+        print(Math.abs())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -52,7 +52,7 @@ fn test_math_abs_no_args() {
 #[test]
 fn test_math_abs_too_many_args() {
     let program = r#"
-        print Math.abs(1, 2)
+        print(Math.abs(1, 2))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -67,7 +67,7 @@ fn test_math_abs_too_many_args() {
 #[test]
 fn test_math_floor_with_string() {
     let program = r#"
-        print Math.floor("hello")
+        print(Math.floor("hello"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -78,7 +78,7 @@ fn test_math_floor_with_string() {
 #[test]
 fn test_math_floor_with_boolean() {
     let program = r#"
-        print Math.floor(false)
+        print(Math.floor(false))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -89,7 +89,7 @@ fn test_math_floor_with_boolean() {
 #[test]
 fn test_math_floor_with_nil() {
     let program = r#"
-        print Math.floor(nil)
+        print(Math.floor(nil))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -100,7 +100,7 @@ fn test_math_floor_with_nil() {
 #[test]
 fn test_math_floor_no_args() {
     let program = r#"
-        print Math.floor()
+        print(Math.floor())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -111,7 +111,7 @@ fn test_math_floor_no_args() {
 #[test]
 fn test_math_floor_too_many_args() {
     let program = r#"
-        print Math.floor(1.5, 2.5)
+        print(Math.floor(1.5, 2.5))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -126,7 +126,7 @@ fn test_math_floor_too_many_args() {
 #[test]
 fn test_math_ceil_with_string() {
     let program = r#"
-        print Math.ceil("world")
+        print(Math.ceil("world"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -137,7 +137,7 @@ fn test_math_ceil_with_string() {
 #[test]
 fn test_math_ceil_with_boolean() {
     let program = r#"
-        print Math.ceil(true)
+        print(Math.ceil(true))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -148,7 +148,7 @@ fn test_math_ceil_with_boolean() {
 #[test]
 fn test_math_ceil_with_nil() {
     let program = r#"
-        print Math.ceil(nil)
+        print(Math.ceil(nil))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -159,7 +159,7 @@ fn test_math_ceil_with_nil() {
 #[test]
 fn test_math_ceil_no_args() {
     let program = r#"
-        print Math.ceil()
+        print(Math.ceil())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -170,7 +170,7 @@ fn test_math_ceil_no_args() {
 #[test]
 fn test_math_ceil_too_many_args() {
     let program = r#"
-        print Math.ceil(1.5, 2.5)
+        print(Math.ceil(1.5, 2.5))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -185,7 +185,7 @@ fn test_math_ceil_too_many_args() {
 #[test]
 fn test_math_sqrt_with_negative() {
     let program = r#"
-        print Math.sqrt(-1)
+        print(Math.sqrt(-1))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -196,7 +196,7 @@ fn test_math_sqrt_with_negative() {
 #[test]
 fn test_math_sqrt_with_string() {
     let program = r#"
-        print Math.sqrt("42")
+        print(Math.sqrt("42"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -207,7 +207,7 @@ fn test_math_sqrt_with_string() {
 #[test]
 fn test_math_sqrt_with_boolean() {
     let program = r#"
-        print Math.sqrt(false)
+        print(Math.sqrt(false))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -218,7 +218,7 @@ fn test_math_sqrt_with_boolean() {
 #[test]
 fn test_math_sqrt_with_nil() {
     let program = r#"
-        print Math.sqrt(nil)
+        print(Math.sqrt(nil))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -229,7 +229,7 @@ fn test_math_sqrt_with_nil() {
 #[test]
 fn test_math_sqrt_no_args() {
     let program = r#"
-        print Math.sqrt()
+        print(Math.sqrt())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -240,7 +240,7 @@ fn test_math_sqrt_no_args() {
 #[test]
 fn test_math_sqrt_too_many_args() {
     let program = r#"
-        print Math.sqrt(4, 9)
+        print(Math.sqrt(4, 9))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -251,7 +251,7 @@ fn test_math_sqrt_too_many_args() {
 #[test]
 fn test_math_sqrt_large_negative() {
     let program = r#"
-        print Math.sqrt(-100)
+        print(Math.sqrt(-100))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -266,7 +266,7 @@ fn test_math_sqrt_large_negative() {
 #[test]
 fn test_math_min_no_args() {
     let program = r#"
-        print Math.min()
+        print(Math.min())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -277,7 +277,7 @@ fn test_math_min_no_args() {
 #[test]
 fn test_math_min_with_string_first() {
     let program = r#"
-        print Math.min("hello", 2, 3)
+        print(Math.min("hello", 2, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -288,7 +288,7 @@ fn test_math_min_with_string_first() {
 #[test]
 fn test_math_min_with_string_middle() {
     let program = r#"
-        print Math.min(1, "hello", 3)
+        print(Math.min(1, "hello", 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -299,7 +299,7 @@ fn test_math_min_with_string_middle() {
 #[test]
 fn test_math_min_with_string_last() {
     let program = r#"
-        print Math.min(1, 2, "hello")
+        print(Math.min(1, 2, "hello"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -310,7 +310,7 @@ fn test_math_min_with_string_last() {
 #[test]
 fn test_math_min_with_boolean() {
     let program = r#"
-        print Math.min(1, true, 3)
+        print(Math.min(1, true, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -321,7 +321,7 @@ fn test_math_min_with_boolean() {
 #[test]
 fn test_math_min_with_nil() {
     let program = r#"
-        print Math.min(1, nil, 3)
+        print(Math.min(1, nil, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -332,7 +332,7 @@ fn test_math_min_with_nil() {
 #[test]
 fn test_math_min_all_non_numbers() {
     let program = r#"
-        print Math.min("a", "b", "c")
+        print(Math.min("a", "b", "c"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -343,7 +343,7 @@ fn test_math_min_all_non_numbers() {
 #[test]
 fn test_math_min_mixed_types() {
     let program = r#"
-        print Math.min(1, "hello", true, nil, 5)
+        print(Math.min(1, "hello", true, nil, 5))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -358,7 +358,7 @@ fn test_math_min_mixed_types() {
 #[test]
 fn test_math_max_no_args() {
     let program = r#"
-        print Math.max()
+        print(Math.max())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -369,7 +369,7 @@ fn test_math_max_no_args() {
 #[test]
 fn test_math_max_with_string_first() {
     let program = r#"
-        print Math.max("hello", 2, 3)
+        print(Math.max("hello", 2, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -380,7 +380,7 @@ fn test_math_max_with_string_first() {
 #[test]
 fn test_math_max_with_string_middle() {
     let program = r#"
-        print Math.max(1, "hello", 3)
+        print(Math.max(1, "hello", 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -391,7 +391,7 @@ fn test_math_max_with_string_middle() {
 #[test]
 fn test_math_max_with_string_last() {
     let program = r#"
-        print Math.max(1, 2, "hello")
+        print(Math.max(1, 2, "hello"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -402,7 +402,7 @@ fn test_math_max_with_string_last() {
 #[test]
 fn test_math_max_with_boolean() {
     let program = r#"
-        print Math.max(1, false, 3)
+        print(Math.max(1, false, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -413,7 +413,7 @@ fn test_math_max_with_boolean() {
 #[test]
 fn test_math_max_with_nil() {
     let program = r#"
-        print Math.max(1, nil, 3)
+        print(Math.max(1, nil, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -424,7 +424,7 @@ fn test_math_max_with_nil() {
 #[test]
 fn test_math_max_all_non_numbers() {
     let program = r#"
-        print Math.max(true, false, true)
+        print(Math.max(true, false, true))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -435,7 +435,7 @@ fn test_math_max_all_non_numbers() {
 #[test]
 fn test_math_max_mixed_types() {
     let program = r#"
-        print Math.max(1, "world", false, nil, 5)
+        print(Math.max(1, "world", false, nil, 5))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -451,7 +451,7 @@ fn test_math_max_mixed_types() {
 fn test_math_error_in_expression() {
     let program = r#"
         val x = 5 + Math.abs("invalid")
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -465,7 +465,7 @@ fn test_math_error_in_function_call() {
         fn test() {
             return Math.sqrt(-10)
         }
-        print test()
+        print(test())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -477,7 +477,7 @@ fn test_math_error_in_function_call() {
 fn test_math_error_in_if_condition() {
     let program = r#"
         if (Math.min() > 0) {
-            print "unreachable"
+            print("unreachable")
         }
         "#;
 
@@ -490,7 +490,7 @@ fn test_math_error_in_if_condition() {
 fn test_math_error_in_while_condition() {
     let program = r#"
         while (Math.max() > 0) {
-            print "unreachable"
+            print("unreachable")
         }
         "#;
 
@@ -502,24 +502,24 @@ fn test_math_error_in_while_condition() {
 #[test]
 fn test_math_error_does_not_crash_vm() {
     let program = r#"
-        print "Before error"
-        print Math.abs(nil)
-        print "After error (unreachable)"
+        print("Before error")
+        print(Math.abs(nil))
+        print("After error (unreachable)")
         "#;
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
-    // VM should print "Before error" but not crash
+    // VM should print("Before error" but not crash)
     assert_eq!("Before error", vm.get_output());
 }
 
 #[test]
 fn test_multiple_math_errors() {
     let program = r#"
-        print Math.abs("first error")
-        print Math.floor(nil)
-        print Math.sqrt(-1)
+        print(Math.abs("first error"))
+        print(Math.floor(nil))
+        print(Math.sqrt(-1))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -532,7 +532,7 @@ fn test_multiple_math_errors() {
 fn test_math_error_with_variables() {
     let program = r#"
         val x = "not a number"
-        print Math.floor(x)
+        print(Math.floor(x))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -543,7 +543,7 @@ fn test_math_error_with_variables() {
 #[test]
 fn test_math_error_with_expression_arg() {
     let program = r#"
-        print Math.abs(5 + "string")
+        print(Math.abs(5 + "string"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -554,7 +554,7 @@ fn test_math_error_with_expression_arg() {
 #[test]
 fn test_math_nested_error() {
     let program = r#"
-        print Math.abs(Math.sqrt(-5))
+        print(Math.abs(Math.sqrt(-5)))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -565,7 +565,7 @@ fn test_math_nested_error() {
 #[test]
 fn test_math_min_max_combined_error() {
     let program = r#"
-        print Math.min(Math.max(), 5)
+        print(Math.min(Math.max(), 5))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -580,12 +580,12 @@ fn test_math_min_max_combined_error() {
 #[test]
 fn test_math_functions_dont_error_on_valid_input() {
     let program = r#"
-        print Math.abs(-5)
-        print Math.floor(3.7)
-        print Math.ceil(2.1)
-        print Math.sqrt(16)
-        print Math.min(1, 2, 3)
-        print Math.max(1, 2, 3)
+        print(Math.abs(-5))
+        print(Math.floor(3.7))
+        print(Math.ceil(2.1))
+        print(Math.sqrt(16))
+        print(Math.min(1, 2, 3))
+        print(Math.max(1, 2, 3))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -597,7 +597,7 @@ fn test_math_functions_dont_error_on_valid_input() {
 #[test]
 fn test_math_sqrt_zero_is_valid() {
     let program = r#"
-        print Math.sqrt(0)
+        print(Math.sqrt(0))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -609,8 +609,8 @@ fn test_math_sqrt_zero_is_valid() {
 #[test]
 fn test_math_single_arg_functions_valid() {
     let program = r#"
-        print Math.min(42)
-        print Math.max(42)
+        print(Math.min(42))
+        print(Math.max(42))
         "#;
 
     let mut vm = VirtualMachine::new();
