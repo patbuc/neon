@@ -98,12 +98,6 @@ pub enum Expr {
         expr: Box<Expr>,
         location: SourceLocation,
     },
-    MethodCall {
-        object: Box<Expr>,
-        method: String,
-        arguments: Vec<Expr>,
-        location: SourceLocation,
-    },
     MapLiteral {
         entries: Vec<(Expr, Expr)>,
         location: SourceLocation,
@@ -221,7 +215,6 @@ impl Expr {
             | Expr::GetField { location, .. }
             | Expr::SetField { location, .. }
             | Expr::Grouping { location, .. }
-            | Expr::MethodCall { location, .. }
             | Expr::MapLiteral { location, .. }
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
