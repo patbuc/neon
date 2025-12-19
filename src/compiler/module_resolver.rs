@@ -14,9 +14,9 @@ pub struct ExportedSymbol {
 /// Type of exported symbol
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolKind {
-    Function,
+    Function { arity: u8 },
     Variable,
-    Struct,
+    Struct { fields: Vec<String> },
 }
 
 /// Compiled module with its exports

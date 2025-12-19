@@ -1528,25 +1528,34 @@ impl VirtualMachine {
                 }
                 OpCode::ToString => self.fn_to_string(),
                 OpCode::LoadModule => {
-                    // Nested module loading not supported during module initialization
-                    self.runtime_error("Cannot load modules during module initialization");
-                    return Some(Result::RuntimeError);
+                    // Check module cache first - already compiled modules can be loaded
+                    // This allows modules to import other modules without recursion issues
+                    if let Some(result) = self.fn_load_module(BitsSize::Eight) {
+                        return Some(result);
+                    }
+                    continue;
                 }
                 OpCode::LoadModule2 => {
-                    self.runtime_error("Cannot load modules during module initialization");
-                    return Some(Result::RuntimeError);
+                    if let Some(result) = self.fn_load_module(BitsSize::Sixteen) {
+                        return Some(result);
+                    }
+                    continue;
                 }
                 OpCode::LoadModule4 => {
-                    self.runtime_error("Cannot load modules during module initialization");
-                    return Some(Result::RuntimeError);
+                    if let Some(result) = self.fn_load_module(BitsSize::ThirtyTwo) {
+                        return Some(result);
+                    }
+                    continue;
                 }
             }
 
             // Advance IP for next instruction
             let frame_index = self.call_frames.len() - 1;
-            if frame_index < self.call_frames.len() {
-                self.call_frames[frame_index].ip += 1;
-            }
+            debug_assert!(
+                !self.call_frames.is_empty() && frame_index < self.call_frames.len(),
+                "expected at least one call frame and frame_index to point to the last frame"
+            );
+            self.call_frames[frame_index].ip += 1;
         }
 
         // Collect module globals from the stack

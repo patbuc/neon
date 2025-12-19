@@ -698,8 +698,8 @@ impl CodeGenerator {
                 self.generate_import_stmt(module_path, *location);
             }
             Stmt::Export { declaration, .. } => {
-                // Module system not yet implemented in codegen
-                // For now, just generate code for the underlying declaration
+                // Generate code for the underlying declaration.
+                // Export metadata is handled by the module system elsewhere.
                 self.generate_stmt(declaration);
             }
         }

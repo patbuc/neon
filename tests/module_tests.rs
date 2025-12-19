@@ -148,6 +148,51 @@ fn test_module_compilation_error() {
     );
 }
 
+#[test]
+fn test_module_non_exported_symbol_inaccessible() {
+    // Create temporary directory for test modules
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    // Create a module with both exported and non-exported declarations
+    let module_path = create_test_module(
+        &temp_dir,
+        "private_test",
+        r#"
+        export fn public_fn() {
+            return 42
+        }
+
+        fn private_fn() {
+            return 99
+        }
+        "#,
+    );
+
+    // Test script that tries to access non-exported symbol
+    let script = format!(
+        r#"
+        import "{}"
+        print private_test.private_fn()
+        "#,
+        module_path.display()
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(script);
+
+    // Should fail during compilation when trying to access non-exported symbol
+    // The semantic analyzer catches this at compile time
+    assert_eq!(
+        result,
+        neon::vm::Result::CompileError,
+        "Accessing non-exported symbol should fail at compile time"
+    );
+
+    // Verify the error mentions the inaccessible symbol
+    // Note: In tests, we don't have direct access to compilation errors,
+    // but the CompileError result indicates the semantic analyzer caught it
+}
+
 // Note: Export-based tests are commented out until we properly wire up
 // the export information from the compiler to the VM
 //
