@@ -845,63 +845,6 @@ impl CodeGenerator {
                     4 => self.current_chunk().write_u32(registry_index as u32),
                     _ => unreachable!(),
                 }
-        } else if let Expr::MethodCall {
-            object,
-            method,
-            arguments: method_args,
-            ..
-        } = callee
-        {
-            // Static method call: Math.abs(-5)
-            // Extract the namespace (left side of dot)
-            let namespace_name = if let Expr::Variable { name, .. } = object.as_ref() {
-                name.clone()
-            } else {
-                // If it's not a simple identifier, treat as regular call
-                // Evaluate the callee
-                self.generate_expr(callee);
-
-                // Evaluate all arguments
-                for arg in arguments {
-                    self.generate_expr(arg);
-                }
-
-                // Emit call instruction
-                self.emit_op_code(OpCode::Call, location);
-                self.current_chunk().write_u8(arguments.len() as u8);
-                return;
-            };
-
-            // Look up the registry index at compile time (O(n) once, not per call!)
-            // If not found, emit index 0 and let runtime handle the error with proper type checking
-            let registry_index =
-                crate::common::method_registry::get_native_method_index(&namespace_name, method)
-                    .unwrap_or(0);
-
-            // Evaluate all arguments (no receiver!)
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Determine opcode variant based on registry index size
-            let (opcode, index_bytes) = if registry_index <= 0xFF {
-                (OpCode::CallStaticMethod, 1)
-            } else if registry_index <= 0xFFFF {
-                (OpCode::CallStaticMethod2, 2)
-            } else {
-                (OpCode::CallStaticMethod4, 4)
-            };
-
-            self.emit_op_code(opcode, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-
-            // Write registry index (O(1) lookup at runtime!)
-            match index_bytes {
-                1 => self.current_chunk().write_u8(registry_index as u8),
-                2 => self.current_chunk().write_u16(registry_index as u16),
-                4 => self.current_chunk().write_u32(registry_index as u32),
-                _ => unreachable!(),
-            }
         } else {
             // Regular function call
             // Evaluate the callee
@@ -1150,7 +1093,14 @@ impl CodeGenerator {
                 arguments,
                 location,
             } => {
-                self.generate_call_expr(callee, arguments, *location);
+                // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
+                if let Expr::GetField { object, field, .. } = callee.as_ref() {
+                    // This is a method call obj.method(args)
+                    self.generate_method_call_expr(object, field, arguments, *location);
+                } else {
+                    // Regular function call
+                    self.generate_call_expr(callee, arguments, *location);
+                }
             }
             Expr::GetField {
                 object,
@@ -1176,14 +1126,6 @@ impl CodeGenerator {
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
-            }
-            Expr::MethodCall {
-                object,
-                method,
-                arguments,
-                location,
-            } => {
-                self.generate_method_call_expr(object, method, arguments, *location);
             }
             Expr::MapLiteral { entries, location } => {
                 for (key, _) in entries {

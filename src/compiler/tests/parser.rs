@@ -680,15 +680,21 @@ fn test_parse_method_call_no_args() {
     match &stmts[0] {
         Stmt::Val { initializer: Some(expr), .. } => {
             match expr {
-                Expr::MethodCall { object, method, arguments, .. } => {
-                    assert_eq!(method, "len");
+                Expr::Call { callee, arguments, .. } => {
+                    // Should be Call { callee: GetField { object: Variable("str"), field: "len" }, arguments: [] }
                     assert_eq!(arguments.len(), 0);
-                    match object.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "str"),
-                        _ => panic!("Expected Variable as object"),
+                    match callee.as_ref() {
+                        Expr::GetField { object, field, .. } => {
+                            assert_eq!(field, "len");
+                            match object.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
+                                _ => panic!("Expected Variable as object"),
+                            }
+                        }
+                        _ => panic!("Expected GetField as callee"),
                     }
                 }
-                _ => panic!("Expected MethodCall expression"),
+                _ => panic!("Expected Call expression"),
             }
         }
         _ => panic!("Expected Val statement"),
@@ -718,19 +724,25 @@ fn test_parse_method_call_one_arg() {
     match &stmts[0] {
         Stmt::Val { initializer: Some(expr), .. } => {
             match expr {
-                Expr::MethodCall { object, method, arguments, .. } => {
-                    assert_eq!(method, "split");
+                Expr::Call { callee, arguments, .. } => {
+                    // Should be Call { callee: GetField { object: Variable("str"), field: "split" }, arguments: [String(",")]}
                     assert_eq!(arguments.len(), 1);
                     match &arguments[0] {
                         Expr::String { value, .. } => assert_eq!(value, ","),
                         _ => panic!("Expected String argument"),
                     }
-                    match object.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "str"),
-                        _ => panic!("Expected Variable as object"),
+                    match callee.as_ref() {
+                        Expr::GetField { object, field, .. } => {
+                            assert_eq!(field, "split");
+                            match object.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
+                                _ => panic!("Expected Variable as object"),
+                            }
+                        }
+                        _ => panic!("Expected GetField as callee"),
                     }
                 }
-                _ => panic!("Expected MethodCall expression"),
+                _ => panic!("Expected Call expression"),
             }
         }
         _ => panic!("Expected Val statement"),
@@ -760,8 +772,8 @@ fn test_parse_method_call_multiple_args() {
     match &stmts[0] {
         Stmt::Val { initializer: Some(expr), .. } => {
             match expr {
-                Expr::MethodCall { object, method, arguments, .. } => {
-                    assert_eq!(method, "substring");
+                Expr::Call { callee, arguments, .. } => {
+                    // Should be Call { callee: GetField { object: Variable("str"), field: "substring" }, arguments: [Number(0), Number(5)]}
                     assert_eq!(arguments.len(), 2);
                     match &arguments[0] {
                         Expr::Number { value, .. } => assert_eq!(*value, 0.0),
@@ -771,12 +783,18 @@ fn test_parse_method_call_multiple_args() {
                         Expr::Number { value, .. } => assert_eq!(*value, 5.0),
                         _ => panic!("Expected Number argument"),
                     }
-                    match object.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "str"),
-                        _ => panic!("Expected Variable as object"),
+                    match callee.as_ref() {
+                        Expr::GetField { object, field, .. } => {
+                            assert_eq!(field, "substring");
+                            match object.as_ref() {
+                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
+                                _ => panic!("Expected Variable as object"),
+                            }
+                        }
+                        _ => panic!("Expected GetField as callee"),
                     }
                 }
-                _ => panic!("Expected MethodCall expression"),
+                _ => panic!("Expected Call expression"),
             }
         }
         _ => panic!("Expected Val statement"),
@@ -807,26 +825,40 @@ fn test_parse_chained_method_calls() {
         Stmt::Val { initializer: Some(expr), .. } => {
             // Outer method call should be .len()
             match expr {
-                Expr::MethodCall { object, method, arguments, .. } => {
-                    assert_eq!(method, "len");
+                Expr::Call { callee, arguments, .. } => {
                     assert_eq!(arguments.len(), 0);
-
-                    // Inner object should be .substring(0, 5)
-                    match object.as_ref() {
-                        Expr::MethodCall { object: inner_obj, method: inner_method, arguments: inner_args, .. } => {
-                            assert_eq!(inner_method, "substring");
-                            assert_eq!(inner_args.len(), 2);
-
-                            // Innermost object should be the variable 'str'
-                            match inner_obj.as_ref() {
-                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
-                                _ => panic!("Expected Variable as innermost object"),
+                    
+                    // Outer call should be GetField with field "len"
+                    match callee.as_ref() {
+                        Expr::GetField { object, field, .. } => {
+                            assert_eq!(field, "len");
+                            
+                            // Inner object should be a Call to .substring(0, 5)
+                            match object.as_ref() {
+                                Expr::Call { callee: inner_callee, arguments: inner_args, .. } => {
+                                    assert_eq!(inner_args.len(), 2);
+                                    
+                                    // Inner call should be GetField with field "substring"
+                                    match inner_callee.as_ref() {
+                                        Expr::GetField { object: inner_obj, field: inner_field, .. } => {
+                                            assert_eq!(inner_field, "substring");
+                                            
+                                            // Innermost object should be the variable 'str'
+                                            match inner_obj.as_ref() {
+                                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
+                                                _ => panic!("Expected Variable as innermost object"),
+                                            }
+                                        }
+                                        _ => panic!("Expected GetField as inner callee"),
+                                    }
+                                }
+                                _ => panic!("Expected Call as inner object"),
                             }
                         }
-                        _ => panic!("Expected MethodCall as inner object"),
+                        _ => panic!("Expected GetField as outer callee"),
                     }
                 }
-                _ => panic!("Expected MethodCall expression"),
+                _ => panic!("Expected Call expression"),
             }
         }
         _ => panic!("Expected Val statement"),
@@ -869,8 +901,13 @@ fn test_parse_method_call_vs_field_access() {
     match &stmts[1] {
         Stmt::Val { initializer: Some(expr), .. } => {
             match expr {
-                Expr::MethodCall { method, .. } => assert_eq!(method, "method"),
-                _ => panic!("Expected MethodCall expression"),
+                Expr::Call { callee, .. } => {
+                    match callee.as_ref() {
+                        Expr::GetField { field, .. } => assert_eq!(field, "method"),
+                        _ => panic!("Expected GetField as callee"),
+                    }
+                }
+                _ => panic!("Expected Call expression"),
             }
         }
         _ => panic!("Expected Val statement"),

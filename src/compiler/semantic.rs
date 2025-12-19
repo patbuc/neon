@@ -175,26 +175,33 @@ impl SemanticAnalyzer {
                 self.infer_expr_type(expr)
             }
 
-            // Method calls with known return types
-            Expr::MethodCall { object, method, .. } => {
-                let object_type = self.infer_expr_type(object)?;
-                match (object_type.as_str(), method.as_str()) {
-                    ("Map", "keys") => Some("Array".to_string()),
-                    ("Map", "values") => Some("Array".to_string()),
-                    ("Set", "toArray") => Some("Array".to_string()),
-                    ("String", "split") => Some("Array".to_string()),
-                    ("String", "charAt") => Some("String".to_string()),
-                    ("String", "toUpperCase") => Some("String".to_string()),
-                    ("String", "toLowerCase") => Some("String".to_string()),
-                    ("String", "trim") => Some("String".to_string()),
-                    ("String", "toString") => Some("String".to_string()),
-                    ("String", "toInt") => Some("Number".to_string()),
-                    ("String", "toFloat") => Some("Number".to_string()),
-                    ("Number", "toString") => Some("String".to_string()),
-                    ("Array", "join") => Some("String".to_string()),
-                    ("Array", "map") => Some("Array".to_string()),
-                    ("Array", "filter") => Some("Array".to_string()),
-                    _ => None,
+            // Call expression
+            Expr::Call { callee, arguments: _, .. } => {
+                // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
+                if let Expr::GetField { object, field, .. } = callee.as_ref() {
+                    // This is a method call obj.method(args)
+                    let object_type = self.infer_expr_type(object)?;
+                    match (object_type.as_str(), field.as_str()) {
+                        ("Map", "keys") => Some("Array".to_string()),
+                        ("Map", "values") => Some("Array".to_string()),
+                        ("Set", "toArray") => Some("Array".to_string()),
+                        ("String", "split") => Some("Array".to_string()),
+                        ("String", "charAt") => Some("String".to_string()),
+                        ("String", "toUpperCase") => Some("String".to_string()),
+                        ("String", "toLowerCase") => Some("String".to_string()),
+                        ("String", "trim") => Some("String".to_string()),
+                        ("String", "toString") => Some("String".to_string()),
+                        ("String", "toInt") => Some("Number".to_string()),
+                        ("String", "toFloat") => Some("Number".to_string()),
+                        ("Number", "toString") => Some("String".to_string()),
+                        ("Array", "join") => Some("String".to_string()),
+                        ("Array", "map") => Some("Array".to_string()),
+                        ("Array", "filter") => Some("Array".to_string()),
+                        _ => None,
+                    }
+                } else {
+                    // Regular function call - can't easily infer return type without more info
+                    None
                 }
             }
 
@@ -279,60 +286,14 @@ impl SemanticAnalyzer {
 
     fn resolve_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Val {
-                name,
-                initializer,
-                location,
-            } => {
-                // Resolve initializer first (if any)
-                if let Some(init) = initializer {
-                    self.resolve_expr(init);
-                    // Infer and track type if possible
-                    if let Some(inferred_type) = self.infer_expr_type(init) {
-                        self.type_env.insert(name.clone(), inferred_type);
-                    }
-                }
-                // Then define the variable in current scope
-                self.define_symbol(name.clone(), SymbolKind::Value, false, *location);
+            Stmt::Val { name, initializer, location } => {
+                self.resolve_val_declaration(name, initializer.as_ref(), *location);
             }
-            Stmt::Var {
-                name,
-                initializer,
-                location,
-            } => {
-                // Resolve initializer first (if any)
-                if let Some(init) = initializer {
-                    self.resolve_expr(init);
-                    // Infer and track type if possible
-                    if let Some(inferred_type) = self.infer_expr_type(init) {
-                        self.type_env.insert(name.clone(), inferred_type);
-                    }
-                }
-                // Then define the variable in current scope
-                self.define_symbol(name.clone(), SymbolKind::Variable, true, *location);
+            Stmt::Var { name, initializer, location } => {
+                self.resolve_var_declaration(name, initializer.as_ref(), *location);
             }
-            Stmt::Fn {
-                params,
-                body,
-                location,
-                ..
-            } => {
-                // Enter function scope
-                self.symbol_table.enter_scope();
-
-                // Define parameters in function scope
-                for param in params {
-                    let param_location = *location; // Use function location for params
-                    self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
-                }
-
-                // Resolve function body
-                for stmt in body {
-                    self.resolve_stmt(stmt);
-                }
-
-                // Exit function scope
-                self.symbol_table.exit_scope();
+            Stmt::Fn { params, body, location, .. } => {
+                self.resolve_function_declaration(params, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
@@ -341,81 +302,25 @@ impl SemanticAnalyzer {
                 self.resolve_expr(expr);
             }
             Stmt::Block { statements, .. } => {
-                self.symbol_table.enter_scope();
-                for stmt in statements {
-                    self.resolve_stmt(stmt);
-                }
-                self.symbol_table.exit_scope();
+                self.resolve_block_statement(statements);
             }
-            Stmt::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                self.resolve_expr(condition);
-                self.resolve_stmt(then_branch);
-                if let Some(else_stmt) = else_branch {
-                    self.resolve_stmt(else_stmt);
-                }
+            Stmt::If { condition, then_branch, else_branch, .. } => {
+                self.resolve_if_statement(condition, then_branch, else_branch.as_ref().map(|v| &**v));
             }
-            Stmt::While {
-                condition, body, ..
-            } => {
-                self.resolve_expr(condition);
-                self.loop_depth += 1;
-                self.resolve_stmt(body);
-                self.loop_depth -= 1;
+            Stmt::While { condition, body, .. } => {
+                self.resolve_while_statement(condition, body);
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
             }
             Stmt::Break { location } => {
-                if self.loop_depth == 0 {
-                    self.errors.push(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
-                        "Cannot use 'break' outside of a loop".to_string(),
-                        *location,
-                    ));
-                }
+                self.validate_break_statement(*location);
             }
             Stmt::Continue { location } => {
-                if self.loop_depth == 0 {
-                    self.errors.push(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
-                        "Cannot use 'continue' outside of a loop".to_string(),
-                        *location,
-                    ));
-                }
+                self.validate_continue_statement(*location);
             }
-            Stmt::ForIn {
-                variable,
-                collection,
-                body,
-                location,
-            } => {
-                // Resolve the collection expression
-                self.resolve_expr(collection);
-
-                // Enter a new scope for the loop
-                self.symbol_table.enter_scope();
-
-                // Define the loop variable as immutable (always val)
-                self.define_symbol(variable.clone(), SymbolKind::Value, false, *location);
-
-                // Track loop depth for break/continue validation
-                self.loop_depth += 1;
-
-                // Resolve the loop body
-                self.resolve_stmt(body);
-
-                // Exit loop depth tracking
-                self.loop_depth -= 1;
-
-                // Exit the loop scope
-                self.symbol_table.exit_scope();
+            Stmt::ForIn { variable, collection, body, location } => {
+                self.resolve_for_in_statement(variable, collection, body, *location);
             }
         }
     }
@@ -426,287 +331,473 @@ impl SemanticAnalyzer {
                 // Literals need no resolution
             }
             Expr::StringInterpolation { parts, .. } => {
-                use crate::compiler::ast::InterpolationPart;
-                // Resolve all expression parts
-                for part in parts {
-                    if let InterpolationPart::Expression(expr) = part {
-                        self.resolve_expr(expr);
-                    }
-                }
+                self.resolve_string_interpolation(parts);
             }
             Expr::Variable { name, location } => {
-                // Check if variable is defined
-                if self.symbol_table.resolve(name).is_none() {
-                    self.errors.push(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::UndefinedSymbol,
-                        format!("Undefined variable '{}'", name),
-                        *location,
-                    ));
-                }
+                self.resolve_variable(name, *location);
             }
-            Expr::Assign {
-                name,
-                value,
-                location,
-            } => {
-                // Resolve the value being assigned
-                self.resolve_expr(value);
-
-                // Check if variable exists and is mutable
-                match self.symbol_table.resolve(name) {
-                    None => {
-                        self.errors.push(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::UndefinedSymbol,
-                            format!("Undefined variable '{}'", name),
-                            *location,
-                        ));
-                    }
-                    Some(symbol) => {
-                        if !symbol.is_mutable {
-                            self.errors.push(CompilationError::new(
-                                CompilationPhase::Semantic,
-                                CompilationErrorKind::ImmutableAssignment,
-                                format!("Cannot assign to immutable variable '{}'", name),
-                                *location,
-                            ));
-                        } else {
-                            // Update type tracking for mutable variables
-                            if let Some(new_type) = self.infer_expr_type(value) {
-                                self.type_env.insert(name.clone(), new_type);
-                            } else {
-                                // If we can't infer the new type, remove from tracking
-                                self.type_env.remove(name);
-                            }
-                        }
-                    }
-                }
+            Expr::Assign { name, value, location } => {
+                self.resolve_assignment(name, value, *location);
             }
-            Expr::Binary {
-                left,
-                right,
-                operator,
-                location,
-            } => {
-                self.resolve_expr(left);
-                self.resolve_expr(right);
-
-                // Additional validation for specific operators could go here
-                // For example, ensuring division by zero checks, etc.
-                let _ = (operator, location); // Suppress unused warnings for now
+            Expr::Binary { left, right, operator, location } => {
+                self.resolve_binary_expr(left, right, operator, *location);
             }
             Expr::Unary { operand, .. } => {
                 self.resolve_expr(operand);
             }
-            Expr::Call {
-                callee,
-                arguments,
-                location,
-            } => {
-                // Check if this is a global function call first
-                let is_global_function = if let Expr::Variable { name, .. } = callee.as_ref() {
-                    crate::common::method_registry::get_native_method_index("", name).is_some()
-                } else {
-                    false
-                };
-
-                if is_global_function {
-                    // Don't resolve the callee as a variable for global functions
-                    // Just validate the arguments
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                } else {
-                    // Regular function call - resolve callee as normal
-                    self.resolve_expr(callee);
-
-                    // Validate that callee is a function if it's a variable reference
-                    if let Expr::Variable { name, .. } = callee.as_ref() {
-                        if let Some(symbol) = self.symbol_table.resolve(name) {
-                            match &symbol.kind {
-                                SymbolKind::Function { arity } => {
-                                    // Check arity matches
-                                    if arguments.len() != *arity as usize {
-                                        self.errors.push(CompilationError::new(
-                                            CompilationPhase::Semantic,
-                                            CompilationErrorKind::ArityExceeded,
-                                            format!(
-                                                "Function '{}' expects {} arguments but got {}",
-                                                name,
-                                                arity,
-                                                arguments.len()
-                                            ),
-                                            *location,
-                                        ));
-                                    }
-                                }
-                                SymbolKind::Struct { .. } => {
-                                    // Calling a struct is valid (constructor)
-                                }
-                                _ => {
-                                    self.errors.push(CompilationError::new(
-                                        CompilationPhase::Semantic,
-                                        CompilationErrorKind::UnexpectedToken,
-                                        format!("'{}' is not a function", name),
-                                        *location,
-                                    ));
-                                }
-                            }
-                        }
-                    }
-
-                    // Resolve all arguments
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                }
+            Expr::Call { callee, arguments, location } => {
+                self.resolve_call_expr(callee, arguments, *location);
             }
-            Expr::GetField {
-                object,
-                field,
-                location,
-            } => {
-                self.resolve_expr(object);
-                // Field validation could be added here if we track struct types
-                let _ = (field, location);
+            Expr::GetField { object, field, location } => {
+                self.resolve_get_field(object, field, *location);
             }
-            Expr::SetField {
-                object,
-                field,
-                value,
-                location,
-            } => {
-                self.resolve_expr(object);
-                self.resolve_expr(value);
-                // Field validation could be added here if we track struct types
-                let _ = (field, location);
+            Expr::SetField { object, field, value, location } => {
+                self.resolve_set_field(object, field, value, *location);
             }
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
             }
-            Expr::MethodCall {
-                object,
-                method,
-                arguments,
-                location,
-            } => {
-                // Resolve the object and all arguments
-                self.resolve_expr(object);
-                for arg in arguments {
-                    self.resolve_expr(arg);
-                }
-
-                // Validate method if we can infer the object's type
-                if let Some(object_type) = self.infer_expr_type(object) {
-                    // Check if the method is valid for this type
-                    if !MethodRegistry::is_valid_method(&object_type, method) {
-                        // Method is invalid - try to suggest a correction
-                        let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(&object_type, method) {
-                            // We found a close match - suggest it
-                            format!(
-                                "Type '{}' has no method named '{}'. Did you mean '{}'?",
-                                object_type, method, suggestion
-                            )
-                        } else {
-                            // No close match - list available methods
-                            let available_methods = MethodRegistry::get_methods_for_type(&object_type);
-                            if available_methods.is_empty() {
-                                format!(
-                                    "Type '{}' has no method named '{}' and no available methods",
-                                    object_type, method
-                                )
-                            } else {
-                                format!(
-                                    "Type '{}' has no method named '{}'. Available methods: {}",
-                                    object_type,
-                                    method,
-                                    available_methods.join(", ")
-                                )
-                            }
-                        };
-
-                        self.errors.push(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::Other,
-                            error_message,
-                            *location,
-                        ));
-                    }
-                }
-            }
             Expr::MapLiteral { entries, .. } => {
-                // Resolve all key-value pairs in the map literal
-                for (key, value) in entries {
-                    self.resolve_expr(key);
-                    self.resolve_expr(value);
-                }
+                self.resolve_map_literal(entries);
             }
             Expr::ArrayLiteral { elements, .. } => {
-                // Resolve all elements in the array literal
-                for element in elements {
-                    self.resolve_expr(element);
-                }
+                self.resolve_array_literal(elements);
             }
             Expr::SetLiteral { elements, .. } => {
-                // Resolve all elements in the set literal
-                for element in elements {
-                    self.resolve_expr(element);
-                }
+                self.resolve_set_literal(elements);
             }
             Expr::Index { object, index, .. } => {
-                // Resolve the object and index expression
-                self.resolve_expr(object);
-                self.resolve_expr(index);
+                self.resolve_index_expr(object, index);
             }
-            Expr::IndexAssign {
-                object,
-                index,
-                value,
-                ..
-            } => {
-                // Resolve the object, index, and value expressions
-                self.resolve_expr(object);
-                self.resolve_expr(index);
-                self.resolve_expr(value);
+            Expr::IndexAssign { object, index, value, .. } => {
+                self.resolve_index_assignment(object, index, value);
             }
             Expr::Range { start, end, .. } => {
-                // Resolve the start and end expressions
-                self.resolve_expr(start);
-                self.resolve_expr(end);
+                self.resolve_range_expr(start, end);
             }
             Expr::PostfixIncrement { operand, location } => {
-                // Postfix increment can only be applied to simple variables
-                match operand.as_ref() {
-                    Expr::Variable { name, .. } => {
-                        // Check if variable exists and is mutable
-                        self.check_variable_mutability(name, *location);
-                    }
-                    _ => {
-                        self.errors.push(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::Other,
-                            "Increment operator can only be applied to variables".to_string(),
-                            *location,
-                        ));
+                self.resolve_postfix_increment(operand, *location);
+            }
+            Expr::PostfixDecrement { operand, location } => {
+                self.resolve_postfix_decrement(operand, *location);
+            }
+        }
+    }
+
+    fn is_static_namespace(&self, name: &str) -> bool {
+        matches!(name, "Math")
+    }
+
+    // Statement resolution methods
+
+    fn resolve_val_declaration(&mut self, name: &str, initializer: Option<&Expr>, location: SourceLocation) {
+        // Resolve initializer first (if any)
+        if let Some(init) = initializer {
+            self.resolve_expr(init);
+            // Infer and track type if possible
+            if let Some(inferred_type) = self.infer_expr_type(init) {
+                self.type_env.insert(name.to_string(), inferred_type);
+            }
+        }
+        // Then define the variable in current scope
+        self.define_symbol(name.to_string(), SymbolKind::Value, false, location);
+    }
+
+    fn resolve_var_declaration(&mut self, name: &str, initializer: Option<&Expr>, location: SourceLocation) {
+        // Resolve initializer first (if any)
+        if let Some(init) = initializer {
+            self.resolve_expr(init);
+            // Infer and track type if possible
+            if let Some(inferred_type) = self.infer_expr_type(init) {
+                self.type_env.insert(name.to_string(), inferred_type);
+            }
+        }
+        // Then define the variable in current scope
+        self.define_symbol(name.to_string(), SymbolKind::Variable, true, location);
+    }
+
+    fn resolve_function_declaration(&mut self, params: &[String], body: &[Stmt], location: SourceLocation) {
+        // Enter function scope
+        self.symbol_table.enter_scope();
+
+        // Define parameters in function scope
+        for param in params {
+            let param_location = location; // Use function location for params
+            self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
+        }
+
+        // Resolve function body
+        for stmt in body {
+            self.resolve_stmt(stmt);
+        }
+
+        // Exit function scope
+        self.symbol_table.exit_scope();
+    }
+
+    fn resolve_block_statement(&mut self, statements: &[Stmt]) {
+        self.symbol_table.enter_scope();
+        for stmt in statements {
+            self.resolve_stmt(stmt);
+        }
+        self.symbol_table.exit_scope();
+    }
+
+    fn resolve_if_statement(&mut self, condition: &Expr, then_branch: &Stmt, else_branch: Option<&Stmt>) {
+        self.resolve_expr(condition);
+        self.resolve_stmt(then_branch);
+        if let Some(else_stmt) = else_branch {
+            self.resolve_stmt(else_stmt);
+        }
+    }
+
+    fn resolve_while_statement(&mut self, condition: &Expr, body: &Stmt) {
+        self.resolve_expr(condition);
+        self.loop_depth += 1;
+        self.resolve_stmt(body);
+        self.loop_depth -= 1;
+    }
+
+    fn resolve_for_in_statement(&mut self, variable: &str, collection: &Expr, body: &Stmt, location: SourceLocation) {
+        // Resolve the collection expression
+        self.resolve_expr(collection);
+
+        // Enter a new scope for the loop
+        self.symbol_table.enter_scope();
+
+        // Define the loop variable as immutable (always val)
+        self.define_symbol(variable.to_string(), SymbolKind::Value, false, location);
+
+        // Track loop depth for break/continue validation
+        self.loop_depth += 1;
+
+        // Resolve the loop body
+        self.resolve_stmt(body);
+
+        // Exit loop depth tracking
+        self.loop_depth -= 1;
+
+        // Exit the loop scope
+        self.symbol_table.exit_scope();
+    }
+
+    fn validate_break_statement(&mut self, location: SourceLocation) {
+        if self.loop_depth == 0 {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                "Cannot use 'break' outside of a loop".to_string(),
+                location,
+            ));
+        }
+    }
+
+    fn validate_continue_statement(&mut self, location: SourceLocation) {
+        if self.loop_depth == 0 {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                "Cannot use 'continue' outside of a loop".to_string(),
+                location,
+            ));
+        }
+    }
+
+    // Expression resolution methods
+
+    fn resolve_string_interpolation(&mut self, parts: &[crate::compiler::ast::InterpolationPart]) {
+        use crate::compiler::ast::InterpolationPart;
+        // Resolve all expression parts
+        for part in parts {
+            if let InterpolationPart::Expression(expr) = part {
+                self.resolve_expr(expr);
+            }
+        }
+    }
+
+    fn resolve_variable(&mut self, name: &str, location: SourceLocation) {
+        // Check if variable is defined
+        if self.symbol_table.resolve(name).is_none() {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::UndefinedSymbol,
+                format!("Undefined variable '{}'", name),
+                location,
+            ));
+        }
+    }
+
+    fn resolve_assignment(&mut self, name: &str, value: &Expr, location: SourceLocation) {
+        // Resolve the value being assigned
+        self.resolve_expr(value);
+
+        // Check if variable exists and is mutable
+        match self.symbol_table.resolve(name) {
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+            }
+            Some(symbol) => {
+                if !symbol.is_mutable {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        format!("Cannot assign to immutable variable '{}'", name),
+                        location,
+                    ));
+                } else {
+                    // Update type tracking for mutable variables
+                    if let Some(new_type) = self.infer_expr_type(value) {
+                        self.type_env.insert(name.to_string(), new_type);
+                    } else {
+                        // If we can't infer the new type, remove from tracking
+                        self.type_env.remove(name);
                     }
                 }
             }
-            Expr::PostfixDecrement { operand, location } => {
-                // Postfix decrement can only be applied to simple variables
-                match operand.as_ref() {
-                    Expr::Variable { name, .. } => {
-                        // Check if variable exists and is mutable
-                        self.check_variable_mutability(name, *location);
-                    }
-                    _ => {
+        }
+    }
+
+    fn resolve_binary_expr(&mut self, left: &Expr, right: &Expr, _operator: &crate::compiler::ast::BinaryOp, _location: SourceLocation) {
+        self.resolve_expr(left);
+        self.resolve_expr(right);
+
+        // Additional validation for specific operators could go here
+        // For example, ensuring division by zero checks, etc.
+    }
+
+    fn resolve_call_expr(&mut self, callee: &Expr, arguments: &[Expr], location: SourceLocation) {
+        // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
+        if let Expr::GetField { object, field, .. } = callee {
+            self.resolve_method_call(object, field, arguments, location);
+        } else {
+            self.resolve_function_call(callee, arguments, location);
+        }
+    }
+
+    fn resolve_method_call(&mut self, object: &Expr, method: &str, arguments: &[Expr], location: SourceLocation) {
+        // This is a method call obj.method(args)
+        self.resolve_expr(object);
+        for arg in arguments {
+            self.resolve_expr(arg);
+        }
+
+        // Check if this is a static method call (e.g., Math.abs)
+        if let Expr::Variable { name, .. } = object {
+            if self.is_static_namespace(name) {
+                self.validate_static_method(name, method, location);
+                return;
+            }
+        }
+
+        // Instance method call - validate method if we can infer the object's type
+        if let Some(object_type) = self.infer_expr_type(object) {
+            self.validate_instance_method(&object_type, method, location);
+        }
+    }
+
+    fn resolve_function_call(&mut self, callee: &Expr, arguments: &[Expr], location: SourceLocation) {
+        // Check if this is a global function call first
+        let is_global_function = if let Expr::Variable { name, .. } = callee {
+            crate::common::method_registry::get_native_method_index("", name).is_some()
+        } else {
+            false
+        };
+
+        if is_global_function {
+            // Don't resolve the callee as a variable for global functions
+            // Just validate the arguments
+            for arg in arguments {
+                self.resolve_expr(arg);
+            }
+        } else {
+            // Regular function call - resolve callee as normal
+            self.resolve_expr(callee);
+
+            // Validate that callee is a function if it's a variable reference
+            if let Expr::Variable { name, .. } = callee {
+                self.validate_function_call(name, arguments, location);
+            }
+
+            // Resolve all arguments
+            for arg in arguments {
+                self.resolve_expr(arg);
+            }
+        }
+    }
+
+    fn resolve_get_field(&mut self, object: &Expr, _field: &str, _location: SourceLocation) {
+        self.resolve_expr(object);
+        // Field validation could be added here if we track struct types
+    }
+
+    fn resolve_set_field(&mut self, object: &Expr, _field: &str, value: &Expr, _location: SourceLocation) {
+        self.resolve_expr(object);
+        self.resolve_expr(value);
+        // Field validation could be added here if we track struct types
+    }
+
+    fn resolve_map_literal(&mut self, entries: &[(Expr, Expr)]) {
+        // Resolve all key-value pairs in the map literal
+        for (key, value) in entries {
+            self.resolve_expr(key);
+            self.resolve_expr(value);
+        }
+    }
+
+    fn resolve_array_literal(&mut self, elements: &[Expr]) {
+        // Resolve all elements in the array literal
+        for element in elements {
+            self.resolve_expr(element);
+        }
+    }
+
+    fn resolve_set_literal(&mut self, elements: &[Expr]) {
+        // Resolve all elements in the set literal
+        for element in elements {
+            self.resolve_expr(element);
+        }
+    }
+
+    fn resolve_index_expr(&mut self, object: &Expr, index: &Expr) {
+        // Resolve the object and index expression
+        self.resolve_expr(object);
+        self.resolve_expr(index);
+    }
+
+    fn resolve_index_assignment(&mut self, object: &Expr, index: &Expr, value: &Expr) {
+        // Resolve the object, index, and value expressions
+        self.resolve_expr(object);
+        self.resolve_expr(index);
+        self.resolve_expr(value);
+    }
+
+    fn resolve_range_expr(&mut self, start: &Expr, end: &Expr) {
+        // Resolve the start and end expressions
+        self.resolve_expr(start);
+        self.resolve_expr(end);
+    }
+
+    fn resolve_postfix_increment(&mut self, operand: &Expr, location: SourceLocation) {
+        // Postfix increment can only be applied to simple variables
+        match operand {
+            Expr::Variable { name, .. } => {
+                // Check if variable exists and is mutable
+                self.check_variable_mutability(name, location);
+            }
+            _ => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    "Increment operator can only be applied to variables".to_string(),
+                    location,
+                ));
+            }
+        }
+    }
+
+    fn resolve_postfix_decrement(&mut self, operand: &Expr, location: SourceLocation) {
+        // Postfix decrement can only be applied to simple variables
+        match operand {
+            Expr::Variable { name, .. } => {
+                // Check if variable exists and is mutable
+                self.check_variable_mutability(name, location);
+            }
+            _ => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    "Decrement operator can only be applied to variables".to_string(),
+                    location,
+                ));
+            }
+        }
+    }
+
+    // Validation helper methods
+
+    fn validate_static_method(&mut self, namespace: &str, method: &str, location: SourceLocation) {
+        // Static method call - validate against method registry
+        if crate::common::method_registry::get_native_method_index(namespace, method).is_none() {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                format!("Static method '{}' not found in namespace '{}'", method, namespace),
+                location,
+            ));
+        }
+    }
+
+    fn validate_instance_method(&mut self, object_type: &str, method: &str, location: SourceLocation) {
+        // Check if the method is valid for this type
+        if !MethodRegistry::is_valid_method(object_type, method) {
+            // Method is invalid - try to suggest a correction
+            let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(object_type, method) {
+                // We found a close match - suggest it
+                format!(
+                    "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                    object_type, method, suggestion
+                )
+            } else {
+                // No close match - list available methods
+                let available_methods = MethodRegistry::get_methods_for_type(object_type);
+                if available_methods.is_empty() {
+                    format!(
+                        "Type '{}' has no method named '{}' and no available methods",
+                        object_type, method
+                    )
+                } else {
+                    format!(
+                        "Type '{}' has no method named '{}'. Available methods: {}",
+                        object_type,
+                        method,
+                        available_methods.join(", ")
+                    )
+                }
+            };
+
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                error_message,
+                location,
+            ));
+        }
+    }
+
+    fn validate_function_call(&mut self, function_name: &str, arguments: &[Expr], location: SourceLocation) {
+        if let Some(symbol) = self.symbol_table.resolve(function_name) {
+            match &symbol.kind {
+                SymbolKind::Function { arity } => {
+                    // Check arity matches
+                    if arguments.len() != *arity as usize {
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
-                            CompilationErrorKind::Other,
-                            "Decrement operator can only be applied to variables".to_string(),
-                            *location,
+                            CompilationErrorKind::ArityExceeded,
+                            format!(
+                                "Function '{}' expects {} arguments but got {}",
+                                function_name,
+                                arity,
+                                arguments.len()
+                            ),
+                            location,
                         ));
                     }
+                }
+                SymbolKind::Struct { .. } => {
+                    // Calling a struct is valid (constructor)
+                }
+                _ => {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::UnexpectedToken,
+                        format!("'{}' is not a function", function_name),
+                        location,
+                    ));
                 }
             }
         }
