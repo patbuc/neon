@@ -32,7 +32,7 @@ fn test_parse_binary_expression() {
 
 #[test]
 fn test_parse_function() {
-    let mut parser = Parser::new("fn foo(a, b) {\n  print a\n}\n");
+    let mut parser = Parser::new("fn foo(a, b) {\n  print(a)\n}\n");
     let result = parser.parse();
     assert!(result.is_ok());
     let stmts = result.unwrap();
@@ -64,8 +64,8 @@ fn test_parse_complex_program() {
         }
         
         val result = add(x, y)
-        print result
-        print factorial(5)
+        print(result)
+        print(factorial(5))
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
@@ -82,7 +82,7 @@ fn test_parse_complex_program() {
     }
 
     let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 7); // val x, var y, fn add, fn factorial, val result, print result, print factorial
+    assert_eq!(stmts.len(), 7); // val x, var y, fn add, fn factorial, val result, print(result, print factorial)
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_parse_struct() {
         val p = Point()
         p.x = 10
         p.y = 20
-        print p.x
+        print(p.x)
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
@@ -117,7 +117,7 @@ fn test_parse_while_loop() {
     let program = r#"
         var i = 0
         while (i < 10) {
-            print i
+            print(i)
             i = i + 1
         }
         "#;
@@ -137,11 +137,11 @@ fn test_parse_simple_else_if() {
     let program = r#"
         val x = 10
         if (x < 5) {
-            print "less than 5"
+            print("less than 5")
         } else if (x < 15) {
-            print "between 5 and 15"
+            print("between 5 and 15")
         } else {
-            print "15 or greater"
+            print("15 or greater")
         }
         "#;
     let mut parser = Parser::new(program);
@@ -184,15 +184,15 @@ fn test_parse_multiple_else_if_branches() {
     let program = r#"
         val score = 85
         if (score >= 90) {
-            print "A"
+            print("A")
         } else if (score >= 80) {
-            print "B"
+            print("B")
         } else if (score >= 70) {
-            print "C"
+            print("C")
         } else if (score >= 60) {
-            print "D"
+            print("D")
         } else {
-            print "F"
+            print("F")
         }
         "#;
     let mut parser = Parser::new(program);
@@ -253,9 +253,9 @@ fn test_parse_else_if_without_final_else() {
     let program = r#"
         val x = 10
         if (x < 5) {
-            print "less than 5"
+            print("less than 5")
         } else if (x < 15) {
-            print "between 5 and 15"
+            print("between 5 and 15")
         }
         "#;
     let mut parser = Parser::new(program);
@@ -299,15 +299,15 @@ fn test_parse_nested_if_within_else_if() {
         val x = 10
         val y = 20
         if (x < 5) {
-            print "x less than 5"
+            print("x less than 5")
         } else if (x < 15) {
             if (y > 15) {
-                print "x between 5 and 15, y greater than 15"
+                print("x between 5 and 15, y greater than 15")
             } else {
-                print "x between 5 and 15, y not greater than 15"
+                print("x between 5 and 15, y not greater than 15")
             }
         } else {
-            print "x is 15 or greater"
+            print("x is 15 or greater")
         }
         "#;
     let mut parser = Parser::new(program);
@@ -359,7 +359,7 @@ fn test_parse_nested_if_within_else_if() {
 fn test_parse_for_loop() {
     let program = r#"
         for (var i = 0; i < 10; i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -405,7 +405,7 @@ fn test_parse_for_loop() {
 fn test_parse_for_loop_with_val() {
     let program = r#"
         for (val i = 0; i < 10; i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -477,8 +477,8 @@ fn test_parse_nested_for_loops() {
     let program = r#"
         for (var i = 0; i < 3; i = i + 1) {
             for (var j = 0; j < 3; j = j + 1) {
-                print i
-                print j
+                print(i)
+                print(j)
             }
         }
         "#;
@@ -541,7 +541,7 @@ fn test_parse_nested_for_loops() {
 fn test_parse_for_loop_missing_semicolon_after_init() {
     let program = r#"
         for (var i = 0 i < 10; i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -556,7 +556,7 @@ fn test_parse_for_loop_missing_semicolon_after_init() {
 fn test_parse_for_loop_missing_semicolon_after_condition() {
     let program = r#"
         for (var i = 0; i < 10 i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -571,7 +571,7 @@ fn test_parse_for_loop_missing_semicolon_after_condition() {
 fn test_parse_for_loop_missing_left_paren() {
     let program = r#"
         for var i = 0; i < 10; i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -586,7 +586,7 @@ fn test_parse_for_loop_missing_left_paren() {
 fn test_parse_for_loop_missing_right_paren() {
     let program = r#"
         for (var i = 0; i < 10; i = i + 1 {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -601,7 +601,7 @@ fn test_parse_for_loop_missing_right_paren() {
 fn test_parse_for_loop_invalid_init_not_declaration() {
     let program = r#"
         for (i = 0; i < 10; i = i + 1) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -619,7 +619,7 @@ fn test_parse_for_loop_invalid_init_not_declaration() {
 fn test_parse_for_loop_complex_increment() {
     let program = r#"
         for (var i = 0; i < 10; i = i + 2) {
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -934,7 +934,7 @@ fn test_parse_logical_with_parentheses() {
 fn test_parse_logical_in_if() {
     let program = r#"
         if (x > 0 && y > 0) {
-            print "both positive"
+            print("both positive")
         }
         "#;
     let mut parser = Parser::new(program);

@@ -1,10 +1,10 @@
 use crate::common::Value;
 
-/// Native print function - this is a placeholder that should never be called
-/// The VM handles print function calls directly in handle_print_function()
+/// Native print(function - this is a placeholder that should never be called)
+/// The VM handles print(function calls directly in handle_print_function())
 /// This function exists only to satisfy the method registry requirements
 pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
-    // This should never be called - the VM intercepts print calls
+    // This should never be called - the VM intercepts print(calls)
     // But if it is called somehow, provide basic functionality
     if args.is_empty() {
         return Err("print() expects at least 1 argument".to_string());

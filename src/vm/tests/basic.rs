@@ -36,7 +36,7 @@ fn can_execute_simple_arithmetics() {
 #[test]
 fn can_print_hello_world() {
     let program = r#"
-        print "Hello World 🌍"
+        print("Hello World 🌍")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -48,7 +48,7 @@ fn can_print_hello_world() {
 #[test]
 fn can_print_the_answer_to_everything_times_pi() {
     let program = r#"
-        print 42 * 3.14
+        print(42 * 3.14)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -60,8 +60,8 @@ fn can_print_the_answer_to_everything_times_pi() {
 #[test]
 fn can_run_multi_line_statements() {
     let program = r#"
-        print "Hello World 🌎"
-        print 13
+        print("Hello World 🌎")
+        print(13)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -74,7 +74,7 @@ fn can_run_multi_line_statements() {
 fn can_define_a_global_value() {
     let program = r#"
         val greeting = "Hello World 🌎"
-        print greeting
+        print(greeting)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -88,7 +88,7 @@ fn can_define_a_global_value() {
 fn can_negate_numbers() {
     let program = r#"
         val x = 42
-        print -x
+        print(-x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -100,7 +100,7 @@ fn can_negate_numbers() {
 #[test]
 fn can_compare_numbers_equal() {
     let program = r#"
-        print 42 == 42
+        print(42 == 42)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -112,7 +112,7 @@ fn can_compare_numbers_equal() {
 #[test]
 fn can_compare_numbers_not_equal() {
     let program = r#"
-        print 42 == 43
+        print(42 == 43)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -124,7 +124,7 @@ fn can_compare_numbers_not_equal() {
 #[test]
 fn can_compare_greater_than() {
     let program = r#"
-        print 43 > 42
+        print(43 > 42)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -136,7 +136,7 @@ fn can_compare_greater_than() {
 #[test]
 fn can_compare_less_than() {
     let program = r#"
-        print 41 < 42
+        print(41 < 42)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -148,7 +148,7 @@ fn can_compare_less_than() {
 #[test]
 fn can_use_logical_not() {
     let program = r#"
-        print !false
+        print(!false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -161,7 +161,7 @@ fn can_use_logical_not() {
 fn can_handle_nil() {
     let program = r#"
         val x = nil
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -174,7 +174,7 @@ fn can_handle_nil() {
 fn can_handle_boolean_true() {
     let program = r#"
         val x = true
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -187,7 +187,7 @@ fn can_handle_boolean_true() {
 fn can_handle_boolean_false() {
     let program = r#"
         val x = false
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -199,7 +199,7 @@ fn can_handle_boolean_false() {
 #[test]
 fn can_handle_string_concatenation() {
     let program = r#"
-        print "Hello" + " " + "World"
+        print("Hello" + " " + "World")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -213,7 +213,7 @@ fn can_handle_multiple_global_variables() {
     let program = r#"
         val x = 40
         val y = 2
-        print x + y
+        print(x + y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -239,7 +239,7 @@ fn can_handle_complex_arithmetic() {
 #[test]
 fn can_handle_string_comparison() {
     let program = r#"
-        print "hello" == "hello"
+        print("hello" == "hello")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -251,7 +251,7 @@ fn can_handle_string_comparison() {
 #[test]
 fn can_handle_multiple_boolean_operations() {
     let program = r#"
-        print true == !false
+        print(true == !false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -263,7 +263,7 @@ fn can_handle_multiple_boolean_operations() {
 #[test]
 fn can_handle_division_by_integers() {
     let program = r#"
-        print 100 / 20
+        print(100 / 20)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -275,7 +275,7 @@ fn can_handle_division_by_integers() {
 #[test]
 fn can_handle_float_division() {
     let program = r#"
-        print 10.0 / 3.0
+        print(10.0 / 3.0)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -288,7 +288,7 @@ fn can_handle_float_division() {
 fn can_handle_negative_numbers() {
     let program = r#"
         val x = -42
-        print -x
+        print(-x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -300,7 +300,7 @@ fn can_handle_negative_numbers() {
 #[test]
 fn can_handle_boolean_arithmetic() {
     let program = r#"
-        print true == true == true
+        print(true == true == true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -315,7 +315,7 @@ fn can_handle_complex_string_operations() {
         val greeting = "Hello"
         val name = "World"
         val punctuation = "!"
-        print greeting + " " + name + punctuation
+        print(greeting + " " + name + punctuation)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -327,7 +327,7 @@ fn can_handle_complex_string_operations() {
 #[test]
 fn can_handle_multiple_negations() {
     let program = r#"
-        print !!true
+        print(!!true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -341,9 +341,9 @@ fn can_handle_a_true_if_statement() {
     let program = r#"
         val x = 42
         if (x == 42) {
-            print "The answer to everything"
+            print("The answer to everything")
         }
-        print "The end"
+        print("The end")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -357,9 +357,9 @@ fn can_handle_a_false_if_statement() {
     let program = r#"
         val x = 42
         if (x != 42) {
-            print "The answer to everything"
+            print("The answer to everything")
         }
-        print "The end"
+        print("The end")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -373,9 +373,9 @@ fn can_handle_a_true_if_else_statement() {
     let program = r#"
         val x = 42
         if (x == 42) {
-            print "The answer to everything"
+            print("The answer to everything")
         } else {
-            print "The end"
+            print("The end")
         }
         "#;
 
@@ -390,11 +390,11 @@ fn can_handle_multiple_if_else_statements() {
     let program = r#"
         val x = 42
         if (x == 41) {
-            print "The answer to everything"
+            print("The answer to everything")
         } else if (x == 42) {
-            print "The end"
+            print("The end")
         } else {
-            print "The beginning"
+            print("The beginning")
         }
         "#;
 
@@ -409,11 +409,11 @@ fn can_handle_multiple_if_else_statements_2() {
     let program = r#"
         val x = 4
         if (x == 41) {
-            print "The answer to everything"
+            print("The answer to everything")
         } else if (x == 42) {
-            print "The end"
+            print("The end")
         } else {
-            print "The beginning"
+            print("The beginning")
         }
         "#;
 
@@ -428,7 +428,7 @@ fn can_assign_value_to_variable() {
     let program = r#"
         var x = 10
         x = x + 5
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -442,7 +442,7 @@ fn cannot_assign_value_to_value() {
     let program = r#"
         val x = 10
         x = x + 5
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -459,7 +459,7 @@ fn cannot_access_undefined_variable() {
     let program = r#"
         var x = 3
         x = z + 5
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -477,9 +477,9 @@ fn can_loop() {
         var x = 0
         while (x < 10) {
             x = x + 1
-            print x
+            print(x)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -492,7 +492,7 @@ fn can_loop() {
 fn can_call_function() {
     let program = r#"
         fn greet() {
-            print "Hello from function!"
+            print("Hello from function!")
         }
         greet()
         "#;
@@ -507,7 +507,7 @@ fn can_call_function() {
 fn can_call_function_multiple_times() {
     let program = r#"
         fn greet() {
-            print "Hello again!"
+            print("Hello again!")
         }
         greet()
         greet()
@@ -531,7 +531,7 @@ fn can_calculate_fibonacci() {
             }
             return fib(n - 1) + fib(n - 2)
         }
-        print fib(10)
+        print(fib(10))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -555,7 +555,7 @@ fn can_calculate_fibonacci_20() {
             }
             return fib(n - 1) + fib(n - 2)
         }
-        print fib(20)
+        print(fib(20))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -570,11 +570,11 @@ fn can_calculate_fibonacci_20() {
 fn can_handle_nested_function_calls() {
     let program = r#"
         fn hello() {
-            print "Hello"
+            print("Hello")
         }
         fn greet() {
             hello()
-            print "World"
+            print("World")
         }
         greet()
         "#;
@@ -605,7 +605,7 @@ fn can_handle_function_with_no_body() {
     let program = r#"
         fn empty() {}
         empty()
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -617,10 +617,10 @@ fn can_handle_function_with_no_body() {
 #[test]
 fn can_use_modulo_operator() {
     let program = r#"
-        print 10 % 3
-        print 7 % 2
-        print 5 % 5
-        print 4 % 5
+        print(10 % 3)
+        print(7 % 2)
+        print(5 % 5)
+        print(4 % 5)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -638,8 +638,8 @@ fn can_use_struct() {
         }
 
         val p = Point(3, 4)
-        print p.x
-        print p.y
+        print(p.x)
+        print(p.y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -655,7 +655,7 @@ fn can_use_struct() {
 #[test]
 fn test_logical_and_true_true() {
     let program = r#"
-        print true && true
+        print(true && true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -667,7 +667,7 @@ fn test_logical_and_true_true() {
 #[test]
 fn test_logical_and_true_false() {
     let program = r#"
-        print true && false
+        print(true && false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -679,7 +679,7 @@ fn test_logical_and_true_false() {
 #[test]
 fn test_logical_and_false_true() {
     let program = r#"
-        print false && true
+        print(false && true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -691,7 +691,7 @@ fn test_logical_and_false_true() {
 #[test]
 fn test_logical_and_false_false() {
     let program = r#"
-        print false && false
+        print(false && false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -703,7 +703,7 @@ fn test_logical_and_false_false() {
 #[test]
 fn test_logical_or_true_true() {
     let program = r#"
-        print true || true
+        print(true || true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -715,7 +715,7 @@ fn test_logical_or_true_true() {
 #[test]
 fn test_logical_or_true_false() {
     let program = r#"
-        print true || false
+        print(true || false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -727,7 +727,7 @@ fn test_logical_or_true_false() {
 #[test]
 fn test_logical_or_false_true() {
     let program = r#"
-        print false || true
+        print(false || true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -739,7 +739,7 @@ fn test_logical_or_false_true() {
 #[test]
 fn test_logical_or_false_false() {
     let program = r#"
-        print false || false
+        print(false || false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -751,7 +751,7 @@ fn test_logical_or_false_false() {
 #[test]
 fn test_logical_operators_with_comparisons() {
     let program = r#"
-        print 5 > 3 && 10 < 20
+        print(5 > 3 && 10 < 20)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -765,7 +765,7 @@ fn test_logical_operators_with_variables() {
     let program = r#"
         val x = true
         val y = false
-        print x && y
+        print(x && y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -779,7 +779,7 @@ fn test_logical_or_with_variables() {
     let program = r#"
         val x = true
         val y = false
-        print x || y
+        print(x || y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -791,7 +791,7 @@ fn test_logical_or_with_variables() {
 #[test]
 fn test_logical_precedence_or_and() {
     let program = r#"
-        print false || true && false
+        print(false || true && false)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -806,7 +806,7 @@ fn test_logical_precedence_or_and() {
 #[test]
 fn test_logical_precedence_and_or() {
     let program = r#"
-        print true && false || true
+        print(true && false || true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -837,9 +837,9 @@ fn test_logical_and_short_circuit() {
     let program = r#"
         var x = 10
         if (false && (x = 20) > 0) {
-            print "Should not reach here"
+            print("Should not reach here")
         }
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -854,9 +854,9 @@ fn test_logical_or_short_circuit() {
     let program = r#"
         var x = 10
         if (true || (x = 20) > 0) {
-            print "Should reach here"
+            print("Should reach here")
         }
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -886,7 +886,7 @@ fn test_logical_complex_expression() {
 #[test]
 fn test_logical_with_not() {
     let program = r#"
-        print !false && true
+        print(!false && true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -900,7 +900,7 @@ fn test_logical_with_not() {
 #[test]
 fn test_logical_chained_and() {
     let program = r#"
-        print true && true && true
+        print(true && true && true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -912,7 +912,7 @@ fn test_logical_chained_and() {
 #[test]
 fn test_logical_chained_and_with_false() {
     let program = r#"
-        print true && false && true
+        print(true && false && true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -924,7 +924,7 @@ fn test_logical_chained_and_with_false() {
 #[test]
 fn test_logical_chained_or() {
     let program = r#"
-        print false || false || true
+        print(false || false || true)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -939,7 +939,7 @@ fn test_logical_in_if_statement() {
         val x = 5
         val y = 10
         if (x > 0 && y > 0) {
-            print "Both positive"
+            print("Both positive")
         }
         "#;
 
@@ -958,8 +958,8 @@ fn test_logical_in_while_loop() {
             x = x + 1
             y = y - 1
         }
-        print x
-        print y
+        print(x)
+        print(y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -972,7 +972,7 @@ fn test_logical_in_while_loop() {
 fn test_logical_with_equality() {
     let program = r#"
         val x = 5
-        print x == 5 && x > 0
+        print(x == 5 && x > 0)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1009,7 +1009,7 @@ fn test_logical_all_operators_combined() {
 fn test_empty_map_creation() {
     let program = r#"
         val m = {}
-        print m
+        print(m)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1022,7 +1022,7 @@ fn test_empty_map_creation() {
 fn test_map_creation_with_string_keys() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print m
+        print(m)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1037,7 +1037,7 @@ fn test_map_creation_with_string_keys() {
 fn test_map_access_string_key() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print m["name"]
+        print(m["name"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1050,7 +1050,7 @@ fn test_map_access_string_key() {
 fn test_map_access_missing_key_returns_nil() {
     let program = r#"
         val m = {"name": "Alice"}
-        print m["missing"]
+        print(m["missing"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1064,7 +1064,7 @@ fn test_map_set_new_value() {
     let program = r#"
         var m = {"name": "Alice"}
         m["age"] = 30
-        print m["age"]
+        print(m["age"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1078,7 +1078,7 @@ fn test_map_update_existing_value() {
     let program = r#"
         var m = {"name": "Alice"}
         m["name"] = "Bob"
-        print m["name"]
+        print(m["name"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1091,7 +1091,7 @@ fn test_map_update_existing_value() {
 fn test_map_with_number_keys() {
     let program = r#"
         val m = {1: "one", 2: "two", 3: "three"}
-        print m[2]
+        print(m[2])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1104,8 +1104,8 @@ fn test_map_with_number_keys() {
 fn test_map_with_boolean_keys() {
     let program = r#"
         val m = {true: "yes", false: "no"}
-        print m[true]
-        print m[false]
+        print(m[true])
+        print(m[false])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1118,9 +1118,9 @@ fn test_map_with_boolean_keys() {
 fn test_map_with_mixed_key_types() {
     let program = r#"
         val m = {"name": "Alice", 42: "answer", true: "yes"}
-        print m["name"]
-        print m[42]
-        print m[true]
+        print(m["name"])
+        print(m[42])
+        print(m[true])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1133,9 +1133,9 @@ fn test_map_with_mixed_key_types() {
 fn test_map_with_mixed_value_types() {
     let program = r#"
         val m = {"num": 42, "bool": true, "nil": nil}
-        print m["num"]
-        print m["bool"]
-        print m["nil"]
+        print(m["num"])
+        print(m["bool"])
+        print(m["nil"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1148,7 +1148,7 @@ fn test_map_with_mixed_value_types() {
 fn test_map_nested_in_map() {
     let program = r#"
         val m = {"inner": {"x": 10}}
-        print m["inner"]
+        print(m["inner"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1162,7 +1162,7 @@ fn test_map_assignment_returns_value() {
     let program = r#"
         var m = {}
         val result = m["key"] = 42
-        print result
+        print(result)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1176,7 +1176,7 @@ fn test_map_in_variable_assignment() {
     let program = r#"
         val m1 = {"x": 1}
         val m2 = m1
-        print m2["x"]
+        print(m2["x"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1189,7 +1189,7 @@ fn test_map_in_variable_assignment() {
 fn test_map_in_expression() {
     let program = r#"
         val m = {"x": 10, "y": 20}
-        print m["x"] + m["y"]
+        print(m["x"] + m["y"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1203,7 +1203,7 @@ fn test_map_key_evaluation() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val key = "a"
-        print m[key]
+        print(m[key])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1217,7 +1217,7 @@ fn test_map_dynamic_key() {
     let program = r#"
         val m = {1: "one", 2: "two"}
         val x = 1
-        print m[x + 1]
+        print(m[x + 1])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1232,7 +1232,7 @@ fn test_map_dynamic_key() {
 fn test_map_get_method_existing_key() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print m.get("name")
+        print(m.get("name"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1245,7 +1245,7 @@ fn test_map_get_method_existing_key() {
 fn test_map_get_method_nonexistent_key() {
     let program = r#"
         val m = {"name": "Alice"}
-        print m.get("missing")
+        print(m.get("missing"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1258,7 +1258,7 @@ fn test_map_get_method_nonexistent_key() {
 fn test_map_get_method_number_key() {
     let program = r#"
         val m = {42: "answer", 100: "century"}
-        print m.get(42)
+        print(m.get(42))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1271,7 +1271,7 @@ fn test_map_get_method_number_key() {
 fn test_map_size_method_empty() {
     let program = r#"
         val m = {}
-        print m.size()
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1284,7 +1284,7 @@ fn test_map_size_method_empty() {
 fn test_map_size_method_with_entries() {
     let program = r#"
         val m = {"a": 1, "b": 2, "c": 3}
-        print m.size()
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1297,7 +1297,7 @@ fn test_map_size_method_with_entries() {
 fn test_map_has_method_existing_key() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print m.has("name")
+        print(m.has("name"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1310,7 +1310,7 @@ fn test_map_has_method_existing_key() {
 fn test_map_has_method_nonexistent_key() {
     let program = r#"
         val m = {"name": "Alice"}
-        print m.has("missing")
+        print(m.has("missing"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1323,7 +1323,7 @@ fn test_map_has_method_nonexistent_key() {
 fn test_map_has_method_boolean_key() {
     let program = r#"
         val m = {true: "yes", false: "no"}
-        print m.has(true)
+        print(m.has(true))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1337,8 +1337,8 @@ fn test_map_remove_method_existing_key() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
         val removed = m.remove("name")
-        print removed
-        print m.size()
+        print(removed)
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1352,8 +1352,8 @@ fn test_map_remove_method_nonexistent_key() {
     let program = r#"
         val m = {"name": "Alice"}
         val removed = m.remove("missing")
-        print removed
-        print m.size()
+        print(removed)
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1367,7 +1367,7 @@ fn test_map_keys_method_empty() {
     let program = r#"
         val m = {}
         val keys = m.keys()
-        print keys
+        print(keys)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1381,7 +1381,7 @@ fn test_map_keys_method_with_entries() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val keys = m.keys()
-        print keys
+        print(keys)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1397,7 +1397,7 @@ fn test_map_values_method_empty() {
     let program = r#"
         val m = {}
         val values = m.values()
-        print values
+        print(values)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1411,7 +1411,7 @@ fn test_map_values_method_with_entries() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val values = m.values()
-        print values
+        print(values)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1427,7 +1427,7 @@ fn test_map_entries_method_empty() {
     let program = r#"
         val m = {}
         val entries = m.entries()
-        print entries
+        print(entries)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1441,7 +1441,7 @@ fn test_map_entries_method_with_entries() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
         val entries = m.entries()
-        print entries
+        print(entries)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1456,11 +1456,11 @@ fn test_map_entries_method_with_entries() {
 fn test_map_chained_operations() {
     let program = r#"
         val m = {"a": 1, "b": 2, "c": 3}
-        print m.has("a")
-        print m.get("b")
+        print(m.has("a"))
+        print(m.get("b"))
         val old = m.remove("c")
-        print old
-        print m.size()
+        print(old)
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1474,7 +1474,7 @@ fn test_map_keys_with_different_types() {
     let program = r#"
         val m = {"str": 1, 42: 2, true: 3}
         val keys = m.keys()
-        print keys
+        print(keys)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1491,8 +1491,8 @@ fn test_map_method_after_modification() {
         val m = {"a": 1}
         m["b"] = 2
         m["c"] = 3
-        print m.size()
-        print m.has("b")
+        print(m.size())
+        print(m.has("b"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1506,8 +1506,8 @@ fn test_map_remove_then_size() {
     let program = r#"
         val m = {"x": 10, "y": 20, "z": 30}
         m.remove("y")
-        print m.size()
-        print m.has("y")
+        print(m.size())
+        print(m.has("y"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1520,8 +1520,8 @@ fn test_map_remove_then_size() {
 fn test_map_get_and_bracket_equivalence() {
     let program = r#"
         val m = {"key": "value"}
-        print m.get("key")
-        print m["key"]
+        print(m.get("key"))
+        print(m["key"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1536,7 +1536,7 @@ fn test_map_values_reflect_changes() {
         val m = {"a": 1, "b": 2}
         m["c"] = 3
         val values = m.values()
-        print values
+        print(values)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1555,10 +1555,10 @@ fn test_map_values_reflect_changes() {
 fn test_map_with_string_values() {
     let program = r#"
         val messages = {"greet": "Hello", "farewell": "Goodbye", "thanks": "Thank you"}
-        print messages["greet"]
-        print messages["farewell"]
-        print messages["thanks"]
-        print messages.size()
+        print(messages["greet"])
+        print(messages["farewell"])
+        print(messages["thanks"])
+        print(messages.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1572,15 +1572,15 @@ fn test_map_iteration_with_modification() {
     let program = r#"
         var m = {"a": 1, "b": 2, "c": 3}
         // Test direct key access and modification
-        print m["a"]
-        print m["b"]
-        print m["c"]
+        print(m["a"])
+        print(m["b"])
+        print(m["c"])
         m["a"] = m["a"] + 10
         m["b"] = m["b"] + 10
         m["c"] = m["c"] + 10
-        print m["a"]
-        print m["b"]
-        print m["c"]
+        print(m["a"])
+        print(m["b"])
+        print(m["c"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1601,7 +1601,7 @@ fn test_nested_map_access_chain() {
         }
         val user = data["user"]
         val profile = user["profile"]
-        print profile["name"]
+        print(profile["name"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1617,25 +1617,25 @@ fn test_map_with_conditional_logic() {
         // Test conditional logic with direct map access
         val alice_score = scores["Alice"]
         if (alice_score >= 90) {
-            print "Alice: A"
+            print("Alice: A")
         }
 
         val bob_score = scores["Bob"]
         if (bob_score >= 90) {
-            print "Bob: A"
+            print("Bob: A")
         } else if (bob_score >= 80) {
-            print "Bob: B"
+            print("Bob: B")
         } else if (bob_score >= 70) {
-            print "Bob: C"
+            print("Bob: C")
         } else {
-            print "Bob: F"
+            print("Bob: F")
         }
 
         val charlie_score = scores["Charlie"]
         if (charlie_score >= 90) {
-            print "Charlie: A"
+            print("Charlie: A")
         } else if (charlie_score >= 80) {
-            print "Charlie: B"
+            print("Charlie: B")
         }
         "#;
 
@@ -1653,7 +1653,7 @@ fn test_map_direct_value_access() {
         val x_val = m["x"]
         val y_val = m["y"]
         val z_val = m["z"]
-        print x_val + y_val + z_val
+        print(x_val + y_val + z_val)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1675,12 +1675,12 @@ fn test_map_as_function_parameter() {
         }
 
         val m1 = {"a": 1, "b": 2}
-        print get_value(m1, "a")
-        print get_value(m1, "b")
+        print(get_value(m1, "a"))
+        print(get_value(m1, "b"))
 
         val m2 = set_value(m1, "c", 3)
-        print m2["c"]
-        print m2.size()
+        print(m2["c"])
+        print(m2.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1696,9 +1696,9 @@ fn test_map_with_computed_keys() {
         var m = {}
         m[base + "1"] = 100
         m[base + "2"] = 200
-        print m["key1"]
-        print m["key2"]
-        print m.size()
+        print(m["key1"])
+        print(m["key2"])
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1712,18 +1712,18 @@ fn test_map_update_in_loop() {
     let program = r#"
         var m = {"a": 1, "b": 2, "c": 3}
         // Test updating map values directly
-        print m["a"]
-        print m["b"]
-        print m["c"]
+        print(m["a"])
+        print(m["b"])
+        print(m["c"])
 
         // Update each value
         m["a"] = m["a"] * 2
         m["b"] = m["b"] * 2
         m["c"] = m["c"] * 2
 
-        print m["a"]
-        print m["b"]
-        print m["c"]
+        print(m["a"])
+        print(m["b"])
+        print(m["c"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1736,15 +1736,15 @@ fn test_map_update_in_loop() {
 fn test_map_multiple_removes() {
     let program = r#"
         var m = {"a": 1, "b": 2, "c": 3, "d": 4}
-        print m.size()
+        print(m.size())
         m.remove("a")
-        print m.size()
+        print(m.size())
         m.remove("c")
-        print m.size()
-        print m.has("a")
-        print m.has("b")
-        print m.has("c")
-        print m.has("d")
+        print(m.size())
+        print(m.has("a"))
+        print(m.has("b"))
+        print(m.has("c"))
+        print(m.has("d"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1767,12 +1767,12 @@ fn test_map_with_struct_values() {
         }
 
         val origin = points["origin"]
-        print origin.x
-        print origin.y
+        print(origin.x)
+        print(origin.y)
 
         val unit = points["unit"]
-        print unit.x
-        print unit.y
+        print(unit.x)
+        print(unit.y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1786,8 +1786,8 @@ fn test_map_boolean_key_expressions() {
     let program = r#"
         val m = {true: "yes", false: "no"}
         val x = 5
-        print m[x > 3]
-        print m[x < 3]
+        print(m[x > 3])
+        print(m[x < 3])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1805,11 +1805,11 @@ fn test_map_chaining_operations() {
         val size1 = m.size()
         m.remove("b")
         val size2 = m.size()
-        print size1
-        print size2
-        print m.has("a")
-        print m.has("b")
-        print m.has("c")
+        print(size1)
+        print(size2)
+        print(m.has("a"))
+        print(m.has("b"))
+        print(m.has("c"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1822,22 +1822,22 @@ fn test_map_chaining_operations() {
 fn test_map_empty_to_full_lifecycle() {
     let program = r#"
         var m = {}
-        print m.size()
-        print m.keys()
+        print(m.size())
+        print(m.keys())
 
         m["first"] = 1
-        print m.size()
+        print(m.size())
 
         m["second"] = 2
         m["third"] = 3
-        print m.size()
+        print(m.size())
 
         m.remove("second")
-        print m.size()
+        print(m.size())
 
         m.remove("first")
         m.remove("third")
-        print m.size()
+        print(m.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1859,9 +1859,9 @@ fn test_map_in_recursive_function() {
 
         var m = {}
         val result = count_down(m, 3)
-        print result[1]
-        print result[2]
-        print result[3]
+        print(result[1])
+        print(result[2])
+        print(result[3])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1878,7 +1878,7 @@ fn test_map_in_recursive_function() {
 fn test_array_literal_empty() {
     let program = r#"
         val arr = []
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1891,7 +1891,7 @@ fn test_array_literal_empty() {
 fn test_array_literal_single_element() {
     let program = r#"
         val arr = [42]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1904,7 +1904,7 @@ fn test_array_literal_single_element() {
 fn test_array_literal_multiple_elements() {
     let program = r#"
         val arr = [1, 2, 3]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1917,7 +1917,7 @@ fn test_array_literal_multiple_elements() {
 fn test_array_literal_mixed_types() {
     let program = r#"
         val arr = [1, "hello", true, nil]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1930,9 +1930,9 @@ fn test_array_literal_mixed_types() {
 fn test_array_indexing_positive() {
     let program = r#"
         val arr = [10, 20, 30]
-        print arr[0]
-        print arr[1]
-        print arr[2]
+        print(arr[0])
+        print(arr[1])
+        print(arr[2])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1945,9 +1945,9 @@ fn test_array_indexing_positive() {
 fn test_array_indexing_negative() {
     let program = r#"
         val arr = [10, 20, 30]
-        print arr[-1]
-        print arr[-2]
-        print arr[-3]
+        print(arr[-1])
+        print(arr[-2])
+        print(arr[-3])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1963,9 +1963,9 @@ fn test_array_index_assignment() {
         arr[0] = 10
         arr[1] = 20
         arr[2] = 30
-        print arr[0]
-        print arr[1]
-        print arr[2]
+        print(arr[0])
+        print(arr[1])
+        print(arr[2])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1980,8 +1980,8 @@ fn test_array_index_assignment_negative() {
         var arr = [1, 2, 3]
         arr[-1] = 99
         arr[-2] = 88
-        print arr[1]
-        print arr[2]
+        print(arr[1])
+        print(arr[2])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1995,7 +1995,7 @@ fn test_array_push() {
     let program = r#"
         var arr = [1, 2, 3]
         arr.push(4)
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2011,7 +2011,7 @@ fn test_array_push_multiple() {
         arr.push(1)
         arr.push(2)
         arr.push(3)
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2025,8 +2025,8 @@ fn test_array_pop() {
     let program = r#"
         var arr = [1, 2, 3]
         val last = arr.pop()
-        print last
-        print arr
+        print(last)
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2040,7 +2040,7 @@ fn test_array_pop_empty() {
     let program = r#"
         var arr = []
         val result = arr.pop()
-        print result
+        print(result)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2055,9 +2055,9 @@ fn test_array_length() {
         val arr1 = []
         val arr2 = [1]
         val arr3 = [1, 2, 3]
-        print arr1.length()
-        print arr2.length()
-        print arr3.length()
+        print(arr1.length())
+        print(arr2.length())
+        print(arr3.length())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2070,11 +2070,11 @@ fn test_array_length() {
 fn test_array_length_after_push() {
     let program = r#"
         var arr = [1, 2]
-        print arr.length()
+        print(arr.length())
         arr.push(3)
-        print arr.length()
+        print(arr.length())
         arr.push(4)
-        print arr.length()
+        print(arr.length())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2087,11 +2087,11 @@ fn test_array_length_after_push() {
 fn test_array_length_after_pop() {
     let program = r#"
         var arr = [1, 2, 3, 4]
-        print arr.length()
+        print(arr.length())
         arr.pop()
-        print arr.length()
+        print(arr.length())
         arr.pop()
-        print arr.length()
+        print(arr.length())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2104,7 +2104,7 @@ fn test_array_length_after_pop() {
 fn test_array_nested() {
     let program = r#"
         val arr = [[1, 2], [3, 4]]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2118,11 +2118,11 @@ fn test_array_nested_access() {
     let program = r#"
         val arr = [[1, 2], [3, 4]]
         val inner = arr[0]
-        print inner[0]
-        print inner[1]
+        print(inner[0])
+        print(inner[1])
         val inner2 = arr[1]
-        print inner2[0]
-        print inner2[1]
+        print(inner2[0])
+        print(inner2[1])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2137,7 +2137,7 @@ fn test_array_nested_modification() {
         var arr = [[1, 2], [3, 4]]
         val inner = arr[0]
         inner[0] = 99
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2153,7 +2153,7 @@ fn test_array_with_variables() {
         val y = 20
         val z = 30
         val arr = [x, y, z]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2166,7 +2166,7 @@ fn test_array_with_variables() {
 fn test_array_with_expressions() {
     let program = r#"
         val arr = [1 + 1, 2 * 3, 10 - 5]
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2180,7 +2180,7 @@ fn test_array_in_expression() {
     let program = r#"
         val arr = [10, 20, 30]
         val sum = arr[0] + arr[1] + arr[2]
-        print sum
+        print(sum)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2194,7 +2194,7 @@ fn test_array_in_variable_assignment() {
     let program = r#"
         val arr1 = [1, 2, 3]
         val arr2 = arr1
-        print arr2
+        print(arr2)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2208,8 +2208,8 @@ fn test_array_dynamic_index() {
     let program = r#"
         val arr = [10, 20, 30]
         val i = 1
-        print arr[i]
-        print arr[i + 1]
+        print(arr[i])
+        print(arr[i + 1])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2223,8 +2223,8 @@ fn test_array_assignment_returns_value() {
     let program = r#"
         var arr = [1, 2, 3]
         val result = arr[1] = 99
-        print result
-        print arr
+        print(result)
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2250,10 +2250,10 @@ fn test_array_as_function_parameter() {
         }
 
         val arr1 = [1, 2, 3]
-        print get_first(arr1)
+        print(get_first(arr1))
 
         val arr2 = set_first(arr1, 99)
-        print arr2[0]
+        print(arr2[0])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2269,21 +2269,21 @@ fn test_array_with_conditional_logic() {
 
         val first = scores[0]
         if (first >= 90) {
-            print "A"
+            print("A")
         } else if (first >= 80) {
-            print "B"
+            print("B")
         }
 
         val second = scores[1]
         if (second >= 90) {
-            print "A"
+            print("A")
         }
 
         val third = scores[2]
         if (third >= 80) {
-            print "B"
+            print("B")
         } else {
-            print "C"
+            print("C")
         }
         "#;
 
@@ -2299,7 +2299,7 @@ fn test_array_in_loop() {
         var arr = [1, 2, 3]
         var i = 0
         while (i < arr.length()) {
-            print arr[i]
+            print(arr[i])
             i = i + 1
         }
         "#;
@@ -2320,7 +2320,7 @@ fn test_array_accumulation() {
             sum = sum + arr[i]
             i = i + 1
         }
-        print sum
+        print(sum)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2333,22 +2333,22 @@ fn test_array_accumulation() {
 fn test_array_push_pop_lifecycle() {
     let program = r#"
         var arr = []
-        print arr.length()
+        print(arr.length())
 
         arr.push(1)
         arr.push(2)
         arr.push(3)
-        print arr.length()
-        print arr
+        print(arr.length())
+        print(arr)
 
         arr.pop()
-        print arr.length()
-        print arr
+        print(arr.length())
+        print(arr)
 
         arr.pop()
         arr.pop()
-        print arr.length()
-        print arr
+        print(arr.length())
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2365,10 +2365,10 @@ fn test_array_with_map_values() {
         val arr = [map1, map2]
 
         val first = arr[0]
-        print first["x"]
+        print(first["x"])
 
         val second = arr[1]
-        print second["y"]
+        print(second["y"])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2386,11 +2386,11 @@ fn test_map_with_array_values() {
         }
 
         val numbers = m["numbers"]
-        print numbers[0]
-        print numbers[2]
+        print(numbers[0])
+        print(numbers[2])
 
         val strings = m["strings"]
-        print strings[1]
+        print(strings[1])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2408,7 +2408,7 @@ fn test_array_build_with_loop() {
             arr.push(i * i)
             i = i + 1
         }
-        print arr
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2421,11 +2421,11 @@ fn test_array_build_with_loop() {
 fn test_array_reverse_with_negative_indices() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        print arr[-1]
-        print arr[-2]
-        print arr[-3]
-        print arr[-4]
-        print arr[-5]
+        print(arr[-1])
+        print(arr[-2])
+        print(arr[-3])
+        print(arr[-4])
+        print(arr[-5])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2448,7 +2448,7 @@ fn test_array_modification_in_function() {
 
         var numbers = [1, 2, 3]
         val result = double_elements(numbers)
-        print result
+        print(result)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2464,9 +2464,9 @@ fn test_array_chained_operations() {
         arr.push(4)
         arr.push(5)
         val last = arr.pop()
-        print last
-        print arr.length()
-        print arr
+        print(last)
+        print(arr.length())
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2486,12 +2486,12 @@ fn test_array_with_struct_values() {
         val points = [Point(1, 2), Point(3, 4), Point(5, 6)]
 
         val p1 = points[0]
-        print p1.x
-        print p1.y
+        print(p1.x)
+        print(p1.y)
 
         val p2 = points[1]
-        print p2.x
-        print p2.y
+        print(p2.x)
+        print(p2.y)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2504,24 +2504,24 @@ fn test_array_with_struct_values() {
 fn test_array_empty_to_full_lifecycle() {
     let program = r#"
         var arr = []
-        print arr.length()
+        print(arr.length())
 
         arr.push(10)
-        print arr.length()
-        print arr[0]
+        print(arr.length())
+        print(arr[0])
 
         arr.push(20)
         arr.push(30)
-        print arr.length()
+        print(arr.length())
 
         arr[1] = 99
-        print arr
+        print(arr)
 
         arr.pop()
         arr.pop()
         arr.pop()
-        print arr.length()
-        print arr
+        print(arr.length())
+        print(arr)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2541,11 +2541,11 @@ fn test_array_large_size() {
             arr.push(i)
             i = i + 1
         }
-        print arr.length()
-        print arr[0]
-        print arr[255]
-        print arr[256]
-        print arr[299]
+        print(arr.length())
+        print(arr[0])
+        print(arr[255])
+        print(arr[256])
+        print(arr[299])
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2566,11 +2566,11 @@ fn test_array_literal_large_size() {
     let program = format!(
         r#"
         var arr = {}
-        print arr.length()
-        print arr[0]
-        print arr[255]
-        print arr[256]
-        print arr[299]
+        print(arr.length())
+        print(arr[0])
+        print(arr[255])
+        print(arr[256])
+        print(arr[299])
         "#,
         array_literal
     );
@@ -2593,10 +2593,10 @@ fn test_break_in_while_loop() {
             if (x == 5) {
                 break
             }
-            print x
+            print(x)
             x = x + 1
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2614,9 +2614,9 @@ fn test_continue_in_while_loop() {
             if (x == 3) {
                 continue
             }
-            print x
+            print(x)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2632,9 +2632,9 @@ fn test_break_in_for_loop() {
             if (i == 5) {
                 break
             }
-            print i
+            print(i)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2650,9 +2650,9 @@ fn test_continue_in_for_loop() {
             if (i == 2) {
                 continue
             }
-            print i
+            print(i)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2669,9 +2669,9 @@ fn test_break_in_for_in_loop() {
             if (item == 3) {
                 break
             }
-            print item
+            print(item)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2688,9 +2688,9 @@ fn test_continue_in_for_in_loop() {
             if (item == 3) {
                 continue
             }
-            print item
+            print(item)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2709,12 +2709,12 @@ fn test_nested_loops_with_break() {
                 if (j == 2) {
                     break
                 }
-                print "i=" + i.toString() + " j=" + j.toString()
+                print("i=" + i.toString() + " j=" + j.toString())
                 j = j + 1
             }
             i = i + 1
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2737,11 +2737,11 @@ fn test_nested_loops_with_continue() {
             }
             var j = 0
             while (j < 2) {
-                print "i=" + i.toString() + " j=" + j.toString()
+                print("i=" + i.toString() + " j=" + j.toString())
                 j = j + 1
             }
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2761,7 +2761,7 @@ fn test_break_with_accumulator() {
             }
             sum = sum + item
         }
-        print sum
+        print(sum)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2781,7 +2781,7 @@ fn test_continue_with_accumulator() {
             }
             sum = sum + item
         }
-        print sum
+        print(sum)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2798,7 +2798,7 @@ fn test_break_immediately() {
             break
             x = x + 1
         }
-        print x
+        print(x)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2818,10 +2818,10 @@ fn test_multiple_breaks_in_loop() {
             if (x == 7) {
                 break
             }
-            print x
+            print(x)
             x = x + 1
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2842,9 +2842,9 @@ fn test_multiple_continues_in_loop() {
             if (x == 4) {
                 continue
             }
-            print x
+            print(x)
         }
-        print "Done"
+        print("Done")
         "#;
 
     let mut vm = VirtualMachine::new();

@@ -7,10 +7,10 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_string_len() {
     let program = r#"
-        print "hello".len()
-        print "hello 🌍".len()
-        print "".len()
-        print "12345".len()
+        print("hello".len())
+        print("hello 🌍".len())
+        print("".len())
+        print("12345".len())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -25,10 +25,10 @@ fn test_string_len() {
 #[test]
 fn test_string_substring() {
     let program = r#"
-        print "hello world".substring(0, 5)
-        print "hello world".substring(6, 11)
-        print "hello".substring(2, 2)
-        print "hello".substring(0, 100)
+        print("hello world".substring(0, 5))
+        print("hello world".substring(6, 11))
+        print("hello".substring(2, 2))
+        print("hello".substring(0, 100))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -39,7 +39,7 @@ fn test_string_substring() {
 #[test]
 fn test_string_substring_negative() {
     let program = r#"
-        print "hello world".substring(-5, -1)
+        print("hello world".substring(-5, -1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -54,9 +54,9 @@ fn test_string_substring_negative() {
 #[test]
 fn test_string_replace() {
     let program = r#"
-        print "hello world".replace("world", "rust")
-        print "foo bar foo".replace("foo", "baz")
-        print "hello".replace("x", "y")
+        print("hello world".replace("world", "rust"))
+        print("foo bar foo".replace("foo", "baz"))
+        print("hello".replace("x", "y"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -72,13 +72,13 @@ fn test_string_replace() {
 fn test_string_split() {
     let program = r#"
         val words = "hello world test".split(" ")
-        print words
+        print(words)
 
         val csv = "a,b,c".split(",")
-        print csv
+        print(csv)
 
         val single = "hello".split(",")
-        print single
+        print(single)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -93,9 +93,9 @@ fn test_string_split() {
 #[test]
 fn test_string_to_int() {
     let program = r#"
-        print "42".toInt()
-        print "-123".toInt()
-        print "0".toInt()
+        print("42".toInt())
+        print("-123".toInt())
+        print("0".toInt())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -106,9 +106,9 @@ fn test_string_to_int() {
 #[test]
 fn test_string_to_float() {
     let program = r#"
-        print "3.14".toFloat()
-        print "-2.5".toFloat()
-        print "42".toFloat()
+        print("3.14".toFloat())
+        print("-2.5".toFloat())
+        print("42".toFloat())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -119,8 +119,8 @@ fn test_string_to_float() {
 #[test]
 fn test_string_to_bool() {
     let program = r#"
-        print "true".toBool()
-        print "false".toBool()
+        print("true".toBool())
+        print("false".toBool())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -135,9 +135,9 @@ fn test_string_to_bool() {
 #[test]
 fn test_string_trim() {
     let program = r#"
-        print "  hello  ".trim()
-        print "hello".trim()
-        print "  ".trim()
+        print("  hello  ".trim())
+        print("hello".trim())
+        print("  ".trim())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -152,10 +152,10 @@ fn test_string_trim() {
 #[test]
 fn test_string_starts_with() {
     let program = r#"
-        print "hello world".startsWith("hello")
-        print "hello world".startsWith("world")
-        print "hello".startsWith("")
-        print "test".startsWith("testing")
+        print("hello world".startsWith("hello"))
+        print("hello world".startsWith("world"))
+        print("hello".startsWith(""))
+        print("test".startsWith("testing"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -166,10 +166,10 @@ fn test_string_starts_with() {
 #[test]
 fn test_string_ends_with() {
     let program = r#"
-        print "hello world".endsWith("world")
-        print "hello world".endsWith("hello")
-        print "hello".endsWith("")
-        print "test".endsWith("testing")
+        print("hello world".endsWith("world"))
+        print("hello world".endsWith("hello"))
+        print("hello".endsWith(""))
+        print("test".endsWith("testing"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -184,10 +184,10 @@ fn test_string_ends_with() {
 #[test]
 fn test_string_index_of() {
     let program = r#"
-        print "hello world".indexOf("world")
-        print "hello world".indexOf("o")
-        print "hello".indexOf("x")
-        print "hello".indexOf("")
+        print("hello world".indexOf("world"))
+        print("hello world".indexOf("o"))
+        print("hello".indexOf("x"))
+        print("hello".indexOf(""))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -202,9 +202,9 @@ fn test_string_index_of() {
 #[test]
 fn test_string_char_at() {
     let program = r#"
-        print "hello".charAt(0)
-        print "hello".charAt(4)
-        print "hello".charAt(-1)
+        print("hello".charAt(0))
+        print("hello".charAt(4))
+        print("hello".charAt(-1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -219,9 +219,9 @@ fn test_string_char_at() {
 #[test]
 fn test_string_to_upper_case() {
     let program = r#"
-        print "hello".toUpperCase()
-        print "WORLD".toUpperCase()
-        print "Hello World".toUpperCase()
+        print("hello".toUpperCase())
+        print("WORLD".toUpperCase())
+        print("Hello World".toUpperCase())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -232,9 +232,9 @@ fn test_string_to_upper_case() {
 #[test]
 fn test_string_to_lower_case() {
     let program = r#"
-        print "HELLO".toLowerCase()
-        print "world".toLowerCase()
-        print "Hello World".toLowerCase()
+        print("HELLO".toLowerCase())
+        print("world".toLowerCase())
+        print("Hello World".toLowerCase())
     "#;
 
     let mut vm = VirtualMachine::new();
