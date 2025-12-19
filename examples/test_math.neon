@@ -1,1 +1,1 @@
-print Math.abs(-5)
+print(Math.abs(-5))
