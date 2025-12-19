@@ -45,6 +45,12 @@ impl ModuleResolver {
 
     /// Resolve a module path to an absolute canonical path
     ///
+    /// Module path resolution rules:
+    /// - Explicit relative: "./module" or "../module" - relative to current file
+    /// - Absolute: "/path/to/module" - absolute file path (for testing/tooling)
+    /// - System/native: "system/io" - contains "/" but not absolute (future: search system paths)
+    /// - Local: "math_lib" - simple name, resolves to same directory as current file
+    ///
     /// # Arguments
     /// * `module_path` - The module path from the import statement
     /// * `current_file` - The path of the file containing the import (optional)
@@ -57,11 +63,17 @@ impl ModuleResolver {
         module_path: &str,
         current_file: Option<&Path>,
     ) -> Result<PathBuf, String> {
-        // Handle relative paths (starts with "./" or "../")
-        let is_relative = module_path.starts_with("./") || module_path.starts_with("../");
+        // Determine module path type
+        let is_explicit_relative = module_path.starts_with("./") || module_path.starts_with("../");
+        let is_absolute = module_path.starts_with('/');
+        let is_system_module = module_path.contains('/') && !is_explicit_relative && !is_absolute;
 
-        let mut resolved_path = if is_relative {
-            // Relative import requires current file context
+        let mut resolved_path = if is_absolute {
+            // Absolute path (e.g., "/path/to/module")
+            // Used for testing or direct file imports
+            PathBuf::from(module_path)
+        } else if is_explicit_relative {
+            // Explicit relative path (e.g., "./module" or "../module")
             let current_dir = match current_file {
                 Some(path) => path.parent().ok_or_else(|| {
                     format!("Cannot determine parent directory of '{}'", path.display())
@@ -74,9 +86,29 @@ impl ModuleResolver {
                 }
             };
             current_dir.join(module_path)
+        } else if is_system_module {
+            // System/native module path (e.g., "system/io")
+            // For now, treat as error - will be implemented when system modules are added
+            return Err(format!(
+                "System module imports not yet implemented: '{}'\n\
+                 Future: This will search for built-in modules in the Neon standard library",
+                module_path
+            ));
         } else {
-            // Absolute or module-relative path
-            PathBuf::from(module_path)
+            // Local module - simple name (e.g., "math_lib")
+            // Resolve relative to current file's directory
+            let current_dir = match current_file {
+                Some(path) => path.parent().ok_or_else(|| {
+                    format!("Cannot determine parent directory of '{}'", path.display())
+                })?,
+                None => {
+                    return Err(format!(
+                        "Module import '{}' requires current file context",
+                        module_path
+                    ));
+                }
+            };
+            current_dir.join(module_path)
         };
 
         // Add .n extension if not present
@@ -85,6 +117,15 @@ impl ModuleResolver {
         }
 
         // Canonicalize to absolute path
+        // First check if the file exists to provide better error messages
+        if !resolved_path.exists() {
+            return Err(format!(
+                "Module not found: '{}'\nSearched at: {}",
+                module_path,
+                resolved_path.display()
+            ));
+        }
+
         resolved_path.canonicalize().map_err(|e| {
             format!(
                 "Cannot resolve module path '{}': {}",
@@ -259,6 +300,24 @@ mod tests {
         let result = resolver.resolve_path("./test", None);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("requires current file context"));
+    }
+
+    #[test]
+    fn test_local_module_without_current_file_fails() {
+        let resolver = ModuleResolver::new();
+        // Local module (simple name) also requires context
+        let result = resolver.resolve_path("math_lib", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("requires current file context"));
+    }
+
+    #[test]
+    fn test_system_module_not_yet_implemented() {
+        let resolver = ModuleResolver::new();
+        // System module path (contains /)
+        let result = resolver.resolve_path("system/io", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("System module imports not yet implemented"));
     }
 
     #[test]

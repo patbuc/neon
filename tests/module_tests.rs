@@ -12,13 +12,19 @@ fn create_test_module(dir: &TempDir, name: &str, content: &str) -> PathBuf {
         .expect("Failed to canonicalize path")
 }
 
+/// Helper to create a main file that imports a module
+fn create_main_with_import(dir: &TempDir, import_name: &str, main_content: &str) -> PathBuf {
+    let main_content_with_import = format!("import \"{}\"\n{}", import_name, main_content);
+    create_test_module(dir, "main", &main_content_with_import)
+}
+
 #[test]
 fn test_module_basic_loading() {
     // Create temporary directory for test modules
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     // Create a simple module
-    let module_path = create_test_module(
+    create_test_module(
         &temp_dir,
         "math",
         r#"
@@ -29,17 +35,17 @@ fn test_module_basic_loading() {
         "#,
     );
 
-    // Test script that imports the module
-    let script = format!(
+    // Create main file that imports using simple name
+    let main_path = create_main_with_import(
+        &temp_dir,
+        "math",
         r#"
-        import "{}"
         print("Module loaded")
         "#,
-        module_path.display()
     );
 
     let mut vm = VirtualMachine::new();
-    let result = vm.interpret(script.clone());
+    let result = vm.interpret_file(main_path.clone());
 
     if result != neon::vm::Result::Ok {
         eprintln!("Compilation error: {}", vm.get_formatted_errors("test.n"));
@@ -61,7 +67,7 @@ fn test_module_caching() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     // Create a module that prints during initialization
-    let module_path = create_test_module(
+    create_test_module(
         &temp_dir,
         "counter",
         r#"
@@ -70,19 +76,19 @@ fn test_module_caching() {
         "#,
     );
 
-    // Test script that imports the same module twice
-    let script = format!(
+    // Create main file that imports the same module twice
+    let main_path = create_test_module(
+        &temp_dir,
+        "main",
         r#"
-        import "{}"
-        import "{}"
+        import "counter"
+        import "counter"
         print("Done")
         "#,
-        module_path.display(),
-        module_path.display()
     );
 
     let mut vm = VirtualMachine::new();
-    let result = vm.interpret(script);
+    let result = vm.interpret_file(main_path);
 
     assert_eq!(result, neon::vm::Result::Ok, "Module caching test should succeed");
 
@@ -99,13 +105,20 @@ fn test_module_caching() {
 
 #[test]
 fn test_module_path_resolution_error() {
-    // Try to import a non-existent module
-    let script = r#"
-        import "./nonexistent.n"
-    "#.to_string();
+    // Create temporary directory for test
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    // Create main file that tries to import a non-existent module
+    let main_path = create_test_module(
+        &temp_dir,
+        "main",
+        r#"
+        import "nonexistent"
+        "#,
+    );
 
     let mut vm = VirtualMachine::new();
-    let result = vm.interpret(script);
+    let result = vm.interpret_file(main_path);
 
     // Should fail during runtime when trying to load the module
     assert_eq!(
@@ -121,7 +134,7 @@ fn test_module_compilation_error() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     // Create a module with syntax errors
-    let module_path = create_test_module(
+    create_test_module(
         &temp_dir,
         "broken",
         r#"
@@ -129,16 +142,15 @@ fn test_module_compilation_error() {
         "#,
     );
 
-    // Test script that imports the broken module
-    let script = format!(
-        r#"
-        import "{}"
-        "#,
-        module_path.display()
+    // Create main file that tries to import the broken module
+    let main_path = create_main_with_import(
+        &temp_dir,
+        "broken",
+        "",
     );
 
     let mut vm = VirtualMachine::new();
-    let result = vm.interpret(script);
+    let result = vm.interpret_file(main_path);
 
     // Should fail with a runtime error (module compilation failed)
     assert_eq!(
@@ -154,7 +166,7 @@ fn test_module_non_exported_symbol_inaccessible() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     // Create a module with both exported and non-exported declarations
-    let module_path = create_test_module(
+    create_test_module(
         &temp_dir,
         "private_test",
         r#"
@@ -168,17 +180,17 @@ fn test_module_non_exported_symbol_inaccessible() {
         "#,
     );
 
-    // Test script that tries to access non-exported symbol
-    let script = format!(
+    // Create main file that tries to access non-exported symbol
+    let main_path = create_main_with_import(
+        &temp_dir,
+        "private_test",
         r#"
-        import "{}"
         print private_test.private_fn()
         "#,
-        module_path.display()
     );
 
     let mut vm = VirtualMachine::new();
-    let result = vm.interpret(script);
+    let result = vm.interpret_file(main_path);
 
     // Should fail during compilation when trying to access non-exported symbol
     // The semantic analyzer catches this at compile time

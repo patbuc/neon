@@ -5,6 +5,7 @@ use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -36,6 +37,21 @@ impl VirtualMachine {
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
+        self.interpret_with_path(source, None)
+    }
+
+    pub fn interpret_file(&mut self, file_path: PathBuf) -> Result {
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot read file '{}': {}", file_path.display(), e));
+                return Result::RuntimeError;
+            }
+        };
+        self.interpret_with_path(source, Some(file_path))
+    }
+
+    fn interpret_with_path(&mut self, source: String, file_path: Option<PathBuf>) -> Result {
         self.reset();
 
         self.source = source.clone();
@@ -44,7 +60,11 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new(self.builtin.clone());
-        let chunk = compiler.compile(&source);
+        let chunk = if let Some(ref path) = file_path {
+            compiler.compile_with_path(&source, Some(path.clone()))
+        } else {
+            compiler.compile(&source)
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());

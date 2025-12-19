@@ -34,6 +34,8 @@ pub struct Chunk {
     /// Export information: maps exported symbol names to their global indices
     /// Only populated for module chunks, empty for regular scripts
     pub exports: HashMap<String, usize>,
+    /// Source file path for this chunk (used for resolving relative imports)
+    pub source_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

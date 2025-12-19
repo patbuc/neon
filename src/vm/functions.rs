@@ -1261,9 +1261,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_load_module(&mut self, bits: BitsSize) -> Option<Result> {
         use crate::common::{ModuleState, Object};
         use crate::compiler::Compiler;
-        use std::collections::HashMap;
         use std::fs;
-        use std::path::PathBuf;
 
         // Read the module path from the string constant
         let module_path_str = {
@@ -1290,8 +1288,16 @@ impl VirtualMachine {
             }
         };
 
-        // Convert to PathBuf and canonicalize
-        let module_path = match PathBuf::from(&module_path_str).canonicalize() {
+        // Get current file path from the chunk for resolving relative imports
+        let current_file_path = {
+            let frame = self.current_frame();
+            frame.function.chunk.source_path.as_ref()
+        };
+
+        // Use module resolver to resolve the module path
+        use crate::compiler::module_resolver::ModuleResolver;
+        let resolver = ModuleResolver::new();
+        let module_path = match resolver.resolve_path(&module_path_str, current_file_path.map(|p| p.as_path())) {
             Ok(path) => path,
             Err(e) => {
                 self.runtime_error(&format!("Cannot resolve module path '{}': {}", module_path_str, e));

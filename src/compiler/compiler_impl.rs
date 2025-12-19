@@ -75,7 +75,11 @@ impl Compiler {
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new(self.builtin.clone());
         match codegen.generate_with_exports(&ast, exports) {
-            Ok(chunk) => Some(chunk),
+            Ok(mut chunk) => {
+                // Set the source path on the chunk for module resolution
+                chunk.source_path = self.current_file_path.clone();
+                Some(chunk)
+            }
             Err(errors) => {
                 // Store structured errors
                 self.structured_errors = errors.clone();
