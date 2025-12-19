@@ -10,8 +10,6 @@ impl Chunk {
             instructions: Vec::new(),
             source_locations: Vec::new(),
             locals: Vec::new(),
-            exports: std::collections::HashMap::new(),
-            source_path: None,
         }
     }
 }

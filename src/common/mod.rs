@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
 use std::rc::Rc;
 
 pub mod chunk;
@@ -11,6 +10,7 @@ pub mod constants;
 pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
+pub(crate) mod module_types;
 pub(crate) mod opcodes;
 pub mod stdlib;
 pub mod string_similarity;
@@ -31,11 +31,6 @@ pub struct Chunk {
     pub instructions: Vec<u8>,
     pub source_locations: Vec<SourceLocation>,
     pub locals: Vec<Local>,
-    /// Export information: maps exported symbol names to their global indices
-    /// Only populated for module chunks, empty for regular scripts
-    pub exports: HashMap<String, usize>,
-    /// Source file path for this chunk (used for resolving relative imports)
-    pub source_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -141,6 +136,9 @@ pub struct ObjFunction {
     pub arity: u8,
     #[serde(with = "serde_rc")]
     pub chunk: Rc<Chunk>,
+    /// Module metadata - only present for module-level functions (top-level module code)
+    /// Regular user-defined functions within a module have None
+    pub metadata: Option<Rc<module_types::ModuleMetadata>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,8 +157,8 @@ pub struct ObjInstance {
 #[derive(Debug, Clone)]
 pub(crate) struct ModuleState {
     pub globals: Vec<Value>,
-    pub exports: HashMap<String, usize>,
-    pub path: PathBuf,
+    /// Module metadata containing exports and source path
+    pub metadata: Rc<module_types::ModuleMetadata>,
 }
 
 impl Value {
@@ -177,6 +175,7 @@ impl Value {
             name,
             arity,
             chunk: Rc::new(chunk),
+            metadata: None, // Regular functions don't have module metadata
         }))))
     }
 
@@ -198,13 +197,11 @@ impl Value {
 
     pub(crate) fn new_module(
         globals: Vec<Value>,
-        exports: HashMap<String, usize>,
-        path: PathBuf,
+        metadata: Rc<module_types::ModuleMetadata>,
     ) -> Self {
         Value::Object(Rc::new(Object::Module(Rc::new(ModuleState {
             globals,
-            exports,
-            path,
+            metadata,
         }))))
     }
 }
@@ -263,7 +260,7 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
-            Object::Module(module) => write!(f, "<module: {}>", module.path.display()),
+            Object::Module(module) => write!(f, "<module: {}>", module.metadata.source_path.display()),
         }
     }
 }
@@ -309,7 +306,7 @@ impl PartialEq for ObjInstance {
 impl PartialEq for ModuleState {
     fn eq(&self, other: &Self) -> bool {
         // Modules are equal if they have the same path
-        self.path == other.path
+        self.metadata.source_path == other.metadata.source_path
     }
 }
 

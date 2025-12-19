@@ -41,6 +41,8 @@ pub struct Compiler {
     builtin: indexmap::IndexMap<String, crate::common::Value>,
     module_resolver: module_resolver::ModuleResolver,
     current_file_path: Option<std::path::PathBuf>,
+    /// Exports from the last compilation (for module metadata)
+    last_exports: Vec<crate::common::module_types::ExportInfo>,
 }
 
 impl Compiler {
@@ -50,5 +52,10 @@ impl Compiler {
 
     pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
+    }
+
+    /// Get exports from the last compilation
+    pub(crate) fn get_last_exports(&self) -> &Vec<crate::common::module_types::ExportInfo> {
+        &self.last_exports
     }
 }

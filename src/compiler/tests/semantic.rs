@@ -1546,7 +1546,7 @@ fn test_export_function_collected() {
     // Check that the export was collected
     let exports = analyzer.exports();
     assert_eq!(exports.len(), 1);
-    assert!(exports.contains_key("add"));
+    assert!(exports.iter().any(|e| e.name == "add"));
 }
 
 #[test]
@@ -1563,7 +1563,7 @@ fn test_export_variable_collected() {
     assert!(result.is_ok());
     let exports = analyzer.exports();
     assert_eq!(exports.len(), 1);
-    assert!(exports.contains_key("counter"));
+    assert!(exports.iter().any(|e| e.name == "counter"));
 }
 
 #[test]
@@ -1586,7 +1586,7 @@ fn test_export_val_collected() {
     assert!(result.is_ok());
     let exports = analyzer.exports();
     assert_eq!(exports.len(), 1);
-    assert!(exports.contains_key("PI"));
+    assert!(exports.iter().any(|e| e.name == "PI"));
 }
 
 #[test]
@@ -1606,7 +1606,7 @@ fn test_export_struct_collected() {
     assert!(result.is_ok());
     let exports = analyzer.exports();
     assert_eq!(exports.len(), 1);
-    assert!(exports.contains_key("Point"));
+    assert!(exports.iter().any(|e| e.name == "Point"));
 }
 
 #[test]
@@ -1631,9 +1631,9 @@ fn test_multiple_exports_collected() {
     assert!(result.is_ok());
     let exports = analyzer.exports();
     assert_eq!(exports.len(), 3);
-    assert!(exports.contains_key("add"));
-    assert!(exports.contains_key("multiply"));
-    assert!(exports.contains_key("PI"));
+    assert!(exports.iter().any(|e| e.name == "add"));
+    assert!(exports.iter().any(|e| e.name == "multiply"));
+    assert!(exports.iter().any(|e| e.name == "PI"));
 }
 
 #[test]
@@ -1676,7 +1676,7 @@ fn test_export_and_local_declarations() {
     let exports = analyzer.exports();
     // Only publicFunc should be exported
     assert_eq!(exports.len(), 1);
-    assert!(exports.contains_key("publicFunc"));
-    assert!(!exports.contains_key("privateFunc"));
+    assert!(exports.iter().any(|e| e.name == "publicFunc"));
+    assert!(!exports.iter().any(|e| e.name == "privateFunc"));
 }
 

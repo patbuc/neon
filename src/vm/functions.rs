@@ -160,12 +160,12 @@ impl VirtualMachine {
         };
 
         // Save module info if completing module initialization
-        let (module_exports, module_context) = if is_module_complete {
-            let exports = self.current_frame().function.chunk.exports.clone();
+        let (module_metadata, module_context) = if is_module_complete {
+            let metadata = self.current_frame().function.metadata.clone();
             let context = self.execution_context.clone();
-            (exports, Some(context))
+            (metadata, Some(context))
         } else {
-            (std::collections::HashMap::new(), None)
+            (None, None)
         };
 
         self.call_frames.pop();
@@ -178,11 +178,13 @@ impl VirtualMachine {
             // Extract globals from stack (from stack_base onwards)
             let globals: Vec<Value> = self.stack[stack_base..].to_vec();
 
+            // Get or create metadata (should always exist for modules)
+            let metadata = module_metadata.expect("Module function should have metadata");
+
             // Create module state
             let module_state = Rc::new(ModuleState {
                 globals: globals.clone(),
-                exports: module_exports.clone(),
-                path: source_path.clone(),
+                metadata: metadata.clone(),
             });
 
             // Cache the module
@@ -190,7 +192,7 @@ impl VirtualMachine {
 
             // Remove module globals from stack and push the module object
             self.stack.truncate(stack_base);
-            let module_value = Value::new_module(globals, module_exports, source_path);
+            let module_value = Value::new_module(globals, metadata);
             self.push(module_value);
 
             // Reset execution context
@@ -498,8 +500,9 @@ impl VirtualMachine {
                     }
                 }
                 Object::Module(module_state) => {
-                    // Look up the export in the module's exports map
-                    if let Some(&global_index) = module_state.exports.get(&field_name) {
+                    // Look up the export in the module's metadata
+                    if let Some(export_info) = module_state.metadata.get_export(&field_name) {
+                        let global_index = export_info.global_index;
                         // Get the value from the module's globals
                         if global_index < module_state.globals.len() {
                             let value = module_state.globals[global_index].clone();
@@ -1342,16 +1345,16 @@ impl VirtualMachine {
             }
         };
 
-        // Get current file path from the chunk for resolving relative imports
+        // Get current file path from the function metadata for resolving relative imports
         let current_file_path = {
             let frame = self.current_frame();
-            frame.function.chunk.source_path.as_ref()
+            frame.function.metadata.as_ref().map(|m| m.source_path.as_path())
         };
 
         // Use module resolver to resolve the module path
         use crate::compiler::module_resolver::ModuleResolver;
         let resolver = ModuleResolver::new();
-        let module_path = match resolver.resolve_path(&module_path_str, current_file_path.map(|p| p.as_path())) {
+        let module_path = match resolver.resolve_path(&module_path_str, current_file_path) {
             Ok(path) => path,
             Err(e) => {
                 self.runtime_error(&format!("Cannot resolve module path '{}': {}", module_path_str, e));
@@ -1364,8 +1367,7 @@ impl VirtualMachine {
             // Module already loaded, push it onto the stack
             let module_value = Value::new_module(
                 cached_module.globals.clone(),
-                cached_module.exports.clone(),
-                cached_module.path.clone(),
+                cached_module.metadata.clone(),
             );
             self.push(module_value);
 
@@ -1398,6 +1400,13 @@ impl VirtualMachine {
             }
         };
 
+        // Get exports from the compiler and create module metadata
+        let exports = compiler.get_last_exports().clone();
+        let metadata = Rc::new(crate::common::module_types::ModuleMetadata::new(
+            module_path.clone(),
+            exports,
+        ));
+
         // Save stack position where module globals will start
         let stack_base = self.stack.len();
 
@@ -1406,6 +1415,7 @@ impl VirtualMachine {
             name: format!("<module: {}>", module_path.display()),
             arity: 0,
             chunk: Rc::new(module_chunk),
+            metadata: Some(metadata),
         });
 
         // Create a module frame similar to a script frame

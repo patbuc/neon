@@ -69,6 +69,7 @@ impl VirtualMachine {
             name: "<test>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata: None, // Tests don't need module metadata
         });
 
         // Create the initial call frame

@@ -38,13 +38,13 @@ impl CodeGenerator {
     }
 
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
-        self.generate_with_exports(statements, std::collections::HashMap::new())
+        self.generate_with_exports(statements, Vec::new())
     }
 
     pub fn generate_with_exports(
         &mut self,
         statements: &[Stmt],
-        exports: std::collections::HashMap<String, crate::compiler::module_resolver::ExportedSymbol>,
+        exports: Vec<crate::common::module_types::ExportInfo>,
     ) -> CompilationResult<Chunk> {
         // First: Define all functions and structs with placeholders
         // This allows forward references to work
@@ -101,17 +101,10 @@ impl CodeGenerator {
             self.generate_stmt(stmt);
         }
 
-        // Wire up export information to the chunk
-        // Map export names to their global indices in the chunk
-        for (export_name, _export_symbol) in exports.iter() {
-            // Find the global index for this symbol
-            let (maybe_index, _, is_global, _) = self.get_variable_index(export_name);
-            if let Some(index) = maybe_index {
-                if is_global {
-                    self.current_chunk().exports.insert(export_name.clone(), index as usize);
-                }
-            }
-        }
+        // Note: Export information is now handled at the compiler level
+        // The exports Vec is passed to the compiler which will create ModuleMetadata
+        // and attach it to the module's ObjFunction
+        let _ = exports; // Suppress unused warning for now
 
         // Emit final return
         self.emit_return();

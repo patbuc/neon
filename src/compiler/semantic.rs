@@ -2,12 +2,12 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 use crate::common::method_registry::MethodRegistry;
+use crate::common::module_types::{ExportInfo, ExportKind};
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
-use crate::compiler::module_resolver::ExportedSymbol;
-use crate::compiler::symbol_table::{ExportKind, ModuleExport, Symbol, SymbolKind, SymbolTable};
+use crate::compiler::symbol_table::{ModuleExport, Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,7 +18,7 @@ pub struct SemanticAnalyzer {
     type_env: HashMap<String, String>,
     loop_depth: u32,
     /// Exports collected from Export statements
-    exports: HashMap<String, ExportedSymbol>,
+    exports: Vec<ExportInfo>,
     /// Current file path (for relative imports)
     current_file: Option<PathBuf>,
 }
@@ -80,7 +80,7 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             type_env,
             loop_depth: 0,
-            exports: HashMap::new(),
+            exports: Vec::new(),
             current_file: None,
         }
     }
@@ -91,7 +91,7 @@ impl SemanticAnalyzer {
     }
 
     /// Get the collected exports
-    pub fn exports(&self) -> &HashMap<String, ExportedSymbol> {
+    pub fn exports(&self) -> &Vec<ExportInfo> {
         &self.exports
     }
 
@@ -100,7 +100,7 @@ impl SemanticAnalyzer {
     pub fn resolve_imports(
         &mut self,
         statements: &[Stmt],
-        resolve_module: impl Fn(&str, SourceLocation) -> Result<(PathBuf, HashMap<String, ExportedSymbol>), CompilationError>,
+        resolve_module: impl Fn(&str, SourceLocation) -> Result<(PathBuf, HashMap<String, ExportInfo>), CompilationError>,
     ) -> Result<(), Vec<CompilationError>> {
         let mut import_errors = Vec::new();
 
@@ -110,24 +110,12 @@ impl SemanticAnalyzer {
                     Ok((resolved_path, module_exports)) => {
                         // Convert module exports to symbol table format
                         let mut exports_map = HashMap::new();
-                        for (name, exported_symbol) in module_exports {
-                            let export_kind = match exported_symbol.kind {
-                                crate::compiler::module_resolver::SymbolKind::Function { arity } => {
-                                    ExportKind::Function { arity }
-                                }
-                                crate::compiler::module_resolver::SymbolKind::Variable => {
-                                    ExportKind::Variable
-                                }
-                                crate::compiler::module_resolver::SymbolKind::Struct { fields } => {
-                                    ExportKind::Struct { fields }
-                                }
-                            };
-
+                        for (name, export_info) in module_exports {
                             exports_map.insert(
                                 name,
                                 ModuleExport {
-                                    kind: export_kind,
-                                    global_index: exported_symbol.global_index,
+                                    kind: export_info.kind,
+                                    global_index: export_info.global_index,
                                 },
                             );
                         }
@@ -219,8 +207,8 @@ impl SemanticAnalyzer {
                 if is_exported {
                     self.add_export(
                         name.clone(),
-                        crate::compiler::module_resolver::SymbolKind::Function { arity },
-                        u32::MAX, // Sentinel value; actual global_index will be set during code generation
+                        ExportKind::Function { arity },
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
             }
@@ -242,10 +230,10 @@ impl SemanticAnalyzer {
                 if is_exported {
                     self.add_export(
                         name.clone(),
-                        crate::compiler::module_resolver::SymbolKind::Struct {
+                        ExportKind::Struct {
                             fields: fields.clone(),
                         },
-                        u32::MAX, // Sentinel value; actual global_index will be set during code generation
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
             }
@@ -257,8 +245,8 @@ impl SemanticAnalyzer {
                 if is_exported {
                     self.add_export(
                         name.clone(),
-                        crate::compiler::module_resolver::SymbolKind::Variable,
-                        u32::MAX, // Sentinel value; actual global_index will be set during code generation
+                        ExportKind::Variable,
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
             }
@@ -270,8 +258,8 @@ impl SemanticAnalyzer {
                 if is_exported {
                     self.add_export(
                         name.clone(),
-                        crate::compiler::module_resolver::SymbolKind::Variable,
-                        u32::MAX, // Sentinel value; actual global_index will be set during code generation
+                        ExportKind::Variable,
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
             }
@@ -283,15 +271,12 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn add_export(&mut self, name: String, kind: crate::compiler::module_resolver::SymbolKind, global_index: u32) {
-        self.exports.insert(
-            name.clone(),
-            ExportedSymbol {
-                name,
-                kind,
-                global_index, // u32::MAX used as sentinel; will be set during code generation
-            },
-        );
+    fn add_export(&mut self, name: String, kind: ExportKind, global_index: usize) {
+        self.exports.push(ExportInfo {
+            name,
+            kind,
+            global_index,
+        });
     }
 
     fn define_symbol(

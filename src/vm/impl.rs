@@ -80,10 +80,17 @@ impl VirtualMachine {
 
         let chunk = chunk.unwrap();
 
+        // Create metadata if the script has a file path (needed for relative imports)
+        let metadata = file_path.as_ref().map(|path| {
+            use crate::common::module_types::ModuleMetadata;
+            Rc::new(ModuleMetadata::new(path.clone(), Vec::new()))
+        });
+
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata, // Include path metadata if available for relative imports
         });
 
         // Use -1 for slot_start since the script has no function object on the stack

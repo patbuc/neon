@@ -1,30 +1,16 @@
-use crate::common::{errors::CompilationError, errors::CompilationErrorKind, errors::CompilationPhase, Chunk, SourceLocation};
+use crate::common::{
+    errors::CompilationError, errors::CompilationErrorKind, errors::CompilationPhase,
+    module_types::ModuleMetadata, Chunk, SourceLocation,
+};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-/// Symbol exported from a module
-#[derive(Debug, Clone, PartialEq)]
-pub struct ExportedSymbol {
-    pub name: String,
-    pub kind: SymbolKind,
-    pub global_index: u32,
-}
-
-/// Type of exported symbol
-#[derive(Debug, Clone, PartialEq)]
-pub enum SymbolKind {
-    Function { arity: u8 },
-    Variable,
-    Struct { fields: Vec<String> },
-}
-
-/// Compiled module with its exports
+/// Compiled module with metadata
 #[derive(Debug, Clone)]
 pub struct CompiledModule {
-    pub path: PathBuf,
     pub chunk: Rc<Chunk>,
-    pub exports: HashMap<String, ExportedSymbol>,
+    pub metadata: Rc<ModuleMetadata>,
 }
 
 /// Module resolver for managing module compilation and resolution
@@ -190,7 +176,7 @@ impl ModuleResolver {
     /// # Arguments
     /// * `module` - The compiled module to register
     pub fn register_module(&mut self, module: CompiledModule) {
-        let path = module.path.clone();
+        let path = module.metadata.source_path.clone();
         self.modules.insert(path, Rc::new(module));
     }
 
@@ -350,10 +336,11 @@ mod tests {
         let chunk = Chunk::new("test");
 
         // Register module
+        use crate::common::module_types::ModuleMetadata;
+        let metadata = ModuleMetadata::new(module_path.clone(), Vec::new());
         let module = CompiledModule {
-            path: module_path.clone(),
             chunk: Rc::new(chunk),
-            exports: HashMap::new(),
+            metadata: Rc::new(metadata),
         };
         resolver.register_module(module);
 

@@ -15,6 +15,7 @@ impl Compiler {
             builtin,
             module_resolver: ModuleResolver::new(),
             current_file_path: None,
+            last_exports: Vec::new(),
         }
     }
 
@@ -72,12 +73,15 @@ impl Compiler {
         // Extract exports from semantic analyzer
         let exports = analyzer.exports().clone();
 
+        // Store exports for later retrieval (e.g., for module metadata creation)
+        self.last_exports = exports.clone();
+
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new(self.builtin.clone());
         match codegen.generate_with_exports(&ast, exports) {
-            Ok(mut chunk) => {
-                // Set the source path on the chunk for module resolution
-                chunk.source_path = self.current_file_path.clone();
+            Ok(chunk) => {
+                // Note: Module metadata (exports and source path) is now attached
+                // to ObjFunction at the VM level when creating modules
                 Some(chunk)
             }
             Err(errors) => {

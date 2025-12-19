@@ -1,3 +1,4 @@
+use crate::common::module_types::ExportKind;
 use crate::common::SourceLocation;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,15 +29,7 @@ pub struct ModuleExport {
     /// The kind of the exported symbol
     pub kind: ExportKind,
     /// Global index in the module's chunk
-    pub global_index: u32,
-}
-
-/// Kind of exported symbol
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExportKind {
-    Function { arity: u8 },
-    Variable,
-    Struct { fields: Vec<String> },
+    pub global_index: usize,
 }
 
 /// Symbol in the symbol table
