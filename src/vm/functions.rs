@@ -150,8 +150,61 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_return(&mut self) -> Option<Result> {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
+
+        // Check if we're completing module initialization (BEFORE popping frame)
+        // Module completes when: execution context is Module AND we're returning from module-level code (slot_start == -1)
+        let is_module_complete = if let crate::vm::ExecutionContext::Module { .. } = &self.execution_context {
+            slot_start == -1  // Module-level code (not a function within the module)
+        } else {
+            false
+        };
+
+        // Save module info if completing module initialization
+        let (module_exports, module_context) = if is_module_complete {
+            let exports = self.current_frame().function.chunk.exports.clone();
+            let context = self.execution_context.clone();
+            (exports, Some(context))
+        } else {
+            (std::collections::HashMap::new(), None)
+        };
+
         self.call_frames.pop();
 
+        // Handle module completion
+        if let Some(crate::vm::ExecutionContext::Module { source_path, stack_base }) = module_context {
+            // Module initialization complete - capture globals and create module state
+            use crate::common::ModuleState;
+
+            // Extract globals from stack (from stack_base onwards)
+            let globals: Vec<Value> = self.stack[stack_base..].to_vec();
+
+            // Create module state
+            let module_state = Rc::new(ModuleState {
+                globals: globals.clone(),
+                exports: module_exports.clone(),
+                path: source_path.clone(),
+            });
+
+            // Cache the module
+            self.module_cache.insert(source_path.clone(), module_state.clone());
+
+            // Remove module globals from stack and push the module object
+            self.stack.truncate(stack_base);
+            let module_value = Value::new_module(globals, module_exports, source_path);
+            self.push(module_value);
+
+            // Reset execution context
+            self.execution_context = crate::vm::ExecutionContext::Script;
+
+            // If there are still frames (module was imported from a script), continue execution
+            if !self.call_frames.is_empty() {
+                return None;  // Continue executing the importing script
+            } else {
+                return Some(Result::Ok);  // Module was top-level, we're done
+            }
+        }
+
+        // Normal function/script return
         if self.call_frames.is_empty() {
             self.push(return_value);
             return Some(Result::Ok);
@@ -1258,8 +1311,9 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    // Simplified fn_load_module - removed 190 line inline execution loop
     pub(in crate::vm) fn fn_load_module(&mut self, bits: BitsSize) -> Option<Result> {
-        use crate::common::{ModuleState, Object};
+        use crate::common::Object;
         use crate::compiler::Compiler;
         use std::fs;
 
@@ -1315,8 +1369,9 @@ impl VirtualMachine {
             );
             self.push(module_value);
 
+            // Advance IP by full instruction size (opcode + operand)
             let frame = self.current_frame_mut();
-            frame.ip += bits.as_bytes();
+            frame.ip += 1 + bits.as_bytes();
             return None;
         }
 
@@ -1343,9 +1398,7 @@ impl VirtualMachine {
             }
         };
 
-        // Execute module initialization
-        // We need to run the module code and capture its globals
-        // Save the current stack position to know where module globals start
+        // Save stack position where module globals will start
         let stack_base = self.stack.len();
 
         // Create a call frame for module initialization
@@ -1355,243 +1408,31 @@ impl VirtualMachine {
             chunk: Rc::new(module_chunk),
         });
 
-        // Create a module frame similar to a script frame (slot_start = -1)
-        // but offset by the current stack position
+        // Create a module frame similar to a script frame
         let module_frame = CallFrame {
             function: Rc::clone(&module_function),
             ip: 0,
             slot_start: stack_base as isize - 1,
         };
 
-        // Push the module frame and execute
+        // Advance the IP of the current frame (the importing script/module)
+        // by the full instruction size (opcode + operand) before pushing the module frame.
+        // This ensures the importing frame resumes at the correct position after module loads.
+        let current_frame_index = self.call_frames.len() - 1;
+        self.call_frames[current_frame_index].ip += 1 + bits.as_bytes();
+
+        // Push the module frame
         self.call_frames.push(module_frame);
 
-        // Execute the module by continuing the run loop
-        // The module will execute until it hits a Return opcode
-        // We don't call self.run() to avoid recursion - instead we let the current
-        // run loop continue, and it will execute the module frame naturally
+        // Set execution context to Module mode
+        self.execution_context = crate::vm::ExecutionContext::Module {
+            source_path: module_path.clone(),
+            stack_base,
+        };
 
-        // Actually, we need to execute synchronously here to collect globals
-        // Let's execute the module inline
-        loop {
-            use crate::common::opcodes::OpCode;
-
-            let frame_index = self.call_frames.len() - 1;
-            let op_code = {
-                let frame = &self.call_frames[frame_index];
-                let ip = frame.ip;
-                OpCode::from_u8(frame.function.chunk.read_u8(ip))
-            };
-
-            // Execute the instruction
-            match op_code {
-                OpCode::Return => {
-                    // Module initialization complete
-                    self.call_frames.pop();
-                    break;
-                }
-                OpCode::Constant => self.fn_constant(),
-                OpCode::Constant2 => self.fn_constant2(),
-                OpCode::Constant4 => self.fn_constant4(),
-                OpCode::Negate => {
-                    if let Some(result) = self.fn_negate() {
-                        return Some(result);
-                    }
-                }
-                OpCode::Add => {
-                    if let Some(result) = self.fn_add() {
-                        return Some(result);
-                    }
-                }
-                OpCode::Subtract => self.fn_subtract(),
-                OpCode::Multiply => self.fn_multiply(),
-                OpCode::Divide => self.fn_divide(),
-                OpCode::FloorDivide => self.fn_floor_divide(),
-                OpCode::Modulo => self.fn_modulo(),
-                OpCode::Nil => self.push(Value::Nil),
-                OpCode::True => self.push(Value::Boolean(true)),
-                OpCode::False => self.push(Value::Boolean(false)),
-                OpCode::Equal => self.fn_equal(),
-                OpCode::Greater => self.fn_greater(),
-                OpCode::Less => self.fn_less(),
-                OpCode::Not => self.fn_not(),
-                OpCode::String => self.fn_string(),
-                OpCode::String2 => self.fn_string2(),
-                OpCode::String4 => self.fn_string4(),
-                OpCode::Print => self.fn_print(),
-                OpCode::Pop => { self.pop(); },
-                OpCode::GetLocal => self.fn_get_local(BitsSize::Eight),
-                OpCode::GetLocal2 => self.fn_get_local(BitsSize::Sixteen),
-                OpCode::GetLocal4 => self.fn_get_local(BitsSize::ThirtyTwo),
-                OpCode::SetLocal => self.fn_set_local(BitsSize::Eight),
-                OpCode::SetLocal2 => self.fn_set_local(BitsSize::Sixteen),
-                OpCode::SetLocal4 => self.fn_set_local(BitsSize::ThirtyTwo),
-                OpCode::GetBuiltin => self.fn_get_builtin(BitsSize::Eight),
-                OpCode::GetBuiltin2 => self.fn_get_builtin(BitsSize::Sixteen),
-                OpCode::GetBuiltin4 => self.fn_get_builtin(BitsSize::ThirtyTwo),
-                OpCode::GetGlobal => self.fn_get_global(BitsSize::Eight),
-                OpCode::GetGlobal2 => self.fn_get_global(BitsSize::Sixteen),
-                OpCode::GetGlobal4 => self.fn_get_global(BitsSize::ThirtyTwo),
-                OpCode::SetGlobal => self.fn_set_global(BitsSize::Eight),
-                OpCode::SetGlobal2 => self.fn_set_global(BitsSize::Sixteen),
-                OpCode::SetGlobal4 => self.fn_set_global(BitsSize::ThirtyTwo),
-                OpCode::JumpIfFalse => self.fn_jump_if_false(),
-                OpCode::Jump => self.fn_jump(),
-                OpCode::Loop => self.fn_loop(),
-                OpCode::Call => {
-                    if let Some(result) = self.fn_call() {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::GetField => self.fn_get_field(BitsSize::Eight),
-                OpCode::GetField2 => self.fn_get_field(BitsSize::Sixteen),
-                OpCode::GetField4 => self.fn_get_field(BitsSize::ThirtyTwo),
-                OpCode::SetField => self.fn_set_field(BitsSize::Eight),
-                OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
-                OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
-                OpCode::CallMethod => {
-                    if let Some(result) = self.fn_call_method(BitsSize::Eight) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallMethod2 => {
-                    if let Some(result) = self.fn_call_method(BitsSize::Sixteen) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallMethod4 => {
-                    if let Some(result) = self.fn_call_method(BitsSize::ThirtyTwo) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::Eight) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod2 => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::Sixteen) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod4 => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::ThirtyTwo) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::Eight) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor2 => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::Sixteen) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor4 => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::ThirtyTwo) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::CreateMap => self.fn_create_map(),
-                OpCode::CreateArray => self.fn_create_array(),
-                OpCode::CreateSet => self.fn_create_set(),
-                OpCode::GetIndex => self.fn_get_index(),
-                OpCode::SetIndex => self.fn_set_index(),
-                OpCode::GetIterator => {
-                    if let Some(result) = self.fn_get_iterator() {
-                        return Some(result);
-                    }
-                }
-                OpCode::IteratorNext => {
-                    if let Some(result) = self.fn_iterator_next() {
-                        return Some(result);
-                    }
-                }
-                OpCode::IteratorDone => self.fn_iterator_done(),
-                OpCode::PopIterator => {
-                    if self.iterator_stack.is_empty() {
-                        self.runtime_error("No iterator to pop");
-                        return Some(Result::RuntimeError);
-                    }
-                    self.iterator_stack.pop();
-                }
-                OpCode::CreateRange => {
-                    if let Some(result) = self.fn_create_range() {
-                        return Some(result);
-                    }
-                }
-                OpCode::ToString => self.fn_to_string(),
-                OpCode::LoadModule => {
-                    // Check module cache first - already compiled modules can be loaded
-                    // This allows modules to import other modules without recursion issues
-                    if let Some(result) = self.fn_load_module(BitsSize::Eight) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::LoadModule2 => {
-                    if let Some(result) = self.fn_load_module(BitsSize::Sixteen) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-                OpCode::LoadModule4 => {
-                    if let Some(result) = self.fn_load_module(BitsSize::ThirtyTwo) {
-                        return Some(result);
-                    }
-                    continue;
-                }
-            }
-
-            // Advance IP for next instruction
-            let frame_index = self.call_frames.len() - 1;
-            debug_assert!(
-                !self.call_frames.is_empty() && frame_index < self.call_frames.len(),
-                "expected at least one call frame and frame_index to point to the last frame"
-            );
-            self.call_frames[frame_index].ip += 1;
-        }
-
-        // Collect module globals from the stack
-        // Everything from stack_base onwards are the module's globals
-        let globals: Vec<Value> = self.stack[stack_base..].to_vec();
-
-        // Get export information from the compiled chunk
-        let exports = module_function.chunk.exports.clone();
-
-        // Create module state
-        let module_state = Rc::new(ModuleState {
-            globals: globals.clone(),
-            exports: exports.clone(),
-            path: module_path.clone(),
-        });
-
-        // Cache the module
-        self.module_cache.insert(module_path.clone(), Rc::clone(&module_state));
-
-        // Clean up: remove module globals from stack since they're now in the module
-        self.stack.truncate(stack_base);
-
-        // Push the module object onto the stack
-        let module_value = Value::new_module(globals, exports, module_path);
-        self.push(module_value);
-
-        // Advance IP of the calling frame
-        let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
-
+        // Return None to let the main run loop execute the module
+        // The module will execute until Return, at which point fn_return()
+        // will capture globals, create ModuleState, and cache it
         None
     }
 }

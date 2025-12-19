@@ -1,7 +1,7 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{ExecutionContext, Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
@@ -29,6 +29,7 @@ impl VirtualMachine {
             source: String::new(),
             iterator_stack: Vec::new(),
             module_cache: std::collections::HashMap::new(),
+            execution_context: ExecutionContext::Script,
         }
     }
 
@@ -93,7 +94,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Chunk::new("dummy"));
+        let result = self.run();
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -160,7 +161,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _chunk: &Chunk) -> Result {
+    pub(in crate::vm) fn run(&mut self) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
@@ -326,16 +327,19 @@ impl VirtualMachine {
                     if let Some(result) = self.fn_load_module(BitsSize::Eight) {
                         return result;
                     }
+                    continue;
                 }
                 OpCode::LoadModule2 => {
                     if let Some(result) = self.fn_load_module(BitsSize::Sixteen) {
                         return result;
                     }
+                    continue;
                 }
                 OpCode::LoadModule4 => {
                     if let Some(result) = self.fn_load_module(BitsSize::ThirtyTwo) {
                         return result;
                     }
+                    continue;
                 }
             }
             self.current_frame_mut().ip += 1;

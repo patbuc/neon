@@ -9,6 +9,18 @@ mod r#impl;
 #[cfg(test)]
 mod tests;
 
+/// Execution context for the VM - tracks whether we're running a script or module
+#[derive(Debug, Clone)]
+pub(crate) enum ExecutionContext {
+    /// Normal script execution
+    Script,
+    /// Module initialization - captures globals after execution
+    Module {
+        source_path: PathBuf,
+        stack_base: usize,  // Stack position where module globals start
+    },
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Result {
     Ok,
@@ -41,6 +53,8 @@ pub struct VirtualMachine {
     /// Module cache: Maps canonical module paths to compiled module states
     /// Ensures modules are loaded and initialized only once
     module_cache: HashMap<PathBuf, Rc<ModuleState>>,
+    /// Current execution context - determines how the VM handles execution
+    execution_context: ExecutionContext,
 }
 
 // Test-only methods
@@ -65,6 +79,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Chunk::new("dummy"))
+        self.run()
     }
 }
