@@ -1,6 +1,5 @@
 use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
-use crate::compiler::module_resolver::ModuleResolver;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
@@ -13,8 +12,6 @@ impl Compiler {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
             builtin,
-            module_resolver: ModuleResolver::new(),
-            current_file_path: None,
             last_exports: Vec::new(),
         }
     }
@@ -28,9 +25,6 @@ impl Compiler {
         source: &str,
         file_path: Option<PathBuf>,
     ) -> Option<Chunk> {
-        // Store the current file path for relative imports
-        self.current_file_path = file_path;
-
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
         // Pass 2: Semantic analysis
@@ -96,20 +90,5 @@ impl Compiler {
                 None
             }
         }
-    }
-
-    /// Get a reference to the module resolver
-    pub(crate) fn module_resolver(&self) -> &ModuleResolver {
-        &self.module_resolver
-    }
-
-    /// Get a mutable reference to the module resolver
-    pub(crate) fn module_resolver_mut(&mut self) -> &mut ModuleResolver {
-        &mut self.module_resolver
-    }
-
-    /// Get the current file path
-    pub(crate) fn current_file_path(&self) -> Option<&PathBuf> {
-        self.current_file_path.as_ref()
     }
 }

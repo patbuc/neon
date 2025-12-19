@@ -39,8 +39,6 @@ pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     builtin: indexmap::IndexMap<String, crate::common::Value>,
-    module_resolver: module_resolver::ModuleResolver,
-    current_file_path: Option<std::path::PathBuf>,
     /// Exports from the last compilation (for module metadata)
     last_exports: Vec<crate::common::module_types::ExportInfo>,
 }
