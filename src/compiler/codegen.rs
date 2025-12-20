@@ -582,41 +582,22 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
-    fn generate_import_stmt(&mut self, module_path: &str, location: SourceLocation) {
-        // Import statement code generation strategy:
-        // 1. Store module path as a string constant
-        // 2. Emit LoadModule opcode with the string constant index
-        // 3. Define a local variable for the module (uses last component of path)
+    fn generate_import_stmt(&mut self, _module_path: &str, _location: SourceLocation) {
+        // NOTE: Module imports are not yet fully implemented
+        // The semantic analyzer should have already reported an error for import statements
+        // This method is a placeholder for when module resolution is completed
         //
-        // Bytecode structure:
-        //   LoadModule <string_index>  ; Pushes loaded Module object onto stack
-        //   SetLocal <module_var>      ; Define local variable for module
+        // TODO: Complete module system implementation:
+        // 1. Wire up ModuleResolver to actually resolve and load module files at compile time
+        // 2. Implement LoadModule opcode in VM to load compiled modules at runtime
+        // 3. Create module objects with proper export namespacing
+        // 4. Support both relative and absolute module paths
         //
-        // Example: `import math` generates:
-        //   LoadModule 0  ; where string[0] = "math"
-        //   SetLocal 0    ; module stored in local variable
-
-        // Store module path as string constant
-        let module_path_value = string!(module_path);
-        let string_index = self.current_chunk().add_string(module_path_value);
-
-        // Emit LoadModule opcode with string index
-        self.emit_op_code_variant(OpCode::LoadModule, string_index, location);
-
-        // Extract module name from path (last component)
-        // For "foo/bar/baz" -> "baz"
-        // For "math" -> "math"
-        let module_name = module_path
-            .split('/')
-            .last()
-            .unwrap_or(module_path)
-            .to_string();
-
-        // Define local variable for the module
-        // The Module object is already on the stack from LoadModule
-        let local = Local::new(module_name, self.scope_depth, false);
-        self.current_chunk()
-            .define_local(local, location.line, location.column);
+        // Planned implementation:
+        // - Store module path as string constant
+        // - Emit LoadModule opcode with string constant index
+        // - Define local/global variable for the module namespace
+        // - Module exports accessible via qualified access (module.symbol)
     }
 
     fn generate_stmt(&mut self, stmt: &Stmt) {

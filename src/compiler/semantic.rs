@@ -164,6 +164,18 @@ impl SemanticAnalyzer {
 
     /// Analyze the AST and return the symbol table if successful
     pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<SymbolTable> {
+        // Check for import statements and report that they're not yet supported
+        for stmt in statements {
+            if let Stmt::Import { location, .. } = stmt {
+                self.errors.push(CompilationError::new(
+                    crate::common::errors::CompilationPhase::Semantic,
+                    crate::common::errors::CompilationErrorKind::Other,
+                    "Module imports are not yet fully implemented. The import/export syntax is parsed but module resolution and loading is still in development.".to_string(),
+                    *location,
+                ));
+            }
+        }
+
         // First: collect all top-level declarations
         self.collect_declarations(statements);
 
