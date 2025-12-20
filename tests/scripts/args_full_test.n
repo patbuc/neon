@@ -5,10 +5,10 @@
 // true
 
 // Test that args is an array
-print args.length() >= 0
+print(args.length() >= 0)
 
 // Test length method
-print args.length()
+print(args.length())
 
 // Test that empty args works correctly
-print args.length() == 0
+print(args.length() == 0)

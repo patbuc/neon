@@ -9,7 +9,7 @@
 // that are defined later in the source code
 
 fn first() {
-    print second()
+    print(second())
 }
 
 fn second() {
@@ -38,5 +38,5 @@ fn odd(n) {
     return even(n - 1)
 }
 
-print even(20)
-print odd(30)
+print(even(20))
+print(odd(30))

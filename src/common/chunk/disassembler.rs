@@ -48,7 +48,6 @@ impl Chunk {
             OpCode::String => self.string_instruction(instruction, offset),
             OpCode::String2 => self.string_instruction(instruction, offset),
             OpCode::String4 => self.string_instruction(instruction, offset),
-            OpCode::Print => self.simple_instruction(OpCode::Print, offset),
             OpCode::Pop => self.simple_instruction(OpCode::Pop, offset),
             OpCode::SetLocal => self.variable_instruction(OpCode::SetLocal, offset),
             OpCode::SetLocal2 => self.variable_instruction(OpCode::SetLocal2, offset),

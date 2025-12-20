@@ -9,9 +9,9 @@ fn test_array_push() {
     let program = r#"
         val arr = [1, 2]
         arr.push(3)
-        print arr
+        print(arr)
         arr.push(4)
-        print arr
+        print(arr)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -24,7 +24,7 @@ fn test_array_push_to_empty() {
     let program = r#"
         val arr = []
         arr.push(42)
-        print arr
+        print(arr)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -39,7 +39,7 @@ fn test_array_push_different_types() {
         arr.push("hello")
         arr.push(true)
         arr.push(nil)
-        print arr
+        print(arr)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -55,10 +55,10 @@ fn test_array_push_different_types() {
 fn test_array_pop() {
     let program = r#"
         val arr = [1, 2, 3]
-        print arr.pop()
-        print arr
-        print arr.pop()
-        print arr
+        print(arr.pop())
+        print(arr)
+        print(arr.pop())
+        print(arr)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -74,9 +74,9 @@ fn test_array_pop() {
 fn test_array_length() {
     let program = r#"
         val arr = [1, 2, 3]
-        print arr.length()
-        print [].length()
-        print ["a", "b"].length()
+        print(arr.length())
+        print([].length())
+        print(["a", "b"].length())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -88,8 +88,8 @@ fn test_array_length() {
 fn test_array_size() {
     let program = r#"
         val arr = [1, 2, 3]
-        print arr.size()
-        print [].size()
+        print(arr.size())
+        print([].size())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -105,11 +105,11 @@ fn test_array_size() {
 fn test_array_contains() {
     let program = r#"
         val arr = [1, 2, 3, "hello"]
-        print arr.contains(2)
-        print arr.contains(5)
-        print arr.contains("hello")
-        print arr.contains("world")
-        print [].contains(1)
+        print(arr.contains(2))
+        print(arr.contains(5))
+        print(arr.contains("hello"))
+        print(arr.contains("world"))
+        print([].contains(1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -126,11 +126,11 @@ fn test_array_sort() {
     let program = r#"
         val nums = [3, 1, 4, 1, 5, 9, 2, 6]
         nums.sort()
-        print nums
+        print(nums)
 
         val strs = ["zebra", "apple", "mango", "banana"]
         strs.sort()
-        print strs
+        print(strs)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -147,15 +147,15 @@ fn test_array_reverse() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
         arr.reverse()
-        print arr
+        print(arr)
 
         val single = [42]
         single.reverse()
-        print single
+        print(single)
 
         val empty = []
         empty.reverse()
-        print empty
+        print(empty)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -171,9 +171,9 @@ fn test_array_reverse() {
 fn test_array_slice() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        print arr.slice(1, 3)
-        print arr.slice(0, 2)
-        print arr.slice(2, 5)
+        print(arr.slice(1, 3))
+        print(arr.slice(0, 2))
+        print(arr.slice(2, 5))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -185,8 +185,8 @@ fn test_array_slice() {
 fn test_array_slice_negative_indices() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        print arr.slice(-3, -1)
-        print arr.slice(-2, 5)
+        print(arr.slice(-3, -1))
+        print(arr.slice(-2, 5))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -202,14 +202,14 @@ fn test_array_slice_negative_indices() {
 fn test_array_join() {
     let program = r#"
         val arr = ["hello", "world", "test"]
-        print arr.join(", ")
-        print arr.join("")
-        print arr.join(" - ")
+        print(arr.join(", "))
+        print(arr.join(""))
+        print(arr.join(" - "))
 
         val nums = [1, 2, 3]
-        print nums.join(", ")
+        print(nums.join(", "))
 
-        print [].join(", ")
+        print([].join(", "))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -225,10 +225,10 @@ fn test_array_join() {
 fn test_array_index_of() {
     let program = r#"
         val arr = [10, 20, 30, 40, 20]
-        print arr.indexOf(20)
-        print arr.indexOf(40)
-        print arr.indexOf(99)
-        print [].indexOf(1)
+        print(arr.indexOf(20))
+        print(arr.indexOf(40))
+        print(arr.indexOf(99))
+        print([].indexOf(1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -244,14 +244,14 @@ fn test_array_index_of() {
 fn test_array_sum() {
     let program = r#"
         val nums = [1, 2, 3, 4, 5]
-        print nums.sum()
+        print(nums.sum())
 
         val decimals = [1.5, 2.5, 3.0]
-        print decimals.sum()
+        print(decimals.sum())
 
-        print [].sum()
+        print([].sum())
 
-        print [42].sum()
+        print([42].sum())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -267,12 +267,12 @@ fn test_array_sum() {
 fn test_array_min() {
     let program = r#"
         val nums = [5, 2, 8, 1, 9]
-        print nums.min()
+        print(nums.min())
 
         val negatives = [-5, -2, -10]
-        print negatives.min()
+        print(negatives.min())
 
-        print [42].min()
+        print([42].min())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -288,12 +288,12 @@ fn test_array_min() {
 fn test_array_max() {
     let program = r#"
         val nums = [5, 2, 8, 1, 9]
-        print nums.max()
+        print(nums.max())
 
         val negatives = [-5, -2, -10]
-        print negatives.max()
+        print(negatives.max())
 
-        print [42].max()
+        print([42].max())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -305,7 +305,7 @@ fn test_array_max() {
 fn test_array_max_strings() {
     let program = r#"
         val strs = ["zebra", "apple", "mango"]
-        print strs.max()
+        print(strs.max())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -324,10 +324,10 @@ fn test_array_operations_sequence() {
         arr.push(1)
         arr.push(2)
         arr.push(3)
-        print arr.length()
-        print arr.contains(2)
+        print(arr.length())
+        print(arr.contains(2))
         arr.reverse()
-        print arr
+        print(arr)
     "#;
 
     let mut vm = VirtualMachine::new();

@@ -308,11 +308,6 @@ impl CodeGenerator {
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
-    fn generate_print_stmt(&mut self, expr: &Expr, location: SourceLocation) {
-        self.generate_expr(expr);
-        self.emit_op_code(OpCode::Print, location);
-    }
-
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
         self.generate_expr(expr);
         self.emit_op_code(OpCode::Pop, location);
@@ -578,9 +573,6 @@ impl CodeGenerator {
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
             }
-            Stmt::Print { expr, location } => {
-                self.generate_print_stmt(expr, *location);
-            }
             Stmt::Expression { expr, location } => {
                 self.generate_expression_stmt(expr, *location);
             }
@@ -772,26 +764,25 @@ impl CodeGenerator {
     }
 
     fn generate_call_expr(&mut self, callee: &Expr, arguments: &[Expr], location: SourceLocation) {
-        // Check if this is a constructor call (e.g., File("path"))
-        let is_constructor = if let Expr::Variable { name, .. } = callee {
-            name == "File" // For now, only File is a constructor in the registry
+        // Check if this is a global function call (e.g., print("hello"))
+        let is_global_function = if let Expr::Variable { name, .. } = callee {
+            // Check if this is a global function by looking it up with empty namespace
+            crate::common::method_registry::get_native_method_index("", name).is_some()
         } else {
             false
         };
 
-        if is_constructor {
-            // Constructor call: File("path")
-            // Extract constructor name
-            let constructor_name = if let Expr::Variable { name, .. } = callee {
+        if is_global_function {
+            // Global function call: print("hello")
+            let function_name = if let Expr::Variable { name, .. } = callee {
                 name.clone()
             } else {
                 unreachable!("Already checked this is a Variable")
             };
 
-            // Look up the registry index at compile time (O(n) once, not per call!)
-            // If not found, emit index 0 and let runtime handle the error
+            // Look up the registry index at compile time
             let registry_index =
-                crate::common::method_registry::get_native_method_index(&constructor_name, "new")
+                crate::common::method_registry::get_native_method_index("", &function_name)
                     .unwrap_or(0);
 
             // Evaluate all arguments (no callee!)
@@ -801,11 +792,11 @@ impl CodeGenerator {
 
             // Determine opcode variant based on registry index size
             let (opcode, index_bytes) = if registry_index <= 0xFF {
-                (OpCode::CallConstructor, 1)
+                (OpCode::CallStaticMethod, 1)
             } else if registry_index <= 0xFFFF {
-                (OpCode::CallConstructor2, 2)
+                (OpCode::CallStaticMethod2, 2)
             } else {
-                (OpCode::CallConstructor4, 4)
+                (OpCode::CallStaticMethod4, 4)
             };
 
             self.emit_op_code(opcode, location);
@@ -818,7 +809,57 @@ impl CodeGenerator {
                 4 => self.current_chunk().write_u32(registry_index as u32),
                 _ => unreachable!(),
             }
+        }
+        // Check if this is a constructor call (e.g., File("path"))
+        else if let Expr::Variable { name, .. } = callee {
+            if name == "File" { // For now, only File is a constructor in the registry
+                // Constructor call: File("path")
+                
+                // Look up the registry index at compile time (O(n) once, not per call!)
+                // If not found, emit index 0 and let runtime handle the error
+                let registry_index =
+                    crate::common::method_registry::get_native_method_index(name, "new")
+                        .unwrap_or(0);
+
+                // Evaluate all arguments (no callee!)
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+
+                // Determine opcode variant based on registry index size
+                let (opcode, index_bytes) = if registry_index <= 0xFF {
+                    (OpCode::CallConstructor, 1)
+                } else if registry_index <= 0xFFFF {
+                    (OpCode::CallConstructor2, 2)
+                } else {
+                    (OpCode::CallConstructor4, 4)
+                };
+
+                self.emit_op_code(opcode, location);
+                self.current_chunk().write_u8(arguments.len() as u8);
+
+                // Write registry index (O(1) lookup at runtime!)
+                match index_bytes {
+                    1 => self.current_chunk().write_u8(registry_index as u8),
+                    2 => self.current_chunk().write_u16(registry_index as u16),
+                    4 => self.current_chunk().write_u32(registry_index as u32),
+                    _ => unreachable!(),
+                }
         } else {
+            // Regular function call
+            // Evaluate the callee
+            self.generate_expr(callee);
+
+            // Evaluate all arguments
+            for arg in arguments {
+                self.generate_expr(arg);
+            }
+
+            // Emit call instruction
+            self.emit_op_code(OpCode::Call, location);
+            self.current_chunk().write_u8(arguments.len() as u8);
+        }
+    } else {
             // Regular function call
             // Evaluate the callee
             self.generate_expr(callee);
@@ -1052,7 +1093,14 @@ impl CodeGenerator {
                 arguments,
                 location,
             } => {
-                self.generate_call_expr(callee, arguments, *location);
+                // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
+                if let Expr::GetField { object, field, .. } = callee.as_ref() {
+                    // This is a method call obj.method(args)
+                    self.generate_method_call_expr(object, field, arguments, *location);
+                } else {
+                    // Regular function call
+                    self.generate_call_expr(callee, arguments, *location);
+                }
             }
             Expr::GetField {
                 object,
@@ -1078,14 +1126,6 @@ impl CodeGenerator {
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
-            }
-            Expr::MethodCall {
-                object,
-                method,
-                arguments,
-                location,
-            } => {
-                self.generate_method_call_expr(object, method, arguments, *location);
             }
             Expr::MapLiteral { entries, location } => {
                 for (key, _) in entries {

@@ -7,5 +7,5 @@
 
 // Test range starting from zero
 for (i in 0..5) {
-    print i
+    print(i)
 }

@@ -13,19 +13,19 @@
 
 // Map get method
 val person = {"name": "Alice", "age": 30}
-print person.get("name")      // Alice
-print person.get("missing")   // nil
+print(person.get("name"))    // Alice
+print(person.get("missing")) // nil
 
 // Map has method
-print person.has("name")      // true
-print person.has("missing")   // false
+print(person.has("name"))    // true
+print(person.has("missing")) // false
 
 // Map remove method
 val removed = person.remove("age")
-print removed                 // 30
-print person.size()           // 1
+print(removed)       // 30
+print(person.size()) // 1
 
 // Verify key was removed
-print person.has("name")      // true
-print person.has("age")       // false
-print person.size()           // 1
+print(person.has("name")) // true
+print(person.has("age"))  // false
+print(person.size())      // 1

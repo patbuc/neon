@@ -32,7 +32,6 @@ pub(crate) enum OpCode {
     String,
     String2,
     String4,
-    Print,
     Pop,
     SetLocal,
     SetLocal2,

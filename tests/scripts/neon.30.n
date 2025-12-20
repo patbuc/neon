@@ -15,8 +15,8 @@ val mixed = {
     "null": nil
 }
 
-print mixed["number"]    // 42
-print mixed["string"]    // Hello
-print mixed["boolean"]   // true
-print mixed["null"]      // nil
-print mixed.size()       // 4
+print(mixed["number"])  // 42
+print(mixed["string"])  // Hello
+print(mixed["boolean"]) // true
+print(mixed["null"])    // nil
+print(mixed.size())     // 4

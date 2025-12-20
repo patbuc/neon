@@ -7,6 +7,6 @@
 
 val a = "foo"
 val b = "bar"
-print a + b           // foobar
-print a + " " + b     // foo bar
-print "-" + a + "-"   // -foo-
+print(a + b)           // foobar
+print(a + " " + b)     // foo bar
+print("-" + a + "-")   // -foo-

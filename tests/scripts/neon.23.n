@@ -6,15 +6,15 @@
 // Demo
 
 val message = "String Functions Demo"
-print message
+print(message)
 
-print message.len()
+print(message.len())
 
 val first_word = message.substring(0, 6)
-print first_word
+print(first_word)
 
 val modified = message.replace("ing", "")
-print modified
+print(modified)
 
 val last_word = message.substring(17, 21)
-print last_word
+print(last_word)
