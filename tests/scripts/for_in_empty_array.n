@@ -3,8 +3,8 @@
 // after
 
 val arr = []
-print "before"
+print("before")
 for (x in arr) {
-    print x
+    print(x)
 }
-print "after"
+print("after")

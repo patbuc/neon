@@ -15,11 +15,11 @@ fn create_person(name, age, city) {
 
 // Create persons
 val person1 = create_person("Alice", 30, "NYC")
-print person1["name"]
-print person1["age"]
-print person1["city"]
+print(person1["name"])
+print(person1["age"])
+print(person1["city"])
 
 val person2 = create_person("Bob", 25, "LA")
-print person2["name"]
-print person2["age"]
-print person2["city"]
+print(person2["name"])
+print(person2["age"])
+print(person2["city"])

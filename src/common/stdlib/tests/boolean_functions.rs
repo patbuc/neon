@@ -7,10 +7,10 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_boolean_to_string() {
     let program = r#"
-        print true.toString()
-        print false.toString()
-        print true.toString()
-        print false.toString()
+        print(true.toString())
+        print(false.toString())
+        print(true.toString())
+        print(false.toString())
     "#;
 
     let mut vm = VirtualMachine::new();

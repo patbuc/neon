@@ -8,12 +8,12 @@ use crate::vm::{Result, VirtualMachine};
 fn test_map_basic_operations() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print m.size()
-        print m.get("name")
-        print m.get("age")
-        print m.get("missing")
-        print m.has("name")
-        print m.has("missing")
+        print(m.size())
+        print(m.get("name"))
+        print(m.get("age"))
+        print(m.get("missing"))
+        print(m.has("name"))
+        print(m.has("missing"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -25,13 +25,13 @@ fn test_map_basic_operations() {
 fn test_map_subscript_assignment() {
     let program = r#"
         val m = {}
-        print m.size()
+        print(m.size())
 
         m["x"] = 10
         m["y"] = 20
-        print m.size()
-        print m.get("x")
-        print m.get("y")
+        print(m.size())
+        print(m.get("x"))
+        print(m.get("y"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -43,11 +43,11 @@ fn test_map_subscript_assignment() {
 fn test_map_remove() {
     let program = r#"
         val m = {"a": 1, "b": 2, "c": 3}
-        print m.size()
-        print m.remove("b")
-        print m.size()
-        print m.has("b")
-        print m.remove("b")
+        print(m.size())
+        print(m.remove("b"))
+        print(m.size())
+        print(m.has("b"))
+        print(m.remove("b"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -60,10 +60,10 @@ fn test_map_keys() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
         val k = m.keys()
-        print k.length()
-        print k.contains("name")
-        print k.contains("age")
-        print k.contains("missing")
+        print(k.length())
+        print(k.contains("name"))
+        print(k.contains("age"))
+        print(k.contains("missing"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -76,10 +76,10 @@ fn test_map_values() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val v = m.values()
-        print v.length()
-        print v.contains(1)
-        print v.contains(2)
-        print v.contains(3)
+        print(v.length())
+        print(v.contains(1))
+        print(v.contains(2))
+        print(v.contains(3))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -92,7 +92,7 @@ fn test_map_entries() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val e = m.entries()
-        print e.length()
+        print(e.length())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -106,10 +106,10 @@ fn test_map_number_keys() {
         val m = {}
         m[1] = "one"
         m[2] = "two"
-        print m.get(1)
-        print m.get(2)
-        print m.has(1)
-        print m.has(3)
+        print(m.get(1))
+        print(m.get(2))
+        print(m.has(1))
+        print(m.has(3))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -121,9 +121,9 @@ fn test_map_number_keys() {
 fn test_map_mixed_values() {
     let program = r#"
         val m = {"str": "hello", "num": 42, "bool": true}
-        print m.get("str")
-        print m.get("num")
-        print m.get("bool")
+        print(m.get("str"))
+        print(m.get("num"))
+        print(m.get("bool"))
     "#;
 
     let mut vm = VirtualMachine::new();

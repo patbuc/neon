@@ -7,10 +7,10 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_math_abs() {
     let program = r#"
-        print Math.abs(5)
-        print Math.abs(-5)
-        print Math.abs(0)
-        print Math.abs(-3.15)
+        print(Math.abs(5))
+        print(Math.abs(-5))
+        print(Math.abs(0))
+        print(Math.abs(-3.15))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -25,9 +25,9 @@ fn test_math_abs() {
 #[test]
 fn test_math_floor() {
     let program = r#"
-        print Math.floor(5.7)
-        print Math.floor(-5.3)
-        print Math.floor(5)
+        print(Math.floor(5.7))
+        print(Math.floor(-5.3))
+        print(Math.floor(5))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -42,9 +42,9 @@ fn test_math_floor() {
 #[test]
 fn test_math_ceil() {
     let program = r#"
-        print Math.ceil(5.3)
-        print Math.ceil(-5.7)
-        print Math.ceil(5)
+        print(Math.ceil(5.3))
+        print(Math.ceil(-5.7))
+        print(Math.ceil(5))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -59,8 +59,8 @@ fn test_math_ceil() {
 #[test]
 fn test_math_sqrt() {
     let program = r#"
-        print Math.sqrt(16)
-        print Math.sqrt(0)
+        print(Math.sqrt(16))
+        print(Math.sqrt(0))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -71,11 +71,11 @@ fn test_math_sqrt() {
 #[test]
 fn test_math_sqrt_perfect_squares() {
     let program = r#"
-        print Math.sqrt(1)
-        print Math.sqrt(4)
-        print Math.sqrt(9)
-        print Math.sqrt(25)
-        print Math.sqrt(100)
+        print(Math.sqrt(1))
+        print(Math.sqrt(4))
+        print(Math.sqrt(9))
+        print(Math.sqrt(25))
+        print(Math.sqrt(100))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -90,10 +90,10 @@ fn test_math_sqrt_perfect_squares() {
 #[test]
 fn test_math_min() {
     let program = r#"
-        print Math.min(5)
-        print Math.min(5, 2, 8, 1)
-        print Math.min(-5, -2, -8)
-        print Math.min(5, -2, 8, -10)
+        print(Math.min(5))
+        print(Math.min(5, 2, 8, 1))
+        print(Math.min(-5, -2, -8))
+        print(Math.min(5, -2, 8, -10))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -108,10 +108,10 @@ fn test_math_min() {
 #[test]
 fn test_math_max() {
     let program = r#"
-        print Math.max(5)
-        print Math.max(5, 2, 8, 1)
-        print Math.max(-5, -2, -8)
-        print Math.max(5, -2, 8, -10)
+        print(Math.max(5))
+        print(Math.max(5, 2, 8, 1))
+        print(Math.max(-5, -2, -8))
+        print(Math.max(5, -2, 8, -10))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -126,10 +126,10 @@ fn test_math_max() {
 #[test]
 fn test_math_min_max_combined() {
     let program = r#"
-        print Math.min(5, 5, 5)
-        print Math.max(5, 5, 5)
-        print Math.min(3, 7)
-        print Math.max(3, 7)
+        print(Math.min(5, 5, 5))
+        print(Math.max(5, 5, 5))
+        print(Math.min(3, 7))
+        print(Math.max(3, 7))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -144,12 +144,12 @@ fn test_math_min_max_combined() {
 #[test]
 fn test_math_floor_ceil_edge_cases() {
     let program = r#"
-        print Math.floor(0.5)
-        print Math.ceil(0.5)
-        print Math.floor(-0.5)
-        print Math.ceil(-0.5)
-        print Math.floor(0.00001)
-        print Math.ceil(0.00001)
+        print(Math.floor(0.5))
+        print(Math.ceil(0.5))
+        print(Math.floor(-0.5))
+        print(Math.ceil(-0.5))
+        print(Math.floor(0.00001))
+        print(Math.ceil(0.00001))
     "#;
 
     let mut vm = VirtualMachine::new();

@@ -3,6 +3,6 @@
 
 // Test empty range (start >= end for exclusive)
 for (i in 5..5) {
-    print i
+    print(i)
 }
-print "done"
+print("done")

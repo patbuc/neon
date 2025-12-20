@@ -9,7 +9,7 @@ use std::fs;
 fn test_file_constructor() {
     let program = r#"
         val f = File("test.txt")
-        print "File created"
+        print("File created")
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -21,7 +21,7 @@ fn test_file_constructor() {
 fn test_file_constructor_relative_path() {
     let program = r#"
         val f = File("../data/input.txt")
-        print "File created"
+        print("File created")
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -33,7 +33,7 @@ fn test_file_constructor_relative_path() {
 fn test_file_constructor_absolute_path() {
     let program = r#"
         val f = File("/tmp/claude/test.txt")
-        print "File created"
+        print("File created")
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -55,7 +55,7 @@ fn test_file_read() {
     let program = format!(r#"
         val f = File("{}")
         val content = f.read()
-        print content
+        print(content)
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -76,7 +76,7 @@ fn test_file_read_empty() {
     let program = format!(r#"
         val f = File("{}")
         val content = f.read()
-        print content
+        print(content)
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -97,7 +97,7 @@ fn test_file_read_multiline() {
     let program = format!(r#"
         val f = File("{}")
         val content = f.read()
-        print content
+        print(content)
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -122,10 +122,10 @@ fn test_file_read_lines() {
     let program = format!(r#"
         val f = File("{}")
         val lines = f.readLines()
-        print lines.length()
-        print lines[0]
-        print lines[1]
-        print lines[2]
+        print(lines.length())
+        print(lines[0])
+        print(lines[1])
+        print(lines[2])
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -146,7 +146,7 @@ fn test_file_read_lines_empty() {
     let program = format!(r#"
         val f = File("{}")
         val lines = f.readLines()
-        print lines.length()
+        print(lines.length())
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -167,8 +167,8 @@ fn test_file_read_lines_single() {
     let program = format!(r#"
         val f = File("{}")
         val lines = f.readLines()
-        print lines.length()
-        print lines[0]
+        print(lines.length())
+        print(lines[0])
     "#, test_path);
 
     let mut vm = VirtualMachine::new();
@@ -307,7 +307,7 @@ fn test_file_write_then_read() {
         val f = File("{}")
         f.write("Integration test")
         val content = f.read()
-        print content
+        print(content)
     "#, test_path);
 
     let mut vm = VirtualMachine::new();

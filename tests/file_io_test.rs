@@ -28,7 +28,7 @@ fn test_file_constructor_from_neon() {
     let mut vm = VirtualMachine::new();
     let source = r#"
         var f = File("test.txt")
-        print f
+        print(f)
     "#;
 
     let result = vm.interpret(source.to_string());
@@ -48,7 +48,7 @@ fn test_file_read_basic() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -70,7 +70,7 @@ fn test_file_read_multiline() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -91,9 +91,9 @@ fn test_file_read_empty_file() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print "start"
-        print content
-        print "end"
+        print("start")
+        print(content)
+        print("end")
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -116,7 +116,7 @@ fn test_file_read_unicode() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -134,7 +134,7 @@ fn test_file_read_not_found() {
     let source = r#"
         var f = File("/nonexistent/path/to/file.txt")
         var content = f.read()
-        print content
+        print(content)
     "#;
 
     let result = vm.interpret(source.to_string());
@@ -153,7 +153,7 @@ fn test_file_read_lines_basic() {
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
-            print lines[i]
+            print(lines[i])
         }}
     "#, file_path);
 
@@ -180,9 +180,9 @@ fn test_file_read_lines_with_empty_lines() {
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
-        print lines.size()
+        print(lines.size())
         for (var i = 0; i < lines.size(); i = i + 1) {{
-            print "[" + lines[i] + "]"
+            print("[" + lines[i] + "]")
         }}
     "#, file_path);
 
@@ -209,7 +209,7 @@ fn test_file_read_lines_crlf() {
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
-            print lines[i]
+            print(lines[i])
         }}
     "#, file_path);
 
@@ -235,7 +235,7 @@ fn test_file_read_lines_empty_file() {
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
-        print lines.size()
+        print(lines.size())
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -256,8 +256,8 @@ fn test_file_read_lines_single_line_no_newline() {
     let source = format!(r#"
         var f = File("{}")
         var lines = f.readLines()
-        print lines.size()
-        print lines[0]
+        print(lines.size())
+         print(lines[0])
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -276,7 +276,7 @@ fn test_file_read_lines_not_found() {
     let source = r#"
         var f = File("/nonexistent/path/to/file.txt")
         var lines = f.readLines()
-        print lines
+        print(lines)
     "#;
 
     let result = vm.interpret(source.to_string());
@@ -297,7 +297,7 @@ fn test_file_write_basic() {
     let source = format!(r#"
         var f = File("{}")
         f.write("Hello from Neon!")
-        print "Write successful"
+        print("Write successful")
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -333,7 +333,7 @@ fn test_file_write_multiline() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -359,7 +359,7 @@ fn test_file_write_empty_content() {
     let source = format!(r#"
         var f = File("{}")
         f.write("")
-        print "Done"
+         print("Done")
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -381,7 +381,7 @@ fn test_file_write_file_already_exists() {
     let source = format!(r#"
         var f = File("{}")
         f.write("New content")
-        print "This should not print"
+         print("This should not print")
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -401,7 +401,7 @@ fn test_file_write_invalid_directory() {
     let source = r#"
         var f = File("/nonexistent/directory/file.txt")
         f.write("content")
-        print "This should not print"
+         print("This should not print")
     "#;
 
     let result = vm.interpret(source.to_string());
@@ -425,7 +425,7 @@ fn test_file_end_to_end_write_then_read() {
 
         var f2 = File("{}")
         var content = f2.read()
-        print content
+        print(content)
     "#, file_path, file_path);
 
     let result = vm.interpret(source);
@@ -457,7 +457,7 @@ fn test_file_end_to_end_write_then_read_lines() {
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
-            print lines[i]
+            print(lines[i])
         }}
     "#, file_path);
 
@@ -483,10 +483,10 @@ fn test_file_multiple_operations_same_file_object() {
     let source = format!(r#"
         var f = File("{}")
         var content = f.read()
-        print content
+        print(content)
 
         var lines = f.readLines()
-        print lines.size()
+        print(lines.size())
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -509,7 +509,7 @@ fn test_file_constructor_with_variable_path() {
         var path = "{}"
         var f = File(path)
         var content = f.read()
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -534,7 +534,7 @@ fn test_file_in_function() {
         }}
 
         var content = readFile("{}")
-        print content
+        print(content)
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -560,7 +560,7 @@ fn test_file_read_lines_in_function() {
 
         var lines = getLines("{}")
         for (var i = 0; i < lines.size(); i = i + 1) {{
-            print lines[i]
+            print(lines[i])
         }}
     "#, file_path);
 
@@ -592,7 +592,7 @@ fn test_file_write_in_function() {
         }}
 
         writeFile("{}", "Written from function")
-        print "Done"
+         print("Done")
     "#, file_path);
 
     let result = vm.interpret(source);
@@ -619,12 +619,12 @@ fn test_file_practical_example_process_lines() {
 
         for (var i = 0; i < lines.size(); i = i + 1) {{
             if (lines[i].len() > 5) {{
-                print lines[i]
+                print(lines[i])
                 count = count + 1
             }}
         }}
 
-        print "Found: " + count.toString()
+        print("Found: " + count.toString())
     "#, file_path);
 
     let result = vm.interpret(source);

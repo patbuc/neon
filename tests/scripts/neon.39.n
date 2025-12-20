@@ -11,16 +11,16 @@
 
 // Create empty map
 val empty = {}
-print empty
-print empty.size()
+print(empty)
+print(empty.size())
 
 // Methods on empty map
-print empty.keys()
-print empty.values()
-print empty.entries()
+print(empty.keys())
+print(empty.values())
+print(empty.entries())
 
 // Check for non-existent key
-print empty.has("anything")
+print(empty.has("anything"))
 
 // Access non-existent key
-print empty["missing"]
+print(empty["missing"])

@@ -7,15 +7,15 @@
 // 60
 
 val arr = [1, 2, 3, 4, 5]
-print arr[0]
-print arr[2]
-print arr.size()
+print(arr[0])
+print(arr[2])
+print(arr.size())
 arr.push(6)
-print arr[5]
-print arr.size()
+print(arr[5])
+print(arr.size())
 
 for (x in arr) {
     if (x > 5) {
-        print x * 10
+        print(x * 10)
     }
 }

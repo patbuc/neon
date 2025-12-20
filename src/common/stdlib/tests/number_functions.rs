@@ -7,14 +7,14 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_number_to_string() {
     let program = r#"
-        print (123).toString()
-        print (45.67).toString()
-        print (0).toString()
-        print (-42).toString()
-        print (-3.15).toString()
-        print (1000000).toString()
-        print (0.001).toString()
-        print (12300000000).toString()
+        print((123).toString())
+        print((45.67).toString())
+        print((0).toString())
+        print((-42).toString())
+        print((-3.15).toString())
+        print((1000000).toString())
+        print((0.001).toString())
+        print((12300000000).toString())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -28,9 +28,9 @@ fn test_number_to_string_special_values() {
         val inf = 1.0 / 0.0
         val neg_inf = -1.0 / 0.0
         val nan = 0.0 / 0.0
-        print inf.toString()
-        print neg_inf.toString()
-        print nan.toString()
+        print(inf.toString())
+        print(neg_inf.toString())
+        print(nan.toString())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -43,7 +43,7 @@ fn test_number_to_string_very_small() {
     let program = r#"
         val small = 0.000000000123
         val result = small.toString()
-        print result
+        print(result)
     "#;
 
     let mut vm = VirtualMachine::new();

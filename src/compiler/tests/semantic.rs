@@ -3,7 +3,7 @@ use crate::compiler::parser::Parser;
 
 #[test]
 fn test_undefined_variable() {
-    let program = "print x\n";
+    let program = "print(x)\n";
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
 
@@ -18,7 +18,7 @@ fn test_undefined_variable() {
 
 #[test]
 fn test_defined_variable() {
-    let program = "val x = 5\nprint x\n";
+    let program = "val x = 5\nprint(x)\n";
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
 
@@ -108,10 +108,10 @@ fn test_nested_scopes() {
 val x = 10
 {
     val y = 20
-    print x
-    print y
+    print(x)
+    print(y)
 }
-print x
+print(x)
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -128,9 +128,9 @@ fn test_variable_shadowing() {
 val x = 10
 {
     val x = 20
-    print x
+    print(x)
 }
-print x
+print(x)
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -610,7 +610,7 @@ fn analyzeText(input) {
 }
 
 val output = analyzeText("sample input")
-print output
+print(output)
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -869,7 +869,7 @@ fn processData() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
 
-    // Debug: print all errors
+    // Debug: print(all errors)
     eprintln!("Errors found:");
     for (i, err) in errors.iter().enumerate() {
         eprintln!("  {}: {}", i, err.message);
@@ -964,7 +964,7 @@ var i = 0
 while (i < items.length()) {
     val item = items[i]
     val itemLen = item.len()
-    print itemLen
+    print(itemLen)
     i = i + 1
 }
 "#;
@@ -992,7 +992,7 @@ fn test_break_outside_loop() {
     let program = r#"
         var x = 5
         break
-        print x
+        print(x)
         "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1011,7 +1011,7 @@ fn test_continue_outside_loop() {
     let program = r#"
         var x = 5
         continue
-        print x
+        print(x)
         "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1054,7 +1054,7 @@ fn test_continue_in_while_loop_valid() {
             if (x == 5) {
                 continue
             }
-            print x
+            print(x)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -1091,7 +1091,7 @@ fn test_continue_in_for_loop_valid() {
             if (i == 5) {
                 continue
             }
-            print i
+            print(i)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -1111,7 +1111,7 @@ fn test_break_in_for_in_loop_valid() {
             if (item == 3) {
                 break
             }
-            print item
+            print(item)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -1131,7 +1131,7 @@ fn test_continue_in_for_in_loop_valid() {
             if (item == 3) {
                 continue
             }
-            print item
+            print(item)
         }
         "#;
     let mut parser = Parser::new(program);
@@ -1457,7 +1457,7 @@ fn test_postfix_in_loop() {
     let program = r#"
         var i = 0
         while (i < 10) {
-            print i
+            print(i)
             i++
         }
         "#;

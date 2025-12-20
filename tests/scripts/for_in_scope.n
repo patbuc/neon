@@ -6,6 +6,6 @@
 
 val arr = [1, 2, 3]
 for (x in arr) {
-    print x
+    print(x)
 }
-print "after loop"
+print("after loop")

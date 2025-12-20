@@ -5,7 +5,7 @@ mod test_args_global {
 
     #[test]
     fn test_args_is_predefined() {
-        let source = "print args";
+        let source = "print(args)";
         let mut parser = Parser::new(source);
         let ast = parser.parse().unwrap();
 
