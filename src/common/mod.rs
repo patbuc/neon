@@ -121,6 +121,7 @@ pub enum Object {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     #[serde(with = "serde_rc_str")]
     File(Rc<str>),
+    #[serde(with = "serde_rc")]
     Module(Rc<ModuleState>),
 }
 
@@ -138,6 +139,7 @@ pub struct ObjFunction {
     pub chunk: Rc<Chunk>,
     /// Module metadata - only present for module-level functions (top-level module code)
     /// Regular user-defined functions within a module have None
+    #[serde(with = "option_serde_rc")]
     pub metadata: Option<Rc<module_types::ModuleMetadata>>,
 }
 
@@ -154,10 +156,11 @@ pub struct ObjInstance {
     pub fields: HashMap<String, Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ModuleState {
     pub globals: Vec<Value>,
     /// Module metadata containing exports and source path
+    #[serde(with = "serde_rc")]
     pub metadata: Rc<module_types::ModuleMetadata>,
 }
 
@@ -385,5 +388,29 @@ mod serde_rc_refcell {
         T: Deserialize<'de>,
     {
         T::deserialize(deserializer).map(|t| Rc::new(RefCell::new(t)))
+    }
+}
+
+mod option_serde_rc {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::rc::Rc;
+
+    pub fn serialize<S, T>(value: &Option<Rc<T>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        match value {
+            Some(rc) => serializer.serialize_some(rc.as_ref()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Option<Rc<T>>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        Option::<T>::deserialize(deserializer).map(|opt| opt.map(Rc::new))
     }
 }

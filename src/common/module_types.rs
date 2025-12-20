@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 /// Kind of exported symbol
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ExportKind {
     Function { arity: u8 },
     Variable,
@@ -14,7 +14,7 @@ pub enum ExportKind {
 }
 
 /// Information about a single exported symbol
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ExportInfo {
     pub name: String,
     pub kind: ExportKind,
@@ -23,7 +23,7 @@ pub struct ExportInfo {
 
 /// Module metadata separate from bytecode
 /// This contains all module-specific information that isn't part of the executable bytecode
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ModuleMetadata {
     /// Canonical path to the module source file
     pub source_path: PathBuf,

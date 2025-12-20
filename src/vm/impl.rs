@@ -147,6 +147,7 @@ impl VirtualMachine {
             name: "<compiled>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata: None,
         });
 
         // Create the initial call frame
@@ -158,7 +159,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Chunk::new("dummy"));
+        let result = self.run();
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]

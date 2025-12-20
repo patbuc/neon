@@ -265,7 +265,6 @@ impl Parser {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
-                | TokenType::Print
                 | TokenType::Return
                 | TokenType::Import
                 | TokenType::Export => return,

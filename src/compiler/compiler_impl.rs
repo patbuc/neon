@@ -16,14 +16,14 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn compile(&mut self, source: &str) -> Option<Chunk> {
+    pub fn compile(&mut self, source: &str) -> Option<Chunk> {
         self.compile_with_path(source, None)
     }
 
     pub(crate) fn compile_with_path(
         &mut self,
         source: &str,
-        file_path: Option<PathBuf>,
+        _file_path: Option<PathBuf>,
     ) -> Option<Chunk> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
