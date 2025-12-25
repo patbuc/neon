@@ -52,11 +52,14 @@ fn test_file_read() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "Hello, World!").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val content = f.read()
         print(content)
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -73,11 +76,14 @@ fn test_file_read_empty() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val content = f.read()
         print(content)
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -94,11 +100,14 @@ fn test_file_read_multiline() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "Line 1\nLine 2\nLine 3").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val content = f.read()
         print(content)
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -119,14 +128,17 @@ fn test_file_read_lines() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "Line 1\nLine 2\nLine 3").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val lines = f.readLines()
         print(lines.length())
         print(lines[0])
         print(lines[1])
         print(lines[2])
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -143,11 +155,14 @@ fn test_file_read_lines_empty() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val lines = f.readLines()
         print(lines.length())
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -164,12 +179,15 @@ fn test_file_read_lines_single() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "Only one line").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         val lines = f.readLines()
         print(lines.length())
         print(lines[0])
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -190,10 +208,13 @@ fn test_file_write() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::remove_file(test_path).ok();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.write("Test content")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -214,10 +235,13 @@ fn test_file_write_overwrite() {
     fs::remove_file(test_path).ok();
 
     // First write
-    let program1 = format!(r#"
+    let program1 = format!(
+        r#"
         val f = File("{}")
         f.write("Old content")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm1 = VirtualMachine::new();
     assert_eq!(Result::Ok, vm1.interpret(program1));
@@ -230,10 +254,13 @@ fn test_file_write_overwrite() {
     fs::remove_file(test_path).ok();
 
     // Second write
-    let program2 = format!(r#"
+    let program2 = format!(
+        r#"
         val f = File("{}")
         f.write("New content")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm2 = VirtualMachine::new();
     assert_eq!(Result::Ok, vm2.interpret(program2));
@@ -253,10 +280,13 @@ fn test_file_write_empty() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::remove_file(test_path).ok();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.write("")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -276,10 +306,13 @@ fn test_file_write_multiline() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::remove_file(test_path).ok();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.write("Line 1\nLine 2\nLine 3")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -303,12 +336,15 @@ fn test_file_write_then_read() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::remove_file(test_path).ok();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.write("Integration test")
         val content = f.read()
         print(content)
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
@@ -412,10 +448,13 @@ fn test_file_read_wrong_arg_count() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "test").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.read("unexpected")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::RuntimeError, vm.interpret(program));
@@ -431,10 +470,13 @@ fn test_file_read_lines_wrong_arg_count() {
     fs::create_dir_all("/tmp/claude").ok();
     fs::write(test_path, "test").unwrap();
 
-    let program = format!(r#"
+    let program = format!(
+        r#"
         val f = File("{}")
         f.readLines("unexpected")
-    "#, test_path);
+    "#,
+        test_path
+    );
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::RuntimeError, vm.interpret(program));

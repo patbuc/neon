@@ -19,7 +19,10 @@ fn test_number_to_string() {
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program.to_string()));
-    assert_eq!("123\n45.67\n0\n-42\n-3.15\n1000000\n0.001\n12300000000", vm.get_output());
+    assert_eq!(
+        "123\n45.67\n0\n-42\n-3.15\n1000000\n0.001\n12300000000",
+        vm.get_output()
+    );
 }
 
 #[test]

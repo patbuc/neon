@@ -355,4 +355,3 @@ fn test_string_char_at_wrong_arg_count() {
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
 }
-

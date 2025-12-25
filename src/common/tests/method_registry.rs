@@ -144,7 +144,10 @@ fn test_suggest_method_array() {
 #[test]
 fn test_suggest_method_string() {
     // Typo in "len"
-    assert_eq!(MethodRegistry::suggest_method("String", "lenn"), Some("len"));
+    assert_eq!(
+        MethodRegistry::suggest_method("String", "lenn"),
+        Some("len")
+    );
 
     // Typo in "split"
     assert_eq!(
@@ -168,7 +171,10 @@ fn test_suggest_method_map() {
 #[test]
 fn test_suggest_method_set() {
     // Typo in "union"
-    assert_eq!(MethodRegistry::suggest_method("Set", "uniom"), Some("union"));
+    assert_eq!(
+        MethodRegistry::suggest_method("Set", "uniom"),
+        Some("union")
+    );
 
     // Typo in "isSubset"
     assert_eq!(
@@ -190,7 +196,10 @@ fn test_suggest_method_no_match() {
 #[test]
 fn test_suggest_method_unknown_type() {
     // Unknown type returns None (no methods to suggest from)
-    assert_eq!(MethodRegistry::suggest_method("UnknownType", "method"), None);
+    assert_eq!(
+        MethodRegistry::suggest_method("UnknownType", "method"),
+        None
+    );
 }
 
 #[test]

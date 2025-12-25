@@ -13,7 +13,8 @@ fn create_test_file(name: &str, content: &str) -> PathBuf {
 
     // Create and write the content
     let mut file = fs::File::create(&file_path).expect("Failed to create test file");
-    file.write_all(content.as_bytes()).expect("Failed to write test file");
+    file.write_all(content.as_bytes())
+        .expect("Failed to write test file");
 
     file_path
 }
@@ -36,7 +37,11 @@ fn test_file_constructor_from_neon() {
 
     // The output should contain file representation
     let output = vm.get_output();
-    assert!(output.contains("test.txt"), "Output should contain file path: {}", output);
+    assert!(
+        output.contains("test.txt"),
+        "Output should contain file path: {}",
+        output
+    );
 }
 
 #[test]
@@ -45,11 +50,14 @@ fn test_file_read_basic() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result, "VM interpretation failed");
@@ -67,11 +75,14 @@ fn test_file_read_multiline() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -88,13 +99,16 @@ fn test_file_read_empty_file() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print("start")
         print(content)
         print("end")
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -113,11 +127,14 @@ fn test_file_read_unicode() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -149,13 +166,16 @@ fn test_file_read_lines_basic() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
             print(lines[i])
         }}
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -177,20 +197,26 @@ fn test_file_read_lines_with_empty_lines() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         print(lines.size())
         for (var i = 0; i < lines.size(); i = i + 1) {{
             print("[" + lines[i] + "]")
         }}
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
 
     let output = vm.get_output();
-    assert!(output.contains("4"), "Should have 4 lines including empty ones");
+    assert!(
+        output.contains("4"),
+        "Should have 4 lines including empty ones"
+    );
     assert!(output.contains("[Line 1]"));
     assert!(output.contains("[]")); // Empty lines
     assert!(output.contains("[Line 3]"));
@@ -205,13 +231,16 @@ fn test_file_read_lines_crlf() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
             print(lines[i])
         }}
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -232,11 +261,14 @@ fn test_file_read_lines_empty_file() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         print(lines.size())
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -253,12 +285,15 @@ fn test_file_read_lines_single_line_no_newline() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         print(lines.size())
          print(lines[0])
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -294,11 +329,14 @@ fn test_file_write_basic() {
     let _ = fs::remove_file(&test_file);
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         f.write("Hello from Neon!")
         print("Write successful")
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -330,11 +368,14 @@ fn test_file_write_multiline() {
     }
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -356,11 +397,14 @@ fn test_file_write_empty_content() {
     let _ = fs::remove_file(&test_file);
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         f.write("")
          print("Done")
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -378,11 +422,14 @@ fn test_file_write_file_already_exists() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         f.write("New content")
          print("This should not print")
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     // Should result in a runtime error because file exists
@@ -419,14 +466,17 @@ fn test_file_end_to_end_write_then_read() {
     let _ = fs::remove_file(&test_file);
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f1 = File("{}")
         f1.write("Test content for end-to-end")
 
         var f2 = File("{}")
         var content = f2.read()
         print(content)
-    "#, file_path, file_path);
+    "#,
+        file_path, file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -453,13 +503,16 @@ fn test_file_end_to_end_write_then_read_lines() {
     }
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         for (var i = 0; i < lines.size(); i = i + 1) {{
             print(lines[i])
         }}
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -480,14 +533,17 @@ fn test_file_multiple_operations_same_file_object() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var content = f.read()
         print(content)
 
         var lines = f.readLines()
         print(lines.size())
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -505,12 +561,15 @@ fn test_file_constructor_with_variable_path() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var path = "{}"
         var f = File(path)
         var content = f.read()
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -527,7 +586,8 @@ fn test_file_in_function() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         fn readFile(path) {{
             var f = File(path)
             return f.read()
@@ -535,7 +595,9 @@ fn test_file_in_function() {
 
         var content = readFile("{}")
         print(content)
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -552,7 +614,8 @@ fn test_file_read_lines_in_function() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         fn getLines(path) {{
             var f = File(path)
             return f.readLines()
@@ -562,7 +625,9 @@ fn test_file_read_lines_in_function() {
         for (var i = 0; i < lines.size(); i = i + 1) {{
             print(lines[i])
         }}
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -585,7 +650,8 @@ fn test_file_write_in_function() {
     let _ = fs::remove_file(&test_file);
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         fn writeFile(path, content) {{
             var f = File(path)
             f.write(content)
@@ -593,7 +659,9 @@ fn test_file_write_in_function() {
 
         writeFile("{}", "Written from function")
          print("Done")
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
@@ -612,7 +680,8 @@ fn test_file_practical_example_process_lines() {
     let file_path = test_file.to_str().unwrap();
 
     let mut vm = VirtualMachine::new();
-    let source = format!(r#"
+    let source = format!(
+        r#"
         var f = File("{}")
         var lines = f.readLines()
         var count = 0
@@ -625,7 +694,9 @@ fn test_file_practical_example_process_lines() {
         }}
 
         print("Found: " + count.toString())
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     let result = vm.interpret(source);
     assert_eq!(Result::Ok, result);
