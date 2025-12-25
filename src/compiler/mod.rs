@@ -41,6 +41,8 @@ pub struct Compiler {
     builtin: indexmap::IndexMap<String, crate::common::Value>,
     /// Exports from the last compilation (for module metadata)
     last_exports: Vec<crate::common::module_types::ExportInfo>,
+    /// Module resolver for managing module compilation and resolution
+    module_resolver: module_resolver::ModuleResolver,
 }
 
 impl Compiler {

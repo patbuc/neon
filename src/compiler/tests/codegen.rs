@@ -15,7 +15,7 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
     let _ = analyzer
-        .analyze(&ast)
+        .analyze(&ast, None)
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation

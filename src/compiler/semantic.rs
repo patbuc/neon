@@ -163,7 +163,12 @@ impl SemanticAnalyzer {
     }
 
     /// Analyze the AST and return the symbol table if successful
-    pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<SymbolTable> {
+    pub fn analyze(&mut self, statements: &[Stmt], current_file: Option<PathBuf>) -> CompilationResult<SymbolTable> {
+        // Set the current file path for module resolution
+        if let Some(file_path) = current_file {
+            self.set_current_file(file_path);
+        }
+
         // Check for import statements and report that they're not yet supported
         for stmt in statements {
             if let Stmt::Import { location, .. } = stmt {

@@ -8,7 +8,7 @@ fn test_undefined_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -23,7 +23,7 @@ fn test_defined_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -35,7 +35,7 @@ fn test_assign_to_immutable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -50,7 +50,7 @@ fn test_assign_to_mutable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -68,7 +68,7 @@ val x = foo(1, 2)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -93,7 +93,7 @@ val x = add(1, 2, 3)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -117,7 +117,7 @@ print(x)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -136,7 +136,7 @@ print(x)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -151,7 +151,7 @@ val x = 20
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -173,7 +173,7 @@ fn bar() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     // This should work because we collect all declarations first
     assert!(result.is_ok());
@@ -189,7 +189,7 @@ x()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -209,7 +209,7 @@ val x = [1, 2, 3].length()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -228,7 +228,7 @@ val x = [1, 2, 3].invalidMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -246,7 +246,7 @@ val x = [1, 2, 3].lenght()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -264,7 +264,7 @@ val x = [1, 2, 3].notAMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -283,7 +283,7 @@ val len = arr.length()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -303,7 +303,7 @@ val result = arr.badMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -321,7 +321,7 @@ val x = "hello".len()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -340,7 +340,7 @@ val x = "hello".invalidMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -359,7 +359,7 @@ val k = m.keys()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -378,7 +378,7 @@ val result = {"a": 1}.wrongMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -397,7 +397,7 @@ val arr = s.toArray()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -416,7 +416,7 @@ val result = {1, 2, 3}.invalidMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -435,7 +435,7 @@ val len = m.keys().length()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -455,7 +455,7 @@ val result = m.keys().invalidMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -474,7 +474,7 @@ val len = parts.length()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -494,7 +494,7 @@ val b = "hello".wrongMethod()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -517,7 +517,7 @@ val result = 42.toString()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -556,7 +556,7 @@ val result = processData(42)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -616,7 +616,7 @@ print(output)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -641,7 +641,7 @@ val parts = empty.split(",")
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -664,7 +664,7 @@ val result = arr.with_underscore()  // Invalid method with underscore
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -691,7 +691,7 @@ val something = result.anyMethod()  // We can't know the type, so don't error
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     // Should succeed because we can't determine the type of 'result'
     // Graceful degradation: don't error on unknown types
@@ -715,7 +715,7 @@ val y = x.anyMethod()   // x's type is unknown, so method validation should not 
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     // Should have error about undefined 'someFunction', but NOT about method validation
     if let Err(ref errors) = result {
@@ -744,7 +744,7 @@ val hasThree = arr.contains(3)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -772,7 +772,7 @@ val asBool = "true".toBool()
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -800,7 +800,7 @@ val removed = m.remove("b")
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -832,7 +832,7 @@ val isSub = s.isSubset(s2)
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -864,7 +864,7 @@ fn processData() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -905,7 +905,7 @@ val result = arr.lenght()  // typo: should be 'length'
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -944,7 +944,7 @@ val result = checkData([1, 2, 3])
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -972,7 +972,7 @@ while (i < items.length()) {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -998,7 +998,7 @@ fn test_break_outside_loop() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1017,7 +1017,7 @@ fn test_continue_outside_loop() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1040,7 +1040,7 @@ fn test_break_in_while_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1061,7 +1061,7 @@ fn test_continue_in_while_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1079,7 +1079,7 @@ fn test_break_in_for_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1098,7 +1098,7 @@ fn test_continue_in_for_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1118,7 +1118,7 @@ fn test_break_in_for_in_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1138,7 +1138,7 @@ fn test_continue_in_for_in_loop_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1162,7 +1162,7 @@ fn test_nested_break_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1181,7 +1181,7 @@ fn test_break_outside_function_in_loop() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1203,7 +1203,7 @@ fn test_continue_outside_function_in_loop() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1224,7 +1224,7 @@ fn test_postfix_increment_on_undefined_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1241,7 +1241,7 @@ fn test_postfix_decrement_on_undefined_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1259,7 +1259,7 @@ fn test_postfix_increment_on_immutable_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1277,7 +1277,7 @@ fn test_postfix_decrement_on_immutable_variable() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1295,7 +1295,7 @@ fn test_postfix_increment_on_mutable_variable_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1310,7 +1310,7 @@ fn test_postfix_decrement_on_mutable_variable_valid() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1325,7 +1325,7 @@ fn test_postfix_increment_on_array_element_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1343,7 +1343,7 @@ fn test_postfix_decrement_on_array_element_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1361,7 +1361,7 @@ fn test_postfix_increment_on_field_access_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1378,7 +1378,7 @@ fn test_postfix_decrement_on_field_access_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1397,7 +1397,7 @@ fn test_postfix_increment_on_function_call_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1414,7 +1414,7 @@ fn test_postfix_increment_in_expression() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1429,7 +1429,7 @@ fn test_postfix_decrement_in_expression() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1447,7 +1447,7 @@ fn test_multiple_postfix_operations() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1465,7 +1465,7 @@ fn test_postfix_in_loop() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1482,7 +1482,7 @@ fn test_postfix_multiple_errors() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1500,7 +1500,7 @@ fn test_postfix_on_literal_fails() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
@@ -1520,7 +1520,7 @@ fn test_postfix_in_function_parameters() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
 }
@@ -1540,7 +1540,7 @@ fn test_export_function_collected() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
     // Check that the export was collected
@@ -1558,7 +1558,7 @@ fn test_export_variable_collected() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
     let exports = analyzer.exports();
@@ -1575,7 +1575,7 @@ fn test_export_val_collected() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     if let Err(ref errors) = result {
         for err in errors {
@@ -1601,7 +1601,7 @@ fn test_export_struct_collected() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
     let exports = analyzer.exports();
@@ -1626,7 +1626,7 @@ fn test_multiple_exports_collected() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
     let exports = analyzer.exports();
@@ -1647,7 +1647,7 @@ fn test_import_basic_syntax() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     // Should fail - imports are not yet fully implemented
     assert!(result.is_err());
@@ -1672,7 +1672,7 @@ fn test_export_and_local_declarations() {
     let ast = parser.parse().unwrap();
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze(&ast, None);
 
     assert!(result.is_ok());
     let exports = analyzer.exports();

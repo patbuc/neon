@@ -13,6 +13,7 @@ impl Compiler {
             structured_errors: Vec::new(),
             builtin,
             last_exports: Vec::new(),
+            module_resolver: crate::compiler::module_resolver::ModuleResolver::new(),
         }
     }
 
@@ -23,7 +24,7 @@ impl Compiler {
     pub(crate) fn compile_with_path(
         &mut self,
         source: &str,
-        _file_path: Option<PathBuf>,
+        file_path: Option<PathBuf>,
     ) -> Option<Chunk> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
@@ -49,7 +50,7 @@ impl Compiler {
 
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
-        let _ = match analyzer.analyze(&ast) {
+        let _ = match analyzer.analyze(&ast, file_path.clone()) {
             Ok(table) => table,
             Err(errors) => {
                 // Store structured errors
