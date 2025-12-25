@@ -1,0 +1,80 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "tools": {
+    "tests": true,
+    "clippy": true,
+    "format": true,
+    "worktree_make": true,
+    "worktree_info": true
+  },
+  "agent": {
+    "build-feature": {
+      "mode": "primary",
+      "permission": {
+        "bash": {
+          "git *": "ask",
+          "git worktree *": "allow",
+          "gh pr *": "allow",
+          "git push*": "ask",
+          "*": "ask"
+        },
+        "edit": "allow"
+      }
+    },
+    "plan-feature": {
+      "mode": "primary",
+      "permission": {
+        "bash": {
+          "git *": "ask",
+          "*": "ask"
+        },
+        "edit": "ask"
+      }
+    },
+    "implement-task": {
+      "mode": "primary",
+      "permission": {
+        "bash": {
+          "git worktree *": "allow",
+          "cargo *": "allow",
+          "git *": "ask",
+          "*": "ask"
+        },
+        "edit": "allow"
+      }
+    },
+    "run-tests": {
+      "mode": "subagent",
+      "permission": {
+        "bash": {
+          "cargo test*": "allow",
+          "cargo clippy*": "allow",
+          "cargo fmt*": "allow",
+          "*": "ask"
+        }
+      }
+    },
+    "review-pr": {
+      "mode": "subagent",
+      "permission": {
+        "bash": {
+          "git diff*": "allow",
+          "git log*": "allow",
+          "gh pr *": "allow",
+          "*": "ask"
+        },
+        "edit": "deny"
+      }
+    },
+    "create-pr": {
+      "mode": "subagent",
+      "permission": {
+        "bash": {
+          "gh pr *": "allow",
+          "git push*": "ask",
+          "*": "ask"
+        }
+      }
+    }
+  }
+}
