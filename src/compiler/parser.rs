@@ -1179,7 +1179,15 @@ impl Parser {
     fn index(&mut self, object: Expr) -> Option<Expr> {
         let location = self.current_location();
 
+        if self.match_token(TokenType::Colon) {
+            return self.slice(object, None, location);
+        }
+
         let index = Box::new(self.expression(false)?);
+
+        if self.match_token(TokenType::Colon) {
+            return self.slice(object, Some(index), location);
+        }
 
         if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
             return None;
@@ -1200,6 +1208,30 @@ impl Parser {
                 location,
             })
         }
+    }
+
+    fn slice(
+        &mut self,
+        object: Expr,
+        start: Option<Box<Expr>>,
+        location: SourceLocation,
+    ) -> Option<Expr> {
+        let end = if self.check(TokenType::RightBracket) {
+            None
+        } else {
+            Some(Box::new(self.expression(false)?))
+        };
+
+        if !self.consume(TokenType::RightBracket, "Expect ']' after slice.") {
+            return None;
+        }
+
+        Some(Expr::Slice {
+            object: Box::new(object),
+            start,
+            end,
+            location,
+        })
     }
 
     fn postfix(&self, operand: Expr) -> Option<Expr> {

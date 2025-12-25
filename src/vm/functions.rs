@@ -872,6 +872,87 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn fn_slice(&mut self) -> Option<Result> {
+        let end_value = self.pop();
+        let start_value = self.pop();
+        let array_value = self.pop();
+
+        let array_ref = match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(array_ref) => array_ref,
+                _ => {
+                    self.runtime_error(&format!(
+                        "Only arrays support slicing, got {}.",
+                        array_value
+                    ));
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error(&format!(
+                    "Only arrays support slicing, got {}.",
+                    array_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        let array = array_ref.borrow();
+        let len = array.len() as i32;
+        let normalize = |index: i32| if index < 0 { len + index } else { index };
+
+        let start = match start_value {
+            Value::Nil => 0,
+            Value::Number(n) => normalize(n as i32),
+            _ => {
+                self.runtime_error(&format!(
+                    "Slice start must be a number, got {}.",
+                    start_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        let end = match end_value {
+            Value::Nil => len,
+            Value::Number(n) => normalize(n as i32),
+            _ => {
+                self.runtime_error(&format!("Slice end must be a number, got {}.", end_value));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        if start < 0 || start > len {
+            self.runtime_error(&format!(
+                "Slice start out of bounds: {} (normalized: {}) on array of length {}.",
+                start_value, start, len
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        if end < 0 || end > len {
+            self.runtime_error(&format!(
+                "Slice end out of bounds: {} (normalized: {}) on array of length {}.",
+                end_value, end, len
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        if start > end {
+            self.runtime_error(&format!(
+                "Slice start ({}) cannot be greater than end ({}).",
+                start, end
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        let sliced = array[start as usize..end as usize].to_vec();
+        drop(array);
+        self.push(Value::new_array(sliced));
+        None
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn fn_set_index(&mut self) {
         let value = self.pop();
         let index_value = self.pop();
