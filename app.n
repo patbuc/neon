@@ -1,0 +1,20 @@
+print("=== Application Starting ===")
+print("")
+
+// Import modules - they execute and their side effects run
+import "config"
+import "logger"
+
+// Import the same module again - should use cache
+print("")
+print("Importing config again to test caching...")
+import "config"
+
+print("")
+print("=== Application Running ===")
+
+// Application logic
+print("Application is now running!")
+
+print("")
+print("=== Application Complete ===")

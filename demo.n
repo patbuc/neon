@@ -1,0 +1,27 @@
+print("=== Module System Demo ===")
+print("")
+
+// Import modules
+import "calculator"
+import "utils"
+
+print("")
+print("=== Running Demo ===")
+
+// Test basic computation
+print("Computing 5:")
+val result = compute(5)
+print("Result: " + str(result))
+
+print("")
+
+// Test fibonacci
+print("Fibonacci sequence (first 10):")
+var i = 0
+while (i < 10) {
+    print("fib(" + str(i) + ") = " + str(fibonacci(i)))
+    i = i + 1
+}
+
+print("")
+print("=== Demo Complete ===")

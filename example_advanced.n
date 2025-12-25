@@ -1,0 +1,9 @@
+// Test module caching - importing same module twice
+import "example_math"
+print("First import done")
+
+import "example_math"
+print("Second import done - notice module only initialized once!")
+
+// The module system caches modules, so "Math module initialized!"
+// should only print once, even though we imported it twice

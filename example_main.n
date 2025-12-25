@@ -1,0 +1,5 @@
+// Import the math module
+import "example_math"
+
+print("Main program started")
+print("Module loaded successfully!")

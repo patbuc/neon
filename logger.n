@@ -1,0 +1,14 @@
+// Logger module
+print("Logger module loading...")
+
+export fn logInfo(message) {
+    print("[INFO] " + message)
+}
+
+export fn logError(message) {
+    print("[ERROR] " + message)
+}
+
+var logCount = 0
+
+print("Logger ready!")

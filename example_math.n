@@ -1,0 +1,17 @@
+// Math utility module
+export fn add(a, b) {
+    return a + b
+}
+
+export fn multiply(a, b) {
+    return a * b
+}
+
+export val PI = 3.14159
+
+// This is private - not exported
+fn privateHelper() {
+    return "This is private"
+}
+
+print("Math module initialized!")

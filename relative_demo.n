@@ -1,0 +1,9 @@
+print("=== Relative Import Demo ===")
+print("")
+
+// Import using relative path
+import "./lib/helpers"
+
+print("")
+print("Module loaded from ./lib/helpers.n")
+print("Demonstration complete!")
