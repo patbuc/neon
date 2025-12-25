@@ -582,22 +582,25 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
-    fn generate_import_stmt(&mut self, _module_path: &str, _location: SourceLocation) {
-        // NOTE: Module imports are not yet fully implemented
-        // The semantic analyzer should have already reported an error for import statements
-        // This method is a placeholder for when module resolution is completed
+    fn generate_import_stmt(&mut self, module_path: &str, location: SourceLocation) {
+        // Store module path as string constant and emit LoadModule opcode
+        // The VM will:
+        // 1. Resolve the module path (relative/absolute)
+        // 2. Check module cache
+        // 3. Compile and execute the module if not cached
+        // 4. Push the module object onto the stack
         //
-        // TODO: Complete module system implementation:
-        // 1. Wire up ModuleResolver to actually resolve and load module files at compile time
-        // 2. Implement LoadModule opcode in VM to load compiled modules at runtime
-        // 3. Create module objects with proper export namespacing
-        // 4. Support both relative and absolute module paths
-        //
-        // Planned implementation:
-        // - Store module path as string constant
-        // - Emit LoadModule opcode with string constant index
-        // - Define local/global variable for the module namespace
-        // - Module exports accessible via qualified access (module.symbol)
+        // The module object is left on the stack - it can be:
+        // - Popped immediately if just for side effects
+        // - Stored in a variable for namespace access
+        // - Accessed via qualified field access (module.export)
+        let module_path_value = string!(module_path);
+        self.current_chunk()
+            .write_load_module(module_path_value, location.line, location.column);
+
+        // Pop the module object since simple `import "module"` doesn't bind to a variable
+        // TODO: Support `import "module" as name` syntax to keep module on stack
+        self.emit_op_code(OpCode::Pop, location);
     }
 
     fn generate_stmt(&mut self, stmt: &Stmt) {

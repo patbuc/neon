@@ -169,18 +169,6 @@ impl SemanticAnalyzer {
             self.set_current_file(file_path);
         }
 
-        // Check for import statements and report that they're not yet supported
-        for stmt in statements {
-            if let Stmt::Import { location, .. } = stmt {
-                self.errors.push(CompilationError::new(
-                    crate::common::errors::CompilationPhase::Semantic,
-                    crate::common::errors::CompilationErrorKind::Other,
-                    "Module imports are not yet fully implemented. The import/export syntax is parsed but module resolution and loading is still in development.".to_string(),
-                    *location,
-                ));
-            }
-        }
-
         // First: collect all top-level declarations
         self.collect_declarations(statements);
 

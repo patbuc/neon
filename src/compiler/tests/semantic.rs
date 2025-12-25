@@ -1639,9 +1639,9 @@ fn test_multiple_exports_collected() {
 #[test]
 fn test_import_basic_syntax() {
     // Import statements should parse and analyze without error during semantic analysis
-    // (actual module resolution happens in a separate phase)
+    // (actual module resolution happens at runtime in the VM)
     let program = r#"
-        import math
+        import "math"
         "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1649,10 +1649,8 @@ fn test_import_basic_syntax() {
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast, None);
 
-    // Should fail - imports are not yet fully implemented
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("not yet fully implemented")));
+    // Module imports are now implemented and should succeed during semantic analysis
+    assert!(result.is_ok());
 }
 
 #[test]

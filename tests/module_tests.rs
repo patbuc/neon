@@ -19,7 +19,6 @@ fn create_main_with_import(dir: &TempDir, import_name: &str, main_content: &str)
 }
 
 #[test]
-#[ignore = "Module system not yet fully implemented"]
 fn test_module_basic_loading() {
     // Create temporary directory for test modules
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -63,7 +62,6 @@ fn test_module_basic_loading() {
 }
 
 #[test]
-#[ignore = "Module system not yet fully implemented"]
 fn test_module_caching() {
     // Create temporary directory for test modules
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -106,7 +104,6 @@ fn test_module_caching() {
 }
 
 #[test]
-#[ignore = "Module system not yet fully implemented"]
 fn test_module_path_resolution_error() {
     // Create temporary directory for test
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -132,7 +129,6 @@ fn test_module_path_resolution_error() {
 }
 
 #[test]
-#[ignore = "Module system not yet fully implemented"]
 fn test_module_compilation_error() {
     // Create temporary directory for test modules
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -165,7 +161,6 @@ fn test_module_compilation_error() {
 }
 
 #[test]
-#[ignore = "Module system not yet fully implemented"]
 fn test_module_non_exported_symbol_inaccessible() {
     // Create temporary directory for test modules
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
