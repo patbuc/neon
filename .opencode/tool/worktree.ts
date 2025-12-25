@@ -41,6 +41,6 @@ export default tool({
       }
     }
 
-    return { slug, branch, worktreePath, created }
+    return JSON.stringify({ slug, branch, worktreePath, created })
   },
 })
