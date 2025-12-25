@@ -951,3 +951,43 @@ fn test_postfix_operations_in_function() {
 
     assert_eq!(result, crate::vm::Result::Ok);
 }
+
+#[test]
+fn test_array_slice_both_indices() {
+    let program = r#"
+    val arr = [0, 1, 2, 3, 4]
+    val sliced = arr[1:3]
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_slice_start_only() {
+    let program = r#"
+    val arr = [0, 1, 2, 3, 4]
+    val sliced = arr[3:]
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_slice_end_only() {
+    let program = r#"
+    val arr = [0, 1, 2, 3, 4]
+    val sliced = arr[:2]
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_array_slice_negative_indices() {
+    let program = r#"
+    val arr = [0, 1, 2, 3, 4]
+    val sliced = arr[-3:-1]
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}

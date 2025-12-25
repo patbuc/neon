@@ -1212,25 +1212,130 @@ impl VirtualMachine {
         if args.is_empty() {
             return Err("print() expects at least 1 argument".to_string());
         }
-        
+
         // Join all arguments with spaces
-        let output = args.iter()
+        let output = args
+            .iter()
             .map(|v: &Value| v.to_string())
             .collect::<Vec<_>>()
             .join(" ");
-        
+
         // For test/debug/WASM contexts - append to VM's string buffer
         #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
             self.string_buffer.push_str(&format!("{}\n", output));
         }
-        
+
         // For normal execution (non-WASM) - print(to stdout)
         #[cfg(not(target_arch = "wasm32"))]
         {
             println!("{}", output);
         }
-        
+
         Ok(Value::Nil)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_slice(&mut self) -> Option<Result> {
+        let end_value = self.pop();
+        let start_value = self.pop();
+        let array_value = self.pop();
+
+        // Ensure we have an array
+        let array_ref = match &array_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(arr) => arr,
+                _ => {
+                    self.runtime_error(&format!(
+                        "Slice operation only works on arrays, got {}.",
+                        array_value
+                    ));
+                    return Some(Result::RuntimeError);
+                }
+            },
+            _ => {
+                self.runtime_error(&format!(
+                    "Slice operation only works on arrays, got {}.",
+                    array_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        let array = array_ref.borrow();
+        let len = array.len() as i32;
+
+        // Parse start index (nil means 0)
+        let start_idx = match start_value {
+            Value::Nil => 0,
+            Value::Number(n) => {
+                let idx = n as i32;
+                if idx < 0 {
+                    len + idx
+                } else {
+                    idx
+                }
+            }
+            _ => {
+                self.runtime_error(&format!(
+                    "Slice start must be a number or nil, got {}.",
+                    start_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Parse end index (nil means len)
+        let end_idx = match end_value {
+            Value::Nil => len,
+            Value::Number(n) => {
+                let idx = n as i32;
+                if idx < 0 {
+                    len + idx
+                } else {
+                    idx
+                }
+            }
+            _ => {
+                self.runtime_error(&format!(
+                    "Slice end must be a number or nil, got {}.",
+                    end_value
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Validate bounds
+        if start_idx < 0 || start_idx > len {
+            self.runtime_error(&format!(
+                "Slice start index out of bounds: {} (normalized from original) on array of length {}.",
+                start_idx, len
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        if end_idx < 0 || end_idx > len {
+            self.runtime_error(&format!(
+                "Slice end index out of bounds: {} (normalized from original) on array of length {}.",
+                end_idx, len
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        if start_idx > end_idx {
+            self.runtime_error(&format!(
+                "Slice start index ({}) cannot be greater than end index ({}).",
+                start_idx, end_idx
+            ));
+            return Some(Result::RuntimeError);
+        }
+
+        // Create the sliced array
+        let sliced: Vec<Value> = array[start_idx as usize..end_idx as usize].to_vec();
+        let result = Value::new_array(sliced);
+
+        drop(array);
+        self.push(result);
+        None
     }
 }

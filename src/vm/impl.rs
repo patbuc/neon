@@ -301,6 +301,11 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
+                OpCode::Slice => {
+                    if let Some(result) = self.fn_slice() {
+                        return result;
+                    }
+                }
             }
             self.current_frame_mut().ip += 1;
         }
