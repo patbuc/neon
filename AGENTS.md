@@ -135,7 +135,7 @@ See `.github/copilot-instructions.md` for full details. Key points agents must r
   - It coordinates `plan-feature`, `implement-task`, `run-tests`, `review-pr`, and `create-pr` subagents
   - It runs local Test/Review loops up to 3 times, then proceeds to PR and applies feedback
 - Always pass the worktree path to tools (`tests`, `clippy`, `format`) in agent workflows
-- Use `worktree_info`/`worktree_make` tools for standardized branch/worktree setup
+- Use the `worktree` tool for standardized branch/worktree setup
 
 ## File and Directory Pointers
 - Opcodes: `src/common/opcodes.rs`
