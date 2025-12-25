@@ -127,7 +127,12 @@ impl Scanner {
                     // Comments have whitespace or newline after //
                     // Integer division has a non-whitespace character
                     let next_char = self.peek();
-                    if next_char == ' ' || next_char == '\t' || next_char == '\n' || next_char == '\r' || self.is_at_end() {
+                    if next_char == ' '
+                        || next_char == '\t'
+                        || next_char == '\n'
+                        || next_char == '\r'
+                        || self.is_at_end()
+                    {
                         // This is a comment
                         while self.peek_next() != '\n' && !self.is_at_end() {
                             self.advance();
@@ -389,7 +394,13 @@ impl Scanner {
     }
     fn make_eof_token(&mut self) -> Token {
         self.previous_token_type = TokenType::Eof;
-        Token::new(TokenType::Eof, String::new(), self.line, self.column, self.offset)
+        Token::new(
+            TokenType::Eof,
+            String::new(),
+            self.line,
+            self.column,
+            self.offset,
+        )
     }
 
     fn previous(&self) -> char {

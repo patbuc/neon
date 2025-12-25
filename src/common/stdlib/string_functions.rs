@@ -1,6 +1,6 @@
 use crate::common::{Object, Value};
-use crate::{extract_receiver, extract_arg, extract_string_value};
 use crate::string;
+use crate::{extract_arg, extract_receiver, extract_string_value};
 
 /// Native implementation of String.len()
 /// Returns the number of Unicode characters in the string

@@ -2333,10 +2333,7 @@ fn test_parse_array_slice_both_indices() {
             ..
         } => match expr {
             Expr::Slice {
-                object,
-                start,
-                end,
-                ..
+                object, start, end, ..
             } => {
                 match object.as_ref() {
                     Expr::Variable { name, .. } => assert_eq!(name, "a"),
@@ -2377,10 +2374,7 @@ fn test_parse_array_slice_start_only() {
             ..
         } => match expr {
             Expr::Slice {
-                object,
-                start,
-                end,
-                ..
+                object, start, end, ..
             } => {
                 match object.as_ref() {
                     Expr::Variable { name, .. } => assert_eq!(name, "a"),
@@ -2417,10 +2411,7 @@ fn test_parse_array_slice_end_only() {
             ..
         } => match expr {
             Expr::Slice {
-                object,
-                start,
-                end,
-                ..
+                object, start, end, ..
             } => {
                 match object.as_ref() {
                     Expr::Variable { name, .. } => assert_eq!(name, "a"),
@@ -2457,10 +2448,7 @@ fn test_parse_array_slice_negative_indices() {
             ..
         } => match expr {
             Expr::Slice {
-                object,
-                start,
-                end,
-                ..
+                object, start, end, ..
             } => {
                 match object.as_ref() {
                     Expr::Variable { name, .. } => assert_eq!(name, "a"),

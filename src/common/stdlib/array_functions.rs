@@ -1,5 +1,5 @@
 use crate::common::{Object, Value};
-use crate::{extract_receiver, extract_arg, extract_string_value};
+use crate::{extract_arg, extract_receiver, extract_string_value};
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil

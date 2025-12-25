@@ -1,6 +1,6 @@
 use crate::common::*;
-use std::collections::{BTreeSet, HashMap};
 use ordered_float::OrderedFloat;
+use std::collections::{BTreeSet, HashMap};
 use std::rc::Rc;
 
 #[test]
@@ -17,10 +17,10 @@ fn test_array_creation() {
             match obj.as_ref() {
                 Object::Array(_) => {
                     // Success - array was created
-                },
+                }
                 _ => panic!("Expected Array object"),
             }
-        },
+        }
         _ => panic!("Expected Object value"),
     }
 }
@@ -46,20 +46,11 @@ fn test_empty_array_display() {
 
 #[test]
 fn test_array_equality() {
-    let arr1 = Value::new_array(vec![
-        Value::Number(1.0),
-        Value::Number(2.0),
-    ]);
+    let arr1 = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
 
-    let arr2 = Value::new_array(vec![
-        Value::Number(1.0),
-        Value::Number(2.0),
-    ]);
+    let arr2 = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
 
-    let arr3 = Value::new_array(vec![
-        Value::Number(1.0),
-        Value::Number(3.0),
-    ]);
+    let arr3 = Value::new_array(vec![Value::Number(1.0), Value::Number(3.0)]);
 
     // These should be equal
     assert_eq!(arr1, arr2);
@@ -70,11 +61,7 @@ fn test_array_equality() {
 
 #[test]
 fn test_mixed_type_array() {
-    let arr = Value::new_array(vec![
-        Value::Number(42.0),
-        Value::Boolean(true),
-        Value::Nil,
-    ]);
+    let arr = Value::new_array(vec![Value::Number(42.0), Value::Boolean(true), Value::Nil]);
 
     let display = format!("{}", arr);
     assert_eq!(display, "[42, true, nil]");
@@ -83,7 +70,12 @@ fn test_mixed_type_array() {
 #[test]
 fn test_map_creation() {
     let mut entries = HashMap::new();
-    entries.insert(MapKey::String(Rc::from("name")), Value::Object(Rc::new(Object::String(ObjString { value: Rc::from("Alice") }))));
+    entries.insert(
+        MapKey::String(Rc::from("name")),
+        Value::Object(Rc::new(Object::String(ObjString {
+            value: Rc::from("Alice"),
+        }))),
+    );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
 
     let map = Value::new_map(entries);
@@ -94,10 +86,10 @@ fn test_map_creation() {
             match obj.as_ref() {
                 Object::Map(_) => {
                     // Success - map was created
-                },
+                }
                 _ => panic!("Expected Map object"),
             }
-        },
+        }
         _ => panic!("Expected Object value"),
     }
 }
@@ -149,7 +141,12 @@ fn test_map_equality() {
 #[test]
 fn test_map_with_different_key_types() {
     let mut entries = HashMap::new();
-    entries.insert(MapKey::String(Rc::from("name")), Value::Object(Rc::new(Object::String(ObjString { value: Rc::from("Alice") }))));
+    entries.insert(
+        MapKey::String(Rc::from("name")),
+        Value::Object(Rc::new(Object::String(ObjString {
+            value: Rc::from("Alice"),
+        }))),
+    );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
     entries.insert(MapKey::Boolean(true), Value::Boolean(false));
 
@@ -193,10 +190,10 @@ fn test_set_creation() {
             match obj.as_ref() {
                 Object::Set(_) => {
                     // Success - set was created
-                },
+                }
                 _ => panic!("Expected Set object"),
             }
-        },
+        }
         _ => panic!("Expected Object value"),
     }
 }

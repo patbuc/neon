@@ -9,55 +9,48 @@ pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("print() expects at least 1 argument".to_string());
     }
-    
+
     // Join all arguments with spaces
-    let output = args.iter()
+    let output = args
+        .iter()
         .map(|v: &Value| v.to_string())
         .collect::<Vec<_>>()
         .join(" ");
-    
+
     // Print to stdout as fallback
     println!("{}", output);
-    
+
     Ok(Value::Nil)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{string, number, boolean};
+    use crate::{boolean, number, string};
 
     #[test]
     fn test_print_single_argument() {
         let args = vec![number!(42.0)];
         let result = native_system_print(&args);
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Value::Nil);
     }
 
     #[test]
     fn test_print_multiple_arguments() {
-        let args = vec![
-            number!(1.0),
-            number!(2.0),
-            number!(3.0),
-        ];
+        let args = vec![number!(1.0), number!(2.0), number!(3.0)];
         let result = native_system_print(&args);
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Value::Nil);
     }
 
     #[test]
     fn test_print_mixed_types() {
-        let args = vec![
-            string!("Hello"),
-            number!(42.0),
-            boolean!(true),
-        ];
+        let args = vec![string!("Hello"), number!(42.0), boolean!(true)];
         let result = native_system_print(&args);
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Value::Nil);
     }
@@ -66,7 +59,7 @@ mod tests {
     fn test_print_no_arguments() {
         let args = vec![];
         let result = native_system_print(&args);
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "print() expects at least 1 argument");
     }
@@ -75,7 +68,7 @@ mod tests {
     fn test_print_string_argument() {
         let args = vec![string!("Hello World")];
         let result = native_system_print(&args);
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Value::Nil);
     }

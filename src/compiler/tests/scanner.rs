@@ -1,6 +1,6 @@
-use crate::compiler::Token;
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
+use crate::compiler::Token;
 
 fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
