@@ -483,7 +483,6 @@ impl SemanticAnalyzer {
                         "Module path cannot be empty".to_string(),
                         *location,
                     ));
-                    return;
                 }
 
                 // Import resolution happens in a separate phase with access to ModuleResolver
@@ -854,8 +853,7 @@ impl SemanticAnalyzer {
                             error_message,
                             location,
                         ));
-                    }
-                    return; // Module field access validated
+                    }// Module field access validated
                 }
             }
         }
