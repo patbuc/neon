@@ -1088,8 +1088,51 @@ impl Parser {
     fn index(&mut self, object: Expr) -> Option<Expr> {
         let location = self.current_location();
 
-        let index = Box::new(self.expression(false)?);
+        // Check if this is a slice (starts with colon like [:end])
+        if self.check(TokenType::Colon) {
+            self.advance(); // consume ':'
+            let end = if self.check(TokenType::RightBracket) {
+                None
+            } else {
+                Some(Box::new(self.expression(false)?))
+            };
 
+            if !self.consume(TokenType::RightBracket, "Expect ']' after slice.") {
+                return None;
+            }
+
+            return Some(Expr::Slice {
+                object: Box::new(object),
+                start: None,
+                end,
+                location,
+            });
+        }
+
+        // Parse the first expression (could be index or slice start)
+        let first_expr = Box::new(self.expression(false)?);
+
+        // Check if this is a slice (has a colon after first expression)
+        if self.match_token(TokenType::Colon) {
+            let end = if self.check(TokenType::RightBracket) {
+                None
+            } else {
+                Some(Box::new(self.expression(false)?))
+            };
+
+            if !self.consume(TokenType::RightBracket, "Expect ']' after slice.") {
+                return None;
+            }
+
+            return Some(Expr::Slice {
+                object: Box::new(object),
+                start: Some(first_expr),
+                end,
+                location,
+            });
+        }
+
+        // Not a slice, it's a regular index
         if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
             return None;
         }
@@ -1098,14 +1141,14 @@ impl Parser {
             let value = Box::new(self.expression(false)?);
             Some(Expr::IndexAssign {
                 object: Box::new(object),
-                index,
+                index: first_expr,
                 value,
                 location,
             })
         } else {
             Some(Expr::Index {
                 object: Box::new(object),
-                index,
+                index: first_expr,
                 location,
             })
         }

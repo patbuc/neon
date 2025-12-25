@@ -135,6 +135,12 @@ pub enum Expr {
         operand: Box<Expr>,
         location: SourceLocation,
     },
+    Slice {
+        object: Box<Expr>,
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -222,7 +228,8 @@ impl Expr {
             | Expr::IndexAssign { location, .. }
             | Expr::Range { location, .. }
             | Expr::PostfixIncrement { location, .. }
-            | Expr::PostfixDecrement { location, .. } => location,
+            | Expr::PostfixDecrement { location, .. }
+            | Expr::Slice { location, .. } => location,
         }
     }
 }

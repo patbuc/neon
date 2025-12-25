@@ -812,9 +812,10 @@ impl CodeGenerator {
         }
         // Check if this is a constructor call (e.g., File("path"))
         else if let Expr::Variable { name, .. } = callee {
-            if name == "File" { // For now, only File is a constructor in the registry
+            if name == "File" {
+                // For now, only File is a constructor in the registry
                 // Constructor call: File("path")
-                
+
                 // Look up the registry index at compile time (O(n) once, not per call!)
                 // If not found, emit index 0 and let runtime handle the error
                 let registry_index =
@@ -845,21 +846,21 @@ impl CodeGenerator {
                     4 => self.current_chunk().write_u32(registry_index as u32),
                     _ => unreachable!(),
                 }
-        } else {
-            // Regular function call
-            // Evaluate the callee
-            self.generate_expr(callee);
+            } else {
+                // Regular function call
+                // Evaluate the callee
+                self.generate_expr(callee);
 
-            // Evaluate all arguments
-            for arg in arguments {
-                self.generate_expr(arg);
+                // Evaluate all arguments
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+
+                // Emit call instruction
+                self.emit_op_code(OpCode::Call, location);
+                self.current_chunk().write_u8(arguments.len() as u8);
             }
-
-            // Emit call instruction
-            self.emit_op_code(OpCode::Call, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-        }
-    } else {
+        } else {
             // Regular function call
             // Evaluate the callee
             self.generate_expr(callee);
@@ -1184,6 +1185,27 @@ impl CodeGenerator {
             }
             Expr::PostfixDecrement { operand, location } => {
                 self.generate_postfix_decrement_expr(operand, *location);
+            }
+            Expr::Slice {
+                object,
+                start,
+                end,
+                location,
+            } => {
+                self.generate_expr(object);
+                // Push start (or nil if None)
+                if let Some(start_expr) = start {
+                    self.generate_expr(start_expr);
+                } else {
+                    self.emit_op_code(OpCode::Nil, *location);
+                }
+                // Push end (or nil if None)
+                if let Some(end_expr) = end {
+                    self.generate_expr(end_expr);
+                } else {
+                    self.emit_op_code(OpCode::Nil, *location);
+                }
+                self.emit_op_code(OpCode::Slice, *location);
             }
         }
     }

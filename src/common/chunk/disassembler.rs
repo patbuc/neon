@@ -107,6 +107,7 @@ impl Chunk {
             OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
             OpCode::CreateRange => self.create_range_instruction(offset),
             OpCode::ToString => self.simple_instruction(OpCode::ToString, offset),
+            OpCode::Slice => self.simple_instruction(OpCode::Slice, offset),
         }
     }
 
