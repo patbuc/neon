@@ -60,6 +60,8 @@ pub(crate) enum TokenType {
     Var,
     While,
     In,
+    Import,
+    Export,
 
     Error,
 

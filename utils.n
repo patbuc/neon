@@ -1,0 +1,12 @@
+// Utility module with helper functions
+export fn double(x) {
+    return x * 2
+}
+
+export fn square(x) {
+    return x * x
+}
+
+export val VERSION = "1.0.0"
+
+print("Utils module loaded")

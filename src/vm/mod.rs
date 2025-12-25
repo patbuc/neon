@@ -1,10 +1,25 @@
-use crate::common::{CallFrame, Chunk, Value};
+use crate::common::{CallFrame, Chunk, ModuleState, Value};
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 mod functions;
 mod r#impl;
 #[cfg(test)]
 mod tests;
+
+/// Execution context for the VM - tracks whether we're running a script or module
+#[derive(Debug, Clone)]
+pub(crate) enum ExecutionContext {
+    /// Normal script execution
+    Script,
+    /// Module initialization - captures globals after execution
+    Module {
+        source_path: PathBuf,
+        stack_base: usize,  // Stack position where module globals start
+    },
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Result {
@@ -35,6 +50,11 @@ pub struct VirtualMachine {
     /// Used for for-in loops to track iteration progress
     /// Supports nested for-in loops by maintaining a stack of iterators
     iterator_stack: Vec<(usize, Value)>,
+    /// Module cache: Maps canonical module paths to compiled module states
+    /// Ensures modules are loaded and initialized only once
+    module_cache: HashMap<PathBuf, Rc<ModuleState>>,
+    /// Current execution context - determines how the VM handles execution
+    execution_context: ExecutionContext,
 }
 
 // Test-only methods
@@ -49,6 +69,7 @@ impl VirtualMachine {
             name: "<test>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata: None, // Tests don't need module metadata
         });
 
         // Create the initial call frame
@@ -59,6 +80,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Chunk::new("dummy"))
+        self.run()
     }
 }

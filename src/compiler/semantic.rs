@@ -2,12 +2,14 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 use crate::common::method_registry::MethodRegistry;
+use crate::common::module_types::{ExportInfo, ExportKind};
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
-use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
+use crate::compiler::symbol_table::{ModuleExport, Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
@@ -15,6 +17,10 @@ pub struct SemanticAnalyzer {
     errors: Vec<CompilationError>,
     type_env: HashMap<String, String>,
     loop_depth: u32,
+    /// Exports collected from Export statements
+    exports: Vec<ExportInfo>,
+    /// Current file path (for relative imports)
+    current_file: Option<PathBuf>,
 }
 
 impl SemanticAnalyzer {
@@ -74,11 +80,95 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             type_env,
             loop_depth: 0,
+            exports: Vec::new(),
+            current_file: None,
+        }
+    }
+
+    /// Set the current file path (for relative imports)
+    pub fn set_current_file(&mut self, path: PathBuf) {
+        self.current_file = Some(path);
+    }
+
+    /// Get the collected exports
+    pub fn exports(&self) -> &Vec<ExportInfo> {
+        &self.exports
+    }
+
+    /// Resolve imports in the AST using the provided ModuleResolver
+    /// This should be called after analyze() to register imported modules in the symbol table
+    pub fn resolve_imports(
+        &mut self,
+        statements: &[Stmt],
+        resolve_module: impl Fn(&str, SourceLocation) -> Result<(PathBuf, HashMap<String, ExportInfo>), CompilationError>,
+    ) -> Result<(), Vec<CompilationError>> {
+        let mut import_errors = Vec::new();
+
+        for stmt in statements {
+            if let Stmt::Import { module_path, location } = stmt {
+                match resolve_module(module_path, *location) {
+                    Ok((resolved_path, module_exports)) => {
+                        // Convert module exports to symbol table format
+                        let mut exports_map = HashMap::new();
+                        for (name, export_info) in module_exports {
+                            exports_map.insert(
+                                name,
+                                ModuleExport {
+                                    kind: export_info.kind,
+                                    global_index: export_info.global_index,
+                                },
+                            );
+                        }
+
+                        // Extract module name from path (last component without extension)
+                        let module_name = resolved_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("module")
+                            .to_string();
+
+                        // Register the module as a symbol in the symbol table (at global scope)
+                        let module_symbol = Symbol::new(
+                            module_name,
+                            SymbolKind::Module {
+                                module_path: resolved_path,
+                                exports: exports_map,
+                            },
+                            false,
+                            0, // Global scope depth
+                            *location,
+                        );
+
+                        if let Err(err) = self.symbol_table.define(module_symbol) {
+                            import_errors.push(CompilationError::new(
+                                CompilationPhase::Semantic,
+                                CompilationErrorKind::DuplicateSymbol,
+                                err,
+                                *location,
+                            ));
+                        }
+                    }
+                    Err(err) => {
+                        import_errors.push(err);
+                    }
+                }
+            }
+        }
+
+        if import_errors.is_empty() {
+            Ok(())
+        } else {
+            Err(import_errors)
         }
     }
 
     /// Analyze the AST and return the symbol table if successful
-    pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<SymbolTable> {
+    pub fn analyze(&mut self, statements: &[Stmt], current_file: Option<PathBuf>) -> CompilationResult<SymbolTable> {
+        // Set the current file path for module resolution
+        if let Some(file_path) = current_file {
+            self.set_current_file(file_path);
+        }
+
         // First: collect all top-level declarations
         self.collect_declarations(statements);
 
@@ -98,38 +188,100 @@ impl SemanticAnalyzer {
 
     fn collect_declarations(&mut self, statements: &[Stmt]) {
         for stmt in statements {
-            match stmt {
-                Stmt::Fn {
-                    name,
-                    params,
-                    location,
-                    ..
-                } => {
-                    let arity = params.len() as u8;
-                    self.define_symbol(
+            self.collect_declaration(stmt, false);
+        }
+    }
+
+    fn collect_declaration(&mut self, stmt: &Stmt, is_exported: bool) {
+        match stmt {
+            Stmt::Fn {
+                name,
+                params,
+                location,
+                ..
+            } => {
+                let arity = params.len() as u8;
+                self.define_symbol(
+                    name.clone(),
+                    SymbolKind::Function { arity },
+                    false,
+                    *location,
+                );
+
+                // If this is exported, add to exports
+                if is_exported {
+                    self.add_export(
                         name.clone(),
-                        SymbolKind::Function { arity },
-                        false,
-                        *location,
+                        ExportKind::Function { arity },
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
-                Stmt::Struct {
-                    name,
-                    fields,
-                    location,
-                } => {
-                    self.define_symbol(
+            }
+            Stmt::Struct {
+                name,
+                fields,
+                location,
+            } => {
+                self.define_symbol(
+                    name.clone(),
+                    SymbolKind::Struct {
+                        fields: fields.clone(),
+                    },
+                    false,
+                    *location,
+                );
+
+                // If this is exported, add to exports
+                if is_exported {
+                    self.add_export(
                         name.clone(),
-                        SymbolKind::Struct {
+                        ExportKind::Struct {
                             fields: fields.clone(),
                         },
-                        false,
-                        *location,
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
                     );
                 }
-                _ => {}
             }
+            Stmt::Var {
+                name,
+                ..
+            } => {
+                // Variables - just track export, definition happens in resolve_stmt
+                if is_exported {
+                    self.add_export(
+                        name.clone(),
+                        ExportKind::Variable,
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
+                    );
+                }
+            }
+            Stmt::Val {
+                name,
+                ..
+            } => {
+                // Values - just track export, definition happens in resolve_stmt
+                if is_exported {
+                    self.add_export(
+                        name.clone(),
+                        ExportKind::Variable,
+                        usize::MAX, // Sentinel value; actual global_index will be set during code generation
+                    );
+                }
+            }
+            Stmt::Export { declaration, .. } => {
+                // Recursively collect with export flag set
+                self.collect_declaration(declaration, true);
+            }
+            _ => {}
         }
+    }
+
+    fn add_export(&mut self, name: String, kind: ExportKind, global_index: usize) {
+        self.exports.push(ExportInfo {
+            name,
+            kind,
+            global_index,
+        });
     }
 
     fn define_symbol(
@@ -321,6 +473,27 @@ impl SemanticAnalyzer {
             }
             Stmt::ForIn { variable, collection, body, location } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
+            }
+            Stmt::Import { module_path, location } => {
+                // Validate that the module path is not empty
+                if module_path.is_empty() {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "Module path cannot be empty".to_string(),
+                        *location,
+                    ));
+                }
+
+                // Import resolution happens in a separate phase with access to ModuleResolver
+                // For now, we just validate the syntax
+                // The actual module compilation and symbol registration will be done by
+                // the compiler which has access to the ModuleResolver
+            }
+            Stmt::Export { declaration, .. } => {
+                // Resolve the declaration being exported
+                self.resolve_stmt(declaration);
+                // Module system export validation will be implemented in later phases
             }
         }
     }
@@ -586,8 +759,32 @@ impl SemanticAnalyzer {
             self.resolve_expr(arg);
         }
 
-        // Check if this is a static method call (e.g., Math.abs)
+        // Check if this is a module function call (module.function())
         if let Expr::Variable { name, .. } = object {
+            if let Some(symbol) = self.symbol_table.resolve(name) {
+                if let SymbolKind::Module { exports, .. } = &symbol.kind {
+                    // Validate that the field exists and is a function
+                    if let Some(export) = exports.get(method) {
+                        if let ExportKind::Function { arity } = export.kind {
+                            // Check arity matches (arity validation for module functions)
+                            // Note: We don't have full arity info yet in ExportKind
+                            // This will be enhanced in later phases
+                            let _ = arity;
+                        } else {
+                            self.errors.push(CompilationError::new(
+                                CompilationPhase::Semantic,
+                                CompilationErrorKind::UnexpectedToken,
+                                format!("'{}' in module '{}' is not a function", method, name),
+                                location,
+                            ));
+                        }
+                    }
+                    // If export doesn't exist, error already reported in GetField validation
+                    return;
+                }
+            }
+
+            // Check if this is a static method call (e.g., Math.abs)
             if self.is_static_namespace(name) {
                 self.validate_static_method(name, method, location);
                 return;
@@ -630,9 +827,38 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_get_field(&mut self, object: &Expr, _field: &str, _location: SourceLocation) {
+    fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
         self.resolve_expr(object);
-        // Field validation could be added here if we track struct types
+
+        // Special handling for module access (module.symbol)
+        if let Expr::Variable { name, .. } = object {
+            if let Some(symbol) = self.symbol_table.resolve(name) {
+                if let SymbolKind::Module { exports, .. } = &symbol.kind {
+                    // Validate that the field exists in the module's exports
+                    if !exports.contains_key(field) {
+                        let available_exports: Vec<&String> = exports.keys().collect();
+                        let error_message = if available_exports.is_empty() {
+                            format!("Module '{}' has no exported symbols", name)
+                        } else {
+                            format!(
+                                "Module '{}' has no export named '{}'. Available exports: {}",
+                                name,
+                                field,
+                                available_exports.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                            )
+                        };
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::UndefinedSymbol,
+                            error_message,
+                            location,
+                        ));
+                    }// Module field access validated
+                }
+            }
+        }
+
+        // Regular field validation could be added here if we track struct types
     }
 
     fn resolve_set_field(&mut self, object: &Expr, _field: &str, value: &Expr, _location: SourceLocation) {

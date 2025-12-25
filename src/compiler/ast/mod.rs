@@ -196,6 +196,14 @@ pub enum Stmt {
     Continue {
         location: SourceLocation,
     },
+    Import {
+        module_path: String,
+        location: SourceLocation,
+    },
+    Export {
+        declaration: Box<Stmt>,
+        location: SourceLocation,
+    },
 }
 
 impl Expr {
@@ -241,7 +249,9 @@ impl Stmt {
             | Stmt::Return { location, .. }
             | Stmt::ForIn { location, .. }
             | Stmt::Break { location }
-            | Stmt::Continue { location } => location,
+            | Stmt::Continue { location }
+            | Stmt::Import { location, .. }
+            | Stmt::Export { location, .. } => location,
         }
     }
 }

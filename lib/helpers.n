@@ -1,0 +1,8 @@
+// Helper functions in lib subdirectory
+print("Loading helpers from lib/helpers.n")
+
+export fn greet(name) {
+    print("Hello, " + name + "!")
+}
+
+export val GREETING_COUNT = 42

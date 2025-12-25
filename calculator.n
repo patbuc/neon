@@ -1,0 +1,18 @@
+// Calculator module that imports utils
+import "utils"
+
+export fn compute(x) {
+    print("Computing with input: " + str(x))
+    val doubled = x * 2
+    val squared = doubled * doubled
+    return squared
+}
+
+export fn fibonacci(n) {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+print("Calculator module loaded")

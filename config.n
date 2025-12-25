@@ -1,0 +1,9 @@
+// Configuration module - sets up global state
+print("Initializing configuration...")
+
+// These become globals in the module's scope
+export val APP_NAME = "My App"
+export val VERSION = "1.0.0"
+export var DEBUG_MODE = true
+
+print("Configuration initialized: " + APP_NAME + " v" + VERSION)

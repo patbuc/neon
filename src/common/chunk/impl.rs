@@ -86,6 +86,12 @@ impl Chunk {
         string_index
     }
 
+    pub(crate) fn write_load_module(&mut self, module_path: Value, line: u32, column: u32) -> u32 {
+        let string_index = self.add_string(module_path);
+        self.write_op_code_variant(OpCode::LoadModule, string_index, line, column);
+        string_index
+    }
+
     pub(crate) fn write_u8(&mut self, value: u8) {
         self.instructions.push(value)
     }

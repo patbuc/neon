@@ -3,6 +3,7 @@ use crate::compiler::token::TokenType;
 pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
+pub(crate) mod module_resolver;
 pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
@@ -38,6 +39,10 @@ pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     builtin: indexmap::IndexMap<String, crate::common::Value>,
+    /// Exports from the last compilation (for module metadata)
+    last_exports: Vec<crate::common::module_types::ExportInfo>,
+    /// Module resolver for managing module compilation and resolution
+    module_resolver: module_resolver::ModuleResolver,
 }
 
 impl Compiler {
@@ -47,5 +52,10 @@ impl Compiler {
 
     pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
+    }
+
+    /// Get exports from the last compilation
+    pub(crate) fn get_last_exports(&self) -> &Vec<crate::common::module_types::ExportInfo> {
+        &self.last_exports
     }
 }

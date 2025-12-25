@@ -150,8 +150,63 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_return(&mut self) -> Option<Result> {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
+
+        // Check if we're completing module initialization (BEFORE popping frame)
+        // Module completes when: execution context is Module AND we're returning from module-level code (slot_start == -1)
+        let is_module_complete = if let crate::vm::ExecutionContext::Module { .. } = &self.execution_context {
+            slot_start == -1  // Module-level code (not a function within the module)
+        } else {
+            false
+        };
+
+        // Save module info if completing module initialization
+        let (module_metadata, module_context) = if is_module_complete {
+            let metadata = self.current_frame().function.metadata.clone();
+            let context = self.execution_context.clone();
+            (metadata, Some(context))
+        } else {
+            (None, None)
+        };
+
         self.call_frames.pop();
 
+        // Handle module completion
+        if let Some(crate::vm::ExecutionContext::Module { source_path, stack_base }) = module_context {
+            // Module initialization complete - capture globals and create module state
+            use crate::common::ModuleState;
+
+            // Extract globals from stack (from stack_base onwards)
+            let globals: Vec<Value> = self.stack[stack_base..].to_vec();
+
+            // Get or create metadata (should always exist for modules)
+            let metadata = module_metadata.expect("Module function should have metadata");
+
+            // Create module state
+            let module_state = Rc::new(ModuleState {
+                globals: globals.clone(),
+                metadata: metadata.clone(),
+            });
+
+            // Cache the module
+            self.module_cache.insert(source_path.clone(), module_state.clone());
+
+            // Remove module globals from stack and push the module object
+            self.stack.truncate(stack_base);
+            let module_value = Value::new_module(globals, metadata);
+            self.push(module_value);
+
+            // Reset execution context
+            self.execution_context = crate::vm::ExecutionContext::Script;
+
+            // If there are still frames (module was imported from a script), continue execution
+            if !self.call_frames.is_empty() {
+                return None;  // Continue executing the importing script
+            } else {
+                return Some(Result::Ok);  // Module was top-level, we're done
+            }
+        }
+
+        // Normal function/script return
         if self.call_frames.is_empty() {
             self.push(return_value);
             return Some(Result::Ok);
@@ -444,13 +499,37 @@ impl VirtualMachine {
                         return;
                     }
                 }
+                Object::Module(module_state) => {
+                    // Look up the export in the module's metadata
+                    if let Some(export_info) = module_state.metadata.get_export(&field_name) {
+                        let global_index = export_info.global_index;
+                        // Get the value from the module's globals
+                        if global_index < module_state.globals.len() {
+                            let value = module_state.globals[global_index].clone();
+                            self.pop();
+                            self.push(value);
+                        } else {
+                            self.runtime_error(&format!(
+                                "Module export '{}' has invalid global index {}",
+                                field_name, global_index
+                            ));
+                            return;
+                        }
+                    } else {
+                        self.runtime_error(&format!(
+                            "Module does not export '{}'.",
+                            field_name
+                        ));
+                        return;
+                    }
+                }
                 _ => {
-                    self.runtime_error("Only instances have fields.");
+                    self.runtime_error("Only instances and modules have fields.");
                     return;
                 }
             },
             _ => {
-                self.runtime_error("Only instances have fields.");
+                self.runtime_error("Only instances and modules have fields.");
                 return;
             }
         }
@@ -1212,25 +1291,158 @@ impl VirtualMachine {
         if args.is_empty() {
             return Err("print() expects at least 1 argument".to_string());
         }
-        
+
         // Join all arguments with spaces
         let output = args.iter()
             .map(|v: &Value| v.to_string())
             .collect::<Vec<_>>()
             .join(" ");
-        
+
         // For test/debug/WASM contexts - append to VM's string buffer
         #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
             self.string_buffer.push_str(&format!("{}\n", output));
         }
-        
+
         // For normal execution (non-WASM) - print(to stdout)
         #[cfg(not(target_arch = "wasm32"))]
         {
             println!("{}", output);
         }
-        
+
         Ok(Value::Nil)
+    }
+
+    #[inline(always)]
+    // Simplified fn_load_module - removed 190 line inline execution loop
+    pub(in crate::vm) fn fn_load_module(&mut self, bits: BitsSize) -> Option<Result> {
+        use crate::common::Object;
+        use crate::compiler::Compiler;
+        use std::fs;
+
+        // Read the module path from the string constant
+        let module_path_str = {
+            let frame = self.current_frame();
+            let string_index = match bits {
+                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 1) as usize,
+                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 1) as usize,
+                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 1) as usize,
+            };
+
+            let string_value = frame.function.chunk.read_string(string_index);
+            match string_value {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::String(s) => s.value.to_string(),
+                    _ => {
+                        self.runtime_error("Module path must be a string");
+                        return Some(Result::RuntimeError);
+                    }
+                },
+                _ => {
+                    self.runtime_error("Module path must be a string");
+                    return Some(Result::RuntimeError);
+                }
+            }
+        };
+
+        // Get current file path from the function metadata for resolving relative imports
+        let current_file_path = {
+            let frame = self.current_frame();
+            frame.function.metadata.as_ref().map(|m| m.source_path.as_path())
+        };
+
+        // Use module resolver to resolve the module path
+        use crate::compiler::module_resolver::ModuleResolver;
+        let resolver = ModuleResolver::new();
+        let module_path = match resolver.resolve_path(&module_path_str, current_file_path) {
+            Ok(path) => path,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot resolve module path '{}': {}", module_path_str, e));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Check module cache
+        if let Some(cached_module) = self.module_cache.get(&module_path) {
+            // Module already loaded, push it onto the stack
+            let module_value = Value::new_module(
+                cached_module.globals.clone(),
+                cached_module.metadata.clone(),
+            );
+            self.push(module_value);
+
+            // Advance IP by full instruction size (opcode + operand)
+            let frame = self.current_frame_mut();
+            frame.ip += 1 + bits.as_bytes();
+            return None;
+        }
+
+        // Load module file
+        let module_source = match fs::read_to_string(&module_path) {
+            Ok(source) => source,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot read module file '{}': {}", module_path.display(), e));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Compile the module
+        let mut compiler = Compiler::new(self.builtin.clone());
+        let module_chunk = match compiler.compile_with_path(&module_source, Some(module_path.clone())) {
+            Some(chunk) => chunk,
+            None => {
+                self.runtime_error(&format!(
+                    "Module compilation failed for '{}': {}",
+                    module_path.display(),
+                    compiler.get_compilation_errors()
+                ));
+                return Some(Result::RuntimeError);
+            }
+        };
+
+        // Get exports from the compiler and create module metadata
+        let exports = compiler.get_last_exports().clone();
+        let metadata = Rc::new(crate::common::module_types::ModuleMetadata::new(
+            module_path.clone(),
+            exports,
+        ));
+
+        // Save stack position where module globals will start
+        let stack_base = self.stack.len();
+
+        // Create a call frame for module initialization
+        let module_function = Rc::new(crate::common::ObjFunction {
+            name: format!("<module: {}>", module_path.display()),
+            arity: 0,
+            chunk: Rc::new(module_chunk),
+            metadata: Some(metadata),
+        });
+
+        // Create a module frame similar to a script frame
+        let module_frame = CallFrame {
+            function: Rc::clone(&module_function),
+            ip: 0,
+            slot_start: stack_base as isize - 1,
+        };
+
+        // Advance the IP of the current frame (the importing script/module)
+        // by the full instruction size (opcode + operand) before pushing the module frame.
+        // This ensures the importing frame resumes at the correct position after module loads.
+        let current_frame_index = self.call_frames.len() - 1;
+        self.call_frames[current_frame_index].ip += 1 + bits.as_bytes();
+
+        // Push the module frame
+        self.call_frames.push(module_frame);
+
+        // Set execution context to Module mode
+        self.execution_context = crate::vm::ExecutionContext::Module {
+            source_path: module_path.clone(),
+            stack_base,
+        };
+
+        // Return None to let the main run loop execute the module
+        // The module will execute until Return, at which point fn_return()
+        // will capture globals, create ModuleState, and cache it
+        None
     }
 }

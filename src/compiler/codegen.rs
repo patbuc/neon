@@ -38,6 +38,14 @@ impl CodeGenerator {
     }
 
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
+        self.generate_with_exports(statements, Vec::new())
+    }
+
+    pub fn generate_with_exports(
+        &mut self,
+        statements: &[Stmt],
+        exports: Vec<crate::common::module_types::ExportInfo>,
+    ) -> CompilationResult<Chunk> {
         // First: Define all functions and structs with placeholders
         // This allows forward references to work
         for stmt in statements {
@@ -61,6 +69,29 @@ impl CodeGenerator {
                     self.current_chunk()
                         .define_local(local, location.line, location.column);
                 }
+                Stmt::Export { declaration, .. } => {
+                    // Handle exported functions and structs in first pass
+                    match declaration.as_ref() {
+                        Stmt::Fn { name, location, .. } => {
+                            self.emit_op_code(OpCode::Nil, *location);
+                            let local = Local::new(name.clone(), self.scope_depth, false);
+                            self.current_chunk()
+                                .define_local(local, location.line, location.column);
+                        }
+                        Stmt::Struct {
+                            name,
+                            fields,
+                            location,
+                        } => {
+                            let struct_value = Value::new_struct(name.clone(), fields.clone());
+                            self.emit_constant(struct_value, *location);
+                            let local = Local::new(name.clone(), self.scope_depth, false);
+                            self.current_chunk()
+                                .define_local(local, location.line, location.column);
+                        }
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
         }
@@ -69,6 +100,11 @@ impl CodeGenerator {
         for stmt in statements {
             self.generate_stmt(stmt);
         }
+
+        // Note: Export information is now handled at the compiler level
+        // The exports Vec is passed to the compiler which will create ModuleMetadata
+        // and attach it to the module's ObjFunction
+        let _ = exports; // Suppress unused warning for now
 
         // Emit final return
         self.emit_return();
@@ -546,6 +582,27 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
+    fn generate_import_stmt(&mut self, module_path: &str, location: SourceLocation) {
+        // Store module path as string constant and emit LoadModule opcode
+        // The VM will:
+        // 1. Resolve the module path (relative/absolute)
+        // 2. Check module cache
+        // 3. Compile and execute the module if not cached
+        // 4. Push the module object onto the stack
+        //
+        // The module object is left on the stack - it can be:
+        // - Popped immediately if just for side effects
+        // - Stored in a variable for namespace access
+        // - Accessed via qualified field access (module.export)
+        let module_path_value = string!(module_path);
+        self.current_chunk()
+            .write_load_module(module_path_value, location.line, location.column);
+
+        // Pop the module object since simple `import "module"` doesn't bind to a variable
+        // TODO: Support `import "module" as name` syntax to keep module on stack
+        self.emit_op_code(OpCode::Pop, location);
+    }
+
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
@@ -610,6 +667,17 @@ impl CodeGenerator {
                 location,
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
+            }
+            Stmt::Import {
+                module_path,
+                location,
+            } => {
+                self.generate_import_stmt(module_path, *location);
+            }
+            Stmt::Export { declaration, .. } => {
+                // Generate code for the underlying declaration.
+                // Export metadata is handled by the module system elsewhere.
+                self.generate_stmt(declaration);
             }
         }
     }

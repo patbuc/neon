@@ -1,5 +1,7 @@
+use crate::common::module_types::ExportKind;
 use crate::common::SourceLocation;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Kind of symbol in the symbol table
 #[derive(Debug, Clone, PartialEq)]
@@ -14,6 +16,20 @@ pub enum SymbolKind {
     Struct { fields: Vec<String> },
     /// Function parameter
     Parameter,
+    /// Module with its path and exported symbols
+    Module {
+        module_path: PathBuf,
+        exports: HashMap<String, ModuleExport>,
+    },
+}
+
+/// Information about an exported symbol from a module
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleExport {
+    /// The kind of the exported symbol
+    pub kind: ExportKind,
+    /// Global index in the module's chunk
+    pub global_index: usize,
 }
 
 /// Symbol in the symbol table

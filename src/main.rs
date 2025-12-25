@@ -111,10 +111,18 @@ fn print_prompt() {
 fn run_file(path: &String, args: Vec<String>) {
     println!("Running file: {} ", path);
 
-    let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
 
-    let result: Result = vm.interpret(source);
+    // Convert to PathBuf and canonicalize for proper module resolution
+    let file_path = match Path::new(path).canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Error resolving file path '{}': {}", path, e);
+            exit(66);
+        }
+    };
+
+    let result: Result = vm.interpret_file(file_path);
     match result {
         Result::Ok => (),
         Result::CompileError => {

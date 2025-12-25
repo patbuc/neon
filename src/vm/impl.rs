@@ -1,10 +1,11 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{ExecutionContext, Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -27,6 +28,8 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            module_cache: std::collections::HashMap::new(),
+            execution_context: ExecutionContext::Script,
         }
     }
 
@@ -35,6 +38,21 @@ impl VirtualMachine {
     }
 
     pub fn interpret(&mut self, source: String) -> Result {
+        self.interpret_with_path(source, None)
+    }
+
+    pub fn interpret_file(&mut self, file_path: PathBuf) -> Result {
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(e) => {
+                self.runtime_error(&format!("Cannot read file '{}': {}", file_path.display(), e));
+                return Result::RuntimeError;
+            }
+        };
+        self.interpret_with_path(source, Some(file_path))
+    }
+
+    fn interpret_with_path(&mut self, source: String, file_path: Option<PathBuf>) -> Result {
         self.reset();
 
         self.source = source.clone();
@@ -43,7 +61,11 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new(self.builtin.clone());
-        let chunk = compiler.compile(&source);
+        let chunk = if let Some(ref path) = file_path {
+            compiler.compile_with_path(&source, Some(path.clone()))
+        } else {
+            compiler.compile(&source)
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
@@ -58,10 +80,17 @@ impl VirtualMachine {
 
         let chunk = chunk.unwrap();
 
+        // Create metadata if the script has a file path (needed for relative imports)
+        let metadata = file_path.as_ref().map(|path| {
+            use crate::common::module_types::ModuleMetadata;
+            Rc::new(ModuleMetadata::new(path.clone(), Vec::new()))
+        });
+
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata, // Include path metadata if available for relative imports
         });
 
         // Use -1 for slot_start since the script has no function object on the stack
@@ -72,7 +101,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Chunk::new("dummy"));
+        let result = self.run();
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -118,6 +147,7 @@ impl VirtualMachine {
             name: "<compiled>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            metadata: None,
         });
 
         // Create the initial call frame
@@ -129,7 +159,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Chunk::new("dummy"));
+        let result = self.run();
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -139,7 +169,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _chunk: &Chunk) -> Result {
+    pub(in crate::vm) fn run(&mut self) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
@@ -301,6 +331,24 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
+                OpCode::LoadModule => {
+                    if let Some(result) = self.fn_load_module(BitsSize::Eight) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::LoadModule2 => {
+                    if let Some(result) = self.fn_load_module(BitsSize::Sixteen) {
+                        return result;
+                    }
+                    continue;
+                }
+                OpCode::LoadModule4 => {
+                    if let Some(result) = self.fn_load_module(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                    continue;
+                }
             }
             self.current_frame_mut().ip += 1;
         }

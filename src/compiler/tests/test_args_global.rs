@@ -10,7 +10,7 @@ mod test_args_global {
         let ast = parser.parse().unwrap();
 
         let mut analyzer = SemanticAnalyzer::new();
-        let result = analyzer.analyze(&ast);
+        let result = analyzer.analyze(&ast, None);
 
         assert!(result.is_ok(), "args should be predefined as a built-in global");
     }
@@ -22,7 +22,7 @@ mod test_args_global {
         let ast = parser.parse().unwrap();
 
         let mut analyzer = SemanticAnalyzer::new();
-        let result = analyzer.analyze(&ast);
+        let result = analyzer.analyze(&ast, None);
 
         assert!(result.is_ok(), "args should be accessible");
     }

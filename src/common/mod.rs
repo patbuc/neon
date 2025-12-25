@@ -10,6 +10,7 @@ pub mod constants;
 pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
+pub(crate) mod module_types;
 pub(crate) mod opcodes;
 pub mod stdlib;
 pub mod string_similarity;
@@ -120,6 +121,8 @@ pub enum Object {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     #[serde(with = "serde_rc_str")]
     File(Rc<str>),
+    #[serde(with = "serde_rc")]
+    Module(Rc<ModuleState>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,6 +137,10 @@ pub struct ObjFunction {
     pub arity: u8,
     #[serde(with = "serde_rc")]
     pub chunk: Rc<Chunk>,
+    /// Module metadata - only present for module-level functions (top-level module code)
+    /// Regular user-defined functions within a module have None
+    #[serde(with = "option_serde_rc")]
+    pub metadata: Option<Rc<module_types::ModuleMetadata>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +154,14 @@ pub struct ObjInstance {
     #[serde(with = "serde_rc")]
     pub r#struct: Rc<ObjStruct>,
     pub fields: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ModuleState {
+    pub globals: Vec<Value>,
+    /// Module metadata containing exports and source path
+    #[serde(with = "serde_rc")]
+    pub metadata: Rc<module_types::ModuleMetadata>,
 }
 
 impl Value {
@@ -163,6 +178,7 @@ impl Value {
             name,
             arity,
             chunk: Rc::new(chunk),
+            metadata: None, // Regular functions don't have module metadata
         }))))
     }
 
@@ -180,6 +196,16 @@ impl Value {
 
     pub(crate) fn new_file(path: String) -> Self {
         Value::Object(Rc::new(Object::File(Rc::from(path))))
+    }
+
+    pub(crate) fn new_module(
+        globals: Vec<Value>,
+        metadata: Rc<module_types::ModuleMetadata>,
+    ) -> Self {
+        Value::Object(Rc::new(Object::Module(Rc::new(ModuleState {
+            globals,
+            metadata,
+        }))))
     }
 }
 
@@ -237,6 +263,7 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
+            Object::Module(module) => write!(f, "<module: {}>", module.metadata.source_path.display()),
         }
     }
 }
@@ -276,6 +303,13 @@ impl PartialEq for ObjInstance {
     fn eq(&self, other: &Self) -> bool {
         // Instances are equal if they point to the same struct and have same field values
         self.r#struct.name == other.r#struct.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ModuleState {
+    fn eq(&self, other: &Self) -> bool {
+        // Modules are equal if they have the same path
+        self.metadata.source_path == other.metadata.source_path
     }
 }
 
@@ -354,5 +388,29 @@ mod serde_rc_refcell {
         T: Deserialize<'de>,
     {
         T::deserialize(deserializer).map(|t| Rc::new(RefCell::new(t)))
+    }
+}
+
+mod option_serde_rc {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::rc::Rc;
+
+    pub fn serialize<S, T>(value: &Option<Rc<T>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        match value {
+            Some(rc) => serializer.serialize_some(rc.as_ref()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Option<Rc<T>>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        Option::<T>::deserialize(deserializer).map(|opt| opt.map(Rc::new))
     }
 }

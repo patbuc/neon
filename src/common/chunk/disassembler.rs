@@ -107,6 +107,9 @@ impl Chunk {
             OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
             OpCode::CreateRange => self.create_range_instruction(offset),
             OpCode::ToString => self.simple_instruction(OpCode::ToString, offset),
+            OpCode::LoadModule => self.load_module_instruction(OpCode::LoadModule, offset),
+            OpCode::LoadModule2 => self.load_module_instruction(OpCode::LoadModule2, offset),
+            OpCode::LoadModule4 => self.load_module_instruction(OpCode::LoadModule4, offset),
         }
     }
 
@@ -270,6 +273,19 @@ impl Chunk {
         let inclusive = self.read_u8(offset + 1);
         println!("CreateRange (inclusive: {})", inclusive != 0);
         offset + 2
+    }
+
+    fn load_module_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let (string_index, index_size) = match op_code {
+            OpCode::LoadModule => (self.read_u8(offset + 1) as usize, 1),
+            OpCode::LoadModule2 => (self.read_u16(offset + 1) as usize, 2),
+            OpCode::LoadModule4 => (self.read_u32(offset + 1) as usize, 4),
+            _ => panic!("Invalid opcode for load_module_instruction"),
+        };
+
+        let module_path = self.read_string(string_index);
+        println!("{:?} (path: '{}')", op_code, module_path);
+        offset + 1 + index_size
     }
 }
 
