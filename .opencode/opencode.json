@@ -4,8 +4,7 @@
     "tests": true,
     "clippy": true,
     "format": true,
-    "worktree_make": true,
-    "worktree_info": true
+    "worktree": true
   },
   "agent": {
     "build-feature": {

@@ -8,10 +8,13 @@ export default tool({
   async execute(args) {
     if (!args.workdir) throw new Error("workdir is required")
     const cmd = args.subset ? `cargo test ${args.subset}` : "cargo test"
-    const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
-    // Basic summary parsing for counts
-    const summaryMatch = output.match(/test result: ([^\n]+)/)
-    const summary = summaryMatch ? summaryMatch[1] : ""
-    return JSON.stringify({ summary, raw: output })
+    try {
+      const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
+      const summaryMatch = output.match(/test result: ([^\n]+)/)
+      const summary = summaryMatch ? summaryMatch[1] : ""
+      return JSON.stringify({ summary, raw: output })
+    } catch (e) {
+      return JSON.stringify({ summary: "", raw: e.toString(), error: true })
+    }
   },
 })

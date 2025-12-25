@@ -11,7 +11,7 @@ function slugify(input: string): string {
   return trimmed.length ? trimmed : "feature"
 }
 
-export const make = tool({
+export default tool({
   description: "Create or use a git worktree for feature/<slug>",
   args: {
     feature: tool.schema.string().describe("Human-readable feature description"),
@@ -42,19 +42,5 @@ export const make = tool({
     }
 
     return { slug, branch, worktreePath, created }
-  },
-})
-
-export const info = tool({
-  description: "Return standardized feature slug, branch, and worktree path",
-  args: {
-    feature: tool.schema.string().describe("Human-readable feature description"),
-    worktreesParent: tool.schema.string().describe("Absolute path where worktrees live"),
-  },
-  async execute(args) {
-    const slug = slugify(args.feature)
-    const branch = `feature/${slug}`
-    const worktreePath = `${args.worktreesParent}/${branch}`
-    return { slug, branch, worktreePath }
   },
 })

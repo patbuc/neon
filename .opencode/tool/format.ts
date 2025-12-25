@@ -8,7 +8,11 @@ export default tool({
   async execute(args) {
     if (!args.workdir) throw new Error("workdir is required")
     const cmd = args.check ? "cargo fmt -- --check" : "cargo fmt"
-    const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
-    return JSON.stringify({ raw: output, check: !!args.check })
+    try {
+      const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
+      return JSON.stringify({ raw: output, check: !!args.check })
+    } catch (e) {
+      return JSON.stringify({ raw: e.toString(), check: !!args.check, error: true })
+    }
   },
 })

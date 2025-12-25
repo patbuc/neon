@@ -9,7 +9,11 @@ export default tool({
     if (!args.workdir) throw new Error("workdir is required")
     const flags = "--all-targets --all-features"
     const cmd = args.fix ? `cargo clippy ${flags} --fix -Z unstable-options` : `cargo clippy ${flags}`
-    const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
-    return JSON.stringify({ raw: output, fixApplied: !!args.fix })
+    try {
+      const output = await Bun.$`${cmd}`.text({ cwd: args.workdir })
+      return JSON.stringify({ raw: output, fixApplied: !!args.fix })
+    } catch (e) {
+      return JSON.stringify({ raw: e.toString(), fixApplied: !!args.fix, error: true })
+    }
   },
 })
