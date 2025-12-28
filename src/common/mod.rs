@@ -12,14 +12,16 @@ pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
 pub mod stdlib;
+pub mod string_interner;
 pub mod string_similarity;
 #[cfg(test)]
 mod tests;
 
 // Forward declare VirtualMachine for NativeFn signature
-// We can't import VirtualMachine directly as it would create a circular dependency
-// The actual implementation will be in vm/mod.rs
-pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
+// We need the actual VM type here to avoid circular dependencies
+// The VM is needed for string interning and other runtime operations
+use crate::vm::VirtualMachine;
+pub(crate) type NativeFn = fn(&mut VirtualMachine, &[Value]) -> Result<Value, String>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Chunk {
@@ -249,6 +251,27 @@ impl PartialEq<Rc<str>> for ObjString {
 
 impl PartialEq for ObjString {
     fn eq(&self, other: &Self) -> bool {
+        // Fast path: O(1) pointer equality check for interned strings.
+        // Since all strings in Neon are interned through StringInterner,
+        // identical strings will have the same Rc<str> pointer. This
+        // optimization converts what would be an O(n) byte-by-byte
+        // comparison into an O(1) pointer comparison.
+        //
+        // Performance benefit: For strings of length n:
+        // - Pointer check: O(1) - just comparing two pointer addresses
+        // - Content check: O(n) - comparing each byte
+        //
+        // This is critical for performance in:
+        // - Map/Set key lookups with string keys
+        // - Equality operators (==, !=) in user code
+        // - String deduplication in the interner itself
+        if Rc::ptr_eq(&self.value, &other.value) {
+            return true;
+        }
+
+        // Slow path: O(n) content comparison.
+        // This fallback handles edge cases where strings might not be
+        // properly interned (should be rare in production, but defensive).
         self.value == other.value
     }
 }

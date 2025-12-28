@@ -1,10 +1,11 @@
-use crate::common::{ObjString, Object, Value};
+use crate::common::{Object, Value};
 use crate::{extract_arg, extract_receiver, extract_string_value};
-use std::rc::Rc;
+use crate::vm::VirtualMachine;
+use std::fs;
 
 /// Native implementation of File(path) constructor
 /// Creates a new File object with the given path
-pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
+pub fn native_file_constructor(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("File() expects 1 argument, got {}", args.len()));
     }
@@ -15,7 +16,7 @@ pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of File.read()
 /// Reads the entire contents of the file and returns it as a string
-pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
+pub fn native_file_read(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!(
             "read() expects 0 arguments (only receiver), got {}",
@@ -26,12 +27,10 @@ pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
     let file_path = extract_receiver!(args, File, "read")?;
 
     // Read the file contents using std::fs::read_to_string
-    match std::fs::read_to_string(file_path.as_ref()) {
+    match fs::read_to_string(file_path.as_ref()) {
         Ok(contents) => {
-            // Return the contents as a String value
-            Ok(Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::from(contents),
-            }))))
+            // Return the contents as a String value (interned)
+            Ok(vm.intern_string(&contents))
         }
         Err(e) => {
             // Return descriptive error message based on error kind
@@ -54,7 +53,7 @@ pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of File.readLines()
 /// Reads the file and returns an array of strings, one per line
 /// Line endings (\n, \r\n) are stripped from each line
-pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
+pub fn native_file_read_lines(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!(
             "readLines() expects 0 arguments (only receiver), got {}",
@@ -65,16 +64,12 @@ pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
     let file_path = extract_receiver!(args, File, "readLines")?;
 
     // Read the file contents using std::fs::read_to_string
-    match std::fs::read_to_string(file_path.as_ref()) {
+    match fs::read_to_string(file_path.as_ref()) {
         Ok(contents) => {
             // Split by lines - this automatically strips \n and \r\n line endings
             let lines: Vec<Value> = contents
                 .lines()
-                .map(|line| {
-                    Value::Object(Rc::new(Object::String(ObjString {
-                        value: Rc::from(line),
-                    })))
-                })
+                .map(|line| vm.intern_string(line))
                 .collect();
 
             // Return an array of string values
@@ -100,7 +95,7 @@ pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of File.write()
 /// Writes content to the file, fails if file already exists for safety
-pub fn native_file_write(args: &[Value]) -> Result<Value, String> {
+pub fn native_file_write(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "write() expects 1 argument, got {}",

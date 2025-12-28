@@ -1,10 +1,12 @@
 use crate::common::opcodes::OpCode;
+use crate::common::string_interner::StringInterner;
 use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -27,6 +29,7 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            string_interner: RefCell::new(StringInterner::new()),
         }
     }
 
@@ -56,7 +59,10 @@ impl VirtualMachine {
             return Result::CompileError;
         }
 
-        let chunk = chunk.unwrap();
+        let mut chunk = chunk.unwrap();
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
@@ -104,7 +110,7 @@ impl VirtualMachine {
     /// let chunk = Chunk::deserialize(&bytecode)?;
     /// let result = vm.execute_chunk(chunk);
     /// ```
-    pub fn execute_chunk(&mut self, chunk: Chunk) -> Result {
+    pub fn execute_chunk(&mut self, mut chunk: Chunk) -> Result {
         self.reset();
 
         // Use a placeholder for source since we're executing pre-compiled bytecode
@@ -112,6 +118,9 @@ impl VirtualMachine {
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         // Wrap the chunk in a function object
         let script_function = Rc::new(ObjFunction {
@@ -391,6 +400,49 @@ impl VirtualMachine {
             }
         } else {
             "unknown".to_string()
+        }
+    }
+
+    /// Interns a string using the VM's string interner and returns a Value::Object.
+    ///
+    /// This ensures that identical strings share the same memory location,
+    /// enabling fast pointer-equality checks and reducing memory usage.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The string to intern
+    ///
+    /// # Returns
+    ///
+    /// A Value::Object containing the interned string wrapped in ObjString
+    pub(crate) fn intern_string(&self, s: &str) -> Value {
+        let rc_str = self.string_interner.borrow_mut().intern(s);
+        Value::Object(Rc::new(crate::common::Object::String(
+            crate::common::ObjString { value: rc_str },
+        )))
+    }
+
+    /// Interns all string literals in a chunk's constant pool.
+    ///
+    /// This method walks through the chunk's string constants and replaces each
+    /// string with its interned version. This ensures that identical string literals
+    /// from the compiler share the same memory location, enabling fast pointer-equality
+    /// checks and reducing memory usage.
+    ///
+    /// Should be called once at chunk load time, before execution begins.
+    ///
+    /// # Arguments
+    ///
+    /// * `chunk` - The chunk whose string constants should be interned
+    pub(in crate::vm) fn intern_chunk(&mut self, chunk: &mut Chunk) {
+        for value in chunk.strings.values_mut() {
+            if let Value::Object(obj) = value {
+                if let common::Object::String(obj_string) = obj.as_ref() {
+                    // Extract the string content and intern it
+                    let string_content = obj_string.value.as_ref();
+                    *value = self.intern_string(string_content);
+                }
+            }
         }
     }
 

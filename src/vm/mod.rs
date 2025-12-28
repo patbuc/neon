@@ -1,4 +1,6 @@
+use crate::common::string_interner::StringInterner;
 use crate::common::{CallFrame, Chunk, Value};
+use std::cell::RefCell;
 use std::fmt::Debug;
 
 mod functions;
@@ -35,14 +37,20 @@ pub struct VirtualMachine {
     /// Used for for-in loops to track iteration progress
     /// Supports nested for-in loops by maintaining a stack of iterators
     iterator_stack: Vec<(usize, Value)>,
+    /// String interner for deduplicating string values
+    /// Uses RefCell to allow mutation during runtime operations
+    string_interner: RefCell<StringInterner>,
 }
 
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
+    pub(crate) fn run_chunk(&mut self, mut chunk: Chunk) -> Result {
         use crate::common::ObjFunction;
         use std::rc::Rc;
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {
