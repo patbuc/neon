@@ -1,9 +1,10 @@
 use crate::common::Value;
+use crate::vm::VirtualMachine;
 use crate::extract_arg;
 
 /// Native implementation of Math.abs(x)
 /// Returns the absolute value of a number
-pub fn native_math_abs(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_abs(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("abs() expects 1 argument, got {}", args.len()));
     }
@@ -14,7 +15,7 @@ pub fn native_math_abs(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Math.floor(x)
 /// Returns the largest integer less than or equal to a number
-pub fn native_math_floor(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_floor(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("floor() expects 1 argument, got {}", args.len()));
     }
@@ -25,7 +26,7 @@ pub fn native_math_floor(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Math.ceil(x)
 /// Returns the smallest integer greater than or equal to a number
-pub fn native_math_ceil(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_ceil(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("ceil() expects 1 argument, got {}", args.len()));
     }
@@ -36,7 +37,7 @@ pub fn native_math_ceil(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Math.sqrt(x)
 /// Returns the square root of a number
-pub fn native_math_sqrt(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_sqrt(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("sqrt() expects 1 argument, got {}", args.len()));
     }
@@ -50,7 +51,7 @@ pub fn native_math_sqrt(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Math.min(...args)
 /// Returns the smallest of the given numbers (variadic)
-pub fn native_math_min(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_min(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("min() requires at least 1 argument".to_string());
     }
@@ -69,7 +70,7 @@ pub fn native_math_min(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Math.max(...args)
 /// Returns the largest of the given numbers (variadic)
-pub fn native_math_max(args: &[Value]) -> Result<Value, String> {
+pub fn native_math_max(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("max() requires at least 1 argument".to_string());
     }

@@ -574,7 +574,7 @@ impl VirtualMachine {
         let receiver_index = stack_len - arg_count - 1;
         let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
 
-        let result = native_callable.function()(&args);
+        let result = native_callable.function()(self, &args);
 
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
@@ -1134,7 +1134,7 @@ impl VirtualMachine {
             self.handle_print_function(&args)
         } else {
             // Call the native function normally
-            native_callable.function()(&args)
+            native_callable.function()(self, &args)
         };
 
         // Clean up stack
@@ -1187,7 +1187,7 @@ impl VirtualMachine {
         let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
 
         // Call the constructor function
-        let result = native_callable.function()(&args);
+        let result = native_callable.function()(self, &args);
 
         // Clean up stack
         self.stack.drain(args_start..);

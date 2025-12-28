@@ -1,10 +1,10 @@
 use crate::common::{Object, Value};
 use crate::{extract_receiver, extract_arg, extract_string_value};
-use crate::string;
+use crate::vm::VirtualMachine;
 
 /// Native implementation of String.len()
 /// Returns the number of Unicode characters in the string
-pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_len(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("string.len() requires a string receiver".to_string());
     }
@@ -17,7 +17,7 @@ pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.substring(start, end)
 /// Returns a substring from start (inclusive) to end (exclusive)
 /// Handles negative indices and bounds checking
-pub fn native_string_substring(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_substring(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 3 {
         return Err(format!(
             "substring() expects 2 arguments (start, end), got {}",
@@ -51,17 +51,17 @@ pub fn native_string_substring(args: &[Value]) -> Result<Value, String> {
 
     // Return empty string if start > end
     if start_idx > end_idx {
-        return Ok(string!(String::new()));
+        return Ok(vm.intern_string(""));
     }
 
     // Extract substring
     let substring: String = chars[start_idx..end_idx].iter().collect();
-    Ok(string!(substring))
+    Ok(vm.intern_string(&substring))
 }
 
 /// Native implementation of String.replace(old, new)
 /// Returns a new string with all occurrences of old replaced with new
-pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_replace(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 3 {
         return Err(format!(
             "replace() expects 2 arguments (old, new), got {}",
@@ -80,13 +80,13 @@ pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
 
     // Perform replacement
     let result = obj_string.value.replace(old_str, new_str);
-    Ok(string!(result))
+    Ok(vm.intern_string(&result))
 }
 
 /// Native implementation of String.toInt()
 /// Parses the string as an integer and returns it as a Number
 /// Returns an error if the string cannot be parsed as an integer
-pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_to_int(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("toInt() requires a string receiver".to_string());
     }
@@ -108,7 +108,7 @@ pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.toFloat()
 /// Parses the string as a floating-point number and returns it as a Number
 /// Returns an error if the string cannot be parsed as a float
-pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_to_float(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("toFloat() requires a string receiver".to_string());
     }
@@ -130,7 +130,7 @@ pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.toBool()
 /// Parses the string as a boolean and returns it as a Boolean
 /// Accepts "true" or "false" (case-insensitive), returns an error for other input
-pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_to_bool(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("toBool() requires a string receiver".to_string());
     }
@@ -153,7 +153,7 @@ pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of String.split(delimiter)
 /// Returns an array of strings split by the delimiter
-pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_split(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "split() expects 1 argument (delimiter), got {}",
@@ -173,17 +173,17 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
         obj_string
             .value
             .chars()
-            .map(|c| string!(c.to_string()))
+            .map(|c| vm.intern_string(&c.to_string()))
             .collect()
     } else if !obj_string.value.contains(delimiter) {
         // Delimiter not found: return array with original string
-        vec![string!(obj_string.value.as_ref())]
+        vec![vm.intern_string(obj_string.value.as_ref())]
     } else {
         // Normal split
         obj_string
             .value
             .split(delimiter)
-            .map(|s| string!(s))
+            .map(|s| vm.intern_string(s))
             .collect()
     };
 
@@ -192,7 +192,7 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of String.trim()
 /// Returns a new string with leading and trailing whitespace removed
-pub fn native_string_trim(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_trim(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("trim() requires a string receiver".to_string());
     }
@@ -201,12 +201,12 @@ pub fn native_string_trim(args: &[Value]) -> Result<Value, String> {
     let obj_string = extract_receiver!(args, String, "trim")?;
 
     let trimmed = obj_string.value.trim();
-    Ok(string!(trimmed))
+    Ok(vm.intern_string(trimmed))
 }
 
 /// Native implementation of String.startsWith(prefix)
 /// Returns true if the string starts with the given prefix
-pub fn native_string_starts_with(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_starts_with(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "startsWith() expects 1 argument (prefix), got {}",
@@ -225,7 +225,7 @@ pub fn native_string_starts_with(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of String.endsWith(suffix)
 /// Returns true if the string ends with the given suffix
-pub fn native_string_ends_with(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_ends_with(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "endsWith() expects 1 argument (suffix), got {}",
@@ -244,7 +244,7 @@ pub fn native_string_ends_with(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of String.indexOf(substring)
 /// Returns the index of the first occurrence of substring, or -1 if not found
-pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_index_of(_vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "indexOf() expects 1 argument (substring), got {}",
@@ -277,7 +277,7 @@ pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of String.charAt(index)
 /// Returns the character at the given index as a string of length 1
-pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_char_at(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "charAt() expects 1 argument (index), got {}",
@@ -309,12 +309,12 @@ pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    Ok(string!(chars[index].to_string()))
+    Ok(vm.intern_string(&chars[index].to_string()))
 }
 
 /// Native implementation of String.toUpperCase()
 /// Returns a new string with all characters converted to uppercase
-pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_to_upper_case(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("toUpperCase() requires a string receiver".to_string());
     }
@@ -323,12 +323,12 @@ pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
     let obj_string = extract_receiver!(args, String, "toUpperCase")?;
 
     let uppercase = obj_string.value.to_uppercase();
-    Ok(string!(uppercase))
+    Ok(vm.intern_string(&uppercase))
 }
 
 /// Native implementation of String.toLowerCase()
 /// Returns a new string with all characters converted to lowercase
-pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_to_lower_case(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("toLowerCase() requires a string receiver".to_string());
     }
@@ -337,5 +337,5 @@ pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
     let obj_string = extract_receiver!(args, String, "toLowerCase")?;
 
     let lowercase = obj_string.value.to_lowercase();
-    Ok(string!(lowercase))
+    Ok(vm.intern_string(&lowercase))
 }

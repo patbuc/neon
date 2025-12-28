@@ -18,9 +18,10 @@ pub mod string_similarity;
 mod tests;
 
 // Forward declare VirtualMachine for NativeFn signature
-// We can't import VirtualMachine directly as it would create a circular dependency
-// The actual implementation will be in vm/mod.rs
-pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
+// We need the actual VM type here to avoid circular dependencies
+// The VM is needed for string interning and other runtime operations
+use crate::vm::VirtualMachine;
+pub(crate) type NativeFn = fn(&mut VirtualMachine, &[Value]) -> Result<Value, String>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Chunk {
