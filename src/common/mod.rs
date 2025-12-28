@@ -12,6 +12,7 @@ pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
 pub mod stdlib;
+pub mod string_interner;
 pub mod string_similarity;
 #[cfg(test)]
 mod tests;
@@ -249,6 +250,11 @@ impl PartialEq<Rc<str>> for ObjString {
 
 impl PartialEq for ObjString {
     fn eq(&self, other: &Self) -> bool {
+        // Fast path: pointer equality check for interned strings
+        if Rc::ptr_eq(&self.value, &other.value) {
+            return true;
+        }
+        // Slow path: content comparison
         self.value == other.value
     }
 }

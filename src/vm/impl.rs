@@ -1,10 +1,12 @@
 use crate::common::opcodes::OpCode;
+use crate::common::string_interner::StringInterner;
 use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -27,6 +29,7 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            string_interner: RefCell::new(StringInterner::new()),
         }
     }
 
