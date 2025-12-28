@@ -251,11 +251,27 @@ impl PartialEq<Rc<str>> for ObjString {
 
 impl PartialEq for ObjString {
     fn eq(&self, other: &Self) -> bool {
-        // Fast path: pointer equality check for interned strings
+        // Fast path: O(1) pointer equality check for interned strings.
+        // Since all strings in Neon are interned through StringInterner,
+        // identical strings will have the same Rc<str> pointer. This
+        // optimization converts what would be an O(n) byte-by-byte
+        // comparison into an O(1) pointer comparison.
+        //
+        // Performance benefit: For strings of length n:
+        // - Pointer check: O(1) - just comparing two pointer addresses
+        // - Content check: O(n) - comparing each byte
+        //
+        // This is critical for performance in:
+        // - Map/Set key lookups with string keys
+        // - Equality operators (==, !=) in user code
+        // - String deduplication in the interner itself
         if Rc::ptr_eq(&self.value, &other.value) {
             return true;
         }
-        // Slow path: content comparison
+
+        // Slow path: O(n) content comparison.
+        // This fallback handles edge cases where strings might not be
+        // properly interned (should be rare in production, but defensive).
         self.value == other.value
     }
 }

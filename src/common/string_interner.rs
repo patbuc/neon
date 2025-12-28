@@ -4,16 +4,55 @@ use std::rc::Rc;
 /// StringInterner manages a pool of unique string values to reduce memory usage
 /// and enable fast string equality comparisons via pointer equality.
 ///
-/// When a string is interned, the interner:
-/// 1. Checks if an identical string already exists in the pool
-/// 2. If it exists, returns a reference to the existing string (Rc<str>)
-/// 3. If it's new, stores it in the pool and returns a new reference
+/// # Overview
 ///
-/// This ensures that identical strings share the same memory location,
-/// allowing for O(1) pointer equality checks instead of O(n) content comparison.
+/// String interning is a memory optimization technique where identical string values
+/// share the same memory location. The interner maintains a pool of unique strings
+/// and returns references (Rc<str>) to these shared instances.
+///
+/// # Design Rationale
+///
+/// **HashMap-based storage**: The interner uses `HashMap<String, Rc<str>>` where:
+/// - The key is a String for O(1) average-case lookups during interning
+/// - The value is Rc<str> for efficient cloning (just incrementing reference count)
+/// - This design trades some memory overhead for fast lookups and sharing
+///
+/// **Per-VM isolation**: Each VM instance has its own StringInterner because:
+/// - Strings are specific to a VM's execution context
+/// - Per-VM isolation avoids thread-safety concerns (single-threaded VMs)
+/// - Enables independent VM lifecycle management without global state
+/// - Prevents memory leaks when VMs are destroyed
+///
+/// # Performance Characteristics
+///
+/// - **Interning**: O(1) average case (HashMap lookup + optional insert)
+/// - **String equality**: O(1) when both strings are interned (pointer comparison)
+/// - **Memory deduplication**: Identical strings share one allocation
+/// - **Reference counting overhead**: Small cost per Rc clone (atomic increment)
+///
+/// # Usage Pattern
+///
+/// All string creation in Neon flows through the interner:
+/// - String literals from bytecode chunks
+/// - Runtime string operations (concatenation, substring, etc.)
+/// - Standard library functions that return strings
+/// - User input and I/O operations
+///
+/// This ensures that string equality comparisons (==) benefit from pointer equality
+/// checks in ObjString::PartialEq, providing O(1) comparison for identical strings.
+///
+/// # Example
+///
+/// ```ignore
+/// let mut interner = StringInterner::new();
+/// let s1 = interner.intern("hello");
+/// let s2 = interner.intern("hello");
+/// assert!(Rc::ptr_eq(&s1, &s2)); // Same pointer, O(1) equality
+/// ```
 #[derive(Debug, Default)]
 pub struct StringInterner {
-    /// Maps string content to its interned Rc<str> representation
+    /// Maps string content to its interned Rc<str> representation.
+    /// The String key enables fast lookups, while Rc<str> values are cheap to clone.
     pool: HashMap<String, Rc<str>>,
 }
 
@@ -22,6 +61,32 @@ impl StringInterner {
     pub fn new() -> Self {
         StringInterner {
             pool: HashMap::new(),
+        }
+    }
+
+    /// Creates a new StringInterner with pre-allocated capacity for the specified
+    /// number of unique strings.
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - The initial capacity for the internal HashMap
+    ///
+    /// # Performance
+    ///
+    /// Pre-allocating capacity can reduce allocations and improve performance
+    /// when you know approximately how many unique strings will be interned.
+    /// This is particularly useful when loading large bytecode chunks with
+    /// many string constants.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // If loading a chunk with 1000 string constants
+    /// let mut interner = StringInterner::with_capacity(1000);
+    /// ```
+    pub fn with_capacity(capacity: usize) -> Self {
+        StringInterner {
+            pool: HashMap::with_capacity(capacity),
         }
     }
 
