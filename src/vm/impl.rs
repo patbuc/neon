@@ -397,6 +397,25 @@ impl VirtualMachine {
         }
     }
 
+    /// Interns a string using the VM's string interner and returns a Value::Object.
+    ///
+    /// This ensures that identical strings share the same memory location,
+    /// enabling fast pointer-equality checks and reducing memory usage.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The string to intern
+    ///
+    /// # Returns
+    ///
+    /// A Value::Object containing the interned string wrapped in ObjString
+    pub(crate) fn intern_string(&self, s: &str) -> Value {
+        let rc_str = self.string_interner.borrow_mut().intern(s);
+        Value::Object(Rc::new(crate::common::Object::String(
+            crate::common::ObjString { value: rc_str },
+        )))
+    }
+
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();

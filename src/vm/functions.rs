@@ -2,7 +2,7 @@ use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, number, string};
+use crate::{as_number, boolean, is_false_like, number};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -10,7 +10,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_to_string(&mut self) {
         let value = self.pop();
-        let string_value = string!(value.to_string());
+        let string_value = self.intern_string(&value.to_string());
         self.push(string_value);
     }
 
@@ -247,7 +247,7 @@ impl VirtualMachine {
                 let mut combined = String::with_capacity(obj_a.value.len() + obj_b.value.len());
                 combined.push_str(&obj_a.value);
                 combined.push_str(&obj_b.value);
-                self.push(string!(combined));
+                self.push(self.intern_string(&combined));
                 None
             }
             _ => {
