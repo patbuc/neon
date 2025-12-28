@@ -30,4 +30,10 @@ impl Constants {
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
+
+    /// Returns a mutable iterator over the values in the constant pool.
+    /// This allows in-place modification of values, used for string interning.
+    pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
+        self.values.iter_mut()
+    }
 }

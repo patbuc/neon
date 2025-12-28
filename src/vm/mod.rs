@@ -45,9 +45,12 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
+    pub(crate) fn run_chunk(&mut self, mut chunk: Chunk) -> Result {
         use crate::common::ObjFunction;
         use std::rc::Rc;
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {

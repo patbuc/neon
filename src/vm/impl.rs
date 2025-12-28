@@ -59,7 +59,10 @@ impl VirtualMachine {
             return Result::CompileError;
         }
 
-        let chunk = chunk.unwrap();
+        let mut chunk = chunk.unwrap();
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
@@ -107,7 +110,7 @@ impl VirtualMachine {
     /// let chunk = Chunk::deserialize(&bytecode)?;
     /// let result = vm.execute_chunk(chunk);
     /// ```
-    pub fn execute_chunk(&mut self, chunk: Chunk) -> Result {
+    pub fn execute_chunk(&mut self, mut chunk: Chunk) -> Result {
         self.reset();
 
         // Use a placeholder for source since we're executing pre-compiled bytecode
@@ -115,6 +118,9 @@ impl VirtualMachine {
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
+
+        // Intern all string literals in the chunk before execution
+        self.intern_chunk(&mut chunk);
 
         // Wrap the chunk in a function object
         let script_function = Rc::new(ObjFunction {
@@ -414,6 +420,30 @@ impl VirtualMachine {
         Value::Object(Rc::new(crate::common::Object::String(
             crate::common::ObjString { value: rc_str },
         )))
+    }
+
+    /// Interns all string literals in a chunk's constant pool.
+    ///
+    /// This method walks through the chunk's string constants and replaces each
+    /// string with its interned version. This ensures that identical string literals
+    /// from the compiler share the same memory location, enabling fast pointer-equality
+    /// checks and reducing memory usage.
+    ///
+    /// Should be called once at chunk load time, before execution begins.
+    ///
+    /// # Arguments
+    ///
+    /// * `chunk` - The chunk whose string constants should be interned
+    pub(in crate::vm) fn intern_chunk(&mut self, chunk: &mut Chunk) {
+        for value in chunk.strings.values_mut() {
+            if let Value::Object(obj) = value {
+                if let common::Object::String(obj_string) = obj.as_ref() {
+                    // Extract the string content and intern it
+                    let string_content = obj_string.value.as_ref();
+                    *value = self.intern_string(string_content);
+                }
+            }
+        }
     }
 
     fn reset(&mut self) {
