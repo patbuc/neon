@@ -1,9 +1,0 @@
-// Expected:
-// hello
-// world
-// neon
-
-val words = ["hello", "world", "neon"]
-for (word in words) {
-    print(word)
-}

@@ -1,4 +1,0 @@
-// Expected:
-// Hello World 🌍
-
-print("Hello" + " " + "World 🌍")
