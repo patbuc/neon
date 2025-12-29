@@ -1,2 +1,0 @@
-val name = "World"
-print("Hello ${name}\!")
