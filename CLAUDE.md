@@ -248,7 +248,7 @@ fn native_print(args: &[Value]) -> Result<Value, RuntimeError> {
 
 **Example**: `while` loop
 
-**Steps**:
+**Steps**:/
 
 1. **Lexer** - Add `TokenKind::While` keyword
 2. **Parser** - Parse condition and body into AST node
@@ -596,7 +596,7 @@ This project has a sophisticated multi-agent orchestration system in `.claude/`:
 - Use `/build-feature` for end-to-end automation
 - Manual workflow gives more control: plan → implement → test → PR
 
-See `.claude/ORCHESTRATION.md` for complete documentation.
+See `.claude/README.md` for complete documentation.
 
 ## Summary
 
