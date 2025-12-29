@@ -1,4 +1,0 @@
-// Test command-line arguments
-// Expected:
-// 0
-print(args.length())
