@@ -257,8 +257,7 @@ impl Parser {
                 return;
             }
             match self.current_token.token_type {
-                TokenType::Class
-                | TokenType::Fn
+                TokenType::Fn
                 | TokenType::Struct
                 | TokenType::Val
                 | TokenType::Var
