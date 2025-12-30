@@ -1,6 +1,8 @@
 use crate::common::{Bloq, CallFrame, Value};
 use std::fmt::Debug;
 
+pub mod debug;
+pub mod debugger;
 mod functions;
 mod r#impl;
 #[cfg(test)]
@@ -30,6 +32,7 @@ pub struct VirtualMachine {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     source: String,
+    debug_handler: Option<Box<dyn debug::DebugHandler>>,
 }
 
 // Test-only methods

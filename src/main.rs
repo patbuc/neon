@@ -5,7 +5,27 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
+use neon::vm::debug::DebugHandler;
+use neon::vm::debugger::CliDebugger;
 use neon::vm::{Result, VirtualMachine};
+
+/// Extracts the --debug flag from command line arguments.
+///
+/// Returns (debug_enabled, remaining_args) where remaining_args excludes all --debug flags.
+fn extract_debug_flag(args: &[String]) -> (bool, Vec<String>) {
+    let mut debug_enabled = false;
+    let mut remaining = Vec::new();
+
+    for arg in args {
+        if arg == "--debug" {
+            debug_enabled = true;
+        } else {
+            remaining.push(arg.clone());
+        }
+    }
+
+    (debug_enabled, remaining)
+}
 
 fn main() {
     setup_logging();
@@ -13,10 +33,19 @@ fn main() {
     print_tagline();
 
     let args: Vec<String> = env::args().collect();
-    if args.len() == 1 {
-        run_repl();
-    } else if args.len() >= 2 {
-        run_file(&args[1]);
+    let (debug_enabled, remaining_args) = extract_debug_flag(&args);
+
+    // Create debug handler if --debug flag is present
+    let debug_handler: Option<Box<dyn DebugHandler>> = if debug_enabled {
+        Some(Box::new(CliDebugger::new()))
+    } else {
+        None
+    };
+
+    if remaining_args.len() == 1 {
+        run_repl(debug_handler);
+    } else if remaining_args.len() >= 2 {
+        run_file(&remaining_args[1], debug_handler);
     } else {
         exit(64);
     }
@@ -46,10 +75,10 @@ fn print_tagline() {
     );
 }
 
-fn run_repl() {
+fn run_repl(debug_handler: Option<Box<dyn DebugHandler>>) {
     println!("Type 'exit' or Ctrl+C to quit");
 
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::with_args_and_debug(vec![], debug_handler);
     loop {
         print_prompt();
         let line = read_line();
@@ -83,11 +112,11 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn run_file(path: &String) {
+fn run_file(path: &String, debug_handler: Option<Box<dyn DebugHandler>>) {
     println!("Running file: {} ", path);
 
     let source = read_file(path);
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::with_args_and_debug(vec![], debug_handler);
 
     let result: Result = vm.interpret(source);
     match result {
