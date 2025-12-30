@@ -1,6 +1,7 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, Bloq, CallFrame, ObjFunction, Value};
 use crate::compiler::Compiler;
+use crate::vm::debug::{DebugCommand, DebugContext};
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, nil};
 use std::rc::Rc;
@@ -16,6 +17,17 @@ impl Default for VirtualMachine {
 
 impl VirtualMachine {
     pub fn new() -> Self {
+        Self::with_args_and_debug(vec![], None)
+    }
+
+    pub fn with_args(args: Vec<String>) -> Self {
+        Self::with_args_and_debug(args, None)
+    }
+
+    pub fn with_args_and_debug(
+        _args: Vec<String>,
+        debug_handler: Option<Box<dyn crate::vm::debug::DebugHandler>>,
+    ) -> Self {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
@@ -25,6 +37,7 @@ impl VirtualMachine {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
             source: String::new(),
+            debug_handler,
         }
     }
 
@@ -88,7 +101,32 @@ impl VirtualMachine {
         loop {
             let frame = self.call_frames.last_mut().unwrap();
             let ip = frame.ip;
+            let slot_start = frame.slot_start;
             let op_code = OpCode::from_u8(frame.function.bloq.read_u8(ip));
+
+            // Debug hook: call the debug handler if present
+            if let Some(handler) = &mut self.debug_handler {
+                let context = DebugContext {
+                    call_frames: &self.call_frames,
+                    stack: &self.stack,
+                    current_ip: ip,
+                    slot_start,
+                };
+
+                match handler.on_step(&context) {
+                    DebugCommand::Step => {
+                        // Continue to next instruction
+                    }
+                    DebugCommand::Continue => {
+                        // Disable debugger and continue execution
+                        self.debug_handler = None;
+                    }
+                    DebugCommand::Quit => {
+                        // Exit execution
+                        return Result::RuntimeError;
+                    }
+                }
+            }
 
             // Track whether we should increment IP at the end
             let mut should_increment_ip = true;

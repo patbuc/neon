@@ -119,6 +119,7 @@ impl Value {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct CallFrame {
     pub function: Rc<ObjFunction>,
     pub ip: usize,
