@@ -7,14 +7,14 @@ pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
 pub(crate) mod symbol_table;
-mod token;
+pub mod token;
 
 #[cfg(test)]
 mod tests;
 
-// Scanner and Token types used by ast_parser
+// Scanner and Token types used by ast_parser and LSP
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Token {
+pub struct Token {
     pub token_type: TokenType,
     pub token: String,
     pub column: u32,
@@ -23,7 +23,7 @@ pub(crate) struct Token {
 }
 
 #[derive(Debug)]
-pub(crate) struct Scanner {
+pub struct Scanner {
     source: Vec<char>,
     start: usize,
     current: usize,

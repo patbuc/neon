@@ -5,6 +5,7 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
+use neon::lsp::run_lsp_server;
 use neon::vm::{Result, VirtualMachine};
 
 fn main() {
@@ -19,6 +20,9 @@ fn main() {
         match args[1].as_str() {
             "help" | "--help" | "-h" => {
                 print_help();
+            }
+            "lsp" => {
+                run_lsp();
             }
             _ => {
                 // Auto-detection: check if the file has .nbc extension
@@ -122,6 +126,21 @@ fn read_file(path: &str) -> String {
     contents
 }
 
+fn run_lsp() {
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Failed to create tokio runtime: {}", e);
+            exit(1);
+        }
+    };
+
+    if let Err(e) = runtime.block_on(run_lsp_server()) {
+        eprintln!("LSP server error: {}", e);
+        exit(1);
+    }
+}
+
 fn print_help() {
     println!(
         "Neon {} - a toy language you didn't wait for",
@@ -136,6 +155,7 @@ fn print_help() {
     println!("                          Compile source to binary");
     println!("  neon run <file.nbc> [args...]");
     println!("                          Execute compiled binary");
+    println!("  neon lsp                Start the language server");
     println!("  neon help               Show this help message");
     println!();
     println!("Examples:");
