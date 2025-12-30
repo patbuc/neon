@@ -1,5 +1,6 @@
 pub mod common;
 pub mod compiler;
+pub mod lsp;
 pub mod macros;
 pub mod vm;
 

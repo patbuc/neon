@@ -5,14 +5,28 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
+use neon::lsp::run_lsp_server;
 use neon::vm::{Result, VirtualMachine};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // Handle LSP subcommand before logging setup (LSP uses stdout for protocol)
+    if args.len() >= 2 && args[1] == "lsp" {
+        run_lsp();
+        return;
+    }
+
+    // Handle help subcommand
+    if args.len() >= 2 && (args[1] == "--help" || args[1] == "-h" || args[1] == "help") {
+        print_help();
+        return;
+    }
+
     setup_logging();
 
     print_tagline();
 
-    let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
         run_repl();
     } else if args.len() >= 2 {
@@ -110,4 +124,38 @@ fn read_file(path: &str) -> String {
     file.read_to_string(&mut contents)
         .unwrap_or_else(|_| panic!("Failed to read the file {}", path));
     contents
+}
+
+fn run_lsp() {
+    // Create tokio runtime for async LSP server
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Failed to create tokio runtime: {}", e);
+            exit(1);
+        }
+    };
+
+    // Run the LSP server
+    if let Err(e) = runtime.block_on(run_lsp_server()) {
+        eprintln!("LSP server error: {}", e);
+        exit(1);
+    }
+}
+
+fn print_help() {
+    println!("✨ neon {} - a toy language you didn't wait for", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("USAGE:");
+    println!("    neon                 Start the interactive REPL");
+    println!("    neon <file>          Run a Neon source file");
+    println!("    neon lsp             Start the Language Server Protocol server");
+    println!("    neon --help          Show this help message");
+    println!();
+    println!("EXAMPLES:");
+    println!("    neon                 # Start REPL");
+    println!("    neon script.n        # Run script.n");
+    println!("    neon lsp             # Start LSP server for editor integration");
+    println!();
+    println!("For more information, visit: https://github.com/patbuc/neon");
 }
