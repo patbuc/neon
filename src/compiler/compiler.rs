@@ -4,15 +4,21 @@ use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
 
+impl Default for Compiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Compiler {
-    pub(crate) fn new() -> Compiler {
+    pub fn new() -> Compiler {
         Compiler {
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
         }
     }
 
-    pub(crate) fn compile(&mut self, source: &str) -> Option<Bloq> {
+    pub fn compile(&mut self, source: &str) -> Option<Bloq> {
         // Multi-pass compilation:
         // Pass 1: Parse source into AST
         // Pass 2: Semantic analysis

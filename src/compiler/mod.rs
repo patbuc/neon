@@ -7,14 +7,14 @@ pub(crate) mod parser;
 mod scanner;
 pub(crate) mod semantic;
 pub(crate) mod symbol_table;
-mod token;
+pub mod token;
 
 #[cfg(test)]
 mod tests;
 
-// Scanner and Token types used by ast_parser
+// Scanner and Token types used by ast_parser and LSP
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Token {
+pub struct Token {
     pub token_type: TokenType,
     pub token: String,
     pub column: u32,
@@ -23,7 +23,7 @@ pub(crate) struct Token {
 }
 
 #[derive(Debug)]
-pub(crate) struct Scanner {
+pub struct Scanner {
     source: Vec<char>,
     start: usize,
     current: usize,
@@ -34,17 +34,17 @@ pub(crate) struct Scanner {
 }
 
 #[derive(Debug)]
-pub(crate) struct Compiler {
+pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
 }
 
 impl Compiler {
-    pub(crate) fn get_compilation_errors(&self) -> String {
+    pub fn get_compilation_errors(&self) -> String {
         self.compilation_errors.clone()
     }
 
-    pub(crate) fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
+    pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
     }
 }

@@ -32,7 +32,7 @@ struct Constants {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct SourceLocation {
+pub struct SourceLocation {
     pub offset: usize,
     pub line: u32,
     pub column: u32,
