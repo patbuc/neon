@@ -5,16 +5,25 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
+use neon::vm::debug::DebugHandler;
+use neon::vm::debugger::CliDebugger;
 use neon::vm::{Result, VirtualMachine};
 
 fn main() {
     setup_logging();
 
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = env::args().collect();
+    let debug_handler: Option<Box<dyn DebugHandler>> =
+        if args.get(1).is_some_and(|arg| arg == "--debug") {
+            args.remove(1);
+            Some(Box::new(CliDebugger::new()))
+        } else {
+            None
+        };
 
     if args.len() == 1 {
         print_tagline();
-        run_repl();
+        run_repl(debug_handler);
     } else if args.len() >= 2 {
         match args[1].as_str() {
             "help" | "--help" | "-h" => {
@@ -25,7 +34,7 @@ fn main() {
                 let file_path = &args[1];
                 // Interpret as source
                 let script_args = args[2..].to_vec();
-                run_file(file_path, script_args);
+                run_file(file_path, script_args, debug_handler);
             }
         }
     }
@@ -55,11 +64,11 @@ fn print_tagline() {
     );
 }
 
-fn run_repl() {
+fn run_repl(debug_handler: Option<Box<dyn DebugHandler>>) {
     println!("Type 'exit' or Ctrl+C to quit");
 
     // REPL has no command-line arguments
-    let mut vm = VirtualMachine::new();
+    let mut vm = VirtualMachine::with_args_and_debug(vec![], debug_handler);
     loop {
         print_prompt();
         let line = read_line();
@@ -93,11 +102,11 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn run_file(path: &String, args: Vec<String>) {
+fn run_file(path: &String, args: Vec<String>, debug_handler: Option<Box<dyn DebugHandler>>) {
     println!("Running file: {} ", path);
 
     let source = read_file(path);
-    let mut vm = VirtualMachine::with_args(args);
+    let mut vm = VirtualMachine::with_args_and_debug(args, debug_handler);
 
     let result: Result = vm.interpret(source);
     match result {
@@ -131,6 +140,7 @@ fn print_help() {
     println!("Usage:");
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n>           Interpret source file");
+    println!("  neon --debug <file.n>   Interpret source file in the step-through debugger");
     println!("  neon <file.nbc>         Execute compiled binary");
     println!("  neon compile <input.n> [-o <output.nbc>]");
     println!("                          Compile source to binary");
@@ -140,6 +150,7 @@ fn print_help() {
     println!();
     println!("Examples:");
     println!("  neon script.n           # Interpret script.n");
+    println!("  neon --debug script.n   # Step through script.n instruction by instruction");
     println!("  neon compile script.n   # Compile to script.nbc");
     println!("  neon script.nbc         # Execute compiled binary");
     println!("  neon run script.nbc arg1 arg2  # Execute with arguments");

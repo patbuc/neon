@@ -1,6 +1,8 @@
 use crate::common::{CallFrame, Chunk, Value};
 use std::fmt::Debug;
 
+pub mod debug;
+pub mod debugger;
 mod functions;
 mod r#impl;
 #[cfg(test)]
@@ -35,6 +37,7 @@ pub struct VirtualMachine {
     /// Used for for-in loops to track iteration progress
     /// Supports nested for-in loops by maintaining a stack of iterators
     iterator_stack: Vec<(usize, Value)>,
+    debug_handler: Option<Box<dyn debug::DebugHandler>>,
 }
 
 // Test-only methods

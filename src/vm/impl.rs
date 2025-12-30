@@ -1,6 +1,7 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
 use crate::compiler::Compiler;
+use crate::vm::debug::{DebugCommand, DebugContext, DebugHandler};
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
@@ -15,6 +16,13 @@ impl Default for VirtualMachine {
 
 impl VirtualMachine {
     pub fn with_args(args: Vec<String>) -> Self {
+        Self::with_args_and_debug(args, None)
+    }
+
+    pub fn with_args_and_debug(
+        args: Vec<String>,
+        debug_handler: Option<Box<dyn DebugHandler>>,
+    ) -> Self {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
@@ -27,6 +35,7 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            debug_handler,
         }
     }
 
@@ -146,6 +155,21 @@ impl VirtualMachine {
             frame.function.chunk.disassemble_chunk();
         }
         loop {
+            if let Some(handler) = &mut self.debug_handler {
+                let frame = self.call_frames.last().unwrap();
+                let context = DebugContext {
+                    call_frames: &self.call_frames,
+                    stack: &self.stack,
+                    current_ip: frame.ip,
+                    slot_start: frame.slot_start,
+                };
+                match handler.on_step(&context) {
+                    DebugCommand::Step => {}
+                    DebugCommand::Continue => self.debug_handler = None,
+                    DebugCommand::Quit => return Result::RuntimeError,
+                }
+            }
+
             let op_code = {
                 let frame = self.current_frame();
                 let ip = frame.ip;
