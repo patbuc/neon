@@ -2,7 +2,7 @@
 
 # ✨ Neon
 
-A toy language you didn't wait for
+A toy language you didn't wait for!
 
 ## Why
 
