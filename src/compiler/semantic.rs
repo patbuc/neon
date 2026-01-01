@@ -166,17 +166,17 @@ impl SemanticAnalyzer {
             Expr::Nil { .. } => Some("Nil".to_string()),
 
             // Variable lookup
-            Expr::Variable { name, .. } => {
-                self.type_env.get(name).cloned()
-            }
+            Expr::Variable { name, .. } => self.type_env.get(name).cloned(),
 
             // Grouping - infer from inner expression
-            Expr::Grouping { expr, .. } => {
-                self.infer_expr_type(expr)
-            }
+            Expr::Grouping { expr, .. } => self.infer_expr_type(expr),
 
             // Call expression
-            Expr::Call { callee, arguments: _, .. } => {
+            Expr::Call {
+                callee,
+                arguments: _,
+                ..
+            } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // This is a method call obj.method(args)
@@ -206,7 +206,12 @@ impl SemanticAnalyzer {
             }
 
             // Binary operations - basic type inference
-            Expr::Binary { operator, left, right, .. } => {
+            Expr::Binary {
+                operator,
+                left,
+                right,
+                ..
+            } => {
                 use crate::compiler::ast::BinaryOp;
                 match operator {
                     BinaryOp::Add => {
@@ -224,14 +229,22 @@ impl SemanticAnalyzer {
                         // Otherwise, assume numeric addition
                         Some("Number".to_string())
                     }
-                    BinaryOp::Subtract | BinaryOp::Multiply |
-                    BinaryOp::Divide | BinaryOp::FloorDivide | BinaryOp::Modulo => {
+                    BinaryOp::Subtract
+                    | BinaryOp::Multiply
+                    | BinaryOp::Divide
+                    | BinaryOp::FloorDivide
+                    | BinaryOp::Modulo => {
                         // Arithmetic operations return Number
                         Some("Number".to_string())
                     }
-                    BinaryOp::Equal | BinaryOp::NotEqual | BinaryOp::Greater |
-                    BinaryOp::GreaterEqual | BinaryOp::Less | BinaryOp::LessEqual |
-                    BinaryOp::And | BinaryOp::Or => {
+                    BinaryOp::Equal
+                    | BinaryOp::NotEqual
+                    | BinaryOp::Greater
+                    | BinaryOp::GreaterEqual
+                    | BinaryOp::Less
+                    | BinaryOp::LessEqual
+                    | BinaryOp::And
+                    | BinaryOp::Or => {
                         // Comparison and logical operations return Boolean
                         Some("Boolean".to_string())
                     }
@@ -286,13 +299,26 @@ impl SemanticAnalyzer {
 
     fn resolve_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Val { name, initializer, location } => {
+            Stmt::Val {
+                name,
+                initializer,
+                location,
+            } => {
                 self.resolve_val_declaration(name, initializer.as_ref(), *location);
             }
-            Stmt::Var { name, initializer, location } => {
+            Stmt::Var {
+                name,
+                initializer,
+                location,
+            } => {
                 self.resolve_var_declaration(name, initializer.as_ref(), *location);
             }
-            Stmt::Fn { params, body, location, .. } => {
+            Stmt::Fn {
+                params,
+                body,
+                location,
+                ..
+            } => {
                 self.resolve_function_declaration(params, body, *location);
             }
             Stmt::Struct { .. } => {
@@ -304,10 +330,21 @@ impl SemanticAnalyzer {
             Stmt::Block { statements, .. } => {
                 self.resolve_block_statement(statements);
             }
-            Stmt::If { condition, then_branch, else_branch, .. } => {
-                self.resolve_if_statement(condition, then_branch, else_branch.as_ref().map(|v| &**v));
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.resolve_if_statement(
+                    condition,
+                    then_branch,
+                    else_branch.as_ref().map(|v| &**v),
+                );
             }
-            Stmt::While { condition, body, .. } => {
+            Stmt::While {
+                condition, body, ..
+            } => {
                 self.resolve_while_statement(condition, body);
             }
             Stmt::Return { value, .. } => {
@@ -319,7 +356,12 @@ impl SemanticAnalyzer {
             Stmt::Continue { location } => {
                 self.validate_continue_statement(*location);
             }
-            Stmt::ForIn { variable, collection, body, location } => {
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                location,
+            } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
             }
         }
@@ -336,22 +378,44 @@ impl SemanticAnalyzer {
             Expr::Variable { name, location } => {
                 self.resolve_variable(name, *location);
             }
-            Expr::Assign { name, value, location } => {
+            Expr::Assign {
+                name,
+                value,
+                location,
+            } => {
                 self.resolve_assignment(name, value, *location);
             }
-            Expr::Binary { left, right, operator, location } => {
+            Expr::Binary {
+                left,
+                right,
+                operator,
+                location,
+            } => {
                 self.resolve_binary_expr(left, right, operator, *location);
             }
             Expr::Unary { operand, .. } => {
                 self.resolve_expr(operand);
             }
-            Expr::Call { callee, arguments, location } => {
+            Expr::Call {
+                callee,
+                arguments,
+                location,
+            } => {
                 self.resolve_call_expr(callee, arguments, *location);
             }
-            Expr::GetField { object, field, location } => {
+            Expr::GetField {
+                object,
+                field,
+                location,
+            } => {
                 self.resolve_get_field(object, field, *location);
             }
-            Expr::SetField { object, field, value, location } => {
+            Expr::SetField {
+                object,
+                field,
+                value,
+                location,
+            } => {
                 self.resolve_set_field(object, field, value, *location);
             }
             Expr::Grouping { expr, .. } => {
@@ -369,7 +433,12 @@ impl SemanticAnalyzer {
             Expr::Index { object, index, .. } => {
                 self.resolve_index_expr(object, index);
             }
-            Expr::IndexAssign { object, index, value, .. } => {
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                ..
+            } => {
                 self.resolve_index_assignment(object, index, value);
             }
             Expr::Range { start, end, .. } => {
@@ -390,7 +459,12 @@ impl SemanticAnalyzer {
 
     // Statement resolution methods
 
-    fn resolve_val_declaration(&mut self, name: &str, initializer: Option<&Expr>, location: SourceLocation) {
+    fn resolve_val_declaration(
+        &mut self,
+        name: &str,
+        initializer: Option<&Expr>,
+        location: SourceLocation,
+    ) {
         // Resolve initializer first (if any)
         if let Some(init) = initializer {
             self.resolve_expr(init);
@@ -403,7 +477,12 @@ impl SemanticAnalyzer {
         self.define_symbol(name.to_string(), SymbolKind::Value, false, location);
     }
 
-    fn resolve_var_declaration(&mut self, name: &str, initializer: Option<&Expr>, location: SourceLocation) {
+    fn resolve_var_declaration(
+        &mut self,
+        name: &str,
+        initializer: Option<&Expr>,
+        location: SourceLocation,
+    ) {
         // Resolve initializer first (if any)
         if let Some(init) = initializer {
             self.resolve_expr(init);
@@ -416,7 +495,12 @@ impl SemanticAnalyzer {
         self.define_symbol(name.to_string(), SymbolKind::Variable, true, location);
     }
 
-    fn resolve_function_declaration(&mut self, params: &[String], body: &[Stmt], location: SourceLocation) {
+    fn resolve_function_declaration(
+        &mut self,
+        params: &[String],
+        body: &[Stmt],
+        location: SourceLocation,
+    ) {
         // Enter function scope
         self.symbol_table.enter_scope();
 
@@ -443,7 +527,12 @@ impl SemanticAnalyzer {
         self.symbol_table.exit_scope();
     }
 
-    fn resolve_if_statement(&mut self, condition: &Expr, then_branch: &Stmt, else_branch: Option<&Stmt>) {
+    fn resolve_if_statement(
+        &mut self,
+        condition: &Expr,
+        then_branch: &Stmt,
+        else_branch: Option<&Stmt>,
+    ) {
         self.resolve_expr(condition);
         self.resolve_stmt(then_branch);
         if let Some(else_stmt) = else_branch {
@@ -458,7 +547,13 @@ impl SemanticAnalyzer {
         self.loop_depth -= 1;
     }
 
-    fn resolve_for_in_statement(&mut self, variable: &str, collection: &Expr, body: &Stmt, location: SourceLocation) {
+    fn resolve_for_in_statement(
+        &mut self,
+        variable: &str,
+        collection: &Expr,
+        body: &Stmt,
+        location: SourceLocation,
+    ) {
         // Resolve the collection expression
         self.resolve_expr(collection);
 
@@ -562,7 +657,13 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_binary_expr(&mut self, left: &Expr, right: &Expr, _operator: &crate::compiler::ast::BinaryOp, _location: SourceLocation) {
+    fn resolve_binary_expr(
+        &mut self,
+        left: &Expr,
+        right: &Expr,
+        _operator: &crate::compiler::ast::BinaryOp,
+        _location: SourceLocation,
+    ) {
         self.resolve_expr(left);
         self.resolve_expr(right);
 
@@ -579,7 +680,13 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_method_call(&mut self, object: &Expr, method: &str, arguments: &[Expr], location: SourceLocation) {
+    fn resolve_method_call(
+        &mut self,
+        object: &Expr,
+        method: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
         // This is a method call obj.method(args)
         self.resolve_expr(object);
         for arg in arguments {
@@ -600,7 +707,12 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_function_call(&mut self, callee: &Expr, arguments: &[Expr], location: SourceLocation) {
+    fn resolve_function_call(
+        &mut self,
+        callee: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
         // Check if this is a global function call first
         let is_global_function = if let Expr::Variable { name, .. } = callee {
             crate::common::method_registry::get_native_method_index("", name).is_some()
@@ -635,7 +747,13 @@ impl SemanticAnalyzer {
         // Field validation could be added here if we track struct types
     }
 
-    fn resolve_set_field(&mut self, object: &Expr, _field: &str, value: &Expr, _location: SourceLocation) {
+    fn resolve_set_field(
+        &mut self,
+        object: &Expr,
+        _field: &str,
+        value: &Expr,
+        _location: SourceLocation,
+    ) {
         self.resolve_expr(object);
         self.resolve_expr(value);
         // Field validation could be added here if we track struct types
@@ -726,39 +844,48 @@ impl SemanticAnalyzer {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::Other,
-                format!("Static method '{}' not found in namespace '{}'", method, namespace),
+                format!(
+                    "Static method '{}' not found in namespace '{}'",
+                    method, namespace
+                ),
                 location,
             ));
         }
     }
 
-    fn validate_instance_method(&mut self, object_type: &str, method: &str, location: SourceLocation) {
+    fn validate_instance_method(
+        &mut self,
+        object_type: &str,
+        method: &str,
+        location: SourceLocation,
+    ) {
         // Check if the method is valid for this type
         if !MethodRegistry::is_valid_method(object_type, method) {
             // Method is invalid - try to suggest a correction
-            let error_message = if let Some(suggestion) = MethodRegistry::suggest_method(object_type, method) {
-                // We found a close match - suggest it
-                format!(
-                    "Type '{}' has no method named '{}'. Did you mean '{}'?",
-                    object_type, method, suggestion
-                )
-            } else {
-                // No close match - list available methods
-                let available_methods = MethodRegistry::get_methods_for_type(object_type);
-                if available_methods.is_empty() {
+            let error_message =
+                if let Some(suggestion) = MethodRegistry::suggest_method(object_type, method) {
+                    // We found a close match - suggest it
                     format!(
-                        "Type '{}' has no method named '{}' and no available methods",
-                        object_type, method
+                        "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                        object_type, method, suggestion
                     )
                 } else {
-                    format!(
-                        "Type '{}' has no method named '{}'. Available methods: {}",
-                        object_type,
-                        method,
-                        available_methods.join(", ")
-                    )
-                }
-            };
+                    // No close match - list available methods
+                    let available_methods = MethodRegistry::get_methods_for_type(object_type);
+                    if available_methods.is_empty() {
+                        format!(
+                            "Type '{}' has no method named '{}' and no available methods",
+                            object_type, method
+                        )
+                    } else {
+                        format!(
+                            "Type '{}' has no method named '{}'. Available methods: {}",
+                            object_type,
+                            method,
+                            available_methods.join(", ")
+                        )
+                    }
+                };
 
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
@@ -769,7 +896,12 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn validate_function_call(&mut self, function_name: &str, arguments: &[Expr], location: SourceLocation) {
+    fn validate_function_call(
+        &mut self,
+        function_name: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
         if let Some(symbol) = self.symbol_table.resolve(function_name) {
             match &symbol.kind {
                 SymbolKind::Function { arity } => {

@@ -165,7 +165,7 @@ impl Chunk {
         loop {
             if self.locals[index].name == name {
                 let local = &self.locals[index];
-                return (Some(index as u32), local.is_mutable);
+                return (Some(index as u32), local.is_captured);
             }
             if index == 0 {
                 break;
@@ -197,15 +197,5 @@ impl Chunk {
             }
         }
         result.cloned()
-    }
-}
-
-impl Local {
-    pub(crate) fn new(name: String, depth: u32, readonly: bool) -> Self {
-        Local {
-            name,
-            depth,
-            is_mutable: readonly,
-        }
     }
 }

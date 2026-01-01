@@ -162,7 +162,7 @@ impl Chunk {
                 OpCode::SetGlobal => (chunk.read_u8(offset) as usize, 1),
                 OpCode::SetGlobal2 => (chunk.read_u16(offset) as usize, 2),
                 OpCode::SetGlobal4 => (chunk.read_u32(offset) as usize, 4),
-                _ => panic!("Invalid OpCode {}", op_code),
+                _ => panic!("Invalid OpCode {:?}", op_code),
             }
         }
 
@@ -270,12 +270,5 @@ impl Chunk {
         let inclusive = self.read_u8(offset + 1);
         println!("CreateRange (inclusive: {})", inclusive != 0);
         offset + 2
-    }
-}
-
-#[cfg(feature = "disassemble")]
-impl std::fmt::Display for OpCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self) // Use Debug formatting as a fallback
     }
 }

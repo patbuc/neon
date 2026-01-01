@@ -1,10 +1,13 @@
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
-use crate::common::{ObjFunction, Object};
+use crate::common::{CallableKind, ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
 use std::collections::HashMap;
 use std::rc::Rc;
+
+/// Registry index for the print() function (always at index 0)
+const PRINT_METHOD_INDEX: u16 = 0;
 
 impl VirtualMachine {
     #[inline(always)]
@@ -54,35 +57,148 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
-        let frame = self.current_frame();
-        let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
+    pub(in crate::vm) fn fn_call_unified(&mut self) -> Option<Result> {
+        let arg_count = {
+            let frame = self.current_frame();
+            frame.function.chunk.read_u8(frame.ip + 1) as usize
+        };
 
-        // Get the callable from the stack (it's at position -arg_count - 1)
-        let callable_value = self.peek(arg_count);
+        let frame = self.current_frame_mut();
+        frame.ip += 2; // Skip CALL opcode and arg_count byte
 
-        match &callable_value {
+        // Get the callable from stack (it's always on top in unified system)
+        let callable_value = self.peek(0);
+
+        let result = match &callable_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Function(func) => {
-                    if let Some(value) = self.call_function(arg_count, &func) {
-                        return Some(value);
+                Object::Callable(callable) => {
+                    match &callable.kind {
+                        CallableKind::NeonFunction { chunk: func_chunk } => {
+                            // Create a function object from the callable and call it
+                            let function = Rc::new(crate::common::ObjFunction {
+                                name: callable.name.clone(),
+                                arity: callable.arity as u8,
+                                chunk: Rc::clone(func_chunk),
+                            });
+                            if let Some(value) = self.call_function(arg_count, &&function) {
+                                return Some(value);
+                            }
+                            // call_function returned None, meaning frame was created successfully
+                            // Return None to continue execution in the new frame
+                            // DO NOT pop anything - the function will handle cleanup on return
+                            return None;
+                        }
+                        CallableKind::NativeByIndex { index } => {
+                            // Special print handling only in test/debug/WASM
+                            #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+                            if *index == PRINT_METHOD_INDEX {
+                                let args =
+                                    &self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1];
+                                if !args.is_empty() {
+                                    use std::fmt::Write;
+                                    write!(self.string_buffer, "{}\n", args[0]).ok();
+                                }
+                                Value::Nil
+                            } else {
+                                let native_callable =
+                                    crate::common::method_registry::get_native_method_by_index(
+                                        *index as usize,
+                                    )
+                                    .unwrap_or_else(|| panic!("Invalid method index: {}", index));
+                                // Clone args to avoid borrow conflict
+                                let args: Vec<Value> = self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
+                                match self.call_native_method(native_callable, &args) {
+                                    Ok(value) => value,
+                                    Err(err) => return err,
+                                }
+                            }
+
+                            #[cfg(not(any(test, debug_assertions, target_arch = "wasm32")))]
+                            {
+                                let native_callable =
+                                    crate::common::method_registry::get_native_method_by_index(
+                                        *index as usize,
+                                    )
+                                    .unwrap_or_else(|| panic!("Invalid method index: {}", index));
+                                // Clone args to avoid borrow conflict
+                                let args: Vec<Value> = self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
+                                match self.call_native_method(native_callable, &args) {
+                                    Ok(value) => value,
+                                    Err(err) => return err,
+                                }
+                            }
+                        }
+                        CallableKind::NativeByName { method_name } => {
+                            let args_start = self.stack.len() - arg_count - 1;
+                            let receiver = &self.stack[args_start];
+
+                            // Get type name using helper
+                            let type_name = match self.get_type_name(receiver) {
+                                Some(name) => name,
+                                None => return self.method_not_supported(method_name),
+                            };
+
+                            // Look up method by (type, name)
+                            let native_callable =
+                                match crate::common::method_registry::get_native_method(
+                                    &type_name,
+                                    method_name,
+                                ) {
+                                    Some(callable) => callable,
+                                    None => {
+                                        self.runtime_error(&format!(
+                                            "Unknown method '{}' for type {}",
+                                            method_name, type_name
+                                        ));
+                                        return Some(Result::RuntimeError);
+                                    }
+                                };
+
+                            // Clone args to avoid borrow conflict
+                            let args_end = self.stack.len() - 1;
+                            let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
+                            match self.call_native_method(native_callable, &args) {
+                                Ok(value) => value,
+                                Err(err) => return err,
+                            }
+                        }
                     }
                 }
-                Object::Struct(instance) => {
-                    if let Some(value) = self.instantiate_struct(arg_count, instance) {
+
+                // Legacy function objects (temporary compatibility)
+                Object::Function(function) => {
+                    if let Some(value) = self.call_function(arg_count, &function) {
                         return Some(value);
                     }
+                    // call_function returned None, meaning frame was created successfully
+                    // Return None to continue execution in the new frame
+                    return None;
+                }
+                Object::Struct(r#struct) => {
+                    if let Some(value) = self.instantiate_struct(arg_count, r#struct) {
+                        return Some(value);
+                    }
+                    // instantiate_struct returned None, struct created successfully
+                    return None;
                 }
                 _ => {
-                    self.runtime_error("Can only call functions and structs.");
+                    self.runtime_error("Value is not callable");
                     return Some(Result::RuntimeError);
                 }
             },
             _ => {
-                self.runtime_error("Can only call functions and structs.");
+                self.runtime_error("Value is not callable");
                 return Some(Result::RuntimeError);
             }
+        };
+
+        // Pop callable and arguments
+        for _ in 0..=arg_count {
+            self.stack.pop();
         }
+
+        // Push the result
+        self.stack.push(result);
         None
     }
 
@@ -99,7 +215,10 @@ impl VirtualMachine {
         let field_count = r#struct.fields.len();
         let mut fields = HashMap::with_capacity(field_count);
         let stack_len = self.stack.len();
-        let stack_slice = &self.stack[stack_len - arg_count..stack_len];
+
+        // Unified calling convention: [args..., struct_obj]
+        // Extract arguments, excluding the struct object at the top
+        let stack_slice = &self.stack[stack_len - arg_count - 1..stack_len - 1];
         for (field_name, value) in r#struct.fields.iter().zip(stack_slice.iter()) {
             fields.insert(field_name.clone(), value.clone());
         }
@@ -109,14 +228,15 @@ impl VirtualMachine {
             fields,
         };
 
+        // Pop arguments and struct object from stack
         let n = arg_count + 1;
         let start = self.stack.len().saturating_sub(n);
         self.stack.drain(start..);
 
+        // Push the new instance
         self.push(Value::new_object(instance));
 
-        let current_frame = self.current_frame_mut();
-        current_frame.ip += 2;
+        // IP already incremented by fn_call_unified
         None
     }
 
@@ -129,18 +249,21 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        // Calculate slot_start: current stack size - arg_count - 1 (for the function itself)
-        let slot_start = (self.stack.len() - arg_count - 1) as isize;
+        // Calculate slot_start for unified calling convention [args..., func]
+        // The function object is still on the stack at this point
+        // Stack layout: [...previous..., arg0, arg1, ..., argN, func_obj]
+        // slot_start should point just BEFORE the first argument
+        // So: slot_start = current_len - arg_count - 1 (for func) - 1 (to go before first arg)
+        let slot_start = (self.stack.len() - arg_count - 1 - 1) as isize;
+
         let new_frame = CallFrame {
             function: Rc::clone(func),
             ip: 0,
             slot_start,
         };
 
-        // Increment the current frame's IP before pushing the new frame
-        // to skip both the Call opcode and the argument count byte when we return
-        let current_frame = self.current_frame_mut();
-        current_frame.ip += 2;
+        // NOTE: IP increment is handled by the caller (fn_call_unified)
+        // Don't increment here to avoid double increment
 
         self.call_frames.push(new_frame);
         None
@@ -157,8 +280,9 @@ impl VirtualMachine {
             return Some(Result::Ok);
         }
 
-        // Clear the stack back to the slot_start (removing arguments and locals)
-        self.stack.truncate(slot_start as usize);
+        // Clear the stack back to slot_start + 1 (where first arg was)
+        // In unified calling convention [args..., func], we want to replace args+func with result
+        self.stack.truncate((slot_start + 1) as usize);
         self.push(return_value);
         None
     }
@@ -457,143 +581,6 @@ impl VirtualMachine {
 
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_call_method(&mut self, bits: BitsSize) -> Option<Result> {
-        let index_size = match bits {
-            BitsSize::Eight => 1,
-            BitsSize::Sixteen => 2,
-            BitsSize::ThirtyTwo => 4,
-        };
-        let ip_increment = 1 + 1 + index_size;
-
-        let frame = self.current_frame();
-        let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
-        let method_name_index = match bits {
-            BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
-            BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
-            BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
-        };
-
-        let method_name = {
-            let method_value = frame.function.chunk.read_string(method_name_index);
-            match method_value {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::String(s) => s.value.to_string(),
-                    _ => {
-                        self.runtime_error("Method name must be a string.");
-                        return Some(Result::RuntimeError);
-                    }
-                },
-                _ => {
-                    self.runtime_error("Method name must be a string.");
-                    return Some(Result::RuntimeError);
-                }
-            }
-        };
-
-        let receiver = self.peek(arg_count);
-
-        // Check if receiver is an instance with the method as a function field
-        // This allows Math.abs(x) where abs is a function field in the Math instance
-        if let Value::Object(obj) = &receiver {
-            if let Object::Instance(instance_ref) = obj.as_ref() {
-                let instance = instance_ref.borrow();
-                if let Some(field_value) = instance.fields.get(&method_name) {
-                    let function_value = field_value.clone();
-                    drop(instance);
-
-                    match &function_value {
-                        Value::Object(func_obj) => match func_obj.as_ref() {
-                            Object::Function(func) => {
-                                return if let Some(result) = self.call_function(arg_count, &func) {
-                                    Some(result)
-                                } else {
-                                    let current_frame = self.current_frame_mut();
-                                    current_frame.ip += ip_increment;
-                                    None
-                                };
-                            }
-                            _ => {
-                                self.runtime_error("Field is not a callable function");
-                                return Some(Result::RuntimeError);
-                            }
-                        },
-                        _ => {
-                            self.runtime_error("Field is not a callable function");
-                            return Some(Result::RuntimeError);
-                        }
-                    }
-                }
-            }
-        }
-
-        let type_name = match &receiver {
-            Value::Number(_) => "Number".to_string(),
-            Value::Boolean(_) => "Boolean".to_string(),
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(_) => "String".to_string(),
-                Object::Array(_) => "Array".to_string(),
-                Object::Map(_) => "Map".to_string(),
-                Object::Set(_) => "Set".to_string(),
-                Object::File(_) => "File".to_string(),
-                Object::Instance(instance_ref) => {
-                    let instance = instance_ref.borrow();
-                    instance.r#struct.name.clone()
-                }
-                _ => {
-                    self.runtime_error(&format!(
-                        "Type does not support method calls: {:?}",
-                        receiver
-                    ));
-                    return Some(Result::RuntimeError);
-                }
-            },
-            _ => {
-                self.runtime_error(&format!(
-                    "Cannot call methods on primitive type: {:?}",
-                    receiver
-                ));
-                return Some(Result::RuntimeError);
-            }
-        };
-
-        let native_callable = match VirtualMachine::get_native_method(&type_name, &method_name) {
-            Some(callable) => callable,
-            None => {
-                self.runtime_error(&format!(
-                    "Undefined method '{}' for type '{}'",
-                    method_name, type_name
-                ));
-                return Some(Result::RuntimeError);
-            }
-        };
-
-        let stack_len = self.stack.len();
-        let receiver_index = stack_len - arg_count - 1;
-        let args: Vec<Value> = self.stack[receiver_index..stack_len].to_vec();
-
-        let result = native_callable.function()(&args);
-
-        let n = arg_count + 1;
-        let start = self.stack.len().saturating_sub(n);
-        self.stack.drain(start..);
-
-        match result {
-            Ok(value) => {
-                self.push(value);
-
-                let current_frame = self.current_frame_mut();
-                current_frame.ip += ip_increment;
-
-                None
-            }
-            Err(error_msg) => {
-                self.runtime_error(&error_msg);
-                Some(Result::RuntimeError)
-            }
-        }
     }
 
     #[inline(always)]
@@ -1096,141 +1083,44 @@ impl VirtualMachine {
         }
     }
 
-    #[inline(always)]
-    pub(in crate::vm) fn fn_call_static_method(&mut self, bits: BitsSize) -> Option<Result> {
-        // Read registry index directly from bytecode (O(1) at runtime!)
-        let (arg_count, registry_index, ip_increment) = {
-            let frame = self.current_frame();
-            let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
-
-            let registry_index = match bits {
-                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
-                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
-                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
-            };
-
-            let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index
-            (arg_count, registry_index, ip_increment)
-        };
-
-        // Direct array index lookup - O(1)!
-        let native_callable =
-            match crate::common::method_registry::get_native_method_by_index(registry_index) {
-                Some(callable) => callable,
-                None => {
-                    self.runtime_error(&format!("Invalid registry index: {}", registry_index));
-                    return Some(Result::RuntimeError);
-                }
-            };
-
-        // Pop arguments from stack (no receiver for static methods!)
-        let stack_len = self.stack.len();
-        let args_start = stack_len - arg_count;
-        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
-
-        // Special handling for print(function to integrate with VM string buffer)
-        let result = if registry_index == 0 {
-            // The print(function is at index 0 in the registry - handle specially)
-            self.handle_print_function(&args)
-        } else {
-            // Call the native function normally
-            native_callable.function()(&args)
-        };
-
-        // Clean up stack
-        self.stack.drain(args_start..);
-
-        match result {
-            Ok(value) => {
-                self.push(value);
-                let current_frame = self.current_frame_mut();
-                current_frame.ip += ip_increment;
-                None
-            }
-            Err(error_msg) => {
-                self.runtime_error(&error_msg);
-                Some(Result::RuntimeError)
+    /// Helper: Call a native method and handle errors
+    #[inline]
+    fn call_native_method(
+        &mut self,
+        callable: &crate::common::method_registry::NativeCallable,
+        args: &[Value],
+    ) -> std::result::Result<Value, Option<Result>> {
+        match callable.function()(args) {
+            Ok(value) => Ok(value),
+            Err(msg) => {
+                self.runtime_error(&msg);
+                Err(Some(Result::RuntimeError))
             }
         }
     }
 
-    #[inline(always)]
-    pub(in crate::vm) fn fn_call_constructor(&mut self, bits: BitsSize) -> Option<Result> {
-        // Read registry index directly from bytecode (O(1) at runtime!)
-        let (arg_count, registry_index, ip_increment) = {
-            let frame = self.current_frame();
-            let arg_count = frame.function.chunk.read_u8(frame.ip + 1) as usize;
-
-            let registry_index = match bits {
-                BitsSize::Eight => frame.function.chunk.read_u8(frame.ip + 2) as usize,
-                BitsSize::Sixteen => frame.function.chunk.read_u16(frame.ip + 2) as usize,
-                BitsSize::ThirtyTwo => frame.function.chunk.read_u32(frame.ip + 2) as usize,
-            };
-
-            let ip_increment = 1 + 1 + bits.as_bytes(); // opcode + arg_count + registry_index
-            (arg_count, registry_index, ip_increment)
-        };
-
-        // Direct array index lookup - O(1)!
-        let native_callable =
-            match crate::common::method_registry::get_native_method_by_index(registry_index) {
-                Some(callable) => callable,
-                None => {
-                    self.runtime_error(&format!("Invalid registry index: {}", registry_index));
-                    return Some(Result::RuntimeError);
-                }
-            };
-
-        // Pop arguments from stack
-        let stack_len = self.stack.len();
-        let args_start = stack_len - arg_count;
-        let args: Vec<Value> = self.stack[args_start..stack_len].to_vec();
-
-        // Call the constructor function
-        let result = native_callable.function()(&args);
-
-        // Clean up stack
-        self.stack.drain(args_start..);
-
-        match result {
-            Ok(value) => {
-                self.push(value);
-                let current_frame = self.current_frame_mut();
-                current_frame.ip += ip_increment;
-                None
-            }
-            Err(error_msg) => {
-                self.runtime_error(&error_msg);
-                Some(Result::RuntimeError)
-            }
-        }
+    /// Helper: Return error for unsupported method on type
+    #[inline]
+    fn method_not_supported(&mut self, method_name: &str) -> Option<Result> {
+        self.runtime_error(&format!("Type does not support method '{}'", method_name));
+        Some(Result::RuntimeError)
     }
 
-    /// Special handling for print(function to integrate with VM string buffer)
-    /// This ensures print(output goes to the correct place in test/debug/WASM contexts)
-    fn handle_print_function(&mut self, args: &[Value]) -> std::result::Result<Value, String> {
-        if args.is_empty() {
-            return Err("print() expects at least 1 argument".to_string());
+    /// Helper: Extract type name from a value for method dispatch
+    fn get_type_name(&self, value: &Value) -> Option<String> {
+        match value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Array(_) => Some("Array".to_string()),
+                Object::String(_) => Some("String".to_string()),
+                Object::Map(_) => Some("Map".to_string()),
+                Object::Set(_) => Some("Set".to_string()),
+                Object::File(_) => Some("File".to_string()),
+                Object::Instance(inst) => Some(inst.borrow().r#struct.name.clone()),
+                _ => None,
+            },
+            Value::Number(_) => Some("Number".to_string()),
+            Value::Boolean(_) => Some("Boolean".to_string()),
+            _ => None,
         }
-        
-        // Join all arguments with spaces
-        let output = args.iter()
-            .map(|v: &Value| v.to_string())
-            .collect::<Vec<_>>()
-            .join(" ");
-        
-        // For test/debug/WASM contexts - append to VM's string buffer
-        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
-        {
-            self.string_buffer.push_str(&format!("{}\n", output));
-        }
-        
-        // For normal execution (non-WASM) - print(to stdout)
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            println!("{}", output);
-        }
-        
-        Ok(Value::Nil)
     }
 }

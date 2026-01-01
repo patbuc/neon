@@ -2852,3 +2852,17 @@ fn test_multiple_continues_in_loop() {
     assert_eq!(Result::Ok, result);
     assert_eq!("1\n3\n5\n6\nDone", vm.get_output());
 }
+
+#[test]
+fn debug_simple_param() {
+    let program = r#"
+        fn test(x) {
+            print(x)
+        }
+        test(42)
+    "#;
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("42", vm.get_output());
+}

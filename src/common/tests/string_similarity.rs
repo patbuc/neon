@@ -70,7 +70,10 @@ fn test_find_closest_match_no_match() {
 
     // More than 2 edits away from any candidate
     assert_eq!(find_closest_match("xyz", &candidates), None);
-    assert_eq!(find_closest_match("completely_different", &candidates), None);
+    assert_eq!(
+        find_closest_match("completely_different", &candidates),
+        None
+    );
 }
 
 #[test]

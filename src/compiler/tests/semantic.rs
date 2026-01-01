@@ -1,5 +1,5 @@
-use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::parser::Parser;
+use crate::compiler::semantic::SemanticAnalyzer;
 
 #[test]
 fn test_undefined_variable() {
@@ -500,12 +500,8 @@ val b = "hello".wrongMethod()
     let errors = result.unwrap_err();
     // Should have at least 2 errors
     assert!(errors.len() >= 2);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("badMethod")));
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("wrongMethod")));
+    assert!(errors.iter().any(|e| e.message.contains("badMethod")));
+    assert!(errors.iter().any(|e| e.message.contains("wrongMethod")));
 }
 
 #[test]
@@ -562,17 +558,31 @@ val result = processData(42)
     let errors = result.unwrap_err();
 
     // Should have at least 4 errors (one for each invalid method)
-    assert!(errors.len() >= 4, "Expected at least 4 errors, got {}", errors.len());
+    assert!(
+        errors.len() >= 4,
+        "Expected at least 4 errors, got {}",
+        errors.len()
+    );
 
     // Verify each error is present and has helpful messages
-    assert!(errors.iter().any(|e| e.message.contains("contans") && e.message.contains("contains")),
-            "Expected suggestion for 'contans' -> 'contains'");
-    assert!(errors.iter().any(|e| e.message.contains("repalce")),
-            "Expected error for 'repalce'");
-    assert!(errors.iter().any(|e| e.message.contains("entrys")),
-            "Expected error for 'entrys'");
-    assert!(errors.iter().any(|e| e.message.contains("notAMethod")),
-            "Expected error for 'notAMethod'");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("contans") && e.message.contains("contains")),
+        "Expected suggestion for 'contans' -> 'contains'"
+    );
+    assert!(
+        errors.iter().any(|e| e.message.contains("repalce")),
+        "Expected error for 'repalce'"
+    );
+    assert!(
+        errors.iter().any(|e| e.message.contains("entrys")),
+        "Expected error for 'entrys'"
+    );
+    assert!(
+        errors.iter().any(|e| e.message.contains("notAMethod")),
+        "Expected error for 'notAMethod'"
+    );
 }
 
 #[test]
@@ -620,13 +630,18 @@ print(output)
 
     if let Err(ref errors) = result {
         for err in errors {
-            eprintln!("Unexpected error: {} at {}:{}",
-                      err.message, err.location.line, err.location.column);
+            eprintln!(
+                "Unexpected error: {} at {}:{}",
+                err.message, err.location.line, err.location.column
+            );
         }
     }
 
     // All methods should be valid - no errors expected
-    assert!(result.is_ok(), "Valid program should compile without errors");
+    assert!(
+        result.is_ok(),
+        "Valid program should compile without errors"
+    );
 }
 
 #[test]
@@ -650,7 +665,10 @@ val parts = empty.split(",")
     }
 
     // Empty strings should work fine with valid methods
-    assert!(result.is_ok(), "Empty strings with valid methods should not error");
+    assert!(
+        result.is_ok(),
+        "Empty strings with valid methods should not error"
+    );
 }
 
 #[test]
@@ -668,8 +686,10 @@ val result = arr.with_underscore()  // Invalid method with underscore
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("with_underscore")),
-            "Should report error for invalid method 'with_underscore'");
+    assert!(
+        errors.iter().any(|e| e.message.contains("with_underscore")),
+        "Should report error for invalid method 'with_underscore'"
+    );
 }
 
 #[test]
@@ -698,8 +718,11 @@ val something = result.anyMethod()  // We can't know the type, so don't error
     if let Err(ref errors) = result {
         // If there are errors, they should NOT be about method validation
         for err in errors {
-            assert!(!err.message.contains("has no method named"),
-                    "Should not validate methods on unknown types, but got: {}", err.message);
+            assert!(
+                !err.message.contains("has no method named"),
+                "Should not validate methods on unknown types, but got: {}",
+                err.message
+            );
         }
     }
 }
@@ -722,8 +745,10 @@ val y = x.anyMethod()   // x's type is unknown, so method validation should not 
         // Check that errors are NOT about method validation
         for err in errors {
             if err.message.contains("anyMethod") {
-                assert!(!err.message.contains("has no method named"),
-                        "Should not validate methods on unknown types");
+                assert!(
+                    !err.message.contains("has no method named"),
+                    "Should not validate methods on unknown types"
+                );
             }
         }
     }
@@ -752,7 +777,10 @@ val hasThree = arr.contains(3)
         }
     }
 
-    assert!(result.is_ok(), "All valid array methods should be accepted without errors");
+    assert!(
+        result.is_ok(),
+        "All valid array methods should be accepted without errors"
+    );
 }
 
 #[test]
@@ -780,7 +808,10 @@ val asBool = "true".toBool()
         }
     }
 
-    assert!(result.is_ok(), "All valid string methods should be accepted without errors");
+    assert!(
+        result.is_ok(),
+        "All valid string methods should be accepted without errors"
+    );
 }
 
 #[test]
@@ -808,7 +839,10 @@ val removed = m.remove("b")
         }
     }
 
-    assert!(result.is_ok(), "All valid map methods should be accepted without errors");
+    assert!(
+        result.is_ok(),
+        "All valid map methods should be accepted without errors"
+    );
 }
 
 #[test]
@@ -840,7 +874,10 @@ val isSub = s.isSubset(s2)
         }
     }
 
-    assert!(result.is_ok(), "All valid set methods should be accepted without errors");
+    assert!(
+        result.is_ok(),
+        "All valid set methods should be accepted without errors"
+    );
 }
 
 #[test]
@@ -876,22 +913,42 @@ fn processData() {
     }
 
     // Should have exactly 2 errors (toUpper and filtr)
-    assert!(errors.len() >= 2, "Expected at least 2 errors, got {}", errors.len());
+    assert!(
+        errors.len() >= 2,
+        "Expected at least 2 errors, got {}",
+        errors.len()
+    );
 
     // Check for specific errors
-    assert!(errors.iter().any(|e| e.message.contains("toUpper")),
-            "Should have error for 'toUpper'");
-    assert!(errors.iter().any(|e| e.message.contains("filtr")),
-            "Should have error for 'filtr'");
+    assert!(
+        errors.iter().any(|e| e.message.contains("toUpper")),
+        "Should have error for 'toUpper'"
+    );
+    assert!(
+        errors.iter().any(|e| e.message.contains("filtr")),
+        "Should have error for 'filtr'"
+    );
 
     // Verify no errors for valid methods
     // Check that there's no error saying these methods don't exist (but they can appear in suggestions)
-    assert!(!errors.iter().any(|e| e.message.contains("has no method named 'len'")),
-            "Should not error on valid 'len' method");
-    assert!(!errors.iter().any(|e| e.message.contains("has no method named 'length'")),
-            "Should not error on valid 'length' method");
-    assert!(!errors.iter().any(|e| e.message.contains("has no method named 'pop'")),
-            "Should not error on valid 'pop' method");
+    assert!(
+        !errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'len'")),
+        "Should not error on valid 'len' method"
+    );
+    assert!(
+        !errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'length'")),
+        "Should not error on valid 'length' method"
+    );
+    assert!(
+        !errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'pop'")),
+        "Should not error on valid 'pop' method"
+    );
 }
 
 #[test]
@@ -914,16 +971,22 @@ val result = arr.lenght()  // typo: should be 'length'
 
     // Error message should be user-friendly and actionable:
     // 1. Mention the type
-    assert!(error_msg.contains("Array") || error_msg.contains("array"),
-            "Error should mention the type 'Array'");
+    assert!(
+        error_msg.contains("Array") || error_msg.contains("array"),
+        "Error should mention the type 'Array'"
+    );
 
     // 2. Mention the invalid method name
-    assert!(error_msg.contains("lenght"),
-            "Error should mention the invalid method 'lenght'");
+    assert!(
+        error_msg.contains("lenght"),
+        "Error should mention the invalid method 'lenght'"
+    );
 
     // 3. Provide a suggestion
-    assert!(error_msg.contains("Did you mean") || error_msg.contains("length"),
-            "Error should provide a suggestion");
+    assert!(
+        error_msg.contains("Did you mean") || error_msg.contains("length"),
+        "Error should provide a suggestion"
+    );
 }
 
 #[test]
@@ -952,7 +1015,10 @@ val result = checkData([1, 2, 3])
         }
     }
 
-    assert!(result.is_ok(), "Valid methods in conditions should not error");
+    assert!(
+        result.is_ok(),
+        "Valid methods in conditions should not error"
+    );
 }
 
 #[test]
@@ -1003,7 +1069,9 @@ fn test_break_outside_loop() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot use 'break' outside of a loop"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot use 'break' outside of a loop"));
 }
 
 #[test]
@@ -1022,7 +1090,9 @@ fn test_continue_outside_loop() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot use 'continue' outside of a loop"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot use 'continue' outside of a loop"));
 }
 
 #[test]
@@ -1186,7 +1256,9 @@ fn test_break_outside_function_in_loop() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot use 'break' outside of a loop"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot use 'break' outside of a loop"));
 }
 
 #[test]
@@ -1208,7 +1280,9 @@ fn test_continue_outside_function_in_loop() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot use 'continue' outside of a loop"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot use 'continue' outside of a loop"));
 }
 
 // =============================================================================
@@ -1264,7 +1338,9 @@ fn test_postfix_increment_on_immutable_variable() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot modify immutable variable 'x'"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot modify immutable variable 'x'"));
 }
 
 #[test]
@@ -1282,7 +1358,9 @@ fn test_postfix_decrement_on_immutable_variable() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot modify immutable variable 'x'"));
+    assert!(errors[0]
+        .message
+        .contains("Cannot modify immutable variable 'x'"));
 }
 
 #[test]
@@ -1330,7 +1408,9 @@ fn test_postfix_increment_on_array_element_fails() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Increment operator can only be applied to variables"));
+    assert!(errors[0]
+        .message
+        .contains("Increment operator can only be applied to variables"));
 }
 
 #[test]
@@ -1348,7 +1428,9 @@ fn test_postfix_decrement_on_array_element_fails() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Decrement operator can only be applied to variables"));
+    assert!(errors[0]
+        .message
+        .contains("Decrement operator can only be applied to variables"));
 }
 
 #[test]
@@ -1365,7 +1447,9 @@ fn test_postfix_increment_on_field_access_fails() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Increment operator can only be applied to variables")));
 }
 
 #[test]
@@ -1382,7 +1466,9 @@ fn test_postfix_decrement_on_field_access_fails() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("Decrement operator can only be applied to variables")));
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Decrement operator can only be applied to variables")));
 }
 
 #[test]
@@ -1401,7 +1487,9 @@ fn test_postfix_increment_on_function_call_fails() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Increment operator can only be applied to variables")));
 }
 
 #[test]
@@ -1487,8 +1575,12 @@ fn test_postfix_multiple_errors() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 2);
-    assert!(errors.iter().any(|e| e.message.contains("Cannot modify immutable variable 'x'")));
-    assert!(errors.iter().any(|e| e.message.contains("Cannot modify immutable variable 'y'")));
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot modify immutable variable 'x'")));
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot modify immutable variable 'y'")));
 }
 
 #[test]
@@ -1504,7 +1596,9 @@ fn test_postfix_on_literal_fails() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("Increment operator can only be applied to variables")));
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Increment operator can only be applied to variables")));
 }
 
 #[test]
@@ -1524,4 +1618,3 @@ fn test_postfix_in_function_parameters() {
 
     assert!(result.is_ok());
 }
-

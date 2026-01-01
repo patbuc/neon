@@ -2,6 +2,8 @@ use crate::common::constants::VARIADIC_ARITY;
 use crate::common::stdlib;
 use crate::common::string_similarity::find_closest_match;
 use crate::common::NativeFn;
+use std::collections::HashMap;
+use std::sync::OnceLock;
 
 /// Classifies native callable functions by their calling convention.
 #[derive(Debug, Clone, Copy)]
@@ -48,7 +50,7 @@ impl NativeCallable {
 /// Static registry of all native methods - SINGLE SOURCE OF TRUTH.
 ///
 /// Format: (type_name, method_name, NativeCallable)
-const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
+pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     // Global functions
     (
         "",
@@ -517,15 +519,27 @@ const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
 ];
 
-/// Get a native method by type and method name (O(n) - use for runtime fallback only)
+/// HashMap for O(1) method lookups at runtime
+static METHOD_MAP: OnceLock<HashMap<(&'static str, &'static str), &'static NativeCallable>> =
+    OnceLock::new();
+
+/// Initialize the method lookup HashMap (called lazily on first access)
+fn init_method_map() -> HashMap<(&'static str, &'static str), &'static NativeCallable> {
+    NATIVE_METHODS
+        .iter()
+        .map(|(type_name, method_name, callable)| ((*type_name, *method_name), callable))
+        .collect()
+}
+
+/// Get a native method by type and method name (O(1) - HashMap lookup)
 pub(crate) fn get_native_method(
     type_name: &str,
     method_name: &str,
 ) -> Option<&'static NativeCallable> {
-    NATIVE_METHODS
-        .iter()
-        .find(|(t, m, _)| *t == type_name && *m == method_name)
-        .map(|(_, _, callable)| callable)
+    METHOD_MAP
+        .get_or_init(init_method_map)
+        .get(&(type_name, method_name))
+        .copied()
 }
 
 /// Get the registry index for a native method (O(n) - but called at compile time)
@@ -610,5 +624,24 @@ impl MethodRegistry {
     pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
         let methods = Self::get_methods_for_type(type_name);
         find_closest_match(method_name, &methods)
+    }
+
+    /// Gets a native method by name only (ignoring type)
+    /// This is useful for creating dynamic callables when the type is not known at compile time.
+    ///
+    /// # Arguments
+    /// * `method_name` - The name of the method to find
+    ///
+    /// # Returns
+    /// * `Some(NativeCallable)` - The method implementation if found
+    /// * `None` - If the method is not found
+    #[allow(dead_code)]
+    pub(crate) fn get_native_method_by_name(method_name: &str) -> Option<NativeCallable> {
+        for (_type_name, name, callable) in NATIVE_METHODS {
+            if *name == method_name {
+                return Some(*callable);
+            }
+        }
+        None
     }
 }

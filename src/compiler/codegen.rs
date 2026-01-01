@@ -772,104 +772,73 @@ impl CodeGenerator {
             false
         };
 
+        // Check if this is a constructor call (e.g., File("path"))
+        let is_constructor_call = if let Expr::Variable { name, .. } = callee {
+            crate::common::method_registry::get_native_method_index(name, "new").is_some()
+        } else {
+            false
+        };
+
         if is_global_function {
             // Global function call: print("hello")
+            // Extract function name
             let function_name = if let Expr::Variable { name, .. } = callee {
                 name.clone()
             } else {
                 unreachable!("Already checked this is a Variable")
             };
 
-            // Look up the registry index at compile time
-            let registry_index =
-                crate::common::method_registry::get_native_method_index("", &function_name)
-                    .unwrap_or(0);
+            // Evaluate all arguments (no callee!)
+            for arg in arguments {
+                self.generate_expr(arg);
+            }
+
+            // Look up global function index at compile time
+            let index = crate::common::method_registry::get_native_method_index("", &function_name)
+                .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
+
+            self.emit_native_call(
+                function_name.to_string(),
+                arguments.len() as u8,
+                index,
+                location,
+            );
+        } else if is_constructor_call {
+            // Constructor call: File("path")
+            let type_name = if let Expr::Variable { name, .. } = callee {
+                name.clone()
+            } else {
+                unreachable!("Already checked this is a Variable")
+            };
 
             // Evaluate all arguments (no callee!)
             for arg in arguments {
                 self.generate_expr(arg);
             }
 
-            // Determine opcode variant based on registry index size
-            let (opcode, index_bytes) = if registry_index <= 0xFF {
-                (OpCode::CallStaticMethod, 1)
-            } else if registry_index <= 0xFFFF {
-                (OpCode::CallStaticMethod2, 2)
-            } else {
-                (OpCode::CallStaticMethod4, 4)
-            };
+            // Look up constructor index at compile time
+            let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
+                .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
 
-            self.emit_op_code(opcode, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-
-            // Write registry index (O(1) lookup at runtime!)
-            match index_bytes {
-                1 => self.current_chunk().write_u8(registry_index as u8),
-                2 => self.current_chunk().write_u16(registry_index as u16),
-                4 => self.current_chunk().write_u32(registry_index as u32),
-                _ => unreachable!(),
-            }
-        }
-        // Check if this is a constructor call (e.g., File("path"))
-        else if let Expr::Variable { name, .. } = callee {
-            if name == "File" { // For now, only File is a constructor in the registry
-                // Constructor call: File("path")
-                
-                // Look up the registry index at compile time (O(n) once, not per call!)
-                // If not found, emit index 0 and let runtime handle the error
-                let registry_index =
-                    crate::common::method_registry::get_native_method_index(name, "new")
-                        .unwrap_or(0);
-
-                // Evaluate all arguments (no callee!)
-                for arg in arguments {
-                    self.generate_expr(arg);
-                }
-
-                // Determine opcode variant based on registry index size
-                let (opcode, index_bytes) = if registry_index <= 0xFF {
-                    (OpCode::CallConstructor, 1)
-                } else if registry_index <= 0xFFFF {
-                    (OpCode::CallConstructor2, 2)
-                } else {
-                    (OpCode::CallConstructor4, 4)
-                };
-
-                self.emit_op_code(opcode, location);
-                self.current_chunk().write_u8(arguments.len() as u8);
-
-                // Write registry index (O(1) lookup at runtime!)
-                match index_bytes {
-                    1 => self.current_chunk().write_u8(registry_index as u8),
-                    2 => self.current_chunk().write_u16(registry_index as u16),
-                    4 => self.current_chunk().write_u32(registry_index as u32),
-                    _ => unreachable!(),
-                }
+            self.emit_native_call(
+                format!("{}.new", type_name),
+                arguments.len() as u8,
+                index,
+                location,
+            );
         } else {
-            // Regular function call
-            // Evaluate the callee
-            self.generate_expr(callee);
+            // Regular function call - could be user-defined function
+            // Unified calling convention: [args..., callable]
 
-            // Evaluate all arguments
+            // Evaluate all arguments FIRST
             for arg in arguments {
                 self.generate_expr(arg);
             }
 
-            // Emit call instruction
-            self.emit_op_code(OpCode::Call, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-        }
-    } else {
-            // Regular function call
-            // Evaluate the callee
+            // Evaluate the callee last to get the function object on top of stack
             self.generate_expr(callee);
 
-            // Evaluate all arguments
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Emit call instruction
+            // Emit unified CALL instruction
             self.emit_op_code(OpCode::Call, location);
             self.current_chunk().write_u8(arguments.len() as u8);
         }
@@ -898,39 +867,24 @@ impl CodeGenerator {
                 unreachable!("Already checked this is a Variable")
             };
 
-            // Look up the registry index at compile time (O(n) once, not per call!)
-            // If not found, emit index 0 and let runtime handle the error with proper type checking
-            let registry_index =
-                crate::common::method_registry::get_native_method_index(&namespace_name, method)
-                    .unwrap_or(0);
-
-            // Evaluate all arguments (no receiver!)
+            // Evaluate all arguments FIRST
             for arg in arguments {
                 self.generate_expr(arg);
             }
 
-            // Determine opcode variant based on registry index size
-            let (opcode, index_bytes) = if registry_index <= 0xFF {
-                (OpCode::CallStaticMethod, 1)
-            } else if registry_index <= 0xFFFF {
-                (OpCode::CallStaticMethod2, 2)
-            } else {
-                (OpCode::CallStaticMethod4, 4)
-            };
+            // Look up static method index at compile time
+            let index =
+                crate::common::method_registry::get_native_method_index(&namespace_name, method)
+                    .unwrap_or_else(|| {
+                        panic!("Unknown static method: {}.{}", namespace_name, method)
+                    });
 
-            self.emit_op_code(opcode, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-
-            // Write registry index (O(1) lookup at runtime!)
-            match index_bytes {
-                1 => self.current_chunk().write_u8(registry_index as u8),
-                2 => self.current_chunk().write_u16(registry_index as u16),
-                4 => self.current_chunk().write_u32(registry_index as u32),
-                _ => unreachable!(),
-            }
+            self.emit_native_call(method.to_string(), arguments.len() as u8, index, location);
         } else {
-            // Instance method call: arr.push(x)
-            // Evaluate the receiver object
+            // Instance method call: arr.push(x), str.len(), etc.
+            // Type is unknown at compile time, use NativeByName for runtime dispatch
+
+            // Evaluate receiver first
             self.generate_expr(object);
 
             // Evaluate all arguments
@@ -938,29 +892,21 @@ impl CodeGenerator {
                 self.generate_expr(arg);
             }
 
-            // Add method name to string constants
-            let method_string = string!(method);
-            let method_index = self.current_chunk().add_string(method_string);
+            // Create a callable that will be resolved at runtime based on receiver type
+            let callable = Value::new_callable(
+                method.to_string(),
+                0,
+                crate::common::CallableKind::NativeByName {
+                    method_name: method.to_string(),
+                },
+            );
 
-            // Emit CallMethod instruction with appropriate variant based on method_index size
-            let (opcode, index_bytes) = if method_index <= 0xFF {
-                (OpCode::CallMethod, 1)
-            } else if method_index <= 0xFFFF {
-                (OpCode::CallMethod2, 2)
-            } else {
-                (OpCode::CallMethod4, 4)
-            };
+            // Emit callable on top
+            self.emit_constant(callable, location);
 
-            self.emit_op_code(opcode, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
-
-            // Write method index with appropriate size
-            match index_bytes {
-                1 => self.current_chunk().write_u8(method_index as u8),
-                2 => self.current_chunk().write_u16(method_index as u16),
-                4 => self.current_chunk().write_u32(method_index),
-                _ => unreachable!(),
-            }
+            // Emit unified CALL instruction with receiver + arguments count
+            self.emit_op_code(OpCode::Call, location);
+            self.current_chunk().write_u8((arguments.len() + 1) as u8); // +1 for receiver
         }
     }
 
@@ -1198,5 +1144,25 @@ impl CodeGenerator {
 
     fn get_builtin_index(&self, name: &str) -> Option<usize> {
         self.builtin.get_index_of(name)
+    }
+
+    /// Helper: Emit a native callable and CALL instruction
+    fn emit_native_call(
+        &mut self,
+        name: String,
+        arity: u8,
+        index: usize,
+        location: SourceLocation,
+    ) {
+        let callable = Value::new_callable(
+            name,
+            arity,
+            crate::common::CallableKind::NativeByIndex {
+                index: index as u16,
+            },
+        );
+        self.emit_constant(callable, location);
+        self.emit_op_code(OpCode::Call, location);
+        self.current_chunk().write_u8(arity);
     }
 }
