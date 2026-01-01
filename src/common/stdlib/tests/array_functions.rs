@@ -135,7 +135,10 @@ fn test_array_sort() {
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program.to_string()));
-    assert_eq!("[1, 1, 2, 3, 4, 5, 6, 9]\n[apple, banana, mango, zebra]", vm.get_output());
+    assert_eq!(
+        "[1, 1, 2, 3, 4, 5, 6, 9]\n[apple, banana, mango, zebra]",
+        vm.get_output()
+    );
 }
 
 // ============================================================================
@@ -214,7 +217,10 @@ fn test_array_join() {
 
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program.to_string()));
-    assert_eq!("hello, world, test\nhelloworldtest\nhello - world - test\n1, 2, 3", vm.get_output());
+    assert_eq!(
+        "hello, world, test\nhelloworldtest\nhello - world - test\n1, 2, 3",
+        vm.get_output()
+    );
 }
 
 // ============================================================================

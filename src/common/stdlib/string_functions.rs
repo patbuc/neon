@@ -1,12 +1,15 @@
 use crate::common::{Object, Value};
-use crate::{extract_receiver, extract_arg, extract_string_value};
 use crate::string;
+use crate::{extract_arg, extract_receiver, extract_string_value};
 
 /// Native implementation of String.len()
 /// Returns the number of Unicode characters in the string
 pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("string.len() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "len() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     let obj_string = extract_receiver!(args, String, "len")?;
@@ -87,8 +90,11 @@ pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
 /// Parses the string as an integer and returns it as a Number
 /// Returns an error if the string cannot be parsed as an integer
 pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("toInt() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "toInt() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string
@@ -109,8 +115,11 @@ pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
 /// Parses the string as a floating-point number and returns it as a Number
 /// Returns an error if the string cannot be parsed as a float
 pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("toFloat() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "toFloat()() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string
@@ -131,8 +140,11 @@ pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
 /// Parses the string as a boolean and returns it as a Boolean
 /// Accepts "true" or "false" (case-insensitive), returns an error for other input
 pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("toBool() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "toBool()() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string
@@ -193,8 +205,11 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.trim()
 /// Returns a new string with leading and trailing whitespace removed
 pub fn native_string_trim(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("trim() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "trim()() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string
@@ -315,8 +330,11 @@ pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.toUpperCase()
 /// Returns a new string with all characters converted to uppercase
 pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("toUpperCase() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "toUpperCase()() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string
@@ -329,8 +347,11 @@ pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of String.toLowerCase()
 /// Returns a new string with all characters converted to lowercase
 pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("toLowerCase() requires a string receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "toLowerCase()() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the string

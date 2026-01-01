@@ -1,5 +1,5 @@
-use crate::compiler::ast::{Expr, Stmt, BinaryOp};
 use crate::common::SourceLocation;
+use crate::compiler::ast::{BinaryOp, Expr, Stmt};
 
 fn dummy_location() -> SourceLocation {
     SourceLocation {
@@ -34,7 +34,7 @@ fn test_expr_binary() {
         right,
         location: dummy_location(),
     };
-    
+
     match expr {
         Expr::Binary { operator, .. } => {
             assert_eq!(operator, BinaryOp::Add);
@@ -64,7 +64,7 @@ fn test_stmt_fn() {
         body: vec![],
         location: dummy_location(),
     };
-    
+
     match stmt {
         Stmt::Fn { name, params, .. } => {
             assert_eq!(name, "foo");

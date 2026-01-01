@@ -1,8 +1,9 @@
 use crate::common::{Object, Value};
-use crate::{extract_receiver, extract_arg, extract_string_value};
+use crate::{extract_arg, extract_receiver, extract_string_value};
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil
+/// New calling convention: [receiver, args...]
 pub fn native_array_push(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
@@ -14,9 +15,12 @@ pub fn native_array_push(args: &[Value]) -> Result<Value, String> {
     // Extract the array
     let array_ref = extract_receiver!(args, Array, "push")?;
 
+    // Extract the value to push (args[1] in new convention)
+    let value = &args[1];
+
     // Push the value onto the array
     let mut array = array_ref.borrow_mut();
-    array.push(args[1].clone());
+    array.push(value.clone());
 
     Ok(Value::Nil)
 }
@@ -25,7 +29,10 @@ pub fn native_array_push(args: &[Value]) -> Result<Value, String> {
 /// Removes and returns the last element of the array, or nil if the array is empty
 pub fn native_array_pop(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("pop() expects no arguments".to_string());
+        return Err(format!(
+            "pop() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array
@@ -40,12 +47,13 @@ pub fn native_array_pop(args: &[Value]) -> Result<Value, String> {
 /// Returns the number of elements in the array
 pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("length() expects no arguments".to_string());
+        return Err(format!(
+            "length() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
-    // Extract the array
     let array_ref = extract_receiver!(args, Array, "length")?;
-
     let array = array_ref.borrow();
     Ok(Value::Number(array.len() as f64))
 }
@@ -53,8 +61,11 @@ pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
 /// Native implementation of Array.size()
 /// Returns the number of elements in the array
 pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
-    if args.is_empty() {
-        return Err("array.size() requires an array receiver".to_string());
+    if args.len() != 1 {
+        return Err(format!(
+            "size() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     let array_ref = extract_receiver!(args, Array, "size")?;
@@ -89,7 +100,10 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
 /// Sorts array in place (numbers ascending, strings alphabetically)
 pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("sort() expects no arguments".to_string());
+        return Err(format!(
+            "sort() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array
@@ -121,7 +135,10 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
 /// Reverses array in place
 pub fn native_array_reverse(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("reverse() expects no arguments".to_string());
+        return Err(format!(
+            "reverse() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array
@@ -235,7 +252,10 @@ pub fn native_array_index_of(args: &[Value]) -> Result<Value, String> {
 /// Sums numeric array (error if non-numeric)
 pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("sum() expects no arguments".to_string());
+        return Err(format!(
+            "sum() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array
@@ -263,7 +283,10 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
 /// Finds minimum value in array
 pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("min() expects no arguments".to_string());
+        return Err(format!(
+            "min() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array
@@ -300,7 +323,10 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
 /// Finds maximum value in array
 pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err("max() expects no arguments".to_string());
+        return Err(format!(
+            "max() expects no arguments, got {}",
+            args.len() - 1
+        ));
     }
 
     // Extract the array

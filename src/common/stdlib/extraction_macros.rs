@@ -139,6 +139,9 @@ macro_rules! extract_receiver {
 /// let index = extract_arg!(args, 1, Number, "index", "substring")?;
 /// let other_set = extract_arg!(args, 1, Set, "other set", "union")?;
 /// ```
+///
+/// # New calling convention
+/// With unified calling [receiver, args...], indices are direct (no +1 offset)
 #[macro_export]
 macro_rules! extract_arg {
     // String argument

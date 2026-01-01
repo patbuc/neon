@@ -1,5 +1,5 @@
-use crate::compiler::parser::Parser;
 use crate::compiler::ast::{Expr, Stmt};
+use crate::compiler::parser::Parser;
 
 #[test]
 fn test_parse_number() {
@@ -168,7 +168,10 @@ fn test_parse_simple_else_if() {
             assert!(else_branch.is_some());
             // The else branch should contain another If statement (the else-if)
             match else_branch.as_ref().unwrap().as_ref() {
-                Stmt::If { else_branch: inner_else, .. } => {
+                Stmt::If {
+                    else_branch: inner_else,
+                    ..
+                } => {
                     // The inner else-if should have a final else branch
                     assert!(inner_else.is_some());
                 }
@@ -219,15 +222,21 @@ fn test_parse_multiple_else_if_branches() {
             assert!(else_branch.is_some());
             // First else-if
             match else_branch.as_ref().unwrap().as_ref() {
-                Stmt::If { else_branch: else2, .. } => {
+                Stmt::If {
+                    else_branch: else2, ..
+                } => {
                     assert!(else2.is_some());
                     // Second else-if
                     match else2.as_ref().unwrap().as_ref() {
-                        Stmt::If { else_branch: else3, .. } => {
+                        Stmt::If {
+                            else_branch: else3, ..
+                        } => {
                             assert!(else3.is_some());
                             // Third else-if
                             match else3.as_ref().unwrap().as_ref() {
-                                Stmt::If { else_branch: else4, .. } => {
+                                Stmt::If {
+                                    else_branch: else4, ..
+                                } => {
                                     assert!(else4.is_some());
                                     // Final else (should be a Block, not another If)
                                     match else4.as_ref().unwrap().as_ref() {
@@ -282,7 +291,10 @@ fn test_parse_else_if_without_final_else() {
             assert!(else_branch.is_some());
             // The else branch should contain another If statement without a final else
             match else_branch.as_ref().unwrap().as_ref() {
-                Stmt::If { else_branch: inner_else, .. } => {
+                Stmt::If {
+                    else_branch: inner_else,
+                    ..
+                } => {
                     // The inner else-if should NOT have a final else branch
                     assert!(inner_else.is_none());
                 }
@@ -334,7 +346,11 @@ fn test_parse_nested_if_within_else_if() {
             assert!(else_branch.is_some());
             // The else branch should be an else-if (If statement)
             match else_branch.as_ref().unwrap().as_ref() {
-                Stmt::If { then_branch, else_branch: outer_else, .. } => {
+                Stmt::If {
+                    then_branch,
+                    else_branch: outer_else,
+                    ..
+                } => {
                     // The then_branch of the else-if should contain a nested if
                     match then_branch.as_ref() {
                         Stmt::Block { statements, .. } => {
@@ -380,7 +396,9 @@ fn test_parse_for_loop() {
             }
             // Second statement should be the while loop
             match &statements[1] {
-                Stmt::While { condition, body, .. } => {
+                Stmt::While {
+                    condition, body, ..
+                } => {
                     // Verify condition is a binary comparison
                     match condition {
                         Expr::Binary { .. } => {}
@@ -388,8 +406,15 @@ fn test_parse_for_loop() {
                     }
                     // Verify body is a Block containing original body and increment
                     match body.as_ref() {
-                        Stmt::Block { statements: while_stmts, .. } => {
-                            assert_eq!(while_stmts.len(), 2, "While body should contain original body + increment");
+                        Stmt::Block {
+                            statements: while_stmts,
+                            ..
+                        } => {
+                            assert_eq!(
+                                while_stmts.len(),
+                                2,
+                                "While body should contain original body + increment"
+                            );
                         }
                         _ => panic!("Expected Block as while body"),
                     }
@@ -452,11 +477,17 @@ fn test_parse_for_loop_empty_body() {
             match &statements[1] {
                 Stmt::While { body, .. } => {
                     match body.as_ref() {
-                        Stmt::Block { statements: while_stmts, .. } => {
+                        Stmt::Block {
+                            statements: while_stmts,
+                            ..
+                        } => {
                             assert_eq!(while_stmts.len(), 2);
                             // First should be the empty body block
                             match &while_stmts[0] {
-                                Stmt::Block { statements: empty_stmts, .. } => {
+                                Stmt::Block {
+                                    statements: empty_stmts,
+                                    ..
+                                } => {
                                     assert_eq!(empty_stmts.len(), 0, "Body should be empty");
                                 }
                                 _ => panic!("Expected Block for empty body"),
@@ -500,25 +531,38 @@ fn test_parse_nested_for_loops() {
             match &statements[1] {
                 Stmt::While { body, .. } => {
                     match body.as_ref() {
-                        Stmt::Block { statements: outer_while_stmts, .. } => {
+                        Stmt::Block {
+                            statements: outer_while_stmts,
+                            ..
+                        } => {
                             assert_eq!(outer_while_stmts.len(), 2);
                             // First statement should be a Block (from the { } in source code)
                             match &outer_while_stmts[0] {
-                                Stmt::Block { statements: source_block_stmts, .. } => {
+                                Stmt::Block {
+                                    statements: source_block_stmts,
+                                    ..
+                                } => {
                                     assert_eq!(source_block_stmts.len(), 1, "Source block should contain one statement (the desugared inner for loop)");
                                     // That statement should be the desugared inner for loop (another Block)
                                     match &source_block_stmts[0] {
-                                        Stmt::Block { statements: inner_for_stmts, .. } => {
+                                        Stmt::Block {
+                                            statements: inner_for_stmts,
+                                            ..
+                                        } => {
                                             assert_eq!(inner_for_stmts.len(), 2);
                                             // Verify inner var declaration
                                             match &inner_for_stmts[0] {
                                                 Stmt::Var { name, .. } => assert_eq!(name, "j"),
-                                                _ => panic!("Expected Var declaration for inner loop"),
+                                                _ => panic!(
+                                                    "Expected Var declaration for inner loop"
+                                                ),
                                             }
                                             // Verify inner while loop exists
                                             match &inner_for_stmts[1] {
                                                 Stmt::While { .. } => {}
-                                                _ => panic!("Expected While statement for inner loop"),
+                                                _ => panic!(
+                                                    "Expected While statement for inner loop"
+                                                ),
                                             }
                                         }
                                         _ => panic!("Expected Block for desugared inner for loop"),
@@ -546,10 +590,15 @@ fn test_parse_for_loop_missing_semicolon_after_init() {
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
-    assert!(result.is_err(), "Should fail when missing semicolon after init");
+    assert!(
+        result.is_err(),
+        "Should fail when missing semicolon after init"
+    );
     let errors = result.unwrap_err();
     assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("';'") || errors[0].message.contains("after loop initializer"));
+    assert!(
+        errors[0].message.contains("';'") || errors[0].message.contains("after loop initializer")
+    );
 }
 
 #[test]
@@ -561,10 +610,15 @@ fn test_parse_for_loop_missing_semicolon_after_condition() {
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
-    assert!(result.is_err(), "Should fail when missing semicolon after condition");
+    assert!(
+        result.is_err(),
+        "Should fail when missing semicolon after condition"
+    );
     let errors = result.unwrap_err();
     assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("';'") || errors[0].message.contains("after loop condition"));
+    assert!(
+        errors[0].message.contains("';'") || errors[0].message.contains("after loop condition")
+    );
 }
 
 #[test]
@@ -591,7 +645,10 @@ fn test_parse_for_loop_missing_right_paren() {
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
-    assert!(result.is_err(), "Should fail when missing right parenthesis");
+    assert!(
+        result.is_err(),
+        "Should fail when missing right parenthesis"
+    );
     let errors = result.unwrap_err();
     assert!(!errors.is_empty());
     assert!(errors[0].message.contains("')'") || errors[0].message.contains("after for clauses"));
@@ -606,12 +663,18 @@ fn test_parse_for_loop_invalid_init_not_declaration() {
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
-    assert!(result.is_err(), "Should fail when init is not a val/var declaration");
+    assert!(
+        result.is_err(),
+        "Should fail when init is not a val/var declaration"
+    );
     let errors = result.unwrap_err();
     assert!(!errors.is_empty());
     assert!(
-        errors[0].message.contains("val") || errors[0].message.contains("var") || errors[0].message.contains("initializer"),
-        "Error should mention val/var requirement, got: {}", errors[0].message
+        errors[0].message.contains("val")
+            || errors[0].message.contains("var")
+            || errors[0].message.contains("initializer"),
+        "Error should mention val/var requirement, got: {}",
+        errors[0].message
     );
 }
 
@@ -633,7 +696,10 @@ fn test_parse_for_loop_complex_increment() {
             match &statements[1] {
                 Stmt::While { body, .. } => {
                     match body.as_ref() {
-                        Stmt::Block { statements: while_stmts, .. } => {
+                        Stmt::Block {
+                            statements: while_stmts,
+                            ..
+                        } => {
                             assert_eq!(while_stmts.len(), 2);
                             // Second statement should be the increment
                             match &while_stmts[1] {
@@ -668,7 +734,10 @@ fn test_parse_method_call_no_args() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -678,9 +747,14 @@ fn test_parse_method_call_no_args() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
-                Expr::Call { callee, arguments, .. } => {
+                Expr::Call {
+                    callee, arguments, ..
+                } => {
                     // Should be Call { callee: GetField { object: Variable("str"), field: "len" }, arguments: [] }
                     assert_eq!(arguments.len(), 0);
                     match callee.as_ref() {
@@ -712,7 +786,10 @@ fn test_parse_method_call_one_arg() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -722,9 +799,14 @@ fn test_parse_method_call_one_arg() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
-                Expr::Call { callee, arguments, .. } => {
+                Expr::Call {
+                    callee, arguments, ..
+                } => {
                     // Should be Call { callee: GetField { object: Variable("str"), field: "split" }, arguments: [String(",")]}
                     assert_eq!(arguments.len(), 1);
                     match &arguments[0] {
@@ -760,7 +842,10 @@ fn test_parse_method_call_multiple_args() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -770,9 +855,14 @@ fn test_parse_method_call_multiple_args() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
-                Expr::Call { callee, arguments, .. } => {
+                Expr::Call {
+                    callee, arguments, ..
+                } => {
                     // Should be Call { callee: GetField { object: Variable("str"), field: "substring" }, arguments: [Number(0), Number(5)]}
                     assert_eq!(arguments.len(), 2);
                     match &arguments[0] {
@@ -812,7 +902,10 @@ fn test_parse_chained_method_calls() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -822,31 +915,48 @@ fn test_parse_chained_method_calls() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             // Outer method call should be .len()
             match expr {
-                Expr::Call { callee, arguments, .. } => {
+                Expr::Call {
+                    callee, arguments, ..
+                } => {
                     assert_eq!(arguments.len(), 0);
-                    
+
                     // Outer call should be GetField with field "len"
                     match callee.as_ref() {
                         Expr::GetField { object, field, .. } => {
                             assert_eq!(field, "len");
-                            
+
                             // Inner object should be a Call to .substring(0, 5)
                             match object.as_ref() {
-                                Expr::Call { callee: inner_callee, arguments: inner_args, .. } => {
+                                Expr::Call {
+                                    callee: inner_callee,
+                                    arguments: inner_args,
+                                    ..
+                                } => {
                                     assert_eq!(inner_args.len(), 2);
-                                    
+
                                     // Inner call should be GetField with field "substring"
                                     match inner_callee.as_ref() {
-                                        Expr::GetField { object: inner_obj, field: inner_field, .. } => {
+                                        Expr::GetField {
+                                            object: inner_obj,
+                                            field: inner_field,
+                                            ..
+                                        } => {
                                             assert_eq!(inner_field, "substring");
-                                            
+
                                             // Innermost object should be the variable 'str'
                                             match inner_obj.as_ref() {
-                                                Expr::Variable { name, .. } => assert_eq!(name, "str"),
-                                                _ => panic!("Expected Variable as innermost object"),
+                                                Expr::Variable { name, .. } => {
+                                                    assert_eq!(name, "str")
+                                                }
+                                                _ => {
+                                                    panic!("Expected Variable as innermost object")
+                                                }
                                             }
                                         }
                                         _ => panic!("Expected GetField as inner callee"),
@@ -877,7 +987,10 @@ fn test_parse_method_call_vs_field_access() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -888,28 +1001,28 @@ fn test_parse_method_call_vs_field_access() {
 
     // First should be field access
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::GetField { field, .. } => assert_eq!(field, "field"),
-                _ => panic!("Expected GetField expression"),
-            }
-        }
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::GetField { field, .. } => assert_eq!(field, "field"),
+            _ => panic!("Expected GetField expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 
     // Second should be method call
     match &stmts[1] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::Call { callee, .. } => {
-                    match callee.as_ref() {
-                        Expr::GetField { field, .. } => assert_eq!(field, "method"),
-                        _ => panic!("Expected GetField as callee"),
-                    }
-                }
-                _ => panic!("Expected Call expression"),
-            }
-        }
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Call { callee, .. } => match callee.as_ref() {
+                Expr::GetField { field, .. } => assert_eq!(field, "method"),
+                _ => panic!("Expected GetField as callee"),
+            },
+            _ => panic!("Expected Call expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1006,7 +1119,10 @@ fn test_parse_empty_map() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1016,14 +1132,15 @@ fn test_parse_empty_map() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::MapLiteral { entries, .. } => {
-                    assert_eq!(entries.len(), 0);
-                }
-                _ => panic!("Expected MapLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::MapLiteral { entries, .. } => {
+                assert_eq!(entries.len(), 0);
             }
-        }
+            _ => panic!("Expected MapLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1039,7 +1156,10 @@ fn test_parse_map_with_string_keys() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1049,7 +1169,10 @@ fn test_parse_map_with_string_keys() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::MapLiteral { entries, .. } => {
                     assert_eq!(entries.len(), 2);
@@ -1092,7 +1215,10 @@ fn test_parse_map_with_variable_keys() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1102,7 +1228,10 @@ fn test_parse_map_with_variable_keys() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::MapLiteral { entries, .. } => {
                     assert_eq!(entries.len(), 2);
@@ -1135,7 +1264,10 @@ fn test_parse_nested_map() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1145,14 +1277,20 @@ fn test_parse_nested_map() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::MapLiteral { entries, .. } => {
                     assert_eq!(entries.len(), 1);
 
                     // Value should be another map
                     match &entries[0].1 {
-                        Expr::MapLiteral { entries: inner_entries, .. } => {
+                        Expr::MapLiteral {
+                            entries: inner_entries,
+                            ..
+                        } => {
                             assert_eq!(inner_entries.len(), 1);
                             match &inner_entries[0].1 {
                                 Expr::Number { value, .. } => assert_eq!(*value, 42.0),
@@ -1180,7 +1318,10 @@ fn test_parse_map_with_trailing_comma() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1190,14 +1331,15 @@ fn test_parse_map_with_trailing_comma() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::MapLiteral { entries, .. } => {
-                    assert_eq!(entries.len(), 2);
-                }
-                _ => panic!("Expected MapLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::MapLiteral { entries, .. } => {
+                assert_eq!(entries.len(), 2);
             }
-        }
+            _ => panic!("Expected MapLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1216,7 +1358,10 @@ fn test_parse_map_with_multiline() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1239,7 +1384,10 @@ fn test_parse_index_access() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1249,21 +1397,22 @@ fn test_parse_index_access() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::Index { object, index, .. } => {
-                    match object.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "m"),
-                        _ => panic!("Expected Variable as object"),
-                    }
-                    match index.as_ref() {
-                        Expr::String { value, .. } => assert_eq!(value, "key"),
-                        _ => panic!("Expected String as index"),
-                    }
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Index { object, index, .. } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "m"),
+                    _ => panic!("Expected Variable as object"),
                 }
-                _ => panic!("Expected Index expression"),
+                match index.as_ref() {
+                    Expr::String { value, .. } => assert_eq!(value, "key"),
+                    _ => panic!("Expected String as index"),
+                }
             }
-        }
+            _ => panic!("Expected Index expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1279,7 +1428,10 @@ fn test_parse_index_assignment() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1289,25 +1441,28 @@ fn test_parse_index_assignment() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Expression { expr, .. } => {
-            match expr {
-                Expr::IndexAssign { object, index, value, .. } => {
-                    match object.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "m"),
-                        _ => panic!("Expected Variable as object"),
-                    }
-                    match index.as_ref() {
-                        Expr::String { value, .. } => assert_eq!(value, "key"),
-                        _ => panic!("Expected String as index"),
-                    }
-                    match value.as_ref() {
-                        Expr::Number { value, .. } => assert_eq!(*value, 42.0),
-                        _ => panic!("Expected Number as value"),
-                    }
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "m"),
+                    _ => panic!("Expected Variable as object"),
                 }
-                _ => panic!("Expected IndexAssign expression"),
+                match index.as_ref() {
+                    Expr::String { value, .. } => assert_eq!(value, "key"),
+                    _ => panic!("Expected String as index"),
+                }
+                match value.as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 42.0),
+                    _ => panic!("Expected Number as value"),
+                }
             }
-        }
+            _ => panic!("Expected IndexAssign expression"),
+        },
         _ => panic!("Expected Expression statement"),
     }
 }
@@ -1323,7 +1478,10 @@ fn test_parse_chained_index_access() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1333,7 +1491,10 @@ fn test_parse_chained_index_access() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             // Outer index should be ["inner"]
             match expr {
                 Expr::Index { object, index, .. } => {
@@ -1344,7 +1505,11 @@ fn test_parse_chained_index_access() {
 
                     // Inner object should be m["outer"]
                     match object.as_ref() {
-                        Expr::Index { object: inner_obj, index: inner_idx, .. } => {
+                        Expr::Index {
+                            object: inner_obj,
+                            index: inner_idx,
+                            ..
+                        } => {
                             match inner_obj.as_ref() {
                                 Expr::Variable { name, .. } => assert_eq!(name, "m"),
                                 _ => panic!("Expected Variable as inner object"),
@@ -1375,7 +1540,10 @@ fn test_parse_index_with_variable_key() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1385,17 +1553,16 @@ fn test_parse_index_with_variable_key() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::Index { index, .. } => {
-                    match index.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "key"),
-                        _ => panic!("Expected Variable as index"),
-                    }
-                }
-                _ => panic!("Expected Index expression"),
-            }
-        }
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Index { index, .. } => match index.as_ref() {
+                Expr::Variable { name, .. } => assert_eq!(name, "key"),
+                _ => panic!("Expected Variable as index"),
+            },
+            _ => panic!("Expected Index expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1411,7 +1578,10 @@ fn test_parse_index_with_expression_key() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1421,11 +1591,14 @@ fn test_parse_index_with_expression_key() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::Index { index, .. } => {
                     match index.as_ref() {
-                        Expr::Binary { .. } => {}, // Correct, it's a binary expression
+                        Expr::Binary { .. } => {} // Correct, it's a binary expression
                         _ => panic!("Expected Binary expression as index"),
                     }
                 }
@@ -1450,7 +1623,10 @@ fn test_parse_postfix_increment() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1461,17 +1637,13 @@ fn test_parse_postfix_increment() {
 
     // Second statement should be the postfix increment
     match &stmts[1] {
-        Stmt::Expression { expr, .. } => {
-            match expr {
-                Expr::PostfixIncrement { operand, .. } => {
-                    match operand.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
-                        _ => panic!("Expected Variable as operand"),
-                    }
-                }
-                _ => panic!("Expected PostfixIncrement expression"),
-            }
-        }
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::PostfixIncrement { operand, .. } => match operand.as_ref() {
+                Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                _ => panic!("Expected Variable as operand"),
+            },
+            _ => panic!("Expected PostfixIncrement expression"),
+        },
         _ => panic!("Expected Expression statement"),
     }
 }
@@ -1488,7 +1660,10 @@ fn test_parse_postfix_decrement() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1499,17 +1674,13 @@ fn test_parse_postfix_decrement() {
 
     // Second statement should be the postfix decrement
     match &stmts[1] {
-        Stmt::Expression { expr, .. } => {
-            match expr {
-                Expr::PostfixDecrement { operand, .. } => {
-                    match operand.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "y"),
-                        _ => panic!("Expected Variable as operand"),
-                    }
-                }
-                _ => panic!("Expected PostfixDecrement expression"),
-            }
-        }
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::PostfixDecrement { operand, .. } => match operand.as_ref() {
+                Expr::Variable { name, .. } => assert_eq!(name, "y"),
+                _ => panic!("Expected Variable as operand"),
+            },
+            _ => panic!("Expected PostfixDecrement expression"),
+        },
         _ => panic!("Expected Expression statement"),
     }
 }
@@ -1526,7 +1697,10 @@ fn test_parse_postfix_in_expression() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1537,15 +1711,17 @@ fn test_parse_postfix_in_expression() {
 
     // Second statement should be val y = x++
     match &stmts[1] {
-        Stmt::Val { name, initializer: Some(expr), .. } => {
+        Stmt::Val {
+            name,
+            initializer: Some(expr),
+            ..
+        } => {
             assert_eq!(name, "y");
             match expr {
-                Expr::PostfixIncrement { operand, .. } => {
-                    match operand.as_ref() {
-                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
-                        _ => panic!("Expected Variable as operand"),
-                    }
-                }
+                Expr::PostfixIncrement { operand, .. } => match operand.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                    _ => panic!("Expected Variable as operand"),
+                },
                 _ => panic!("Expected PostfixIncrement expression"),
             }
         }
@@ -1564,7 +1740,10 @@ fn test_parse_postfix_with_field_access() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1575,23 +1754,19 @@ fn test_parse_postfix_with_field_access() {
 
     // Should be obj.counter++
     match &stmts[0] {
-        Stmt::Expression { expr, .. } => {
-            match expr {
-                Expr::PostfixIncrement { operand, .. } => {
-                    match operand.as_ref() {
-                        Expr::GetField { object, field, .. } => {
-                            match object.as_ref() {
-                                Expr::Variable { name, .. } => assert_eq!(name, "obj"),
-                                _ => panic!("Expected Variable as object"),
-                            }
-                            assert_eq!(field, "counter");
-                        }
-                        _ => panic!("Expected GetField as operand"),
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::PostfixIncrement { operand, .. } => match operand.as_ref() {
+                Expr::GetField { object, field, .. } => {
+                    match object.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "obj"),
+                        _ => panic!("Expected Variable as object"),
                     }
+                    assert_eq!(field, "counter");
                 }
-                _ => panic!("Expected PostfixIncrement expression"),
-            }
-        }
+                _ => panic!("Expected GetField as operand"),
+            },
+            _ => panic!("Expected PostfixIncrement expression"),
+        },
         _ => panic!("Expected Expression statement"),
     }
 }
@@ -1607,7 +1782,10 @@ fn test_parse_postfix_with_array_index() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1618,26 +1796,22 @@ fn test_parse_postfix_with_array_index() {
 
     // Should be arr[0]++
     match &stmts[0] {
-        Stmt::Expression { expr, .. } => {
-            match expr {
-                Expr::PostfixIncrement { operand, .. } => {
-                    match operand.as_ref() {
-                        Expr::Index { object, index, .. } => {
-                            match object.as_ref() {
-                                Expr::Variable { name, .. } => assert_eq!(name, "arr"),
-                                _ => panic!("Expected Variable as object"),
-                            }
-                            match index.as_ref() {
-                                Expr::Number { value, .. } => assert_eq!(*value, 0.0),
-                                _ => panic!("Expected Number as index"),
-                            }
-                        }
-                        _ => panic!("Expected Index as operand"),
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::PostfixIncrement { operand, .. } => match operand.as_ref() {
+                Expr::Index { object, index, .. } => {
+                    match object.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "arr"),
+                        _ => panic!("Expected Variable as object"),
+                    }
+                    match index.as_ref() {
+                        Expr::Number { value, .. } => assert_eq!(*value, 0.0),
+                        _ => panic!("Expected Number as index"),
                     }
                 }
-                _ => panic!("Expected PostfixIncrement expression"),
-            }
-        }
+                _ => panic!("Expected Index as operand"),
+            },
+            _ => panic!("Expected PostfixIncrement expression"),
+        },
         _ => panic!("Expected Expression statement"),
     }
 }
@@ -1654,7 +1828,10 @@ fn test_parse_postfix_precedence() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1665,17 +1842,18 @@ fn test_parse_postfix_precedence() {
 
     // Should parse as (x++) + 5, not x++ (+ 5)
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::Binary { left, right, .. } => {
                     // Left should be x++
                     match left.as_ref() {
-                        Expr::PostfixIncrement { operand, .. } => {
-                            match operand.as_ref() {
-                                Expr::Variable { name, .. } => assert_eq!(name, "x"),
-                                _ => panic!("Expected Variable as operand"),
-                            }
-                        }
+                        Expr::PostfixIncrement { operand, .. } => match operand.as_ref() {
+                            Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                            _ => panic!("Expected Variable as operand"),
+                        },
                         _ => panic!("Expected PostfixIncrement as left operand"),
                     }
                     // Right should be 5
@@ -1763,7 +1941,10 @@ fn test_parse_map_with_index_access() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1795,7 +1976,10 @@ fn test_parse_complex_map_program() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1816,7 +2000,10 @@ fn test_parse_empty_array() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1826,14 +2013,15 @@ fn test_parse_empty_array() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::ArrayLiteral { elements, .. } => {
-                    assert_eq!(elements.len(), 0);
-                }
-                _ => panic!("Expected ArrayLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 0);
             }
-        }
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1847,7 +2035,10 @@ fn test_parse_array_with_numbers() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1857,26 +2048,27 @@ fn test_parse_array_with_numbers() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::ArrayLiteral { elements, .. } => {
-                    assert_eq!(elements.len(), 3);
-                    match &elements[0] {
-                        Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                        _ => panic!("Expected Number element"),
-                    }
-                    match &elements[1] {
-                        Expr::Number { value, .. } => assert_eq!(*value, 2.0),
-                        _ => panic!("Expected Number element"),
-                    }
-                    match &elements[2] {
-                        Expr::Number { value, .. } => assert_eq!(*value, 3.0),
-                        _ => panic!("Expected Number element"),
-                    }
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 3);
+                match &elements[0] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                    _ => panic!("Expected Number element"),
                 }
-                _ => panic!("Expected ArrayLiteral expression"),
+                match &elements[1] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
+                    _ => panic!("Expected Number element"),
+                }
+                match &elements[2] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                    _ => panic!("Expected Number element"),
+                }
             }
-        }
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1890,7 +2082,10 @@ fn test_parse_array_with_mixed_types() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1900,18 +2095,19 @@ fn test_parse_array_with_mixed_types() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::ArrayLiteral { elements, .. } => {
-                    assert_eq!(elements.len(), 4);
-                    assert!(matches!(elements[0], Expr::Number { .. }));
-                    assert!(matches!(elements[1], Expr::String { .. }));
-                    assert!(matches!(elements[2], Expr::Boolean { .. }));
-                    assert!(matches!(elements[3], Expr::Nil { .. }));
-                }
-                _ => panic!("Expected ArrayLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 4);
+                assert!(matches!(elements[0], Expr::Number { .. }));
+                assert!(matches!(elements[1], Expr::String { .. }));
+                assert!(matches!(elements[2], Expr::Boolean { .. }));
+                assert!(matches!(elements[3], Expr::Nil { .. }));
             }
-        }
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1925,7 +2121,10 @@ fn test_parse_array_with_trailing_comma() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1935,14 +2134,15 @@ fn test_parse_array_with_trailing_comma() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::ArrayLiteral { elements, .. } => {
-                    assert_eq!(elements.len(), 3);
-                }
-                _ => panic!("Expected ArrayLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 3);
             }
-        }
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -1956,7 +2156,10 @@ fn test_parse_nested_arrays() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -1966,13 +2169,18 @@ fn test_parse_nested_arrays() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::ArrayLiteral { elements, .. } => {
                     assert_eq!(elements.len(), 2);
                     // Check first nested array
                     match &elements[0] {
-                        Expr::ArrayLiteral { elements: inner, .. } => {
+                        Expr::ArrayLiteral {
+                            elements: inner, ..
+                        } => {
                             assert_eq!(inner.len(), 2);
                             match &inner[0] {
                                 Expr::Number { value, .. } => assert_eq!(*value, 1.0),
@@ -1983,7 +2191,9 @@ fn test_parse_nested_arrays() {
                     }
                     // Check second nested array
                     match &elements[1] {
-                        Expr::ArrayLiteral { elements: inner, .. } => {
+                        Expr::ArrayLiteral {
+                            elements: inner, ..
+                        } => {
                             assert_eq!(inner.len(), 2);
                             match &inner[0] {
                                 Expr::Number { value, .. } => assert_eq!(*value, 3.0),
@@ -2015,7 +2225,10 @@ fn test_parse_array_with_multiline() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -2025,14 +2238,15 @@ fn test_parse_array_with_multiline() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
-            match expr {
-                Expr::ArrayLiteral { elements, .. } => {
-                    assert_eq!(elements.len(), 3);
-                }
-                _ => panic!("Expected ArrayLiteral expression"),
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 3);
             }
-        }
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
         _ => panic!("Expected Val statement"),
     }
 }
@@ -2046,7 +2260,10 @@ fn test_parse_array_with_expressions() {
     if result.is_err() {
         let errors = result.unwrap_err();
         for err in &errors {
-            eprintln!("Parse error at {}:{}: {}", err.location.line, err.location.column, err.message);
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
         }
         panic!("Parse failed with {} errors", errors.len());
     }
@@ -2056,7 +2273,10 @@ fn test_parse_array_with_expressions() {
     assert_eq!(stmts.len(), 1);
 
     match &stmts[0] {
-        Stmt::Val { initializer: Some(expr), .. } => {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => {
             match expr {
                 Expr::ArrayLiteral { elements, .. } => {
                     assert_eq!(elements.len(), 3);
