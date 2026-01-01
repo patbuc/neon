@@ -16,6 +16,7 @@ pub(crate) enum CompilationErrorKind {
     UndefinedSymbol,
     ImmutableAssignment,
     ArityExceeded,
+    BreakOutsideLoop,
     Internal,
     #[allow(dead_code)]
     Other,
@@ -29,6 +30,7 @@ impl Display for CompilationErrorKind {
             CompilationErrorKind::UndefinedSymbol => write!(f, "Undefined Symbol"),
             CompilationErrorKind::ImmutableAssignment => write!(f, "Immutable Assignment"),
             CompilationErrorKind::ArityExceeded => write!(f, "Arity Exceeded"),
+            CompilationErrorKind::BreakOutsideLoop => write!(f, "Break Outside Loop"),
             CompilationErrorKind::Internal => write!(f, "Internal Error"),
             CompilationErrorKind::Other => write!(f, "Error"),
         }

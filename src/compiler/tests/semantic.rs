@@ -197,3 +197,92 @@ x()
         .iter()
         .any(|e| e.message.contains("is not a function")));
 }
+
+#[test]
+fn test_break_outside_loop() {
+    let program = r#"
+break
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("break statement outside of loop"));
+}
+
+#[test]
+fn test_break_inside_loop() {
+    let program = r#"
+loop {
+    break
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_inside_while() {
+    let program = r#"
+var x = 0
+while (x < 10) {
+    x = x + 1
+    break
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_in_nested_loops() {
+    let program = r#"
+loop {
+    loop {
+        break
+    }
+    break
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_outside_nested_loop() {
+    let program = r#"
+loop {
+    val x = 10
+}
+break
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("break statement outside of loop")));
+}

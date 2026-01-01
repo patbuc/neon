@@ -11,6 +11,7 @@ use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     errors: Vec<CompilationError>,
+    loop_depth: u32,
 }
 
 impl SemanticAnalyzer {
@@ -18,6 +19,7 @@ impl SemanticAnalyzer {
         SemanticAnalyzer {
             symbol_table: SymbolTable::new(),
             errors: Vec::new(),
+            loop_depth: 0,
         }
     }
 
@@ -185,13 +187,24 @@ impl SemanticAnalyzer {
                 condition, body, ..
             } => {
                 self.resolve_expr(condition);
+                self.loop_depth += 1;
                 self.resolve_stmt(body);
+                self.loop_depth -= 1;
             }
             Stmt::Loop { body, .. } => {
+                self.loop_depth += 1;
                 self.resolve_stmt(body);
+                self.loop_depth -= 1;
             }
-            Stmt::Break { .. } => {
-                // No resolution needed for break statement
+            Stmt::Break { location } => {
+                if self.loop_depth == 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::BreakOutsideLoop,
+                        "break statement outside of loop",
+                        *location,
+                    ));
+                }
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
