@@ -131,3 +131,82 @@ fn test_parse_while_loop() {
         _ => panic!("Expected While statement"),
     }
 }
+
+#[test]
+fn test_parse_loop() {
+    let program = r#"
+        loop {
+            print 1
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Loop { .. } => {}
+        _ => panic!("Expected Loop statement"),
+    }
+}
+
+#[test]
+fn test_parse_break() {
+    let program = r#"
+        break
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Break { .. } => {}
+        _ => panic!("Expected Break statement"),
+    }
+}
+
+#[test]
+fn test_parse_loop_with_break() {
+    let program = r#"
+        var i = 0
+        loop {
+            if (i > 5) {
+                break
+            }
+            print i
+            i = i + 1
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+    match &stmts[1] {
+        Stmt::Loop { body, .. } => {
+            match body.as_ref() {
+                Stmt::Block { statements, .. } => {
+                    assert_eq!(statements.len(), 3); // if, print, assignment
+                    match &statements[0] {
+                        Stmt::If { then_branch, .. } => {
+                            match then_branch.as_ref() {
+                                Stmt::Block { statements, .. } => {
+                                    assert_eq!(statements.len(), 1);
+                                    match &statements[0] {
+                                        Stmt::Break { .. } => {}
+                                        _ => panic!("Expected Break statement in if body"),
+                                    }
+                                }
+                                _ => panic!("Expected Block statement in if branch"),
+                            }
+                        }
+                        _ => panic!("Expected If statement in loop body"),
+                    }
+                }
+                _ => panic!("Expected Block statement in loop body"),
+            }
+        }
+        _ => panic!("Expected Loop statement"),
+    }
+}

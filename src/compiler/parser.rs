@@ -180,6 +180,8 @@ impl Parser {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
+                | TokenType::Loop
+                | TokenType::Break
                 | TokenType::Print
                 | TokenType::Return => return,
                 _ => {}
@@ -367,6 +369,10 @@ impl Parser {
             self.if_statement()
         } else if self.match_token(TokenType::While) {
             self.while_statement()
+        } else if self.match_token(TokenType::Loop) {
+            self.loop_statement()
+        } else if self.match_token(TokenType::Break) {
+            self.break_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
         } else {
@@ -469,6 +475,23 @@ impl Parser {
             body,
             location,
         })
+    }
+
+    fn loop_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        let body = Box::new(self.statement()?);
+
+        Some(Stmt::Loop { body, location })
+    }
+
+    fn break_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' at end of statement.",
+        );
+        Some(Stmt::Break { location })
     }
 
     fn return_statement(&mut self) -> Option<Stmt> {

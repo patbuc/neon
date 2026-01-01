@@ -305,6 +305,14 @@ impl CodeGenerator {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
             }
+            Stmt::Loop { .. } => {
+                // TODO: Implement loop code generation
+                unimplemented!("Loop code generation not yet implemented")
+            }
+            Stmt::Break { .. } => {
+                // TODO: Implement break code generation
+                unimplemented!("Break code generation not yet implemented")
+            }
         }
     }
 

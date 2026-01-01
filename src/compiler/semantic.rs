@@ -187,6 +187,12 @@ impl SemanticAnalyzer {
                 self.resolve_expr(condition);
                 self.resolve_stmt(body);
             }
+            Stmt::Loop { body, .. } => {
+                self.resolve_stmt(body);
+            }
+            Stmt::Break { .. } => {
+                // No resolution needed for break statement
+            }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
             }
