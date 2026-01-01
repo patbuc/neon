@@ -16,6 +16,8 @@ pub struct CodeGenerator {
     scope_depth: u32,
     /// Errors encountered during code generation
     errors: Vec<CompilationError>,
+    /// Stack of break jump offsets per loop level
+    break_jumps: Vec<Vec<u32>>,
 }
 
 impl CodeGenerator {
@@ -24,6 +26,7 @@ impl CodeGenerator {
             bloqs: vec![Bloq::new("main")],
             scope_depth: 0,
             errors: Vec::new(),
+            break_jumps: vec![Vec::new()],
         }
     }
 
@@ -290,6 +293,9 @@ impl CodeGenerator {
                 body,
                 location,
             } => {
+                // Push new break jump Vec for this loop
+                self.break_jumps.push(Vec::new());
+
                 let loop_start = self.current_bloq().instruction_count() as u32;
 
                 self.generate_expr(condition);
@@ -300,18 +306,44 @@ impl CodeGenerator {
                 self.emit_loop(loop_start, *location);
 
                 self.patch_jump(exit_jump);
+
+                // Patch all break jumps to current position
+                let breaks = self.break_jumps.pop().unwrap();
+                for break_offset in breaks {
+                    self.patch_jump(break_offset);
+                }
             }
             Stmt::Return { value, location } => {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::Return, *location);
             }
-            Stmt::Loop { .. } => {
-                // TODO: Implement loop code generation
-                unimplemented!("Loop code generation not yet implemented")
+            Stmt::Loop { body, location } => {
+                // Push new break jump Vec for this loop
+                self.break_jumps.push(Vec::new());
+
+                // Capture the start of the loop
+                let loop_start = self.current_bloq().instruction_count() as u32;
+
+                // Generate the loop body
+                self.generate_stmt(body);
+
+                // Unconditional jump back to loop start
+                self.emit_loop(loop_start, *location);
+
+                // Patch all break jumps to current position (after the loop)
+                let breaks = self.break_jumps.pop().unwrap();
+                for break_offset in breaks {
+                    self.patch_jump(break_offset);
+                }
             }
-            Stmt::Break { .. } => {
-                // TODO: Implement break code generation
-                unimplemented!("Break code generation not yet implemented")
+            Stmt::Break { location } => {
+                // Emit a jump instruction and record its offset for later patching
+                let jump_offset = self.emit_jump(OpCode::Jump, *location);
+
+                // Add this jump to the current loop's break jumps
+                if let Some(current_loop_breaks) = self.break_jumps.last_mut() {
+                    current_loop_breaks.push(jump_offset);
+                }
             }
         }
     }

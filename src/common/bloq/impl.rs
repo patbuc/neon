@@ -156,6 +156,10 @@ impl Bloq {
         self.instructions.len()
     }
 
+    pub(crate) fn get_instructions(&self) -> &[u8] {
+        &self.instructions
+    }
+
     pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
         if self.locals.is_empty() {
             return (None, false);
