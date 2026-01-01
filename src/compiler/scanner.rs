@@ -246,9 +246,11 @@ impl Scanner {
         let chr = self.source[self.start];
         match chr {
             'a' => self.check_keyword(1, 2, "nd", TokenType::And),
+            'b' => self.check_keyword(1, 4, "reak", TokenType::Break),
             'c' => self.check_keyword(1, 4, "lass", TokenType::Class),
             'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
             'i' => self.check_keyword(1, 1, "f", TokenType::If),
+            'l' => self.check_keyword(1, 3, "oop", TokenType::Loop),
             'n' => self.check_keyword(1, 2, "il", TokenType::Nil),
             'o' => self.check_keyword(1, 1, "r", TokenType::Or),
             'p' => self.check_keyword(1, 4, "rint", TokenType::Print),
@@ -385,6 +387,53 @@ mod tests {
         assert_eq!(x[3].token_type, TokenType::InterpolatedString);
         assert_eq!(x[4].token_type, TokenType::Semicolon);
         assert_eq!(x[5].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_loop_keyword() {
+        let script = "loop";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 2);
+        assert_eq!(x[0].token_type, TokenType::Loop);
+        assert_eq!(x[0].token, "loop");
+        assert_eq!(x[0].line, 1);
+        assert_eq!(x[0].column, 1);
+        assert_eq!(x[1].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_break_keyword() {
+        let script = "break";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 2);
+        assert_eq!(x[0].token_type, TokenType::Break);
+        assert_eq!(x[0].token, "break");
+        assert_eq!(x[0].line, 1);
+        assert_eq!(x[0].column, 1);
+        assert_eq!(x[1].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn can_scan_loop_with_break() {
+        let script = "loop { break }";
+
+        let scanner = Scanner::new(script);
+        let x: Vec<Token> = collect_tokens(scanner);
+
+        assert_eq!(x.len(), 5);
+        assert_eq!(x[0].token_type, TokenType::Loop);
+        assert_eq!(x[0].token, "loop");
+        assert_eq!(x[1].token_type, TokenType::LeftBrace);
+        assert_eq!(x[2].token_type, TokenType::Break);
+        assert_eq!(x[2].token, "break");
+        assert_eq!(x[3].token_type, TokenType::RightBrace);
+        assert_eq!(x[4].token_type, TokenType::Eof);
     }
 
     fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
