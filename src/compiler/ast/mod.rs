@@ -153,6 +153,15 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
+    /// Infinite loop: loop body
+    Loop {
+        body: Box<Stmt>,
+        location: SourceLocation,
+    },
+    /// Break statement: break
+    Break {
+        location: SourceLocation,
+    },
     /// Return statement: return expr
     Return {
         value: Expr,
@@ -193,6 +202,8 @@ impl Stmt {
             | Stmt::Block { location, .. }
             | Stmt::If { location, .. }
             | Stmt::While { location, .. }
+            | Stmt::Loop { location, .. }
+            | Stmt::Break { location }
             | Stmt::Return { location, .. } => location,
         }
     }
