@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_args_global {
-    use crate::compiler::semantic::SemanticAnalyzer;
     use crate::compiler::parser::Parser;
+    use crate::compiler::semantic::SemanticAnalyzer;
 
     #[test]
     fn test_args_is_predefined() {
@@ -12,7 +12,10 @@ mod test_args_global {
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&ast);
 
-        assert!(result.is_ok(), "args should be predefined as a built-in global");
+        assert!(
+            result.is_ok(),
+            "args should be predefined as a built-in global"
+        );
     }
 
     #[test]

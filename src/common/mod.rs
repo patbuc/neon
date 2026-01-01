@@ -21,7 +21,7 @@ mod tests;
 // The actual implementation will be in vm/mod.rs
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Chunk {
     #[allow(dead_code)]
     pub name: String,
@@ -32,19 +32,29 @@ pub struct Chunk {
     pub locals: Vec<Local>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Local {
     pub name: String,
-    pub depth: u32,
-    pub is_mutable: bool,
+    pub depth: i32,
+    pub is_captured: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Local {
+    pub(crate) fn new(name: String, depth: u32, readonly: bool) -> Self {
+        Local {
+            name,
+            depth: depth as i32,
+            is_captured: readonly,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Constants {
-    values: Vec<Value>,
+    pub values: Vec<Value>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct SourceLocation {
     pub offset: usize,
     pub line: u32,
@@ -75,12 +85,24 @@ impl BitsSize {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Value {
-    Number(f64),
+pub enum Object {
+    String(ObjString),
     #[serde(with = "serde_rc")]
-    Object(Rc<Object>),
-    Boolean(bool),
-    Nil,
+    Function(Rc<ObjFunction>),
+    #[serde(with = "serde_rc")]
+    Struct(Rc<ObjStruct>),
+    #[serde(with = "serde_rc_refcell")]
+    Instance(Rc<RefCell<ObjInstance>>),
+    #[serde(with = "serde_rc_refcell")]
+    Array(Rc<RefCell<Vec<Value>>>),
+    #[serde(with = "serde_rc_refcell")]
+    Map(Rc<RefCell<HashMap<MapKey, Value>>>),
+    #[serde(with = "serde_rc_refcell")]
+    Set(Rc<RefCell<BTreeSet<SetKey>>>),
+    #[serde(with = "serde_rc_str")]
+    File(Rc<str>),
+    #[serde(with = "serde_rc")]
+    Callable(Rc<ObjCallable>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -103,23 +125,13 @@ impl Display for MapKey {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Object {
-    String(ObjString),
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Value {
+    Number(f64),
     #[serde(with = "serde_rc")]
-    Function(Rc<ObjFunction>),
-    #[serde(with = "serde_rc")]
-    Struct(Rc<ObjStruct>),
-    #[serde(with = "serde_rc_refcell")]
-    Instance(Rc<RefCell<ObjInstance>>),
-    #[serde(with = "serde_rc_refcell")]
-    Array(Rc<RefCell<Vec<Value>>>),
-    #[serde(with = "serde_rc_refcell")]
-    Map(Rc<RefCell<HashMap<MapKey, Value>>>),
-    #[serde(with = "serde_rc_refcell")]
-    Set(Rc<RefCell<BTreeSet<SetKey>>>),
-    #[serde(with = "serde_rc_str")]
-    File(Rc<str>),
+    Object(Rc<Object>),
+    Boolean(bool),
+    Nil,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,10 +148,11 @@ pub struct ObjFunction {
     pub chunk: Rc<Chunk>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ObjStruct {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ObjCallable {
+    pub kind: CallableKind,
     pub name: String,
-    pub fields: Vec<String>,
+    pub arity: usize, // Number of arguments the callable expects
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +160,213 @@ pub struct ObjInstance {
     #[serde(with = "serde_rc")]
     pub r#struct: Rc<ObjStruct>,
     pub fields: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjStruct {
+    pub name: String,
+    pub fields: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallableKind {
+    /// User-defined Neon function
+    NeonFunction { chunk: Rc<Chunk> },
+    /// Native method with known index at compile time
+    /// Used for: static methods, constructors, global functions
+    /// Examples: Math.abs(), print(), File.new()
+    NativeByIndex { index: u16 },
+    /// Native method resolved at runtime based on receiver type
+    /// Used for: instance methods where type is unknown at compile time
+    /// Examples: arr.push(), str.len(), map.get()
+    NativeByName { method_name: String },
+}
+
+// Custom serialization for CallableKind
+impl Serialize for CallableKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStructVariant;
+        match self {
+            CallableKind::NeonFunction { chunk } => {
+                let mut state =
+                    serializer.serialize_struct_variant("CallableKind", 0, "NeonFunction", 1)?;
+                state.serialize_field("chunk", &**chunk)?;
+                state.end()
+            }
+            CallableKind::NativeByIndex { index } => {
+                let mut state =
+                    serializer.serialize_struct_variant("CallableKind", 1, "NativeByIndex", 1)?;
+                state.serialize_field("index", index)?;
+                state.end()
+            }
+            CallableKind::NativeByName { method_name } => {
+                let mut state =
+                    serializer.serialize_struct_variant("CallableKind", 2, "NativeByName", 1)?;
+                state.serialize_field("method_name", method_name)?;
+                state.end()
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CallableKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, VariantAccess, Visitor};
+        use std::fmt;
+
+        enum Field {
+            NeonFunction,
+            NativeByIndex,
+            NativeByName,
+        }
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("variant identifier")
+                    }
+
+                    fn visit_u64<E>(self, value: u64) -> Result<Field, E>
+                    where
+                        E: de::Error,
+                    {
+                        match value {
+                            0 => Ok(Field::NeonFunction),
+                            1 => Ok(Field::NativeByIndex),
+                            2 => Ok(Field::NativeByName),
+                            _ => Err(de::Error::invalid_value(
+                                de::Unexpected::Unsigned(value),
+                                &self,
+                            )),
+                        }
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: de::Error,
+                    {
+                        match value {
+                            "NeonFunction" => Ok(Field::NeonFunction),
+                            "NativeByIndex" => Ok(Field::NativeByIndex),
+                            "NativeByName" => Ok(Field::NativeByName),
+                            _ => Err(de::Error::unknown_variant(
+                                value,
+                                &["NeonFunction", "NativeByIndex", "NativeByName"],
+                            )),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct CallableKindVisitor;
+
+        impl<'de> Visitor<'de> for CallableKindVisitor {
+            type Value = CallableKind;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("enum CallableKind")
+            }
+
+            fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::EnumAccess<'de>,
+            {
+                use serde::de::SeqAccess;
+
+                struct ChunkVisitor;
+                impl<'de> Visitor<'de> for ChunkVisitor {
+                    type Value = (Chunk,);
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("tuple with Chunk")
+                    }
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: SeqAccess<'de>,
+                    {
+                        let chunk = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                        Ok((chunk,))
+                    }
+                }
+
+                struct U16Visitor;
+                impl<'de> Visitor<'de> for U16Visitor {
+                    type Value = (u16,);
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("tuple with u16")
+                    }
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: SeqAccess<'de>,
+                    {
+                        let index = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                        Ok((index,))
+                    }
+                }
+
+                struct StringVisitor;
+                impl<'de> Visitor<'de> for StringVisitor {
+                    type Value = (String,);
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("tuple with String")
+                    }
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: SeqAccess<'de>,
+                    {
+                        let s = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                        Ok((s,))
+                    }
+                }
+
+                let (val, variant) = data.variant()?;
+                match val {
+                    Field::NeonFunction => {
+                        let (chunk,) = variant.tuple_variant(1, ChunkVisitor)?;
+                        Ok(CallableKind::NeonFunction {
+                            chunk: Rc::new(chunk),
+                        })
+                    }
+                    Field::NativeByIndex => {
+                        let (index,) = variant.tuple_variant(1, U16Visitor)?;
+                        Ok(CallableKind::NativeByIndex { index })
+                    }
+                    Field::NativeByName => {
+                        let (method_name,) = variant.tuple_variant(1, StringVisitor)?;
+                        Ok(CallableKind::NativeByName { method_name })
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_enum(
+            "CallableKind",
+            &["NeonFunction", "NativeByIndex", "NativeByName"],
+            CallableKindVisitor,
+        )
+    }
 }
 
 impl Value {
@@ -180,6 +400,14 @@ impl Value {
 
     pub(crate) fn new_file(path: String) -> Self {
         Value::Object(Rc::new(Object::File(Rc::from(path))))
+    }
+
+    pub(crate) fn new_callable(name: String, arity: u8, kind: CallableKind) -> Self {
+        Value::Object(Rc::new(Object::Callable(Rc::new(ObjCallable {
+            name,
+            arity: arity.into(),
+            kind,
+        }))))
     }
 }
 
@@ -237,6 +465,7 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
+            Object::Callable(callable) => write!(f, "<callable {}>", callable.name),
         }
     }
 }

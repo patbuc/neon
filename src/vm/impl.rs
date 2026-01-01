@@ -207,7 +207,7 @@ impl VirtualMachine {
                 OpCode::Jump => self.fn_jump(),
                 OpCode::Loop => self.fn_loop(),
                 OpCode::Call => {
-                    if let Some(result) = self.fn_call() {
+                    if let Some(result) = self.fn_call_unified() {
                         return result;
                     }
                     continue;
@@ -218,60 +218,7 @@ impl VirtualMachine {
                 OpCode::SetField => self.fn_set_field(BitsSize::Eight),
                 OpCode::SetField2 => self.fn_set_field(BitsSize::Sixteen),
                 OpCode::SetField4 => self.fn_set_field(BitsSize::ThirtyTwo),
-                OpCode::CallMethod => {
-                    if let Some(result) = self.fn_call_method(BitsSize::Eight) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallMethod2 => {
-                    if let Some(result) = self.fn_call_method(BitsSize::Sixteen) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallMethod4 => {
-                    if let Some(result) = self.fn_call_method(BitsSize::ThirtyTwo) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::Eight) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod2 => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::Sixteen) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallStaticMethod4 => {
-                    if let Some(result) = self.fn_call_static_method(BitsSize::ThirtyTwo) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::Eight) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor2 => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::Sixteen) {
-                        return result;
-                    }
-                    continue;
-                }
-                OpCode::CallConstructor4 => {
-                    if let Some(result) = self.fn_call_constructor(BitsSize::ThirtyTwo) {
-                        return result;
-                    }
-                    continue;
-                }
+
                 OpCode::CreateMap => self.fn_create_map(),
                 OpCode::CreateArray => self.fn_create_array(),
                 OpCode::CreateSet => self.fn_create_set(),
@@ -352,7 +299,7 @@ impl VirtualMachine {
         self.string_buffer.clone()
     }
 
-    #[cfg(any(test, all(debug_assertions, not(target_arch = "wasm32"))))]
+    #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     pub fn get_output(&self) -> String {
         self.string_buffer.trim().to_string()
     }
@@ -399,12 +346,5 @@ impl VirtualMachine {
         self.stack.clear();
         self.chunk = None;
         self.runtime_errors.clear();
-    }
-
-    pub(in crate::vm) fn get_native_method(
-        type_name: &str,
-        method_name: &str,
-    ) -> Option<&'static crate::common::method_registry::NativeCallable> {
-        crate::common::method_registry::get_native_method(type_name, method_name)
     }
 }

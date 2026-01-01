@@ -1,5 +1,5 @@
-use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use crate::common::SourceLocation;
+use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 
 fn dummy_location() -> SourceLocation {
     SourceLocation {
