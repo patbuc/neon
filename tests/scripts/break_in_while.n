@@ -1,0 +1,17 @@
+// break_in_while.n - Break statement in while loop
+
+// Expected:
+// 1
+// 2
+// 3
+// 4
+// 5
+
+var num = 1
+while (num <= 100) {
+    print num
+    if (num >= 5) {
+        break
+    }
+    num = num + 1
+}
