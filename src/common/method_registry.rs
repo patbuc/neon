@@ -583,6 +583,13 @@ pub fn is_static_namespace(name: &str) -> bool {
     !get_static_methods_for_type(name).is_empty()
 }
 
+pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
+    match get_native_method(type_name, method_name) {
+        Some(NativeCallable::StaticMethod { .. }) => true,
+        _ => false,
+    }
+}
+
 pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
     let methods = get_methods_for_type(type_name);
     find_closest_match(method_name, &methods)
