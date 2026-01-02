@@ -563,85 +563,31 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
         .collect()
 }
 
-/// Static method registry for validating method calls at compile time.
-pub struct MethodRegistry;
-
-impl MethodRegistry {
-    /// # Arguments
-    /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
-    ///
-    /// # Returns
-    /// A vector of method names valid for this type, or an empty vector if the type is unknown.
-    ///
-    /// # Examples
-    /// ```ignore
-    /// use neon::common::method_registry::MethodRegistry;
-    ///
-    /// let methods = MethodRegistry::get_methods_for_type("Array");
-    /// assert!(methods.contains(&"push"));
-    /// ```
-    pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
-        get_methods_for_type(type_name)
-    }
-
-    /// # Arguments
-    /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
-    /// * `method_name` - The name of the method to validate
-    ///
-    /// # Returns
-    /// `true` if the method exists for this type, `false` otherwise.
-    ///
-    /// # Examples
-    /// ```ignore
-    /// use neon::common::method_registry::MethodRegistry;
-    ///
-    /// assert!(MethodRegistry::is_valid_method("Array", "push"));
-    /// assert!(!MethodRegistry::is_valid_method("Array", "foo"));
-    /// ```
-    pub fn is_valid_method(type_name: &str, method_name: &str) -> bool {
-        get_native_method(type_name, method_name).is_some()
-    }
-
-    /// Uses Levenshtein distance to find the closest matching method name
-    /// within a threshold of 2 edits.
-    ///
-    /// # Arguments
-    /// * `type_name` - The name of the type (e.g., "Array", "String", "Map")
-    /// * `method_name` - The invalid method name to find suggestions for
-    ///
-    /// # Returns
-    /// * `Some(&str)` - A suggested method name if one is found within the threshold
-    /// * `None` - If no similar method exists
-    ///
-    /// # Examples
-    /// ```ignore
-    /// use neon::common::method_registry::MethodRegistry;
-    ///
-    /// assert_eq!(MethodRegistry::suggest_method("Array", "psh"), Some("push"));
-    /// assert_eq!(MethodRegistry::suggest_method("Array", "lenght"), Some("length"));
-    /// assert_eq!(MethodRegistry::suggest_method("Array", "xyz"), None);
-    /// ```
-    pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
-        let methods = Self::get_methods_for_type(type_name);
-        find_closest_match(method_name, &methods)
-    }
-
-    /// Gets a native method by name only (ignoring type)
-    /// This is useful for creating dynamic callables when the type is not known at compile time.
-    ///
-    /// # Arguments
-    /// * `method_name` - The name of the method to find
-    ///
-    /// # Returns
-    /// * `Some(NativeCallable)` - The method implementation if found
-    /// * `None` - If the method is not found
-    #[allow(dead_code)]
-    pub(crate) fn get_native_method_by_name(method_name: &str) -> Option<NativeCallable> {
-        for (_type_name, name, callable) in NATIVE_METHODS {
-            if *name == method_name {
-                return Some(*callable);
+pub fn get_static_methods_for_type(type_name: &str) -> Vec<&'static str> {
+    NATIVE_METHODS
+        .iter()
+        .filter_map(|(t, m, callable)| {
+            if *t == type_name {
+                match callable {
+                    NativeCallable::StaticMethod { .. } => Some(*m),
+                    _ => None,
+                }
+            } else {
+                None
             }
-        }
-        None
-    }
+        })
+        .collect()
+}
+
+pub fn is_static_namespace(name: &str) -> bool {
+    !get_static_methods_for_type(name).is_empty()
+}
+
+pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
+    let methods = get_methods_for_type(type_name);
+    find_closest_match(method_name, &methods)
+}
+
+pub fn is_valid_method(type_name: &str, method_name: &str) -> bool {
+    get_native_method(type_name, method_name).is_some()
 }

@@ -1,7 +1,7 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
-use crate::common::method_registry::MethodRegistry;
+
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
@@ -453,10 +453,6 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn is_static_namespace(&self, name: &str) -> bool {
-        matches!(name, "Math")
-    }
-
     // Statement resolution methods
 
     fn resolve_val_declaration(
@@ -695,7 +691,7 @@ impl SemanticAnalyzer {
 
         // Check if this is a static method call (e.g., Math.abs)
         if let Expr::Variable { name, .. } = object {
-            if self.is_static_namespace(name) {
+            if crate::common::method_registry::is_static_namespace(name) {
                 self.validate_static_method(name, method, location);
                 return;
             }
@@ -860,32 +856,34 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         // Check if the method is valid for this type
-        if !MethodRegistry::is_valid_method(object_type, method) {
+        if !crate::common::method_registry::is_valid_method(object_type, method) {
             // Method is invalid - try to suggest a correction
-            let error_message =
-                if let Some(suggestion) = MethodRegistry::suggest_method(object_type, method) {
-                    // We found a close match - suggest it
+            let error_message = if let Some(suggestion) =
+                crate::common::method_registry::suggest_method(object_type, method)
+            {
+                // We found a close match - suggest it
+                format!(
+                    "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                    object_type, method, suggestion
+                )
+            } else {
+                // No close match - list available methods
+                let available_methods =
+                    crate::common::method_registry::get_methods_for_type(object_type);
+                if available_methods.is_empty() {
                     format!(
-                        "Type '{}' has no method named '{}'. Did you mean '{}'?",
-                        object_type, method, suggestion
+                        "Type '{}' has no method named '{}' and no available methods",
+                        object_type, method
                     )
                 } else {
-                    // No close match - list available methods
-                    let available_methods = MethodRegistry::get_methods_for_type(object_type);
-                    if available_methods.is_empty() {
-                        format!(
-                            "Type '{}' has no method named '{}' and no available methods",
-                            object_type, method
-                        )
-                    } else {
-                        format!(
-                            "Type '{}' has no method named '{}'. Available methods: {}",
-                            object_type,
-                            method,
-                            available_methods.join(", ")
-                        )
-                    }
-                };
+                    format!(
+                        "Type '{}' has no method named '{}'. Available methods: {}",
+                        object_type,
+                        method,
+                        available_methods.join(", ")
+                    )
+                }
+            };
 
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
