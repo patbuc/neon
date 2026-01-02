@@ -1,6 +1,7 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+
 /// Code generator for the multi-pass compiler
 /// Generates bytecode from AST using symbol table information
 use crate::common::opcodes::OpCode;
@@ -780,68 +781,95 @@ impl CodeGenerator {
         };
 
         if is_global_function {
-            // Global function call: print("hello")
-            // Extract function name
-            let function_name = if let Expr::Variable { name, .. } = callee {
-                name.clone()
-            } else {
-                unreachable!("Already checked this is a Variable")
-            };
-
-            // Evaluate all arguments (no callee!)
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Look up global function index at compile time
-            let index = crate::common::method_registry::get_native_method_index("", &function_name)
-                .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
-
-            self.emit_native_call(
-                function_name.to_string(),
-                arguments.len() as u8,
-                index,
-                location,
-            );
+            self.generate_global_call_expr(callee, arguments, location);
         } else if is_constructor_call {
-            // Constructor call: File("path")
-            let type_name = if let Expr::Variable { name, .. } = callee {
-                name.clone()
-            } else {
-                unreachable!("Already checked this is a Variable")
-            };
-
-            // Evaluate all arguments (no callee!)
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Look up constructor index at compile time
-            let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
-                .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
-
-            self.emit_native_call(
-                format!("{}.new", type_name),
-                arguments.len() as u8,
-                index,
-                location,
-            );
+            self.generate_constructor_call_expr(callee, arguments, location);
         } else {
-            // Regular function call - could be user-defined function
-            // Unified calling convention: [args..., callable]
-
-            // Evaluate all arguments FIRST
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Evaluate the callee last to get the function object on top of stack
-            self.generate_expr(callee);
-
-            // Emit unified CALL instruction
-            self.emit_op_code(OpCode::Call, location);
-            self.current_chunk().write_u8(arguments.len() as u8);
+            self.generate_regular_call_expr(callee, arguments, location);
         }
+    }
+
+    fn generate_regular_call_expr(
+        &mut self,
+        callee: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        // Regular function call - could be user-defined function
+        // Unified calling convention: [args..., callable]
+
+        // Evaluate all arguments FIRST
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        // Evaluate the callee last to get the function object on top of stack
+        self.generate_expr(callee);
+
+        // Emit unified CALL instruction
+        self.emit_op_code(OpCode::Call, location);
+        self.current_chunk().write_u8(arguments.len() as u8);
+    }
+
+    fn generate_constructor_call_expr(
+        &mut self,
+        callee: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        // Constructor call: File("path")
+        let type_name = if let Expr::Variable { name, .. } = callee {
+            name.clone()
+        } else {
+            unreachable!("Already checked this is a Variable")
+        };
+
+        // Evaluate all arguments (no callee!)
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        // Look up constructor index at compile time
+        let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
+            .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
+
+        self.emit_native_call(
+            format!("{}.new", type_name),
+            arguments.len() as u8,
+            index,
+            location,
+        );
+    }
+
+    fn generate_global_call_expr(
+        &mut self,
+        callee: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        // Global function call: print("hello")
+        // Extract function name
+        let function_name = if let Expr::Variable { name, .. } = callee {
+            name.clone()
+        } else {
+            unreachable!("Already checked this is a Variable")
+        };
+
+        // Evaluate all arguments (no callee!)
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        // Look up global function index at compile time
+        let index = crate::common::method_registry::get_native_method_index("", &function_name)
+            .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
+
+        self.emit_native_call(
+            function_name.to_string(),
+            arguments.len() as u8,
+            index,
+            location,
+        );
     }
 
     fn generate_method_call_expr(
@@ -853,61 +881,79 @@ impl CodeGenerator {
     ) {
         // Check if this is a static method call (e.g., Math.abs)
         let is_static_call = if let Expr::Variable { name, .. } = object {
-            self.is_static_namespace(name)
+            crate::common::method_registry::is_static_namespace(name)
         } else {
             false
         };
 
         if is_static_call {
-            // Static method call: Math.abs(x)
-            // Extract namespace name
-            let namespace_name = if let Expr::Variable { name, .. } = object {
-                name.clone()
-            } else {
-                unreachable!("Already checked this is a Variable")
-            };
-
-            // Evaluate all arguments FIRST
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Look up static method index at compile time
-            let index =
-                crate::common::method_registry::get_native_method_index(&namespace_name, method)
-                    .unwrap_or_else(|| {
-                        panic!("Unknown static method: {}.{}", namespace_name, method)
-                    });
-
-            self.emit_native_call(method.to_string(), arguments.len() as u8, index, location);
+            self.generate_static_method_call_expr(object, method, arguments, location);
         } else {
-            // Instance method call: arr.push(x), str.len(), etc.
-            // Type is unknown at compile time, use NativeByName for runtime dispatch
-
-            // Evaluate receiver first
-            self.generate_expr(object);
-
-            // Evaluate all arguments
-            for arg in arguments {
-                self.generate_expr(arg);
-            }
-
-            // Create a callable that will be resolved at runtime based on receiver type
-            let callable = Value::new_callable(
-                method.to_string(),
-                0,
-                crate::common::CallableKind::NativeByName {
-                    method_name: method.to_string(),
-                },
-            );
-
-            // Emit callable on top
-            self.emit_constant(callable, location);
-
-            // Emit unified CALL instruction with receiver + arguments count
-            self.emit_op_code(OpCode::Call, location);
-            self.current_chunk().write_u8((arguments.len() + 1) as u8); // +1 for receiver
+            self.generate_instance_method_call_expr(object, method, arguments, location);
         }
+    }
+
+    fn generate_instance_method_call_expr(
+        &mut self,
+        object: &Expr,
+        method: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        // Instance method call: arr.push(x), str.len(), etc.
+        // Type is unknown at compile time, use NativeByName for runtime dispatch
+
+        // Evaluate receiver first
+        self.generate_expr(object);
+
+        // Evaluate all arguments
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        // Create a callable that will be resolved at runtime based on receiver type
+        let callable = Value::new_callable(
+            method.to_string(),
+            0,
+            crate::common::CallableKind::NativeByName {
+                method_name: method.to_string(),
+            },
+        );
+
+        // Emit callable on top
+        self.emit_constant(callable, location);
+
+        // Emit unified CALL instruction with receiver + arguments count
+        self.emit_op_code(OpCode::Call, location);
+        self.current_chunk().write_u8((arguments.len() + 1) as u8); // +1 for receiver
+    }
+
+    fn generate_static_method_call_expr(
+        &mut self,
+        object: &Expr,
+        method: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        // Static method call: Math.abs(x)
+        // Extract namespace name
+        let namespace_name = if let Expr::Variable { name, .. } = object {
+            name.clone()
+        } else {
+            unreachable!("Already checked this is a Variable")
+        };
+
+        // Evaluate all arguments FIRST
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        // Look up static method index at compile time
+        let index =
+            crate::common::method_registry::get_native_method_index(&namespace_name, method)
+                .unwrap_or_else(|| panic!("Unknown static method: {}.{}", namespace_name, method));
+
+        self.emit_native_call(method.to_string(), arguments.len() as u8, index, location);
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1136,10 +1182,6 @@ impl CodeGenerator {
 
     fn is_builtin(&self, name: &str) -> bool {
         self.builtin.keys().any(|k| k == name)
-    }
-
-    fn is_static_namespace(&self, name: &str) -> bool {
-        matches!(name, "Math")
     }
 
     fn get_builtin_index(&self, name: &str) -> Option<usize> {
