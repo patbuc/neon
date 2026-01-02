@@ -1,3 +1,4 @@
+use crate::common::method_registry::NativeCallable;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
@@ -7,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Registry index for the print() function (always at index 0)
-const PRINT_METHOD_INDEX: u16 = 0;
+const PRINT_METHOD_INDEX: u32 = 0;
 
 impl VirtualMachine {
     #[inline(always)]
@@ -57,7 +58,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_call_unified(&mut self) -> Option<Result> {
+    pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
         let arg_count = {
             let frame = self.current_frame();
             frame.function.chunk.read_u8(frame.ip + 1) as usize
@@ -66,68 +67,21 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         frame.ip += 2; // Skip CALL opcode and arg_count byte
 
-        // Get the callable from stack (it's always on top in unified system)
+        // Get the callable from the stack
         let callable_value = self.peek(0);
 
         let result = match &callable_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Function(callable) => {
-                    if let Some(value) = self.call_function(arg_count, &callable) {
-                        return Some(value);
-                    }
-                    // call_function returned None, meaning frame was created successfully
-                    // Return None to continue execution in the new frame
-                    return None;
-                }
+                Object::Function(callable) => return self.call_function(arg_count, &callable),
+                Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
-                    let native_callable;
-                    if callable.method_index != u32::MAX {
-                        native_callable =
-                            crate::common::method_registry::get_native_method_by_index(
-                                callable.method_index as usize,
-                            );
-                        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
-                        self.print_to_vm_buffer(&arg_count, callable);
-                    } else {
-                        let args_start = self.stack.len() - arg_count - 1;
-                        let receiver = &self.stack[args_start];
-
-                        // Get type name using helper
-                        let type_name = match self.get_type_name(receiver) {
-                            Some(name) => name,
-                            None => return self.method_not_supported(&callable.method_name),
-                        };
-
-                        // Look up method by (type, name)
-                        native_callable =
-                            match crate::common::method_registry::get_native_method_by_name(
-                                &type_name,
-                                &callable.method_name,
-                            ) {
-                                Some(callable) => Some(callable),
-                                None => {
-                                    self.runtime_error(&format!(
-                                        "Unknown method '{}' for type {}",
-                                        &callable.method_name, type_name
-                                    ));
-                                    return Some(Result::RuntimeError);
-                                }
-                            };
-                    }
-
-                    let args: Vec<Value> =
-                        self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
-                    match self.call_native_method(native_callable?, &args) {
+                    match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
-                        Err(err) => return err,
+                        Err(error) => {
+                            self.runtime_error(&*error);
+                            return Some(Result::RuntimeError);
+                        }
                     }
-                }
-                Object::Struct(r#struct) => {
-                    if let Some(value) = self.instantiate_struct(arg_count, r#struct) {
-                        return Some(value);
-                    }
-                    // instantiate_struct returned None, struct created successfully
-                    return None;
                 }
                 _ => {
                     self.runtime_error("Value is not callable");
@@ -140,23 +94,52 @@ impl VirtualMachine {
             }
         };
 
-        // Pop callable and arguments
-        for _ in 0..=arg_count {
-            self.stack.pop();
-        }
-
-        // Push the result
+        // Pop callable and arguments, then push result
+        let stack_len = self.stack.len();
+        self.stack.truncate(stack_len - arg_count - 1);
         self.stack.push(result);
         None
     }
 
-    fn print_to_vm_buffer(&mut self, arg_count: &usize, callable: &Rc<ObjNativeFunction>) {
-        if callable.method_index == 0 {
-            let args = &self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1];
-            if !args.is_empty() {
-                use std::fmt::Write;
-                write!(self.string_buffer, "{}\n", args[0]).ok();
+    fn call_native_function(
+        &mut self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> std::result::Result<Value, String> {
+        let native_callable_result = if callable.method_index != u32::MAX {
+            self.lookup_native_method_by_index(callable)
+        } else {
+            self.lookup_native_method_by_name(arg_count, callable)
+        };
+
+        let native_callable = match native_callable_result {
+            Err(error) => return Err(error),
+            Ok(callable) => callable,
+        };
+
+        let stack_len = self.stack.len();
+        let args_start = stack_len - arg_count - 1;
+        let args_end = stack_len - 1;
+        let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
+
+        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+        {
+            if callable.method_index == PRINT_METHOD_INDEX {
+                self.print_to_vm_buffer(arg_count);
             }
+        }
+        native_callable.function()(&*args)
+    }
+
+    #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+    fn print_to_vm_buffer(&mut self, arg_count: usize) {
+        let stack_len = self.stack.len();
+        let args_start = stack_len - arg_count - 1;
+        let args_end = stack_len - 1;
+        let args = &self.stack[args_start..args_end];
+        if !args.is_empty() {
+            use std::fmt::Write;
+            write!(self.string_buffer, "{}\n", args[0]).ok();
         }
     }
 
@@ -1041,29 +1024,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Helper: Call a native method and handle errors
-    #[inline]
-    fn call_native_method(
-        &mut self,
-        callable: &crate::common::method_registry::NativeCallable,
-        args: &[Value],
-    ) -> std::result::Result<Value, Option<Result>> {
-        match callable.function()(args) {
-            Ok(value) => Ok(value),
-            Err(msg) => {
-                self.runtime_error(&msg);
-                Err(Some(Result::RuntimeError))
-            }
-        }
-    }
-
-    /// Helper: Return error for unsupported method on type
-    #[inline]
-    fn method_not_supported(&mut self, method_name: &str) -> Option<Result> {
-        self.runtime_error(&format!("Type does not support method '{}'", method_name));
-        Some(Result::RuntimeError)
-    }
-
     /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<String> {
         match value {
@@ -1079,6 +1039,48 @@ impl VirtualMachine {
             Value::Number(_) => Some("Number".to_string()),
             Value::Boolean(_) => Some("Boolean".to_string()),
             _ => None,
+        }
+    }
+
+    /// Helper: Look up native method by index
+    fn lookup_native_method_by_index(
+        &mut self,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> std::result::Result<&'static NativeCallable, String> {
+        match crate::common::method_registry::get_native_method_by_index(
+            callable.method_index as usize,
+        ) {
+            None => Err(format!(
+                "Unknown method index '{}' for native method call",
+                callable.method_index
+            )),
+            Some(callable) => Ok(callable),
+        }
+    }
+
+    /// Helper: Look up native method by name from receiver type
+    fn lookup_native_method_by_name(
+        &mut self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> std::result::Result<&'static NativeCallable, String> {
+        let args_start = self.stack.len() - arg_count - 1;
+        let receiver = &self.stack[args_start];
+
+        let type_name = match self.get_type_name(receiver) {
+            None => return Err("Cannot determine type of receiver for method call".to_string()),
+            Some(name) => name,
+        };
+
+        match crate::common::method_registry::get_native_method_by_name(
+            type_name.as_str(),
+            &callable.method_name,
+        ) {
+            None => Err(format!(
+                "Unknown method '{}' for type {}",
+                &callable.method_name, type_name
+            )),
+            Some(callable) => Ok(callable),
         }
     }
 }

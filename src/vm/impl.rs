@@ -207,7 +207,7 @@ impl VirtualMachine {
                 OpCode::Jump => self.fn_jump(),
                 OpCode::Loop => self.fn_loop(),
                 OpCode::Call => {
-                    if let Some(result) = self.fn_call_unified() {
+                    if let Some(result) = self.fn_call() {
                         return result;
                     }
                     continue;
