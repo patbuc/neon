@@ -294,11 +294,6 @@ impl VirtualMachine {
         self.runtime_errors.push_str(&error_message);
     }
 
-    #[cfg(all(target_arch = "wasm32", not(test)))]
-    pub fn get_output(&self) -> String {
-        self.string_buffer.clone()
-    }
-
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     pub fn get_output(&self) -> String {
         self.string_buffer.trim().to_string()
