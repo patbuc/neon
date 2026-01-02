@@ -1,0 +1,49 @@
+val test = [
+"987654321111111",
+"811111111111119",
+"234234234234278",
+"818181911112111",
+]
+
+val f = File("/Users/patricbucher/Develop/aoc-neon/aoc31.txt")
+val input = f.readLines()
+val lines = input[0].split(",")
+
+fn reduce(line, remove) {
+    // Build characters in an array, then join once
+    var chars = []
+    val n = line.len()
+    for (var i = 0; i < n; i++) {
+        if (remove.contains(i)) {
+            continue
+        }
+        chars.push(line.charAt(i))
+    }
+    return chars.join("")
+}
+
+var password = 0
+for (line in input) {
+
+    var the_line = line
+    while (the_line.len() > 12) {
+        val remove = []
+        for (var j = 0; j < the_line.len() - 1; j++) {
+            val a = the_line.charAt(j).toInt()
+            val b = the_line.charAt(j + 1).toInt()
+            if (a < b) {
+                remove.push(j)
+                break
+            }
+        }
+        if (remove.size() == 0) {
+            remove.push(the_line.len() - 1)
+        }
+        the_line = reduce(the_line, remove)
+    }
+
+    password = password + the_line.toInt()
+    // print(the_line)
+}
+
+print("Password: " + password.toString())
