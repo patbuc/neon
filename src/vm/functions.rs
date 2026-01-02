@@ -1,4 +1,4 @@
-use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
+use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -86,6 +86,8 @@ impl VirtualMachine {
                             crate::common::method_registry::get_native_method_by_index(
                                 callable.method_index as usize,
                             );
+                        #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
+                        self.print_to_vm_buffer(&arg_count, callable);
                     } else {
                         let args_start = self.stack.len() - arg_count - 1;
                         let receiver = &self.stack[args_start];
@@ -146,6 +148,16 @@ impl VirtualMachine {
         // Push the result
         self.stack.push(result);
         None
+    }
+
+    fn print_to_vm_buffer(&mut self, arg_count: &usize, callable: &Rc<ObjNativeFunction>) {
+        if callable.method_index == 0 {
+            let args = &self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1];
+            if !args.is_empty() {
+                use std::fmt::Write;
+                write!(self.string_buffer, "{}\n", args[0]).ok();
+            }
+        }
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> Option<Result> {
