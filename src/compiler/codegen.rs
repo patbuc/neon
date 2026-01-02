@@ -881,7 +881,7 @@ impl CodeGenerator {
     ) {
         // Check if this is a static method call (e.g., Math.abs)
         let is_static_call = if let Expr::Variable { name, .. } = object {
-            crate::common::method_registry::is_static_namespace(name)
+            crate::common::method_registry::is_static_method(name, method)
         } else {
             false
         };
