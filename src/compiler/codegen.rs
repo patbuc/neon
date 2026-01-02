@@ -833,10 +833,10 @@ impl CodeGenerator {
         let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
             .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
 
-        self.emit_native_call(
+        self.emit_native_call_by_index(
             format!("{}.new", type_name),
-            arguments.len() as u8,
             index,
+            arguments.len() as u8,
             location,
         );
     }
@@ -864,10 +864,10 @@ impl CodeGenerator {
         let index = crate::common::method_registry::get_native_method_index("", &function_name)
             .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
 
-        self.emit_native_call(
+        self.emit_native_call_by_index(
             function_name.to_string(),
-            arguments.len() as u8,
             index,
+            arguments.len() as u8,
             location,
         );
     }
@@ -895,7 +895,7 @@ impl CodeGenerator {
 
     fn generate_instance_method_call_expr(
         &mut self,
-        object: &Expr,
+        callee: &Expr,
         method: &str,
         arguments: &[Expr],
         location: SourceLocation,
@@ -904,28 +904,19 @@ impl CodeGenerator {
         // Type is unknown at compile time, use NativeByName for runtime dispatch
 
         // Evaluate receiver first
-        self.generate_expr(object);
+        self.generate_expr(callee);
 
         // Evaluate all arguments
         for arg in arguments {
             self.generate_expr(arg);
         }
 
-        // Create a callable that will be resolved at runtime based on receiver type
-        let callable = Value::new_callable(
+        self.emit_native_call_by_name(
+            "".to_string(),
             method.to_string(),
-            0,
-            crate::common::CallableKind::NativeByName {
-                method_name: method.to_string(),
-            },
+            (arguments.len() + 1) as u8,
+            location,
         );
-
-        // Emit callable on top
-        self.emit_constant(callable, location);
-
-        // Emit unified CALL instruction with receiver + arguments count
-        self.emit_op_code(OpCode::Call, location);
-        self.current_chunk().write_u8((arguments.len() + 1) as u8); // +1 for receiver
     }
 
     fn generate_static_method_call_expr(
@@ -953,7 +944,7 @@ impl CodeGenerator {
             crate::common::method_registry::get_native_method_index(&namespace_name, method)
                 .unwrap_or_else(|| panic!("Unknown static method: {}.{}", namespace_name, method));
 
-        self.emit_native_call(method.to_string(), arguments.len() as u8, index, location);
+        self.emit_native_call_by_index(method.to_string(), index, arguments.len() as u8, location);
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1189,20 +1180,27 @@ impl CodeGenerator {
     }
 
     /// Helper: Emit a native callable and CALL instruction
-    fn emit_native_call(
+    fn emit_native_call_by_index(
         &mut self,
-        name: String,
-        arity: u8,
+        type_name: String,
         index: usize,
+        arity: u8,
         location: SourceLocation,
     ) {
-        let callable = Value::new_callable(
-            name,
-            arity,
-            crate::common::CallableKind::NativeByIndex {
-                index: index as u16,
-            },
-        );
+        let callable = Value::new_native_function(type_name, arity, index as u32, "".to_string());
+        self.emit_constant(callable, location);
+        self.emit_op_code(OpCode::Call, location);
+        self.current_chunk().write_u8(arity);
+    }
+
+    fn emit_native_call_by_name(
+        &mut self,
+        type_name: String,
+        method_name: String,
+        arity: u8,
+        location: SourceLocation,
+    ) {
+        let callable = Value::new_native_function(type_name, arity, u32::MAX, method_name);
         self.emit_constant(callable, location);
         self.emit_op_code(OpCode::Call, location);
         self.current_chunk().write_u8(arity);

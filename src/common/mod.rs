@@ -87,13 +87,13 @@ impl BitsSize {
 pub enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
+    NativeFunction(Rc<ObjNativeFunction>),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<HashMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<str>),
-    Callable(Rc<ObjCallable>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -136,10 +136,11 @@ pub struct ObjFunction {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObjCallable {
-    pub kind: CallableKind,
+pub struct ObjNativeFunction {
     pub name: String,
-    pub arity: usize, // Number of arguments the callable expects
+    pub arity: u8,
+    pub method_index: u32,
+    pub method_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -152,20 +153,6 @@ pub struct ObjInstance {
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CallableKind {
-    /// User-defined Neon function
-    NeonFunction { chunk: Rc<Chunk> },
-    /// Native method with known index at compile time
-    /// Used for: static methods, constructors, global functions
-    /// Examples: Math.abs(), print(), File.new()
-    NativeByIndex { index: u16 },
-    /// Native method resolved at runtime based on receiver type
-    /// Used for: instance methods where type is unknown at compile time
-    /// Examples: arr.push(), str.len(), map.get()
-    NativeByName { method_name: String },
 }
 
 impl Value {
@@ -185,6 +172,22 @@ impl Value {
         }))))
     }
 
+    pub(crate) fn new_native_function(
+        name: String,
+        arity: u8,
+        method_index: u32,
+        method_name: String,
+    ) -> Self {
+        Value::Object(Rc::new(Object::NativeFunction(Rc::new(
+            ObjNativeFunction {
+                name,
+                arity,
+                method_index,
+                method_name,
+            },
+        ))))
+    }
+
     pub(crate) fn new_array(elements: Vec<Value>) -> Self {
         Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
     }
@@ -200,14 +203,6 @@ impl Value {
     pub(crate) fn new_file(path: String) -> Self {
         Value::Object(Rc::new(Object::File(Rc::from(path))))
     }
-
-    pub(crate) fn new_callable(name: String, arity: u8, kind: CallableKind) -> Self {
-        Value::Object(Rc::new(Object::Callable(Rc::new(ObjCallable {
-            name,
-            arity: arity.into(),
-            kind,
-        }))))
-    }
 }
 
 pub struct CallFrame {
@@ -221,6 +216,9 @@ impl Display for Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
+            Object::NativeFunction(obj_native_function) => {
+                write!(f, "<native fn {}>", obj_native_function.name)
+            }
             Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
             Object::Instance(obj_instance) => {
                 let instance = obj_instance;
@@ -264,7 +262,6 @@ impl Display for Object {
                 write!(f, "}}")
             }
             Object::File(path) => write!(f, "<file: {}>", path),
-            Object::Callable(callable) => write!(f, "<callable {}>", callable.name),
         }
     }
 }
