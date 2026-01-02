@@ -1,5 +1,5 @@
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjStruct, Value};
-use crate::common::{CallableKind, ObjFunction, Object};
+use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
@@ -71,108 +71,54 @@ impl VirtualMachine {
 
         let result = match &callable_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Callable(callable) => {
-                    match &callable.kind {
-                        CallableKind::NeonFunction { chunk: func_chunk } => {
-                            // Create a function object from the callable and call it
-                            let function = Rc::new(crate::common::ObjFunction {
-                                name: callable.name.clone(),
-                                arity: callable.arity as u8,
-                                chunk: Rc::clone(func_chunk),
-                            });
-                            if let Some(value) = self.call_function(arg_count, &&function) {
-                                return Some(value);
-                            }
-                            // call_function returned None, meaning frame was created successfully
-                            // Return None to continue execution in the new frame
-                            // DO NOT pop anything - the function will handle cleanup on return
-                            return None;
-                        }
-                        CallableKind::NativeByIndex { index } => {
-                            // Special print handling only in test/debug/WASM
-                            #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
-                            if *index == PRINT_METHOD_INDEX {
-                                let args =
-                                    &self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1];
-                                if !args.is_empty() {
-                                    use std::fmt::Write;
-                                    write!(self.string_buffer, "{}\n", args[0]).ok();
-                                }
-                                Value::Nil
-                            } else {
-                                let native_callable =
-                                    crate::common::method_registry::get_native_method_by_index(
-                                        *index as usize,
-                                    )
-                                    .unwrap_or_else(|| panic!("Invalid method index: {}", index));
-                                // Clone args to avoid borrow conflict
-                                let args: Vec<Value> = self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
-                                match self.call_native_method(native_callable, &args) {
-                                    Ok(value) => value,
-                                    Err(err) => return err,
-                                }
-                            }
-
-                            #[cfg(not(any(test, debug_assertions, target_arch = "wasm32")))]
-                            {
-                                let native_callable =
-                                    crate::common::method_registry::get_native_method_by_index(
-                                        *index as usize,
-                                    )
-                                    .unwrap_or_else(|| panic!("Invalid method index: {}", index));
-                                // Clone args to avoid borrow conflict
-                                let args: Vec<Value> = self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
-                                match self.call_native_method(native_callable, &args) {
-                                    Ok(value) => value,
-                                    Err(err) => return err,
-                                }
-                            }
-                        }
-                        CallableKind::NativeByName { method_name } => {
-                            let args_start = self.stack.len() - arg_count - 1;
-                            let receiver = &self.stack[args_start];
-
-                            // Get type name using helper
-                            let type_name = match self.get_type_name(receiver) {
-                                Some(name) => name,
-                                None => return self.method_not_supported(method_name),
-                            };
-
-                            // Look up method by (type, name)
-                            let native_callable =
-                                match crate::common::method_registry::get_native_method(
-                                    &type_name,
-                                    method_name,
-                                ) {
-                                    Some(callable) => callable,
-                                    None => {
-                                        self.runtime_error(&format!(
-                                            "Unknown method '{}' for type {}",
-                                            method_name, type_name
-                                        ));
-                                        return Some(Result::RuntimeError);
-                                    }
-                                };
-
-                            // Clone args to avoid borrow conflict
-                            let args_end = self.stack.len() - 1;
-                            let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
-                            match self.call_native_method(native_callable, &args) {
-                                Ok(value) => value,
-                                Err(err) => return err,
-                            }
-                        }
-                    }
-                }
-
-                // Legacy function objects (temporary compatibility)
-                Object::Function(function) => {
-                    if let Some(value) = self.call_function(arg_count, &function) {
+                Object::Function(callable) => {
+                    if let Some(value) = self.call_function(arg_count, &callable) {
                         return Some(value);
                     }
                     // call_function returned None, meaning frame was created successfully
                     // Return None to continue execution in the new frame
                     return None;
+                }
+                Object::NativeFunction(callable) => {
+                    let native_callable;
+                    if callable.method_index != u32::MAX {
+                        native_callable =
+                            crate::common::method_registry::get_native_method_by_index(
+                                callable.method_index as usize,
+                            );
+                    } else {
+                        let args_start = self.stack.len() - arg_count - 1;
+                        let receiver = &self.stack[args_start];
+
+                        // Get type name using helper
+                        let type_name = match self.get_type_name(receiver) {
+                            Some(name) => name,
+                            None => return self.method_not_supported(&callable.method_name),
+                        };
+
+                        // Look up method by (type, name)
+                        native_callable =
+                            match crate::common::method_registry::get_native_method_by_name(
+                                &type_name,
+                                &callable.method_name,
+                            ) {
+                                Some(callable) => Some(callable),
+                                None => {
+                                    self.runtime_error(&format!(
+                                        "Unknown method '{}' for type {}",
+                                        &callable.method_name, type_name
+                                    ));
+                                    return Some(Result::RuntimeError);
+                                }
+                            };
+                    }
+
+                    let args: Vec<Value> =
+                        self.stack[self.stack.len() - arg_count - 1..self.stack.len() - 1].to_vec();
+                    match self.call_native_method(native_callable?, &args) {
+                        Ok(value) => value,
+                        Err(err) => return err,
+                    }
                 }
                 Object::Struct(r#struct) => {
                     if let Some(value) = self.instantiate_struct(arg_count, r#struct) {
