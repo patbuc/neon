@@ -532,7 +532,7 @@ fn init_method_map() -> HashMap<(&'static str, &'static str), &'static NativeCal
 }
 
 /// Get a native method by type and method name (O(1) - HashMap lookup)
-pub(crate) fn get_native_method(
+pub(crate) fn get_native_method_by_name(
     type_name: &str,
     method_name: &str,
 ) -> Option<&'static NativeCallable> {
@@ -584,7 +584,7 @@ pub fn is_static_namespace(name: &str) -> bool {
 }
 
 pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
-    match get_native_method(type_name, method_name) {
+    match get_native_method_by_name(type_name, method_name) {
         Some(NativeCallable::StaticMethod { .. }) => true,
         _ => false,
     }
@@ -596,5 +596,5 @@ pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str
 }
 
 pub fn is_valid_method(type_name: &str, method_name: &str) -> bool {
-    get_native_method(type_name, method_name).is_some()
+    get_native_method_by_name(type_name, method_name).is_some()
 }
