@@ -189,3 +189,38 @@ Avoid:
 
 - Production-grade optimizations that obscure the learning path
 - Over-engineering or premature abstraction
+
+## Agent Workflow: build-feature
+
+This project includes a skill-based feature development workflow that Claude automatically invokes when detecting multi-step feature requests.
+
+### How It Works
+
+The `build-feature` skill is triggered automatically when you ask Claude to build, implement, or add a new feature. It orchestrates specialized subagents:
+
+- **feature-coder**: Implements the approved plan
+- **feature-tester**: Runs tests and validates changes
+- **feature-reviewer**: Reviews code quality before quality gates
+
+### Workflow Behavior
+
+1. **Planning Phase**: Always requires human approval before implementation
+2. **Implementation Loop**: Runs autonomously with max 3 retry attempts
+3. **Quality Gates**: Build, test, and clippy must all pass
+4. **PR Creation**: Automatic branch, commit, push, and PR creation
+
+### When It Stops for Human Input
+
+- Planning phase always requires approval before proceeding
+- After 3 failed implementation attempts
+- When encountering ambiguous requirements
+- When a fix would require significant architectural changes
+- When tests reveal unexpected behavior
+
+### Quality Gate Commands
+
+```bash
+cargo build --release  # Must succeed
+cargo test             # All tests must pass
+cargo clippy -- -D warnings  # No warnings allowed
+```
