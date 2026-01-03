@@ -1,9 +1,0 @@
-# Ignore all workflow state files and plans
-# These are generated during feature development and should not be committed
-
-*-state.json
-*-plan.md
-
-# Keep the template and .gitignore
-!state-template.json
-!.gitignore
