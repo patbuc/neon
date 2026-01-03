@@ -20,6 +20,12 @@ pub enum BinaryOp {
     // Logical
     And,
     Or,
+    // Bitwise
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    LeftShift,
+    RightShift,
 }
 
 /// Unary operators
@@ -27,6 +33,7 @@ pub enum BinaryOp {
 pub enum UnaryOp {
     Negate,
     Not,
+    BitwiseNot,
 }
 
 /// Parts of an interpolated string

@@ -22,9 +22,13 @@ enum Precedence {
     None,
     Assignment,
     Or,
+    BitwiseOr,    // |
+    BitwiseXor,   // ^
+    BitwiseAnd,   // &
     And,
     Equality,
     Comparison,
+    Shift,        // << >>
     Range,
     Term,
     Factor,
@@ -38,10 +42,14 @@ impl Precedence {
         match self {
             Precedence::None => Precedence::Assignment,
             Precedence::Assignment => Precedence::Or,
-            Precedence::Or => Precedence::And,
+            Precedence::Or => Precedence::BitwiseOr,
+            Precedence::BitwiseOr => Precedence::BitwiseXor,
+            Precedence::BitwiseXor => Precedence::BitwiseAnd,
+            Precedence::BitwiseAnd => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
-            Precedence::Comparison => Precedence::Range,
+            Precedence::Comparison => Precedence::Shift,
+            Precedence::Shift => Precedence::Range,
             Precedence::Range => Precedence::Term,
             Precedence::Term => Precedence::Factor,
             Precedence::Factor => Precedence::Unary,
@@ -689,7 +697,7 @@ impl Parser {
             TokenType::InterpolatedString => self.interpolated_string(),
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
-            TokenType::Minus | TokenType::Bang => self.unary(),
+            TokenType::Minus | TokenType::Bang | TokenType::Tilde => self.unary(),
             TokenType::Identifier => self.variable(),
             TokenType::LeftBrace => self.brace_literal(),
             TokenType::LeftBracket => self.array_literal(),
@@ -715,7 +723,12 @@ impl Parser {
                 | TokenType::Less
                 | TokenType::LessEqual
                 | TokenType::AndAnd
-                | TokenType::OrOr => self.binary(expr),
+                | TokenType::OrOr
+                | TokenType::Ampersand
+                | TokenType::Pipe
+                | TokenType::Caret
+                | TokenType::LessLess
+                | TokenType::GreaterGreater => self.binary(expr),
                 TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr),
@@ -745,12 +758,16 @@ impl Parser {
                 Precedence::Factor
             }
             TokenType::Plus | TokenType::Minus => Precedence::Term,
+            TokenType::LessLess | TokenType::GreaterGreater => Precedence::Shift,
             TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
             TokenType::Greater
             | TokenType::GreaterEqual
             | TokenType::Less
             | TokenType::LessEqual => Precedence::Comparison,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality,
+            TokenType::Ampersand => Precedence::BitwiseAnd,
+            TokenType::Caret => Precedence::BitwiseXor,
+            TokenType::Pipe => Precedence::BitwiseOr,
             TokenType::AndAnd => Precedence::And,
             TokenType::OrOr => Precedence::Or,
             _ => Precedence::None,
@@ -895,6 +912,11 @@ impl Parser {
             TokenType::LessEqual => BinaryOp::LessEqual,
             TokenType::AndAnd => BinaryOp::And,
             TokenType::OrOr => BinaryOp::Or,
+            TokenType::Ampersand => BinaryOp::BitwiseAnd,
+            TokenType::Pipe => BinaryOp::BitwiseOr,
+            TokenType::Caret => BinaryOp::BitwiseXor,
+            TokenType::LessLess => BinaryOp::LeftShift,
+            TokenType::GreaterGreater => BinaryOp::RightShift,
             _ => return None,
         };
 
@@ -915,6 +937,7 @@ impl Parser {
         let operator = match operator_type {
             TokenType::Minus => UnaryOp::Negate,
             TokenType::Bang => UnaryOp::Not,
+            TokenType::Tilde => UnaryOp::BitwiseNot,
             _ => return None,
         };
 

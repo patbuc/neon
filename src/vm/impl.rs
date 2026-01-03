@@ -248,6 +248,16 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
+                OpCode::BitwiseAnd => self.fn_bitwise_and(),
+                OpCode::BitwiseOr => self.fn_bitwise_or(),
+                OpCode::BitwiseXor => self.fn_bitwise_xor(),
+                OpCode::BitwiseNot => {
+                    if let Some(value) = self.fn_bitwise_not() {
+                        return value;
+                    }
+                }
+                OpCode::LeftShift => self.fn_left_shift(),
+                OpCode::RightShift => self.fn_right_shift(),
             }
             self.current_frame_mut().ip += 1;
         }

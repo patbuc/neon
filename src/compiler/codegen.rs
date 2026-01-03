@@ -758,6 +758,11 @@ impl CodeGenerator {
                         self.emit_op_code(OpCode::Greater, location);
                         self.emit_op_code(OpCode::Not, location);
                     }
+                    BinaryOp::BitwiseAnd => self.emit_op_code(OpCode::BitwiseAnd, location),
+                    BinaryOp::BitwiseOr => self.emit_op_code(OpCode::BitwiseOr, location),
+                    BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),
+                    BinaryOp::LeftShift => self.emit_op_code(OpCode::LeftShift, location),
+                    BinaryOp::RightShift => self.emit_op_code(OpCode::RightShift, location),
                     BinaryOp::And | BinaryOp::Or => unreachable!(),
                 }
             }
@@ -1069,6 +1074,7 @@ impl CodeGenerator {
                 match operator {
                     UnaryOp::Negate => self.emit_op_code(OpCode::Negate, *location),
                     UnaryOp::Not => self.emit_op_code(OpCode::Not, *location),
+                    UnaryOp::BitwiseNot => self.emit_op_code(OpCode::BitwiseNot, *location),
                 }
             }
             Expr::Call {
