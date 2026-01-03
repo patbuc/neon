@@ -584,10 +584,10 @@ pub fn is_static_namespace(name: &str) -> bool {
 }
 
 pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
-    match get_native_method_by_name(type_name, method_name) {
-        Some(NativeCallable::StaticMethod { .. }) => true,
-        _ => false,
-    }
+    matches!(
+        get_native_method_by_name(type_name, method_name),
+        Some(NativeCallable::StaticMethod { .. })
+    )
 }
 
 pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {

@@ -107,6 +107,12 @@ impl Chunk {
             OpCode::PopIterator => self.simple_instruction(OpCode::PopIterator, offset),
             OpCode::CreateRange => self.create_range_instruction(offset),
             OpCode::ToString => self.simple_instruction(OpCode::ToString, offset),
+            OpCode::BitwiseAnd => self.simple_instruction(OpCode::BitwiseAnd, offset),
+            OpCode::BitwiseOr => self.simple_instruction(OpCode::BitwiseOr, offset),
+            OpCode::BitwiseXor => self.simple_instruction(OpCode::BitwiseXor, offset),
+            OpCode::BitwiseNot => self.simple_instruction(OpCode::BitwiseNot, offset),
+            OpCode::LeftShift => self.simple_instruction(OpCode::LeftShift, offset),
+            OpCode::RightShift => self.simple_instruction(OpCode::RightShift, offset),
         }
     }
 

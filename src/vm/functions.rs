@@ -78,7 +78,7 @@ impl VirtualMachine {
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
                         Err(error) => {
-                            self.runtime_error(&*error);
+                            self.runtime_error(&error);
                             return Some(Result::RuntimeError);
                         }
                     }
@@ -112,10 +112,7 @@ impl VirtualMachine {
             self.lookup_native_method_by_name(arg_count, callable)
         };
 
-        let native_callable = match native_callable_result {
-            Err(error) => return Err(error),
-            Ok(callable) => callable,
-        };
+        let native_callable = native_callable_result?;
 
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count - 1;
@@ -128,7 +125,7 @@ impl VirtualMachine {
                 self.print_to_vm_buffer(arg_count);
             }
         }
-        native_callable.function()(&*args)
+        native_callable.function()(&args)
     }
 
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
@@ -139,7 +136,7 @@ impl VirtualMachine {
         let args = &self.stack[args_start..args_end];
         if !args.is_empty() {
             use std::fmt::Write;
-            write!(self.string_buffer, "{}\n", args[0]).ok();
+            writeln!(self.string_buffer, "{}", args[0]).ok();
         }
     }
 
@@ -269,6 +266,70 @@ impl VirtualMachine {
         let b = self.pop();
         let a = self.pop();
         self.push(Value::Number(as_number!(a) % as_number!(b)));
+    }
+
+    /// Helper: Convert f64 to i64 for bitwise operations
+    #[inline(always)]
+    fn to_integer(value: f64) -> i64 {
+        if value.is_nan() || value.is_infinite() {
+            0
+        } else {
+            value.trunc() as i64
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_bitwise_and(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let result = Self::to_integer(as_number!(a)) & Self::to_integer(as_number!(b));
+        self.push(Value::Number(result as f64));
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_bitwise_or(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let result = Self::to_integer(as_number!(a)) | Self::to_integer(as_number!(b));
+        self.push(Value::Number(result as f64));
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_bitwise_xor(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let result = Self::to_integer(as_number!(a)) ^ Self::to_integer(as_number!(b));
+        self.push(Value::Number(result as f64));
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_bitwise_not(&mut self) -> Option<Result> {
+        if let Value::Number(..) = self.peek(0) {
+            let value = self.pop();
+            let int_val = Self::to_integer(as_number!(value));
+            self.push(Value::Number((!int_val) as f64));
+            return None;
+        }
+        self.runtime_error("Operand must be a number for bitwise NOT");
+        Some(Result::RuntimeError)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_left_shift(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let shift_amount = (Self::to_integer(as_number!(b)) & 0x3F) as u32; // Mask to 6 bits (0-63)
+        let result = Self::to_integer(as_number!(a)) << shift_amount;
+        self.push(Value::Number(result as f64));
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_right_shift(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        let shift_amount = (Self::to_integer(as_number!(b)) & 0x3F) as u32; // Mask to 6 bits (0-63)
+        let result = Self::to_integer(as_number!(a)) >> shift_amount; // Arithmetic right shift
+        self.push(Value::Number(result as f64));
     }
 
     #[inline(always)]

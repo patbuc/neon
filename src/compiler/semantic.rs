@@ -248,6 +248,14 @@ impl SemanticAnalyzer {
                         // Comparison and logical operations return Boolean
                         Some("Boolean".to_string())
                     }
+                    BinaryOp::BitwiseAnd
+                    | BinaryOp::BitwiseOr
+                    | BinaryOp::BitwiseXor
+                    | BinaryOp::LeftShift
+                    | BinaryOp::RightShift => {
+                        // Bitwise operations return Number
+                        Some("Number".to_string())
+                    }
                 }
             }
 
@@ -257,6 +265,7 @@ impl SemanticAnalyzer {
                 match operator {
                     UnaryOp::Negate => Some("Number".to_string()),
                     UnaryOp::Not => Some("Boolean".to_string()),
+                    UnaryOp::BitwiseNot => Some("Number".to_string()),
                 }
             }
 

@@ -1,0 +1,38 @@
+// Expected:
+// 1
+// 7
+// 6
+// -6
+// 20
+// 2
+// 6
+// 1
+// true
+
+// Basic bitwise AND
+print(5 & 3)    // 1 (101 & 011 = 001)
+
+// Basic bitwise OR
+print(5 | 2)    // 7 (101 | 010 = 111)
+
+// Basic bitwise XOR
+print(5 ^ 3)    // 6 (101 ^ 011 = 110)
+
+// Bitwise NOT
+print(~5)       // -6 (inverts all bits)
+
+// Left shift
+print(5 << 2)   // 20 (shift left by 2 = multiply by 4)
+
+// Right shift
+print(10 >> 2)  // 2 (shift right by 2 = divide by 4)
+
+// Precedence: & binds tighter than |
+print(2 | 4 & 6)  // 2 | (4 & 6) = 2 | 4 = 6
+
+// Variable with bitwise
+val x = 5 & 3
+print(x)        // 1
+
+// Combined with comparison
+print((5 & 3) == 1)  // true

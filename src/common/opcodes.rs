@@ -70,4 +70,12 @@ pub(crate) enum OpCode {
     PopIterator,
     CreateRange,
     ToString,
+
+    // Bitwise operations
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
+    LeftShift,
+    RightShift,
 }

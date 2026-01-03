@@ -94,14 +94,18 @@ impl Scanner {
                 }
             }
             '<' => {
-                if self.matches('=') {
+                if self.matches('<') {
+                    self.make_token(TokenType::LessLess)
+                } else if self.matches('=') {
                     self.make_token(TokenType::LessEqual)
                 } else {
                     self.make_token(TokenType::Less)
                 }
             }
             '>' => {
-                if self.matches('=') {
+                if self.matches('>') {
+                    self.make_token(TokenType::GreaterGreater)
+                } else if self.matches('=') {
                     self.make_token(TokenType::GreaterEqual)
                 } else {
                     self.make_token(TokenType::Greater)
@@ -111,16 +115,18 @@ impl Scanner {
                 if self.matches('&') {
                     self.make_token(TokenType::AndAnd)
                 } else {
-                    self.make_error_token("Expected '&&' operator")
+                    self.make_token(TokenType::Ampersand)
                 }
             }
             '|' => {
                 if self.matches('|') {
                     self.make_token(TokenType::OrOr)
                 } else {
-                    self.make_error_token("Expected '||' operator")
+                    self.make_token(TokenType::Pipe)
                 }
             }
+            '^' => self.make_token(TokenType::Caret),
+            '~' => self.make_token(TokenType::Tilde),
             '/' => {
                 if self.matches('/') {
                     // Check if this is a comment or integer division operator
