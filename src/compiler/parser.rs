@@ -777,9 +777,39 @@ impl Parser {
     // ===== Primary Expressions =====
 
     fn number(&self) -> Option<Expr> {
-        let value = self.previous_token.token.parse::<f64>().ok()?;
+        let token_str = &self.previous_token.token;
+        let value = self.parse_number_literal(token_str)?;
         let location = self.current_location();
         Some(Expr::Number { value, location })
+    }
+
+    fn parse_number_literal(&self, s: &str) -> Option<f64> {
+        // Remove all underscores for parsing
+        let clean: String = s.chars().filter(|c| *c != '_').collect();
+
+        if clean.len() >= 2 {
+            match &clean[..2] {
+                "0x" | "0X" => {
+                    let hex_part = &clean[2..];
+                    let int_value = u64::from_str_radix(hex_part, 16).ok()?;
+                    return Some(int_value as f64);
+                }
+                "0b" | "0B" => {
+                    let bin_part = &clean[2..];
+                    let int_value = u64::from_str_radix(bin_part, 2).ok()?;
+                    return Some(int_value as f64);
+                }
+                "0o" | "0O" => {
+                    let oct_part = &clean[2..];
+                    let int_value = u64::from_str_radix(oct_part, 8).ok()?;
+                    return Some(int_value as f64);
+                }
+                _ => {}
+            }
+        }
+
+        // Parse as decimal (with potential floating point)
+        clean.parse::<f64>().ok()
     }
 
     fn string(&self) -> Option<Expr> {

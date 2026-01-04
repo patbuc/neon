@@ -31,6 +31,102 @@ fn test_parse_binary_expression() {
 }
 
 #[test]
+fn test_parse_hex_number() {
+    let mut parser = Parser::new("0xFF\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 255.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_binary_number() {
+    let mut parser = Parser::new("0b1010\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 10.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_octal_number() {
+    let mut parser = Parser::new("0o755\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 493.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_number_with_underscores() {
+    let mut parser = Parser::new("1_000_000\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 1_000_000.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_hex_with_underscores() {
+    let mut parser = Parser::new("0xFF_FF\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 65535.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_binary_with_underscores() {
+    let mut parser = Parser::new("0b1111_0000\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Number { value, .. } => assert_eq!(*value, 240.0),
+            _ => panic!("Expected Number expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
 fn test_parse_function() {
     let mut parser = Parser::new("fn foo(a, b) {\n  print(a)\n}\n");
     let result = parser.parse();
