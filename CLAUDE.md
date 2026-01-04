@@ -190,37 +190,89 @@ Avoid:
 - Production-grade optimizations that obscure the learning path
 - Over-engineering or premature abstraction
 
-## Agent Workflow: build-feature
+## Agent Workflow: Orchestrated Feature Development
 
-This project includes a skill-based feature development workflow that Claude automatically invokes when detecting multi-step feature requests.
+This project uses a three-agent workflow for feature development. The agents are defined in `.claude/agents/`.
 
-### How It Works
+### Agent Hierarchy
 
-The `build-feature` skill is triggered automatically when you ask Claude to build, implement, or add a new feature. It orchestrates specialized subagents:
+```
+┌─────────────────────────────────────────────────────────┐
+│ ORCHESTRATOR AGENT (top-level coordinator)              │
+│ .claude/agents/orchestrator-agent.md                    │
+│                                                         │
+│ Responsibilities:                                       │
+│ • Break down user request into atomic steps             │
+│ • Create and maintain plan file                         │
+│ • Get user approval before implementation               │
+│ • Spawn sub-agents for each step                        │
+│ • Handle commits after passed steps                     │
+│ • Create final PR                                       │
+│                                                         │
+│ Sub-agents it spawns:                                   │
+│ ├── coding-agent (for implementation)                   │
+│ └── quality-gate-agent (for validation)                 │
+└─────────────────────────────────────────────────────────┘
+```
 
-- **feature-coder**: Implements the approved plan
-- **feature-tester**: Runs tests and validates changes
-- **feature-reviewer**: Reviews code quality before quality gates
+### Agent Roles
 
-### Workflow Behavior
+| Agent | File | Responsibility |
+|-------|------|----------------|
+| **Orchestrator** | `orchestrator-agent.md` | Coordinates workflow, breaks down problems, manages state |
+| **Coding Agent** | `coding-agent.md` | Implements single steps, writes code and tests |
+| **Quality Gate Agent** | `quality-gate-agent.md` | Reviews code, determines PASS/FAIL with feedback |
 
-1. **Planning Phase**: Always requires human approval before implementation
-2. **Implementation Loop**: Runs autonomously with max 3 retry attempts
-3. **Quality Gates**: Build, test, and clippy must all pass
-4. **PR Creation**: Automatic branch, commit, push, and PR creation
+### Workflow Phases
 
-### When It Stops for Human Input
+**Phase 1: Planning (Human Approval Required)**
+1. Orchestrator analyzes request and explores codebase
+2. Breaks down into atomic, testable steps
+3. Creates plan file at `.claude/plans/feature-{slug}.md`
+4. Presents plan to user for approval
+5. Blocks until user approves
 
-- Planning phase always requires approval before proceeding
-- After 3 failed implementation attempts
-- When encountering ambiguous requirements
-- When a fix would require significant architectural changes
-- When tests reveal unexpected behavior
+**Phase 2: Implementation Loop (Per Step)**
+1. Orchestrator spawns coding-agent for current step
+2. Coding-agent implements step and runs tests
+3. Orchestrator runs quality gate commands
+4. Orchestrator spawns quality-gate-agent to review
+5. If PASS: commit and move to next step
+6. If FAIL: retry (max 3 attempts) or escalate
+
+**Phase 3: Completion**
+1. Verify all steps passed
+2. Run final quality gate
+3. Create feature branch, push, and open PR
+4. Clean up plan file
+
+### When Workflow Stops for Human Input
+
+- **Always**: Planning phase requires approval before proceeding
+- **On failure**: After 3 failed attempts per step
+- **On ambiguity**: When requirements are unclear
+- **On fundamental issues**: Type system conflicts, architectural mismatches
 
 ### Quality Gate Commands
 
 ```bash
-cargo build --release  # Must succeed
-cargo test             # All tests must pass
-cargo clippy -- -D warnings  # No warnings allowed
+cargo fmt                      # Format code
+cargo clippy -- -D warnings    # Lint (no warnings allowed)
+cargo test                     # All tests must pass
 ```
+
+### Plan File State Machine
+
+The plan file (`.claude/plans/feature-{slug}.md`) tracks:
+- Step descriptions and status (pending, in_progress, passed, failed, skipped)
+- Attempt count per step (max 3)
+- Commit hashes for passed steps
+- Quality gate history with failure feedback
+
+### Invoking the Workflow
+
+The orchestrator-agent is invoked when building multi-step features. It will:
+1. Ask for your approval on the plan before writing any code
+2. Implement each step one-by-one with quality validation
+3. Commit after each passed step
+4. Create a PR when all steps are complete
