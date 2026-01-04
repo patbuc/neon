@@ -1,6 +1,13 @@
 ---
 name: feature-reviewer
 description: Code review agent for the build-feature workflow. Reviews implementation quality and adherence to standards.
+tools:
+  - Read
+  - Glob
+  - Grep
+constraints:
+  max_tool_calls: 20
+  escalate_message: "Review requires deeper investigation. Escalating to orchestrator."
 ---
 
 # Feature Reviewer Agent
@@ -108,8 +115,11 @@ Return `AUTO_FIX` when issues are **trivial enough for you to fix directly**:
 - Logic changes (even small ones)
 - Structural refactoring
 - Changes spanning multiple files
-- Anything that changes behavior
+- Anything that changes observable behavior (output, return values, side effects)
 - Anything requiring new tests
+- Changes that could affect test results (even if tests currently pass)
+
+**Important:** After AUTO_FIX changes, the orchestrator will re-run the full quality gate including tests. If your "trivial" fix breaks tests, it wasn't trivial - be conservative.
 
 ### NEEDS_CHANGES
 
