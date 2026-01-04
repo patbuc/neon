@@ -79,7 +79,13 @@ impl Scanner {
             ';' => self.make_token(TokenType::Semicolon),
             ':' => self.make_token(TokenType::Colon),
             '?' => self.make_token(TokenType::Question),
-            '*' => self.make_token(TokenType::Star),
+            '*' => {
+                if self.matches('*') {
+                    self.make_token(TokenType::StarStar)
+                } else {
+                    self.make_token(TokenType::Star)
+                }
+            }
             '!' => {
                 if self.matches('=') {
                     self.make_token(TokenType::BangEqual)
@@ -275,7 +281,8 @@ impl Scanner {
                 }
                 self.advance();
             } else if ('2'..='9').contains(&c) {
-                return self.make_error_token("Invalid digit in binary literal (only 0 and 1 allowed)");
+                return self
+                    .make_error_token("Invalid digit in binary literal (only 0 and 1 allowed)");
             } else {
                 break;
             }

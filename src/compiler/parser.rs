@@ -23,16 +23,17 @@ enum Precedence {
     Assignment,
     Ternary,
     Or,
-    BitwiseOr,    // |
-    BitwiseXor,   // ^
-    BitwiseAnd,   // &
+    BitwiseOr,  // |
+    BitwiseXor, // ^
+    BitwiseAnd, // &
     And,
     Equality,
     Comparison,
-    Shift,        // << >>
+    Shift, // << >>
     Range,
     Term,
     Factor,
+    Exponent, // **
     Unary,
     Call,
     Primary,
@@ -54,7 +55,8 @@ impl Precedence {
             Precedence::Shift => Precedence::Range,
             Precedence::Range => Precedence::Term,
             Precedence::Term => Precedence::Factor,
-            Precedence::Factor => Precedence::Unary,
+            Precedence::Factor => Precedence::Exponent,
+            Precedence::Exponent => Precedence::Unary,
             Precedence::Unary => Precedence::Call,
             Precedence::Call => Precedence::Primary,
             Precedence::Primary => Precedence::Primary,
@@ -715,6 +717,7 @@ impl Parser {
                 TokenType::Plus
                 | TokenType::Minus
                 | TokenType::Star
+                | TokenType::StarStar
                 | TokenType::Slash
                 | TokenType::SlashSlash
                 | TokenType::Percent
@@ -757,6 +760,7 @@ impl Parser {
             | TokenType::LeftBracket
             | TokenType::PlusPlus
             | TokenType::MinusMinus => Precedence::Call,
+            TokenType::StarStar => Precedence::Exponent,
             TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => {
                 Precedence::Factor
             }
@@ -928,13 +932,20 @@ impl Parser {
         let operator_type = self.previous_token.token_type.clone();
         let location = self.current_location();
 
-        let precedence = self.get_precedence(&operator_type).next();
+        // For right-associative operators (like **), use same precedence level
+        // For left-associative operators, use next precedence level
+        let precedence = if operator_type == TokenType::StarStar {
+            self.get_precedence(&operator_type)
+        } else {
+            self.get_precedence(&operator_type).next()
+        };
         let right = Box::new(self.parse_precedence(precedence, false)?);
 
         let operator = match operator_type {
             TokenType::Plus => BinaryOp::Add,
             TokenType::Minus => BinaryOp::Subtract,
             TokenType::Star => BinaryOp::Multiply,
+            TokenType::StarStar => BinaryOp::Exponent,
             TokenType::Slash => BinaryOp::Divide,
             TokenType::SlashSlash => BinaryOp::FloorDivide,
             TokenType::Percent => BinaryOp::Modulo,
@@ -1004,7 +1015,10 @@ impl Parser {
         // Parse the then branch at Ternary precedence (for right-associativity)
         let then_expr = Box::new(self.parse_precedence(Precedence::Ternary, false)?);
 
-        if !self.consume(TokenType::Colon, "Expect ':' after ternary then expression.") {
+        if !self.consume(
+            TokenType::Colon,
+            "Expect ':' after ternary then expression.",
+        ) {
             return None;
         }
 

@@ -233,7 +233,8 @@ impl SemanticAnalyzer {
                     | BinaryOp::Multiply
                     | BinaryOp::Divide
                     | BinaryOp::FloorDivide
-                    | BinaryOp::Modulo => {
+                    | BinaryOp::Modulo
+                    | BinaryOp::Exponent => {
                         // Arithmetic operations return Number
                         Some("Number".to_string())
                     }
