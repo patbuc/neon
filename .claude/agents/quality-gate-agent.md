@@ -1,6 +1,7 @@
 ---
 name: quality-gate-agent
 description: Validation sub-agent for the orchestrator workflow. Reviews code quality, test coverage, and determines if a step passes or fails.
+model: haiku
 tools:
   - Read
   - Glob

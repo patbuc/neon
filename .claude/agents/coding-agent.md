@@ -1,6 +1,7 @@
 ---
 name: coding-agent
 description: Implementation sub-agent for the orchestrator workflow. Implements a single step from the plan, writes tests, and reports results.
+model: sonnet
 tools:
   - Read
   - Edit
