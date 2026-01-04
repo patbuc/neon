@@ -743,6 +743,7 @@ impl CodeGenerator {
                     BinaryOp::Divide => self.emit_op_code(OpCode::Divide, location),
                     BinaryOp::FloorDivide => self.emit_op_code(OpCode::FloorDivide, location),
                     BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, location),
+                    BinaryOp::Exponent => self.emit_op_code(OpCode::Exponent, location),
                     BinaryOp::Equal => self.emit_op_code(OpCode::Equal, location),
                     BinaryOp::NotEqual => {
                         self.emit_op_code(OpCode::Equal, location);

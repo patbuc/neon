@@ -22,6 +22,7 @@ pub(crate) enum OpCode {
     Divide,
     FloorDivide,
     Modulo,
+    Exponent,
     Nil,
     True,
     False,

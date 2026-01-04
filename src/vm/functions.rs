@@ -268,6 +268,13 @@ impl VirtualMachine {
         self.push(Value::Number(as_number!(a) % as_number!(b)));
     }
 
+    #[inline(always)]
+    pub(in crate::vm) fn fn_exponent(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        self.push(Value::Number(as_number!(a).powf(as_number!(b))));
+    }
+
     /// Helper: Convert f64 to i64 for bitwise operations
     #[inline(always)]
     fn to_integer(value: f64) -> i64 {

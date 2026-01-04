@@ -1,0 +1,47 @@
+// Test exponentiation operator (**)
+
+// Expected:
+// 8
+// 100
+// 0.25
+// 1
+// 11
+// 32
+// 14
+// 512
+// -8
+// 1.4142135623730951
+// 2
+// NaN
+// 3
+
+// Basic exponentiation
+print(2 ** 3)           // 8
+print(10 ** 2)          // 100
+print(2 ** -2)          // 0.25
+
+// Edge case: 0**0
+print(0 ** 0)           // 1 (by convention)
+
+// Precedence: ** has higher precedence than +, *, /
+print(2 + 3 ** 2)       // 11 (not 25)
+print(2 ** 3 * 4)       // 32 (not 4096)
+print(2 * 3 + 2 ** 3)   // 14
+
+// Right-associativity: 2**3**2 = 2**(3**2) = 2**9 = 512
+print(2 ** 3 ** 2)      // 512 (not 64)
+
+// Negative base
+print((-2) ** 3)        // -8
+
+// Fractional exponent (square root)
+print(2 ** 0.5)         // ~1.414... (square root of 2)
+print(8 ** (1/3))       // ~2.0 (cube root of 8)
+
+// Negative base with fractional exponent produces NaN
+print((-2) ** 0.5)      // NaN
+
+// Variables
+val base = 3
+val exp = 4
+print(base ** (exp - 3)) // 3**1 = 3

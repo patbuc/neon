@@ -177,6 +177,7 @@ impl VirtualMachine {
                 OpCode::Divide => self.fn_divide(),
                 OpCode::FloorDivide => self.fn_floor_divide(),
                 OpCode::Modulo => self.fn_modulo(),
+                OpCode::Exponent => self.fn_exponent(),
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),

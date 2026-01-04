@@ -10,6 +10,7 @@ pub enum BinaryOp {
     Divide,
     FloorDivide,
     Modulo,
+    Exponent,
     // Comparison
     Equal,
     NotEqual,
