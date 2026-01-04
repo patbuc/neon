@@ -3,6 +3,7 @@ name: feature-reviewer
 description: Code review agent for the build-feature workflow. Reviews implementation quality and adherence to standards.
 tools:
   - Read
+  - Edit
   - Glob
   - Grep
 constraints:
@@ -102,7 +103,7 @@ Return `APPROVED` when:
 
 ### AUTO_FIX
 
-Return `AUTO_FIX` when issues are **trivial enough for you to fix directly**:
+Return `AUTO_FIX` when issues are **trivial enough for you to fix directly**. You have the Edit tool - apply the fixes yourself before returning.
 
 **Can auto-fix:**
 - Single variable/function rename for clarity
@@ -119,7 +120,12 @@ Return `AUTO_FIX` when issues are **trivial enough for you to fix directly**:
 - Anything requiring new tests
 - Changes that could affect test results (even if tests currently pass)
 
-**Important:** After AUTO_FIX changes, the orchestrator will re-run the full quality gate including tests. If your "trivial" fix breaks tests, it wasn't trivial - be conservative.
+**Procedure for AUTO_FIX:**
+1. Apply the fixes using the Edit tool
+2. Return `AUTO_FIX` with a summary of changes made
+3. The orchestrator will re-run the full quality gate
+
+**Important:** If your "trivial" fix breaks tests, it wasn't trivial - be conservative.
 
 ### NEEDS_CHANGES
 

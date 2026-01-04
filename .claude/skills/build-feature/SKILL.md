@@ -268,12 +268,15 @@ options:
 Based on choice:
 - **Draft PR**: Create branch, commit with WIP prefix, create draft PR with issues in body
 - **Save to branch**: Create branch, commit, tell user branch name
-- **Abandon**: Discard changes and restore checkpoint:
+- **Abandon**: Discard changes, restore checkpoint, and clean up:
   ```bash
   git checkout .
   git clean -fd
   # Restore from checkpoint if one was created
   git stash list | grep "pre-feature-checkpoint-{slug}" | head -1 | cut -d: -f1 | xargs -I{} git stash pop {} 2>/dev/null || true
+  # Clean up plan file and checkpoint stash
+  rm -f .claude/plans/feature-{slug}.md
+  git stash list | grep "pre-feature-checkpoint-{slug}" | head -1 | cut -d: -f1 | xargs -I{} git stash drop {} 2>/dev/null || true
   ```
 - **Investigate**: Stop and wait for user guidance
 
@@ -311,8 +314,8 @@ Return: APPROVED, AUTO_FIX (with specific fixes), or NEEDS_CHANGES (with specifi
 **On APPROVED:** Proceed to Step 3.2
 
 **On AUTO_FIX:**
-- Apply the reviewer's specified fixes directly
-- Re-run quality gate
+- The reviewer has already applied the fixes directly
+- Re-run quality gate to verify
 - If passes, proceed to Step 3.2 (doesn't count as attempt)
 
 **On NEEDS_CHANGES:**
