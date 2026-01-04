@@ -1,6 +1,16 @@
 ---
 name: feature-tester
 description: Testing agent for the build-feature workflow. Runs tests and validates implementations.
+tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash
+constraints:
+  max_tool_calls: 30
+  escalate_message: "Testing requires more investigation than expected. Escalating to orchestrator."
 ---
 
 # Feature Tester Agent
@@ -96,11 +106,11 @@ Use these concrete rules to decide what needs testing:
 
 ```
 TEST RESULTS:
-- cargo test: PASSED (47 tests)
+- cargo test: PASSED (47 passed; 0 failed)
   OR
-- cargo test: FAILED
-  - test_parse_binary: expected Plus, got Minus (src/compiler/parser.rs:234)
-  - test_vm_stack: stack underflow (src/vm/impl.rs:89)
+- cargo test: FAILED (45 passed; 2 failed)
+  - test_parse_binary: assertion failed - expected Plus, got Minus (src/compiler/parser.rs:234)
+  - test_vm_stack: panicked at 'stack underflow' (src/vm/impl.rs:89)
 
 COVERAGE CHECKLIST:
 [x] New public functions tested: parse_while_stmt (while_loop.n)

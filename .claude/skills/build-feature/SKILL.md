@@ -79,7 +79,11 @@ Keep the plan concise. Focus on WHAT changes, not HOW to write code.
 
 ### Step 1.3: Persist Plan
 
-Generate a slug from the feature name (first 8 chars, lowercase, hyphens for spaces).
+Generate a slug from the feature name:
+- Lowercase, replace spaces with hyphens
+- Use first 20 chars (enough to distinguish "auth-login" from "auth-logout")
+- Remove special characters except hyphens
+
 Write the plan to `.claude/plans/feature-{slug}.md`:
 
 ```markdown
@@ -121,13 +125,19 @@ options:
 
 ### Step 2.0: Create Checkpoint
 
-Before first implementation attempt, save current state:
+Before first implementation attempt, create a reference to the current clean state:
 
 ```bash
-git stash push -m "pre-feature-checkpoint-{slug}"
+# Create a stash entry without modifying working tree
+CHECKPOINT=$(git stash create)
+if [ -n "$CHECKPOINT" ]; then
+  git stash store -m "pre-feature-checkpoint-{slug}-$(date +%s)" "$CHECKPOINT"
+fi
 ```
 
-Update plan file with stash reference.
+If working tree is already clean, `git stash create` returns empty - that's fine, note "clean" as checkpoint.
+
+Update plan file with the stash reference or "clean" marker.
 
 ### Step 2.1: Implement
 
@@ -208,6 +218,14 @@ Report: test results, coverage checklist, new tests added (with justification)"
 )
 ```
 
+**On tester reporting test failures:**
+1. Categorize the failure (usually RECOVERABLE)
+2. Update plan file with test failure context
+3. If `implementation_attempts < 3`, increment and retry Step 2.1 with failure details
+4. If `implementation_attempts >= 3`, go to Step 2.5 (Escalate)
+
+**On tester success:** Proceed to Step 2.4
+
 ### Step 2.4: Quality Gate
 
 Run the full quality check:
@@ -250,7 +268,13 @@ options:
 Based on choice:
 - **Draft PR**: Create branch, commit with WIP prefix, create draft PR with issues in body
 - **Save to branch**: Create branch, commit, tell user branch name
-- **Abandon**: Run `git stash pop` to restore checkpoint
+- **Abandon**: Discard changes and restore checkpoint:
+  ```bash
+  git checkout .
+  git clean -fd
+  # Restore from checkpoint if one was created
+  git stash list | grep "pre-feature-checkpoint-{slug}" | head -1 | cut -d: -f1 | xargs -I{} git stash pop {} 2>/dev/null || true
+  ```
 - **Investigate**: Stop and wait for user guidance
 
 ---
@@ -323,7 +347,7 @@ REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
    **GitHub** (URL contains `github.com`):
    ```bash
    git push -u origin HEAD
-   gh pr create --title "[Feature title]" --body "## Summary
+   gh pr create --fill --title "[Feature title]" --body "## Summary
    [1-2 sentence summary]
 
    ## Changes
@@ -347,16 +371,20 @@ REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
 
 ### Step 3.3: Cleanup
 
+**Only perform cleanup after confirming PR was created successfully** (i.e., PR URL was returned).
+
+If PR creation failed or was skipped, keep the plan file for recovery.
+
 Delete the plan file:
 
 ```bash
 rm .claude/plans/feature-{slug}.md
 ```
 
-Clear the checkpoint stash:
+Clear the checkpoint stash (use pattern match since we added timestamp):
 
 ```bash
-git stash drop "pre-feature-checkpoint-{slug}" 2>/dev/null || true
+git stash list | grep "pre-feature-checkpoint-{slug}" | head -1 | cut -d: -f1 | xargs -I{} git stash drop {} 2>/dev/null || true
 ```
 
 ---

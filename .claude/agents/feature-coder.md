@@ -1,6 +1,15 @@
 ---
 name: feature-coder
 description: Implementation agent for the build-feature workflow. Handles code implementation following approved plans.
+tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+constraints:
+  max_tool_calls: 50
+  escalate_message: "Implementation requires more changes than expected. Escalating to orchestrator."
 ---
 
 # Feature Coder Agent
