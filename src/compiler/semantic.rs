@@ -269,6 +269,23 @@ impl SemanticAnalyzer {
                 }
             }
 
+            // Conditional (ternary) - try to infer type from branches
+            Expr::Conditional {
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                let then_type = self.infer_expr_type(then_expr);
+                let else_type = self.infer_expr_type(else_expr);
+                // If both branches have the same type, use it
+                if then_type == else_type {
+                    then_type
+                } else {
+                    // Different or unknown types - prefer then branch if known
+                    then_type.or(else_type)
+                }
+            }
+
             // For other expressions, we can't infer the type
             _ => None,
         }
@@ -458,6 +475,16 @@ impl SemanticAnalyzer {
             }
             Expr::PostfixDecrement { operand, location } => {
                 self.resolve_postfix_decrement(operand, *location);
+            }
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                self.resolve_expr(condition);
+                self.resolve_expr(then_expr);
+                self.resolve_expr(else_expr);
             }
         }
     }

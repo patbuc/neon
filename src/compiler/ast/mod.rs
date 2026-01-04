@@ -142,6 +142,12 @@ pub enum Expr {
         operand: Box<Expr>,
         location: SourceLocation,
     },
+    Conditional {
+        condition: Box<Expr>,
+        then_expr: Box<Expr>,
+        else_expr: Box<Expr>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -229,7 +235,8 @@ impl Expr {
             | Expr::IndexAssign { location, .. }
             | Expr::Range { location, .. }
             | Expr::PostfixIncrement { location, .. }
-            | Expr::PostfixDecrement { location, .. } => location,
+            | Expr::PostfixDecrement { location, .. }
+            | Expr::Conditional { location, .. } => location,
         }
     }
 }

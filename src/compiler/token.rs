@@ -19,6 +19,7 @@ pub(crate) enum TokenType {
     Percent,
     Semicolon,
     Colon,
+    Question,
     NewLine,
     Slash,
     SlashSlash,

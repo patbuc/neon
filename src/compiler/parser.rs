@@ -21,6 +21,7 @@ pub struct Parser {
 enum Precedence {
     None,
     Assignment,
+    Ternary,
     Or,
     BitwiseOr,    // |
     BitwiseXor,   // ^
@@ -41,7 +42,8 @@ impl Precedence {
     fn next(self) -> Precedence {
         match self {
             Precedence::None => Precedence::Assignment,
-            Precedence::Assignment => Precedence::Or,
+            Precedence::Assignment => Precedence::Ternary,
+            Precedence::Ternary => Precedence::Or,
             Precedence::Or => Precedence::BitwiseOr,
             Precedence::BitwiseOr => Precedence::BitwiseXor,
             Precedence::BitwiseXor => Precedence::BitwiseAnd,
@@ -734,6 +736,7 @@ impl Parser {
                 TokenType::Dot => self.dot(expr),
                 TokenType::LeftBracket => self.index(expr),
                 TokenType::PlusPlus | TokenType::MinusMinus => self.postfix(expr),
+                TokenType::Question => self.ternary(expr),
                 _ => {
                     return Some(expr);
                 }
@@ -770,6 +773,7 @@ impl Parser {
             TokenType::Pipe => Precedence::BitwiseOr,
             TokenType::AndAnd => Precedence::And,
             TokenType::OrOr => Precedence::Or,
+            TokenType::Question => Precedence::Ternary,
             _ => Precedence::None,
         }
     }
@@ -990,6 +994,27 @@ impl Parser {
             start: Box::new(start),
             end,
             inclusive,
+            location,
+        })
+    }
+
+    fn ternary(&mut self, condition: Expr) -> Option<Expr> {
+        let location = self.current_location();
+
+        // Parse the then branch at Ternary precedence (for right-associativity)
+        let then_expr = Box::new(self.parse_precedence(Precedence::Ternary, false)?);
+
+        if !self.consume(TokenType::Colon, "Expect ':' after ternary then expression.") {
+            return None;
+        }
+
+        // Parse the else branch at Ternary precedence (for right-associativity)
+        let else_expr = Box::new(self.parse_precedence(Precedence::Ternary, false)?);
+
+        Some(Expr::Conditional {
+            condition: Box::new(condition),
+            then_expr,
+            else_expr,
             location,
         })
     }
