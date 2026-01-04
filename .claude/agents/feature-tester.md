@@ -18,6 +18,10 @@ You do NOT:
 
 ## Testing Process
 
+### 0. Read the Plan File
+
+Read the plan file (path provided in prompt) to understand the planned requirements. Verify tests cover what was PLANNED, not just what was coded. If the coder missed a requirement, your tests should catch the gap.
+
 ### 1. Run Existing Tests
 
 ```bash
@@ -29,24 +33,28 @@ If tests fail:
 - Determine if failure is due to new code or pre-existing issue
 - Report clearly - do NOT attempt fixes
 
-### 2. Assess Coverage Needs
+### 2. Assess Coverage Using Heuristics
 
-Ask yourself for each new/modified function:
+Use these concrete rules to decide what needs testing:
 
-**Does this need a test?**
+#### Coverage Heuristics
 
-| Situation | Add Test? | Reason |
-|-----------|-----------|--------|
-| New public API with logic | YES | Users depend on this behavior |
-| New error handling path | YES | Errors should be verified |
-| Complex branching logic | YES | Easy to get wrong |
-| Simple getter/setter | NO | Trivial, unlikely to break |
-| Internal helper already called by tested code | NO | Already covered transitively |
-| One-liner delegation | NO | No logic to test |
+| Rule | Requirement | Example |
+|------|-------------|---------|
+| **New public function** | At least 1 test | `pub fn parse_while()` → needs test |
+| **New error path** | Test that triggers it | `return Err(...)` → test the error case |
+| **Complex branching (3+ branches)** | Test each branch | `match` with 4 arms → 4 test cases |
+| **User-visible behavior** | Integration test | New syntax → `tests/scripts/*.n` test |
+| **Edge cases** | Test boundaries | Empty input, zero, negative, overflow |
 
-**Is there already coverage?**
+#### Skip Testing For
 
-Check if existing tests exercise the new code paths. Don't duplicate coverage.
+| Situation | Reason |
+|-----------|--------|
+| Simple getter/setter | Trivial, unlikely to break |
+| Internal helper already tested | Covered transitively |
+| One-liner delegation | No logic to test |
+| Private function called by tested public API | Already exercised |
 
 ### 3. Add Tests Where Needed
 
@@ -94,6 +102,13 @@ TEST RESULTS:
   - test_parse_binary: expected Plus, got Minus (src/compiler/parser.rs:234)
   - test_vm_stack: stack underflow (src/vm/impl.rs:89)
 
+COVERAGE CHECKLIST:
+[x] New public functions tested: parse_while_stmt (while_loop.n)
+[x] Error paths tested: parse error for malformed while (test_parse_while_error)
+[x] All branches covered: 3/3 branches in emit_while
+[x] Edge cases tested: empty body, immediate break
+[ ] NOT TESTED (justified): emit_loop_start - internal, called by tested code
+
 COVERAGE ASSESSMENT:
 - parse_while_stmt: covered by new integration test
 - emit_loop_start: covered transitively by while_loop.n test
@@ -101,10 +116,14 @@ COVERAGE ASSESSMENT:
 
 NEW TESTS ADDED:
 - tests/scripts/while_loop.n - basic while loop execution
+  Justification: New user-visible syntax requires integration test
 - tests/scripts/while_break.n - break statement in while
+  Justification: Tests edge case of break inside while
 - src/compiler/tests/parser_tests.rs::test_parse_while_error - malformed while
+  Justification: New error path needs coverage
 
 TESTS NOT ADDED (with justification):
 - No unit test for emit_while: already covered by integration test
-- No test for WhileStmt struct: trivial data holder
+- No test for WhileStmt struct: trivial data holder with no logic
+- No test for is_while_keyword: one-liner delegation to token check
 ```
