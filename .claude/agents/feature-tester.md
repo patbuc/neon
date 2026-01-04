@@ -78,12 +78,12 @@ Use these concrete rules to decide what needs testing:
 - Format:
   ```neon
   // Test: while loop with break
-  var i = 0;
+  var i = 0
   while (true) {
-      i = i + 1;
-      if (i >= 3) break;
+      i = i + 1
+      if (i >= 3) break
   }
-  print(i);
+  print(i)
   // Expected:
   // 3
   ```
