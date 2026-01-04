@@ -209,23 +209,159 @@ impl Scanner {
     }
 
     fn make_number(&mut self) -> Token {
-        loop {
-            if !Scanner::is_digit(self.peek()) {
-                break;
+        // Check if this starts with '0' followed by a base prefix
+        // At this point, self.start points to the '0' and self.current is start+1
+        if self.source[self.start] == '0' && !self.is_at_end() {
+            let prefix = self.peek();
+            match prefix {
+                'x' | 'X' => return self.make_hex_number(),
+                'b' | 'B' => return self.make_binary_number(),
+                'o' | 'O' => return self.make_octal_number(),
+                _ => {} // Continue with decimal parsing
             }
-            self.advance();
         }
 
+        self.make_decimal_number()
+    }
+
+    fn make_hex_number(&mut self) -> Token {
+        self.advance(); // consume 'x' or 'X'
+
+        if !Scanner::is_hex_digit(self.peek()) {
+            return self.make_error_token("Hexadecimal literal requires at least one digit");
+        }
+
+        let mut has_digit = false;
+        loop {
+            let c = self.peek();
+            if Scanner::is_hex_digit(c) {
+                has_digit = true;
+                self.advance();
+            } else if c == '_' {
+                if !Scanner::is_hex_digit(self.peek_next()) {
+                    return self
+                        .make_error_token("Invalid underscore placement in hexadecimal literal");
+                }
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if !has_digit {
+            return self.make_error_token("Hexadecimal literal requires at least one digit");
+        }
+
+        self.make_token(TokenType::Number)
+    }
+
+    fn make_binary_number(&mut self) -> Token {
+        self.advance(); // consume 'b' or 'B'
+
+        if !Scanner::is_binary_digit(self.peek()) {
+            return self.make_error_token("Binary literal requires at least one digit");
+        }
+
+        let mut has_digit = false;
+        loop {
+            let c = self.peek();
+            if Scanner::is_binary_digit(c) {
+                has_digit = true;
+                self.advance();
+            } else if c == '_' {
+                if !Scanner::is_binary_digit(self.peek_next()) {
+                    return self.make_error_token("Invalid underscore placement in binary literal");
+                }
+                self.advance();
+            } else if ('2'..='9').contains(&c) {
+                return self.make_error_token("Invalid digit in binary literal (only 0 and 1 allowed)");
+            } else {
+                break;
+            }
+        }
+
+        if !has_digit {
+            return self.make_error_token("Binary literal requires at least one digit");
+        }
+
+        self.make_token(TokenType::Number)
+    }
+
+    fn make_octal_number(&mut self) -> Token {
+        self.advance(); // consume 'o' or 'O'
+
+        // Check for invalid digits 8 or 9 first (more specific error)
+        let c = self.peek();
+        if c == '8' || c == '9' {
+            return self.make_error_token("Invalid digit in octal literal (only 0-7 allowed)");
+        }
+
+        if !Scanner::is_octal_digit(c) {
+            return self.make_error_token("Octal literal requires at least one digit");
+        }
+
+        let mut has_digit = false;
+        loop {
+            let c = self.peek();
+            if Scanner::is_octal_digit(c) {
+                has_digit = true;
+                self.advance();
+            } else if c == '_' {
+                if !Scanner::is_octal_digit(self.peek_next()) {
+                    return self.make_error_token("Invalid underscore placement in octal literal");
+                }
+                self.advance();
+            } else if c == '8' || c == '9' {
+                return self.make_error_token("Invalid digit in octal literal (only 0-7 allowed)");
+            } else {
+                break;
+            }
+        }
+
+        if !has_digit {
+            return self.make_error_token("Octal literal requires at least one digit");
+        }
+
+        self.make_token(TokenType::Number)
+    }
+
+    fn make_decimal_number(&mut self) -> Token {
+        // Consume integer part with underscore support
+        loop {
+            let c = self.peek();
+            if Scanner::is_digit(c) {
+                self.advance();
+            } else if c == '_' {
+                if !Scanner::is_digit(self.peek_next()) {
+                    return self.make_error_token("Invalid underscore placement in number literal");
+                }
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Handle decimal point
         if self.peek() == '.' && Scanner::is_digit(self.peek_next()) {
-            self.advance();
+            self.advance(); // consume '.'
+
+            // Consume fractional part with underscore support
+            loop {
+                let c = self.peek();
+                if Scanner::is_digit(c) {
+                    self.advance();
+                } else if c == '_' {
+                    if !Scanner::is_digit(self.peek_next()) {
+                        return self
+                            .make_error_token("Invalid underscore placement in number literal");
+                    }
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
         }
 
-        loop {
-            if !Scanner::is_digit(self.peek()) {
-                break;
-            }
-            self.advance();
-        }
         self.make_token(TokenType::Number)
     }
 
@@ -251,6 +387,18 @@ impl Scanner {
 
     fn is_digit(c: char) -> bool {
         c.is_ascii_digit()
+    }
+
+    fn is_hex_digit(c: char) -> bool {
+        c.is_ascii_hexdigit()
+    }
+
+    fn is_binary_digit(c: char) -> bool {
+        c == '0' || c == '1'
+    }
+
+    fn is_octal_digit(c: char) -> bool {
+        ('0'..='7').contains(&c)
     }
 
     fn peek(&self) -> char {

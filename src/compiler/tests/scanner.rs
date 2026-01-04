@@ -151,3 +151,168 @@ fn can_scan_minusminus_operator() {
     assert_eq!(x[1].token, "--");
     assert_eq!(x[2].token_type, TokenType::Eof);
 }
+
+#[test]
+fn can_scan_hexadecimal_lowercase() {
+    let scanner = Scanner::new("0xff");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0xff");
+}
+
+#[test]
+fn can_scan_hexadecimal_uppercase() {
+    let scanner = Scanner::new("0XFF");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0XFF");
+}
+
+#[test]
+fn can_scan_hexadecimal_mixed_case() {
+    let scanner = Scanner::new("0xAbCdEf");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0xAbCdEf");
+}
+
+#[test]
+fn can_scan_binary_literal() {
+    let scanner = Scanner::new("0b1010");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0b1010");
+}
+
+#[test]
+fn can_scan_binary_uppercase() {
+    let scanner = Scanner::new("0B11110000");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0B11110000");
+}
+
+#[test]
+fn can_scan_octal_literal() {
+    let scanner = Scanner::new("0o755");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0o755");
+}
+
+#[test]
+fn can_scan_octal_uppercase() {
+    let scanner = Scanner::new("0O77");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0O77");
+}
+
+#[test]
+fn can_scan_decimal_with_underscores() {
+    let scanner = Scanner::new("1_000_000");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "1_000_000");
+}
+
+#[test]
+fn can_scan_hex_with_underscores() {
+    let scanner = Scanner::new("0xFF_FF");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0xFF_FF");
+}
+
+#[test]
+fn can_scan_binary_with_underscores() {
+    let scanner = Scanner::new("0b1111_0000");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0b1111_0000");
+}
+
+#[test]
+fn can_scan_octal_with_underscores() {
+    let scanner = Scanner::new("0o7_5_5");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "0o7_5_5");
+}
+
+#[test]
+fn can_scan_float_with_underscores() {
+    let scanner = Scanner::new("1_234.567_89");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "1_234.567_89");
+}
+
+#[test]
+fn rejects_invalid_binary_digit() {
+    let scanner = Scanner::new("0b123");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0].token.contains("Invalid digit in binary literal"));
+}
+
+#[test]
+fn rejects_invalid_octal_digit() {
+    let scanner = Scanner::new("0o89");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0].token.contains("Invalid digit in octal literal"));
+}
+
+#[test]
+fn rejects_empty_hex_literal() {
+    let scanner = Scanner::new("0x");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0].token.contains("requires at least one digit"));
+}
+
+#[test]
+fn rejects_empty_binary_literal() {
+    let scanner = Scanner::new("0b");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0].token.contains("requires at least one digit"));
+}
+
+#[test]
+fn rejects_trailing_underscore_in_decimal() {
+    let scanner = Scanner::new("123_");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0].token.contains("underscore"));
+}

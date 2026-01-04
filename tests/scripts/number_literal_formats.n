@@ -1,0 +1,39 @@
+// Expected:
+// 255
+// 255
+// 10
+// 240
+// 493
+// 63
+// 1000000
+// 65535
+// 240
+// 493
+// true
+// true
+
+// Hexadecimal literals
+print(0xFF)
+print(0XFF)
+
+// Binary literals
+print(0b1010)
+print(0b11110000)
+
+// Octal literals
+print(0o755)
+print(0O77)
+
+// Underscore separators
+print(1_000_000)
+print(0xFF_FF)
+print(0b1111_0000)
+print(0o7_5_5)
+
+// Use in expressions
+val mask = 0xFF
+print(mask == 255)
+
+// Use with bitwise operators
+val flags = 0b1010 | 0b0101
+print(flags == 15)
