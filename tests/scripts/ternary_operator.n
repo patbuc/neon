@@ -1,0 +1,37 @@
+// Ternary operator tests
+
+// Expected:
+// 1
+// 2
+// yes
+// nested works
+// assigned value
+// 30
+// from function
+
+// Basic ternary with true condition
+print(true ? 1 : 2)
+
+// Basic ternary with false condition
+print(false ? 1 : 2)
+
+// Ternary with expression condition
+print((5 > 3) ? "yes" : "no")
+
+// Nested ternary (right-associative: a ? b : c ? d : e = a ? b : (c ? d : e))
+print(false ? "wrong" : true ? "nested works" : "also wrong")
+
+// Ternary in variable assignment
+val result = true ? "assigned value" : "not assigned"
+print(result)
+
+// Ternary with arithmetic expressions
+val a = 10
+val b = 20
+print((a < b) ? a + b : a - b)
+
+// Ternary as function argument
+fn greet(msg) {
+    print(msg)
+}
+greet(true ? "from function" : "not called")

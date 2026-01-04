@@ -78,6 +78,7 @@ impl Scanner {
             '%' => self.make_token(TokenType::Percent),
             ';' => self.make_token(TokenType::Semicolon),
             ':' => self.make_token(TokenType::Colon),
+            '?' => self.make_token(TokenType::Question),
             '*' => self.make_token(TokenType::Star),
             '!' => {
                 if self.matches('=') {

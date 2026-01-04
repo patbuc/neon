@@ -1174,6 +1174,39 @@ impl CodeGenerator {
             Expr::PostfixDecrement { operand, location } => {
                 self.generate_postfix_decrement_expr(operand, *location);
             }
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                location,
+            } => {
+                // Generate condition
+                self.generate_expr(condition);
+
+                // Jump to else branch if condition is false
+                let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
+
+                // Pop the condition value (it's still on the stack)
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Generate then expression (leaves value on stack)
+                self.generate_expr(then_expr);
+
+                // Jump over else branch
+                let end_jump = self.emit_jump(OpCode::Jump, *location);
+
+                // Patch the else jump to here
+                self.patch_jump(else_jump);
+
+                // Pop the condition value for the else path
+                self.emit_op_code(OpCode::Pop, *location);
+
+                // Generate else expression (leaves value on stack)
+                self.generate_expr(else_expr);
+
+                // Patch the end jump to here
+                self.patch_jump(end_jump);
+            }
         }
     }
 
