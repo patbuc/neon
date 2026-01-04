@@ -271,7 +271,19 @@ The plan file (`.claude/plans/feature-{slug}.md`) tracks:
 
 ### Invoking the Workflow
 
-The orchestrator-agent is invoked when building multi-step features. It will:
+Use the `/build-feature` skill to start the workflow:
+
+```
+/build-feature Add support for do-while loops
+```
+
+Or invoke manually:
+```
+User: I want to add do-while loops to Neon
+Claude: [Spawns orchestrator agent via Task tool]
+```
+
+The workflow will:
 1. Ask for your approval on the plan before writing any code
 2. Implement each step one-by-one with quality validation
 3. Commit after each passed step
