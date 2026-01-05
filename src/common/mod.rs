@@ -166,16 +166,6 @@ impl Value {
         Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct { name, fields }))))
     }
 
-    pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
-        Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
-            name,
-            arity,
-            min_arity: arity, // No defaults by default
-            defaults: vec![],
-            chunk: Rc::new(chunk),
-        }))))
-    }
-
     pub(crate) fn new_native_function(
         name: String,
         arity: u8,
