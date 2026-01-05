@@ -197,11 +197,7 @@ This project uses an ADR (Architectural Decision Record) workflow for feature de
 ### Directory Structure
 
 ```
-.claude/
-├── commands/
-│   ├── planning/        # ADR planning commands
-│   ├── execution/       # Implementation commands
-│   └── utils/           # Status and utility commands
+.claude/commands/        # Workflow commands (flat structure)
 docs/adr/                # Architectural Decision Records
 .beads/                  # Beads task tracker (git-managed)
 ```
@@ -218,86 +214,103 @@ All ADRs are stored in `docs/adr/` and follow this structure:
 
 See `docs/adr/TEMPLATE.md` for the full template.
 
-### Quick Start: Two-Phase Workflow
+### Quick Start: Three-Command Workflow
 
-**Phase 1: Planning (Always Manual)**
+**1. Design → 2. Implement → 3. Ship**
+
 ```bash
-/project:planning:adr-plan <feature description>
-# [Review the draft ADR and implementation plan]
-/project:planning:adr-approve
+# 1. Plan and create ADR
+/design <feature description>
+# [Review draft ADR, provide feedback, approve]
+
+# 2. Implement with verification loop
+/implement ADR-NNNN
+# [Code is written, tests added, verified]
+
+# 3. Ship completed work
+/ship
+# [Tests verified, code reviewed, committed, issue closed]
 ```
 
-**Phase 2: Implementation (Choose Your Path)**
+### Available Commands
 
-Option A - Automated implementation:
-```bash
-/implement-adr ADR-NNNN
-```
-The skill automates: complexity assessment → subtask creation → implementation loop → verification
+**Core Workflow:**
+- `/design` - Plan feature, create ADR, get approval, finalize
+- `/implement` - Implement ADR or Beads issue with test-driven verification
+- `/ship` - Verify, review, commit, close issue, push (optional)
 
-Option B - Manual step-by-step:
-```bash
-/project:execution:subtasks
-/project:execution:next-step <id>
-/project:execution:close-task <id>
-# [Repeat for each subtask]
-```
+**Code Quality:**
+- `/code-review` - Review changes for quality, correctness, conventions
+- `/revise` - Handle PR feedback and CI failures
 
-**When to use automated implementation (`/implement-adr`):**
-- Multi-step features with clear requirements
-- When you trust the implementation plan
-- When you want to automate the repetitive loop
-
-**When to use manual step-by-step:**
-- You want full control over each subtask
-- Implementation requires frequent human decisions
-- You're learning the codebase
-
-### Workflow Commands
-
-For manual step-by-step control, use these individual commands:
-
-**Planning Phase:**
-- `/project:planning:adr-plan` - Initiate planning and create ADR draft
-- `/project:planning:adr-review` - Review existing ADRs
-- `/project:planning:adr-approve` - Finalize and commit ADR
-
-**Execution Phase:**
-- `/project:execution:subtasks` - Break complex plan into Beads issues
-- `/project:execution:next-step` - Implement next subtask with verification loop
-- `/project:execution:close-task` - Mark subtask complete and move to next
-
-**Utilities:**
-- `/project:utils:list-adrs` - Show all ADRs and their status
-- `/project:utils:status` - Show workflow status (git, ADRs, Beads)
-- `/project:utils:land-plane` - End-of-session cleanup and summary
+**Project Management:**
+- `/status` - Show git status, ADR status, Beads progress, next actions
+- `/commit` - Create single commit following conventions
+- `/commit-all` - Commit all changes with brief message
 
 ### Feature Development Flow
 
-1. **Plan**: Start with `/project:planning:adr-plan <feature description>`
-   - Claude reads existing ADRs and analyzes constraints
-   - Generates implementation plan with architectural decision
-   - Creates draft ADR for review
+**1. Design Phase** (`/design <feature description>`)
+   - Assess scope (small vs large feature)
+   - Read existing ADRs and project constraints
+   - Identify architectural decisions
+   - Create draft ADR with implementation plan
+   - Get user approval
+   - Finalize and commit ADR
 
-2. **Approve**: Human reviews, then `/project:planning:adr-approve`
-   - Finalizes ADR and saves to `docs/adr/ADR-NNNN.md`
-   - Commits ADR to git
+**2. Implementation Phase** (`/implement ADR-NNNN` or `/implement <beads-id>`)
+   - Load ADR context and constraints
+   - For complex features: Break into Beads subtasks
+   - For simple features: Implement directly
+   - Write tests first (integration + unit)
+   - Implement following conventions
+   - Run verification loop until all tests pass
+   - Quality checks (clippy, fmt)
 
-3. **Execute**: For complex features, `/project:execution:subtasks`
-   - Breaks plan into Beads issues with dependencies
-   - For simple features, skip to next-step directly
+**3. Shipping Phase** (`/ship` or `/ship <beads-id>`)
+   - Verify all tests pass
+   - Code review against checklist
+   - Auto-fix any issues found
+   - Close Beads issue
+   - Commit with descriptive message
+   - Show next ready tasks
+   - Optional: Push to remote
 
-4. **Implement**: Use `/project:execution:next-step <issue-id>`
-   - Reads issue and ADR context
-   - Implements code with tests
-   - Runs verification loop (tests must pass)
-   - Iterates until complete
+### When to Use Each Command
 
-5. **Complete**: Use `/project:execution:close-task <issue-id>`
-   - Verifies all tests pass
-   - Commits changes to git with descriptive message
-   - Marks issue complete in Beads
-   - Shows next ready tasks
+**Use `/design` when:**
+- Starting a new feature
+- Making architectural changes
+- Need to plan before coding
+- Want to document decisions
+
+**Use `/implement` when:**
+- Have an approved ADR
+- Working on a Beads issue
+- Ready to write code and tests
+- Want verification loop
+
+**Use `/ship` when:**
+- Implementation complete
+- All tests passing
+- Ready to commit and close issue
+- Want code review + commit
+
+**Use `/code-review` when:**
+- Want quality review before shipping
+- Checking specific changes
+- Part of PR review process
+
+**Use `/revise` when:**
+- PR has feedback to address
+- CI checks are failing
+- Need to fix and re-push
+
+**Use `/status` when:**
+- Starting a session
+- Want to see progress
+- Deciding what to work on next
+- Need project overview
 
 ### Quality Gates
 
