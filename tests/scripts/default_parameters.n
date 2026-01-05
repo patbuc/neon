@@ -1,0 +1,85 @@
+// Test default function parameters
+
+// Expected:
+// === Basic Defaults ===
+// Hello Alice!
+// Hello Bob!
+// Hi Charlie.
+// === Partial Override ===
+// Hey Dave!
+// Howdy Eve?
+// === All Defaults ===
+// Hello World!
+// === Multiple Defaults ===
+// add(5, 3, 1) = 9
+// add(10, 5, 0) = 15
+// add(7, 0, 0) = 7
+// === Default Expressions ===
+// Volume: 24
+// Volume: 100
+// === Edge Cases ===
+// No params, no defaults
+// One required, one default: 42, 100
+// One required, one default: 42, 200
+
+// Basic defaults
+print("=== Basic Defaults ===")
+fn greet(name, greeting = "Hello", punctuation = "!") {
+    print(greeting + " " + name + punctuation)
+}
+
+greet("Alice")
+greet("Bob", "Hello")
+greet("Charlie", "Hi", ".")
+
+// Partial override
+print("=== Partial Override ===")
+fn say(name, greeting = "Hello", punctuation = "!") {
+    print(greeting + " " + name + punctuation)
+}
+
+say("Dave", "Hey")
+say("Eve", "Howdy", "?")
+
+// All defaults
+print("=== All Defaults ===")
+fn welcome(name = "World", greeting = "Hello", punctuation = "!") {
+    print(greeting + " " + name + punctuation)
+}
+
+welcome()
+
+// Multiple defaults with different types
+print("=== Multiple Defaults ===")
+fn add(a, b = 0, c = 0) {
+    val result = a + b + c
+    print("add(" + a.toString() + ", " + b.toString() + ", " + c.toString() + ") = " + result.toString())
+}
+
+add(5, 3, 1)
+add(10, 5)
+add(7)
+
+// Default expressions (constants)
+print("=== Default Expressions ===")
+fn volume(width, height = 2, depth = 3) {
+    val v = width * height * depth
+    print("Volume: " + v.toString())
+}
+
+volume(4)
+volume(10, 2, 5)
+
+// Edge cases
+print("=== Edge Cases ===")
+fn noParams() {
+    print("No params, no defaults")
+}
+
+fn oneDefault(required, optional = 100) {
+    print("One required, one default: " + required.toString() + ", " + optional.toString())
+}
+
+noParams()
+oneDefault(42)
+oneDefault(42, 200)

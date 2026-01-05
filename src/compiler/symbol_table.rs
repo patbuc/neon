@@ -8,8 +8,8 @@ pub enum SymbolKind {
     Value,
     /// Mutable variable
     Variable,
-    /// Function with arity
-    Function { arity: u8 },
+    /// Function with arity and optional parameters
+    Function { arity: u8, min_arity: u8 },
     /// Struct with field names
     Struct { fields: Vec<String> },
     /// Function parameter

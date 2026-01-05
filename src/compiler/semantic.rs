@@ -39,7 +39,7 @@ impl SemanticAnalyzer {
         // This corresponds to the File constructor that will be available at runtime
         let file_symbol = Symbol {
             name: "File".to_string(),
-            kind: SymbolKind::Function { arity: 1 },
+            kind: SymbolKind::Function { arity: 1, min_arity: 1 },
             is_mutable: false,
             scope_depth: 0,
             location: SourceLocation {
@@ -106,9 +106,13 @@ impl SemanticAnalyzer {
                     ..
                 } => {
                     let arity = params.len() as u8;
+                    // Calculate min_arity (number of required parameters without defaults)
+                    let min_arity = params.iter()
+                        .take_while(|(_name, default)| default.is_none())
+                        .count() as u8;
                     self.define_symbol(
                         name.clone(),
-                        SymbolKind::Function { arity },
+                        SymbolKind::Function { arity, min_arity },
                         false,
                         *location,
                     );
@@ -970,18 +974,25 @@ impl SemanticAnalyzer {
     ) {
         if let Some(symbol) = self.symbol_table.resolve(function_name) {
             match &symbol.kind {
-                SymbolKind::Function { arity } => {
-                    // Check arity matches
-                    if arguments.len() != *arity as usize {
+                SymbolKind::Function { arity, min_arity } => {
+                    // Check arity matches (with default parameters support)
+                    let arg_count = arguments.len();
+                    if arg_count < *min_arity as usize || arg_count > *arity as usize {
+                        let error_msg = if min_arity == arity {
+                            format!(
+                                "function '{}' expects {} arguments but got {}",
+                                function_name, arity, arg_count
+                            )
+                        } else {
+                            format!(
+                                "function '{}' expects {}-{} arguments but got {}",
+                                function_name, min_arity, arity, arg_count
+                            )
+                        };
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::ArityExceeded,
-                            format!(
-                                "Function '{}' expects {} arguments but got {}",
-                                function_name,
-                                arity,
-                                arguments.len()
-                            ),
+                            error_msg,
                             location,
                         ));
                     }
