@@ -23,13 +23,17 @@ Expected format:
 **1. Identify what to implement:**
 ```bash
 # If no argument, find next ready task
-bd ready
-
-# If beads ID provided, show details
-bd show $ARGUMENTS
-
-# If ADR provided, read the ADR
-cat docs/adr/$ARGUMENTS.md
+if [ -z "$ARGUMENTS" ]; then
+    bd ready
+else
+    # Check if argument is an ADR or Beads ID
+    if [[ "$ARGUMENTS" == ADR-* ]]; then
+        cat "docs/adr/$ARGUMENTS.md"
+    else
+        # Assume it's a beads ID
+        bd show "$ARGUMENTS"
+    fi
+fi
 ```
 
 **2. Read ADR context:**

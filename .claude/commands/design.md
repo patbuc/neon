@@ -28,7 +28,10 @@ ls -la docs/adr/
 
 **Check issue context (if applicable):**
 ```bash
-bd show $ARGUMENTS
+if [ -n "$ARGUMENTS" ] && [[ "$ARGUMENTS" != *" "* ]]; then
+    # Try to show it as a beads ID if it's a single word/ID
+    bd show "$ARGUMENTS" 2>/dev/null || echo "Not a beads issue ID"
+fi
 ```
 
 ### 2. Assess Scope

@@ -107,11 +107,14 @@ bd list 2>/dev/null || echo "No beads tracking"
 
 **If beads is active:**
 ```bash
-# Close the issue
-bd close $ARGUMENTS --reason "Implemented and tested"
+# Close the issue if an argument is provided
+if [ -n "$ARGUMENTS" ]; then
+    # Close the issue
+    bd close "$ARGUMENTS" --reason "Implemented and tested"
 
-# Verify closure
-bd status $ARGUMENTS
+    # Verify closure
+    bd status "$ARGUMENTS"
+fi
 
 # Check next ready tasks
 bd ready
@@ -119,7 +122,9 @@ bd ready
 
 **If issue ID not provided, look it up:**
 ```bash
-bd list --status=open
+if [ -z "$ARGUMENTS" ]; then
+    bd list --status=open
+fi
 ```
 
 **Note on stealth mode:**

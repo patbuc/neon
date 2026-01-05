@@ -62,13 +62,35 @@ ADR-0006: Closures and Upvalues (Accepted, 2024-01-03)
 ADR-0005: Struct Instances (Accepted, 2024-01-02)
 ```
 
-### 3. Beads Progress
+# Beads Progress
 
 **Check if beads is initialized:**
 ```bash
 # Check if beads is active (regular or stealth mode)
-bd list 2>/dev/null
+# Use 2>/dev/null to suppress error if bd is not installed or initialized
+bd list 2>/dev/null || echo "No active issue tracking"
 ```
+
+**If beads is active:**
+```bash
+# Show ready tasks
+bd ready
+
+# Count by status
+# Use count --status for cleaner output than piping to wc -l
+bd count --status
+
+# Show epics and their progress
+bd list --kind=epic
+
+# Detect mode
+if [ -d .beads ]; then
+  echo "Mode: Regular (committed tracking)"
+else
+  echo "Mode: Stealth (session-only tracking)"
+fi
+```
+
 
 **If beads is active:**
 ```bash
