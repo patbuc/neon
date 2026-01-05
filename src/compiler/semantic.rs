@@ -346,6 +346,35 @@ impl SemanticAnalyzer {
                 location,
                 ..
             } => {
+                // Validate default parameter expressions before entering function scope
+                // Default expressions can only reference globals and prior parameters
+                for (i, (_param_name, default_expr)) in params.iter().enumerate() {
+                    if let Some(expr) = default_expr {
+                        // Enter a temporary scope to validate the default expression
+                        // This scope contains only prior parameters
+                        self.symbol_table.enter_scope();
+
+                        // Define prior parameters in the temporary scope
+                        for (prior_param, _) in params.iter().take(i) {
+                            self.define_symbol(
+                                prior_param.clone(),
+                                SymbolKind::Variable,
+                                true,
+                                *location,
+                            );
+                        }
+
+                        // Resolve the default expression
+                        // This will error if it references:
+                        // - The current parameter (self-referential)
+                        // - Later parameters (not yet defined)
+                        // - Undefined variables (except globals from outer scope)
+                        self.resolve_expr(expr);
+
+                        self.symbol_table.exit_scope();
+                    }
+                }
+
                 // Extract parameter names from (name, default) tuples
                 let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
                 self.resolve_function_declaration(&param_names, body, *location);
