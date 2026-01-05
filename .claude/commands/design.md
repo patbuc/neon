@@ -1,9 +1,9 @@
 ---
-description: "Design a feature: create ADR, get approval, finalize"
-allowed-tools: ["read", "write", "execute"]
+description: "Design a feature or task: create ADR or Task doc, get approval, finalize"
+allowed-tools: ["read", "write", "execute", "bash"]
 ---
 
-# Feature Design Command
+# Design Command
 
 You are in **DESIGN MODE** - planning and architectural decision phase.
 
@@ -17,194 +17,97 @@ Design the implementation of: **$ARGUMENTS**
 
 **Read project constraints:**
 - Read `CLAUDE.md` to understand project architecture and conventions
-- Review `docs/adr/TEMPLATE.md` for ADR format
+- Review `docs/adr/TEMPLATE.md` for ADR format (if applicable)
 
-**Survey existing ADRs:**
+**Survey existing docs:**
 ```bash
 ls -la docs/adr/
-```
-- Identify related ADRs that constrain this feature
-- Look for conflicts or dependencies
-
-**Check issue context (if applicable):**
-```bash
-if [ -n "$ARGUMENTS" ] && [[ "$ARGUMENTS" != *" "* ]]; then
-    # Try to show it as a beads ID if it's a single word/ID
-    bd show "$ARGUMENTS" 2>/dev/null || echo "Not a beads issue ID"
-fi
+ls -la docs/tasks/ 2>/dev/null || echo "No tasks directory yet"
 ```
 
-### 2. Assess Scope
+### 2. Assess Type & Scope
 
-Categorize as **small** or **large**:
+Determine if this is an **Architectural Change (ADR)** or a **Task/Improvement**.
 
-**Small features** (1-3 files, single session):
-- Adding a builtin function
-- New opcode for existing pattern
-- Minor syntax sugar
-- Example: Adding `Math.ceil()` function
+**A. Architectural Decision Record (ADR)**
+- **Criteria**: New language features, significant architectural changes, new dependencies, major refactors.
+- **Output**: `docs/adr/ADR-NNNN.md`
+- **Examples**: Closures, pattern matching, new bytecode format.
 
-**Large features** (multiple files, multiple sessions):
-- New language constructs
-- Semantic analysis changes
-- Bytecode format changes
-- Example: Adding closures, structs, pattern matching
+**B. Task Plan**
+- **Criteria**: Bug fixes, minor improvements, refactoring existing code without architectural change, implementing known patterns.
+- **Output**: `docs/tasks/TASK-NNNN.md` (or similar ID scheme)
+- **Examples**: Fix memory leak, add `Math.ceil()`, optimize scanner.
 
-### 3. Identify Architectural Decision
+### 3. Design Process
 
-**What question does this feature raise?**
-- How should this integrate with the VM stack model?
-- Does this require new bytecode instructions?
-- What's the compilation strategy (single-pass, multi-pass)?
-- How does this interact with existing features?
+#### For ADRs (Architectural Changes)
 
-**Constraints from existing ADRs:**
-- Stack-based VM architecture (not register-based)
-- Reference-counted objects (Rc<Object>)
-- Bytecode compilation (not tree-walk)
-- Educational clarity over performance optimization
+1. **Determine next ADR number:**
+   ```bash
+   ls -1 docs/adr/ADR-*.md | tail -1
+   ```
+   Next number = highest + 1
 
-### 4. Create Draft ADR
+2. **Draft ADR:**
+   Follow `docs/adr/TEMPLATE.md`. Key sections: Context, Decision, Consequences, Alternatives, Implementation Plan.
 
-**Determine next ADR number:**
-```bash
-ls -1 docs/adr/ADR-*.md | tail -1
-```
-Next number = highest + 1
+#### For Tasks (Improvements/Fixes)
 
-**Draft ADR structure:**
-```markdown
-# ADR-NNNN: [Feature Name]
+1. **Determine Task ID:**
+   If linked to a Beads issue, use that ID (e.g., `TASK-123`). Otherwise, generate a timestamp or sequential ID.
 
-**Status:** Proposed
-**Date:** [Leave blank for now]
+2. **Draft Task Plan:**
+   Create a markdown file in `docs/tasks/` (create directory if needed).
+   
+   Structure:
+   ```markdown
+   # TASK-ID: [Title]
+   
+   **Status:** Proposed
+   **Date:** [Date]
+   
+   ## Context
+   [What needs to be done and why?]
+   
+   ## Plan
+   [Step-by-step implementation plan]
+   
+   ## Verification
+   [How will we test this?]
+   ```
 
-## Context
-
-[Problem statement and motivation]
-[Why does Neon need this feature?]
-[What user pain point does it solve?]
-
-## Decision
-
-[Selected approach and rationale]
-[Key implementation choices]
-[How it fits into existing architecture]
-
-## Consequences
-
-### Positive
-- [Benefit 1]
-- [Benefit 2]
-
-### Negative
-- [Trade-off 1]
-- [Trade-off 2]
-
-## Alternatives Considered
-
-### Alternative 1: [Name]
-- [Description]
-- Rejected because: [Reason]
-
-### Alternative 2: [Name]
-- [Description]
-- Rejected because: [Reason]
-
-## Implementation Plan
-
-### Phase 1: [Scanner/Parser changes if needed]
-- Files: src/compiler/scanner.rs, src/compiler/parser.rs
-- Tasks: [Specific changes]
-
-### Phase 2: [AST/Semantic analysis]
-- Files: src/compiler/ast/*.rs, src/compiler/semantic.rs
-- Tasks: [Specific changes]
-
-### Phase 3: [Code generation]
-- Files: src/compiler/codegen.rs, src/common/opcodes.rs
-- Tasks: [Specific changes]
-
-### Phase 4: [VM execution]
-- Files: src/vm/impl.rs
-- Tasks: [Specific changes]
-
-### Phase 5: [Testing and integration]
-- Files: tests/scripts/*.n
-- Tasks: [Test cases to add]
-
-### Dependencies
-- Phase N depends on Phase M
-- [Other dependencies]
-```
+### 4. Review & Approve
 
 **Present draft to user:**
-- Show the complete draft ADR
-- Explain the decision rationale
-- Highlight any conflicts with existing constraints
-- Ask for feedback
+- Show the complete draft (ADR or Task Plan).
+- Explain the rationale.
+- **Wait for explicit approval.**
 
-### 5. Get Approval
-
-**Questions to ask:**
-- "Does this align with Neon's architecture?"
-- "Do you approve this architectural decision?"
-- "Any changes before we finalize?"
-
-**Wait for explicit approval** before proceeding.
-
-### 6. Finalize ADR
+### 5. Finalize
 
 **After approval:**
 
-1. Update ADR:
-   - Change Status: "Proposed" → "Accepted"
-   - Set Date: YYYY-MM-DD (today)
-   - Incorporate user feedback
-
-2. Save ADR:
+1. **Update Status**: Change "Proposed" to "Accepted".
+2. **Save File**:
+   - ADR: `docs/adr/ADR-NNNN.md`
+   - Task: `docs/tasks/TASK-ID.md`
+3. **Commit**:
    ```bash
-   # Write to docs/adr/ADR-NNNN.md
-   # Create parent directories if needed
-   mkdir -p docs/adr
+   git add docs/adr/ADR-NNNN.md  # or docs/tasks/...
+   git commit -m "docs: Add [ADR-NNNN/TASK-ID] for [Title]"
    ```
 
-3. Commit ADR:
-   ```bash
-   git add docs/adr/ADR-NNNN.md
-   git commit -m "ADR-NNNN: [Title]
-
-Describes the architectural decision for [feature].
-
-Status: Accepted"
-   ```
-
-### 7. Output Summary
+### 6. Output Summary
 
 **Show:**
-- ADR number and title
-- Path: `docs/adr/ADR-NNNN.md`
-- Commit hash
-- Implementation complexity estimate
-
-**Next steps:**
-- For complex features: "Run `/implement ADR-NNNN` to start implementation"
-- For simple features: "Run `/implement ADR-NNNN` for single-session implementation"
+- File path created.
+- Commit hash.
+- **Next steps:**
+  - "Run `/implement [ADR-NNNN|TASK-ID]` to start implementation."
 
 ## Critical Constraints
 
-- **Read-only analysis**: Do not write implementation code in this phase
-- **No issue creation**: Wait for implementation phase to create Beads issues
-- **Architecture first**: Ensure alignment with existing ADRs
-- **Explicit approval**: Never finalize without user confirmation
-- **Educational focus**: Prefer clarity over clever optimizations
-
-## Small vs Large Decision Matrix
-
-| Aspect | Small Feature | Large Feature |
-|--------|---------------|---------------|
-| Files touched | 1-3 | 4+ |
-| ADR needed? | Optional | Required |
-| Beads issues | Single issue | Epic with subtasks |
-| Sessions | 1 | Multiple |
-| Examples | Builtin function, simple opcode | Closures, pattern matching, modules |
+- **Read-only analysis**: Do not write implementation code in this phase.
+- **Architecture first**: Ensure alignment with existing ADRs.
+- **Explicit approval**: Never finalize without user confirmation.

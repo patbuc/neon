@@ -12,18 +12,20 @@ You are in **IMPLEMENTATION MODE** - writing code with test-driven verification 
 Implement: **$ARGUMENTS**
 
 Expected format:
-- `/implement ADR-NNNN` - Implement full ADR
-- `/implement <beads-id>` - Implement specific subtask
+- `/implement ADR-NNNN` - Implement full ADR (looks in `docs/adr/`)
+- `/implement TASK-NNNN` - Implement planned task (looks in `docs/tasks/`)
+- `/implement <beads-id>` - Implement specific subtask/issue
 - `/implement` - Auto-detect next ready task
 
 ## Workflow
 
 ### Phase 1: Setup Worktree
 
-**1. Determine Branch Name:**
-- If ADR: `feature/$ARGUMENTS` (e.g., `feature/ADR-0001`)
-- If Beads ID: `issue/$ARGUMENTS` (e.g., `issue/123`)
-- If no argument: Pick top ready task from `bd ready`, use `issue/<id>`
+**1. Determine Branch Name & Type:**
+- If ADR (`ADR-*`): `feature/$ARGUMENTS`
+- If Task (`TASK-*`): `task/$ARGUMENTS`
+- If Beads ID: `issue/$ARGUMENTS`
+- If no argument: Pick top ready task, use `issue/<id>`
 
 **2. Create/Switch Worktree:**
 ```bash
@@ -39,13 +41,13 @@ wt switch --create "$BRANCH_NAME"
 ### Phase 2: Load Context
 
 **3. Identify Requirements:**
-- If ADR: Read `docs/adr/$ARGUMENTS.md`
-- If Beads ID: `bd show $ARGUMENTS`
-- If generic: Read task description
+- **ADR**: Read `docs/adr/$ARGUMENTS.md`
+- **Task**: Read `docs/tasks/$ARGUMENTS.md`
+- **Beads**: `bd show $ARGUMENTS`
 
 **4. Assess Complexity:**
 - **Simple**: Implement directly in this session.
-- **Complex**: Break into subtasks using stealth beads (see below).
+- **Complex**: Break into subtasks.
 
 **5. (Optional) Break into subtasks:**
 ```bash
@@ -53,7 +55,8 @@ wt switch --create "$BRANCH_NAME"
 bd init --stealth
 
 # Create structure
-bd new "Implement $TITLE" --kind epic
+# Prefix with document ID for clarity
+bd new "Implement $ARGUMENTS: $TITLE" --kind epic
 bd new "Phase 1..." --parent <epic-id>
 # ...
 ```
@@ -75,13 +78,7 @@ print("actual output");
 ```
 
 **7. Implement Feature:**
-Follow pipeline order:
-1. Scanner (`src/compiler/scanner.rs`)
-2. AST (`src/compiler/ast/`)
-3. Parser (`src/compiler/parser.rs`)
-4. Semantic (`src/compiler/semantic.rs`)
-5. Codegen (`src/compiler/codegen.rs`)
-6. VM (`src/vm/impl.rs`)
+Follow pipeline order (Scanner -> AST -> Parser -> Semantic -> Codegen -> VM).
 
 **8. Run Tests:**
 ```bash
@@ -95,7 +92,6 @@ cargo test -p neon --test integration
 **9. Check & Iterate:**
 - ✓ All tests pass → Proceed.
 - ✗ Tests fail → Analyze, Fix, Retry.
-- Use `--features disassemble` to debug bytecode if needed.
 
 **10. Quality Gates:**
 ```bash
@@ -103,22 +99,17 @@ cargo clippy -- -D warnings
 cargo fmt -- --check
 ```
 
-**11. Verify Constraints:**
-- ADR decisions respected?
-- Stack invariants maintained?
-- Error source locations correct?
-
 ### Phase 5: Ship & Cleanup
 
-**12. Summary:**
+**11. Summary:**
 - List modified files.
 - Confirm test results.
 
-**13. Publish:**
+**12. Publish:**
 ```bash
 # Stage and commit
 git add .
-git commit -m "feat: implement $ARGUMENTS" # Or appropriate message
+git commit -m "feat: implement $ARGUMENTS" 
 
 # Push and Create PR
 git push -u origin HEAD
@@ -126,12 +117,11 @@ gh pr create --fill --web
 ```
 *Note: If `gh pr create` requires interaction, provide title/body explicitly.*
 
-**14. Cleanup:**
+**13. Cleanup:**
 ```bash
-# Remove the worktree (and local branch if desired)
+# Remove the worktree
 wt remove
 ```
-*Confirm with user before running `wt remove` if they want to keep the worktree open.*
 
 ## Critical Rules
 - **Work in Worktree**: Never pollute the main checkout.
