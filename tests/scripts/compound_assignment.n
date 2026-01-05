@@ -1,0 +1,23 @@
+// Test: Compound assignment operators
+// Expected:
+// 11
+// 6
+// 12
+// 6
+// 1
+
+var x = 10
+x += 1
+print(x)
+
+x -= 5
+print(x)
+
+x *= 2
+print(x)
+
+x /= 2
+print(x)
+
+x %= 5
+print(x)

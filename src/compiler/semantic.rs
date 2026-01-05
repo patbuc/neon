@@ -39,7 +39,10 @@ impl SemanticAnalyzer {
         // This corresponds to the File constructor that will be available at runtime
         let file_symbol = Symbol {
             name: "File".to_string(),
-            kind: SymbolKind::Function { arity: 1, min_arity: 1 },
+            kind: SymbolKind::Function {
+                arity: 1,
+                min_arity: 1,
+            },
             is_mutable: false,
             scope_depth: 0,
             location: SourceLocation {
@@ -107,7 +110,8 @@ impl SemanticAnalyzer {
                 } => {
                     let arity = params.len() as u8;
                     // Calculate min_arity (number of required parameters without defaults)
-                    let min_arity = params.iter()
+                    let min_arity = params
+                        .iter()
                         .take_while(|(_name, default)| default.is_none())
                         .count() as u8;
                     self.define_symbol(
@@ -380,7 +384,8 @@ impl SemanticAnalyzer {
                 }
 
                 // Extract parameter names from (name, default) tuples
-                let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
+                let param_names: Vec<String> =
+                    params.iter().map(|(name, _)| name.clone()).collect();
                 self.resolve_function_declaration(&param_names, body, *location);
             }
             Stmt::Struct { .. } => {

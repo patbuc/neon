@@ -23,8 +23,10 @@ pub(crate) enum TokenType {
     NewLine,
     Slash,
     SlashSlash,
+    SlashEqual,
     Star,
     StarStar,
+    StarEqual,
 
     Bang,
     BangEqual,
@@ -42,6 +44,10 @@ pub(crate) enum TokenType {
     Tilde,          // ~
     LessLess,       // <<
     GreaterGreater, // >>
+
+    PlusEqual,
+    MinusEqual,
+    PercentEqual,
 
     Identifier,
     String,

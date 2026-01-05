@@ -299,7 +299,7 @@ impl CodeGenerator {
         let function_chunk = self.chunks.pop().unwrap();
 
         // Create function object directly with defaults
-        use crate::common::{Object, ObjFunction};
+        use crate::common::{ObjFunction, Object};
         use std::rc::Rc;
         let function_value = Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
             name: name.to_string(),
@@ -344,12 +344,17 @@ impl CodeGenerator {
             Expr::Boolean { value, .. } => Value::Boolean(*value),
             Expr::Nil { .. } => Value::Nil,
             Expr::String { value, .. } => {
-                use crate::common::{Object, ObjString};
+                use crate::common::{ObjString, Object};
                 Value::Object(Rc::new(Object::String(ObjString {
                     value: Rc::from(value.as_str()),
                 })))
             }
-            Expr::Binary { left, operator, right, .. } => {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+                ..
+            } => {
                 let left_val = self.evaluate_constant_expr(left);
                 let right_val = self.evaluate_constant_expr(right);
 
@@ -376,10 +381,12 @@ impl CodeGenerator {
                             Value::Nil
                         }
                     }
-                    _ => Value::Nil // Other operators not supported for compile-time evaluation
+                    _ => Value::Nil, // Other operators not supported for compile-time evaluation
                 }
             }
-            Expr::Unary { operator, operand, .. } => {
+            Expr::Unary {
+                operator, operand, ..
+            } => {
                 let operand_val = self.evaluate_constant_expr(operand);
 
                 use crate::compiler::ast::UnaryOp;
@@ -396,7 +403,7 @@ impl CodeGenerator {
                         let is_falsey = matches!(operand_val, Value::Nil | Value::Boolean(false));
                         Value::Boolean(is_falsey)
                     }
-                    _ => Value::Nil
+                    _ => Value::Nil,
                 }
             }
             // For complex expressions (variable references, etc.), we return Nil

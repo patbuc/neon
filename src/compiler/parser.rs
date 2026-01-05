@@ -217,7 +217,10 @@ impl Parser {
                 } else {
                     // Once we've seen a default, all subsequent params must have defaults
                     if has_default {
-                        parser.report_error_at_current("Parameters without defaults cannot follow parameters with defaults.".to_string());
+                        parser.report_error_at_current(
+                            "Parameters without defaults cannot follow parameters with defaults."
+                                .to_string(),
+                        );
                         return None;
                     }
                     None
@@ -938,9 +941,45 @@ impl Parser {
                 value,
                 location,
             })
+        } else if self.match_token(TokenType::PlusEqual) {
+            self.desugar_compound_assignment(name, location, BinaryOp::Add)
+        } else if self.match_token(TokenType::MinusEqual) {
+            self.desugar_compound_assignment(name, location, BinaryOp::Subtract)
+        } else if self.match_token(TokenType::StarEqual) {
+            self.desugar_compound_assignment(name, location, BinaryOp::Multiply)
+        } else if self.match_token(TokenType::SlashEqual) {
+            self.desugar_compound_assignment(name, location, BinaryOp::Divide)
+        } else if self.match_token(TokenType::PercentEqual) {
+            self.desugar_compound_assignment(name, location, BinaryOp::Modulo)
         } else {
             Some(Expr::Variable { name, location })
         }
+    }
+
+    fn desugar_compound_assignment(
+        &mut self,
+        name: String,
+        location: SourceLocation,
+        operator: BinaryOp,
+    ) -> Option<Expr> {
+        let right = Box::new(self.expression(false)?);
+        let left = Box::new(Expr::Variable {
+            name: name.clone(),
+            location,
+        });
+
+        let value = Box::new(Expr::Binary {
+            left,
+            operator,
+            right,
+            location,
+        });
+
+        Some(Expr::Assign {
+            name,
+            value,
+            location,
+        })
     }
 
     // ===== Binary & Unary =====
