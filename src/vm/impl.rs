@@ -61,6 +61,8 @@ impl VirtualMachine {
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
+            min_arity: 0,
+            defaults: vec![],
             chunk: Rc::new(chunk),
         });
 
@@ -117,6 +119,8 @@ impl VirtualMachine {
         let script_function = Rc::new(ObjFunction {
             name: "<compiled>".to_string(),
             arity: 0,
+            min_arity: 0,
+            defaults: vec![],
             chunk: Rc::new(chunk),
         });
 

@@ -48,6 +48,8 @@ impl VirtualMachine {
         let test_function = Rc::new(ObjFunction {
             name: "<test>".to_string(),
             arity: 0,
+            min_arity: 0,
+            defaults: vec![],
             chunk: Rc::new(chunk),
         });
 

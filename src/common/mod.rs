@@ -132,6 +132,8 @@ pub struct ObjString {
 pub struct ObjFunction {
     pub name: String,
     pub arity: u8,
+    pub min_arity: u8,
+    pub defaults: Vec<Option<Value>>,
     pub chunk: Rc<Chunk>,
 }
 
@@ -168,6 +170,8 @@ impl Value {
         Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
             name,
             arity,
+            min_arity: arity, // No defaults by default
+            defaults: vec![],
             chunk: Rc::new(chunk),
         }))))
     }
