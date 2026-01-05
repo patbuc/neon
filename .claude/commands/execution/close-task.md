@@ -32,15 +32,15 @@ Mark issue **$ARGUMENTS** as complete and identify next actionable task.
 
 3. **Update Beads**
    ```bash
-   beads close $ARGUMENTS --reason "Implemented and tested"
+   bd close $ARGUMENTS --reason "Implemented and tested"
 
    # Show the update
-   beads status $ARGUMENTS
+   bd status $ARGUMENTS
    ```
 
 4. **Check What's Ready Now**
    ```bash
-   beads ready
+   bd ready
    ```
    Tasks that were blocked on this one may now be ready.
 

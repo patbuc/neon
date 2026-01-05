@@ -11,7 +11,7 @@ End-of-session cleanup and summary for next developer/session.
 
 1. **Check Status**
    - Show current git status: `git status`
-   - Show Beads progress: `beads ready` and `beads list --status=closed`
+   - Show Beads progress: `bd ready` and `bd list --status=closed`
 
 2. **Commit Any Uncommitted Changes (If Any)**
    ```bash

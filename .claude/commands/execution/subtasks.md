@@ -30,27 +30,27 @@ You are designing a dependency graph of subtasks.
 
 3. **Create Beads Issues**
    ```bash
-   beads create --title "Subtask 1: Parser phase" \
+   bd create --title "Subtask 1: Parser phase" \
      --description "Parse feature X, output AST"
 
-   beads create --title "Subtask 2: Typechecker phase" \
+   bd create --title "Subtask 2: Typechecker phase" \
      --description "Type-check feature X AST" \
      --blocks "Subtask 3"  # Blocks the codegen step
 
-   beads create --title "Subtask 3: Codegen phase" \
+   bd create --title "Subtask 3: Codegen phase" \
      --description "Generate code for feature X"
 
-   beads create --title "Subtask 4: Test suite" \
+   bd create --title "Subtask 4: Test suite" \
      --description "Write tests covering all cases" \
      --related "Subtask 1"  # Thematic link, not blocking
    ```
 
 4. **Verify Graph**
-   - Run: `beads ready` — shows next actionable tasks
+   - Run: `bd ready` — shows next actionable tasks
    - Should show subtasks with zero unmet dependencies
    - If all are blocked, cycle exists; fix and retry
 
 5. **Output**
    - Show the created issues (IDs and titles)
-   - Show: `beads ready` output
+   - Show: `bd ready` output
    - Next: Use `/project:execution:next-step <issue-id>`

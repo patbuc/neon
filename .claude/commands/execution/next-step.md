@@ -9,7 +9,7 @@ allowed-tools: ["read", "write", "execute"]
 
 You are implementing: **$ARGUMENTS**
 
-If no argument provided, run `beads ready` to find the next actionable task.
+If no argument provided, run `bd ready` to find the next actionable task.
 
 ## Two-Phase Execution
 

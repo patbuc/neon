@@ -47,7 +47,7 @@ Expected input:
 4. **Create Beads Issues**
    - Use Beads to create subtasks with dependencies
    - Each subtask = one focused, testable unit
-   - Verify dependency graph with `beads ready`
+   - Verify dependency graph with `bd ready`
    - Show created issues to user
 
 ### Step 4: Implementation Loop
@@ -88,8 +88,8 @@ Expected input:
 
    f. **Close Subtask (If Using Beads)**
       ```bash
-      beads close [issue-id] --reason "Implemented and tested"
-      beads ready  # Check for next ready task
+      bd close [issue-id] --reason "Implemented and tested"
+      bd ready  # Check for next ready task
       ```
 
    g. **Move to Next Subtask**

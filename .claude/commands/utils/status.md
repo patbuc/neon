@@ -21,9 +21,9 @@ Comprehensive overview of project state.
 
 3. **Beads Progress**
    ```bash
-   beads ready
-   beads list --status=closed | wc -l  # count closed
-   beads list | wc -l  # total
+   bd ready
+   bd list --status=closed | wc -l  # count closed
+   bd list | wc -l  # total
    ```
 
 4. **Feature Status**
