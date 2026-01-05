@@ -166,7 +166,7 @@ pub enum Stmt {
     },
     Fn {
         name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
         body: Vec<Stmt>,
         location: SourceLocation,
     },

@@ -197,7 +197,9 @@ impl Parser {
         })
     }
 
-    fn parse_parameter_list(&mut self) -> Option<Vec<String>> {
+    fn parse_parameter_list(&mut self) -> Option<Vec<(String, Option<Expr>)>> {
+        let mut has_default = false;
+
         self.parse_comma_separated_list(
             TokenType::RightParen,
             Some(crate::common::constants::MAX_FUNCTION_PARAMS),
@@ -206,7 +208,22 @@ impl Parser {
                 if !parser.consume(TokenType::Identifier, "Expect parameter name.") {
                     return None;
                 }
-                Some(parser.previous_token.token.clone())
+                let param_name = parser.previous_token.token.clone();
+
+                // Check for default value
+                let default_value = if parser.match_token(TokenType::Equal) {
+                    has_default = true;
+                    Some(parser.expression(false)?)
+                } else {
+                    // Once we've seen a default, all subsequent params must have defaults
+                    if has_default {
+                        parser.report_error_at_current("Parameters without defaults cannot follow parameters with defaults.".to_string());
+                        return None;
+                    }
+                    None
+                };
+
+                Some((param_name, default_value))
             },
         )
     }

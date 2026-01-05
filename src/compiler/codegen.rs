@@ -569,7 +569,9 @@ impl CodeGenerator {
                 body,
                 location,
             } => {
-                self.generate_fn_stmt(name, params, body, *location);
+                // Extract parameter names from (name, default) tuples
+                let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
+                self.generate_fn_stmt(name, &param_names, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here

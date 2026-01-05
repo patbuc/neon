@@ -60,7 +60,7 @@ fn test_stmt_val() {
 fn test_stmt_fn() {
     let stmt = Stmt::Fn {
         name: "foo".to_string(),
-        params: vec!["a".to_string(), "b".to_string()],
+        params: vec![("a".to_string(), None), ("b".to_string(), None)],
         body: vec![],
         location: dummy_location(),
     };

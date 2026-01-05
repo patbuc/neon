@@ -346,7 +346,9 @@ impl SemanticAnalyzer {
                 location,
                 ..
             } => {
-                self.resolve_function_declaration(params, body, *location);
+                // Extract parameter names from (name, default) tuples
+                let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
+                self.resolve_function_declaration(&param_names, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
