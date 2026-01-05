@@ -190,101 +190,128 @@ Avoid:
 - Production-grade optimizations that obscure the learning path
 - Over-engineering or premature abstraction
 
-## Agent Workflow: Orchestrated Feature Development
+## ADR Workflow
 
-This project uses a three-agent workflow for feature development. The agents are defined in `.claude/agents/`.
+This project uses an ADR (Architectural Decision Record) workflow for feature development. All significant features and architectural changes must be planned and documented before implementation.
 
-### Agent Hierarchy
+### Directory Structure
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ ORCHESTRATOR AGENT (top-level coordinator)              │
-│ .claude/agents/orchestrator-agent.md                    │
-│                                                         │
-│ Responsibilities:                                       │
-│ • Break down user request into atomic steps             │
-│ • Create and maintain plan file                         │
-│ • Get user approval before implementation               │
-│ • Spawn sub-agents for each step                        │
-│ • Handle commits after passed steps                     │
-│ • Create final PR                                       │
-│                                                         │
-│ Sub-agents it spawns:                                   │
-│ ├── coding-agent (for implementation)                   │
-│ └── quality-gate-agent (for validation)                 │
-└─────────────────────────────────────────────────────────┘
+.claude/
+├── commands/
+│   ├── planning/        # ADR planning commands
+│   ├── execution/       # Implementation commands
+│   └── utils/           # Status and utility commands
+docs/adr/                # Architectural Decision Records
+.beads/                  # Beads task tracker (git-managed)
 ```
 
-### Agent Roles
+### ADR Format
 
-| Agent | File | Responsibility |
-|-------|------|----------------|
-| **Orchestrator** | `orchestrator-agent.md` | Coordinates workflow, breaks down problems, manages state |
-| **Coding Agent** | `coding-agent.md` | Implements single steps, writes code and tests |
-| **Quality Gate Agent** | `quality-gate-agent.md` | Reviews code, determines PASS/FAIL with feedback |
+All ADRs are stored in `docs/adr/` and follow this structure:
+- **Title**: ADR-NNNN: Clear decision name
+- **Status**: Proposed | Accepted | Deprecated | Superseded
+- **Context**: Problem and motivation
+- **Decision**: Selected approach and rationale
+- **Consequences**: Positive and negative impacts
+- **Alternatives**: Options considered and rejected
 
-### Workflow Phases
+See `docs/adr/TEMPLATE.md` for the full template.
 
-**Phase 1: Planning (Human Approval Required)**
-1. Orchestrator analyzes request and explores codebase
-2. Breaks down into atomic, testable steps
-3. Creates plan file at `.claude/plans/feature-{slug}.md`
-4. Presents plan to user for approval
-5. Blocks until user approves
+### Quick Start: Two-Phase Workflow
 
-**Phase 2: Implementation Loop (Per Step)**
-1. Orchestrator spawns coding-agent for current step
-2. Coding-agent implements step and runs tests
-3. Orchestrator runs quality gate commands
-4. Orchestrator spawns quality-gate-agent to review
-5. If PASS: commit and move to next step
-6. If FAIL: retry (max 3 attempts) or escalate
-
-**Phase 3: Completion**
-1. Verify all steps passed
-2. Run final quality gate
-3. Create feature branch, push, and open PR
-4. Clean up plan file
-
-### When Workflow Stops for Human Input
-
-- **Always**: Planning phase requires approval before proceeding
-- **On failure**: After 3 failed attempts per step
-- **On ambiguity**: When requirements are unclear
-- **On fundamental issues**: Type system conflicts, architectural mismatches
-
-### Quality Gate Commands
-
+**Phase 1: Planning (Always Manual)**
 ```bash
-cargo fmt                      # Format code
-cargo clippy -- -D warnings    # Lint (no warnings allowed)
-cargo test                     # All tests must pass
+/project:planning:adr-plan <feature description>
+# [Review the draft ADR and implementation plan]
+/project:planning:adr-approve
 ```
 
-### Plan File State Machine
+**Phase 2: Implementation (Choose Your Path)**
 
-The plan file (`.claude/plans/feature-{slug}.md`) tracks:
-- Step descriptions and status (pending, in_progress, passed, failed, skipped)
-- Attempt count per step (max 3)
-- Commit hashes for passed steps
-- Quality gate history with failure feedback
-
-### Invoking the Workflow
-
-Use the `/build-feature` skill to start the workflow:
-
+Option A - Automated implementation:
+```bash
+/implement-adr ADR-NNNN
 ```
-/build-feature Add support for do-while loops
-```
+The skill automates: complexity assessment → subtask creation → implementation loop → verification
 
-Or invoke manually:
-```
-User: I want to add do-while loops to Neon
-Claude: [Spawns orchestrator agent via Task tool]
+Option B - Manual step-by-step:
+```bash
+/project:execution:subtasks
+/project:execution:next-step <id>
+/project:execution:close-task <id>
+# [Repeat for each subtask]
 ```
 
-The workflow will:
-1. Ask for your approval on the plan before writing any code
-2. Implement each step one-by-one with quality validation
-3. Commit after each passed step
-4. Create a PR when all steps are complete
+**When to use automated implementation (`/implement-adr`):**
+- Multi-step features with clear requirements
+- When you trust the implementation plan
+- When you want to automate the repetitive loop
+
+**When to use manual step-by-step:**
+- You want full control over each subtask
+- Implementation requires frequent human decisions
+- You're learning the codebase
+
+### Workflow Commands
+
+For manual step-by-step control, use these individual commands:
+
+**Planning Phase:**
+- `/project:planning:adr-plan` - Initiate planning and create ADR draft
+- `/project:planning:adr-review` - Review existing ADRs
+- `/project:planning:adr-approve` - Finalize and commit ADR
+
+**Execution Phase:**
+- `/project:execution:subtasks` - Break complex plan into Beads issues
+- `/project:execution:next-step` - Implement next subtask with verification loop
+- `/project:execution:close-task` - Mark subtask complete and move to next
+
+**Utilities:**
+- `/project:utils:list-adrs` - Show all ADRs and their status
+- `/project:utils:status` - Show workflow status (git, ADRs, Beads)
+- `/project:utils:land-plane` - End-of-session cleanup and summary
+
+### Feature Development Flow
+
+1. **Plan**: Start with `/project:planning:adr-plan <feature description>`
+   - Claude reads existing ADRs and analyzes constraints
+   - Generates implementation plan with architectural decision
+   - Creates draft ADR for review
+
+2. **Approve**: Human reviews, then `/project:planning:adr-approve`
+   - Finalizes ADR and saves to `docs/adr/ADR-NNNN.md`
+   - Commits ADR to git
+
+3. **Execute**: For complex features, `/project:execution:subtasks`
+   - Breaks plan into Beads issues with dependencies
+   - For simple features, skip to next-step directly
+
+4. **Implement**: Use `/project:execution:next-step <issue-id>`
+   - Reads issue and ADR context
+   - Implements code with tests
+   - Runs verification loop (tests must pass)
+   - Iterates until complete
+
+5. **Complete**: Use `/project:execution:close-task <issue-id>`
+   - Verifies all tests pass
+   - Commits changes to git with descriptive message
+   - Marks issue complete in Beads
+   - Shows next ready tasks
+
+### Quality Gates
+
+Every implementation must:
+1. Pass all existing tests (`cargo test`)
+2. Include new tests for new functionality
+3. Follow coding conventions from this document
+4. Respect constraints in existing ADRs
+5. Pass Clippy checks (`cargo clippy -- -D warnings`)
+
+### Architecture Guardrails
+
+- Stack-based VM architecture (not register-based)
+- Reference-counted objects (Rc<Object>)
+- Bytecode compilation (not tree-walk interpretation)
+- Educational clarity over performance optimization
+- Integration tests with inline expected output format
