@@ -1,11 +1,11 @@
 ---
-description: "Implement a feature from approved ADR with verification loop"
-allowed-tools: ["read", "write", "edit", "execute"]
+description: "Implement a feature in a fresh worktree with verification loop"
+allowed-tools: ["read", "write", "edit", "execute", "bash"]
 ---
 
 # Implementation Command
 
-You are in **IMPLEMENTATION MODE** - writing code with test-driven verification.
+You are in **IMPLEMENTATION MODE** - writing code with test-driven verification in an isolated worktree.
 
 ## Your Task
 
@@ -18,219 +18,122 @@ Expected format:
 
 ## Workflow
 
-### Phase 1: Load Context
+### Phase 1: Setup Worktree
 
-**1. Identify what to implement:**
+**1. Determine Branch Name:**
+- If ADR: `feature/$ARGUMENTS` (e.g., `feature/ADR-0001`)
+- If Beads ID: `issue/$ARGUMENTS` (e.g., `issue/123`)
+- If no argument: Pick top ready task from `bd ready`, use `issue/<id>`
+
+**2. Create/Switch Worktree:**
 ```bash
-# If no argument, find next ready task
-if [ -z "$ARGUMENTS" ]; then
-    bd ready
-else
-    # Check if argument is an ADR or Beads ID
-    if [[ "$ARGUMENTS" == ADR-* ]]; then
-        cat "docs/adr/$ARGUMENTS.md"
-    else
-        # Assume it's a beads ID
-        bd show "$ARGUMENTS"
-    fi
-fi
+# Create and switch to new worktree (or switch if exists)
+wt switch --create "$BRANCH_NAME"
 ```
 
-**2. Read ADR context:**
-- Load the relevant ADR(s)
-- Understand architectural constraints
-- Review implementation plan phases
-- Note dependencies
+**CRITICAL**: 
+- Note the directory path created/returned by `wt`.
+- **ALL** subsequent commands (read, write, test, git) **MUST** be executed in this new directory (use `workdir` parameter).
+- Do not make changes in the main repository folder.
 
-**3. Assess complexity:**
-- Simple (1-2 files, < 100 lines): Single session, no subtasks
-- Complex (multiple phases): Break into Beads issues first
+### Phase 2: Load Context
 
-**4. Break into subtasks (if complex):**
+**3. Identify Requirements:**
+- If ADR: Read `docs/adr/$ARGUMENTS.md`
+- If Beads ID: `bd show $ARGUMENTS`
+- If generic: Read task description
+
+**4. Assess Complexity:**
+- **Simple**: Implement directly in this session.
+- **Complex**: Break into subtasks using stealth beads (see below).
+
+**5. (Optional) Break into subtasks:**
 ```bash
-# Initialize beads in stealth mode (session-only tracking, not committed)
+# Initialize beads in stealth mode (session-only tracking)
 bd init --stealth
 
-# Create epic for the ADR
-bd new "Implement $ADR_TITLE" --kind epic --ref "ADR-NNNN"
-
-# Create subtasks based on phases from ADR implementation plan
-bd new "Phase 1: Scanner/Parser changes" --parent <epic-id> --ref "ADR-NNNN"
-bd new "Phase 2: Semantic analysis" --parent <epic-id> --ref "ADR-NNNN" --blocks-on <phase1-id>
-bd new "Phase 3: Code generation" --parent <epic-id> --ref "ADR-NNNN" --blocks-on <phase2-id>
-bd new "Phase 4: VM execution" --parent <epic-id> --ref "ADR-NNNN" --blocks-on <phase3-id>
-bd new "Phase 5: Testing" --parent <epic-id> --ref "ADR-NNNN" --blocks-on <phase4-id>
-
-# Show the epic and subtasks
-bd show <epic-id>
-
-# Check ready tasks
-bd ready
+# Create structure
+bd new "Implement $TITLE" --kind epic
+bd new "Phase 1..." --parent <epic-id>
+# ...
 ```
 
-**Stealth mode benefits:**
-- Issues tracked only for current session
-- No .beads directory committed to git
-- Clean separation of temporary vs permanent tracking
-- Useful for breaking down complex work without polluting repo
+### Phase 3: Implement with Tests
 
-### Phase 2: Implement with Tests
+**6. Write Tests FIRST:**
+- New features: Create integration test in `tests/scripts/`
+- Internal logic: Create unit tests in `src/**/tests/`
 
-**5. Write tests first:**
-
-For new language features:
-```bash
-# Create integration test in tests/scripts/
-touch tests/scripts/test_feature_name.n
-```
-
-Format:
+Format for integration tests (`tests/scripts/test_name.n`):
 ```neon
-// Test: [What this tests]
+// Test: [Description]
 // Expected:
-// [expected output line 1]
-// [expected output line 2]
+// [Line 1]
+// [Line 2]
 
-[test code here]
+print("actual output");
 ```
 
-For internal functions:
-- Add unit tests in appropriate `src/**/tests/` directory
-- Test success and error paths
-- Test edge cases
+**7. Implement Feature:**
+Follow pipeline order:
+1. Scanner (`src/compiler/scanner.rs`)
+2. AST (`src/compiler/ast/`)
+3. Parser (`src/compiler/parser.rs`)
+4. Semantic (`src/compiler/semantic.rs`)
+5. Codegen (`src/compiler/codegen.rs`)
+6. VM (`src/vm/impl.rs`)
 
-**6. Implement the feature:**
-
-Follow implementation order:
-1. **Scanner** (if new tokens needed): `src/compiler/scanner.rs`
-2. **AST** (if new node types): `src/compiler/ast/`
-3. **Parser** (if new syntax): `src/compiler/parser.rs`
-4. **Semantic** (validation): `src/compiler/semantic.rs`
-5. **Codegen** (bytecode emission): `src/compiler/codegen.rs`
-6. **Opcodes** (if new instructions): `src/common/opcodes.rs`
-7. **VM** (execution logic): `src/vm/impl.rs`
-8. **Stdlib** (if builtin function): `src/common/stdlib/`
-
-**Code conventions:**
-- Document stack state before/after operations
-- Use `Result<T, E>` for error handling
-- Include source locations in error messages
-- Minimize allocations in VM hot path
-- Prefer clarity over cleverness
-
-**7. Run tests:**
+**8. Run Tests:**
 ```bash
-# Run all tests
+# In worktree directory:
 cargo test
-
-# Run specific test
-cargo test test_name
-
-# Run integration tests only
 cargo test -p neon --test integration
 ```
 
-### Phase 3: Verification Loop
+### Phase 4: Verification Loop
 
-**8. Check results:**
-- ✓ All tests pass → Go to step 11
-- ✗ Tests fail → Go to step 9
-- ✗ New failures in unrelated tests → Investigate regression
+**9. Check & Iterate:**
+- ✓ All tests pass → Proceed.
+- ✗ Tests fail → Analyze, Fix, Retry.
+- Use `--features disassemble` to debug bytecode if needed.
 
-**9. Analyze failures:**
-- Read the failure message
-- Understand expected vs actual behavior
-- Check if logic error or test expectation error
-- Use `--features disassemble` for bytecode debugging
-
-**10. Fix and iterate:**
-- Update implementation based on failure
-- Re-run tests: `cargo test`
-- Loop until all tests pass
-
-**11. Quality checks:**
+**10. Quality Gates:**
 ```bash
-# Run clippy
 cargo clippy -- -D warnings
-
-# Check formatting
 cargo fmt -- --check
-
-# Verify no unused code
-# (clippy will warn)
 ```
 
-**12. Final verification:**
-- Does implementation match ADR decision?
-- Are edge cases handled?
-- Is error handling robust?
-- Are stack invariants maintained?
-- Is code documented where non-obvious?
+**11. Verify Constraints:**
+- ADR decisions respected?
+- Stack invariants maintained?
+- Error source locations correct?
 
-### Phase 4: Finalize
+### Phase 5: Ship & Cleanup
 
-**13. Summary:**
-Show:
-- Files modified (with line counts)
-- Tests added (with descriptions)
-- Test results (all passing)
-- Coverage of ADR requirements
+**12. Summary:**
+- List modified files.
+- Confirm test results.
 
-Ask:
-- "Implementation complete. Run `/ship` to commit and close the issue?"
+**13. Publish:**
+```bash
+# Stage and commit
+git add .
+git commit -m "feat: implement $ARGUMENTS" # Or appropriate message
 
-## Critical Constraints
-
-- **Tests must pass**: Never proceed with failing tests
-- **No scope creep**: Only implement what's in the ADR/issue
-- **Follow conventions**: Respect patterns in CLAUDE.md
-- **Stack discipline**: Document stack state changes
-- **Error context**: Always include source locations
-- **Educational clarity**: Code should teach, not confuse
-
-## Neon-Specific Patterns
-
-**Stack operations:**
-```rust
-// Before: [value1, value2]
-// After: [result]
-let b = self.pop()?;
-let a = self.pop()?;
-let result = a + b;
-self.push(result)?;
+# Push and Create PR
+git push -u origin HEAD
+gh pr create --fill --web
 ```
+*Note: If `gh pr create` requires interaction, provide title/body explicitly.*
 
-**Bytecode emission:**
-```rust
-// Emit opcode
-self.emit_opcode(OpCode::Add);
-
-// Emit with operand
-let constant_idx = self.add_constant(value);
-self.emit_opcode_with_arg(OpCode::Constant, constant_idx);
+**14. Cleanup:**
+```bash
+# Remove the worktree (and local branch if desired)
+wt remove
 ```
+*Confirm with user before running `wt remove` if they want to keep the worktree open.*
 
-**Error reporting:**
-```rust
-return Err(RuntimeError::new(
-    format!("Undefined variable '{}'", name),
-    self.current_location()
-));
-```
-
-## When Implementation Spans Multiple Sessions
-
-If work is too large for one session:
-
-1. **End of session:**
-   - Commit current progress (even if incomplete)
-   - Update Beads issue with status note
-   - Document what's left to do
-
-2. **Resume next session:**
-   - Read issue notes
-   - Review ADR
-   - Check current state: `git status`, `cargo test`
-   - Continue from where you left off
-
-3. **Use `/ship` only when fully complete**
+## Critical Rules
+- **Work in Worktree**: Never pollute the main checkout.
+- **Tests First**: Always write a failing test before implementation.
+- **Atomic PRs**: One task = One Branch = One PR.

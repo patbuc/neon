@@ -1,6 +1,6 @@
 ---
 name: implement-adr
-description: "Implement an approved ADR: subtasks, code, test, commit loop"
+description: "Implement an approved ADR: subtasks, code, test, commit loop in a worktree"
 ---
 
 # Implement ADR - Implementation Phase Only
@@ -12,6 +12,7 @@ This skill implements an already-approved ADR. Planning and approval must be don
 Before using this skill:
 1. ADR must already be planned using `/project:planning:adr-plan`
 2. ADR must be approved and saved to `docs/adr/` using `/project:planning:adr-approve`
+3. `worktrunk` (wt) must be installed.
 
 ## Your Task
 
@@ -23,14 +24,21 @@ Expected input:
 
 ## Implementation Workflow
 
-### Step 1: Read ADR
+### Step 1: Read ADR & Setup Worktree
 
 1. **Locate the ADR**
    - If given ADR number: read `docs/adr/ADR-NNNN.md`
    - If given description: list ADRs and find matching one
    - Verify status is "Accepted"
 
-2. **Extract Implementation Details**
+2. **Create/Switch Worktree**
+   - Branch name: `feature/$ADR_NUMBER` (e.g., `feature/ADR-0001`)
+   ```bash
+   wt switch --create feature/ADR-NNNN
+   ```
+   - **CRITICAL**: Capture the directory path returned by `wt`. All subsequent file operations and commands MUST run in this directory.
+
+3. **Extract Implementation Details**
    - Read the Decision section
    - Read any implementation plan included in ADR
    - Understand architectural constraints
@@ -38,21 +46,21 @@ Expected input:
 
 ### Step 2: Assess Complexity
 
-3. **Determine Implementation Strategy**
+4. **Determine Implementation Strategy**
    - Simple feature (< 30 min, single file/concern)? → Implement directly (skip to step 5)
    - Complex feature (multiple files/phases)? → Break into subtasks (continue to step 4)
 
 ### Step 3: Create Subtasks (If Complex)
 
-4. **Create Beads Issues**
-   - Use Beads to create subtasks with dependencies
+5. **Create Beads Issues**
+   - Use Beads to create subtasks with dependencies (in the worktree context if needed, though beads are usually global/branch-agnostic depending on setup. If beads are file-based in the repo, run `bd init --stealth` in the worktree).
    - Each subtask = one focused, testable unit
    - Verify dependency graph with `bd ready`
    - Show created issues to user
 
 ### Step 4: Implementation Loop
 
-5. **For Each Subtask** (or entire feature if simple):
+6. **For Each Subtask** (or entire feature if simple):
 
    a. **Read Context**
       - Read the ADR
@@ -66,6 +74,7 @@ Expected input:
 
    c. **Verification Loop**
       ```bash
+      # Run in worktree directory
       cargo test
       ```
       - If tests fail: fix and retry
@@ -79,6 +88,7 @@ Expected input:
 
    e. **Commit Subtask**
       ```bash
+      # Run in worktree directory
       git add .
       git commit -m "Complete subtask: [description]
 
@@ -96,20 +106,33 @@ Expected input:
       - Repeat steps a-f for each remaining subtask
       - Continue until all subtasks complete
 
-### Step 5: Final Verification
+### Step 5: Final Verification & Shipping
 
-6. **Run Full Quality Gates**
+7. **Run Full Quality Gates**
    ```bash
+   # Run in worktree directory
    cargo test                    # All tests pass
    cargo clippy -- -D warnings   # No warnings
    cargo build --release         # Clean build
    ```
 
-7. **Summary Output**
+8. **Push and Create PR**
+   ```bash
+   # Run in worktree directory
+   git push -u origin HEAD
+   gh pr create --fill --web
+   ```
+
+9. **Cleanup**
+   ```bash
+   wt remove
+   ```
+
+10. **Summary Output**
     - Show final git log
     - Show completed Beads issues (if used)
     - Show test results
-    - Confirm feature complete
+    - Confirm feature complete and PR created
 
 ## Important Rules
 
@@ -119,6 +142,7 @@ Expected input:
 - User must run planning commands first
 
 ### Implementation Phase
+- **Work in Worktree**: Ensure all file operations and commands target the worktree directory.
 - Commit after EACH subtask completion
 - NEVER commit broken code or failing tests
 - Keep changes focused (no scope creep)
@@ -153,6 +177,7 @@ Throughout the workflow, provide clear status updates:
 ✓ Read ADR: String Interpolation Support
 ✓ Status verified: Accepted
 ✓ Implementation plan understood
+✓ Worktree created: /path/to/worktree/feature/ADR-0001
 
 [COMPLEXITY ASSESSMENT]
 Feature assessed as: Complex (4 subtasks needed)
@@ -178,6 +203,11 @@ Feature assessed as: Complex (4 subtasks needed)
 ✓ All tests pass (125 tests)
 ✓ Clippy: No warnings
 ✓ Build: Success
+
+[SHIPPING]
+✓ Pushed branch feature/ADR-0001
+✓ Created PR: https://github.com/org/repo/pull/123
+✓ Removed worktree
 
 [COMPLETE] Feature implemented successfully!
 ```

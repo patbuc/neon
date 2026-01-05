@@ -1,11 +1,11 @@
 ---
 description: "Ship completed work: verify, review, commit, close issue"
-allowed-tools: ["read", "write", "execute"]
+allowed-tools: ["read", "write", "execute", "bash"]
 ---
 
 # Ship Completed Work
 
-You are in **SHIPPING MODE** - finalizing and committing completed work.
+You are in **SHIPPING MODE** - finalizing and committing completed work in a worktree.
 
 ## Your Task
 
@@ -20,7 +20,7 @@ Expected usage:
 ### 1. Verify Tests Pass
 
 ```bash
-# Run full test suite
+# Run full test suite in the current worktree
 cargo test
 
 # Verify no warnings
@@ -87,17 +87,41 @@ If you find issues during review:
 - Re-run tests
 - Do not just report issues - fix them
 
-### 3. Stage Changes
+### 3. Commit, Push and Create PR
 
+**Commit message format:**
+```
+<type>: <brief description>
+
+<optional body explaining what and why>
+
+Implements: ADR-NNNN
+Closes: <beads-id>    # Optional: only if beads issue exists
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code restructuring without behavior change
+- `test`: Adding/updating tests
+- `docs`: Documentation only
+- `chore`: Tooling, dependencies, etc.
+
+**Commit, Push and PR:**
 ```bash
 # Stage all changes
 git add .
+git commit -m "<message>"
 
-# Or stage specific files
-git add src/compiler/parser.rs tests/scripts/test_feature.n
+# Push current branch
+git push origin HEAD
+
+# Create PR (if gh CLI is available)
+gh pr create --fill --web
 ```
+*Note: If `gh pr create` requires interaction, provide title/body explicitly.*
 
-### 4. Close Beads Issue (if applicable)
+### 4. Close Beads Issue
 
 **Check if beads is initialized:**
 ```bash
@@ -127,78 +151,14 @@ if [ -z "$ARGUMENTS" ]; then
 fi
 ```
 
-**Note on stealth mode:**
-- If `/implement` used stealth mode (`bd init --stealth`), issues exist only for session
-- Closing issues in stealth mode updates session tracking but doesn't commit to repo
-- Stealth-mode issues are cleaned up automatically at session end
-- For permanent tracking, use regular `bd init` (commits to .beads/)
+### 5. Cleanup Worktree
 
-### 5. Commit
-
-**Commit message format:**
-```
-<type>: <brief description>
-
-<optional body explaining what and why>
-
-Implements: ADR-NNNN
-Closes: <beads-id>    # Optional: only if beads issue exists
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code restructuring without behavior change
-- `test`: Adding/updating tests
-- `docs`: Documentation only
-- `chore`: Tooling, dependencies, etc.
-
-**Example:**
-```bash
-git commit -m "feat: Add support for default function parameters
-
-Implements default parameter evaluation at function definition time,
-storing defaults in the function object. VM handles variable arity
-by filling missing arguments from defaults array.
-
-Implements: ADR-0007
-Closes: neon-42"
-```
-
-**Commit the changes:**
-```bash
-git add .
-git commit -m "<message>"
-```
-
-### 6. Check Next Tasks
+**Important:**
+- Once the PR is created and the issue is closed, you should remove the worktree to clean up.
 
 ```bash
-# Show ready tasks (unblocked by this completion)
-bd ready
+wt remove
 ```
-
-**Output:**
-- Commit hash and message
-- Closed issue confirmation
-- Next actionable tasks
-- Progress: "X of N subtasks complete" (if part of epic)
-
-### 7. Optional: Push to Remote
-
-**Only if requested by user:**
-```bash
-# Push current branch
-git push origin $(git branch --show-current)
-
-# Or if upstream is set
-git push
-```
-
-**If creating PR:**
-- Show the GitHub compare URL
-- Suggest PR title based on ADR/issue
-- Note: User will create PR manually via GitHub UI
 
 ## Summary Output
 
@@ -207,7 +167,9 @@ Show:
 ✓ All tests passed
 ✓ Code review complete
 ✓ Changes committed: <hash>
+✓ PR Created: <url>
 ✓ Issue closed: <beads-id>
+✓ Worktree removed
 
 Next ready tasks:
 - <id1>: <description>
@@ -224,6 +186,7 @@ Suggested next step:
 - **Close before commit**: Beads issue must be closed before committing
 - **Reference ADR**: Always link commit to ADR
 - **Imperative messages**: "Add feature" not "Added feature"
+- **Worktree Isolation**: Ensure you are operating within the correct worktree before running commands.
 
 ## When to Use /ship
 
@@ -231,35 +194,9 @@ Suggested next step:
 - Implementation is complete
 - All tests pass
 - Code review is satisfactory
-- Ready to close the issue
+- Ready to close the issue and create a PR
 
 **Don't use when:**
 - Tests are failing
 - Work is incomplete
 - You want to save progress mid-task (use regular git commit instead)
-
-## Error Recovery
-
-**If commit fails:**
-```bash
-# Check status
-git status
-
-# Check if issue was closed
-bd status $ARGUMENTS
-
-# Re-open issue if needed
-bd reopen $ARGUMENTS
-```
-
-**If tests fail after commit:**
-```bash
-# Revert the commit
-git revert HEAD
-
-# Fix the tests
-cargo test
-
-# Re-commit when fixed
-/ship
-```
