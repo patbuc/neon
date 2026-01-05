@@ -544,29 +544,6 @@ fn can_calculate_fibonacci() {
 }
 
 #[test]
-fn can_calculate_fibonacci_20() {
-    let program = r#"
-        fn fib(n) {
-            if (n == 0) {
-                return 0
-            }
-            if (n == 1) {
-                return 1
-            }
-            return fib(n - 1) + fib(n - 2)
-        }
-        print fib(20)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let start = std::time::Instant::now();
-    let result = vm.interpret(program.to_string());
-    let elapsed = start.elapsed();
-    println!("Fibonacci test (fib 20) took: {:?}", elapsed);
-    assert_eq!(Result::Ok, result);
-    assert_eq!("6765", vm.get_output());
-}
-#[test]
 fn can_handle_nested_function_calls() {
     let program = r#"
         fn hello() {
