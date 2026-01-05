@@ -9,6 +9,7 @@ use crate::common::{Chunk, Local, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::{number, string};
 use indexmap::IndexMap;
+use std::rc::Rc;
 
 struct LoopContext {
     #[allow(dead_code)]
@@ -248,12 +249,29 @@ impl CodeGenerator {
     fn generate_fn_stmt(
         &mut self,
         name: &str,
-        params: &[String],
+        params: &[(String, Option<Expr>)],
         body: &[Stmt],
         location: SourceLocation,
     ) {
         // Function was already defined with nil placeholder
         // Now compile the function body and replace the placeholder
+
+        // Evaluate default expressions at definition time
+        let mut defaults: Vec<Option<Value>> = Vec::new();
+        let mut min_arity = 0u8;
+
+        for (i, (_param_name, default_expr)) in params.iter().enumerate() {
+            if let Some(expr) = default_expr {
+                // Evaluate the default expression at compile time to get a Value
+                let default_value = self.evaluate_constant_expr(expr);
+                defaults.push(Some(default_value));
+            } else {
+                min_arity = (i + 1) as u8; // Update min_arity to include this param
+                defaults.push(None);
+            }
+        }
+
+        let arity = params.len() as u8;
 
         // Create a new chunk for the function
         self.chunks.push(Chunk::new(&format!("function_{}", name)));
@@ -262,8 +280,8 @@ impl CodeGenerator {
         self.scope_depth += 1;
 
         // Define parameters as local variables in the function scope
-        for param in params {
-            let param_local = Local::new(param.clone(), self.scope_depth, false);
+        for (param_name, _) in params {
+            let param_local = Local::new(param_name.clone(), self.scope_depth, false);
             self.current_chunk().add_parameter(param_local);
         }
 
@@ -279,8 +297,17 @@ impl CodeGenerator {
         self.scope_depth -= 1;
 
         let function_chunk = self.chunks.pop().unwrap();
-        let function_value =
-            Value::new_function(name.to_string(), params.len() as u8, function_chunk);
+
+        // Create function object directly with defaults
+        use crate::common::{Object, ObjFunction};
+        use std::rc::Rc;
+        let function_value = Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
+            name: name.to_string(),
+            arity,
+            min_arity,
+            defaults,
+            chunk: Rc::new(function_chunk),
+        }))));
 
         // Replace the nil placeholder with the actual function
         self.emit_constant(function_value, location);
@@ -307,6 +334,75 @@ impl CodeGenerator {
             self.emit_op_code_variant(OpCode::SetLocal, index, location);
         }
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
+    }
+
+    fn evaluate_constant_expr(&self, expr: &Expr) -> Value {
+        // Evaluate constant expressions at compile time for default parameters
+        // This is a simplified implementation that handles common cases
+        match expr {
+            Expr::Number { value, .. } => Value::Number(*value),
+            Expr::Boolean { value, .. } => Value::Boolean(*value),
+            Expr::Nil { .. } => Value::Nil,
+            Expr::String { value, .. } => {
+                use crate::common::{Object, ObjString};
+                Value::Object(Rc::new(Object::String(ObjString {
+                    value: Rc::from(value.as_str()),
+                })))
+            }
+            Expr::Binary { left, operator, right, .. } => {
+                let left_val = self.evaluate_constant_expr(left);
+                let right_val = self.evaluate_constant_expr(right);
+
+                use crate::compiler::ast::BinaryOp;
+                match operator {
+                    BinaryOp::Add => {
+                        if let (Value::Number(l), Value::Number(r)) = (left_val, right_val) {
+                            Value::Number(l + r)
+                        } else {
+                            Value::Nil // Fallback for non-numeric addition
+                        }
+                    }
+                    BinaryOp::Subtract => {
+                        if let (Value::Number(l), Value::Number(r)) = (left_val, right_val) {
+                            Value::Number(l - r)
+                        } else {
+                            Value::Nil
+                        }
+                    }
+                    BinaryOp::Multiply => {
+                        if let (Value::Number(l), Value::Number(r)) = (left_val, right_val) {
+                            Value::Number(l * r)
+                        } else {
+                            Value::Nil
+                        }
+                    }
+                    _ => Value::Nil // Other operators not supported for compile-time evaluation
+                }
+            }
+            Expr::Unary { operator, operand, .. } => {
+                let operand_val = self.evaluate_constant_expr(operand);
+
+                use crate::compiler::ast::UnaryOp;
+                match operator {
+                    UnaryOp::Negate => {
+                        if let Value::Number(n) = operand_val {
+                            Value::Number(-n)
+                        } else {
+                            Value::Nil
+                        }
+                    }
+                    UnaryOp::Not => {
+                        // nil and false are falsey, everything else is truthy
+                        let is_falsey = matches!(operand_val, Value::Nil | Value::Boolean(false));
+                        Value::Boolean(is_falsey)
+                    }
+                    _ => Value::Nil
+                }
+            }
+            // For complex expressions (variable references, etc.), we return Nil
+            // The semantic analyzer has already validated that these are acceptable
+            _ => Value::Nil,
+        }
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -569,9 +665,7 @@ impl CodeGenerator {
                 body,
                 location,
             } => {
-                // Extract parameter names from (name, default) tuples
-                let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
-                self.generate_fn_stmt(name, &param_names, body, *location);
+                self.generate_fn_stmt(name, params, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
