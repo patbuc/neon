@@ -179,20 +179,52 @@ impl VirtualMachine {
     }
 
     fn call_function(&mut self, arg_count: usize, func: &&Rc<ObjFunction>) -> Option<Result> {
-        if arg_count != func.arity as usize {
-            self.runtime_error(&format!(
-                "Expected {} arguments but got {}.",
-                func.arity, arg_count
-            ));
+        // Validate argument count with default parameters support
+        let min_arity = func.min_arity as usize;
+        let max_arity = func.arity as usize;
+
+        if arg_count < min_arity || arg_count > max_arity {
+            if min_arity == max_arity {
+                self.runtime_error(&format!(
+                    "Expected {} arguments but got {}.",
+                    max_arity, arg_count
+                ));
+            } else {
+                self.runtime_error(&format!(
+                    "Expected {}-{} arguments but got {}.",
+                    min_arity, max_arity, arg_count
+                ));
+            }
             return Some(Result::RuntimeError);
         }
 
+        // Push default values for missing arguments
+        // The function object is at the top of the stack, so we need to insert defaults before it
+        let missing_count = max_arity - arg_count;
+        if missing_count > 0 {
+            // Remove function object temporarily
+            let func_obj = self.pop();
+
+            // Push default values for missing parameters
+            for i in arg_count..max_arity {
+                if let Some(Some(default_value)) = func.defaults.get(i) {
+                    self.push(default_value.clone());
+                } else {
+                    // This shouldn't happen if codegen is correct, but fallback to nil
+                    self.push(Value::Nil);
+                }
+            }
+
+            // Push function object back
+            self.push(func_obj);
+        }
+
         // Calculate slot_start for unified calling convention [args..., func]
-        // The function object is still on the stack at this point
-        // Stack layout: [...previous..., arg0, arg1, ..., argN, func_obj]
+        // After pushing defaults, we now have max_arity arguments on the stack
+        // Stack layout: [...previous..., arg0, arg1, ..., argN, defaults..., func_obj]
         // slot_start should point just BEFORE the first argument
-        // So: slot_start = current_len - arg_count - 1 (for func) - 1 (to go before first arg)
-        let slot_start = (self.stack.len() - arg_count - 1 - 1) as isize;
+        // So: slot_start = current_len - max_arity - 1 (for func) - 1 (to go before first arg)
+        let slot_start = (self.stack.len() - max_arity - 1 - 1) as isize;
 
         let new_frame = CallFrame {
             function: Rc::clone(func),
