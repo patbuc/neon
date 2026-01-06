@@ -1,122 +1,137 @@
 ---
-description: Implement a feature from an accepted ADR using beads issue tracking
+description: Implement work from beads issues (epic, task, bug, or feature)
 ---
 
-# Implement Feature
+# Implement
 
-You are implementing a feature that was previously designed and accepted via `/design`. The implementation is tracked using beads (`bd`) for persistent task management.
+Implements work tracked in beads. Can work on epics (from `/design`), or standalone issues (from `/task`).
+
+## Input
+
+$ARGUMENTS
 
 ## Instructions
 
-### 1. Ensure Beads is Initialized
+### 1. Determine What to Implement
 
-Check if beads is initialized:
+Based on the input, determine what to work on:
+
+#### Option A: Issue ID Provided (e.g., `bd-a3f8`)
+
 ```bash
-ls -la .beads 2>/dev/null || echo "NOT_INITIALIZED"
+bd show $ARGUMENTS --json
 ```
 
-If NOT_INITIALIZED, run:
-```bash
-bd init
-```
+- If the issue exists, use it as the target
+- If it's an **epic**: implement all child issues in dependency order
+- If it's a **task/bug/feature**: implement just that single issue
 
-### 2. Find the ADR
+#### Option B: ADR Name Provided (e.g., `while-loops`)
 
-- If an argument is provided, look for: `docs/adr/*-$ARGUMENTS.md` (glob match)
-- Otherwise, list ADRs in `docs/adr/` and use the most recently modified one with status `Accepted`
-- If no accepted ADRs exist, inform the user and stop
-- Extract the ADR number (NNNNNN) and feature slug from the filename
+Look for: `docs/adr/*-$ARGUMENTS.md` (glob match)
 
-### 3. Create or Find the Epic Issue
-
-Check if an epic already exists for this ADR:
+If found, find or create the corresponding epic:
 ```bash
 bd list --type epic --title "ADR-NNNNNN" --json
 ```
 
-**If no epic exists**, create one from the ADR:
+If no epic exists but the ADR does, inform user to run `/design` first to create the epic.
+
+#### Option C: No Input - Smart Pickup
+
+If no argument provided, check for ready work:
+
 ```bash
-bd create "ADR-NNNNNN: <ADR Title>" \
-    -t epic \
-    -p 1 \
-    -d "<Decision Outcome summary from ADR>" \
-    --json
+bd ready --json --limit 10
 ```
 
-Save the epic ID (e.g., `bd-a3f8`) for later use.
+**Priority order for pickup:**
+1. **In-progress issues**: First check if any issues are already in-progress (resume work)
+   ```bash
+   bd list --status in_progress --json
+   ```
+2. **Ready epics**: Prefer epics (larger, planned work)
+3. **Ready tasks/bugs/features**: Individual issues by priority
 
-**If epic exists**, retrieve its ID and check its status. If already closed, inform user and stop.
+If multiple options exist, present them to the user and ask which to work on:
+```
+Found ready work:
+1. [epic] bd-a3f8: ADR-000001: While Loops (3 child issues)
+2. [bug] bd-c5d6: Fix division by zero crash (P1)
+3. [task] bd-e7f8: Refactor scanner error handling (P2)
 
-### 4. Create a Worktree
+Which would you like to implement? (enter number or issue ID)
+```
+
+If only one ready item exists, confirm with user before starting.
+
+If no ready work exists, inform user and suggest `/task` or `/design` to create new work.
+
+### 2. Determine Scope
+
+Based on the target issue type:
+
+| Type | Scope | Branch Name |
+|------|-------|-------------|
+| epic | All child issues + epic itself | `adr-NNNNNN-slug` or `epic/<issue-id>-slug` |
+| task/bug/feature | Single issue only | `<type>/<issue-id>-slug` |
+
+Set the **scope ID** (the root issue to track) and **branch name**.
+
+### 3. Create a Worktree
 
 Create a new worktree for this implementation:
 
 ```bash
-wt switch --create adr-NNNNNN-feature-slug
+wt switch --create <branch-name>
 ```
 
-For example, if implementing `docs/adr/000001-while-loops.md`:
-```bash
-wt switch --create adr-000001-while-loops
-```
+For example:
+- Epic from ADR: `wt switch --create adr-000001-while-loops`
+- Standalone bug: `wt switch --create bug/bd-c5d6-division-by-zero`
 
-**IMPORTANT**: After running `wt switch`, you are now in a NEW directory. The worktree path will be printed by the command. All subsequent work must happen in that new worktree directory. Use the `workdir` parameter for all bash commands to ensure you're working in the correct location.
+**IMPORTANT**: After running `wt switch`, you are now in a NEW directory. The worktree path will be printed by the command. All subsequent work must happen in that new worktree directory. Use the `workdir` parameter for all bash commands.
 
-### 5. Create Child Issues from ADR Phases
+### 4. Implementation Loop
 
-Read the ADR thoroughly and extract the Implementation Notes (phases/steps).
+Run the implementation loop until all work in scope is complete:
 
-For each phase, create a child issue under the epic:
-```bash
-bd create "Phase N: <phase name>" \
-    -t task \
-    -p 2 \
-    --parent <epic-id> \
-    -d "<phase details from ADR>" \
-    --json
-```
+#### 4.1 Find Ready Work in Scope
 
-This creates hierarchical IDs like `bd-a3f8.1`, `bd-a3f8.2`, etc.
-
-If phases have dependencies on each other (e.g., Phase 2 depends on Phase 1):
-```bash
-bd dep add <phase2-id> <phase1-id>
-```
-
-### 6. Implementation Loop
-
-Run the implementation loop until all work for this epic is complete:
-
-#### 6.1 Find Ready Work
-
-Get the next ready issue scoped to this epic:
 ```bash
 bd ready --json
 ```
 
-Filter the results to only include issues that:
-- Are the epic itself, OR
-- Have IDs starting with the epic ID (e.g., `bd-a3f8.1`, `bd-a3f8.2`)
+Filter results to only include issues in scope:
+- **Epic scope**: Issues where ID equals the epic ID OR starts with `<epic-id>.`
+- **Single issue scope**: Only the target issue itself
 
-If no ready issues exist for this epic, check if the epic itself is done:
-- If all child issues are closed, close the epic and proceed to step 7
-- If there are blocked issues, investigate and report the blockers
+If no ready issues exist in scope:
+- **Epic**: Check if all child issues are closed → close the epic and proceed to step 5
+- **Single issue**: Should not happen (the issue itself should be ready)
+- **Blocked issues**: Investigate and report blockers to user
 
-#### 6.2 Start Working on the Issue
+#### 4.2 Start Working on the Issue
 
 Mark the issue as in-progress:
 ```bash
 bd update <issue-id> -s in_progress
 ```
 
-#### 6.3 Implement the Changes
+Read the issue details:
+```bash
+bd show <issue-id>
+```
 
-Implement the feature/fix described in the issue:
-- Follow the issue description and any linked ADR context
+#### 4.3 Implement the Changes
+
+Implement the work described in the issue:
+- Follow the issue description
+- If this is part of an epic, reference the ADR for context
 - Maintain the project's code conventions (see CLAUDE.md)
 - Use proper error handling with `Result<T, E>`
 
-#### 6.4 Verify the Implementation
+#### 4.4 Verify the Implementation
 
 Run verification:
 ```bash
@@ -126,19 +141,22 @@ cargo test
 
 If tests fail, fix the issues before proceeding.
 
-#### 6.5 Commit the Work
+#### 4.5 Commit the Work
 
 Commit the changes:
 ```bash
 git add -A && git commit -m "<issue-id>: <issue title>"
 ```
 
-For example: `bd-a3f8.1: Phase 1: Add token types`
+For example:
+- `bd-a3f8.1: Add while token and AST node`
+- `bd-c5d6: Fix division by zero crash`
 
-#### 6.6 Handle Discovered Work
+#### 4.6 Handle Discovered Work
 
 If during implementation you discover additional work needed:
-- **In-scope work**: Create a child issue under the epic
+
+- **In-scope work** (epic only): Create a child issue
   ```bash
   bd create "Fix edge case in <component>" \
       -t task \
@@ -146,81 +164,81 @@ If during implementation you discover additional work needed:
       -d "Discovered during <current-issue-id>: <details>" \
       --json
   ```
-- **Out-of-scope work**: Create a standalone issue (not under this epic)
+
+- **Out-of-scope work**: Create a standalone issue
   ```bash
-  bd create "Unrelated improvement: <title>" \
-      -t task \
+  bd create "<title>" \
+      -t <bug|task|feature> \
       -p 3 \
-      -d "Discovered during ADR-NNNNNN implementation but out of scope" \
+      -d "Discovered during <current-issue-id> but out of scope" \
       --json
   ```
 
-#### 6.7 Close the Issue
+#### 4.7 Close the Issue
 
 Mark the issue as closed:
 ```bash
 bd close <issue-id>
 ```
 
-#### 6.8 Repeat
+#### 4.8 Repeat
 
-Go back to step 6.1 to find the next ready issue. Continue until all issues under the epic are complete.
+Go back to step 4.1. Continue until all issues in scope are complete.
 
-### 7. Close the Epic
+### 5. Finalize
 
-Once all child issues are closed:
+Once all work in scope is complete:
+
+#### For Epics
+Close the epic:
 ```bash
 bd close <epic-id>
 ```
 
-### 8. Push and Create PR
+#### For All Types
+Push and create PR:
 
-After all work is complete:
-
-1. Push the branch to origin:
+1. Push the branch:
    ```bash
-   git push -u origin adr-NNNNNN-feature-slug
+   git push -u origin <branch-name>
    ```
 
-2. Create a pull request using `gh pr create`. Use a HEREDOC for the body:
+2. Create PR:
    ```bash
-   gh pr create --title "<ADR Title>" --body "$(cat <<'EOF'
+   gh pr create --title "<issue title>" --body "$(cat <<'EOF'
    ## Summary
-   <Brief description from ADR Decision Outcome - 1-3 sentences>
-
-   ## ADR
-   See: docs/adr/NNNNNN-feature-slug.md
+   <Brief description from issue>
 
    ## Issues Completed
-   - <epic-id>: <epic title>
-     - <child-id>: <child title>
-     - <child-id>: <child title>
+   - <issue-id>: <title>
+     - <child-id>: <child title>  (if epic)
      ...
+
+   ## ADR
+   See: docs/adr/NNNNNN-slug.md  (if epic from ADR, otherwise omit)
    EOF
    )"
    ```
 
 3. Return the PR URL to the user
 
-### 9. Inform User About Cleanup
+### 6. Inform User About Cleanup
 
 Tell the user:
 - The PR has been created
 - They are still in the feature worktree
-- All beads issues for this epic have been closed
+- All beads issues in scope have been closed
 - When ready to clean up, run `/implement-cleanup` to remove the worktree and return to main
 
 ---
 
 ## Important
 
-- **Scope discipline**: Only work on issues related to the current epic. Ignore other ready work in beads.
-- **Discovery tracking**: Always file discovered work as issues - either under the epic (in-scope) or standalone (out-of-scope)
+- **Scope discipline**: Only work on issues in the current scope. Ignore other ready work.
+- **Discovery tracking**: Always file discovered work as issues
 - **Commit per issue**: Each issue should result in at least one commit
-- Follow the ADR closely - it represents an accepted architectural decision
+- **Resume support**: If returning to in-progress work, pick up where you left off
 - Maintain the project's code conventions (see CLAUDE.md)
 - Use proper error handling with `Result<T, E>`
-- Include helpful comments for complex logic
-- If you encounter issues not covered by the ADR, note them and proceed with your best judgment
-- Do NOT modify the ADR file itself during implementation
 - After `wt switch`, always verify you're in the correct worktree directory
+- For epics, reference the ADR for architectural context
