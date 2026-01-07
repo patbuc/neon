@@ -316,3 +316,31 @@ fn rejects_trailing_underscore_in_decimal() {
     assert_eq!(tokens[0].token_type, TokenType::Error);
     assert!(tokens[0].token.contains("underscore"));
 }
+
+#[test]
+fn can_scan_impl_keyword() {
+    let scanner = Scanner::new("impl");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Impl);
+    assert_eq!(tokens[0].token, "impl");
+    assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn can_scan_impl_block_structure() {
+    let script = "impl Point { }";
+
+    let scanner = Scanner::new(script);
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 5);
+    assert_eq!(tokens[0].token_type, TokenType::Impl);
+    assert_eq!(tokens[0].token, "impl");
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+    assert_eq!(tokens[1].token, "Point");
+    assert_eq!(tokens[2].token_type, TokenType::LeftBrace);
+    assert_eq!(tokens[3].token_type, TokenType::RightBrace);
+    assert_eq!(tokens[4].token_type, TokenType::Eof);
+}

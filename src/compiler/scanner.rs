@@ -472,6 +472,7 @@ impl Scanner {
                     return match self.source[self.start + 1] {
                         'f' => self.check_keyword(2, 0, "", TokenType::If),
                         'n' => self.check_keyword(2, 0, "", TokenType::In),
+                        'm' => self.check_keyword(2, 2, "pl", TokenType::Impl),
                         _ => TokenType::Identifier,
                     };
                 }
