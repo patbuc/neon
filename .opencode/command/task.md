@@ -84,7 +84,14 @@ bd create "<Title>" \
     --json
 ```
 
-### 5. Confirm
+### 5. Sync Issues
+
+After creating the issue, sync to persist it:
+```bash
+bd sync
+```
+
+### 6. Confirm
 
 Tell the user:
 - The issue ID (e.g., `bd-a3f8`)

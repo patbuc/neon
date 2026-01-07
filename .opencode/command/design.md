@@ -104,9 +104,16 @@ For example, if "Add parser support" depends on "Add token types":
 bd dep add bd-a3f8.2 bd-a3f8.1
 ```
 
-#### 4.4 Show Summary
+#### 4.4 Sync Issues
 
-After creating all issues, show a summary:
+After creating all issues, sync to persist them:
+```bash
+bd sync
+```
+
+#### 4.5 Show Summary
+
+After syncing, show a summary:
 ```bash
 bd dep tree <epic-id>
 ```

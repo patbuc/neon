@@ -86,13 +86,13 @@ Set the **scope ID** (the root issue to track) and **branch name**.
 Create a new worktree for this implementation:
 
 ```bash
-wt switch --create <branch-name> 
+wt switch --create <branch-name> --base feature/plan-based-workflow
 ```
 
 For example:
 
-- Epic from ADR: `wt switch --create adr-000001-while-loops`
-- Standalone bug: `wt switch --create bug/bd-c5d6-division-by-zero`
+- Epic from ADR: `wt switch --create adr-000001-while-loops --base feature/plan-based-workflow`
+- Standalone bug: `wt switch --create bug/bd-c5d6-division-by-zero --base feature/plan-based-workflow`
 
 **IMPORTANT**: After running `wt switch`, you are now in a NEW directory. The worktree path will be printed by the
 command. All subsequent work must happen in that new worktree directory. Use the `workdir` parameter for all bash
