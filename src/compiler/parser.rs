@@ -4,7 +4,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, FunctionParam, ImplMethod, Stmt, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
@@ -294,6 +294,8 @@ impl Parser {
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
             self.struct_declaration()
+        } else if self.match_token(TokenType::Impl) {
+            self.impl_block()
         } else {
             self.statement()
         }
@@ -416,6 +418,168 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            location,
+        })
+    }
+
+    fn impl_block(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expect struct name after 'impl'.") {
+            return None;
+        }
+        let struct_name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftBrace, "Expect '{' after struct name.") {
+            return None;
+        }
+
+        let mut methods = Vec::new();
+        self.skip_new_lines();
+
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            if self.check(TokenType::Fn) {
+                if let Some(method) = self.impl_method() {
+                    methods.push(method);
+                }
+            } else {
+                self.report_error_at_current(
+                    "Expect 'fn' keyword or '}' in impl block.".to_string(),
+                );
+                return None;
+            }
+            self.skip_new_lines();
+        }
+
+        if !self.consume(TokenType::RightBrace, "Expect '}' after impl methods.") {
+            return None;
+        }
+        self.consume_either(
+            TokenType::NewLine,
+            TokenType::Eof,
+            "Expecting '\\n' or '\\0' after impl block.",
+        );
+
+        Some(Stmt::Impl {
+            struct_name,
+            methods,
+            location,
+        })
+    }
+
+    fn impl_method(&mut self) -> Option<ImplMethod> {
+        // Consume 'fn' keyword - caller should have verified it exists
+        self.advance();
+
+        if !self.consume(TokenType::Identifier, "Expect method name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftParen, "Expect '(' after method name.") {
+            return None;
+        }
+
+        // Parse parameters, detecting self/mut self
+        let mut params = Vec::new();
+        let mut is_static = true;
+        let mut is_mutating = false;
+
+        self.skip_new_lines();
+        if !self.check(TokenType::RightParen) {
+            // Check for 'mut self' or 'self' as first parameter
+            if self.check(TokenType::Identifier) && self.current_token.token == "mut" {
+                self.advance(); // consume 'mut'
+                if self.check(TokenType::Identifier) && self.current_token.token == "self" {
+                    self.advance(); // consume 'self'
+                    is_static = false;
+                    is_mutating = true;
+                    params.push(FunctionParam {
+                        name: "self".to_string(),
+                        is_mutable: true,
+                    });
+                } else {
+                    // 'mut' followed by something other than 'self' - treat 'mut' as regular param name
+                    params.push(FunctionParam {
+                        name: "mut".to_string(),
+                        is_mutable: false,
+                    });
+                }
+            } else if self.check(TokenType::Identifier) && self.current_token.token == "self" {
+                self.advance(); // consume 'self'
+                is_static = false;
+                params.push(FunctionParam {
+                    name: "self".to_string(),
+                    is_mutable: false,
+                });
+            }
+
+            // Parse remaining parameters
+            while self.match_token(TokenType::Comma) {
+                self.skip_new_lines();
+                if self.check(TokenType::RightParen) {
+                    break; // trailing comma
+                }
+                if params.len() >= crate::common::constants::MAX_FUNCTION_PARAMS {
+                    self.report_error_at_current(
+                        "Can't have more than 255 parameters.".to_string(),
+                    );
+                }
+                if !self.consume(TokenType::Identifier, "Expect parameter name.") {
+                    return None;
+                }
+                params.push(FunctionParam {
+                    name: self.previous_token.token.clone(),
+                    is_mutable: false,
+                });
+            }
+
+            // If we didn't find self/mut self, parse first param as regular param
+            if is_static && params.is_empty() && self.check(TokenType::Identifier) {
+                self.advance();
+                params.push(FunctionParam {
+                    name: self.previous_token.token.clone(),
+                    is_mutable: false,
+                });
+
+                // Parse remaining parameters
+                while self.match_token(TokenType::Comma) {
+                    self.skip_new_lines();
+                    if self.check(TokenType::RightParen) {
+                        break; // trailing comma
+                    }
+                    if params.len() >= crate::common::constants::MAX_FUNCTION_PARAMS {
+                        self.report_error_at_current(
+                            "Can't have more than 255 parameters.".to_string(),
+                        );
+                    }
+                    if !self.consume(TokenType::Identifier, "Expect parameter name.") {
+                        return None;
+                    }
+                    params.push(FunctionParam {
+                        name: self.previous_token.token.clone(),
+                        is_mutable: false,
+                    });
+                }
+            }
+        }
+
+        if !self.consume(TokenType::RightParen, "Expect ')' after parameters.") {
+            return None;
+        }
+
+        if !self.consume(TokenType::LeftBrace, "Expect '{' before method body.") {
+            return None;
+        }
+
+        let body = self.block_statements()?;
+
+        Some(ImplMethod {
+            name,
+            params,
+            body,
+            is_static,
+            is_mutating,
             location,
         })
     }
