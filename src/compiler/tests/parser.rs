@@ -2399,3 +2399,266 @@ fn test_parse_array_missing_closing_bracket() {
     assert!(!errors.is_empty());
     assert!(errors[0].message.contains("']'"));
 }
+
+// ===== Impl Block Tests =====
+
+#[test]
+fn test_parse_impl_block_with_instance_method() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+        
+        impl Point {
+            fn get_x(self) {
+                return self.x
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the impl block
+    match &stmts[1] {
+        Stmt::Impl {
+            struct_name,
+            methods,
+            ..
+        } => {
+            assert_eq!(struct_name, "Point");
+            assert_eq!(methods.len(), 1);
+
+            let method = &methods[0];
+            assert_eq!(method.name, "get_x");
+            assert!(!method.is_static);
+            assert!(!method.is_mutating);
+            assert_eq!(method.params.len(), 1);
+            assert_eq!(method.params[0].name, "self");
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
+fn test_parse_impl_block_with_mutating_method() {
+    let program = r#"
+        struct Counter {
+            value
+        }
+        
+        impl Counter {
+            fn increment(mut self) {
+                self.value = self.value + 1
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the impl block
+    match &stmts[1] {
+        Stmt::Impl { methods, .. } => {
+            assert_eq!(methods.len(), 1);
+
+            let method = &methods[0];
+            assert_eq!(method.name, "increment");
+            assert!(!method.is_static);
+            assert!(method.is_mutating);
+            assert_eq!(method.params.len(), 1);
+            assert_eq!(method.params[0].name, "self");
+            assert!(method.params[0].is_mutable);
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
+fn test_parse_impl_block_with_static_method() {
+    let program = r#"
+        struct Math {}
+        
+        impl Math {
+            fn square(n) {
+                return n * n
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the impl block
+    match &stmts[1] {
+        Stmt::Impl { methods, .. } => {
+            assert_eq!(methods.len(), 1);
+
+            let method = &methods[0];
+            assert_eq!(method.name, "square");
+            assert!(method.is_static);
+            assert!(!method.is_mutating);
+            assert_eq!(method.params.len(), 1);
+            assert_eq!(method.params[0].name, "n");
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
+fn test_parse_impl_block_with_multiple_methods() {
+    let program = r#"
+        struct Rectangle {
+            width
+            height
+        }
+        
+        impl Rectangle {
+            fn area(self) {
+                return self.width * self.height
+            }
+            
+            fn set_width(mut self, w) {
+                self.width = w
+            }
+            
+            fn create(w, h) {
+                val r = Rectangle()
+                r.width = w
+                r.height = h
+                return r
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+
+    // Second statement should be the impl block
+    match &stmts[1] {
+        Stmt::Impl { methods, .. } => {
+            assert_eq!(methods.len(), 3);
+
+            // First method: area(self)
+            assert_eq!(methods[0].name, "area");
+            assert!(!methods[0].is_static);
+            assert!(!methods[0].is_mutating);
+
+            // Second method: set_width(mut self, w)
+            assert_eq!(methods[1].name, "set_width");
+            assert!(!methods[1].is_static);
+            assert!(methods[1].is_mutating);
+            assert_eq!(methods[1].params.len(), 2);
+
+            // Third method: create(w, h) - static
+            assert_eq!(methods[2].name, "create");
+            assert!(methods[2].is_static);
+            assert!(!methods[2].is_mutating);
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
+fn test_parse_impl_error_without_struct_name() {
+    let program = r#"
+        impl {
+            fn foo() {}
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(
+        errors[0].message.contains("struct name") || errors[0].message.contains("identifier"),
+        "Error should mention struct name, got: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn test_parse_impl_error_method_without_fn() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+        
+        impl Point {
+            get_x(self) {
+                return self.x
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(
+        errors[0].message.contains("fn") || errors[0].message.contains("'}'"),
+        "Error should mention 'fn' keyword, got: {}",
+        errors[0].message
+    );
+}
