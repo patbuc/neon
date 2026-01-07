@@ -4,7 +4,8 @@ description: Implement work from beads issues (epic, task, bug, or feature)
 
 # Implement
 
-Implements work tracked in beads. Can work on epics (from `/design`), or standalone issues (from `/task`).
+Implements work tracked in beads using TDD. Can work on epics (from `/design`),
+or standalone issues (from `/task`).
 
 ## Input
 
@@ -30,234 +31,219 @@ bd show $ARGUMENTS --json
 
 Look for: `docs/adr/*-$ARGUMENTS.md` (glob match)
 
-If found, find or create the corresponding epic:
+If found, find the corresponding epic:
 
 ```bash
 bd list --type epic --title "ADR-NNNNNN" --json
 ```
 
-If no epic exists but the ADR does, inform user to run `/design` first to create the epic.
+If no epic exists but the ADR does, inform user to run `/design` first.
 
 #### Option C: No Input - Smart Pickup
-
-If no argument provided, check for ready work:
 
 ```bash
 bd ready --json --limit 10
 ```
 
-**Priority order for pickup:**
-
-1. **In-progress issues**: First check if any issues are already in-progress (resume work)
+**Priority order:**
+1. **In-progress issues**: Resume work first
    ```bash
    bd list --status in_progress --json
    ```
 2. **Ready epics**: Prefer epics (larger, planned work)
 3. **Ready tasks/bugs/features**: Individual issues by priority
 
-If multiple options exist, present them to the user and ask which to work on:
-
-```
-Found ready work:
-1. [epic] bd-a3f8: ADR-000001: While Loops (3 child issues)
-2. [bug] bd-c5d6: Fix division by zero crash (P1)
-3. [task] bd-e7f8: Refactor scanner error handling (P2)
-
-Which would you like to implement? (enter number or issue ID)
-```
-
-If only one ready item exists, confirm with user before starting.
-
-If no ready work exists, inform user and suggest `/task` or `/design` to create new work.
+If multiple options, present list and ask user which to work on.
+If none, suggest `/task` or `/design` to create work.
 
 ### 2. Determine Scope
-
-Based on the target issue type:
 
 | Type             | Scope                          | Branch Name                                 |
 |------------------|--------------------------------|---------------------------------------------|
 | epic             | All child issues + epic itself | `adr-NNNNNN-slug` or `epic/<issue-id>-slug` |
 | task/bug/feature | Single issue only              | `<type>/<issue-id>-slug`                    |
 
-Set the **scope ID** (the root issue to track) and **branch name**.
+### 3. Create Worktree
 
-### 3. Create a Worktree
-
-Create a new worktree for this implementation:
-
+Get current branch:
 ```bash
-wt switch --create <branch-name> --base feature/plan-based-workflow
+git branch --show-current
 ```
 
-For example:
+Create worktree branching from current:
+```bash
+wt switch --create <branch-name> --base <current-branch>
+```
 
-- Epic from ADR: `wt switch --create adr-000001-while-loops --base feature/plan-based-workflow`
-- Standalone bug: `wt switch --create bug/bd-c5d6-division-by-zero --base feature/plan-based-workflow`
+**IMPORTANT**: After `wt switch`, you are in a NEW directory. Use `workdir` parameter
+for all subsequent bash commands.
 
-**IMPORTANT**: After running `wt switch`, you are now in a NEW directory. The worktree path will be printed by the
-command. All subsequent work must happen in that new worktree directory. Use the `workdir` parameter for all bash
-commands.
+### 4. Prepare ADR Context
 
-### 4. Implementation Loop
+**Only if scope is an epic with an ADR:**
 
-Run the implementation loop until all work in scope is complete:
+1. Read the ADR file: `docs/adr/NNNNNN-*.md`
+2. Create a concise summary (ADR_SUMMARY) containing:
+   - Core design decisions
+   - Key code patterns/locations mentioned
+   - Constraints or invariants to maintain
+3. Keep summary to 5-10 bullet points maximum
+4. Store for passing to sub-agents
 
-#### 4.1 Find Ready Work in Scope
+### 5. Implementation Loop
+
+#### 5.1 Initialize Ready Queue
 
 ```bash
 bd ready --json
 ```
 
-Filter results to only include issues in scope:
+Filter results to scope:
+- **Epic**: ID equals epic ID OR starts with `<epic-id>.`
+- **Single issue**: Only the target issue
 
-- **Epic scope**: Issues where ID equals the epic ID OR starts with `<epic-id>.`
-- **Single issue scope**: Only the target issue itself
+Store as READY_QUEUE.
 
-If no ready issues exist in scope:
+#### 5.2 Process Issues
 
-- **Epic**: Check if all child issues are closed → close the epic and proceed to step 5
-- **Single issue**: Should not happen (the issue itself should be ready)
-- **Blocked issues**: Investigate and report blockers to user
+**WHILE** READY_QUEUE is not empty:
 
-#### 4.2 Start Working on the Issue
+**a) Select issue**: Pick first from READY_QUEUE
 
-Mark the issue as in-progress:
-
+**b) Mark in-progress**:
 ```bash
 bd update <issue-id> -s in_progress
 ```
 
-Read the issue details:
-
+**c) Get issue details**:
 ```bash
 bd show <issue-id>
 ```
+Extract title and description text only.
 
-#### 4.3 Implement the Changes
+**d) Invoke TDD sub-agent**:
 
-Implement the work described in the issue:
+Use the Task tool to invoke `@tdd-implement` with this prompt:
 
-- Follow the issue description
-- If this is part of an epic, reference the ADR for context
-- Maintain the project's code conventions (see CLAUDE.md)
-- Use proper error handling with `Result<T, E>`
+```
+## Issue: <issue-id>
+**Title**: <issue title>
 
-#### 4.4 Verify the Implementation
+## Description
+<issue description - text only, no JSON>
 
-Run verification:
+## ADR Context
+<ADR_SUMMARY if epic, otherwise omit this section>
 
-```bash
-cargo build
-cargo test
+## Working Directory
+<worktree path>
+
+---
+
+Implement this issue using TDD. Return JSON result when complete.
 ```
 
-If tests fail, fix the issues before proceeding.
+**e) Handle result**:
 
-#### 4.5 Commit the Work
+Parse the JSON response from the sub-agent.
 
-Commit the changes:
-
-```bash
-git add -A && git commit -m "<issue-id>: <issue title>"
-```
-
-For example:
-
-- `bd-a3f8.1: Add while token and AST node`
-- `bd-c5d6: Fix division by zero crash`
-
-#### 4.6 Handle Discovered Work
-
-If during implementation you discover additional work needed:
-
-- **In-scope work** (epic only): Create a child issue
+**IF status == "success":**
+- Close the issue:
   ```bash
-  bd create "Fix edge case in <component>" \
-      -t task \
-      --parent <epic-id> \
-      -d "Discovered during <current-issue-id>: <details>" \
-      --json
+  bd close <issue-id>
+  ```
+- Log: `✓ <issue-id>: <title>`
+- For each item in `discovered_issues`:
+  - If `in_scope` is true AND this is an epic:
+    ```bash
+    bd create "<title>" -t task --parent <epic-id> -d "<description>" --json
+    ```
+  - Otherwise:
+    ```bash
+    bd create "<title>" -t task -p 3 -d "<description>" --json
+    ```
+- Refresh queue:
+  ```bash
+  bd ready --json
+  ```
+  Filter to scope, update READY_QUEUE.
+
+**IF status == "failure":**
+- **STOP IMMEDIATELY**
+- Report to user:
+  ```
+  ❌ Implementation failed on <issue-id>: <title>
+
+  Error: <error from sub-agent>
+
+  The worktree is preserved at <path>.
+  Fix the issue manually, then run `/implement <issue-id>` to retry.
+  ```
+- **EXIT** - do not continue
+
+**IF status == "blocked":**
+- **STOP IMMEDIATELY**
+- Report to user:
+  ```
+  ⚠️ Blocked on <issue-id>: <title>
+
+  Reason: <error from sub-agent>
+
+  Resolve the blocker and run `/implement <issue-id>` to retry.
+  ```
+- **EXIT** - do not continue
+
+#### 5.3 Complete Epic
+
+If scope is an epic and READY_QUEUE is empty:
+- Verify all child issues are closed
+- Close the epic:
+  ```bash
+  bd close <epic-id>
   ```
 
-- **Out-of-scope work**: Create a standalone issue
-  ```bash
-  bd create "<title>" \
-      -t <bug|task|feature> \
-      -p 3 \
-      -d "Discovered during <current-issue-id> but out of scope" \
-      --json
-  ```
+### 6. Finalize
 
-#### 4.7 Close the Issue
-
-Mark the issue as closed:
+#### Push and Create PR
 
 ```bash
-bd close <issue-id>
+git push -u origin <branch-name>
 ```
-
-#### 4.8 Repeat
-
-Go back to step 4.1. Continue until all issues in scope are complete.
-
-### 5. Finalize
-
-Once all work in scope is complete:
-
-#### For Epics
-
-Close the epic:
 
 ```bash
-bd close <epic-id>
+gh pr create --title "<scope title>" --body "$(cat <<'EOF'
+## Summary
+<Brief description>
+
+## Issues Completed
+- <issue-id>: <title>
+  - <child-id>: <child title>  (if epic)
+  ...
+
+## ADR
+See: docs/adr/NNNNNN-slug.md  (if epic, otherwise omit)
+EOF
+)"
 ```
 
-#### For All Types
+Return the PR URL to the user.
 
-Push and create PR:
-
-1. Push the branch:
-   ```bash
-   git push -u origin <branch-name>
-   ```
-
-2. Create PR:
-   ```bash
-   gh pr create --title "<issue title>" --body "$(cat <<'EOF'
-   ## Summary
-   <Brief description from issue>
-
-   ## Issues Completed
-   - <issue-id>: <title>
-     - <child-id>: <child title>  (if epic)
-     ...
-
-   ## ADR
-   See: docs/adr/NNNNNN-slug.md  (if epic from ADR, otherwise omit)
-   EOF
-   )"
-   ```
-
-3. Return the PR URL to the user
-
-### 6. Inform User About Cleanup
+### 7. Inform User
 
 Tell the user:
-
-- The PR has been created
+- PR has been created
 - They are still in the feature worktree
 - All beads issues in scope have been closed
-- When ready to clean up, run `/implement-cleanup` to remove the worktree and return to main
+- Run `/implement-cleanup` when ready to remove worktree
 
 ---
 
 ## Important
 
-- **Scope discipline**: Only work on issues in the current scope. Ignore other ready work.
-- **Discovery tracking**: Always file discovered work as issues
-- **Commit per issue**: Each issue should result in at least one commit
-- **Resume support**: If returning to in-progress work, pick up where you left off
-- Maintain the project's code conventions (see CLAUDE.md)
-- Use proper error handling with `Result<T, E>`
-- After `wt switch`, always verify you're in the correct worktree directory
-- For epics, reference the ADR for architectural context
+- **TDD enforced**: Sub-agent writes tests before implementation
+- **Stop on failure**: Do not continue if any issue fails
+- **Context isolation**: Each issue implemented in separate sub-agent
+- **ADR read once**: Summary passed to sub-agents, not full document
+- **Discovered work**: Auto-created immediately as issues
+- **Commit per issue**: Each issue results in one commit
+- **Branch from current**: Always branch from the current branch
