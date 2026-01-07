@@ -122,6 +122,7 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.clone(),
+                            methods: std::collections::HashMap::new(),
                         },
                         false,
                         *location,

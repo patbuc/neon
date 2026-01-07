@@ -1,6 +1,17 @@
 use crate::common::SourceLocation;
 use std::collections::HashMap;
 
+/// Method signature stored in struct symbols
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodSignature {
+    /// Parameter count excluding self
+    pub arity: u8,
+    /// True if no self parameter (called via Type.method())
+    pub is_static: bool,
+    /// True if first parameter is `mut self`
+    pub is_mutating: bool,
+}
+
 /// Kind of symbol in the symbol table
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolKind {
@@ -10,8 +21,11 @@ pub enum SymbolKind {
     Variable,
     /// Function with arity
     Function { arity: u8 },
-    /// Struct with field names
-    Struct { fields: Vec<String> },
+    /// Struct with field names and methods
+    Struct {
+        fields: Vec<String>,
+        methods: HashMap<String, MethodSignature>,
+    },
     /// Function parameter
     Parameter,
 }
@@ -142,6 +156,48 @@ impl SymbolTable {
             } else {
                 return None; // Reached global scope and didn't find it
             }
+        }
+    }
+
+    /// Register a method on a struct symbol
+    pub fn register_method(
+        &mut self,
+        struct_name: &str,
+        method_name: &str,
+        signature: MethodSignature,
+    ) -> Result<(), String> {
+        // Find the struct in all scopes
+        let mut scope_idx = self.current_scope;
+        loop {
+            if let Some(symbol) = self.scopes[scope_idx].symbols.get_mut(struct_name) {
+                if let SymbolKind::Struct { methods, .. } = &mut symbol.kind {
+                    if methods.contains_key(method_name) {
+                        return Err(format!(
+                            "Method '{}' already defined on struct '{}'",
+                            method_name, struct_name
+                        ));
+                    }
+                    methods.insert(method_name.to_string(), signature);
+                    return Ok(());
+                } else {
+                    return Err(format!("'{}' is not a struct", struct_name));
+                }
+            }
+            if let Some(parent) = self.scopes[scope_idx].parent {
+                scope_idx = parent;
+            } else {
+                return Err(format!("Struct '{}' not found", struct_name));
+            }
+        }
+    }
+
+    /// Look up a method signature on a struct
+    pub fn lookup_method(&self, struct_name: &str, method_name: &str) -> Option<&MethodSignature> {
+        let symbol = self.resolve(struct_name)?;
+        if let SymbolKind::Struct { methods, .. } = &symbol.kind {
+            methods.get(method_name)
+        } else {
+            None
         }
     }
 }
