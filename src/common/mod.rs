@@ -153,6 +153,17 @@ pub struct ObjInstance {
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
+    pub methods: RefCell<HashMap<String, Rc<ObjFunction>>>,
+}
+
+impl ObjStruct {
+    pub fn add_method(&self, name: String, function: Rc<ObjFunction>) {
+        self.methods.borrow_mut().insert(name, function);
+    }
+
+    pub fn get_method(&self, name: &str) -> Option<Rc<ObjFunction>> {
+        self.methods.borrow().get(name).cloned()
+    }
 }
 
 impl Value {
@@ -161,7 +172,11 @@ impl Value {
     }
 
     pub(crate) fn new_struct(name: String, fields: Vec<String>) -> Self {
-        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct { name, fields }))))
+        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct {
+            name,
+            fields,
+            methods: RefCell::new(HashMap::new()),
+        }))))
     }
 
     pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
@@ -294,6 +309,8 @@ impl PartialEq for ObjFunction {
 impl PartialEq for ObjStruct {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.fields == other.fields
+        // We don't compare methods as the underlying ObjFunction comparison
+        // doesn't compare chunks, and methods are implementation details
     }
 }
 
