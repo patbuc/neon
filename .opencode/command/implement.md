@@ -34,7 +34,7 @@ Look for: `docs/adr/*-$ARGUMENTS.md` (glob match)
 If found, find the corresponding epic:
 
 ```bash
-bd list --type epic --title "ADR-NNNNNN" --json
+bd list --type epic --title-contains "ADR-NNNNNN" --json
 ```
 
 If no epic exists but the ADR does, inform user to run `/design` first.
@@ -65,14 +65,9 @@ If none, suggest `/task` or `/design` to create work.
 
 ### 3. Create Worktree
 
-Get current branch:
+Create worktree branching from current branch using `@` shortcut:
 ```bash
-git branch --show-current
-```
-
-Create worktree branching from current:
-```bash
-wt switch --create <branch-name> --base <current-branch>
+wt switch --create <branch-name> --base @
 ```
 
 **IMPORTANT**: After `wt switch`, you are in a NEW directory. Use `workdir` parameter
