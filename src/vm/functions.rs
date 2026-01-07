@@ -78,6 +78,10 @@ impl VirtualMachine {
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
                         Err(error) => {
+                            // Special case: user-defined method call
+                            if error == "__USER_METHOD_CALL__" {
+                                return None; // Continue execution in the new call frame
+                            }
                             self.runtime_error(&error);
                             return Some(Result::RuntimeError);
                         }
@@ -106,6 +110,31 @@ impl VirtualMachine {
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
     ) -> std::result::Result<Value, String> {
+        // First check if this is a user-defined method call
+        if callable.method_index == u32::MAX {
+            let args_start = self.stack.len() - arg_count - 1;
+            let receiver = &self.stack[args_start];
+
+            // Check for instance method (method called on instance)
+            if let Value::Object(obj) = receiver {
+                if let Object::Instance(instance_ref) = obj.as_ref() {
+                    let instance = instance_ref.borrow();
+                    if let Some(method) = instance.r#struct.get_method(&callable.method_name) {
+                        // Found a user-defined method - call it
+                        drop(instance); // Release borrow before modifying stack
+                        return self.call_user_defined_method(arg_count, &method);
+                    }
+                }
+                // Check for static method (method called on struct type)
+                if let Object::Struct(struct_ref) = obj.as_ref() {
+                    if let Some(method) = struct_ref.get_method(&callable.method_name) {
+                        // Found a static method - call it without receiver
+                        return self.call_static_method(arg_count, &method);
+                    }
+                }
+            }
+        }
+
         let native_callable_result = if callable.method_index != u32::MAX {
             self.lookup_native_method_by_index(callable)
         } else {
@@ -126,6 +155,97 @@ impl VirtualMachine {
             }
         }
         native_callable.function()(&args)
+    }
+
+    fn call_static_method(
+        &mut self,
+        arg_count: usize,
+        method: &Rc<ObjFunction>,
+    ) -> std::result::Result<Value, String> {
+        // For static methods, arg_count includes the struct type as "receiver"
+        // But the method's arity does NOT include a receiver (no self)
+        // So actual_args = arg_count - 1 (for the struct type)
+        let actual_args = arg_count - 1;
+
+        if actual_args != method.arity as usize {
+            return Err(format!(
+                "Expected {} arguments but got {}.",
+                method.arity, actual_args
+            ));
+        }
+
+        // Stack layout: [..., struct_type, arg1, arg2, ..., native_callable]
+        // We need to: remove struct_type, pop native_callable, push method, then call
+
+        // Pop the native callable placeholder
+        self.pop();
+
+        // Get position of struct_type in stack
+        // Stack: [..., struct_type, arg1, ..., argN]
+        let struct_pos = self.stack.len() - actual_args - 1;
+
+        // Remove the struct_type from the stack
+        self.stack.remove(struct_pos);
+
+        // Push the actual method function
+        let method_value = Value::Object(Rc::new(Object::Function(Rc::clone(method))));
+        self.push(method_value);
+
+        // Calculate slot_start: point just BEFORE the first argument
+        // Stack: [..., arg1, ..., argN, method_func]
+        let slot_start = (self.stack.len() - actual_args - 1 - 1) as isize;
+
+        let new_frame = CallFrame {
+            function: Rc::clone(method),
+            ip: 0,
+            slot_start,
+        };
+
+        self.call_frames.push(new_frame);
+
+        // Return marker to continue execution in new frame
+        Err("__USER_METHOD_CALL__".to_string())
+    }
+
+    fn call_user_defined_method(
+        &mut self,
+        arg_count: usize,
+        method: &Rc<ObjFunction>,
+    ) -> std::result::Result<Value, String> {
+        // For user-defined methods, arg_count includes the receiver (self)
+        // The method's arity also includes self as the first parameter
+        if arg_count != method.arity as usize {
+            return Err(format!(
+                "Expected {} arguments but got {}.",
+                method.arity, arg_count
+            ));
+        }
+
+        // Stack layout: [..., receiver, arg1, arg2, ..., native_callable]
+        // We need to: pop native_callable, push method function, then call
+
+        // Pop the native callable placeholder from the stack
+        self.pop();
+
+        // Push the actual method function
+        let method_value = Value::Object(Rc::new(Object::Function(Rc::clone(method))));
+        self.push(method_value);
+
+        // Calculate slot_start: point just BEFORE the first argument (receiver)
+        // Stack: [..., receiver, arg1, ..., argN, method_func]
+        let slot_start = (self.stack.len() - arg_count - 1 - 1) as isize;
+
+        let new_frame = CallFrame {
+            function: Rc::clone(method),
+            ip: 0,
+            slot_start,
+        };
+
+        self.call_frames.push(new_frame);
+
+        // Return a dummy value - the actual return will be handled by fn_return
+        // We use a special marker to indicate we should NOT pop args and push result
+        Err("__USER_METHOD_CALL__".to_string())
     }
 
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
