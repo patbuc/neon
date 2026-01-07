@@ -612,6 +612,9 @@ impl CodeGenerator {
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
             }
+            Stmt::Impl { .. } => {
+                // TODO: Impl block code generation will be implemented in a later task
+            }
         }
     }
 

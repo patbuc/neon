@@ -1,5 +1,23 @@
 use crate::common::SourceLocation;
 
+/// Reusable parameter struct for functions and methods
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionParam {
+    pub name: String,
+    pub is_mutable: bool, // for mut self
+}
+
+/// Method definition within an impl block
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplMethod {
+    pub name: String,
+    pub params: Vec<FunctionParam>, // includes self/mut self as first param, or empty for static
+    pub body: Vec<Stmt>,
+    pub is_static: bool,   // true if no self parameter
+    pub is_mutating: bool, // true if mut self
+    pub location: SourceLocation,
+}
+
 /// Binary operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
@@ -210,6 +228,11 @@ pub enum Stmt {
     Continue {
         location: SourceLocation,
     },
+    Impl {
+        struct_name: String,
+        methods: Vec<ImplMethod>,
+        location: SourceLocation,
+    },
 }
 
 impl Expr {
@@ -256,7 +279,8 @@ impl Stmt {
             | Stmt::Return { location, .. }
             | Stmt::ForIn { location, .. }
             | Stmt::Break { location }
-            | Stmt::Continue { location } => location,
+            | Stmt::Continue { location }
+            | Stmt::Impl { location, .. } => location,
         }
     }
 }
