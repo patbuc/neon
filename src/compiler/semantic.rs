@@ -391,6 +391,9 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
             }
+            Stmt::Impl { .. } => {
+                // TODO: Impl block semantic analysis will be implemented in a later task
+            }
         }
     }
 
