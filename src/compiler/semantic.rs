@@ -6,8 +6,9 @@ use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
-use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
+use crate::compiler::symbol_table::{MethodSignature, Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
@@ -15,6 +16,10 @@ pub struct SemanticAnalyzer {
     errors: Vec<CompilationError>,
     type_env: HashMap<String, String>,
     loop_depth: u32,
+    /// When inside an impl method, tracks whether self is mutable
+    self_is_mutable: Option<bool>,
+    /// When inside an impl method, tracks the current struct's fields
+    current_struct_fields: Option<Vec<String>>,
 }
 
 impl SemanticAnalyzer {
@@ -74,6 +79,8 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             type_env,
             loop_depth: 0,
+            self_is_mutable: None,
+            current_struct_fields: None,
         }
     }
 
@@ -122,12 +129,111 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.clone(),
+                            methods: std::collections::HashMap::new(),
                         },
                         false,
                         *location,
                     );
                 }
+                Stmt::Impl {
+                    struct_name,
+                    methods,
+                    location,
+                } => {
+                    self.collect_impl_declarations(struct_name, methods, *location);
+                }
                 _ => {}
+            }
+        }
+    }
+
+    fn collect_impl_declarations(
+        &mut self,
+        struct_name: &str,
+        methods: &[crate::compiler::ast::ImplMethod],
+        location: SourceLocation,
+    ) {
+        // Verify the struct exists
+        let struct_fields = match self.symbol_table.resolve(struct_name) {
+            Some(symbol) => {
+                if let SymbolKind::Struct { fields, .. } = &symbol.kind {
+                    fields.clone()
+                } else {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        format!("'{}' is not a struct", struct_name),
+                        location,
+                    ));
+                    return;
+                }
+            }
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Impl block for undefined struct '{}'", struct_name),
+                    location,
+                ));
+                return;
+            }
+        };
+
+        // Track method names to detect duplicates within this impl block
+        let mut seen_methods: HashSet<String> = HashSet::new();
+
+        for method in methods {
+            // Check for duplicate method names in this impl block
+            if seen_methods.contains(&method.name) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateSymbol,
+                    format!("Duplicate method '{}' in impl block", method.name),
+                    method.location,
+                ));
+                continue;
+            }
+            seen_methods.insert(method.name.clone());
+
+            // Check if method name conflicts with a field name
+            if struct_fields.contains(&method.name) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateSymbol,
+                    format!(
+                        "Method '{}' conflicts with field name on struct '{}'",
+                        method.name, struct_name
+                    ),
+                    method.location,
+                ));
+                continue;
+            }
+
+            // Calculate arity: for instance methods, exclude self from count
+            let arity = if method.is_static {
+                method.params.len() as u8
+            } else {
+                // Self is the first param, so subtract 1
+                (method.params.len().saturating_sub(1)) as u8
+            };
+
+            let signature = MethodSignature {
+                arity,
+                is_static: method.is_static,
+                is_mutating: method.is_mutating,
+            };
+
+            // Register the method on the struct
+            if let Err(err) =
+                self.symbol_table
+                    .register_method(struct_name, &method.name, signature)
+            {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateSymbol,
+                    err,
+                    method.location,
+                ));
             }
         }
     }
@@ -391,6 +497,13 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
             }
+            Stmt::Impl {
+                struct_name,
+                methods,
+                location,
+            } => {
+                self.resolve_impl_block(struct_name, methods, *location);
+            }
         }
     }
 
@@ -550,6 +663,89 @@ impl SemanticAnalyzer {
 
         // Exit function scope
         self.symbol_table.exit_scope();
+    }
+
+    fn resolve_impl_block(
+        &mut self,
+        struct_name: &str,
+        methods: &[crate::compiler::ast::ImplMethod],
+        _location: SourceLocation,
+    ) {
+        // Get the struct's fields for validation
+        let struct_fields = match self.symbol_table.resolve(struct_name) {
+            Some(symbol) => {
+                if let SymbolKind::Struct { fields, .. } = &symbol.kind {
+                    Some(fields.clone())
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
+        // If struct wasn't found, error was already reported in collect phase
+        if struct_fields.is_none() {
+            return;
+        }
+
+        let fields = struct_fields.unwrap();
+
+        for method in methods {
+            // Enter method scope
+            self.symbol_table.enter_scope();
+
+            // Set up context for self tracking
+            self.current_struct_fields = Some(fields.clone());
+
+            if !method.is_static {
+                // For instance/mutating methods, bind self
+                self.self_is_mutable = Some(method.is_mutating);
+
+                // Define self as a parameter
+                let is_mutable = method.is_mutating;
+                self.define_symbol(
+                    "self".to_string(),
+                    SymbolKind::Parameter,
+                    is_mutable,
+                    method.location,
+                );
+
+                // Define other parameters (skip self, which is first)
+                for param in method.params.iter().skip(1) {
+                    self.define_symbol(
+                        param.name.clone(),
+                        SymbolKind::Parameter,
+                        param.is_mutable,
+                        method.location,
+                    );
+                }
+            } else {
+                // Static method - self should NOT be in scope
+                self.self_is_mutable = None;
+
+                // Define all parameters
+                for param in &method.params {
+                    self.define_symbol(
+                        param.name.clone(),
+                        SymbolKind::Parameter,
+                        param.is_mutable,
+                        method.location,
+                    );
+                }
+            }
+
+            // Resolve method body
+            for stmt in &method.body {
+                self.resolve_stmt(stmt);
+            }
+
+            // Clear context
+            self.self_is_mutable = None;
+            self.current_struct_fields = None;
+
+            // Exit method scope
+            self.symbol_table.exit_scope();
+        }
     }
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
@@ -785,11 +981,26 @@ impl SemanticAnalyzer {
         object: &Expr,
         _field: &str,
         value: &Expr,
-        _location: SourceLocation,
+        location: SourceLocation,
     ) {
         self.resolve_expr(object);
         self.resolve_expr(value);
-        // Field validation could be added here if we track struct types
+
+        // Check if this is an assignment to self.field when self is immutable
+        if let Expr::Variable { name, .. } = object {
+            if name == "self" {
+                if let Some(is_mutable) = self.self_is_mutable {
+                    if !is_mutable {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::ImmutableAssignment,
+                            "Cannot assign to immutable self".to_string(),
+                            location,
+                        ));
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_map_literal(&mut self, entries: &[(Expr, Expr)]) {

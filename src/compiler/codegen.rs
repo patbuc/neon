@@ -6,7 +6,7 @@ use crate::common::errors::{
 /// Generates bytecode from AST using symbol table information
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Local, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, ImplMethod, Stmt, UnaryOp};
 use crate::{number, string};
 use indexmap::IndexMap;
 
@@ -547,6 +547,106 @@ impl CodeGenerator {
         self.scope_depth -= 1;
     }
 
+    fn generate_impl_stmt(
+        &mut self,
+        struct_name: &str,
+        methods: &[ImplMethod],
+        location: SourceLocation,
+    ) {
+        // Find the struct value in the constants pool
+        // The struct was defined in the first pass and added as a constant
+        let struct_value = self.current_chunk().find_struct_by_name(struct_name);
+
+        let struct_value = match struct_value {
+            Some(v) => v,
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Struct '{}' not found for impl block", struct_name),
+                    location,
+                ));
+                return;
+            }
+        };
+
+        // Compile each method and add to the struct
+        for method in methods {
+            let compiled_function = self.compile_method(struct_name, method);
+
+            if let Some(func) = compiled_function {
+                // Add the method to the struct's methods HashMap
+                if let crate::common::Value::Object(obj) = &struct_value {
+                    if let crate::common::Object::Struct(obj_struct) = obj.as_ref() {
+                        obj_struct.add_method(method.name.clone(), func);
+                    }
+                }
+            }
+        }
+    }
+
+    fn compile_method(
+        &mut self,
+        struct_name: &str,
+        method: &ImplMethod,
+    ) -> Option<std::rc::Rc<crate::common::ObjFunction>> {
+        // Create a new chunk for the method
+        let method_full_name = format!("{}::{}", struct_name, method.name);
+        self.chunks.push(Chunk::new(&method_full_name));
+
+        // Enter method scope
+        self.scope_depth += 1;
+
+        // For instance/mutating methods, self is the first parameter (slot 0)
+        if !method.is_static {
+            // Add self as first parameter
+            let self_local = Local::new("self".to_string(), self.scope_depth, !method.is_mutating);
+            self.current_chunk().add_parameter(self_local);
+
+            // Add other parameters (skip self which is already in params[0])
+            for param in method.params.iter().skip(1) {
+                let param_local =
+                    Local::new(param.name.clone(), self.scope_depth, !param.is_mutable);
+                self.current_chunk().add_parameter(param_local);
+            }
+        } else {
+            // Static method - add all parameters
+            for param in &method.params {
+                let param_local =
+                    Local::new(param.name.clone(), self.scope_depth, !param.is_mutable);
+                self.current_chunk().add_parameter(param_local);
+            }
+        }
+
+        // Compile method body
+        for stmt in &method.body {
+            self.generate_stmt(stmt);
+        }
+
+        // Emit return at end of method
+        self.emit_return();
+
+        // Exit method scope
+        self.scope_depth -= 1;
+
+        // Pop the method chunk
+        let method_chunk = self.chunks.pop().unwrap();
+
+        // Calculate arity: for instance methods, include self; for static, just params
+        let arity = if method.is_static {
+            method.params.len() as u8
+        } else {
+            method.params.len() as u8 // includes self
+        };
+
+        // Create the ObjFunction
+        Some(std::rc::Rc::new(crate::common::ObjFunction {
+            name: method.name.clone(),
+            arity,
+            chunk: std::rc::Rc::new(method_chunk),
+        }))
+    }
+
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
@@ -611,6 +711,13 @@ impl CodeGenerator {
                 location,
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
+            }
+            Stmt::Impl {
+                struct_name,
+                methods,
+                location,
+            } => {
+                self.generate_impl_stmt(struct_name, methods, *location);
             }
         }
     }

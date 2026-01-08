@@ -283,3 +283,137 @@ fn test_set_uniqueness() {
         panic!("Expected Object value");
     }
 }
+
+// Tests for ObjStruct methods field
+
+#[test]
+fn test_struct_creation_with_empty_methods() {
+    let struct_val = Value::new_struct("Point".to_string(), vec!["x".to_string(), "y".to_string()]);
+
+    // Test that the struct was created with an empty methods map
+    match struct_val {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Struct(obj_struct) => {
+                assert_eq!(obj_struct.name, "Point");
+                assert_eq!(obj_struct.fields, vec!["x", "y"]);
+                assert!(obj_struct.methods.borrow().is_empty());
+            }
+            _ => panic!("Expected Struct object"),
+        },
+        _ => panic!("Expected Object value"),
+    }
+}
+
+#[test]
+fn test_struct_add_method() {
+    let struct_val = Value::new_struct("Counter".to_string(), vec!["value".to_string()]);
+
+    // Create a dummy function to add as a method
+    let chunk = Chunk::new("increment");
+    let method = Rc::new(ObjFunction {
+        name: "increment".to_string(),
+        arity: 1, // self parameter
+        chunk: Rc::new(chunk),
+    });
+
+    // Add the method to the struct
+    match &struct_val {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Struct(obj_struct) => {
+                obj_struct.add_method("increment".to_string(), method.clone());
+
+                // Verify the method was added
+                assert_eq!(obj_struct.methods.borrow().len(), 1);
+                assert!(obj_struct.get_method("increment").is_some());
+            }
+            _ => panic!("Expected Struct object"),
+        },
+        _ => panic!("Expected Object value"),
+    }
+}
+
+#[test]
+fn test_struct_get_method() {
+    let struct_val = Value::new_struct(
+        "Rectangle".to_string(),
+        vec!["width".to_string(), "height".to_string()],
+    );
+
+    // Create two methods
+    let area_chunk = Chunk::new("area");
+    let area_method = Rc::new(ObjFunction {
+        name: "area".to_string(),
+        arity: 1, // self parameter
+        chunk: Rc::new(area_chunk),
+    });
+
+    let perimeter_chunk = Chunk::new("perimeter");
+    let perimeter_method = Rc::new(ObjFunction {
+        name: "perimeter".to_string(),
+        arity: 1, // self parameter
+        chunk: Rc::new(perimeter_chunk),
+    });
+
+    match &struct_val {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Struct(obj_struct) => {
+                obj_struct.add_method("area".to_string(), area_method.clone());
+                obj_struct.add_method("perimeter".to_string(), perimeter_method.clone());
+
+                // Test getting existing methods
+                let found_area = obj_struct.get_method("area");
+                assert!(found_area.is_some());
+                assert_eq!(found_area.unwrap().name, "area");
+
+                let found_perimeter = obj_struct.get_method("perimeter");
+                assert!(found_perimeter.is_some());
+                assert_eq!(found_perimeter.unwrap().name, "perimeter");
+
+                // Test getting non-existent method
+                let not_found = obj_struct.get_method("nonexistent");
+                assert!(not_found.is_none());
+            }
+            _ => panic!("Expected Struct object"),
+        },
+        _ => panic!("Expected Object value"),
+    }
+}
+
+#[test]
+fn test_struct_method_overwrites() {
+    let struct_val = Value::new_struct("Test".to_string(), vec![]);
+
+    // Create two methods with the same name
+    let chunk1 = Chunk::new("greet");
+    let method1 = Rc::new(ObjFunction {
+        name: "greet".to_string(),
+        arity: 1,
+        chunk: Rc::new(chunk1),
+    });
+
+    let chunk2 = Chunk::new("greet_v2");
+    let method2 = Rc::new(ObjFunction {
+        name: "greet_v2".to_string(),
+        arity: 2, // Different arity to distinguish
+        chunk: Rc::new(chunk2),
+    });
+
+    match &struct_val {
+        Value::Object(obj) => match obj.as_ref() {
+            Object::Struct(obj_struct) => {
+                // Add first method
+                obj_struct.add_method("greet".to_string(), method1);
+                assert_eq!(obj_struct.get_method("greet").unwrap().arity, 1);
+
+                // Overwrite with second method
+                obj_struct.add_method("greet".to_string(), method2);
+
+                // Should have the new method
+                assert_eq!(obj_struct.methods.borrow().len(), 1);
+                assert_eq!(obj_struct.get_method("greet").unwrap().arity, 2);
+            }
+            _ => panic!("Expected Struct object"),
+        },
+        _ => panic!("Expected Object value"),
+    }
+}

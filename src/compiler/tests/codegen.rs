@@ -951,3 +951,230 @@ fn test_postfix_operations_in_function() {
 
     assert_eq!(result, crate::vm::Result::Ok);
 }
+
+// =============================================================================
+// Impl Block Code Generation Tests
+// =============================================================================
+
+#[test]
+fn test_impl_block_with_instance_method() {
+    // Test that impl block with an instance method compiles successfully
+    let program = r#"
+    struct Point { x y }
+
+    impl Point {
+        fn get_x(self) {
+            return self.x
+        }
+    }
+
+    val p = Point(3, 4)
+    print(p.get_x())
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_impl_block_with_mutating_method() {
+    // Test that impl block with a mutating method compiles successfully
+    let program = r#"
+    struct Counter { value }
+
+    impl Counter {
+        fn increment(mut self) {
+            self.value = self.value + 1
+        }
+    }
+
+    var c = Counter(0)
+    c.increment()
+    print(c.value)
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_impl_block_with_static_method() {
+    // Test that impl block with a static method compiles successfully
+    let program = r#"
+    struct Point { x y }
+
+    impl Point {
+        fn origin() {
+            return Point(0, 0)
+        }
+    }
+
+    val p = Point.origin()
+    print(p.x)
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert!(chunk.instruction_count() > 0);
+}
+
+#[test]
+fn test_impl_self_binding_in_instance_method() {
+    use crate::vm::VirtualMachine;
+
+    // Test that self is correctly bound to the receiver
+    let program = r#"
+    struct Point { x y }
+
+    impl Point {
+        fn sum(self) {
+            return self.x + self.y
+        }
+    }
+
+    val p = Point(3, 4)
+    print(p.sum())
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "7");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_impl_mutating_method_modifies_instance() {
+    use crate::vm::VirtualMachine;
+
+    // Test that mutating methods can modify self's fields
+    let program = r#"
+    struct Counter { value }
+
+    impl Counter {
+        fn add(mut self, n) {
+            self.value = self.value + n
+        }
+    }
+
+    var c = Counter(10)
+    c.add(5)
+    print(c.value)
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "15");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_impl_static_method_creates_instance() {
+    use crate::vm::VirtualMachine;
+
+    // Test static method as a factory pattern
+    let program = r#"
+    struct Point { x y }
+
+    impl Point {
+        fn origin() {
+            return Point(0, 0)
+        }
+    }
+
+    val p = Point.origin()
+    print(p.x)
+    print(p.y)
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "0\n0");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_impl_method_with_multiple_params() {
+    use crate::vm::VirtualMachine;
+
+    // Test instance method with additional parameters
+    let program = r#"
+    struct Point { x y }
+
+    impl Point {
+        fn distance_to(self, other) {
+            val dx = other.x - self.x
+            val dy = other.y - self.y
+            return Math.sqrt(dx * dx + dy * dy)
+        }
+    }
+
+    val p1 = Point(0, 0)
+    val p2 = Point(3, 4)
+    print(p1.distance_to(p2))
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "5");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}
+
+#[test]
+fn test_impl_multiple_methods() {
+    use crate::vm::VirtualMachine;
+
+    // Test multiple methods in a single impl block
+    let program = r#"
+    struct Rectangle { width height }
+
+    impl Rectangle {
+        fn area(self) {
+            return self.width * self.height
+        }
+
+        fn perimeter(self) {
+            return 2 * (self.width + self.height)
+        }
+
+        fn scale(mut self, factor) {
+            self.width = self.width * factor
+            self.height = self.height * factor
+        }
+    }
+
+    val r = Rectangle(3, 4)
+    print(r.area())
+    print(r.perimeter())
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "12\n14");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}

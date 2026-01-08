@@ -198,4 +198,19 @@ impl Chunk {
         }
         result.cloned()
     }
+
+    /// Find a struct value in the constants pool by name
+    pub(crate) fn find_struct_by_name(&self, name: &str) -> Option<Value> {
+        for i in 0..self.constants.values.len() {
+            let value = self.constants.read_value(i);
+            if let Value::Object(obj) = &value {
+                if let crate::common::Object::Struct(s) = obj.as_ref() {
+                    if s.name == name {
+                        return Some(value);
+                    }
+                }
+            }
+        }
+        None
+    }
 }

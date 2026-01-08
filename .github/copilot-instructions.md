@@ -10,16 +10,16 @@ The compilation follows these stages:
 1. **Scanner** (`src/compiler/scanner.rs`) - Lexical analysis, produces tokens
 2. **Parser** (`src/compiler/parser.rs`) - Syntax analysis, produces AST (`src/compiler/ast/`)
 3. **Semantic Analysis** (`src/compiler/semantic.rs`) - Type checking, symbol resolution (`src/compiler/symbol_table.rs`)
-4. **Code Generation** (`src/compiler/codegen.rs`) - Emits bytecode to "bloq" format
+4. **Code Generation** (`src/compiler/codegen.rs`) - Emits bytecode to chunk format
 
 ### VM Runtime
 - **VM Core** (`src/vm/impl.rs`) - Stack-based bytecode interpreter
 - **Opcodes** (`src/common/opcodes.rs`) - Bytecode instruction set
-- **Bloq Format** (`src/common/bloq/`) - Custom bytecode format with constants pool and disassembler
+- **Chunk Format** (`src/common/chunk/`) - Bytecode format with constants pool and disassembler
 - **Functions** (`src/vm/functions.rs`) - Function call handling
 
 ### Key Modules
-- `src/common/` - Shared types, errors, opcodes, bloq format
+- `src/common/` - Shared types, errors, opcodes, chunk format
 - `src/compiler/` - Frontend (lexing, parsing, semantic analysis, codegen)
 - `src/vm/` - Backend (bytecode execution)
 - `src/wasm.rs` - WebAssembly bindings for browser execution
@@ -64,7 +64,7 @@ The compilation follows these stages:
 1. Add opcode constant to `src/common/opcodes.rs`
 2. Update VM execution loop in `src/vm/impl.rs`
 3. Update codegen to emit it in `src/compiler/codegen.rs`
-4. Add disassembler support in `src/common/bloq/disassembler.rs`
+4. Add disassembler support in `src/common/chunk/disassembler.rs`
 5. Write tests for compilation and execution
 
 ### Adding New Language Feature

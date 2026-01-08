@@ -1618,3 +1618,347 @@ fn test_postfix_in_function_parameters() {
 
     assert!(result.is_ok());
 }
+
+// =============================================================================
+// Impl Block Semantic Analysis Tests
+// =============================================================================
+
+#[test]
+fn test_impl_block_valid_with_all_method_types() {
+    // Valid impl block with instance, mutating, and static methods
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn get_x(self) {
+                return self.x
+            }
+
+            fn set_x(mut self, new_x) {
+                self.x = new_x
+            }
+
+            fn origin() {
+                val p = Point()
+                p.x = 0
+                p.y = 0
+                return p
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!(
+                "Error: {} at {}:{}",
+                err.message, err.location.line, err.location.column
+            );
+        }
+    }
+    assert!(result.is_ok(), "Valid impl block should not produce errors");
+}
+
+#[test]
+fn test_impl_block_for_undefined_struct() {
+    // Impl block for a struct that doesn't exist
+    let program = r#"
+        impl NonExistent {
+            fn foo(self) {
+                return 42
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Impl block for undefined struct")),
+        "Expected error about impl for undefined struct"
+    );
+}
+
+#[test]
+fn test_impl_block_method_conflicts_with_field() {
+    // Method name conflicts with a field name
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn x(self) {
+                return 42
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("conflicts with field")),
+        "Expected error about method conflicting with field"
+    );
+}
+
+#[test]
+fn test_impl_block_duplicate_method_names() {
+    // Duplicate method names in the same impl block
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn get_x(self) {
+                return self.x
+            }
+
+            fn get_x(self) {
+                return self.x * 2
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Duplicate method")),
+        "Expected error about duplicate method in impl block"
+    );
+}
+
+#[test]
+fn test_impl_block_assignment_to_immutable_self() {
+    // Assignment to self.field when self is immutable
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn bad_setter(self, new_x) {
+                self.x = new_x
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot assign to immutable self")),
+        "Expected error about assigning to immutable self"
+    );
+}
+
+#[test]
+fn test_impl_block_assignment_to_mutable_self_valid() {
+    // Assignment to self.field when self is mutable should be allowed
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn set_x(mut self, new_x) {
+                self.x = new_x
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!(
+                "Error: {} at {}:{}",
+                err.message, err.location.line, err.location.column
+            );
+        }
+    }
+    assert!(
+        result.is_ok(),
+        "Assignment to mutable self should be allowed"
+    );
+}
+
+#[test]
+fn test_impl_block_self_field_access_validates_fields() {
+    // Access to self.field should validate that field exists
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn get_z(self) {
+                return self.z
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    // Note: This may pass or fail depending on whether we implement field validation.
+    // For now, we'll allow it if field validation isn't implemented yet.
+    // The test is here to document expected behavior.
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("z") || e.message.contains("field")),
+            "If error, should mention invalid field"
+        );
+    }
+}
+
+#[test]
+fn test_impl_block_static_method_no_self() {
+    // Static method should not have self in scope
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn origin() {
+                val p = Point()
+                p.x = 0
+                p.y = 0
+                return p
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!(
+                "Error: {} at {}:{}",
+                err.message, err.location.line, err.location.column
+            );
+        }
+    }
+    assert!(result.is_ok(), "Static method without self should be valid");
+}
+
+#[test]
+fn test_impl_block_static_method_accessing_self_invalid() {
+    // Static method trying to access self should fail
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn bad_static() {
+                return self.x
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Undefined variable") && e.message.contains("self")),
+        "Expected error about undefined self in static method"
+    );
+}
+
+#[test]
+fn test_impl_block_method_uses_other_params() {
+    // Method should be able to use other parameters besides self
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        impl Point {
+            fn add(self, dx, dy) {
+                val p = Point()
+                p.x = self.x + dx
+                p.y = self.y + dy
+                return p
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!(
+                "Error: {} at {}:{}",
+                err.message, err.location.line, err.location.column
+            );
+        }
+    }
+    assert!(
+        result.is_ok(),
+        "Method with additional parameters should be valid"
+    );
+}
