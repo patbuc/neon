@@ -1,0 +1,240 @@
+// Integration test: Comprehensive impl blocks feature test
+
+// Expected:
+// === Basic Methods ===
+// Vector: (3, 4)
+// Magnitude: 5
+// === Mutating Methods ===
+// Normalized: (0.6, 0.8)
+// === Static Methods ===
+// Zero vector: (0, 0)
+// Unit vector: (1, 0)
+// === Multiple Structs ===
+// Rectangle: 10x20, area: 200
+// Circle: r=5, area: 78.5
+// === Methods with Collections ===
+// Inventory has 3 items
+// Total value: 150
+// Has sword: true
+// Has shield: false
+// === Nested Struct Interaction ===
+// Player at (10, 20) with 100 health
+// Player at (15, 25) with 100 health
+// Player at (15, 25) with 80 health
+// === Method Calling Other Methods ===
+// Full description: Item: Potion, Worth 50 gold
+
+// Vector struct with comprehensive methods
+struct Vector {
+    x
+    y
+}
+
+impl Vector {
+    // Static factory methods
+    fn zero() {
+        return Vector(0, 0)
+    }
+    
+    fn unit() {
+        return Vector(1, 0)
+    }
+    
+    // Instance methods
+    fn magnitude(self) {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+    
+    fn to_string(self) {
+        return "(" + self.x.toString() + ", " + self.y.toString() + ")"
+    }
+    
+    // Mutating methods
+    fn normalize(mut self) {
+        val mag = self.magnitude()
+        if (mag > 0) {
+            self.x = self.x / mag
+            self.y = self.y / mag
+        }
+    }
+    
+    fn add(mut self, other) {
+        self.x = self.x + other.x
+        self.y = self.y + other.y
+    }
+}
+
+print("=== Basic Methods ===")
+val v1 = Vector(3, 4)
+print("Vector: " + v1.to_string())
+print("Magnitude: " + v1.magnitude().toString())
+
+print("=== Mutating Methods ===")
+v1.normalize()
+print("Normalized: " + v1.to_string())
+
+print("=== Static Methods ===")
+val v2 = Vector.zero()
+print("Zero vector: " + v2.to_string())
+val v3 = Vector.unit()
+print("Unit vector: " + v3.to_string())
+
+// Multiple structs with impl blocks
+struct Rectangle {
+    width
+    height
+}
+
+impl Rectangle {
+    fn area(self) {
+        return self.width * self.height
+    }
+    
+    fn to_string(self) {
+        return self.width.toString() + "x" + self.height.toString() + ", area: " + self.area().toString()
+    }
+}
+
+struct Circle {
+    radius
+}
+
+impl Circle {
+    fn area(self) {
+        return 3.14159 * self.radius * self.radius
+    }
+    
+    fn to_string(self) {
+        // Use floor to truncate to one decimal place: floor(x * 10) / 10
+        val truncated = Math.floor(self.area() * 10) / 10
+        return "r=" + self.radius.toString() + ", area: " + truncated.toString()
+    }
+}
+
+print("=== Multiple Structs ===")
+val rect = Rectangle(10, 20)
+print("Rectangle: " + rect.to_string())
+
+val circle = Circle(5)
+print("Circle: " + circle.to_string())
+
+// Struct with collections
+struct Inventory {
+    items
+    values
+}
+
+impl Inventory {
+    fn new() {
+        return Inventory([], [])
+    }
+    
+    fn add_item(mut self, name, value) {
+        self.items.push(name)
+        self.values.push(value)
+    }
+    
+    fn count(self) {
+        return self.items.size()
+    }
+    
+    fn total_value(self) {
+        var sum = 0
+        for (i in 0..self.values.size()) {
+            sum = sum + self.values[i]
+        }
+        return sum
+    }
+    
+    fn has_item(self, name) {
+        return self.items.contains(name)
+    }
+}
+
+print("=== Methods with Collections ===")
+val inv = Inventory.new()
+inv.add_item("sword", 100)
+inv.add_item("potion", 25)
+inv.add_item("key", 25)
+print("Inventory has " + inv.count().toString() + " items")
+print("Total value: " + inv.total_value().toString())
+print("Has sword: " + inv.has_item("sword").toString())
+print("Has shield: " + inv.has_item("shield").toString())
+
+// Nested struct interaction
+struct Position {
+    x
+    y
+}
+
+impl Position {
+    fn to_string(self) {
+        return "(" + self.x.toString() + ", " + self.y.toString() + ")"
+    }
+    
+    fn move_by(mut self, dx, dy) {
+        self.x = self.x + dx
+        self.y = self.y + dy
+    }
+}
+
+struct Player {
+    pos
+    health
+}
+
+impl Player {
+    fn new(x, y) {
+        return Player(Position(x, y), 100)
+    }
+    
+    fn move_to(mut self, dx, dy) {
+        self.pos.move_by(dx, dy)
+    }
+    
+    fn take_damage(mut self, amount) {
+        self.health = self.health - amount
+    }
+    
+    fn status(self) {
+        return "Player at " + self.pos.to_string() + " with " + self.health.toString() + " health"
+    }
+}
+
+print("=== Nested Struct Interaction ===")
+val player = Player.new(10, 20)
+print(player.status())
+
+player.move_to(5, 5)
+print(player.status())
+
+player.take_damage(20)
+print(player.status())
+
+// Method calling other methods
+struct Item {
+    name
+    value
+}
+
+impl Item {
+    fn get_name(self) {
+        return self.name
+    }
+    
+    fn get_value(self) {
+        return self.value
+    }
+    
+    fn describe(self) {
+        return "Item: " + self.get_name()
+    }
+    
+    fn full_description(self) {
+        return self.describe() + ", Worth " + self.get_value().toString() + " gold"
+    }
+}
+
+print("=== Method Calling Other Methods ===")
+val item = Item("Potion", 50)
+print("Full description: " + item.full_description())

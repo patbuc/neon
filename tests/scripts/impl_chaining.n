@@ -1,0 +1,108 @@
+// Integration test: Method chaining with explicit return self
+
+// Expected:
+// Initial: 0, 0
+// After chain: 15, 20
+// Builder result: Test, 42, true
+// Fluent: query: SELECT * FROM users WHERE active = true LIMIT 10
+
+// Struct for testing method chaining
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    // Mutating method that returns self for chaining
+    fn move_by(mut self, dx, dy) {
+        self.x = self.x + dx
+        self.y = self.y + dy
+        return self
+    }
+    
+    // Another chainable method
+    fn scale(mut self, factor) {
+        self.x = self.x * factor
+        self.y = self.y * factor
+        return self
+    }
+    
+    fn to_string(self) {
+        return self.x.toString() + ", " + self.y.toString()
+    }
+}
+
+// Create instance and chain methods
+val p = Point(0, 0)
+print("Initial: " + p.to_string())
+
+// Chain multiple mutations (on single line)
+p.move_by(5, 10).scale(3).move_by(0, -10)
+print("After chain: " + p.to_string())  // (5,10)*3 = (15,30), then (15, 20)
+
+// Builder pattern example
+struct Builder {
+    name
+    value
+    flag
+}
+
+impl Builder {
+    fn new() {
+        return Builder("", 0, false)
+    }
+    
+    fn with_name(mut self, n) {
+        self.name = n
+        return self
+    }
+    
+    fn with_value(mut self, v) {
+        self.value = v
+        return self
+    }
+    
+    fn with_flag(mut self, f) {
+        self.flag = f
+        return self
+    }
+    
+    fn build(self) {
+        return self.name + ", " + self.value.toString() + ", " + self.flag.toString()
+    }
+}
+
+// Use builder pattern (single line chaining)
+val result = Builder.new().with_name("Test").with_value(42).with_flag(true).build()
+
+print("Builder result: " + result)
+
+// Fluent interface example
+struct Query {
+    query_string
+}
+
+impl Query {
+    fn select(table) {
+        return Query("SELECT * FROM " + table)
+    }
+    
+    fn where_clause(mut self, condition) {
+        self.query_string = self.query_string + " WHERE " + condition
+        return self
+    }
+    
+    fn limit(mut self, n) {
+        self.query_string = self.query_string + " LIMIT " + n.toString()
+        return self
+    }
+    
+    fn to_string(self) {
+        return "query: " + self.query_string
+    }
+}
+
+// Build a query using fluent interface (single line chaining)
+val query = Query.select("users").where_clause("active = true").limit(10)
+
+print("Fluent: " + query.to_string())

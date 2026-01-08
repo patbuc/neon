@@ -1,0 +1,106 @@
+// Integration test: Static methods (no self parameter)
+
+// Expected:
+// Origin: 0, 0
+// Unit X: 1, 0
+// Unit Y: 0, 1
+// Midpoint: 5, 5
+// Zero rect: 0x0
+// Square 5: 5x5
+// Default config created
+// Config value: default
+
+// Struct for testing static methods
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    // Static method - no self parameter, acts as factory
+    fn origin() {
+        return Point(0, 0)
+    }
+    
+    // Static method with parameters
+    fn unit_x() {
+        return Point(1, 0)
+    }
+    
+    fn unit_y() {
+        return Point(0, 1)
+    }
+    
+    // Static method that takes arguments and computes midpoint
+    fn midpoint(p1, p2) {
+        val mx = (p1.x + p2.x) / 2
+        val my = (p1.y + p2.y) / 2
+        return Point(mx, my)
+    }
+    
+    // Instance method for display
+    fn to_string(self) {
+        return self.x.toString() + ", " + self.y.toString()
+    }
+}
+
+// Test static methods called on struct type
+val p1 = Point.origin()
+print("Origin: " + p1.to_string())          // 0, 0
+
+val p2 = Point.unit_x()
+print("Unit X: " + p2.to_string())          // 1, 0
+
+val p3 = Point.unit_y()
+print("Unit Y: " + p3.to_string())          // 0, 1
+
+// Test static method with arguments
+val pa = Point(0, 0)
+val pb = Point(10, 10)
+val mid = Point.midpoint(pa, pb)
+print("Midpoint: " + mid.to_string())       // 5, 5
+
+// Test another struct with static factory methods
+struct Rectangle {
+    width
+    height
+}
+
+impl Rectangle {
+    fn zero() {
+        return Rectangle(0, 0)
+    }
+    
+    fn square(size) {
+        return Rectangle(size, size)
+    }
+    
+    fn to_string(self) {
+        return self.width.toString() + "x" + self.height.toString()
+    }
+}
+
+val r1 = Rectangle.zero()
+print("Zero rect: " + r1.to_string())        // 0x0
+
+val r2 = Rectangle.square(5)
+print("Square 5: " + r2.to_string())         // 5x5
+
+// Test static method that returns different type
+struct Config {
+    value
+}
+
+impl Config {
+    fn default() {
+        print("Default config created")
+        return Config("default")
+    }
+    
+    fn get(self) {
+        return self.value
+    }
+}
+
+val cfg = Config.default()                   // prints "Default config created"
+print("Config value: " + cfg.get())          // default

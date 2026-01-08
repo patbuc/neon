@@ -1,0 +1,85 @@
+// Integration test: Mutating methods with `mut self`
+
+// Expected:
+// Initial position: 0, 0
+// After move: 5, 10
+// After scale: 10, 20
+// After reset: 0, 0
+// Counter: 0
+// Counter: 1
+// Counter: 2
+// Counter: 3
+
+// Define a struct for testing mutation
+struct Position {
+    x
+    y
+}
+
+impl Position {
+    // Mutating method - can modify instance fields
+    fn move_by(mut self, dx, dy) {
+        self.x = self.x + dx
+        self.y = self.y + dy
+    }
+    
+    // Another mutating method
+    fn scale(mut self, factor) {
+        self.x = self.x * factor
+        self.y = self.y * factor
+    }
+    
+    // Mutating method to reset
+    fn reset(mut self) {
+        self.x = 0
+        self.y = 0
+    }
+    
+    // Non-mutating method for display
+    fn to_string(self) {
+        return self.x.toString() + ", " + self.y.toString()
+    }
+}
+
+// Create instance
+val pos = Position(0, 0)
+print("Initial position: " + pos.to_string())  // 0, 0
+
+// Test mutating method
+pos.move_by(5, 10)
+print("After move: " + pos.to_string())        // 5, 10
+
+// Test another mutating method
+pos.scale(2)
+print("After scale: " + pos.to_string())       // 10, 20
+
+// Test reset
+pos.reset()
+print("After reset: " + pos.to_string())       // 0, 0
+
+// Test with a counter struct
+struct Counter {
+    value
+}
+
+impl Counter {
+    fn get(self) {
+        return self.value
+    }
+    
+    fn increment(mut self) {
+        self.value = self.value + 1
+    }
+}
+
+val counter = Counter(0)
+print("Counter: " + counter.get().toString())  // 0
+
+counter.increment()
+print("Counter: " + counter.get().toString())  // 1
+
+counter.increment()
+print("Counter: " + counter.get().toString())  // 2
+
+counter.increment()
+print("Counter: " + counter.get().toString())  // 3
