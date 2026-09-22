@@ -444,7 +444,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_local(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_set_local(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
         let frame = self.current_frame_mut();
         // For functions: slot_start points to function object, args start at slot_start + 1
@@ -452,7 +452,12 @@ impl VirtualMachine {
         // locals (params) are indexed from 0, so param 0 is at slot_start + 1
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
         frame.ip += bits.as_bytes();
+        if absolute_index >= self.stack.len() {
+            self.runtime_error(&format!("Invalid local slot {}", index));
+            return Some(Result::RuntimeError);
+        }
         self.stack[absolute_index] = self.peek(0);
+        None
     }
 
     fn read_bits(&mut self, bits: &BitsSize) -> usize {
@@ -465,12 +470,17 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_local(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_get_local(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
         let frame = self.current_frame_mut();
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
         frame.ip += bits.as_bytes();
+        if absolute_index >= self.stack.len() {
+            self.runtime_error(&format!("Invalid local slot {}", index));
+            return Some(Result::RuntimeError);
+        }
         self.push(self.stack[absolute_index].clone());
+        None
     }
 
     #[inline(always)]
@@ -502,19 +512,21 @@ impl VirtualMachine {
         frame.ip -= offset as usize;
     }
 
-    pub(in crate::vm) fn fn_get_builtin(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_get_builtin(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
         if let Some(entry) = self.builtin.get_index(index) {
             self.push(entry.1.clone());
         } else {
             self.runtime_error(&format!("Built-in global at index {} not found", index));
+            return Some(Result::RuntimeError);
         }
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
+        None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
 
         // Regular global variables are in the script frame
@@ -529,28 +541,40 @@ impl VirtualMachine {
                 absolute_index,
                 self.stack.len()
             ));
-            return;
+            return Some(Result::RuntimeError);
         }
 
         self.push(self.stack[absolute_index].clone());
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes()
+        frame.ip += bits.as_bytes();
+        None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_global(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_set_global(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
         // Global variables are always in the script frame (first frame)
         // Script frame has slot_start = -1, so globals start at index 0
         let script_frame = &self.call_frames[0];
         let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
+
+        if absolute_index >= self.stack.len() {
+            self.runtime_error(&format!(
+                "Global variable index {} out of bounds (stack size: {})",
+                absolute_index,
+                self.stack.len()
+            ));
+            return Some(Result::RuntimeError);
+        }
+
         self.stack[absolute_index] = self.peek(0);
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
+        None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_field(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_get_field(&mut self, bits: BitsSize) -> Option<Result> {
         let field_name_index = self.read_bits(&bits);
         let instance_value = self.peek(0);
 
@@ -562,12 +586,12 @@ impl VirtualMachine {
                     Object::String(s) => s.value.to_string(),
                     _ => {
                         self.runtime_error("Field name must be a string.");
-                        return;
+                        return Some(Result::RuntimeError);
                     }
                 },
                 _ => {
                     self.runtime_error("Field name must be a string.");
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             }
         };
@@ -583,26 +607,27 @@ impl VirtualMachine {
                         self.push(value);
                     } else {
                         self.runtime_error(&format!("Undefined field '{}'.", field_name));
-                        return;
+                        return Some(Result::RuntimeError);
                     }
                 }
                 _ => {
                     self.runtime_error("Only instances have fields.");
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             },
             _ => {
                 self.runtime_error("Only instances have fields.");
-                return;
+                return Some(Result::RuntimeError);
             }
         }
 
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
+        None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_field(&mut self, bits: BitsSize) {
+    pub(in crate::vm) fn fn_set_field(&mut self, bits: BitsSize) -> Option<Result> {
         let field_name_index = self.read_bits(&bits);
         let value = self.peek(0);
         let instance_value = self.peek(1);
@@ -615,12 +640,12 @@ impl VirtualMachine {
                     Object::String(s) => s.value.to_string(),
                     _ => {
                         self.runtime_error("Field name must be a string.");
-                        return;
+                        return Some(Result::RuntimeError);
                     }
                 },
                 _ => {
                     self.runtime_error("Field name must be a string.");
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             }
         };
@@ -633,7 +658,7 @@ impl VirtualMachine {
                     // list at construction, so this is equivalent to a struct.fields scan.
                     if !instance.fields.contains_key(&field_name) {
                         self.runtime_error(&format!("Undefined field '{}'.", field_name));
-                        return;
+                        return Some(Result::RuntimeError);
                     }
 
                     instance.fields.insert(field_name, value.clone());
@@ -644,21 +669,22 @@ impl VirtualMachine {
                 }
                 _ => {
                     self.runtime_error("Only instances have fields.");
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             },
             _ => {
                 self.runtime_error("Only instances have fields.");
-                return;
+                return Some(Result::RuntimeError);
             }
         }
 
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
+        None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_create_map(&mut self) {
+    pub(in crate::vm) fn fn_create_map(&mut self) -> Option<Result> {
         let count = {
             let frame = self.current_frame();
             frame.function.chunk.read_u16(frame.ip + 1) as usize
@@ -679,7 +705,7 @@ impl VirtualMachine {
                         "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
                         key_value
                     ));
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             };
 
@@ -692,6 +718,7 @@ impl VirtualMachine {
 
         let frame = self.current_frame_mut();
         frame.ip += 2;
+        None
     }
 
     pub(in crate::vm) fn fn_create_array(&mut self) {
@@ -714,7 +741,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_create_set(&mut self) {
+    pub(in crate::vm) fn fn_create_set(&mut self) -> Option<Result> {
         let count = {
             let frame = self.current_frame();
             frame.function.chunk.read_u16(frame.ip + 1) as usize
@@ -734,7 +761,7 @@ impl VirtualMachine {
                         "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
                         element_value
                     ));
-                    return;
+                    return Some(Result::RuntimeError);
                 }
             };
 
@@ -747,6 +774,7 @@ impl VirtualMachine {
 
         let frame = self.current_frame_mut();
         frame.ip += 2;
+        None
     }
 
     pub(in crate::vm) fn fn_create_range(&mut self) -> Option<Result> {
@@ -815,7 +843,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_index(&mut self) {
+    pub(in crate::vm) fn fn_get_index(&mut self) -> Option<Result> {
         let index_value = self.pop();
         let collection_value = self.pop();
 
@@ -830,13 +858,14 @@ impl VirtualMachine {
                                 "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
                                 index_value
                             ));
-                            return;
+                            return Some(Result::RuntimeError);
                         }
                     };
 
                     let map = map_ref.borrow();
                     let result = map.get(&key).cloned().unwrap_or(Value::Nil);
                     self.push(result);
+                    None
                 }
                 Object::Array(array_ref) => {
                     let index = match index_value {
@@ -846,7 +875,7 @@ impl VirtualMachine {
                                 "Array index must be a number, got {}.",
                                 index_value
                             ));
-                            return;
+                            return Some(Result::RuntimeError);
                         }
                     };
 
@@ -860,17 +889,19 @@ impl VirtualMachine {
                             "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
                             index, actual_index, len
                         ));
-                        return;
+                        return Some(Result::RuntimeError);
                     }
 
                     let result = array[actual_index as usize].clone();
                     self.push(result);
+                    None
                 }
                 _ => {
                     self.runtime_error(&format!(
                         "Only arrays and maps support index access, got {}.",
                         collection_value
                     ));
+                    Some(Result::RuntimeError)
                 }
             },
             _ => {
@@ -878,12 +909,13 @@ impl VirtualMachine {
                     "Only arrays and maps support index access, got {}.",
                     collection_value
                 ));
+                Some(Result::RuntimeError)
             }
         }
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_index(&mut self) {
+    pub(in crate::vm) fn fn_set_index(&mut self) -> Option<Result> {
         let value = self.pop();
         let index_value = self.pop();
         let collection_value = self.pop();
@@ -899,7 +931,7 @@ impl VirtualMachine {
                                 "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
                                 index_value
                             ));
-                            return;
+                            return Some(Result::RuntimeError);
                         }
                     };
 
@@ -907,6 +939,7 @@ impl VirtualMachine {
                     map.insert(key, value.clone());
 
                     self.push(value);
+                    None
                 }
                 Object::Array(array_ref) => {
                     let index = match index_value {
@@ -916,7 +949,7 @@ impl VirtualMachine {
                                 "Array index must be a number, got {}.",
                                 index_value
                             ));
-                            return;
+                            return Some(Result::RuntimeError);
                         }
                     };
 
@@ -930,18 +963,20 @@ impl VirtualMachine {
                             "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
                             index, actual_index, len
                         ));
-                        return;
+                        return Some(Result::RuntimeError);
                     }
 
                     array[actual_index as usize] = value.clone();
 
                     self.push(value);
+                    None
                 }
                 _ => {
                     self.runtime_error(&format!(
                         "Only arrays and maps support index assignment, got {}.",
                         collection_value
                     ));
+                    Some(Result::RuntimeError)
                 }
             },
             _ => {
@@ -949,6 +984,7 @@ impl VirtualMachine {
                     "Only arrays and maps support index assignment, got {}.",
                     collection_value
                 ));
+                Some(Result::RuntimeError)
             }
         }
     }
@@ -1039,7 +1075,7 @@ impl VirtualMachine {
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
-    pub(in crate::vm) fn fn_iterator_done(&mut self) {
+    pub(in crate::vm) fn fn_iterator_done(&mut self) -> Option<Result> {
         if let Some((index, collection)) = self.iterator_stack.last() {
             let has_more = match collection {
                 Value::Object(obj) => match obj.as_ref() {
@@ -1053,9 +1089,10 @@ impl VirtualMachine {
             };
 
             self.push(boolean!(has_more));
+            None
         } else {
             self.runtime_error("No iterator initialized");
-            self.push(boolean!(false));
+            Some(Result::RuntimeError)
         }
     }
 
