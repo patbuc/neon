@@ -4,7 +4,6 @@
 [![Rust](https://img.shields.io/badge/rust-2021%20edition-orange?style=flat-square&logo=rust&logoColor=white)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
 [![Last commit](https://img.shields.io/github/last-commit/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon/commits)
 [![Code size](https://img.shields.io/github/languages/code-size/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon)
-[![Stars](https://img.shields.io/github/stars/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon/stargazers)
 
 # ✨ Neon
 
