@@ -1,8 +1,11 @@
 use crate::common::opcodes::OpCode;
 use crate::common::Chunk;
+use crate::vm::debug::{DebugCommand, DebugContext, DebugHandler};
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
+use std::cell::Cell;
+use std::rc::Rc;
 
 #[test]
 fn can_create_vm() {
@@ -2842,4 +2845,51 @@ fn debug_simple_param() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
+}
+
+struct RecordingHandler {
+    steps: Rc<Cell<usize>>,
+    command: DebugCommand,
+}
+
+impl DebugHandler for RecordingHandler {
+    fn on_step(&mut self, context: &DebugContext) -> DebugCommand {
+        assert!(!context.call_frames.is_empty());
+        self.steps.set(self.steps.get() + 1);
+        self.command
+    }
+}
+
+fn vm_with_handler(command: DebugCommand) -> (VirtualMachine, Rc<Cell<usize>>) {
+    let steps = Rc::new(Cell::new(0));
+    let handler = RecordingHandler {
+        steps: Rc::clone(&steps),
+        command,
+    };
+    let vm = VirtualMachine::with_args_and_debug(vec![], Some(Box::new(handler)));
+    (vm, steps)
+}
+
+#[test]
+fn debug_step_visits_every_instruction() {
+    let (mut vm, steps) = vm_with_handler(DebugCommand::Step);
+    assert_eq!(Result::Ok, vm.interpret("print(1 + 2)".to_string()));
+    assert!(steps.get() > 1);
+}
+
+#[test]
+fn debug_continue_detaches_handler() {
+    let (mut vm, steps) = vm_with_handler(DebugCommand::Continue);
+    assert_eq!(Result::Ok, vm.interpret("print(1 + 2)".to_string()));
+    assert_eq!(1, steps.get());
+}
+
+#[test]
+fn debug_quit_aborts_run() {
+    let (mut vm, steps) = vm_with_handler(DebugCommand::Quit);
+    assert_eq!(
+        Result::RuntimeError,
+        vm.interpret("print(1 + 2)".to_string())
+    );
+    assert_eq!(1, steps.get());
 }
