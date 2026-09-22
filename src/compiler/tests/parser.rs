@@ -1,4 +1,4 @@
-use crate::compiler::ast::{Expr, Stmt};
+use crate::compiler::ast::{Expr, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
 
 #[test]
@@ -2398,4 +2398,185 @@ fn test_parse_array_missing_closing_bracket() {
     let errors = result.unwrap_err();
     assert!(!errors.is_empty());
     assert!(errors[0].message.contains("']'"));
+}
+
+#[test]
+fn test_parse_array_slice_both_indices() {
+    let program = r#"
+        val x = a[1:3]
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Slice {
+                object, start, end, ..
+            } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as object"),
+                }
+                assert!(start.is_some());
+                assert!(end.is_some());
+                match start.as_ref().unwrap().as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                    _ => panic!("Expected Number as start"),
+                }
+                match end.as_ref().unwrap().as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                    _ => panic!("Expected Number as end"),
+                }
+            }
+            _ => panic!("Expected Slice expression, got {:?}", expr),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_slice_start_only() {
+    let program = r#"
+        val x = a[3:]
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Slice {
+                object, start, end, ..
+            } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as object"),
+                }
+                assert!(start.is_some());
+                assert!(end.is_none());
+                match start.as_ref().unwrap().as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                    _ => panic!("Expected Number as start"),
+                }
+            }
+            _ => panic!("Expected Slice expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_slice_end_only() {
+    let program = r#"
+        val x = a[:2]
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Slice {
+                object, start, end, ..
+            } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as object"),
+                }
+                assert!(start.is_none());
+                assert!(end.is_some());
+                match end.as_ref().unwrap().as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
+                    _ => panic!("Expected Number as end"),
+                }
+            }
+            _ => panic!("Expected Slice expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_array_slice_negative_indices() {
+    let program = r#"
+        val x = a[-3:-1]
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::Slice {
+                object, start, end, ..
+            } => {
+                match object.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as object"),
+                }
+                assert!(start.is_some());
+                assert!(end.is_some());
+                match start.as_ref().unwrap().as_ref() {
+                    Expr::Unary {
+                        operator: UnaryOp::Negate,
+                        operand,
+                        ..
+                    } => match operand.as_ref() {
+                        Expr::Number { value, .. } => assert_eq!(*value, 3.0),
+                        _ => panic!("Expected Number in negation"),
+                    },
+                    _ => panic!("Expected Unary negation as start"),
+                }
+                match end.as_ref().unwrap().as_ref() {
+                    Expr::Unary {
+                        operator: UnaryOp::Negate,
+                        operand,
+                        ..
+                    } => match operand.as_ref() {
+                        Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                        _ => panic!("Expected Number in negation"),
+                    },
+                    _ => panic!("Expected Unary negation as end"),
+                }
+            }
+            _ => panic!("Expected Slice expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
 }

@@ -161,6 +161,7 @@ impl SemanticAnalyzer {
             Expr::StringInterpolation { .. } => Some("String".to_string()),
             Expr::Boolean { .. } => Some("Boolean".to_string()),
             Expr::ArrayLiteral { .. } => Some("Array".to_string()),
+            Expr::Slice { .. } => Some("Array".to_string()),
             Expr::MapLiteral { .. } => Some("Map".to_string()),
             Expr::SetLiteral { .. } => Some("Set".to_string()),
             Expr::Nil { .. } => Some("Nil".to_string()),
@@ -470,6 +471,11 @@ impl SemanticAnalyzer {
             }
             Expr::Range { start, end, .. } => {
                 self.resolve_range_expr(start, end);
+            }
+            Expr::Slice {
+                object, start, end, ..
+            } => {
+                self.resolve_slice_expr(object, start.as_deref(), end.as_deref());
             }
             Expr::PostfixIncrement { operand, location } => {
                 self.resolve_postfix_increment(operand, *location);
@@ -831,6 +837,16 @@ impl SemanticAnalyzer {
         // Resolve the start and end expressions
         self.resolve_expr(start);
         self.resolve_expr(end);
+    }
+
+    fn resolve_slice_expr(&mut self, object: &Expr, start: Option<&Expr>, end: Option<&Expr>) {
+        self.resolve_expr(object);
+        if let Some(start) = start {
+            self.resolve_expr(start);
+        }
+        if let Some(end) = end {
+            self.resolve_expr(end);
+        }
     }
 
     fn resolve_postfix_increment(&mut self, operand: &Expr, location: SourceLocation) {

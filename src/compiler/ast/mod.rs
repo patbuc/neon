@@ -135,6 +135,12 @@ pub enum Expr {
         inclusive: bool,
         location: SourceLocation,
     },
+    Slice {
+        object: Box<Expr>,
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        location: SourceLocation,
+    },
     PostfixIncrement {
         operand: Box<Expr>,
         location: SourceLocation,
@@ -235,6 +241,7 @@ impl Expr {
             | Expr::Index { location, .. }
             | Expr::IndexAssign { location, .. }
             | Expr::Range { location, .. }
+            | Expr::Slice { location, .. }
             | Expr::PostfixIncrement { location, .. }
             | Expr::PostfixDecrement { location, .. }
             | Expr::Conditional { location, .. } => location,

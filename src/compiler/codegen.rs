@@ -1169,6 +1169,24 @@ impl CodeGenerator {
                 self.current_chunk()
                     .write_u8(if *inclusive { 1 } else { 0 });
             }
+            Expr::Slice {
+                object,
+                start,
+                end,
+                location,
+            } => {
+                self.generate_expr(object);
+                // An omitted bound is pushed as nil so the VM can default it
+                match start {
+                    Some(start) => self.generate_expr(start),
+                    None => self.emit_op_code(OpCode::Nil, *location),
+                }
+                match end {
+                    Some(end) => self.generate_expr(end),
+                    None => self.emit_op_code(OpCode::Nil, *location),
+                }
+                self.emit_op_code(OpCode::Slice, *location);
+            }
             Expr::PostfixIncrement { operand, location } => {
                 self.generate_postfix_increment_expr(operand, *location);
             }
