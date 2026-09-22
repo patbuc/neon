@@ -26,7 +26,13 @@ impl Chunk {
             print!("{:6} ", line.line);
         }
 
-        let instruction = OpCode::from_u8(self.instructions[offset]);
+        let instruction = match OpCode::from_u8(self.instructions[offset]) {
+            Some(instruction) => instruction,
+            None => {
+                println!("Unknown opcode {:#04x}", self.instructions[offset]);
+                return offset + 1;
+            }
+        };
         match instruction {
             OpCode::Return => self.simple_instruction(OpCode::Return, offset),
             OpCode::Constant => self.constant_instruction(instruction, offset),

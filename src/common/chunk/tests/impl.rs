@@ -29,13 +29,13 @@ fn can_write_more_then_256_constants_chunk() {
 
     assert_eq!(2 * 256 + 6, chunk.instructions.len());
     assert_eq!(
-        OpCode::Constant2,
+        Some(OpCode::Constant2),
         OpCode::from_u8(chunk.instructions[2 * 256])
     );
 
     assert_eq!(256, chunk.read_u16(2 * 256 + 1));
     assert_eq!(
-        OpCode::Constant2,
+        Some(OpCode::Constant2),
         OpCode::from_u8(chunk.instructions[2 * 256 + 3])
     );
     let constant_index = chunk.read_u16(2 * 256 + 4) as usize;

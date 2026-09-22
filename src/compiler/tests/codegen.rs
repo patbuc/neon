@@ -194,7 +194,7 @@ fn test_else_if_bytecode_simple() {
 
     let mut offset = 0;
     while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset));
+        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -282,7 +282,7 @@ fn test_else_if_bytecode_multiple_branches() {
 
     let mut offset = 0;
     while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset));
+        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -364,7 +364,7 @@ fn test_else_if_bytecode_without_final_else() {
 
     let mut offset = 0;
     while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset));
+        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
         match op {
             OpCode::JumpIfFalse => {
                 jump_if_false_count += 1;
@@ -449,7 +449,7 @@ fn test_else_if_bytecode_jump_offsets() {
     let mut jumps = Vec::new();
 
     while i < chunk.instruction_count() {
-        let op = crate::common::opcodes::OpCode::from_u8(chunk.read_u8(i));
+        let op = crate::common::opcodes::OpCode::from_u8(chunk.read_u8(i)).unwrap();
         match op {
             crate::common::opcodes::OpCode::JumpIfFalse | crate::common::opcodes::OpCode::Jump => {
                 // Read the 4-byte offset

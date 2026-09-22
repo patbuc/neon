@@ -89,10 +89,16 @@ impl VirtualMachine {
             frame.function.chunk.disassemble_chunk();
         }
         loop {
-            let op_code = {
+            let byte = {
                 let frame = self.current_frame();
-                let ip = frame.ip;
-                OpCode::from_u8(frame.function.chunk.read_u8(ip))
+                frame.function.chunk.read_u8(frame.ip)
+            };
+            let op_code = match OpCode::from_u8(byte) {
+                Some(op_code) => op_code,
+                None => {
+                    self.runtime_error(&format!("Unknown opcode {:#04x}", byte));
+                    return Result::RuntimeError;
+                }
             };
 
             match op_code {
@@ -208,16 +214,14 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(crate) fn current_frame(&self) -> &CallFrame {
-        // Single point of access with debug assertion
-        debug_assert!(!self.call_frames.is_empty());
-        unsafe { self.call_frames.get_unchecked(self.call_frames.len() - 1) }
+        self.call_frames.last().expect("call frame stack is empty")
     }
 
     #[inline(always)]
     pub(crate) fn current_frame_mut(&mut self) -> &mut CallFrame {
-        let len = self.call_frames.len();
-        debug_assert!(len > 0);
-        unsafe { self.call_frames.get_unchecked_mut(len - 1) }
+        self.call_frames
+            .last_mut()
+            .expect("call frame stack is empty")
     }
 
     #[inline(always)]
