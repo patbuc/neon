@@ -1,8 +1,8 @@
-name: Rust
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "aoc-main" ]
   pull_request:
     branches: [ "*main" ]
 

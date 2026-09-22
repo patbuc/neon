@@ -2,6 +2,9 @@
 name = "neon"
 version = "0.0.1"
 edition = "2021"
+description = "A toy language you didn't wait for"
+repository = "https://github.com/patbuc/neon"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

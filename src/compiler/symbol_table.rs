@@ -136,12 +136,8 @@ impl SymbolTable {
             if let Some(symbol) = self.scopes[scope_idx].get(name) {
                 return Some(symbol);
             }
-            // Check parent scope
-            if let Some(parent) = self.scopes[scope_idx].parent {
-                scope_idx = parent;
-            } else {
-                return None; // Reached global scope and didn't find it
-            }
+            // Global scope has no parent, so `?` ends the search
+            scope_idx = self.scopes[scope_idx].parent?;
         }
     }
 }
