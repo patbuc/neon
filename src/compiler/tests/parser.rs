@@ -143,6 +143,38 @@ fn test_parse_function() {
 }
 
 #[test]
+fn test_parse_single_line_function_body() {
+    let mut parser = Parser::new("fn foo(n) { return n }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Fn { name, body, .. } => {
+            assert_eq!(name, "foo");
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Return { .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_nested_single_line_blocks() {
+    let mut parser = Parser::new("fn foo(x) { if (x > 0) { return 1 } }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::If { .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
 fn test_parse_complex_program() {
     let program = r#"
         val x = 10

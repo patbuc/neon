@@ -130,9 +130,14 @@ impl Parser {
         false
     }
 
-    fn consume_either(&mut self, token_type_1: TokenType, token_type_2: TokenType, message: &str) {
-        if self.current_token.token_type == token_type_1
-            || self.current_token.token_type == token_type_2
+    /// A statement ends at a newline, EOF, or a `}` that closes the enclosing
+    /// block (left for that block to consume), which allows single-line blocks.
+    fn consume_statement_end(&mut self, message: &str) {
+        if self.check(TokenType::RightBrace) {
+            return;
+        }
+        if self.current_token.token_type == TokenType::NewLine
+            || self.current_token.token_type == TokenType::Eof
         {
             self.advance();
             return;
@@ -318,11 +323,10 @@ impl Parser {
 
         if require_terminator {
             let decl_type = if is_mutable { "variable" } else { "value" };
-            self.consume_either(
-                TokenType::NewLine,
-                TokenType::Eof,
-                &format!("Expecting '\\n' or '\\0' after {} declaration.", decl_type),
-            );
+            self.consume_statement_end(&format!(
+                "Expecting '\\n' or '\\0' after {} declaration.",
+                decl_type
+            ));
         }
 
         Some(if is_mutable {
@@ -407,11 +411,7 @@ impl Parser {
         if !self.consume(TokenType::RightBrace, "Expect '}' after struct fields.") {
             return None;
         }
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after struct declaration.",
-        );
+        self.consume_statement_end("Expecting '\\n' or '\\0' after struct declaration.");
 
         Some(Stmt::Struct {
             name,
@@ -450,11 +450,7 @@ impl Parser {
     fn expression_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         let expr = self.expression(false)?;
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' at end of expression.",
-        );
+        self.consume_statement_end("Expecting '\\n' or '\\0' at end of expression.");
         Some(Stmt::Expression { expr, location })
     }
 
@@ -473,11 +469,7 @@ impl Parser {
         }
 
         if !self.check(TokenType::Else) {
-            self.consume_either(
-                TokenType::NewLine,
-                TokenType::Eof,
-                "Expecting '\\n' or '\\0' at end of block.",
-            );
+            self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
         }
 
         Some(statements)
@@ -654,31 +646,19 @@ impl Parser {
     fn return_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         let value = self.expression(false)?;
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' at end of statement.",
-        );
+        self.consume_statement_end("Expecting '\\n' or '\\0' at end of statement.");
         Some(Stmt::Return { value, location })
     }
 
     fn break_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after 'break'.",
-        );
+        self.consume_statement_end("Expecting '\\n' or '\\0' after 'break'.");
         Some(Stmt::Break { location })
     }
 
     fn continue_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
-        self.consume_either(
-            TokenType::NewLine,
-            TokenType::Eof,
-            "Expecting '\\n' or '\\0' after 'continue'.",
-        );
+        self.consume_statement_end("Expecting '\\n' or '\\0' after 'continue'.");
         Some(Stmt::Continue { location })
     }
 

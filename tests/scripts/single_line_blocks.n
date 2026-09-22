@@ -1,0 +1,47 @@
+// 104.n - Single-line blocks
+
+// Expected:
+// 5
+// 5
+// positive
+// negative
+// 3
+// 0
+// 1
+// 2
+// 1
+// 0
+// 0
+// a
+// b
+// c
+
+fn one_line_return(n) { return n }
+print(one_line_return(5))
+
+fn one_line_print(n) { print(n) }
+one_line_print(5)
+
+if (true) { print("positive") }
+
+if (false) { print("unreachable") } else { print("negative") }
+
+var i = 0
+while (i < 3) { i = i + 1 }
+print(i)
+
+for (var j = 0; j < 3; j = j + 1) { print(j) }
+
+fn nested_one_liner(x) { if (x > 0) { return 1 } else { return -1 } }
+print(nested_one_liner(10))
+
+var n = 0
+while (n < 10) { break }
+print(n)
+
+var total = 0
+for (var p = 0; p < 3; p = p + 1) { continue }
+print(total)
+
+val letters = ["a", "b", "c"]
+for (letter in letters) { print(letter) }
