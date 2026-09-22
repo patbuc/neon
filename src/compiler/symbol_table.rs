@@ -192,6 +192,7 @@ impl SymbolTable {
     }
 
     /// Look up a method signature on a struct
+    #[cfg(test)]
     pub fn lookup_method(&self, struct_name: &str, method_name: &str) -> Option<&MethodSignature> {
         let symbol = self.resolve(struct_name)?;
         if let SymbolKind::Struct { methods, .. } = &symbol.kind {

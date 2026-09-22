@@ -632,12 +632,7 @@ impl CodeGenerator {
         // Pop the method chunk
         let method_chunk = self.chunks.pop().unwrap();
 
-        // Calculate arity: for instance methods, include self; for static, just params
-        let arity = if method.is_static {
-            method.params.len() as u8
-        } else {
-            method.params.len() as u8 // includes self
-        };
+        let arity = method.params.len() as u8;
 
         // Create the ObjFunction
         Some(std::rc::Rc::new(crate::common::ObjFunction {
