@@ -21,9 +21,7 @@ fn main() {
                 print_help();
             }
             _ => {
-                // Auto-detection: check if the file has .nbc extension
                 let file_path = &args[1];
-                // Interpret as source
                 let script_args = args[2..].to_vec();
                 run_file(file_path, script_args);
             }
@@ -130,17 +128,10 @@ fn print_help() {
     println!();
     println!("Usage:");
     println!("  neon                     Start interactive REPL");
-    println!("  neon <file.n>           Interpret source file");
-    println!("  neon <file.nbc>         Execute compiled binary");
-    println!("  neon compile <input.n> [-o <output.nbc>]");
-    println!("                          Compile source to binary");
-    println!("  neon run <file.nbc> [args...]");
-    println!("                          Execute compiled binary");
-    println!("  neon help               Show this help message");
+    println!("  neon <file.n> [args...]  Interpret source file");
+    println!("  neon help                Show this help message");
     println!();
     println!("Examples:");
-    println!("  neon script.n           # Interpret script.n");
-    println!("  neon compile script.n   # Compile to script.nbc");
-    println!("  neon script.nbc         # Execute compiled binary");
-    println!("  neon run script.nbc arg1 arg2  # Execute with arguments");
+    println!("  neon script.n            # Interpret script.n");
+    println!("  neon script.n arg1 arg2  # Interpret script.n with arguments");
 }
