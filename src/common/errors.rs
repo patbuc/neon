@@ -71,4 +71,4 @@ impl Display for CompilationError {
 
 impl std::error::Error for CompilationError {}
 
-pub(crate) type CompilationResult<T> = Result<T, Vec<CompilationError>>;
+pub type CompilationResult<T> = Result<T, Vec<CompilationError>>;

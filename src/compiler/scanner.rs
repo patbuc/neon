@@ -2,7 +2,7 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
 impl Scanner {
-    pub(in crate::compiler) fn new(source: &str) -> Scanner {
+    pub fn new(source: &str) -> Scanner {
         Scanner {
             source: source.chars().collect(),
             start: 0,
@@ -15,7 +15,7 @@ impl Scanner {
     }
 
     //noinspection DuplicatedCode
-    pub(in crate::compiler) fn scan_token(&mut self) -> Token {
+    pub fn scan_token(&mut self) -> Token {
         let mut c;
         loop {
             self.skip_whitespace();
