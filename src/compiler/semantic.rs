@@ -172,11 +172,7 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => self.infer_expr_type(expr),
 
             // Call expression
-            Expr::Call {
-                callee,
-                arguments: _,
-                ..
-            } => {
+            Expr::Call { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // This is a method call obj.method(args)

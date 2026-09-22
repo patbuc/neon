@@ -1146,7 +1146,7 @@ impl VirtualMachine {
         ) {
             None => Err(format!(
                 "Unknown method '{}' for type {}",
-                &callable.method_name, type_name
+                callable.method_name, type_name
             )),
             Some(callable) => Ok(callable),
         }
