@@ -130,15 +130,11 @@ impl Parser {
         false
     }
 
-    /// A statement ends at a newline, EOF, or a `}` that closes the enclosing
-    /// block (left for that block to consume), which allows single-line blocks.
     fn consume_statement_end(&mut self, message: &str) {
         if self.check(TokenType::RightBrace) {
             return;
         }
-        if self.current_token.token_type == TokenType::NewLine
-            || self.current_token.token_type == TokenType::Eof
-        {
+        if self.check(TokenType::NewLine) || self.check(TokenType::Eof) {
             self.advance();
             return;
         }

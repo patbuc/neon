@@ -175,6 +175,15 @@ fn test_parse_nested_single_line_blocks() {
 }
 
 #[test]
+fn test_parse_stray_right_brace_after_statement() {
+    let mut parser = Parser::new("print(1) }\n");
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail on a stray '}}' at top level");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+}
+
+#[test]
 fn test_parse_complex_program() {
     let program = r#"
         val x = 10
