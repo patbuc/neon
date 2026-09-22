@@ -122,7 +122,7 @@ cargo run --features disassemble -- script.n
 
 ### New Opcode
 
-1. Add variant to `OpCode` enum in `src/common/opcodes.rs`
+1. Add variant to `OpCode` enum in `src/common/opcodes.rs` and its byte to `OpCode::from_u8`
 2. Implement execution logic in `src/vm/impl.rs` VM loop
 3. Emit opcode in `src/compiler/codegen.rs`
 4. Update disassembler in `src/common/chunk/disassembler.rs` (if using disassemble feature)
