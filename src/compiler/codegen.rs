@@ -187,8 +187,7 @@ impl CodeGenerator {
 
         // First try to find in current chunk (parameters and locals)
         let current_result = self.chunks[current_chunk_idx].get_local_index(name);
-        if current_result.0.is_some() {
-            let index = current_result.0.unwrap();
+        if let Some(index) = current_result.0 {
             return (Some(index), current_result.1, false, false);
         }
 
@@ -196,8 +195,8 @@ impl CodeGenerator {
         if current_chunk_idx > 0 {
             for chunk_idx in (0..current_chunk_idx).rev() {
                 let index = self.chunks[chunk_idx].get_local_index(name);
-                if index.0.is_some() {
-                    return (Some(index.0.unwrap()), index.1, true, false); // is_global = true
+                if let Some(local_index) = index.0 {
+                    return (Some(local_index), index.1, true, false); // is_global = true
                 }
             }
         }
