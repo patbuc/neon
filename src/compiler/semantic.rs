@@ -242,19 +242,25 @@ impl SemanticAnalyzer {
                 use crate::compiler::ast::BinaryOp;
                 match operator {
                     BinaryOp::Add => {
-                        // Add can be either string concatenation or numeric addition
+                        // Add can be either string concatenation or numeric
+                        // addition. Only fn_add's own outcomes are valid at
+                        // runtime (String + String, or Number + Number), so
+                        // an unknown operand can never rule out String: it
+                        // could still turn out to be one at runtime.
                         let left_type = self.infer_expr_type(left);
                         let right_type = self.infer_expr_type(right);
 
-                        // If both operands are strings, result is string
-                        if let (Some(lt), Some(rt)) = (left_type, right_type) {
-                            if lt == "String" && rt == "String" {
-                                return Some("String".to_string());
-                            }
+                        if left_type.as_deref() == Some("String")
+                            || right_type.as_deref() == Some("String")
+                        {
+                            Some("String".to_string())
+                        } else if left_type.as_deref() == Some("Number")
+                            && right_type.as_deref() == Some("Number")
+                        {
+                            Some("Number".to_string())
+                        } else {
+                            None
                         }
-
-                        // Otherwise, assume numeric addition
-                        Some("Number".to_string())
                     }
                     BinaryOp::Subtract
                     | BinaryOp::Multiply
@@ -304,12 +310,13 @@ impl SemanticAnalyzer {
             } => {
                 let then_type = self.infer_expr_type(then_expr);
                 let else_type = self.infer_expr_type(else_expr);
-                // If both branches have the same type, use it
+                // Only trust the type when both branches agree; a mismatch
+                // (including one side being unknown) means the result could
+                // be either at runtime, so it's unknown too.
                 if then_type == else_type {
                     then_type
                 } else {
-                    // Different or unknown types - prefer then branch if known
-                    then_type.or(else_type)
+                    None
                 }
             }
 

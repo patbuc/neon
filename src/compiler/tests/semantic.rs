@@ -1798,3 +1798,74 @@ for (s in [[1]]) {
     }
     assert!(result.is_ok());
 }
+
+// ===== Issue #98: Add/ternary type inference =====
+
+#[test]
+fn test_add_with_unknown_operand_and_string_infers_string() {
+    let program = r#"
+fn identity(x) {
+    return x
+}
+val x = identity(1)
+print(("a" + x).toUpperCase())
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_add_with_two_unknown_operands_is_unknown() {
+    let program = r#"
+fn identity(x) {
+    return x
+}
+val a = identity(1)
+val b = identity(2)
+val c = a + b
+print(c.toUpperCase())
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        // Type is unknown, so no method-validation error should fire.
+        for err in errors {
+            assert!(!err.message.contains("has no method named"));
+        }
+    }
+}
+
+#[test]
+fn test_ternary_mismatched_branches_type_is_unknown() {
+    let program = r#"
+val cond = true
+val result = cond ? 1 : "hello"
+print(result.toUpperCase())
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
