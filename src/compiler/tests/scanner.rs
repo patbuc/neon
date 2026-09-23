@@ -282,6 +282,17 @@ fn rejects_invalid_binary_digit() {
 }
 
 #[test]
+fn rejects_invalid_leading_binary_digit() {
+    let scanner = Scanner::new("0b2");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert!(tokens[0]
+        .token
+        .contains("Invalid digit in binary literal (only 0 and 1 allowed)"));
+}
+
+#[test]
 fn rejects_invalid_octal_digit() {
     let scanner = Scanner::new("0o89");
     let tokens = collect_tokens(scanner);

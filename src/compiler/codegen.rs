@@ -264,7 +264,7 @@ impl CodeGenerator {
         &mut self,
         name: &str,
         initializer: &Option<Expr>,
-        readonly: bool,
+        is_mutable: bool,
         location: SourceLocation,
     ) {
         // Generate initializer or nil
@@ -275,7 +275,7 @@ impl CodeGenerator {
         }
 
         // Define local variable
-        let local = Local::new(name.to_string(), self.scope_depth, readonly);
+        let local = Local::new(name.to_string(), self.scope_depth, is_mutable);
         self.current_chunk()
             .define_local(local, location.line, location.column);
     }
