@@ -22,7 +22,6 @@ pub(crate) enum TokenType {
     Question,
     NewLine,
     Slash,
-    SlashSlash,
     Star,
     StarStar,
 

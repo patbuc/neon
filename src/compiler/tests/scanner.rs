@@ -316,3 +316,50 @@ fn rejects_trailing_underscore_in_decimal() {
     assert_eq!(tokens[0].token_type, TokenType::Error);
     assert!(tokens[0].token.contains("underscore"));
 }
+
+#[test]
+fn can_scan_comment_immediately_after_slashes() {
+    let scanner = Scanner::new("1//note");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "1");
+    assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn can_scan_comment_with_space_after_slashes() {
+    let scanner = Scanner::new("1 // note");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "1");
+    assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn bare_comment_at_end_of_line_does_not_swallow_next_line() {
+    let scanner = Scanner::new("1 //\n2");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 4);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "1");
+    assert_eq!(tokens[1].token_type, TokenType::NewLine);
+    assert_eq!(tokens[2].token_type, TokenType::Number);
+    assert_eq!(tokens[2].token, "2");
+    assert_eq!(tokens[3].token_type, TokenType::Eof);
+}
+
+#[test]
+fn can_scan_number_then_comment_for_double_slash() {
+    let scanner = Scanner::new("7 // 2");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].token_type, TokenType::Number);
+    assert_eq!(tokens[0].token, "7");
+    assert_eq!(tokens[1].token_type, TokenType::Eof);
+}

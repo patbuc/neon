@@ -178,7 +178,6 @@ for (num in numbers) {
 - `-` Subtraction
 - `*` Multiplication
 - `/` Division
-- `//` Floor division
 - `%` Modulo
 - `-x` Negation (unary)
 
@@ -394,6 +393,7 @@ val flag = "true".toBool()
 print(Math.abs(-5))        // 5
 print(Math.sqrt(16))       // 4
 print(Math.max(3, 7, 2))   // 7
+print(Math.floor(a / b))   // integer division
 ```
 
 ### String Methods

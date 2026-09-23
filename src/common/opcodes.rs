@@ -20,7 +20,6 @@ pub(crate) enum OpCode {
     Subtract,
     Multiply,
     Divide,
-    FloorDivide,
     Modulo,
     Exponent,
     Nil,

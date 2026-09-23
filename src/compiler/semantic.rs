@@ -228,7 +228,6 @@ impl SemanticAnalyzer {
                     BinaryOp::Subtract
                     | BinaryOp::Multiply
                     | BinaryOp::Divide
-                    | BinaryOp::FloorDivide
                     | BinaryOp::Modulo
                     | BinaryOp::Exponent => {
                         // Arithmetic operations return Number

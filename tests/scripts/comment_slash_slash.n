@@ -1,0 +1,6 @@
+// Expected:
+// 1
+// 7
+
+print(1) //note
+print(7) // 2

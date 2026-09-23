@@ -695,7 +695,6 @@ impl Parser {
                 | TokenType::Star
                 | TokenType::StarStar
                 | TokenType::Slash
-                | TokenType::SlashSlash
                 | TokenType::Percent
                 | TokenType::EqualEqual
                 | TokenType::BangEqual
@@ -737,9 +736,7 @@ impl Parser {
             | TokenType::PlusPlus
             | TokenType::MinusMinus => Precedence::Call,
             TokenType::StarStar => Precedence::Exponent,
-            TokenType::Star | TokenType::Slash | TokenType::SlashSlash | TokenType::Percent => {
-                Precedence::Factor
-            }
+            TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
             TokenType::LessLess | TokenType::GreaterGreater => Precedence::Shift,
             TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
@@ -923,7 +920,6 @@ impl Parser {
             TokenType::Star => BinaryOp::Multiply,
             TokenType::StarStar => BinaryOp::Exponent,
             TokenType::Slash => BinaryOp::Divide,
-            TokenType::SlashSlash => BinaryOp::FloorDivide,
             TokenType::Percent => BinaryOp::Modulo,
             TokenType::EqualEqual => BinaryOp::Equal,
             TokenType::BangEqual => BinaryOp::NotEqual,
