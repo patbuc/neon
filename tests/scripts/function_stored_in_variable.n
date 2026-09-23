@@ -1,0 +1,9 @@
+// Expected:
+// 8
+
+fn f(x) {
+    return x * 2
+}
+
+val g = f
+print(g(4))

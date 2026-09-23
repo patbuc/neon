@@ -1,0 +1,12 @@
+// Expected:
+// 6
+
+fn f(x) {
+    return x * 2
+}
+
+fn apply(g, v) {
+    return g(v)
+}
+
+print(apply(f, 3))

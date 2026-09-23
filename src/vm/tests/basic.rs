@@ -3382,3 +3382,51 @@ fn printing_math_namespace_is_a_compile_error() {
         vm.get_compiler_error()
     );
 }
+
+#[test]
+fn calling_a_number_held_in_a_variable_is_runtime_error() {
+    let program = r#"
+        val n = 1
+        n(2)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("Value is not callable"));
+}
+
+#[test]
+fn calling_a_number_held_in_a_parameter_is_runtime_error() {
+    let program = r#"
+        fn apply(g) {
+            return g(1)
+        }
+        apply(1)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("Value is not callable"));
+}
+
+#[test]
+fn wrong_argument_count_through_an_indirect_call_is_runtime_error() {
+    let program = r#"
+        fn f(x) {
+            return x
+        }
+        fn apply(g) {
+            return g(1, 2)
+        }
+        apply(f)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("Expected 1 arguments but got 2"));
+}

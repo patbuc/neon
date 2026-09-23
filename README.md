@@ -112,6 +112,22 @@ fn fibonacci(n) {
 }
 ```
 
+Functions are first-class values: they can be stored in variables, passed as
+arguments, and returned from other functions.
+
+```neon
+fn double(x) {
+    return x * 2
+}
+
+fn apply(f, value) {
+    return f(value)
+}
+
+val g = double
+print(apply(g, 3))  // 6
+```
+
 ### Control Flow
 
 **If/Else:**

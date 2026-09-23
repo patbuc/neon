@@ -1,0 +1,16 @@
+// Expected:
+// 10
+// 10
+
+fn f(x) {
+    return x * 2
+}
+
+fn pick() {
+    return f
+}
+
+print(pick()(5))
+
+val h = pick()
+print(h(5))

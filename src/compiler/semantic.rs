@@ -1038,7 +1038,11 @@ impl SemanticAnalyzer {
                     let arity = fields.len() as u8;
                     self.validate_arity(function_name, arity, arguments.len(), location);
                 }
-                _ => {
+                SymbolKind::Value | SymbolKind::Variable | SymbolKind::Parameter => {
+                    // Holds an arbitrary value; whether it's callable, and
+                    // with how many arguments, is only known at runtime.
+                }
+                SymbolKind::Namespace => {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::UnexpectedToken,

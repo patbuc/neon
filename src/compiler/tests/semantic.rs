@@ -181,7 +181,9 @@ fn bar() {
 }
 
 #[test]
-fn test_calling_non_function() {
+fn test_calling_variable_is_allowed_statically() {
+    // A variable's arity is unknown until runtime, so calling it is not a
+    // static error even when it happens to hold a non-callable value.
     let program = r#"
 val x = 10
 x()
@@ -192,11 +194,23 @@ x()
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
 
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("is not a function")));
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_calling_parameter_is_allowed_statically() {
+    let program = r#"
+fn apply(g, v) {
+    return g(v)
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
 }
 
 // ===== Method Validation Tests =====
