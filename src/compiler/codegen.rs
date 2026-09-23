@@ -24,6 +24,17 @@ enum LoopExit {
     Continue,
 }
 
+enum VariableScope {
+    Local,
+    Global,
+    Builtin,
+}
+
+struct VariableRef {
+    index: u32,
+    scope: VariableScope,
+}
+
 pub struct CodeGenerator {
     chunks: Vec<Chunk>,
     scope_depth: u32,
@@ -105,42 +116,51 @@ impl CodeGenerator {
     }
 
     fn emit_variable_get(&mut self, name: &str, location: SourceLocation) -> Option<()> {
-        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
-        if let Some(index) = maybe_index {
-            if is_global {
-                self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-            } else {
-                self.emit_op_code_variant(OpCode::GetLocal, index, location);
+        match self.get_variable_index(name) {
+            Some(var) => {
+                let op_code = match var.scope {
+                    VariableScope::Builtin => OpCode::GetBuiltin,
+                    VariableScope::Global => OpCode::GetGlobal,
+                    VariableScope::Local => OpCode::GetLocal,
+                };
+                self.emit_op_code_variant(op_code, var.index, location);
+                Some(())
             }
-            Some(())
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::UndefinedSymbol,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
-            None
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+                None
+            }
         }
     }
 
+    fn emit_set_for_variable(&mut self, var: &VariableRef, location: SourceLocation) {
+        let op_code = match var.scope {
+            VariableScope::Local => OpCode::SetLocal,
+            VariableScope::Global | VariableScope::Builtin => OpCode::SetGlobal,
+        };
+        self.emit_op_code_variant(op_code, var.index, location);
+    }
+
     fn emit_variable_set(&mut self, name: &str, location: SourceLocation) -> Option<()> {
-        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
-        if let Some(index) = maybe_index {
-            if is_global {
-                self.emit_op_code_variant(OpCode::SetGlobal, index, location);
-            } else {
-                self.emit_op_code_variant(OpCode::SetLocal, index, location);
+        match self.get_variable_index(name) {
+            Some(var) => {
+                self.emit_set_for_variable(&var, location);
+                Some(())
             }
-            Some(())
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::UndefinedSymbol,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
-            None
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+                None
+            }
         }
     }
 
@@ -201,37 +221,41 @@ impl CodeGenerator {
             .emit_loop(loop_start, location.line, location.column);
     }
 
-    fn get_variable_index(&self, name: &str) -> (Option<u32>, bool, bool, bool) {
-        // Returns: (index, is_mutable, is_global, is_builtin)
-
+    fn get_variable_index(&self, name: &str) -> Option<VariableRef> {
         if self.is_builtin(name) {
-            let index = self.get_builtin_index(name);
-            if let Some(index) = index {
-                return (Some(index as u32), false, true, true); // is_global = true, is_builtin = true
-            }
-            return (None, false, false, false);
+            let index = self.get_builtin_index(name)?;
+            return Some(VariableRef {
+                index: index as u32,
+                scope: VariableScope::Builtin,
+            });
         }
 
         // Search in chunk stack from innermost to outermost
         let current_chunk_idx = self.chunks.len() - 1;
 
         // First try to find in current chunk (parameters and locals)
-        let current_result = self.chunks[current_chunk_idx].get_local_index(name);
-        if let Some(index) = current_result.0 {
-            return (Some(index), current_result.1, false, false);
+        let (index, _) = self.chunks[current_chunk_idx].get_local_index(name);
+        if let Some(index) = index {
+            return Some(VariableRef {
+                index,
+                scope: VariableScope::Local,
+            });
         }
 
         // Then try to find in parent chunks (global scope for nested functions)
         if current_chunk_idx > 0 {
             for chunk_idx in (0..current_chunk_idx).rev() {
-                let index = self.chunks[chunk_idx].get_local_index(name);
-                if let Some(local_index) = index.0 {
-                    return (Some(local_index), index.1, true, false); // is_global = true
+                let (index, _) = self.chunks[chunk_idx].get_local_index(name);
+                if let Some(index) = index {
+                    return Some(VariableRef {
+                        index,
+                        scope: VariableScope::Global,
+                    });
                 }
             }
         }
 
-        (None, false, false, false)
+        None
     }
 
     // ===== Statement Generation =====
@@ -297,9 +321,8 @@ impl CodeGenerator {
         self.emit_constant(function_value, location);
 
         // Get the index of the function variable we defined earlier
-        let (index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
-        let index = match index {
-            Some(idx) => idx,
+        let var = match self.get_variable_index(name) {
+            Some(var) => var,
             None => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Codegen,
@@ -312,11 +335,7 @@ impl CodeGenerator {
         };
 
         // Emit the appropriate Set opcode to update the placeholder
-        if is_global {
-            self.emit_op_code_variant(OpCode::SetGlobal, index, location);
-        } else {
-            self.emit_op_code_variant(OpCode::SetLocal, index, location);
-        }
+        self.emit_set_for_variable(&var, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
@@ -667,45 +686,13 @@ impl CodeGenerator {
     }
 
     fn generate_variable_expr(&mut self, name: &str, location: SourceLocation) {
-        let (maybe_index, _is_mutable, is_global, is_builtin) = self.get_variable_index(name);
-        if let Some(index) = maybe_index {
-            if is_builtin {
-                self.emit_op_code_variant(OpCode::GetBuiltin, index, location);
-            } else if is_global {
-                self.emit_op_code_variant(OpCode::GetGlobal, index, location);
-            } else {
-                self.emit_op_code_variant(OpCode::GetLocal, index, location);
-            }
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::UndefinedSymbol,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
-        }
+        self.emit_variable_get(name, location);
     }
 
     fn generate_assign_expr(&mut self, name: &str, value: &Expr, location: SourceLocation) {
         // Generate the value being assigned
         self.generate_expr(value);
-
-        // Get the variable index
-        let (maybe_index, _is_mutable, is_global, _is_builtin) = self.get_variable_index(name);
-        if let Some(index) = maybe_index {
-            if is_global {
-                self.emit_op_code_variant(OpCode::SetGlobal, index, location);
-            } else {
-                self.emit_op_code_variant(OpCode::SetLocal, index, location);
-            }
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::UndefinedSymbol,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
-        }
+        self.emit_variable_set(name, location);
     }
 
     fn generate_binary_expr(
