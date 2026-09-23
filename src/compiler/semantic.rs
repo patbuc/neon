@@ -9,16 +9,6 @@ use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
 
-/// Tracks one currently-open function scope, so references from inside it
-/// can tell a script variable (reachable from any depth) apart from an
-/// enclosing function's local (not yet capturable) and its own name
-/// (recursion).
-struct FunctionScope {
-    name: String,
-    /// Scope depth of the function's own body, i.e. just after entering it.
-    depth: u32,
-}
-
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
@@ -28,7 +18,6 @@ pub struct SemanticAnalyzer {
     // the known static type, or None if the type is unknown.
     type_env: Vec<HashMap<String, Option<String>>>,
     loop_depth: u32,
-    function_scopes: Vec<FunctionScope>,
 }
 
 impl SemanticAnalyzer {
@@ -69,7 +58,6 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             type_env,
             loop_depth: 0,
-            function_scopes: Vec::new(),
         }
     }
 
@@ -351,7 +339,7 @@ impl SemanticAnalyzer {
 
     /// Helper method to check if a variable exists and is mutable
     fn check_variable_mutability(&mut self, name: &str, location: SourceLocation) {
-        let (depth, is_mutable) = match self.symbol_table.resolve(name) {
+        match self.symbol_table.resolve(name) {
             None => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -359,22 +347,17 @@ impl SemanticAnalyzer {
                     format!("Undefined variable '{}'", name),
                     location,
                 ));
-                return;
             }
-            Some(symbol) => (symbol.scope_depth, symbol.is_mutable),
-        };
-
-        if !self.check_capture(name, depth, location) {
-            return;
-        }
-
-        if !is_mutable {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::ImmutableAssignment,
-                format!("Cannot modify immutable variable '{}'", name),
-                location,
-            ));
+            Some(symbol) => {
+                if !symbol.is_mutable {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        format!("Cannot modify immutable variable '{}'", name),
+                        location,
+                    ));
+                }
+            }
         }
     }
 
@@ -611,10 +594,6 @@ impl SemanticAnalyzer {
 
         // Enter function scope
         self.enter_scope();
-        self.function_scopes.push(FunctionScope {
-            name: name.to_string(),
-            depth: self.symbol_table.current_depth(),
-        });
 
         // A loop enclosing this declaration must not let break/continue
         // inside the function body see themselves as inside that loop.
@@ -635,43 +614,9 @@ impl SemanticAnalyzer {
         }
 
         self.loop_depth = saved_loop_depth;
-        self.function_scopes.pop();
 
         // Exit function scope
         self.exit_scope();
-    }
-
-    /// Checks whether `name`, resolved at `symbol_depth`, may be referenced
-    /// from here. A symbol owned by the current function (or a plain block
-    /// inside it) is always fine; a script variable, defined outside every
-    /// open function, stays reachable from any depth; a function may refer
-    /// to its own name to recurse. Anything else is a local of some
-    /// *enclosing* function, which cannot be captured yet.
-    fn check_capture(&mut self, name: &str, symbol_depth: u32, location: SourceLocation) -> bool {
-        let Some(innermost) = self.function_scopes.last() else {
-            return true;
-        };
-        if symbol_depth >= innermost.depth {
-            return true;
-        }
-        if name == innermost.name {
-            return true;
-        }
-        let outermost_depth = self.function_scopes[0].depth;
-        if symbol_depth < outermost_depth {
-            return true;
-        }
-
-        self.errors.push(CompilationError::new(
-            CompilationPhase::Semantic,
-            CompilationErrorKind::Other,
-            format!(
-                "Capturing enclosing function locals is not supported yet: '{}'",
-                name
-            ),
-            location,
-        ));
-        false
     }
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
@@ -760,7 +705,7 @@ impl SemanticAnalyzer {
     }
 
     fn resolve_variable(&mut self, name: &str, location: SourceLocation) {
-        let depth = match self.symbol_table.resolve(name) {
+        match self.symbol_table.resolve(name) {
             None => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -768,7 +713,6 @@ impl SemanticAnalyzer {
                     format!("Undefined variable '{}'", name),
                     location,
                 ));
-                return;
             }
             Some(symbol) => {
                 if symbol.kind == SymbolKind::Namespace {
@@ -778,12 +722,9 @@ impl SemanticAnalyzer {
                         format!("'{}' is a namespace, not a value", name),
                         location,
                     ));
-                    return;
                 }
-                symbol.scope_depth
             }
-        };
-        self.check_capture(name, depth, location);
+        }
     }
 
     fn resolve_assignment(&mut self, name: &str, value: &Expr, location: SourceLocation) {
@@ -791,7 +732,7 @@ impl SemanticAnalyzer {
         self.resolve_expr(value);
 
         // Check if variable exists and is mutable
-        let (depth, is_mutable) = match self.symbol_table.resolve(name) {
+        match self.symbol_table.resolve(name) {
             None => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -799,29 +740,24 @@ impl SemanticAnalyzer {
                     format!("Undefined variable '{}'", name),
                     location,
                 ));
-                return;
             }
-            Some(symbol) => (symbol.scope_depth, symbol.is_mutable),
-        };
-
-        if !self.check_capture(name, depth, location) {
-            return;
-        }
-
-        if !is_mutable {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::ImmutableAssignment,
-                format!("Cannot assign to immutable variable '{}'", name),
-                location,
-            ));
-        } else {
-            // This analysis is flow-insensitive: an assignment may
-            // happen conditionally (e.g. inside an if branch), so
-            // adopting the new value's type here would wrongly
-            // apply it even on paths that never assign. Mark the
-            // type unknown instead, wherever it's tracked.
-            self.set_type(name, None);
+            Some(symbol) => {
+                if !symbol.is_mutable {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        format!("Cannot assign to immutable variable '{}'", name),
+                        location,
+                    ));
+                } else {
+                    // This analysis is flow-insensitive: an assignment may
+                    // happen conditionally (e.g. inside an if branch), so
+                    // adopting the new value's type here would wrongly
+                    // apply it even on paths that never assign. Mark the
+                    // type unknown instead, wherever it's tracked.
+                    self.set_type(name, None);
+                }
+            }
         }
     }
 

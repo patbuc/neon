@@ -1662,7 +1662,7 @@ fn outer() {
 }
 
 #[test]
-fn test_nested_fn_referencing_enclosing_function_local_is_error() {
+fn test_nested_fn_capturing_enclosing_function_local_is_valid() {
     let program = r#"
 fn outer() {
     var x = 1
@@ -1678,11 +1678,7 @@ fn outer() {
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
 
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Capturing enclosing function locals is not supported yet")));
+    assert!(result.is_ok());
 }
 
 #[test]

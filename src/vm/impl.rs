@@ -363,7 +363,6 @@ impl VirtualMachine {
                         return result;
                     }
                 }
-                OpCode::GetCurrentFunction => self.fn_get_current_function(),
                 OpCode::Closure => {
                     if let Some(result) = self.fn_closure(BitsSize::Eight) {
                         return result;

@@ -1,0 +1,22 @@
+// Expected:
+// 10
+// 20
+// 30
+
+fn makeGetters() {
+    var closures = []
+    var i = 0
+    while (i < 3) {
+        val value = (i + 1) * 10
+        fn makeGetter() {
+            return value
+        }
+        closures.push(makeGetter)
+        i = i + 1
+    }
+    return closures
+}
+
+for (getter in makeGetters()) {
+    print(getter())
+}

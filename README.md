@@ -128,6 +128,29 @@ val g = double
 print(apply(g, 3))  // 6
 ```
 
+Functions can be nested, and a nested function closes over the variables of
+the functions enclosing it: each call to `counter()` gets its own `n`, and
+`inc` keeps reading and writing that same `n` even after `counter()` has
+returned.
+
+```neon
+fn counter() {
+    var n = 0
+    fn inc() {
+        n = n + 1
+        return n
+    }
+    return inc
+}
+
+val c = counter()
+print(c())  // 1
+print(c())  // 2
+
+val other = counter()
+print(other())  // 1, independent of c
+```
+
 ### Control Flow
 
 **If/Else:**

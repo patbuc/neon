@@ -1,0 +1,21 @@
+// Expected:
+// 0
+// 5
+// 5
+
+fn outer() {
+    var total = 0
+    fn middle() {
+        fn inner(amount) {
+            total = total + amount
+            return total
+        }
+        return inner
+    }
+    return middle
+}
+
+val add = outer()()
+print(add(0))
+print(add(5))
+print(add(0))

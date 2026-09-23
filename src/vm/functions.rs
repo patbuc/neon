@@ -505,16 +505,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Pushes the currently executing function as a value, so a function
-    /// nested inside another function can call itself recursively by name.
-    #[inline(always)]
-    pub(in crate::vm) fn fn_get_current_function(&mut self) {
-        let frame = self.current_frame();
-        let function = Rc::clone(&frame.function);
-        let upvalues = frame.upvalues.clone();
-        self.push(Value::new_closure(function, upvalues));
-    }
-
     /// Wraps a function constant in a closure, capturing whatever upvalues
     /// its metadata (following the constant index) describes.
     #[inline(always)]

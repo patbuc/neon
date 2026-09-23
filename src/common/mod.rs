@@ -37,6 +37,9 @@ pub struct Local {
     pub name: String,
     pub depth: i32,
     pub is_mutable: bool,
+    /// Whether a nested function captures this local as an upvalue. Set
+    /// once, after the local is declared, by codegen's upvalue resolution.
+    pub is_captured: bool,
 }
 
 impl Local {
@@ -45,6 +48,7 @@ impl Local {
             name,
             depth: depth as i32,
             is_mutable,
+            is_captured: false,
         }
     }
 }

@@ -1,0 +1,23 @@
+// Expected:
+// 1
+// 2
+// 2
+
+fn counter() {
+    var n = 0
+    fn inc() {
+        n = n + 1
+        return n
+    }
+    fn get() {
+        return n
+    }
+    return [inc, get]
+}
+
+val pair = counter()
+val inc = pair[0]
+val get = pair[1]
+print(inc())
+print(inc())
+print(get())

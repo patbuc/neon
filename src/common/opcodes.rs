@@ -66,7 +66,6 @@ impl OpCode {
             v if v == OpCode::BitwiseNot as u8 => Some(OpCode::BitwiseNot),
             v if v == OpCode::LeftShift as u8 => Some(OpCode::LeftShift),
             v if v == OpCode::RightShift as u8 => Some(OpCode::RightShift),
-            v if v == OpCode::GetCurrentFunction as u8 => Some(OpCode::GetCurrentFunction),
             v if v == OpCode::Closure as u8 => Some(OpCode::Closure),
             v if v == OpCode::Closure2 as u8 => Some(OpCode::Closure2),
             v if v == OpCode::Closure4 as u8 => Some(OpCode::Closure4),
@@ -153,11 +152,6 @@ pub(crate) enum OpCode {
     BitwiseNot,
     LeftShift,
     RightShift,
-
-    /// Pushes the function object of the currently executing call frame.
-    /// Lets a function nested inside another function call itself
-    /// recursively by name without needing a captured upvalue.
-    GetCurrentFunction,
 
     /// Wraps a function constant in a closure: reads a function constant
     /// index, then an upvalue count and that many (is_local, index) pairs

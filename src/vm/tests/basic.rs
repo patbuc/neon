@@ -3432,7 +3432,7 @@ fn wrong_argument_count_through_an_indirect_call_is_runtime_error() {
 }
 
 #[test]
-fn nested_fn_capturing_enclosing_function_local_is_compile_error() {
+fn nested_fn_capturing_enclosing_function_local_is_valid() {
     let program = r#"
         fn outer() {
             var x = 1
@@ -3441,14 +3441,13 @@ fn nested_fn_capturing_enclosing_function_local_is_compile_error() {
             }
             return inner()
         }
+        print(outer())
         "#;
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
-    assert!(vm
-        .get_compiler_error()
-        .contains("Capturing enclosing function locals is not supported yet"));
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1", vm.get_output());
 }
 
 #[test]

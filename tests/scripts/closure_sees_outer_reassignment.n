@@ -1,0 +1,18 @@
+// Expected:
+// 1
+// 99
+// 99
+
+fn outer() {
+    var n = 1
+    fn getN() {
+        return n
+    }
+    print(getN())
+    n = 99
+    print(getN())
+    return getN
+}
+
+val getter = outer()
+print(getter())

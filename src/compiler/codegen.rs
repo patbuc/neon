@@ -28,18 +28,30 @@ enum VariableScope {
     Local,
     Global,
     Builtin,
-    /// The function currently being compiled, referenced by its own name
-    /// from inside its own body (recursion). Its placeholder local lives in
-    /// an enclosing function's chunk, which may not still be on the call
-    /// stack by the time this call runs, so it can't be read as a Local;
-    /// unlike Global, it isn't at a fixed frame either once nested more than
-    /// one function deep, so it's fetched straight off the current frame.
-    CurrentFunction,
+    /// A variable captured from an enclosing function, addressed by index
+    /// into the current function's own upvalue array.
+    Upvalue,
 }
 
 struct VariableRef {
     index: u32,
     scope: VariableScope,
+}
+
+/// One entry in a function's upvalue array: where to find the value when
+/// the function's closure is created. `is_local` means a local slot of the
+/// immediately enclosing function; otherwise it's one of that enclosing
+/// function's own upvalues (chaining a capture through multiple levels).
+#[derive(Clone, Copy, PartialEq)]
+struct UpvalueDescriptor {
+    is_local: bool,
+    index: u32,
+}
+
+/// Upvalue bookkeeping for one function currently being compiled.
+#[derive(Default)]
+struct FunctionContext {
+    upvalues: Vec<UpvalueDescriptor>,
 }
 
 pub struct CodeGenerator {
@@ -48,9 +60,9 @@ pub struct CodeGenerator {
     errors: Vec<CompilationError>,
     loop_contexts: Vec<LoopContext>,
     builtin: indexmap::IndexMap<String, Value>,
-    /// Name of each function currently being compiled, outermost first;
-    /// `chunks[i + 1]` is that function's own chunk.
-    function_names: Vec<String>,
+    /// Upvalues captured by each function currently being compiled,
+    /// outermost first; `chunks[i + 1]` is that function's own chunk.
+    function_contexts: Vec<FunctionContext>,
 }
 
 impl CodeGenerator {
@@ -63,7 +75,7 @@ impl CodeGenerator {
             errors: Vec::new(),
             loop_contexts: Vec::new(),
             builtin,
-            function_names: Vec::new(),
+            function_contexts: Vec::new(),
         }
     }
 
@@ -128,19 +140,12 @@ impl CodeGenerator {
 
     fn emit_variable_get(&mut self, name: &str, location: SourceLocation) -> Option<()> {
         match self.get_variable_index(name) {
-            Some(VariableRef {
-                scope: VariableScope::CurrentFunction,
-                ..
-            }) => {
-                self.emit_op_code(OpCode::GetCurrentFunction, location);
-                Some(())
-            }
             Some(var) => {
                 let op_code = match var.scope {
                     VariableScope::Builtin => OpCode::GetBuiltin,
                     VariableScope::Global => OpCode::GetGlobal,
                     VariableScope::Local => OpCode::GetLocal,
-                    VariableScope::CurrentFunction => unreachable!(),
+                    VariableScope::Upvalue => OpCode::GetUpvalue,
                 };
                 self.emit_op_code_variant(op_code, var.index, location);
                 Some(())
@@ -161,17 +166,7 @@ impl CodeGenerator {
         let op_code = match var.scope {
             VariableScope::Local => OpCode::SetLocal,
             VariableScope::Global | VariableScope::Builtin => OpCode::SetGlobal,
-            VariableScope::CurrentFunction => {
-                // Semantic analysis rejects assigning to a function's own
-                // name (it's immutable), so this should be unreachable.
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::Internal,
-                    "Cannot assign to the current function".to_string(),
-                    location,
-                ));
-                return;
-            }
+            VariableScope::Upvalue => OpCode::SetUpvalue,
         };
         self.emit_op_code_variant(op_code, var.index, location);
     }
@@ -191,6 +186,40 @@ impl CodeGenerator {
                 ));
                 None
             }
+        }
+    }
+
+    /// Emits a Closure instruction's trailing upvalue metadata: a count
+    /// byte, then an (is_local, index) pair per upvalue.
+    fn emit_upvalue_metadata(&mut self, upvalues: &[UpvalueDescriptor], location: SourceLocation) {
+        let message = format!(
+            "function captures too many variables: {} (maximum is {})",
+            upvalues.len(),
+            u8::MAX
+        );
+        if self
+            .check_count_limit(upvalues.len(), u8::MAX as usize, message, location)
+            .is_none()
+        {
+            return;
+        }
+        self.current_chunk().write_u8(upvalues.len() as u8);
+
+        for upvalue in upvalues {
+            let message = format!(
+                "captured variable index too large: {} (maximum is {})",
+                upvalue.index,
+                u16::MAX
+            );
+            if self
+                .check_count_limit(upvalue.index as usize, u16::MAX as usize, message, location)
+                .is_none()
+            {
+                return;
+            }
+            self.current_chunk()
+                .write_u8(if upvalue.is_local { 1 } else { 0 });
+            self.current_chunk().write_u16(upvalue.index as u16);
         }
     }
 
@@ -251,7 +280,7 @@ impl CodeGenerator {
             .emit_loop(loop_start, location.line, location.column);
     }
 
-    fn get_variable_index(&self, name: &str) -> Option<VariableRef> {
+    fn get_variable_index(&mut self, name: &str) -> Option<VariableRef> {
         if self.is_builtin(name) {
             let index = self.get_builtin_index(name)?;
             return Some(VariableRef {
@@ -276,6 +305,15 @@ impl CodeGenerator {
             return None;
         }
 
+        // Next, an enclosing function's local (captured as an upvalue,
+        // possibly chained through several levels of nesting).
+        if let Some(upvalue_index) = self.resolve_upvalue(current_chunk_idx, name) {
+            return Some(VariableRef {
+                index: upvalue_index,
+                scope: VariableScope::Upvalue,
+            });
+        }
+
         // The script chunk's locals stay reachable from any nesting depth.
         let (index, _) = self.chunks[0].get_local_index(name);
         if let Some(index) = index {
@@ -285,21 +323,52 @@ impl CodeGenerator {
             });
         }
 
-        // A function nested inside another function can still call itself:
-        // its own placeholder local lives in the enclosing function's
-        // chunk, but that chunk's frame may already be gone by the time the
-        // call happens (e.g. after the function escaped and was returned),
-        // so it's resolved off the current frame instead (see
-        // VariableScope::CurrentFunction). Any other enclosing function's
-        // local is semantic analysis's job to reject before this ever runs.
-        if current_chunk_idx > 1 && self.function_names.last().map(String::as_str) == Some(name) {
-            return Some(VariableRef {
-                index: 0,
-                scope: VariableScope::CurrentFunction,
-            });
+        None
+    }
+
+    /// Resolves `name` as an upvalue of the function compiled into
+    /// `chunks[chunk_idx]`: a local of the immediately enclosing function,
+    /// or one of *that* function's own upvalues, chaining the capture
+    /// through as many levels of nesting as needed. Never looks past chunk
+    /// 0 (the script) — script variables are read as globals, not captured.
+    fn resolve_upvalue(&mut self, chunk_idx: usize, name: &str) -> Option<u32> {
+        if chunk_idx <= 1 {
+            return None;
+        }
+        let enclosing_idx = chunk_idx - 1;
+
+        let (local_index, _) = self.chunks[enclosing_idx].get_local_index(name);
+        if let Some(local_index) = local_index {
+            self.chunks[enclosing_idx].mark_captured(local_index);
+            return Some(self.add_upvalue(
+                chunk_idx,
+                UpvalueDescriptor {
+                    is_local: true,
+                    index: local_index,
+                },
+            ));
         }
 
-        None
+        let enclosing_upvalue = self.resolve_upvalue(enclosing_idx, name)?;
+        Some(self.add_upvalue(
+            chunk_idx,
+            UpvalueDescriptor {
+                is_local: false,
+                index: enclosing_upvalue,
+            },
+        ))
+    }
+
+    /// Adds `descriptor` to the upvalue array of the function compiled into
+    /// `chunks[chunk_idx]`, reusing a matching existing entry instead of
+    /// duplicating it.
+    fn add_upvalue(&mut self, chunk_idx: usize, descriptor: UpvalueDescriptor) -> u32 {
+        let upvalues = &mut self.function_contexts[chunk_idx - 1].upvalues;
+        if let Some(existing) = upvalues.iter().position(|d| *d == descriptor) {
+            return existing as u32;
+        }
+        upvalues.push(descriptor);
+        (upvalues.len() - 1) as u32
     }
 
     // ===== Statement Generation =====
@@ -344,7 +413,7 @@ impl CodeGenerator {
 
         // Create a new chunk for the function
         self.chunks.push(Chunk::new(&format!("function_{}", name)));
-        self.function_names.push(name.to_string());
+        self.function_contexts.push(FunctionContext::default());
 
         // Enter function scope
         self.scope_depth += 1;
@@ -354,6 +423,17 @@ impl CodeGenerator {
             let param_local = Local::new(param.clone(), self.scope_depth, false);
             self.current_chunk().add_parameter(param_local);
         }
+
+        // The calling convention leaves the callable itself in the slot
+        // right after the last param (or right after slot_start, for a
+        // 0-arg call), unconsumed. Without this, the first local declared
+        // in the body would compute that same slot as its own target, but
+        // its initializer's push lands one slot higher, leaving the real
+        // value stranded on top and everything after it misaligned.
+        // Reserving it (by name no identifier can spell) keeps compile-time
+        // local bookkeeping matching the actual stack shape.
+        let reserved_slot = Local::new(String::new(), self.scope_depth, false);
+        self.current_chunk().add_parameter(reserved_slot);
 
         // Compile function body
         for stmt in body {
@@ -365,17 +445,17 @@ impl CodeGenerator {
 
         // Exit function scope
         self.scope_depth -= 1;
-        self.function_names.pop();
+        let context = self.function_contexts.pop().unwrap();
 
         let function_chunk = self.chunks.pop().unwrap();
         let function_value =
             Value::new_function(name.to_string(), params.len() as u8, function_chunk);
 
-        // Wrap the function in a closure (no captures yet) and replace the
-        // Nil placeholder with it.
+        // Wrap the function in a closure and replace the Nil placeholder
+        // with it.
         let const_index = self.current_chunk().add_constant(function_value);
         self.emit_op_code_variant(OpCode::Closure, const_index, location);
-        self.current_chunk().write_u8(0); // upvalue count
+        self.emit_upvalue_metadata(&context.upvalues, location);
 
         // Get the index of the function variable we defined earlier
         let var = match self.get_variable_index(name) {
@@ -411,15 +491,26 @@ impl CodeGenerator {
 
     fn end_scope(&mut self, location: SourceLocation) {
         self.scope_depth -= 1;
-        let popped = self.discard_locals_above_current_depth();
-        for _ in 0..popped {
-            self.emit_op_code(OpCode::Pop, location);
-        }
+        let captured = self.discard_locals_above_current_depth();
+        self.emit_scope_exit(&captured, location);
     }
 
-    fn discard_locals_above_current_depth(&mut self) -> u32 {
+    fn discard_locals_above_current_depth(&mut self) -> Vec<bool> {
         let scope_depth = self.scope_depth;
         self.current_chunk().pop_locals_above(scope_depth)
+    }
+
+    /// Emits one instruction per popped local, top-most first: CloseUpvalue
+    /// for one a nested function captured, Pop otherwise.
+    fn emit_scope_exit(&mut self, captured: &[bool], location: SourceLocation) {
+        for &is_captured in captured {
+            let op_code = if is_captured {
+                OpCode::CloseUpvalue
+            } else {
+                OpCode::Pop
+            };
+            self.emit_op_code(op_code, location);
+        }
     }
 
     fn generate_if_stmt(
@@ -496,10 +587,8 @@ impl CodeGenerator {
 
     // Leaves the locals in chunk.locals; end_scope still owns them on fall-through.
     fn emit_loop_exit_pops(&mut self, depth: u32, location: SourceLocation) {
-        let count = self.current_chunk().count_locals_above(depth);
-        for _ in 0..count {
-            self.emit_op_code(OpCode::Pop, location);
-        }
+        let captured = self.current_chunk().captured_flags_above(depth);
+        self.emit_scope_exit(&captured, location);
     }
 
     fn generate_loop_exit_stmt(&mut self, exit: LoopExit, location: SourceLocation) {
@@ -600,8 +689,21 @@ impl CodeGenerator {
         // Generate the loop body
         self.generate_stmt(body);
 
-        // Pop the old loop variable value before getting the next one
-        self.emit_op_code(OpCode::Pop, location);
+        // Pop the old loop variable value before getting the next one,
+        // closing its upvalue first if the body captured it, so each
+        // iteration's closures see that iteration's own value.
+        let loop_variable_captured = self
+            .current_chunk()
+            .locals
+            .last()
+            .map(|local| local.is_captured)
+            .unwrap_or(false);
+        let exit_op = if loop_variable_captured {
+            OpCode::CloseUpvalue
+        } else {
+            OpCode::Pop
+        };
+        self.emit_op_code(exit_op, location);
 
         // Patch all continue jumps to point here (just before the Loop)
         // This allows continue to properly skip to the next iteration

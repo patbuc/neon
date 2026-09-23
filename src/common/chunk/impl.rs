@@ -156,29 +156,38 @@ impl Chunk {
         self.instructions.len()
     }
 
-    /// Drops locals declared deeper than `depth`, returning how many were removed.
-    pub(crate) fn pop_locals_above(&mut self, depth: u32) -> u32 {
-        let mut count = 0;
+    /// Drops locals declared deeper than `depth`, returning whether each one
+    /// was captured (top-most local first), so the caller can emit
+    /// CloseUpvalue instead of a plain Pop for it.
+    pub(crate) fn pop_locals_above(&mut self, depth: u32) -> Vec<bool> {
+        let mut captured = Vec::new();
         while let Some(local) = self.locals.last() {
             if local.depth <= depth as i32 {
                 break;
             }
+            captured.push(local.is_captured);
             self.locals.pop();
-            count += 1;
         }
-        count
+        captured
     }
 
-    /// Counts locals declared deeper than `depth`, without removing them.
-    pub(crate) fn count_locals_above(&self, depth: u32) -> u32 {
-        let mut count = 0;
+    /// Same as `pop_locals_above`, without removing the locals: for a
+    /// break/continue jump, which unwinds the runtime stack early but
+    /// leaves the compile-time locals in scope for the code that follows.
+    pub(crate) fn captured_flags_above(&self, depth: u32) -> Vec<bool> {
+        let mut captured = Vec::new();
         for local in self.locals.iter().rev() {
             if local.depth <= depth as i32 {
                 break;
             }
-            count += 1;
+            captured.push(local.is_captured);
         }
-        count
+        captured
+    }
+
+    /// Marks the local at `index` as captured by a nested function.
+    pub(crate) fn mark_captured(&mut self, index: u32) {
+        self.locals[index as usize].is_captured = true;
     }
 
     pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {

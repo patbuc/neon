@@ -1,0 +1,20 @@
+// Expected:
+// 1
+// 2
+// 3
+
+fn makeGetters() {
+    val values = [1, 2, 3]
+    var closures = []
+    for (n in values) {
+        fn makeGetter() {
+            return n
+        }
+        closures.push(makeGetter)
+    }
+    return closures
+}
+
+for (getter in makeGetters()) {
+    print(getter())
+}
