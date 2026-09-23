@@ -2871,6 +2871,134 @@ fn test_loop_body_local_does_not_grow_stack() {
 }
 
 #[test]
+fn test_for_in_break_does_not_leak_stack_or_iterator() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            var outer = 0
+            while (outer < {iterations}) {{
+                for (x in [1, 2, 3]) {{
+                    val temp = x * 2
+                    if (temp == 4) {{
+                        break
+                    }}
+                }}
+                outer = outer + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        assert_eq!(0, vm.iterator_stack.len());
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
+fn test_for_in_continue_does_not_grow_stack() {
+    fn stack_len_after_loop(count: i64) -> usize {
+        let program = format!(
+            r#"
+            for (i in 0..{count}) {{
+                val temp = i * 2
+                continue
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
+fn test_c_style_for_continue_with_block_local_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            for (var i = 0; i < {iterations}; i = i + 1) {{
+                val temp = i * 2
+                continue
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
+fn test_while_break_from_block_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            var outer = 0
+            while (outer < {iterations}) {{
+                var i = 0
+                while (i < 10) {{
+                    val temp = i * 2
+                    if (temp == 4) {{
+                        break
+                    }}
+                    i = i + 1
+                }}
+                outer = outer + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
+fn test_while_continue_from_block_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            var outer = 0
+            while (outer < {iterations}) {{
+                var i = 0
+                while (i < 5) {{
+                    val temp = i * 2
+                    i = i + 1
+                    if (temp >= 0) {{
+                        continue
+                    }}
+                }}
+                outer = outer + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
 fn debug_simple_param() {
     let program = r#"
         fn test(x) {

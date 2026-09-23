@@ -15,6 +15,8 @@ struct LoopContext {
     loop_start: u32,
     break_jumps: Vec<u32>,
     continue_jumps: Vec<u32>,
+    /// Locals deeper than this are popped by a break/continue before it jumps.
+    depth: u32,
 }
 
 pub struct CodeGenerator {
@@ -387,6 +389,7 @@ impl CodeGenerator {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
+            depth: self.scope_depth,
         });
 
         self.generate_expr(condition);
@@ -449,6 +452,14 @@ impl CodeGenerator {
         self.emit_op_code(OpCode::Return, location);
     }
 
+    // Leaves the locals in chunk.locals; end_scope still owns them on fall-through.
+    fn emit_loop_exit_pops(&mut self, depth: u32, location: SourceLocation) {
+        let count = self.current_chunk().count_locals_above(depth);
+        for _ in 0..count {
+            self.emit_op_code(OpCode::Pop, location);
+        }
+    }
+
     fn generate_break_stmt(&mut self, location: SourceLocation) {
         // Emit a Jump opcode and record its location for later patching
         if self.loop_contexts.is_empty() {
@@ -460,6 +471,9 @@ impl CodeGenerator {
             ));
             return;
         }
+        let depth = self.loop_contexts.last().unwrap().depth;
+        self.emit_loop_exit_pops(depth, location);
+
         let jump_index = self.emit_jump(OpCode::Jump, location);
         self.loop_contexts
             .last_mut()
@@ -481,6 +495,9 @@ impl CodeGenerator {
             ));
             return;
         }
+        let depth = self.loop_contexts.last().unwrap().depth;
+        self.emit_loop_exit_pops(depth, location);
+
         let jump_index = self.emit_jump(OpCode::Jump, location);
         self.loop_contexts
             .last_mut()
@@ -507,11 +524,14 @@ impl CodeGenerator {
         //   JumpIfFalse exit_jump   ; If false (done), exit loop
         //   Pop                     ; Pop the true value (has more)
         //   IteratorNext            ; Get next value (pushes value onto stack)
-        //   <body with loop variable>
+        //   <body with loop variable>       ; break/continue pop the loop variable
+        //                                    ; and any body locals before jumping
         //   Pop                     ; Pop the loop variable value
         //   Loop loop_start         ; Jump back
         //   exit_jump:
         //   Pop                     ; Pop the false value (done)
+        //   <break lands here>
+        //   PopIterator             ; Pop the iterator from the VM's iterator stack
 
         // Evaluate the collection expression
         self.generate_expr(collection);
@@ -530,6 +550,8 @@ impl CodeGenerator {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
+            // - 1 so break/continue also pop the loop variable itself.
+            depth: self.scope_depth - 1,
         });
 
         // Check if iterator has more elements (pushes true if more, false if done)
@@ -571,13 +593,13 @@ impl CodeGenerator {
         // Pop the false value (done/no more elements)
         self.emit_op_code(OpCode::Pop, location);
 
-        // Pop the iterator from the VM's iterator stack
-        self.emit_op_code(OpCode::PopIterator, location);
-
         // Patch all break jumps
         for break_jump in loop_context.break_jumps {
             self.patch_jump(break_jump);
         }
+
+        // Pop the iterator from the VM's iterator stack
+        self.emit_op_code(OpCode::PopIterator, location);
 
         // Exit the loop scope. The loop variable's slot was already popped
         // above, so only its Local entry needs dropping here.

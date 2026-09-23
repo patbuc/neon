@@ -1,0 +1,21 @@
+// Expected:
+// 1
+// a
+// 2
+// a
+// 3
+// a
+// done
+
+val outer = [1, 2, 3]
+val inner = ["a", "b", "c"]
+for (o in outer) {
+    print(o)
+    for (i in inner) {
+        if (i == "b") {
+            break
+        }
+        print(i)
+    }
+}
+print("done")

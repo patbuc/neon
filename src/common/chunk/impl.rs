@@ -169,6 +169,18 @@ impl Chunk {
         count
     }
 
+    /// Counts locals declared deeper than `depth`, without removing them.
+    pub(crate) fn count_locals_above(&self, depth: u32) -> u32 {
+        let mut count = 0;
+        for local in self.locals.iter().rev() {
+            if local.depth <= depth as i32 {
+                break;
+            }
+            count += 1;
+        }
+        count
+    }
+
     pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
         if self.locals.is_empty() {
             return (None, false);
