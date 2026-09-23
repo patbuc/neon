@@ -329,6 +329,22 @@ fn rejects_trailing_underscore_in_decimal() {
 }
 
 #[test]
+fn can_scan_hash_left_brace() {
+    let script = "#{1}";
+
+    let scanner = Scanner::new(script);
+    let x: Vec<Token> = collect_tokens(scanner);
+
+    assert_eq!(x.len(), 4);
+    assert_eq!(x[0].token_type, TokenType::HashLeftBrace);
+    assert_eq!(x[0].token, "#{");
+    assert_eq!(x[1].token_type, TokenType::Number);
+    assert_eq!(x[1].column, 3);
+    assert_eq!(x[2].token_type, TokenType::RightBrace);
+    assert_eq!(x[3].token_type, TokenType::Eof);
+}
+
+#[test]
 fn rejects_bare_hash() {
     let scanner = Scanner::new("val s = # {1}");
     let tokens = collect_tokens(scanner);
