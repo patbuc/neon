@@ -2729,7 +2729,7 @@ fn test_parse_error_position_after_comment_only_line() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors[0].location.line, 3);
-    assert_eq!(errors[0].location.column, 10);
+    assert_eq!(errors[0].location.column, 9);
 }
 
 #[test]
@@ -2741,6 +2741,31 @@ fn test_parse_error_position_after_whitespace_only_line() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 9);
+}
+
+#[test]
+fn test_parse_error_position_expect_expression() {
+    let source = "val b = )\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 9);
+    assert!(errors[0].message.contains("Expect expression"));
+}
+
+#[test]
+fn test_parse_error_position_expect_expression_before_brace() {
+    let source = "print(1) }\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 10);
 }
 
