@@ -2833,7 +2833,7 @@ fn test_interpolation_syntax_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 12);
+    assert_eq!(errors[0].location.column, 11);
 }
 
 #[test]
@@ -2891,7 +2891,7 @@ fn test_interpolation_error_in_second_placeholder() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 18);
+    assert_eq!(errors[0].location.column, 17);
 }
 
 #[test]
@@ -2904,5 +2904,5 @@ fn test_interpolation_non_ascii_prefix() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 15);
+    assert_eq!(errors[0].location.column, 14);
 }

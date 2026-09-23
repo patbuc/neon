@@ -709,7 +709,7 @@ impl Parser {
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
             _ => {
-                self.report_error_at_current("Expect expression".to_string());
+                self.report_error_at_previous("Expect expression".to_string());
                 return None;
             }
         }?;
