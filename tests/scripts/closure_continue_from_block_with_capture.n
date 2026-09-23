@@ -1,0 +1,18 @@
+// Expected:
+// 200
+
+var saved = nil
+var i = 0
+while (i < 5) {
+    if (i == 2) {
+        val captured = i * 100
+        fn getter() {
+            return captured
+        }
+        saved = getter
+        i = i + 1
+        continue
+    }
+    i = i + 1
+}
+print(saved())

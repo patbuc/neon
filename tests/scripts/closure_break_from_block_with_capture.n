@@ -1,0 +1,17 @@
+// Expected:
+// 200
+
+var made = []
+var i = 0
+while (i < 5) {
+    if (i == 2) {
+        val captured = i * 100
+        fn getter() {
+            return captured
+        }
+        made.push(getter)
+        break
+    }
+    i = i + 1
+}
+print(made[0]())

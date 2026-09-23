@@ -1,0 +1,23 @@
+// Expected:
+// 3
+// 23
+// 18
+
+fn zeroParams() {
+    val a = 1
+    val b = 2
+    return a + b
+}
+fn oneParam(x) {
+    val a = x + 1
+    val b = x + 2
+    return a + b
+}
+fn threeParams(x, y, z) {
+    val a = x + y + z
+    val b = a * 2
+    return a + b
+}
+print(zeroParams())
+print(oneParam(10))
+print(threeParams(1, 2, 3))

@@ -1,0 +1,21 @@
+// Expected:
+// 5
+// 8
+// 0
+
+fn makeOps() {
+    var total = 0
+    fn add(n) {
+        total = total + n
+        return total
+    }
+    fn reset() {
+        total = 0
+        return total
+    }
+    return {"add": add, "reset": reset}
+}
+val ops = makeOps()
+print(ops["add"](5))
+print(ops["add"](3))
+print(ops["reset"]())

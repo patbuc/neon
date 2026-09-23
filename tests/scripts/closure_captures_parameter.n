@@ -1,0 +1,11 @@
+// Expected:
+// 8
+
+fn adder(x) {
+    fn add(y) {
+        return x + y
+    }
+    return add
+}
+val add5 = adder(5)
+print(add5(3))
