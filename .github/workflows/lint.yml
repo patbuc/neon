@@ -2,7 +2,7 @@ name: Lint
 
 on:
   push:
-    branches: [ "aoc-main" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "*main" ]
 
