@@ -79,7 +79,7 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 **Collections:**
 - **Arrays** - Ordered, mutable, indexed collections (e.g., `[1, 2, 3]`)
 - **Maps** - Key-value dictionaries (e.g., `{"name": "Alice", "age": 30}`)
-- **Sets** - Unique value collections (created with set literal syntax)
+- **Sets** - Unique value collections (e.g., `#{1, 2, 3}`)
 
 **Other Types:**
 - **Ranges** - Inclusive `1..=10` or exclusive `1..10`
@@ -216,11 +216,7 @@ for (key in person) {
 }
 
 // For-in loop over set
-val numbers = {1}
-numbers.clear()
-numbers.add(1)
-numbers.add(2)
-numbers.add(3)
+val numbers = #{1, 2, 3}
 for (num in numbers) {
     print(num)
 }
@@ -359,13 +355,7 @@ val allEntries = person.entries()
 
 ```neon
 // Create set with literal syntax
-val numbers = {1}
-numbers.clear()
-
-// Add elements
-numbers.add(1)
-numbers.add(2)
-numbers.add(3)
+val numbers = #{1, 2, 3}
 numbers.add(2)  // Duplicate ignored
 
 print(numbers.size())  // 3
@@ -375,22 +365,17 @@ if (numbers.has(1)) {
     print("Contains 1")
 }
 
+// #{} is an empty set; {} is an empty map
+val empty = #{}
+print(empty)  // #{}
+
 // Set operations
-val setA = {1}
-setA.clear()
-setA.add(1)
-setA.add(2)
-setA.add(3)
+val setA = #{1, 2, 3}
+val setB = #{2, 3, 4}
 
-val setB = {1}
-setB.clear()
-setB.add(2)
-setB.add(3)
-setB.add(4)
-
-val unionSet = setA.union(setB)         // {1, 2, 3, 4}
-val intersect = setA.intersection(setB) // {2, 3}
-val diff = setA.difference(setB)        // {1}
+val unionSet = setA.union(setB)         // #{1, 2, 3, 4}
+val intersect = setA.intersection(setB) // #{2, 3}
+val diff = setA.difference(setB)        // #{1}
 
 // Check subset
 if (setA.isSubset(setB)) {
@@ -530,10 +515,7 @@ print(map["a"])           // 1
 
 **Example:**
 ```neon
-val set = {1}
-set.clear()
-set.add(1)
-set.add(2)
+val set = #{1, 2}
 print(set.size())         // 2
 print(set.has(1))         // true
 
