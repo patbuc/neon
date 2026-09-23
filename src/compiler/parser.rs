@@ -264,6 +264,11 @@ impl Parser {
         ));
     }
 
+    fn report_error_at_previous(&mut self, message: String) {
+        let location = self.current_location();
+        self.report_error(location, message);
+    }
+
     /// Like `report_error`, but for an error a sub-parser already built.
     fn record_error(&mut self, error: CompilationError) {
         if self.panic_mode {
@@ -683,6 +688,8 @@ impl Parser {
 
         self.advance();
 
+        let can_assign = precedence <= Precedence::Assignment;
+
         let mut expr = match self.previous_token.token_type {
             TokenType::Number => self.number(),
             TokenType::String => self.string(),
@@ -690,7 +697,7 @@ impl Parser {
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang | TokenType::Tilde => self.unary(),
-            TokenType::Identifier => self.variable(),
+            TokenType::Identifier => self.variable(can_assign),
             TokenType::LeftBrace => self.brace_literal(),
             TokenType::LeftBracket => self.array_literal(),
             _ => {
@@ -723,14 +730,19 @@ impl Parser {
                 | TokenType::GreaterGreater => self.binary(expr),
                 TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
                 TokenType::LeftParen => self.call(expr),
-                TokenType::Dot => self.dot(expr),
-                TokenType::LeftBracket => self.index(expr),
+                TokenType::Dot => self.dot(expr, can_assign),
+                TokenType::LeftBracket => self.index(expr, can_assign),
                 TokenType::PlusPlus | TokenType::MinusMinus => self.postfix(expr),
                 TokenType::Question => self.ternary(expr),
                 _ => {
                     return Some(expr);
                 }
             }?;
+        }
+
+        if can_assign && self.match_token(TokenType::Equal) {
+            self.report_error_at_previous("Invalid assignment target.".to_string());
+            return None;
         }
 
         if skip_new_lines {
@@ -938,11 +950,11 @@ impl Parser {
         Some(Expr::Grouping { expr, location })
     }
 
-    fn variable(&mut self) -> Option<Expr> {
+    fn variable(&mut self, can_assign: bool) -> Option<Expr> {
         let name = self.previous_token.token.clone();
         let location = self.current_location();
 
-        if self.match_token(TokenType::Equal) {
+        if can_assign && self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::Assign {
                 name,
@@ -1039,8 +1051,7 @@ impl Parser {
     fn ternary(&mut self, condition: Expr) -> Option<Expr> {
         let location = self.current_location();
 
-        // Parse the then branch at Ternary precedence (for right-associativity)
-        let then_expr = Box::new(self.parse_precedence(Precedence::Ternary, false)?);
+        let then_expr = Box::new(self.expression(false)?);
 
         if !self.consume(
             TokenType::Colon,
@@ -1049,8 +1060,7 @@ impl Parser {
             return None;
         }
 
-        // Parse the else branch at Ternary precedence (for right-associativity)
-        let else_expr = Box::new(self.parse_precedence(Precedence::Ternary, false)?);
+        let else_expr = Box::new(self.expression(false)?);
 
         Some(Expr::Conditional {
             condition: Box::new(condition),
@@ -1075,7 +1085,7 @@ impl Parser {
         })
     }
 
-    fn dot(&mut self, object: Expr) -> Option<Expr> {
+    fn dot(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {
         let location = self.current_location();
 
         if !self.consume(TokenType::Identifier, "Expect field name after '.'.") {
@@ -1105,7 +1115,7 @@ impl Parser {
                 arguments,
                 location: method_location,
             })
-        } else if self.match_token(TokenType::Equal) {
+        } else if can_assign && self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
                 object: Box::new(object),
@@ -1203,7 +1213,7 @@ impl Parser {
         Some(Expr::ArrayLiteral { elements, location })
     }
 
-    fn index(&mut self, object: Expr) -> Option<Expr> {
+    fn index(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {
         let location = self.current_location();
 
         let index = Box::new(self.expression(false)?);
@@ -1212,7 +1222,7 @@ impl Parser {
             return None;
         }
 
-        if self.match_token(TokenType::Equal) {
+        if can_assign && self.match_token(TokenType::Equal) {
             let value = Box::new(self.expression(false)?);
             Some(Expr::IndexAssign {
                 object: Box::new(object),

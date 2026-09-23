@@ -1370,6 +1370,120 @@ fn test_parse_exponent_right_operand_accepts_unary_minus() {
     }
 }
 
+#[test]
+fn test_parse_assignment_to_expression_is_invalid_target() {
+    let mut parser = Parser::new("1 + x = 5\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 7);
+}
+
+#[test]
+fn test_parse_assignment_to_field_of_expression_is_invalid_target() {
+    let mut parser = Parser::new("1 + a.b = 5\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 9);
+}
+
+#[test]
+fn test_parse_assignment_to_index_of_expression_is_invalid_target() {
+    let mut parser = Parser::new("1 + a[0] = 5\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 10);
+}
+
+#[test]
+fn test_parse_assignment_to_call_expression_is_invalid_target() {
+    let mut parser = Parser::new("f() = 1\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
+fn test_parse_assignment_to_grouping_is_invalid_target() {
+    let mut parser = Parser::new("(x) = 3\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
+fn test_parse_ternary_then_branch_allows_assignment() {
+    let mut parser = Parser::new("c ? x = 1 : x = 2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Conditional {
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                match then_expr.as_ref() {
+                    Expr::Assign { name, .. } => assert_eq!(name, "x"),
+                    _ => panic!("Expected Assign as then branch"),
+                }
+                match else_expr.as_ref() {
+                    Expr::Assign { name, .. } => assert_eq!(name, "x"),
+                    _ => panic!("Expected Assign as else branch"),
+                }
+            }
+            _ => panic!("Expected Conditional expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_ternary_else_branch_allows_assignment() {
+    let mut parser = Parser::new("print(true ? 1 : x = 2)\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_ternary_chain_stays_right_associative() {
+    let mut parser = Parser::new("a ? 1 : b ? 2 : 3\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Conditional { else_expr, .. } => match else_expr.as_ref() {
+                Expr::Conditional { .. } => {}
+                _ => panic!("Expected nested Conditional as else branch"),
+            },
+            _ => panic!("Expected Conditional expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
 // ===== Map Literal Tests =====
 
 #[test]
