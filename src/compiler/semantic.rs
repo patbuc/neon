@@ -18,6 +18,10 @@ pub struct SemanticAnalyzer {
     // the known static type, or None if the type is unknown.
     type_env: Vec<HashMap<String, Option<String>>>,
     loop_depth: u32,
+    // Methods contributed by `impl` blocks, keyed by struct name then
+    // method name; the value is the arity a caller must supply (excluding
+    // a leading `self` parameter, if any).
+    struct_methods: HashMap<String, HashMap<String, u8>>,
 }
 
 impl SemanticAnalyzer {
@@ -58,6 +62,7 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             type_env,
             loop_depth: 0,
+            struct_methods: HashMap::new(),
         }
     }
 
@@ -113,6 +118,90 @@ impl SemanticAnalyzer {
                 }
                 _ => {}
             }
+        }
+
+        // Second pass: impl blocks, so a method call anywhere validates
+        // regardless of whether it textually precedes its impl block, and
+        // so an impl can reference a struct declared later in the file.
+        for stmt in statements {
+            if let Stmt::Impl {
+                type_name,
+                methods,
+                location,
+            } = stmt
+            {
+                self.collect_impl_block(type_name, methods, *location);
+            }
+        }
+    }
+
+    /// Register the methods an `impl` block contributes to a struct,
+    /// flagging an impl for an undefined type, a method shadowing a field
+    /// name, or a method name already defined for this struct.
+    fn collect_impl_block(&mut self, type_name: &str, methods: &[Stmt], location: SourceLocation) {
+        let field_names = match self.symbol_table.resolve(type_name) {
+            Some(Symbol {
+                kind: SymbolKind::Struct { fields },
+                ..
+            }) => fields.clone(),
+            _ => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Cannot implement undefined type '{}'", type_name),
+                    location,
+                ));
+                return;
+            }
+        };
+
+        for method in methods {
+            let Stmt::Fn {
+                name,
+                params,
+                location: method_location,
+                ..
+            } = method
+            else {
+                continue;
+            };
+
+            if field_names.iter().any(|f| f == name) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    format!(
+                        "Method '{}' has the same name as field '{}' on struct '{}'",
+                        name, name, type_name
+                    ),
+                    *method_location,
+                ));
+                continue;
+            }
+
+            let entry = self
+                .struct_methods
+                .entry(type_name.to_string())
+                .or_default();
+            if entry.contains_key(name) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateSymbol,
+                    format!(
+                        "Method '{}' is already defined for type '{}'",
+                        name, type_name
+                    ),
+                    *method_location,
+                ));
+                continue;
+            }
+
+            let arity = if params.first().map(String::as_str) == Some("self") {
+                (params.len() - 1) as u8
+            } else {
+                params.len() as u8
+            };
+            entry.insert(name.clone(), arity);
         }
     }
 
@@ -406,7 +495,20 @@ impl SemanticAnalyzer {
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
             }
-            Stmt::Impl { methods, .. } => {
+            Stmt::Impl {
+                type_name,
+                methods,
+                location,
+            } => {
+                if self.symbol_table.current_depth() != 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        "'impl' blocks are only allowed at the top level".to_string(),
+                        *location,
+                    ));
+                    return;
+                }
                 for method in methods {
                     if let Stmt::Fn {
                         params,
@@ -415,7 +517,7 @@ impl SemanticAnalyzer {
                         ..
                     } = method
                     {
-                        self.resolve_function_body(params, body, *location);
+                        self.resolve_function_body(params, body, *location, Some(type_name));
                     }
                 }
             }
@@ -563,7 +665,7 @@ impl SemanticAnalyzer {
                 body,
                 location,
             } => {
-                self.resolve_function_body(params, body, *location);
+                self.resolve_function_body(params, body, *location, None);
             }
         }
     }
@@ -608,17 +710,19 @@ impl SemanticAnalyzer {
             );
         }
 
-        self.resolve_function_body(params, body, location);
+        self.resolve_function_body(params, body, location, None);
     }
 
     /// Resolves a function's parameters and body in a fresh scope. Shared by
-    /// named function declarations and lambda expressions; a lambda has no
-    /// name to define for recursion, so it skips straight to this.
+    /// named function declarations, lambda expressions, and impl methods.
+    /// `self_type` names the struct a leading `self` parameter is typed as;
+    /// it's `None` outside of an impl method.
     fn resolve_function_body(
         &mut self,
         params: &[String],
         body: &[Stmt],
         location: SourceLocation,
+        self_type: Option<&str>,
     ) {
         // Enter function scope
         self.enter_scope();
@@ -629,10 +733,17 @@ impl SemanticAnalyzer {
         self.loop_depth = 0;
 
         // Define parameters in function scope. Their type is unknown and
-        // explicitly shadows any outer type recorded for the same name.
-        for param in params {
+        // explicitly shadows any outer type recorded for the same name,
+        // except a leading `self` inside an impl method, which is typed as
+        // the struct being implemented.
+        for (i, param) in params.iter().enumerate() {
             let param_location = location; // Use function location for params
-            self.define_type(param, None);
+            let param_type = if i == 0 && param == "self" {
+                self_type.map(|t| t.to_string())
+            } else {
+                None
+            };
+            self.define_type(param, param_type);
             self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
         }
 
@@ -832,13 +943,21 @@ impl SemanticAnalyzer {
                 self.validate_static_method(name, method, location);
                 return;
             }
+
+            // A static call on a struct's own name, e.g. Point.origin().
+            // The receiver is the type itself, not a value of that type.
+            if self.is_struct_type(name) {
+                let struct_name = name.clone();
+                self.validate_struct_method_call(&struct_name, method, arguments.len(), location);
+                return;
+            }
         }
 
         self.resolve_expr(object);
 
         // Instance method call - validate method if we can infer the object's type
         if let Some(object_type) = self.infer_expr_type(object) {
-            self.validate_instance_method(&object_type, method, location);
+            self.validate_instance_method(&object_type, method, arguments.len(), location);
         }
     }
 
@@ -1006,12 +1125,87 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// True when `name` is a declared struct type, as opposed to a builtin
+    /// type name (Array, Map, ...) or an unresolved name.
+    fn is_struct_type(&self, name: &str) -> bool {
+        matches!(
+            self.symbol_table.resolve(name),
+            Some(Symbol {
+                kind: SymbolKind::Struct { .. },
+                ..
+            })
+        )
+    }
+
+    /// Validate a call to a struct's own method, whether the receiver is an
+    /// instance (`p.len()`) or the struct name itself (`Point.origin()`).
+    /// Unknown methods get a "Did you mean" suggestion drawn from the
+    /// struct's own methods, since a struct never has builtin methods.
+    fn validate_struct_method_call(
+        &mut self,
+        struct_name: &str,
+        method: &str,
+        arg_count: usize,
+        location: SourceLocation,
+    ) {
+        let arity = self
+            .struct_methods
+            .get(struct_name)
+            .and_then(|methods| methods.get(method).copied());
+
+        if let Some(arity) = arity {
+            self.validate_arity(method, arity, arg_count, location);
+            return;
+        }
+
+        let candidates: Vec<String> = self
+            .struct_methods
+            .get(struct_name)
+            .map(|methods| methods.keys().cloned().collect())
+            .unwrap_or_default();
+        let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
+
+        let error_message = if let Some(suggestion) =
+            crate::common::string_similarity::find_closest_match(method, &candidate_refs)
+        {
+            format!(
+                "Type '{}' has no method named '{}'. Did you mean '{}'?",
+                struct_name, method, suggestion
+            )
+        } else if candidates.is_empty() {
+            format!(
+                "Type '{}' has no method named '{}' and no available methods",
+                struct_name, method
+            )
+        } else {
+            format!(
+                "Type '{}' has no method named '{}'. Available methods: {}",
+                struct_name,
+                method,
+                candidates.join(", ")
+            )
+        };
+
+        self.errors.push(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::Other,
+            error_message,
+            location,
+        ));
+    }
+
     fn validate_instance_method(
         &mut self,
         object_type: &str,
         method: &str,
+        arg_count: usize,
         location: SourceLocation,
     ) {
+        if self.is_struct_type(object_type) {
+            self.validate_struct_method_call(object_type, method, arg_count, location);
+            return;
+        }
+
         // Check if the method is valid for this type
         if !crate::common::method_registry::is_valid_method(object_type, method) {
             // Method is invalid - try to suggest a correction
