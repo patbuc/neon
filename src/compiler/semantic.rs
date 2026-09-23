@@ -133,6 +133,31 @@ impl SemanticAnalyzer {
                 self.collect_impl_block(type_name, methods, *location);
             }
         }
+
+        // Third pass: resolve method bodies, now that every impl block has
+        // contributed its methods. Codegen's pre-pass compiles methods
+        // before any top-level val/var exists, so resolving them here too
+        // (rather than at their textual position) makes a reference to a
+        // top-level variable the same "undefined variable" error codegen
+        // would hit.
+        for stmt in statements {
+            if let Stmt::Impl {
+                type_name, methods, ..
+            } = stmt
+            {
+                for method in methods {
+                    if let Stmt::Fn {
+                        params,
+                        body,
+                        location,
+                        ..
+                    } = method
+                    {
+                        self.resolve_function_body(params, body, *location, Some(type_name));
+                    }
+                }
+            }
+        }
     }
 
     /// Register the methods an `impl` block contributes to a struct,
@@ -495,11 +520,11 @@ impl SemanticAnalyzer {
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
             }
-            Stmt::Impl {
-                type_name,
-                methods,
-                location,
-            } => {
+            Stmt::Impl { location, .. } => {
+                // A top-level impl's methods were already resolved in
+                // collect_declarations, at the point where only hoisted
+                // declarations exist. Only a nested impl (invalid) reaches
+                // here with unresolved methods.
                 if self.symbol_table.current_depth() != 0 {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
@@ -507,18 +532,6 @@ impl SemanticAnalyzer {
                         "'impl' blocks are only allowed at the top level".to_string(),
                         *location,
                     ));
-                    return;
-                }
-                for method in methods {
-                    if let Stmt::Fn {
-                        params,
-                        body,
-                        location,
-                        ..
-                    } = method
-                    {
-                        self.resolve_function_body(params, body, *location, Some(type_name));
-                    }
                 }
             }
             Stmt::Expression { expr, .. } => {

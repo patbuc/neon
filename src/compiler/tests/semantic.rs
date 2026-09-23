@@ -2529,3 +2529,33 @@ impl Point {
     let errors = result.unwrap_err();
     assert!(errors.iter().any(|e| e.message.contains("nofield")));
 }
+
+#[test]
+fn test_method_referencing_top_level_val_is_compile_error() {
+    // Methods are hoisted and defined before any top-level val/var runs, so
+    // a method body can't see a top-level val even if it appears earlier in
+    // the source - same as codegen, which compiles methods in a pre-pass.
+    let program = r#"
+struct Point {
+    x
+    y
+}
+val scale = 10
+impl Point {
+    fn scaled(self) {
+        return self.x * scale
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Undefined variable 'scale'")));
+}
