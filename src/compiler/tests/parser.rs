@@ -298,6 +298,52 @@ fn test_parse_struct() {
 }
 
 #[test]
+fn test_parse_impl_block() {
+    let program = r#"
+        impl Point {
+            fn len(self) {
+                return self.x
+            }
+            fn origin() {
+                return Point(0, 0)
+            }
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Impl {
+            type_name, methods, ..
+        } => {
+            assert_eq!(type_name, "Point");
+            assert_eq!(methods.len(), 2);
+            for method in methods {
+                assert!(matches!(method, Stmt::Fn { .. }));
+            }
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
+fn test_parse_impl_block_rejects_non_fn_item() {
+    let program = r#"
+        impl Point {
+            val x = 1
+        }
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty());
+    assert!(errors[0].message.contains("method declaration"));
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0

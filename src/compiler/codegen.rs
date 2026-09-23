@@ -763,6 +763,9 @@ impl CodeGenerator {
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
             }
+            Stmt::Impl { .. } => {
+                // Methods are not compiled yet; a later unit will register them.
+            }
             Stmt::Expression { expr, location } => {
                 self.generate_expression_stmt(expr, *location);
             }

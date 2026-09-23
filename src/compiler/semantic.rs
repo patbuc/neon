@@ -406,6 +406,21 @@ impl SemanticAnalyzer {
             Stmt::Struct { .. } => {
                 // Struct declarations are already collected, nothing to resolve
             }
+            Stmt::Impl { methods, .. } => {
+                // Method registration is a later unit; resolve each body the
+                // same way a top-level `fn` body is, so body errors surface.
+                for method in methods {
+                    if let Stmt::Fn {
+                        params,
+                        body,
+                        location,
+                        ..
+                    } = method
+                    {
+                        self.resolve_function_body(params, body, *location);
+                    }
+                }
+            }
             Stmt::Expression { expr, .. } => {
                 self.resolve_expr(expr);
             }
