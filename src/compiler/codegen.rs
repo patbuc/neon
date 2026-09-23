@@ -327,18 +327,22 @@ impl CodeGenerator {
     }
 
     /// Resolves `name` as an upvalue of the function compiled into
-    /// `chunks[chunk_idx]`: a local of the immediately enclosing function,
-    /// or one of *that* function's own upvalues, chaining the capture
-    /// through as many levels of nesting as needed. Never looks past chunk
-    /// 0 (the script) — script variables are read as globals, not captured.
+    /// `chunks[chunk_idx]`: a local of the immediately enclosing chunk, or
+    /// one of *that* chunk's own upvalues, chaining the capture through as
+    /// many levels of nesting as needed. A depth-0 chunk-0 local (a true
+    /// top-level script variable) is never captured this way — it's read
+    /// as a global instead, since it's never popped.
     fn resolve_upvalue(&mut self, chunk_idx: usize, name: &str) -> Option<u32> {
-        if chunk_idx <= 1 {
+        if chunk_idx == 0 {
             return None;
         }
         let enclosing_idx = chunk_idx - 1;
 
         let (local_index, _) = self.chunks[enclosing_idx].get_local_index(name);
         if let Some(local_index) = local_index {
+            if enclosing_idx == 0 && self.chunks[0].locals[local_index as usize].depth == 0 {
+                return None;
+            }
             self.chunks[enclosing_idx].mark_captured(local_index);
             return Some(self.add_upvalue(
                 chunk_idx,
