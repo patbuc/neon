@@ -470,3 +470,30 @@ fn map_over_a_large_array_produces_correct_output() {
     assert_eq!(Result::Ok, result);
     assert_eq!("100000", vm.get_output());
 }
+
+#[test]
+fn vm_is_usable_after_a_callback_error() {
+    let failing = "fn boom(x) { return x + true }\n[1, 2].map(boom)";
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(failing.to_string()));
+
+    let program = r#"
+        fn add(a, b) { return a + b }
+        var total = 0
+        for (i in 0..5) {
+            total = add(total, i)
+        }
+        print(total)
+        "#;
+
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("10", vm.get_output());
+
+    let mut fresh_vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, fresh_vm.interpret(program.to_string()));
+    assert_eq!("10", fresh_vm.get_output());
+
+    assert_eq!(fresh_vm.stack.len(), vm.stack.len());
+}

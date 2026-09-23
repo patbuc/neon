@@ -92,7 +92,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn run_until(&mut self, target_depth: usize) -> Result {
         #[cfg(feature = "disassemble")]
-        {
+        if target_depth == 0 {
             let frame = self.call_frames.last().unwrap();
             frame.closure.function.chunk.disassemble_chunk();
         }

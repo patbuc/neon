@@ -494,7 +494,8 @@ print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
 
 `map`, `filter` and `reduce` accept a named function, a closure, or a lambda,
 and can call back into other Neon functions (including nested `map`/`filter`/
-`reduce` calls).
+`reduce` calls). Callbacks passed to `map`, `filter` or `reduce` can nest at
+most 32 levels deep before reporting a "Stack overflow" error.
 
 ### Map Methods
 
