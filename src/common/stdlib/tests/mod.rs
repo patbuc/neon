@@ -1,5 +1,6 @@
 mod array_functions;
 mod boolean_functions;
+mod builtins;
 mod file_functions;
 mod map_functions;
 mod math_errors;

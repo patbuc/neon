@@ -18,15 +18,21 @@ pub(crate) mod extraction_macros;
 #[cfg(test)]
 mod tests;
 
+/// Name of the command-line arguments builtin, shared with `BUILTIN_VALUES`
+/// so the VM and the semantic analyzer never drift apart on its name.
+const ARGS: &str = "args";
+
+/// Runtime builtin values and their static type, used by both
+/// `create_builtin_objects` (to build the VM's values) and
+/// `SemanticAnalyzer::new` (to predefine them for method validation).
+/// Math and File are namespaces, not values, and come from the method
+/// registry instead (see `method_registry::namespaces`).
+pub const BUILTIN_VALUES: &[(&str, &str)] = &[(ARGS, "Array")];
+
 /// Create stdlib objects for the VM.
-/// Math and File are now handled through the unified registry system.
-/// Only runtime values like args remain as builtins.
 pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
     let mut builtin = IndexMap::new();
-
-    // args is a runtime value, so it remains a stdlib
-    builtin.insert("args".to_string(), create_args_array(args));
-
+    builtin.insert(ARGS.to_string(), create_args_array(args));
     builtin
 }
 

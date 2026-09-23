@@ -1601,6 +1601,98 @@ fn test_postfix_on_literal_fails() {
         .contains("Increment operator can only be applied to variables")));
 }
 
+// =============================================================================
+// Builtin Namespace Tests (Math, File)
+// =============================================================================
+
+#[test]
+fn test_math_as_value_is_namespace_error() {
+    let program = "val m = Math\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message == "'Math' is a namespace, not a value"));
+}
+
+#[test]
+fn test_file_as_value_is_namespace_error() {
+    let program = "val f = File\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message == "'File' is a namespace, not a value"));
+}
+
+#[test]
+fn test_print_math_is_namespace_error() {
+    let program = "print(Math)\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message == "'Math' is a namespace, not a value"));
+}
+
+#[test]
+fn test_math_static_method_call_still_works() {
+    let program = "print(Math.sqrt(4))\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_file_constructor_call_still_works() {
+    let program = "val f = File(\"x.txt\")\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_file_constructor_wrong_arity() {
+    let program = "val f = File(\"x.txt\", \"y.txt\")\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("expects 1 arguments but got 2")));
+}
+
 #[test]
 fn test_postfix_in_function_parameters() {
     let program = r#"

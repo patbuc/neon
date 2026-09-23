@@ -583,6 +583,35 @@ pub fn is_static_namespace(name: &str) -> bool {
     !get_static_methods_for_type(name).is_empty()
 }
 
+/// Names of registry types that are namespaces rather than instance types:
+/// callable as `Name.method(...)` (has static methods) or constructible as
+/// `Name(...)` (has a constructor). This is the single source of truth the
+/// semantic analyzer uses to pre-define Math, File, etc.
+pub fn namespaces() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = NATIVE_METHODS
+        .iter()
+        .filter(|(type_name, _, callable)| {
+            !type_name.is_empty()
+                && matches!(
+                    callable,
+                    NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. }
+                )
+        })
+        .map(|(type_name, _, _)| *type_name)
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    names
+}
+
+/// The arity of a namespace's constructor (e.g. `File.new`), if it has one.
+pub fn constructor_arity(type_name: &str) -> Option<u8> {
+    match get_native_method_by_name(type_name, "new") {
+        Some(NativeCallable::Constructor { arity, .. }) => Some(*arity),
+        _ => None,
+    }
+}
+
 pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
     matches!(
         get_native_method_by_name(type_name, method_name),

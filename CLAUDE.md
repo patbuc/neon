@@ -141,7 +141,9 @@ cargo run --features disassemble -- script.n
 ### New Standard Library Function
 
 1. Implement function in appropriate `src/common/stdlib/*_functions.rs` file
-2. Register in method registry if it's a method (see `src/common/method_registry.rs`)
+2. Register in method registry if it's a method (see `src/common/method_registry.rs`) — a new namespace (like
+   `Math`/`File`) is picked up automatically from there; a new runtime builtin value (like `args`) is declared in
+   `BUILTIN_VALUES` (`src/common/stdlib/mod.rs`) and constructed in `create_builtin_objects`
 3. For global functions, add to builtin initialization in VM
 4. Add tests in corresponding `src/common/stdlib/tests/` file
 

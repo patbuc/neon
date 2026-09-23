@@ -14,6 +14,9 @@ pub enum SymbolKind {
     Struct { fields: Vec<String> },
     /// Function parameter
     Parameter,
+    /// Built-in namespace (e.g. Math, File); usable only as `Name.method(...)`
+    /// or, if `constructor_arity` is set, as a constructor call `Name(...)`
+    Namespace { constructor_arity: Option<u8> },
 }
 
 /// Symbol in the symbol table

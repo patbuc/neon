@@ -20,54 +20,37 @@ pub struct SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn new() -> Self {
         let mut symbol_table = SymbolTable::new();
-        // Pre-define Math as a built-in global constant
-        // This corresponds to the Math object that will be available at runtime
-        let math_symbol = Symbol {
-            name: "Math".to_string(),
-            kind: SymbolKind::Value,
-            is_mutable: false,
-            scope_depth: 0,
-            location: SourceLocation {
-                offset: 0,
-                line: 0,
-                column: 0,
-            },
-        };
-        let _ = symbol_table.define(math_symbol); // Ignore error since this is initial setup
-
-        // Pre-define File as a built-in global function
-        // This corresponds to the File constructor that will be available at runtime
-        let file_symbol = Symbol {
-            name: "File".to_string(),
-            kind: SymbolKind::Function { arity: 1 },
-            is_mutable: false,
-            scope_depth: 0,
-            location: SourceLocation {
-                offset: 0,
-                line: 0,
-                column: 0,
-            },
-        };
-        let _ = symbol_table.define(file_symbol); // Ignore error since this is initial setup
-
-        // Pre-define args as a built-in global constant (array)
-        // This corresponds to the command-line arguments array that will be available at runtime
-        let args_symbol = Symbol {
-            name: "args".to_string(),
-            kind: SymbolKind::Value,
-            is_mutable: false,
-            scope_depth: 0,
-            location: SourceLocation {
-                offset: 0,
-                line: 0,
-                column: 0,
-            },
-        };
-        let _ = symbol_table.define(args_symbol); // Ignore error since this is initial setup
-
         let mut type_env = HashMap::new();
-        // Track that args is an Array type for method validation
-        type_env.insert("args".to_string(), "Array".to_string());
+
+        // Namespaces (Math, File, ...) come from the method registry, the
+        // single source of truth for what's callable as `Name.method(...)`
+        // or constructible as `Name(...)`.
+        for namespace in crate::common::method_registry::namespaces() {
+            let symbol = Symbol {
+                name: namespace.to_string(),
+                kind: SymbolKind::Namespace {
+                    constructor_arity: crate::common::method_registry::constructor_arity(namespace),
+                },
+                is_mutable: false,
+                scope_depth: 0,
+                location: SourceLocation::default(),
+            };
+            let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
+        }
+
+        // Runtime builtin values (args, ...) come from the same list the VM
+        // uses to construct them.
+        for (name, type_name) in crate::common::stdlib::BUILTIN_VALUES {
+            let symbol = Symbol {
+                name: name.to_string(),
+                kind: SymbolKind::Value,
+                is_mutable: false,
+                scope_depth: 0,
+                location: SourceLocation::default(),
+            };
+            let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
+            type_env.insert(name.to_string(), type_name.to_string());
+        }
 
         SemanticAnalyzer {
             symbol_table,
@@ -639,14 +622,25 @@ impl SemanticAnalyzer {
     }
 
     fn resolve_variable(&mut self, name: &str, location: SourceLocation) {
-        // Check if variable is defined
-        if self.symbol_table.resolve(name).is_none() {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedSymbol,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
+        match self.symbol_table.resolve(name) {
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UndefinedSymbol,
+                    format!("Undefined variable '{}'", name),
+                    location,
+                ));
+            }
+            Some(symbol) => {
+                if let SymbolKind::Namespace { .. } = symbol.kind {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        format!("'{}' is a namespace, not a value", name),
+                        location,
+                    ));
+                }
+            }
         }
     }
 
@@ -716,18 +710,21 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         // This is a method call obj.method(args)
-        self.resolve_expr(object);
         for arg in arguments {
             self.resolve_expr(arg);
         }
 
-        // Check if this is a static method call (e.g., Math.abs)
+        // Check if this is a static method call (e.g., Math.abs). The
+        // namespace name isn't a variable reference, so don't resolve it
+        // as one - that would (rightly) reject it as "not a value".
         if let Expr::Variable { name, .. } = object {
             if crate::common::method_registry::is_static_namespace(name) {
                 self.validate_static_method(name, method, location);
                 return;
             }
         }
+
+        self.resolve_expr(object);
 
         // Instance method call - validate method if we can infer the object's type
         if let Some(object_type) = self.infer_expr_type(object) {
@@ -754,19 +751,33 @@ impl SemanticAnalyzer {
             for arg in arguments {
                 self.resolve_expr(arg);
             }
-        } else {
-            // Regular function call - resolve callee as normal
-            self.resolve_expr(callee);
+            return;
+        }
 
-            // Validate that callee is a function if it's a variable reference
-            if let Expr::Variable { name, .. } = callee {
-                self.validate_function_call(name, arguments, location);
+        // Constructor call on a namespace (e.g. File(path)). The namespace
+        // name isn't a variable reference, so validate its arity from the
+        // registry instead of resolving it as one.
+        if let Expr::Variable { name, .. } = callee {
+            if let Some(arity) = crate::common::method_registry::constructor_arity(name) {
+                self.validate_arity(name, arity, arguments.len(), location);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                return;
             }
+        }
 
-            // Resolve all arguments
-            for arg in arguments {
-                self.resolve_expr(arg);
-            }
+        // Regular function call - resolve callee as normal
+        self.resolve_expr(callee);
+
+        // Validate that callee is a function if it's a variable reference
+        if let Expr::Variable { name, .. } = callee {
+            self.validate_function_call(name, arguments, location);
+        }
+
+        // Resolve all arguments
+        for arg in arguments {
+            self.resolve_expr(arg);
         }
     }
 
@@ -935,20 +946,8 @@ impl SemanticAnalyzer {
         if let Some(symbol) = self.symbol_table.resolve(function_name) {
             match &symbol.kind {
                 SymbolKind::Function { arity } => {
-                    // Check arity matches
-                    if arguments.len() != *arity as usize {
-                        self.errors.push(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::ArityExceeded,
-                            format!(
-                                "Function '{}' expects {} arguments but got {}",
-                                function_name,
-                                arity,
-                                arguments.len()
-                            ),
-                            location,
-                        ));
-                    }
+                    let arity = *arity;
+                    self.validate_arity(function_name, arity, arguments.len(), location);
                 }
                 SymbolKind::Struct { .. } => {
                     // Calling a struct is valid (constructor)
@@ -962,6 +961,26 @@ impl SemanticAnalyzer {
                     ));
                 }
             }
+        }
+    }
+
+    fn validate_arity(
+        &mut self,
+        name: &str,
+        expected: u8,
+        actual: usize,
+        location: SourceLocation,
+    ) {
+        if actual != expected as usize {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::ArityExceeded,
+                format!(
+                    "Function '{}' expects {} arguments but got {}",
+                    name, expected, actual
+                ),
+                location,
+            ));
         }
     }
 }

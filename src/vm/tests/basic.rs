@@ -3141,3 +3141,42 @@ fn calling_unknown_method_on_instance_is_runtime_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
 }
+
+#[test]
+fn using_math_namespace_as_a_value_is_a_compile_error() {
+    let program = "val m = Math\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Semantic] Error: 'Math' is a namespace, not a value at 1:9",
+        vm.get_compiler_error()
+    );
+}
+
+#[test]
+fn using_file_namespace_as_a_value_is_a_compile_error() {
+    let program = "val f = File\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Semantic] Error: 'File' is a namespace, not a value at 1:9",
+        vm.get_compiler_error()
+    );
+}
+
+#[test]
+fn printing_math_namespace_is_a_compile_error() {
+    let program = "print(Math)\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Semantic] Error: 'Math' is a namespace, not a value at 1:7",
+        vm.get_compiler_error()
+    );
+}
