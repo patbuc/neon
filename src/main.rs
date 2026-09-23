@@ -91,9 +91,7 @@ fn print_prompt() {
     io::stdout().flush().unwrap();
 }
 
-fn run_file(path: &String, args: Vec<String>) {
-    println!("Running file: {} ", path);
-
+fn run_file(path: &str, args: Vec<String>) {
     let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
 
