@@ -3116,8 +3116,8 @@ fn setting_undefined_field_on_instance_is_runtime_error() {
             y
         }
 
-        val p = Point(3, 4)
-        p.z = 5
+        fn set_z(p) { p.z = 5 }
+        set_z(Point(3, 4))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -3133,8 +3133,8 @@ fn calling_unknown_method_on_instance_is_runtime_error() {
             y
         }
 
-        val p = Point(3, 4)
-        p.push(5)
+        fn push_to(p) { p.push(5) }
+        push_to(Point(3, 4))
         "#;
 
     let mut vm = VirtualMachine::new();

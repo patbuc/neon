@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
@@ -1868,4 +1869,217 @@ print(result.toUpperCase())
         }
     }
     assert!(result.is_ok());
+}
+
+// ===== Issue #98: struct field and constructor arity checks =====
+
+#[test]
+fn test_unknown_field_get_on_known_struct_is_compile_error() {
+    let program = r#"
+struct P {
+    x
+}
+val p = P(1)
+print(p.y)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("no field named 'y'")));
+}
+
+#[test]
+fn test_unknown_field_set_on_known_struct_is_compile_error() {
+    let program = r#"
+struct P {
+    x
+    y
+}
+val p = P(1, 2)
+p.z = 3
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("no field named 'z'")));
+}
+
+#[test]
+fn test_valid_field_get_set_on_known_struct_compiles() {
+    let program = r#"
+struct P {
+    x
+    y
+}
+val p = P(1, 2)
+p.x = 5
+print(p.x)
+print(p.y)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_field_access_on_untyped_parameter_does_not_false_positive() {
+    let program = r#"
+struct Player {
+    name
+    score
+}
+fn get_score(p) {
+    return p.score
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_var_reassigned_to_different_struct_updates_field_validation() {
+    let program = r#"
+struct A {
+    x
+}
+struct B {
+    y
+}
+var v = A(1)
+v = B(2)
+print(v.x)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("no field named 'x'")));
+}
+
+#[test]
+fn test_struct_constructor_wrong_arity_is_compile_error() {
+    let program = r#"
+struct P {
+    x
+    y
+}
+val p = P(1, 2, 3)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("expects 2 arguments but got 3")));
+}
+
+#[test]
+fn test_struct_constructor_correct_arity_compiles() {
+    let program = r#"
+struct P {
+    x
+    y
+}
+val p = P(1, 2)
+print(p.x)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_too_few_arguments_uses_distinct_error_kind() {
+    let program = r#"
+fn add(a, b) {
+    return a + b
+}
+val x = add(1)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::TooFewArguments
+            && e.message.contains("expects 2 arguments but got 1")));
+}
+
+#[test]
+fn test_too_many_arguments_still_uses_arity_exceeded_kind() {
+    let program = r#"
+fn add(a, b) {
+    return a + b
+}
+val x = add(1, 2, 3)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::ArityExceeded));
 }

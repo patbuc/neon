@@ -43,8 +43,8 @@ fn array_index_write_out_of_bounds_halts() {
 fn get_field_missing_halts() {
     let program = r#"
         struct P { x }
-        val p = P(1)
-        print(p.y)
+        fn get_y(p) { return p.y }
+        print(get_y(P(1)))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -56,8 +56,8 @@ fn get_field_missing_halts() {
 fn set_field_missing_halts() {
     let program = r#"
         struct P { x }
-        val p = P(1)
-        p.y = 2
+        fn set_y(p) { p.y = 2 }
+        set_y(P(1))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -95,8 +95,8 @@ fn create_set_invalid_element_reports_exactly_one_error() {
 fn nothing_after_a_runtime_error_executes() {
     let program = r#"
         struct P { x }
-        val p = P(1)
-        print(p.y)
+        fn get_y(p) { return p.y }
+        print(get_y(P(1)))
         print("after")
         "#;
 

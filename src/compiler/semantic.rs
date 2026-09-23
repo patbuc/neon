@@ -226,6 +226,16 @@ impl SemanticAnalyzer {
                         ("Array", "filter") => Some("Array".to_string()),
                         _ => None,
                     }
+                } else if let Expr::Variable { name, .. } = callee.as_ref() {
+                    // A direct call to a known struct is a constructor;
+                    // its result is statically an instance of that struct.
+                    match self.symbol_table.resolve(name) {
+                        Some(Symbol {
+                            kind: SymbolKind::Struct { .. },
+                            ..
+                        }) => Some(name.clone()),
+                        _ => None,
+                    }
                 } else {
                     // Regular function call - can't easily infer return type without more info
                     None
@@ -837,21 +847,25 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_get_field(&mut self, object: &Expr, _field: &str, _location: SourceLocation) {
+    fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
         self.resolve_expr(object);
-        // Field validation could be added here if we track struct types
+        if let Some(struct_name) = self.infer_expr_type(object) {
+            self.validate_struct_field(&struct_name, field, location);
+        }
     }
 
     fn resolve_set_field(
         &mut self,
         object: &Expr,
-        _field: &str,
+        field: &str,
         value: &Expr,
-        _location: SourceLocation,
+        location: SourceLocation,
     ) {
         self.resolve_expr(object);
         self.resolve_expr(value);
-        // Field validation could be added here if we track struct types
+        if let Some(struct_name) = self.infer_expr_type(object) {
+            self.validate_struct_field(&struct_name, field, location);
+        }
     }
 
     fn resolve_map_literal(&mut self, entries: &[(Expr, Expr)]) {
@@ -993,6 +1007,28 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Check that a field access/set on a receiver of statically known
+    /// struct type refers to one of the struct's declared fields.
+    fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
+        let has_field = match self.symbol_table.resolve(struct_name) {
+            Some(Symbol {
+                kind: SymbolKind::Struct { fields },
+                ..
+            }) => fields.iter().any(|f| f == field),
+            // Not a known struct type - nothing to check.
+            _ => return,
+        };
+
+        if !has_field {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                format!("Struct '{}' has no field named '{}'", struct_name, field),
+                location,
+            ));
+        }
+    }
+
     fn validate_function_call(
         &mut self,
         function_name: &str,
@@ -1005,8 +1041,9 @@ impl SemanticAnalyzer {
                     let arity = *arity;
                     self.validate_arity(function_name, arity, arguments.len(), location);
                 }
-                SymbolKind::Struct { .. } => {
-                    // Calling a struct is valid (constructor)
+                SymbolKind::Struct { fields } => {
+                    let arity = fields.len() as u8;
+                    self.validate_arity(function_name, arity, arguments.len(), location);
                 }
                 _ => {
                     self.errors.push(CompilationError::new(
@@ -1028,9 +1065,14 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if actual != expected as usize {
+            let kind = if actual < expected as usize {
+                CompilationErrorKind::TooFewArguments
+            } else {
+                CompilationErrorKind::ArityExceeded
+            };
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::ArityExceeded,
+                kind,
                 format!(
                     "Function '{}' expects {} arguments but got {}",
                     name, expected, actual
