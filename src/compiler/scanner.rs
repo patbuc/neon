@@ -9,7 +9,7 @@ impl Scanner {
             current: 0,
             line: 1,
             column: 1,
-            offset: 0,
+            start_column: 1,
             previous_token_type: TokenType::NewLine,
         }
     }
@@ -20,6 +20,7 @@ impl Scanner {
         loop {
             self.skip_whitespace();
             self.start = self.current;
+            self.start_column = self.column;
 
             if self.is_at_end() {
                 return self.make_eof_token();
@@ -32,6 +33,7 @@ impl Scanner {
             // increment line number if this is an empty line
             if self.previous() == '\n' && c == '\n' {
                 self.line += 1;
+                self.column = 1;
             }
         }
 
@@ -174,10 +176,10 @@ impl Scanner {
                     placeholders.push((start, self.current));
                 }
             }
-            if self.peek() == '\n' {
+            if self.advance() == '\n' {
                 self.line += 1;
+                self.column = 1;
             }
-            self.advance();
         }
         self.advance();
         if !placeholders.is_empty() {
@@ -409,8 +411,6 @@ impl Scanner {
             let c = self.peek();
             match c {
                 ' ' | '\r' | '\t' => {
-                    self.column += 1;
-                    self.offset += 1;
                     self.advance();
                 }
                 _ => {
@@ -422,7 +422,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         self.current += 1;
-        self.offset += 1;
+        self.column += 1;
         self.source[self.current - 1]
     }
 
@@ -433,7 +433,7 @@ impl Scanner {
         if self.source[self.current] != chr {
             return false;
         }
-        self.current += 1;
+        self.advance();
         true
     }
 
@@ -513,18 +513,21 @@ impl Scanner {
             TokenType::Error,
             String::from(message),
             self.line,
-            self.column,
-            self.offset,
+            self.start_column,
+            self.start,
         )
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
         self.previous_token_type = token_type.clone();
         let token_str = String::from_iter(&self.source[self.start..self.current]);
-        let token_str_len = token_str.len() as u32;
-        let token = Token::new(token_type, token_str, self.line, self.column, self.offset);
-        self.column += token_str_len;
-        token
+        Token::new(
+            token_type,
+            token_str,
+            self.line,
+            self.start_column,
+            self.start,
+        )
     }
     fn make_eof_token(&mut self) -> Token {
         self.previous_token_type = TokenType::Eof;
@@ -532,8 +535,8 @@ impl Scanner {
             TokenType::Eof,
             String::new(),
             self.line,
-            self.column,
-            self.offset,
+            self.start_column,
+            self.start,
         )
     }
 

@@ -397,3 +397,49 @@ fn val_declaration_with_fn_prefixed_identifier_parses() {
 
     assert!(result.is_ok());
 }
+
+#[test]
+fn error_line_is_correct_after_trailing_comment() {
+    let source = "val a = 1 // c\n)\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 2);
+}
+
+#[test]
+fn can_scan_offsets_with_multiple_spaces_and_operators() {
+    let scanner = Scanner::new("a  == b");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token, "a");
+    assert_eq!(tokens[0].offset, 0);
+    assert_eq!(tokens[1].token_type, TokenType::EqualEqual);
+    assert_eq!(tokens[1].offset, 3);
+    assert_eq!(tokens[2].token, "b");
+    assert_eq!(tokens[2].offset, 6);
+}
+
+#[test]
+fn columns_and_offsets_are_correct_for_non_ascii_input() {
+    let scanner = Scanner::new("val ä = \"ü\" x");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[4].token, "x");
+    assert_eq!(tokens[4].column, 13);
+    assert_eq!(tokens[4].offset, 12);
+}
+
+#[test]
+fn multiline_string_resets_column_for_next_token() {
+    let scanner = Scanner::new("val a = \"line1\nline2\" x");
+    let tokens = collect_tokens(scanner);
+
+    let x_token = &tokens[4];
+    assert_eq!(x_token.token, "x");
+    assert_eq!(x_token.line, 2);
+    assert_eq!(x_token.column, 8);
+    assert_eq!(x_token.offset, 22);
+}
