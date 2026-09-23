@@ -13,14 +13,17 @@ use std::collections::HashMap;
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     errors: Vec<CompilationError>,
-    type_env: HashMap<String, String>,
+    // One map per active scope, mirroring the symbol table's scope chain.
+    // A present key shadows any outer type for that name; its value is
+    // the known static type, or None if the type is unknown.
+    type_env: Vec<HashMap<String, Option<String>>>,
     loop_depth: u32,
 }
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
         let mut symbol_table = SymbolTable::new();
-        let mut type_env = HashMap::new();
+        let mut type_env = vec![HashMap::new()];
 
         // Namespaces (Math, File, ...) come from the method registry, the
         // single source of truth for what's callable as `Name.method(...)`
@@ -47,7 +50,7 @@ impl SemanticAnalyzer {
                 location: SourceLocation::default(),
             };
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
-            type_env.insert(name.to_string(), type_name.to_string());
+            type_env[0].insert(name.to_string(), Some(type_name.to_string()));
         }
 
         SemanticAnalyzer {
@@ -133,6 +136,53 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Enter a new lexical scope, keeping the type environment in step
+    /// with the symbol table.
+    fn enter_scope(&mut self) {
+        self.symbol_table.enter_scope();
+        self.type_env.push(HashMap::new());
+    }
+
+    /// Exit the current lexical scope, keeping the type environment in
+    /// step with the symbol table.
+    fn exit_scope(&mut self) {
+        self.symbol_table.exit_scope();
+        self.type_env.pop();
+    }
+
+    /// Define a name's static type (or None if unknown) in the current
+    /// scope, shadowing any outer type recorded for the same name.
+    fn define_type(&mut self, name: &str, ty: Option<String>) {
+        self.type_env
+            .last_mut()
+            .expect("global scope always present")
+            .insert(name.to_string(), ty);
+    }
+
+    /// Update a name's static type in the scope where it was last
+    /// defined, searching outward from the current scope. Falls back to
+    /// defining it in the current scope if it isn't tracked yet.
+    fn set_type(&mut self, name: &str, ty: Option<String>) {
+        for scope in self.type_env.iter_mut().rev() {
+            if scope.contains_key(name) {
+                scope.insert(name.to_string(), ty);
+                return;
+            }
+        }
+        self.define_type(name, ty);
+    }
+
+    /// Look up a name's static type, searching from the innermost scope
+    /// outward. A name bound with no known type stops the search there.
+    fn lookup_type(&self, name: &str) -> Option<String> {
+        for scope in self.type_env.iter().rev() {
+            if let Some(ty) = scope.get(name) {
+                return ty.clone();
+            }
+        }
+        None
+    }
+
     /// Infer the type of an expression based on its structure
     fn infer_expr_type(&self, expr: &Expr) -> Option<String> {
         match expr {
@@ -147,7 +197,7 @@ impl SemanticAnalyzer {
             Expr::Nil { .. } => Some("Nil".to_string()),
 
             // Variable lookup
-            Expr::Variable { name, .. } => self.type_env.get(name).cloned(),
+            Expr::Variable { name, .. } => self.lookup_type(name),
 
             // Grouping - infer from inner expression
             Expr::Grouping { expr, .. } => self.infer_expr_type(expr),
@@ -474,14 +524,14 @@ impl SemanticAnalyzer {
         initializer: Option<&Expr>,
         location: SourceLocation,
     ) {
-        // Resolve initializer first (if any)
-        if let Some(init) = initializer {
+        // Resolve initializer first (if any), tracking its type (or
+        // unknown) in the current scope - this shadows any outer type
+        // recorded for the same name.
+        let inferred_type = initializer.map(|init| {
             self.resolve_expr(init);
-            // Infer and track type if possible
-            if let Some(inferred_type) = self.infer_expr_type(init) {
-                self.type_env.insert(name.to_string(), inferred_type);
-            }
-        }
+            self.infer_expr_type(init)
+        });
+        self.define_type(name, inferred_type.flatten());
         // Then define the variable in current scope
         self.define_symbol(name.to_string(), SymbolKind::Value, false, location);
     }
@@ -492,14 +542,14 @@ impl SemanticAnalyzer {
         initializer: Option<&Expr>,
         location: SourceLocation,
     ) {
-        // Resolve initializer first (if any)
-        if let Some(init) = initializer {
+        // Resolve initializer first (if any), tracking its type (or
+        // unknown) in the current scope - this shadows any outer type
+        // recorded for the same name.
+        let inferred_type = initializer.map(|init| {
             self.resolve_expr(init);
-            // Infer and track type if possible
-            if let Some(inferred_type) = self.infer_expr_type(init) {
-                self.type_env.insert(name.to_string(), inferred_type);
-            }
-        }
+            self.infer_expr_type(init)
+        });
+        self.define_type(name, inferred_type.flatten());
         // Then define the variable in current scope
         self.define_symbol(name.to_string(), SymbolKind::Variable, true, location);
     }
@@ -511,11 +561,13 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         // Enter function scope
-        self.symbol_table.enter_scope();
+        self.enter_scope();
 
-        // Define parameters in function scope
+        // Define parameters in function scope. Their type is unknown and
+        // explicitly shadows any outer type recorded for the same name.
         for param in params {
             let param_location = location; // Use function location for params
+            self.define_type(param, None);
             self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
         }
 
@@ -525,15 +577,15 @@ impl SemanticAnalyzer {
         }
 
         // Exit function scope
-        self.symbol_table.exit_scope();
+        self.exit_scope();
     }
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
-        self.symbol_table.enter_scope();
+        self.enter_scope();
         for stmt in statements {
             self.resolve_stmt(stmt);
         }
-        self.symbol_table.exit_scope();
+        self.exit_scope();
     }
 
     fn resolve_if_statement(
@@ -567,9 +619,11 @@ impl SemanticAnalyzer {
         self.resolve_expr(collection);
 
         // Enter a new scope for the loop
-        self.symbol_table.enter_scope();
+        self.enter_scope();
 
-        // Define the loop variable as immutable (always val)
+        // Define the loop variable as immutable (always val). Its type is
+        // unknown and explicitly shadows any outer type of the same name.
+        self.define_type(variable, None);
         self.define_symbol(variable.to_string(), SymbolKind::Value, false, location);
 
         // Track loop depth for break/continue validation
@@ -582,7 +636,7 @@ impl SemanticAnalyzer {
         self.loop_depth -= 1;
 
         // Exit the loop scope
-        self.symbol_table.exit_scope();
+        self.exit_scope();
     }
 
     fn validate_break_statement(&mut self, location: SourceLocation) {
@@ -665,13 +719,10 @@ impl SemanticAnalyzer {
                         location,
                     ));
                 } else {
-                    // Update type tracking for mutable variables
-                    if let Some(new_type) = self.infer_expr_type(value) {
-                        self.type_env.insert(name.to_string(), new_type);
-                    } else {
-                        // If we can't infer the new type, remove from tracking
-                        self.type_env.remove(name);
-                    }
+                    // Update type tracking for mutable variables, wherever
+                    // in the scope chain the name is currently tracked
+                    let new_type = self.infer_expr_type(value);
+                    self.set_type(name, new_type);
                 }
             }
         }

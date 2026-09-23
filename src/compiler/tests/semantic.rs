@@ -1710,3 +1710,91 @@ fn test_postfix_in_function_parameters() {
 
     assert!(result.is_ok());
 }
+
+// ===== Issue #98: scoped type environment =====
+
+#[test]
+fn test_toplevel_val_after_function_local_val() {
+    let program = r#"
+fn f() {
+    val s = "a"
+}
+val s = 1
+print(s + 1)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_function_local_val_does_not_leak_type_to_outer_scope() {
+    let program = r#"
+val s = [1, 2]
+fn f() {
+    val s = "text"
+}
+s.push(3)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parameter_shadowing_does_not_inherit_outer_type() {
+    let program = r#"
+val s = "abc"
+fn h(s) {
+    return s.push(1)
+}
+print(h([1]))
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_for_in_variable_shadowing_does_not_inherit_outer_type() {
+    let program = r#"
+val s = "abc"
+for (s in [[1]]) {
+    s.push(2)
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
