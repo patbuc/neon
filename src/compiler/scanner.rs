@@ -487,7 +487,7 @@ impl Scanner {
                     return match self.source[self.start + 1] {
                         'a' => self.check_keyword(2, 3, "lse", TokenType::False),
                         'o' => self.check_keyword(2, 1, "r", TokenType::For),
-                        'n' => TokenType::Fn,
+                        'n' => self.check_keyword(2, 0, "", TokenType::Fn),
                         _ => TokenType::Identifier,
                     };
                 }

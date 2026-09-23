@@ -1,3 +1,4 @@
+use crate::compiler::parser::Parser;
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
@@ -362,4 +363,37 @@ fn can_scan_number_then_comment_for_double_slash() {
     assert_eq!(tokens[0].token_type, TokenType::Number);
     assert_eq!(tokens[0].token, "7");
     assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn can_scan_fn_keyword() {
+    let scanner = Scanner::new("fn");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Fn);
+}
+
+#[test]
+fn identifiers_with_keyword_prefixes_scan_as_identifiers() {
+    for src in [
+        "fname", "iffy", "valid", "variable", "format", "returned", "nilly",
+    ] {
+        let scanner = Scanner::new(src);
+        let tokens = collect_tokens(scanner);
+
+        assert_eq!(
+            tokens[0].token_type,
+            TokenType::Identifier,
+            "{src} should scan as Identifier"
+        );
+        assert_eq!(tokens[0].token, src);
+    }
+}
+
+#[test]
+fn val_declaration_with_fn_prefixed_identifier_parses() {
+    let mut parser = Parser::new("val fname = 1\n");
+    let result = parser.parse();
+
+    assert!(result.is_ok());
 }
