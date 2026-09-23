@@ -11,6 +11,29 @@ use std::rc::Rc;
 /// Registry index for the print() function (always at index 0)
 const PRINT_METHOD_INDEX: u32 = 0;
 
+/// A receiver's type name for method dispatch: a fixed name for builtin
+/// types, or the struct definition for an instance (cloning the `Rc` is a
+/// refcount bump, not a string allocation).
+enum TypeName {
+    Static(&'static str),
+    Struct(Rc<ObjStruct>),
+}
+
+impl TypeName {
+    fn as_str(&self) -> &str {
+        match self {
+            TypeName::Static(name) => name,
+            TypeName::Struct(r#struct) => &r#struct.name,
+        }
+    }
+}
+
+impl std::fmt::Display for TypeName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn fn_to_string(&mut self) {
@@ -1079,19 +1102,21 @@ impl VirtualMachine {
     }
 
     /// Helper: Extract type name from a value for method dispatch
-    fn get_type_name(&self, value: &Value) -> Option<String> {
+    fn get_type_name(&self, value: &Value) -> Option<TypeName> {
         match value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Array(_) => Some("Array".to_string()),
-                Object::String(_) => Some("String".to_string()),
-                Object::Map(_) => Some("Map".to_string()),
-                Object::Set(_) => Some("Set".to_string()),
-                Object::File(_) => Some("File".to_string()),
-                Object::Instance(inst) => Some(inst.borrow().r#struct.name.clone()),
+                Object::Array(_) => Some(TypeName::Static("Array")),
+                Object::String(_) => Some(TypeName::Static("String")),
+                Object::Map(_) => Some(TypeName::Static("Map")),
+                Object::Set(_) => Some(TypeName::Static("Set")),
+                Object::File(_) => Some(TypeName::Static("File")),
+                Object::Instance(inst) => {
+                    Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct)))
+                }
                 _ => None,
             },
-            Value::Number(_) => Some("Number".to_string()),
-            Value::Boolean(_) => Some("Boolean".to_string()),
+            Value::Number(_) => Some(TypeName::Static("Number")),
+            Value::Boolean(_) => Some(TypeName::Static("Boolean")),
             _ => None,
         }
     }

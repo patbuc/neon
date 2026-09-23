@@ -3107,3 +3107,37 @@ fn undefined_variable_in_interpolation_reports_location() {
         vm.get_compiler_error()
     );
 }
+
+#[test]
+fn setting_undefined_field_on_instance_is_runtime_error() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        val p = Point(3, 4)
+        p.z = 5
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    vm.interpret(program.to_string());
+    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
+}
+
+#[test]
+fn calling_unknown_method_on_instance_is_runtime_error() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        val p = Point(3, 4)
+        p.push(5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+}
