@@ -1879,6 +1879,15 @@ fn test_parse_set_with_multiline_trailing_comma() {
         } => match expr {
             Expr::SetLiteral { elements, .. } => {
                 assert_eq!(elements.len(), 2);
+
+                match &elements[0] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                    _ => panic!("Expected Number element"),
+                }
+                match &elements[1] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
+                    _ => panic!("Expected Number element"),
+                }
             }
             _ => panic!("Expected SetLiteral expression"),
         },
@@ -2401,7 +2410,7 @@ fn test_parse_map_missing_colon() {
 }
 
 #[test]
-fn test_parse_untagged_braces_with_multiple_values_is_error() {
+fn test_parse_braces_without_colon_is_error() {
     let program = r#"
         val s = {1, 2}
         "#;

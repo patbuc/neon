@@ -16,7 +16,7 @@
 // [#{1}]
 // {a: #{1}}
 
-val nums = #{1, 2, 2}
+val nums = #{2, 1, 2}
 print(nums.size())
 print(nums)
 

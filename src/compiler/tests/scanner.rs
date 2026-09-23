@@ -329,6 +329,15 @@ fn rejects_trailing_underscore_in_decimal() {
 }
 
 #[test]
+fn rejects_bare_hash() {
+    let scanner = Scanner::new("val s = # {1}");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[3].token_type, TokenType::Error);
+    assert!(tokens[3].token.contains("Unexpected character"));
+}
+
+#[test]
 fn can_scan_comment_immediately_after_slashes() {
     let scanner = Scanner::new("1//note");
     let tokens = collect_tokens(scanner);
