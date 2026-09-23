@@ -1709,6 +1709,22 @@ fn test_file_constructor_wrong_arity() {
 }
 
 #[test]
+fn test_calling_math_namespace_is_not_a_function_error() {
+    let program = "val m = Math(1)\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message == "'Math' is not a function"));
+}
+
+#[test]
 fn test_postfix_in_function_parameters() {
     let program = r#"
         fn process(x) {
