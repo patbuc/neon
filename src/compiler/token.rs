@@ -6,6 +6,7 @@ pub(crate) enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    HashLeftBrace,
     LeftBracket,
     RightBracket,
     Comma,

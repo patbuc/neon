@@ -706,6 +706,7 @@ impl Parser {
             TokenType::Minus | TokenType::Bang | TokenType::Tilde => self.unary(),
             TokenType::Identifier => self.variable(can_assign),
             TokenType::LeftBrace => self.brace_literal(),
+            TokenType::HashLeftBrace => self.set_literal(),
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
             _ => {
@@ -1140,73 +1141,28 @@ impl Parser {
         }
     }
 
-    fn parse_map_entries(&mut self, first_entry: (Expr, Expr)) -> Option<Vec<(Expr, Expr)>> {
-        let mut entries = vec![first_entry];
-        self.skip_new_lines();
-
-        if self.match_token(TokenType::Comma) {
-            self.skip_new_lines();
-            if !self.check(TokenType::RightBrace) {
-                let rest = self.parse_map_entry_list()?;
-                entries.extend(rest);
-            }
-        }
-
-        Some(entries)
-    }
-
-    fn parse_set_elements(&mut self, first_element: Expr) -> Option<Vec<Expr>> {
-        let mut elements = vec![first_element];
-        self.skip_new_lines();
-
-        if self.match_token(TokenType::Comma) {
-            self.skip_new_lines();
-            if !self.check(TokenType::RightBrace) {
-                let rest = self.parse_expression_list(TokenType::RightBrace, None, "")?;
-                elements.extend(rest);
-            }
-        }
-
-        Some(elements)
-    }
-
     fn brace_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
-        self.skip_new_lines();
+        let entries = self.parse_map_entry_list()?;
 
-        if self.check(TokenType::RightBrace) {
-            self.advance();
-            return Some(Expr::MapLiteral {
-                entries: Vec::new(),
-                location,
-            });
+        if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
+            return None;
         }
 
-        let first_expr = self.expression(false)?;
+        Some(Expr::MapLiteral { entries, location })
+    }
 
-        self.skip_new_lines();
+    fn set_literal(&mut self) -> Option<Expr> {
+        let location = self.current_location();
 
-        if self.match_token(TokenType::Colon) {
-            // Map literal
-            let first_value = self.expression(false)?;
-            let entries = self.parse_map_entries((first_expr, first_value))?;
+        let elements = self.parse_expression_list(TokenType::RightBrace, None, "")?;
 
-            if !self.consume(TokenType::RightBrace, "Expect '}' after map entries.") {
-                return None;
-            }
-
-            Some(Expr::MapLiteral { entries, location })
-        } else {
-            // Set literal
-            let elements = self.parse_set_elements(first_expr)?;
-
-            if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
-                return None;
-            }
-
-            Some(Expr::SetLiteral { elements, location })
+        if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
+            return None;
         }
+
+        Some(Expr::SetLiteral { elements, location })
     }
 
     fn array_literal(&mut self) -> Option<Expr> {

@@ -224,7 +224,7 @@ fn test_set_display() {
     let display = format!("{}", set);
 
     // HashSet order is not guaranteed, so we check for the format and presence of elements
-    assert!(display.starts_with("{"));
+    assert!(display.starts_with("#{"));
     assert!(display.ends_with("}"));
     assert!(display.contains("1"));
     assert!(display.contains("2"));
@@ -235,7 +235,7 @@ fn test_set_display() {
 fn test_empty_set_display() {
     let set = Value::new_set(BTreeSet::new());
     let display = format!("{}", set);
-    assert_eq!(display, "{}");
+    assert_eq!(display, "#{}");
 }
 
 #[test]

@@ -405,7 +405,7 @@ val result = {"a": 1}.wrongMethod()
 #[test]
 fn test_valid_method_on_set_literal() {
     let program = r#"
-val s = {1, 2, 3}
+val s = #{1, 2, 3}
 val arr = s.toArray()
 "#;
     let mut parser = Parser::new(program);
@@ -425,7 +425,7 @@ val arr = s.toArray()
 #[test]
 fn test_invalid_method_on_set_literal() {
     let program = r#"
-val result = {1, 2, 3}.invalidMethod()
+val result = #{1, 2, 3}.invalidMethod()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -555,7 +555,7 @@ fn processData(data) {
     val map = {"a": 1, "b": 2}
     val entries = map.entrys()  // typo: should be 'entries'
 
-    val set = {1, 2, 3}
+    val set = #{1, 2, 3}
     val missing = set.notAMethod()  // completely wrong method
 
     return filtered
@@ -622,7 +622,7 @@ fn analyzeText(input) {
     val entries = wordMap.entries()
 
     // Set operations
-    val uniqueNums = {1, 2, 3, 4, 5}
+    val uniqueNums = #{1, 2, 3, 4, 5}
     val hasTwo = uniqueNums.has(2)
     val asArray = uniqueNums.toArray()
     val setSize = uniqueNums.size()
@@ -864,14 +864,14 @@ val removed = m.remove("b")
 fn test_integration_no_false_positives_all_builtin_set_methods() {
     // Verify no false positives: all valid set methods should pass
     let program = r#"
-val s = {1, 2, 3, 4, 5}
+val s = #{1, 2, 3, 4, 5}
 val hasItem = s.has(3)
 val arr = s.toArray()
 val size = s.size()
 val added = s.add(6)
 val removed = s.remove(2)
 val cleared = s.clear()
-val s2 = {4, 5, 6}
+val s2 = #{4, 5, 6}
 val unionSet = s.union(s2)
 val intersectSet = s.intersection(s2)
 val diffSet = s.difference(s2)

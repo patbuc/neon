@@ -333,7 +333,7 @@ impl Object {
             }
             Object::Set(set) => {
                 let elements = set.borrow();
-                write!(f, "{{")?;
+                write!(f, "#{{")?;
                 let mut first = true;
                 for element in elements.iter() {
                     if !first {

@@ -773,7 +773,7 @@ fn test_map_literal_too_large() {
 fn test_set_literal_too_large() {
     // Generate a set literal with more than 65535 elements
     let elements: Vec<String> = (0..70000).map(|i| i.to_string()).collect();
-    let program = format!("val s = {{{}}}", elements.join(", "));
+    let program = format!("val s = #{{{}}}", elements.join(", "));
 
     let result = compile_program(&program);
     assert!(result.is_err());

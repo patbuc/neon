@@ -174,6 +174,13 @@ impl Scanner {
                 new_line
             }
             '"' => self.make_string(),
+            '#' => {
+                if self.matches('{') {
+                    self.make_token(TokenType::HashLeftBrace)
+                } else {
+                    self.make_error_token("Unexpected character")
+                }
+            }
             _ => self.make_error_token("Unexpected character"),
         }
     }

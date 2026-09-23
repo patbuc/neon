@@ -81,7 +81,7 @@ fn create_map_invalid_key_reports_exactly_one_error() {
 #[test]
 fn create_set_invalid_element_reports_exactly_one_error() {
     let program = r#"
-        print({[1]})
+        print(#{[1]})
         "#;
 
     let mut vm = VirtualMachine::new();

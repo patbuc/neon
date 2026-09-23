@@ -3275,7 +3275,7 @@ fn map_literal_with_300_entries_has_size_300() {
 #[test]
 fn set_literal_with_300_elements_has_size_300() {
     let elements: Vec<String> = (0..300).map(|i| i.to_string()).collect();
-    let program = format!("val s = {{{}}}\nprint(s.size())", elements.join(", "));
+    let program = format!("val s = #{{{}}}\nprint(s.size())", elements.join(", "));
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);

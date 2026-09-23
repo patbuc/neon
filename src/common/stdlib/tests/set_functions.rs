@@ -7,7 +7,7 @@ use crate::vm::{Result, VirtualMachine};
 #[test]
 fn test_set_add() {
     let program = r#"
-        val s = {1, 2}
+        val s = #{1, 2}
         print(s.add(3))
         print(s.size())
         print(s.add(2))
@@ -22,7 +22,7 @@ fn test_set_add() {
 #[test]
 fn test_set_has() {
     let program = r#"
-        val s = {1, 2, 3}
+        val s = #{1, 2, 3}
         print(s.has(2))
         print(s.has(5))
         print(s.has("hello"))
@@ -36,7 +36,7 @@ fn test_set_has() {
 #[test]
 fn test_set_remove() {
     let program = r#"
-        val s = {1, 2, 3}
+        val s = #{1, 2, 3}
         print(s.size())
         print(s.remove(2))
         print(s.size())
@@ -52,10 +52,10 @@ fn test_set_remove() {
 #[test]
 fn test_set_size() {
     let program = r#"
-        val s = {1, 2, 3}
+        val s = #{1, 2, 3}
         print(s.size())
 
-        val empty = {}
+        val empty = #{}
         print(empty.size())
     "#;
 
@@ -67,7 +67,7 @@ fn test_set_size() {
 #[test]
 fn test_set_clear() {
     let program = r#"
-        val s = {1, 2, 3}
+        val s = #{1, 2, 3}
         print(s.size())
         s.clear()
         print(s.size())
@@ -82,7 +82,7 @@ fn test_set_clear() {
 #[test]
 fn test_set_to_array() {
     let program = r#"
-        val s = {3, 1, 2}
+        val s = #{3, 1, 2}
         val arr = s.toArray()
         print(arr.length())
         print(arr.contains(1))
@@ -98,8 +98,8 @@ fn test_set_to_array() {
 #[test]
 fn test_set_union() {
     let program = r#"
-        val s1 = {1, 2, 3}
-        val s2 = {3, 4, 5}
+        val s1 = #{1, 2, 3}
+        val s2 = #{3, 4, 5}
         val result = s1.union(s2)
         print(result.size())
         print(result.has(1))
@@ -115,8 +115,8 @@ fn test_set_union() {
 #[test]
 fn test_set_intersection() {
     let program = r#"
-        val s1 = {1, 2, 3}
-        val s2 = {2, 3, 4}
+        val s1 = #{1, 2, 3}
+        val s2 = #{2, 3, 4}
         val result = s1.intersection(s2)
         print(result.size())
         print(result.has(2))
@@ -133,8 +133,8 @@ fn test_set_intersection() {
 #[test]
 fn test_set_difference() {
     let program = r#"
-        val s1 = {1, 2, 3, 4}
-        val s2 = {3, 4, 5}
+        val s1 = #{1, 2, 3, 4}
+        val s2 = #{3, 4, 5}
         val result = s1.difference(s2)
         print(result.size())
         print(result.has(1))
@@ -150,13 +150,13 @@ fn test_set_difference() {
 #[test]
 fn test_set_is_subset() {
     let program = r#"
-        val s1 = {1, 2}
-        val s2 = {1, 2, 3, 4}
+        val s1 = #{1, 2}
+        val s2 = #{1, 2, 3, 4}
         print(s1.isSubset(s2))
         print(s2.isSubset(s1))
 
-        val s3 = {1, 2}
-        val s4 = {1, 2}
+        val s3 = #{1, 2}
+        val s4 = #{1, 2}
         print(s3.isSubset(s4))
     "#;
 
@@ -168,7 +168,7 @@ fn test_set_is_subset() {
 #[test]
 fn test_set_different_types() {
     let program = r#"
-        val s = {1, "hello", true}
+        val s = #{1, "hello", true}
         print(s.size())
         print(s.has(1))
         print(s.has("hello"))
@@ -187,7 +187,7 @@ fn test_set_different_types() {
 #[test]
 fn test_set_add_wrong_arg_count() {
     let program = r#"
-        val s = {1, 2}
+        val s = #{1, 2}
         s.add()
     "#;
 
@@ -198,7 +198,7 @@ fn test_set_add_wrong_arg_count() {
 #[test]
 fn test_set_has_wrong_arg_count() {
     let program = r#"
-        val s = {1, 2}
+        val s = #{1, 2}
         s.has()
     "#;
 
@@ -209,7 +209,7 @@ fn test_set_has_wrong_arg_count() {
 #[test]
 fn test_set_remove_wrong_arg_count() {
     let program = r#"
-        val s = {1, 2}
+        val s = #{1, 2}
         s.remove()
     "#;
 

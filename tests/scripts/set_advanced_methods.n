@@ -2,15 +2,15 @@
 
 // Expected:
 // Union of two sets
-// {1, 2, 3, 4, 5, 6}
+// #{1, 2, 3, 4, 5, 6}
 // 6
 //
 // Intersection of two sets
-// {3, 4}
+// #{3, 4}
 // 2
 //
 // Difference of two sets
-// {1, 2}
+// #{1, 2}
 // 2
 //
 // Subset tests
@@ -20,36 +20,34 @@
 // false
 //
 // Empty set operations
-// {1, 2, 3}
-// {}
-// {}
+// #{1, 2, 3}
+// #{}
+// #{}
 //
 // String sets
-// {alice, bob, charlie, david}
-// {bob}
-// {alice}
+// #{alice, bob, charlie, david}
+// #{bob}
+// #{alice}
 // true
 //
 // Practical example: user permissions
-// {admin, read, write}
+// #{admin, read, write}
 // true
 // false
-// {read, write}
-// {admin}
+// #{read, write}
+// #{admin}
 // true
 // true
 
 // Test 1: Union operation
 print("Union of two sets")
-val setA = {1}
-setA.clear()
+val setA = #{}
 setA.add(1)
 setA.add(2)
 setA.add(3)
 setA.add(4)
 
-val setB = {1}
-setB.clear()
+val setB = #{}
 setB.add(3)
 setB.add(4)
 setB.add(5)
@@ -76,13 +74,11 @@ print(differenceSet.size())
 // Test 4: Subset tests
 print("")
 print("Subset tests")
-val small = {1}
-small.clear()
+val small = #{}
 small.add(1)
 small.add(2)
 
-val large = {1}
-large.clear()
+val large = #{}
 large.add(1)
 large.add(2)
 large.add(3)
@@ -96,10 +92,8 @@ print(setA.isSubset(setB))   // false
 // Test 5: Empty set operations
 print("")
 print("Empty set operations")
-val empty = {1}
-empty.clear()
-val filled = {1}
-filled.clear()
+val empty = #{}
+val filled = #{}
 filled.add(1)
 filled.add(2)
 filled.add(3)
@@ -111,13 +105,11 @@ print(filled.difference(filled)) // empty result
 // Test 6: String sets
 print("")
 print("String sets")
-val team1 = {"x"}
-team1.clear()
+val team1 = #{}
 team1.add("alice")
 team1.add("bob")
 
-val team2 = {"x"}
-team2.clear()
+val team2 = #{}
 team2.add("bob")
 team2.add("charlie")
 team2.add("david")
@@ -126,27 +118,23 @@ print(team1.union(team2))
 print(team1.intersection(team2))
 print(team1.difference(team2))
 
-val solo = {"x"}
-solo.clear()
+val solo = #{}
 solo.add("bob")
 print(solo.isSubset(team2))
 
 // Test 7: Practical example - user permissions
 print("")
 print("Practical example: user permissions")
-val adminPerms = {"x"}
-adminPerms.clear()
+val adminPerms = #{}
 adminPerms.add("read")
 adminPerms.add("write")
 adminPerms.add("admin")
 
-val userPerms = {"x"}
-userPerms.clear()
+val userPerms = #{}
 userPerms.add("read")
 userPerms.add("write")
 
-val guestPerms = {"x"}
-guestPerms.clear()
+val guestPerms = #{}
 guestPerms.add("read")
 
 print(adminPerms)
