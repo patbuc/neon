@@ -629,7 +629,9 @@ impl VirtualMachine {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Instance(instance_ref) => {
                     let mut instance = instance_ref.borrow_mut();
-                    if !instance.r#struct.fields.contains(&field_name) {
+                    // Instance fields are always fully populated from the struct's field
+                    // list at construction, so this is equivalent to a struct.fields scan.
+                    if !instance.fields.contains_key(&field_name) {
                         self.runtime_error(&format!("Undefined field '{}'.", field_name));
                         return;
                     }
