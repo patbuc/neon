@@ -1,6 +1,12 @@
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
+#[derive(Clone, Copy)]
+struct InvalidDigit {
+    matches: fn(char) -> bool,
+    message: &'static str,
+}
+
 impl Scanner {
     #[cfg(test)]
     pub(in crate::compiler) fn new(source: &str) -> Scanner {
@@ -229,102 +235,81 @@ impl Scanner {
     }
 
     fn make_hex_number(&mut self) -> Token {
-        self.advance(); // consume 'x' or 'X'
-
-        if !Scanner::is_hex_digit(self.peek()) {
-            return self.make_error_token("Hexadecimal literal requires at least one digit");
-        }
-
-        let mut has_digit = false;
-        loop {
-            let c = self.peek();
-            if Scanner::is_hex_digit(c) {
-                has_digit = true;
-                self.advance();
-            } else if c == '_' {
-                if !Scanner::is_hex_digit(self.peek_next()) {
-                    return self
-                        .make_error_token("Invalid underscore placement in hexadecimal literal");
-                }
-                self.advance();
-            } else {
-                break;
-            }
-        }
-
-        if !has_digit {
-            return self.make_error_token("Hexadecimal literal requires at least one digit");
-        }
-
-        self.make_token(TokenType::Number)
+        self.make_radix_number("Hexadecimal", Scanner::is_hex_digit, None)
     }
 
     fn make_binary_number(&mut self) -> Token {
-        self.advance(); // consume 'b' or 'B'
-
-        if !Scanner::is_binary_digit(self.peek()) {
-            return self.make_error_token("Binary literal requires at least one digit");
-        }
-
-        let mut has_digit = false;
-        loop {
-            let c = self.peek();
-            if Scanner::is_binary_digit(c) {
-                has_digit = true;
-                self.advance();
-            } else if c == '_' {
-                if !Scanner::is_binary_digit(self.peek_next()) {
-                    return self.make_error_token("Invalid underscore placement in binary literal");
-                }
-                self.advance();
-            } else if ('2'..='9').contains(&c) {
-                return self
-                    .make_error_token("Invalid digit in binary literal (only 0 and 1 allowed)");
-            } else {
-                break;
-            }
-        }
-
-        if !has_digit {
-            return self.make_error_token("Binary literal requires at least one digit");
-        }
-
-        self.make_token(TokenType::Number)
+        self.make_radix_number(
+            "Binary",
+            Scanner::is_binary_digit,
+            Some(InvalidDigit {
+                matches: |c| ('2'..='9').contains(&c),
+                message: "Invalid digit in binary literal (only 0 and 1 allowed)",
+            }),
+        )
     }
 
     fn make_octal_number(&mut self) -> Token {
-        self.advance(); // consume 'o' or 'O'
+        self.make_radix_number(
+            "Octal",
+            Scanner::is_octal_digit,
+            Some(InvalidDigit {
+                matches: |c| c == '8' || c == '9',
+                message: "Invalid digit in octal literal (only 0-7 allowed)",
+            }),
+        )
+    }
 
-        // Check for invalid digits 8 or 9 first (more specific error)
+    /// Scans a `0x`/`0b`/`0o` literal body after the base prefix letter.
+    /// `invalid_digit` names digits that are never valid in this base (e.g.
+    /// '8'/'9' for octal, '2'-'9' for binary), reported with a more specific
+    /// message than the generic "requires at least one digit".
+    fn make_radix_number(
+        &mut self,
+        label: &str,
+        is_valid_digit: fn(char) -> bool,
+        invalid_digit: Option<InvalidDigit>,
+    ) -> Token {
+        self.advance(); // consume base prefix letter
+
         let c = self.peek();
-        if c == '8' || c == '9' {
-            return self.make_error_token("Invalid digit in octal literal (only 0-7 allowed)");
+        if let Some(invalid_digit) = invalid_digit {
+            if (invalid_digit.matches)(c) {
+                return self.make_error_token(invalid_digit.message);
+            }
         }
-
-        if !Scanner::is_octal_digit(c) {
-            return self.make_error_token("Octal literal requires at least one digit");
+        if !is_valid_digit(c) {
+            return self
+                .make_error_token(&format!("{} literal requires at least one digit", label));
         }
 
         let mut has_digit = false;
         loop {
             let c = self.peek();
-            if Scanner::is_octal_digit(c) {
+            if is_valid_digit(c) {
                 has_digit = true;
                 self.advance();
             } else if c == '_' {
-                if !Scanner::is_octal_digit(self.peek_next()) {
-                    return self.make_error_token("Invalid underscore placement in octal literal");
+                if !is_valid_digit(self.peek_next()) {
+                    return self.make_error_token(&format!(
+                        "Invalid underscore placement in {} literal",
+                        label.to_lowercase()
+                    ));
                 }
                 self.advance();
-            } else if c == '8' || c == '9' {
-                return self.make_error_token("Invalid digit in octal literal (only 0-7 allowed)");
+            } else if let Some(invalid_digit) = invalid_digit {
+                if (invalid_digit.matches)(c) {
+                    return self.make_error_token(invalid_digit.message);
+                }
+                break;
             } else {
                 break;
             }
         }
 
         if !has_digit {
-            return self.make_error_token("Octal literal requires at least one digit");
+            return self
+                .make_error_token(&format!("{} literal requires at least one digit", label));
         }
 
         self.make_token(TokenType::Number)
