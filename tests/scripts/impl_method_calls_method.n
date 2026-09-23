@@ -1,0 +1,21 @@
+// impl_method_calls_method.n - A method calls another method of the same type through self
+
+// Expected:
+// 5
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn lenSquared(self) {
+        return self.x * self.x + self.y * self.y
+    }
+
+    fn len(self) {
+        return Math.sqrt(self.lenSquared())
+    }
+}
+
+print(Point(3, 4).len())

@@ -2302,3 +2302,230 @@ val x = add(1, 2, 3)
         .iter()
         .any(|e| e.kind == CompilationErrorKind::ArityExceeded));
 }
+
+// ===== Issue #147: impl blocks add methods to structs =====
+
+#[test]
+fn test_impl_for_undefined_type_is_compile_error() {
+    let program = r#"
+impl Ghost {
+    fn boo(self) {
+        return 1
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Ghost")));
+}
+
+#[test]
+fn test_impl_method_named_like_field_is_compile_error() {
+    let program = r#"
+struct Circle {
+    radius
+}
+impl Circle {
+    fn radius(self) {
+        return 1
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("radius")));
+}
+
+#[test]
+fn test_duplicate_method_in_one_impl_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return 1
+    }
+    fn len(self) {
+        return 2
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("len")));
+}
+
+#[test]
+fn test_duplicate_method_across_two_impls_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return 1
+    }
+}
+impl Point {
+    fn len(self) {
+        return 2
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("len")));
+}
+
+#[test]
+fn test_impl_inside_fn_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+}
+fn wrapper() {
+    impl Point {
+        fn len(self) {
+            return 1
+        }
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("top level")));
+}
+
+#[test]
+fn test_impl_inside_block_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+}
+if (true) {
+    impl Point {
+        fn len(self) {
+            return 1
+        }
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("top level")));
+}
+
+#[test]
+fn test_wrong_argument_count_to_method_names_method() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return 1
+    }
+}
+val p = Point(1, 2)
+p.len(5)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("len")));
+}
+
+#[test]
+fn test_undefined_method_on_inferred_struct_suggests_correction() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.x
+    }
+}
+val p = Point(1, 2)
+p.lne()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Did you mean")));
+}
+
+#[test]
+fn test_self_unknown_field_in_method_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.nofield
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("nofield")));
+}

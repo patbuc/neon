@@ -497,3 +497,24 @@ fn vm_is_usable_after_a_callback_error() {
 
     assert_eq!(fresh_vm.stack.len(), vm.stack.len());
 }
+
+#[test]
+fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
+    let program = r#"
+        struct Point { x y }
+        impl Point {
+            fn len(self) { return self.x }
+        }
+        fn call_len(p) { return p.lne() }
+        call_len(Point(1, 2))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert!(
+        vm.get_runtime_errors().contains("lne"),
+        "{}",
+        vm.get_runtime_errors()
+    );
+}

@@ -1,0 +1,17 @@
+// impl_static_method.n - Method with no self param is called on the type
+
+// Expected:
+// 0
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn origin() {
+        return Point(0, 0)
+    }
+}
+
+print(Point.origin().x)

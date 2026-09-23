@@ -1,0 +1,25 @@
+// impl_two_blocks_same_struct.n - Two impl blocks both contribute methods
+
+// Expected:
+// 5
+// 0
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn len(self) {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+}
+
+impl Point {
+    fn origin() {
+        return Point(0, 0)
+    }
+}
+
+print(Point(3, 4).len())
+print(Point.origin().x)
