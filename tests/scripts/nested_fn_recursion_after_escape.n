@@ -1,0 +1,17 @@
+// Expected:
+// 3
+// 2
+// 1
+
+fn outer() {
+    fn countdown(n) {
+        if (n <= 0) {
+            return 0
+        }
+        print(n)
+        return countdown(n - 1)
+    }
+    return countdown
+}
+val f = outer()
+f(3)

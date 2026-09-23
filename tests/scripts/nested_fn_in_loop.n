@@ -1,0 +1,13 @@
+// Expected:
+// hi
+// hi
+// hi
+
+var i = 0
+while (i < 3) {
+    fn greet() {
+        return "hi"
+    }
+    print(greet())
+    i = i + 1
+}

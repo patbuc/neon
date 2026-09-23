@@ -28,6 +28,13 @@ enum VariableScope {
     Local,
     Global,
     Builtin,
+    /// The function currently being compiled, referenced by its own name
+    /// from inside its own body (recursion). Its placeholder local lives in
+    /// an enclosing function's chunk, which may not still be on the call
+    /// stack by the time this call runs, so it can't be read as a Local;
+    /// unlike Global, it isn't at a fixed frame either once nested more than
+    /// one function deep, so it's fetched straight off the current frame.
+    CurrentFunction,
 }
 
 struct VariableRef {
@@ -41,6 +48,9 @@ pub struct CodeGenerator {
     errors: Vec<CompilationError>,
     loop_contexts: Vec<LoopContext>,
     builtin: indexmap::IndexMap<String, Value>,
+    /// Name of each function currently being compiled, outermost first;
+    /// `chunks[i + 1]` is that function's own chunk.
+    function_names: Vec<String>,
 }
 
 impl CodeGenerator {
@@ -53,6 +63,7 @@ impl CodeGenerator {
             errors: Vec::new(),
             loop_contexts: Vec::new(),
             builtin,
+            function_names: Vec::new(),
         }
     }
 
@@ -117,11 +128,19 @@ impl CodeGenerator {
 
     fn emit_variable_get(&mut self, name: &str, location: SourceLocation) -> Option<()> {
         match self.get_variable_index(name) {
+            Some(VariableRef {
+                scope: VariableScope::CurrentFunction,
+                ..
+            }) => {
+                self.emit_op_code(OpCode::GetCurrentFunction, location);
+                Some(())
+            }
             Some(var) => {
                 let op_code = match var.scope {
                     VariableScope::Builtin => OpCode::GetBuiltin,
                     VariableScope::Global => OpCode::GetGlobal,
                     VariableScope::Local => OpCode::GetLocal,
+                    VariableScope::CurrentFunction => unreachable!(),
                 };
                 self.emit_op_code_variant(op_code, var.index, location);
                 Some(())
@@ -142,6 +161,17 @@ impl CodeGenerator {
         let op_code = match var.scope {
             VariableScope::Local => OpCode::SetLocal,
             VariableScope::Global | VariableScope::Builtin => OpCode::SetGlobal,
+            VariableScope::CurrentFunction => {
+                // Semantic analysis rejects assigning to a function's own
+                // name (it's immutable), so this should be unreachable.
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::Internal,
+                    "Cannot assign to the current function".to_string(),
+                    location,
+                ));
+                return;
+            }
         };
         self.emit_op_code_variant(op_code, var.index, location);
     }
@@ -242,17 +272,31 @@ impl CodeGenerator {
             });
         }
 
-        // Then try to find in parent chunks (global scope for nested functions)
-        if current_chunk_idx > 0 {
-            for chunk_idx in (0..current_chunk_idx).rev() {
-                let (index, _) = self.chunks[chunk_idx].get_local_index(name);
-                if let Some(index) = index {
-                    return Some(VariableRef {
-                        index,
-                        scope: VariableScope::Global,
-                    });
-                }
-            }
+        if current_chunk_idx == 0 {
+            return None;
+        }
+
+        // The script chunk's locals stay reachable from any nesting depth.
+        let (index, _) = self.chunks[0].get_local_index(name);
+        if let Some(index) = index {
+            return Some(VariableRef {
+                index,
+                scope: VariableScope::Global,
+            });
+        }
+
+        // A function nested inside another function can still call itself:
+        // its own placeholder local lives in the enclosing function's
+        // chunk, but that chunk's frame may already be gone by the time the
+        // call happens (e.g. after the function escaped and was returned),
+        // so it's resolved off the current frame instead (see
+        // VariableScope::CurrentFunction). Any other enclosing function's
+        // local is semantic analysis's job to reject before this ever runs.
+        if current_chunk_idx > 1 && self.function_names.last().map(String::as_str) == Some(name) {
+            return Some(VariableRef {
+                index: 0,
+                scope: VariableScope::CurrentFunction,
+            });
         }
 
         None
@@ -287,11 +331,20 @@ impl CodeGenerator {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // Function was already defined with nil placeholder
-        // Now compile the function body and replace the placeholder
+        // A top-level function was already defined with a Nil placeholder by
+        // generate()'s pre-pass; a nested one (in a block, loop, or another
+        // function) is not, so define it here, before compiling its body,
+        // so it can call itself recursively.
+        if self.scope_depth > 0 {
+            self.emit_op_code(OpCode::Nil, location);
+            let local = Local::new(name.to_string(), self.scope_depth, false);
+            self.current_chunk()
+                .define_local(local, location.line, location.column);
+        }
 
         // Create a new chunk for the function
         self.chunks.push(Chunk::new(&format!("function_{}", name)));
+        self.function_names.push(name.to_string());
 
         // Enter function scope
         self.scope_depth += 1;
@@ -312,6 +365,7 @@ impl CodeGenerator {
 
         // Exit function scope
         self.scope_depth -= 1;
+        self.function_names.pop();
 
         let function_chunk = self.chunks.pop().unwrap();
         let function_value =

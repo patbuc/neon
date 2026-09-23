@@ -1617,6 +1617,118 @@ fn test_postfix_on_literal_fails() {
 }
 
 // =============================================================================
+// Nested Function Declaration Tests
+// =============================================================================
+
+#[test]
+fn test_nested_fn_in_block_is_valid() {
+    let program = r#"
+{
+    fn f() {
+        return 42
+    }
+    val x = f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_nested_fn_recursion_is_valid() {
+    let program = r#"
+fn outer() {
+    fn factorial(n) {
+        if (n <= 1) {
+            return 1
+        }
+        return n * factorial(n - 1)
+    }
+    return factorial(5)
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_nested_fn_referencing_enclosing_function_local_is_error() {
+    let program = r#"
+fn outer() {
+    var x = 1
+    fn inner() {
+        return x
+    }
+    return inner()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Capturing enclosing function locals is not supported yet")));
+}
+
+#[test]
+fn test_nested_fn_referencing_script_variable_is_valid() {
+    let program = r#"
+val x = 1
+fn outer() {
+    fn inner() {
+        return x
+    }
+    return inner()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_break_in_nested_fn_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    fn f() {
+        break
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
+}
+
+// =============================================================================
 // Builtin Namespace Tests (Math, File)
 // =============================================================================
 

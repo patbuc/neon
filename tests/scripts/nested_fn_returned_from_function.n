@@ -1,0 +1,10 @@
+// Expected:
+// 2
+
+fn outer() {
+    fn inner(x) {
+        return x + 1
+    }
+    return inner
+}
+print(outer()(1))

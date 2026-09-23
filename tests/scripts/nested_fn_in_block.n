@@ -1,0 +1,9 @@
+// Expected:
+// 42
+
+{
+    fn f() {
+        return 42
+    }
+    print(f())
+}

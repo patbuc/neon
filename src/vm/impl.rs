@@ -361,6 +361,7 @@ impl VirtualMachine {
                         return result;
                     }
                 }
+                OpCode::GetCurrentFunction => self.fn_get_current_function(),
             }
             self.current_frame_mut().ip += 1;
         }

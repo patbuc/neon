@@ -98,6 +98,9 @@ impl Chunk {
             OpCode::BitwiseNot => self.simple_instruction(OpCode::BitwiseNot, offset),
             OpCode::LeftShift => self.simple_instruction(OpCode::LeftShift, offset),
             OpCode::RightShift => self.simple_instruction(OpCode::RightShift, offset),
+            OpCode::GetCurrentFunction => {
+                self.simple_instruction(OpCode::GetCurrentFunction, offset)
+            }
         }
     }
 

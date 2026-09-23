@@ -1,0 +1,15 @@
+// Expected:
+// 3
+// 2
+// 1
+
+{
+    fn countdown(n) {
+        if (n <= 0) {
+            return 0
+        }
+        print(n)
+        return countdown(n - 1)
+    }
+    countdown(3)
+}

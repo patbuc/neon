@@ -66,6 +66,7 @@ impl OpCode {
             v if v == OpCode::BitwiseNot as u8 => Some(OpCode::BitwiseNot),
             v if v == OpCode::LeftShift as u8 => Some(OpCode::LeftShift),
             v if v == OpCode::RightShift as u8 => Some(OpCode::RightShift),
+            v if v == OpCode::GetCurrentFunction as u8 => Some(OpCode::GetCurrentFunction),
             _ => None,
         }
     }
@@ -142,4 +143,9 @@ pub(crate) enum OpCode {
     BitwiseNot,
     LeftShift,
     RightShift,
+
+    /// Pushes the function object of the currently executing call frame.
+    /// Lets a function nested inside another function call itself
+    /// recursively by name without needing a captured upvalue.
+    GetCurrentFunction,
 }

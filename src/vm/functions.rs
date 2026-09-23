@@ -498,6 +498,14 @@ impl VirtualMachine {
         }
     }
 
+    /// Pushes the currently executing function as a value, so a function
+    /// nested inside another function can call itself recursively by name.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_current_function(&mut self) {
+        let function = Rc::clone(&self.current_frame().function);
+        self.push(Value::Object(Rc::new(Object::Function(function))));
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn fn_get_local(&mut self, bits: BitsSize) -> Option<Result> {
         let index = self.read_bits(&bits);
