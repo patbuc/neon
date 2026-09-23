@@ -19,6 +19,11 @@ struct LoopContext {
     depth: u32,
 }
 
+enum LoopExit {
+    Break,
+    Continue,
+}
+
 pub struct CodeGenerator {
     chunks: Vec<Chunk>,
     scope_depth: u32,
@@ -421,13 +426,20 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_break_stmt(&mut self, location: SourceLocation) {
-        // Emit a Jump opcode and record its location for later patching
+    fn generate_loop_exit_stmt(&mut self, exit: LoopExit, location: SourceLocation) {
+        // Emit a Jump opcode and record it for later patching. For continue,
+        // this allows jumping to the right place (before the Loop
+        // instruction), which is crucial for C-style for loops where the
+        // increment comes at the end.
+        let keyword = match exit {
+            LoopExit::Break => "break",
+            LoopExit::Continue => "continue",
+        };
         if self.loop_contexts.is_empty() {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Codegen,
                 CompilationErrorKind::Other,
-                "Cannot use 'break' outside of a loop".to_string(),
+                format!("Cannot use '{}' outside of a loop", keyword),
                 location,
             ));
             return;
@@ -436,35 +448,12 @@ impl CodeGenerator {
         self.emit_loop_exit_pops(depth, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
-        self.loop_contexts
-            .last_mut()
-            .unwrap()
-            .break_jumps
-            .push(jump_index);
-    }
-
-    fn generate_continue_stmt(&mut self, location: SourceLocation) {
-        // Emit a Jump opcode and record it for later patching
-        // This allows continue to jump to the right place (before the Loop instruction)
-        // which is crucial for C-style for loops where increment comes at the end
-        if self.loop_contexts.is_empty() {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
-                "Cannot use 'continue' outside of a loop".to_string(),
-                location,
-            ));
-            return;
-        }
-        let depth = self.loop_contexts.last().unwrap().depth;
-        self.emit_loop_exit_pops(depth, location);
-
-        let jump_index = self.emit_jump(OpCode::Jump, location);
-        self.loop_contexts
-            .last_mut()
-            .unwrap()
-            .continue_jumps
-            .push(jump_index);
+        let context = self.loop_contexts.last_mut().unwrap();
+        let jumps = match exit {
+            LoopExit::Break => &mut context.break_jumps,
+            LoopExit::Continue => &mut context.continue_jumps,
+        };
+        jumps.push(jump_index);
     }
 
     fn generate_for_in_stmt(
@@ -624,10 +613,10 @@ impl CodeGenerator {
                 self.generate_return_stmt(value, *location);
             }
             Stmt::Break { location } => {
-                self.generate_break_stmt(*location);
+                self.generate_loop_exit_stmt(LoopExit::Break, *location);
             }
             Stmt::Continue { location } => {
-                self.generate_continue_stmt(*location);
+                self.generate_loop_exit_stmt(LoopExit::Continue, *location);
             }
             Stmt::ForIn {
                 variable,

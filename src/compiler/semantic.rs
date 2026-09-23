@@ -436,10 +436,10 @@ impl SemanticAnalyzer {
                 self.resolve_expr(value);
             }
             Stmt::Break { location } => {
-                self.validate_break_statement(*location);
+                self.validate_loop_control_statement("break", *location);
             }
             Stmt::Continue { location } => {
-                self.validate_continue_statement(*location);
+                self.validate_loop_control_statement("continue", *location);
             }
             Stmt::ForIn {
                 variable,
@@ -658,23 +658,12 @@ impl SemanticAnalyzer {
         self.exit_scope();
     }
 
-    fn validate_break_statement(&mut self, location: SourceLocation) {
+    fn validate_loop_control_statement(&mut self, keyword: &str, location: SourceLocation) {
         if self.loop_depth == 0 {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::Other,
-                "Cannot use 'break' outside of a loop".to_string(),
-                location,
-            ));
-        }
-    }
-
-    fn validate_continue_statement(&mut self, location: SourceLocation) {
-        if self.loop_depth == 0 {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
-                "Cannot use 'continue' outside of a loop".to_string(),
+                format!("Cannot use '{}' outside of a loop", keyword),
                 location,
             ));
         }
