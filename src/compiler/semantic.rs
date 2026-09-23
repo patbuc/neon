@@ -28,9 +28,7 @@ impl SemanticAnalyzer {
         for namespace in crate::common::method_registry::namespaces() {
             let symbol = Symbol {
                 name: namespace.to_string(),
-                kind: SymbolKind::Namespace {
-                    constructor_arity: crate::common::method_registry::constructor_arity(namespace),
-                },
+                kind: SymbolKind::Namespace,
                 is_mutable: false,
                 scope_depth: 0,
                 location: SourceLocation::default(),
@@ -632,7 +630,7 @@ impl SemanticAnalyzer {
                 ));
             }
             Some(symbol) => {
-                if let SymbolKind::Namespace { .. } = symbol.kind {
+                if symbol.kind == SymbolKind::Namespace {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::Other,
