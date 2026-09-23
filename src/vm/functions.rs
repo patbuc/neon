@@ -129,8 +129,10 @@ impl VirtualMachine {
                 Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
                     if callable.method_index == u32::MAX {
-                        if let Some(outcome) = self.dispatch_user_method_call(arg_count, callable) {
-                            return outcome;
+                        if let Some((closure, arg_count, exclude_self)) =
+                            self.dispatch_user_method_call(arg_count, callable)
+                        {
+                            return self.call_closure_with(arg_count, &closure, exclude_self);
                         }
                     }
                     match self.call_native_function(arg_count, callable) {
@@ -202,9 +204,11 @@ impl VirtualMachine {
     }
 
     /// Checks the user method table for a by-name call before the native
-    /// registry. Returns `None` when no user method matches (fall through to
-    /// native dispatch); otherwise dispatches to the method and returns the
-    /// outcome to hand straight back to `dispatch_call`'s caller.
+    /// registry. Only a struct instance or a struct value itself can have a
+    /// user method; any other receiver falls straight through to native
+    /// dispatch. Returns the closure to call and the effective argument
+    /// count (dropping the receiver slot for a static call), or `None` when
+    /// no user method matches.
     ///
     /// Static calls (`Point.origin()`) receive the struct value itself as
     /// receiver: since the method has no `self` parameter, drop the receiver
@@ -214,23 +218,29 @@ impl VirtualMachine {
         &mut self,
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
-    ) -> Option<Option<Result>> {
+    ) -> Option<(Rc<ObjClosure>, usize, bool)> {
         let args_start = self.stack.len() - arg_count - 1;
         let receiver = &self.stack[args_start];
-        let type_name = self.get_type_name(receiver)?;
-        let is_static_call =
-            matches!(receiver, Value::Object(obj) if matches!(obj.as_ref(), Object::Struct(_)));
+        let (struct_name, is_static_call) = match receiver {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Instance(inst) => (inst.borrow().r#struct.name.clone(), false),
+                Object::Struct(r#struct) => (r#struct.name.clone(), true),
+                _ => return None,
+            },
+            _ => return None,
+        };
 
         let closure = self
             .methods
-            .get(&(type_name.as_str().to_string(), callable.method_name.clone()))?
+            .get(&struct_name)?
+            .get(&callable.method_name)?
             .clone();
 
         if is_static_call {
             self.stack.remove(args_start);
-            Some(self.call_closure(arg_count - 1, &closure))
+            Some((closure, arg_count - 1, false))
         } else {
-            Some(self.call_closure(arg_count, &closure))
+            Some((closure, arg_count, true))
         }
     }
 
@@ -315,11 +325,31 @@ impl VirtualMachine {
     }
 
     fn call_closure(&mut self, arg_count: usize, closure: &Rc<ObjClosure>) -> Option<Result> {
+        self.call_closure_with(arg_count, closure, false)
+    }
+
+    /// Calls a closure, reporting an arity mismatch either as a plain
+    /// closure call would (`exclude_self` false) or, for an instance-method
+    /// dispatch, with the leading `self` argument left out of the
+    /// user-visible expected/actual counts (`exclude_self` true). `self` is
+    /// still included in `arg_count` and `func.arity` either way; only the
+    /// error message differs.
+    fn call_closure_with(
+        &mut self,
+        arg_count: usize,
+        closure: &Rc<ObjClosure>,
+        exclude_self: bool,
+    ) -> Option<Result> {
         let func = &closure.function;
         if arg_count != func.arity as usize {
+            let (expected, got) = if exclude_self {
+                (func.arity.saturating_sub(1), arg_count.saturating_sub(1))
+            } else {
+                (func.arity, arg_count)
+            };
             self.runtime_error(&format!(
                 "Expected {} arguments but got {} for '{}'.",
-                func.arity, arg_count, func.name
+                expected, got, func.name
             ));
             return Some(Result::RuntimeError);
         }
@@ -1424,7 +1454,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<TypeName> {
         match value {
             Value::Object(obj) => match obj.as_ref() {
@@ -1447,7 +1476,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Helper: Look up native method by index
     fn lookup_native_method_by_index(
         &mut self,
         callable: &Rc<ObjNativeFunction>,
@@ -1463,7 +1491,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Helper: Look up native method by name from receiver type
     fn lookup_native_method_by_name(
         &mut self,
         arg_count: usize,
@@ -1507,15 +1534,15 @@ impl VirtualMachine {
         let closure_value = self.pop();
         let type_name = as_string!(type_name).value.to_string();
         let method_name = as_string!(method_name).value.to_string();
-        match closure_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Closure(closure) => {
-                    self.methods
-                        .insert((type_name, method_name), Rc::clone(closure));
-                }
-                _ => unreachable!("DefineMethod expects a closure on top of the stack"),
-            },
-            _ => unreachable!("DefineMethod expects a closure on top of the stack"),
-        }
+        let Value::Object(obj) = &closure_value else {
+            unreachable!("DefineMethod expects a closure on top of the stack")
+        };
+        let Object::Closure(closure) = obj.as_ref() else {
+            unreachable!("DefineMethod expects a closure on top of the stack")
+        };
+        self.methods
+            .entry(type_name)
+            .or_default()
+            .insert(method_name, Rc::clone(closure));
     }
 }

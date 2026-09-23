@@ -169,8 +169,7 @@ pub(crate) enum OpCode {
     /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
     /// pops it, so a captured local's value survives its scope exiting.
     CloseUpvalue,
-    /// Pops a closure and registers it as a method: reads a type-name string
-    /// index, then a method-name string index (both fixed 32-bit, since this
-    /// runs only once per method at startup).
+    /// Pops a closure and registers it as a method under a type name and
+    /// method name (both read as fixed 32-bit string indices).
     DefineMethod,
 }

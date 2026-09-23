@@ -1,0 +1,17 @@
+// impl_does_not_shadow_builtin_method.n - A struct sharing a builtin's type
+// name must not hijack calls on that builtin's own values
+
+// Expected:
+// 4
+
+struct String {
+    v
+}
+
+impl String {
+    fn len(self) {
+        return 99
+    }
+}
+
+print("abcd".len())

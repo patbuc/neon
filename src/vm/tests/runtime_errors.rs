@@ -499,6 +499,29 @@ fn vm_is_usable_after_a_callback_error() {
 }
 
 #[test]
+fn instance_method_arity_error_excludes_self_on_unresolved_receiver_type() {
+    let program = r#"
+        struct Point { x y }
+        impl Point {
+            fn dist(self, o) { return 1 }
+        }
+        fn call_dist(p) { return p.dist() }
+        call_dist(Point(1, 2))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("Expected 1 arguments but got 0"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("dist"), "{}", errors);
+}
+
+#[test]
 fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
     let program = r#"
         struct Point { x y }
