@@ -755,6 +755,34 @@ fn test_array_literal_too_large() {
     assert!(err.contains("65535"));
 }
 
+#[test]
+fn test_map_literal_too_large() {
+    // Generate a map literal with more than 65535 entries
+    let entries: Vec<String> = (0..70000).map(|i| format!("{}: {}", i, i)).collect();
+    let program = format!("val m = {{{}}}", entries.join(", "));
+
+    let result = compile_program(&program);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("map literal too large"));
+    assert!(err.contains("70000"));
+    assert!(err.contains("65535"));
+}
+
+#[test]
+fn test_set_literal_too_large() {
+    // Generate a set literal with more than 65535 elements
+    let elements: Vec<String> = (0..70000).map(|i| i.to_string()).collect();
+    let program = format!("val s = {{{}}}", elements.join(", "));
+
+    let result = compile_program(&program);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("set literal too large"));
+    assert!(err.contains("70000"));
+    assert!(err.contains("65535"));
+}
+
 // =============================================================================
 // Postfix Increment/Decrement Tests
 // =============================================================================

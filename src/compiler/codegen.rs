@@ -137,6 +137,29 @@ impl CodeGenerator {
         }
     }
 
+    /// Verifies a count fits within `max` before it is narrowed into a
+    /// bytecode operand, reporting a compile error naming the limit instead
+    /// of letting the narrowing cast wrap silently.
+    fn check_count_limit(
+        &mut self,
+        count: usize,
+        max: usize,
+        message: impl Into<String>,
+        location: SourceLocation,
+    ) -> Option<()> {
+        if count > max {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Codegen,
+                CompilationErrorKind::Other,
+                message.into(),
+                location,
+            ));
+            None
+        } else {
+            Some(())
+        }
+    }
+
     fn emit_constant(&mut self, value: Value, location: SourceLocation) {
         self.current_chunk()
             .write_constant(value, location.line, location.column);
@@ -907,6 +930,25 @@ impl CodeGenerator {
         // Instance method call: arr.push(x), str.len(), etc.
         // Type is unknown at compile time, use NativeByName for runtime dispatch
 
+        // The receiver takes one of the u8 argument-count slots alongside arguments
+        const MAX_METHOD_CALL_ARGUMENTS: usize = u8::MAX as usize - 1;
+        let message = format!(
+            "method call too large: {} arguments (maximum is {})",
+            arguments.len(),
+            MAX_METHOD_CALL_ARGUMENTS
+        );
+        if self
+            .check_count_limit(
+                arguments.len(),
+                MAX_METHOD_CALL_ARGUMENTS,
+                message,
+                location,
+            )
+            .is_none()
+        {
+            return;
+        }
+
         // Evaluate receiver first
         self.generate_expr(callee);
 
@@ -952,18 +994,15 @@ impl CodeGenerator {
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
-        // Check if array size exceeds u16 limit
-        if elements.len() > u16::MAX as usize {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
-                format!(
-                    "array literal too large: {} elements (maximum is {})",
-                    elements.len(),
-                    u16::MAX
-                ),
-                location,
-            ));
+        let message = format!(
+            "array literal too large: {} elements (maximum is {})",
+            elements.len(),
+            u16::MAX
+        );
+        if self
+            .check_count_limit(elements.len(), u16::MAX as usize, message, location)
+            .is_none()
+        {
             return;
         }
 
@@ -1116,6 +1155,18 @@ impl CodeGenerator {
                 self.generate_expr(expr);
             }
             Expr::MapLiteral { entries, location } => {
+                let message = format!(
+                    "map literal too large: {} entries (maximum is {})",
+                    entries.len(),
+                    u16::MAX
+                );
+                if self
+                    .check_count_limit(entries.len(), u16::MAX as usize, message, *location)
+                    .is_none()
+                {
+                    return;
+                }
+
                 for (key, _) in entries {
                     self.generate_expr(key);
                 }
@@ -1123,17 +1174,29 @@ impl CodeGenerator {
                     self.generate_expr(value);
                 }
                 self.emit_op_code(OpCode::CreateMap, *location);
-                self.current_chunk().write_u8(entries.len() as u8);
+                self.current_chunk().write_u16(entries.len() as u16);
             }
             Expr::ArrayLiteral { elements, location } => {
                 self.generate_array_literal_expr(elements, *location);
             }
             Expr::SetLiteral { elements, location } => {
+                let message = format!(
+                    "set literal too large: {} elements (maximum is {})",
+                    elements.len(),
+                    u16::MAX
+                );
+                if self
+                    .check_count_limit(elements.len(), u16::MAX as usize, message, *location)
+                    .is_none()
+                {
+                    return;
+                }
+
                 for element in elements {
                     self.generate_expr(element);
                 }
                 self.emit_op_code(OpCode::CreateSet, *location);
-                self.current_chunk().write_u8(elements.len() as u8);
+                self.current_chunk().write_u16(elements.len() as u16);
             }
             Expr::Index {
                 object,

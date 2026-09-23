@@ -642,7 +642,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_map(&mut self) {
         let count = {
             let frame = self.current_frame();
-            frame.function.chunk.read_u8(frame.ip + 1) as usize
+            frame.function.chunk.read_u16(frame.ip + 1) as usize
         };
 
         let stack_len = self.stack.len();
@@ -672,7 +672,7 @@ impl VirtualMachine {
         self.push(Value::new_map(map));
 
         let frame = self.current_frame_mut();
-        frame.ip += 1;
+        frame.ip += 2;
     }
 
     pub(in crate::vm) fn fn_create_array(&mut self) {
@@ -698,7 +698,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_create_set(&mut self) {
         let count = {
             let frame = self.current_frame();
-            frame.function.chunk.read_u8(frame.ip + 1) as usize
+            frame.function.chunk.read_u16(frame.ip + 1) as usize
         };
 
         let stack_len = self.stack.len();
@@ -727,7 +727,7 @@ impl VirtualMachine {
         self.push(Value::new_set(set));
 
         let frame = self.current_frame_mut();
-        frame.ip += 1;
+        frame.ip += 2;
     }
 
     pub(in crate::vm) fn fn_create_range(&mut self) -> Option<Result> {

@@ -3060,6 +3060,42 @@ fn overflowing_literal_in_print_is_compile_error() {
 }
 
 #[test]
+fn map_literal_with_300_entries_has_size_300() {
+    let entries: Vec<String> = (0..300).map(|i| format!("{}: {}", i, i)).collect();
+    let program = format!("val m = {{{}}}\nprint(m.size())", entries.join(", "));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(Result::Ok, result);
+    assert_eq!("300", vm.get_output());
+}
+
+#[test]
+fn set_literal_with_300_elements_has_size_300() {
+    let elements: Vec<String> = (0..300).map(|i| i.to_string()).collect();
+    let program = format!("val s = {{{}}}\nprint(s.size())", elements.join(", "));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(Result::Ok, result);
+    assert_eq!("300", vm.get_output());
+}
+
+#[test]
+fn method_call_with_255_arguments_is_compile_error_naming_the_limit() {
+    let args: Vec<String> = (0..255).map(|i| i.to_string()).collect();
+    let program = format!("val a = [1, 2, 3]\na.push({})", args.join(", "));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(Result::CompileError, result);
+    let error = vm.get_compiler_error();
+    assert!(error.contains("method call too large"));
+    assert!(error.contains("255"));
+    assert!(error.contains("254"));
+}
+
+#[test]
 fn undefined_variable_in_interpolation_reports_location() {
     let program = "var s = \"abc\n${zz}\"\n";
 
