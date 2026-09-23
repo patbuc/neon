@@ -219,11 +219,9 @@ impl VirtualMachine {
     }
 
     /// Checks the user method table for a by-name call before the native
-    /// registry, applying the static/instance rule: a static call
-    /// (`Type.method()`) errors if the method takes `self`, an instance
-    /// call (`receiver.method()`) errors if it doesn't. Only a struct
-    /// instance or a struct value itself can have a user method; any other
-    /// receiver falls straight through to native dispatch.
+    /// registry. Only a struct instance or a struct value itself can have a
+    /// user method; any other receiver falls straight through to native
+    /// dispatch.
     fn dispatch_user_method_call(
         &mut self,
         arg_count: usize,
@@ -1478,6 +1476,7 @@ impl VirtualMachine {
         }
     }
 
+    /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<TypeName> {
         match value {
             Value::Object(obj) => match obj.as_ref() {
@@ -1500,6 +1499,7 @@ impl VirtualMachine {
         }
     }
 
+    /// Helper: Look up native method by index
     fn lookup_native_method_by_index(
         &mut self,
         callable: &Rc<ObjNativeFunction>,
@@ -1515,6 +1515,7 @@ impl VirtualMachine {
         }
     }
 
+    /// Helper: Look up native method by name from receiver type
     fn lookup_native_method_by_name(
         &mut self,
         arg_count: usize,

@@ -109,8 +109,6 @@ impl CodeGenerator {
 
         // Then: Compile impl-block methods into closures and register them,
         // so a method call textually before its `impl` block still works.
-        // Structs/fns are already defined above, so a method body can refer
-        // to them (e.g. a static method constructing its own struct).
         for stmt in statements {
             if let Stmt::Impl {
                 type_name, methods, ..
@@ -1483,9 +1481,7 @@ impl CodeGenerator {
 
     /// Emits `DefineMethod`, popping the closure left on top of the stack by
     /// a preceding `generate_closure` call and registering it under
-    /// `(type_name, method_name)`. `takes_self` records whether the
-    /// method's first parameter is literally `self`, the single fact that
-    /// decides whether it's an instance or a static method.
+    /// `(type_name, method_name)`, along with whether it takes `self`.
     fn emit_define_method(
         &mut self,
         type_name: &str,

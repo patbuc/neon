@@ -44,9 +44,7 @@ pub struct VirtualMachine {
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
     /// User-defined methods from `impl` blocks, keyed by type name then
-    /// method name, alongside whether the method takes `self`. Only
-    /// consulted for struct receivers, before the native method registry,
-    /// on the by-name call path.
+    /// method name, alongside whether the method takes `self`.
     methods: HashMap<String, HashMap<String, (Rc<ObjClosure>, bool)>>,
 }
 
