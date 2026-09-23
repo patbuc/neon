@@ -7,7 +7,7 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
@@ -39,6 +39,10 @@ pub struct SemanticAnalyzer {
     // Methods contributed by `impl` blocks, keyed by struct name then
     // method name.
     struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
+    // Struct names that have at least one nested (invalid) impl block, so a
+    // call site referencing one of its methods isn't also flagged as
+    // unknown - the "not at the top level" error alone is enough.
+    structs_with_rejected_nested_impl: HashSet<String>,
 }
 
 impl SemanticAnalyzer {
@@ -80,6 +84,7 @@ impl SemanticAnalyzer {
             type_env,
             loop_depth: 0,
             struct_methods: HashMap::new(),
+            structs_with_rejected_nested_impl: HashSet::new(),
         }
     }
 
@@ -103,6 +108,8 @@ impl SemanticAnalyzer {
     // Variables (val/var) are defined during resolution
 
     fn collect_declarations(&mut self, statements: &[Stmt]) {
+        self.collect_nested_impls(statements, 0);
+
         for stmt in statements {
             match stmt {
                 Stmt::Fn {
@@ -137,9 +144,7 @@ impl SemanticAnalyzer {
             }
         }
 
-        // Second pass: impl blocks, so a method call anywhere validates
-        // regardless of whether it textually precedes its impl block, and
-        // so an impl can reference a struct declared later in the file.
+        // Second pass: impl blocks, so a method call anywhere validates.
         for stmt in statements {
             if let Stmt::Impl {
                 type_name,
@@ -151,17 +156,18 @@ impl SemanticAnalyzer {
             }
         }
 
-        // Third pass: resolve method bodies, now that every impl block has
-        // contributed its methods. Codegen's pre-pass compiles methods
-        // before any top-level val/var exists, so resolving them here too
-        // (rather than at their textual position) makes a reference to a
-        // top-level variable the same "undefined variable" error codegen
-        // would hit.
+        // Third pass: resolve method bodies now that every impl block has
+        // contributed its methods. Skip an impl for an undefined type - its
+        // methods were never registered, so resolving bodies would only add
+        // follow-on errors on top of the undefined-type error.
         for stmt in statements {
             if let Stmt::Impl {
                 type_name, methods, ..
             } = stmt
             {
+                if !self.is_struct_type(type_name) {
+                    continue;
+                }
                 for method in methods {
                     if let Stmt::Fn {
                         params,
@@ -173,6 +179,46 @@ impl SemanticAnalyzer {
                         self.resolve_function_body(params, body, *location, Some(type_name));
                     }
                 }
+            }
+        }
+    }
+
+    /// Recursively finds `impl` blocks nested below the top level (inside a
+    /// function body, block, or control-flow statement) and records their
+    /// struct name, so a call site anywhere doesn't also report the
+    /// method as unknown on top of the "not at the top level" error.
+    fn collect_nested_impls(&mut self, statements: &[Stmt], depth: u32) {
+        for stmt in statements {
+            match stmt {
+                Stmt::Impl { type_name, .. } if depth > 0 => {
+                    self.structs_with_rejected_nested_impl
+                        .insert(type_name.clone());
+                }
+                Stmt::Fn { body, .. } => self.collect_nested_impls(body, depth + 1),
+                Stmt::Block { statements, .. } => self.collect_nested_impls(statements, depth + 1),
+                Stmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    self.collect_nested_impls(
+                        std::slice::from_ref(then_branch.as_ref()),
+                        depth + 1,
+                    );
+                    if let Some(else_branch) = else_branch {
+                        self.collect_nested_impls(
+                            std::slice::from_ref(else_branch.as_ref()),
+                            depth + 1,
+                        );
+                    }
+                }
+                Stmt::While { body, .. } => {
+                    self.collect_nested_impls(std::slice::from_ref(body.as_ref()), depth + 1)
+                }
+                Stmt::ForIn { body, .. } => {
+                    self.collect_nested_impls(std::slice::from_ref(body.as_ref()), depth + 1)
+                }
+                _ => {}
             }
         }
     }
@@ -540,10 +586,7 @@ impl SemanticAnalyzer {
                 // Struct declarations are already collected, nothing to resolve
             }
             Stmt::Impl { location, .. } => {
-                // A top-level impl's methods were already resolved in
-                // collect_declarations, at the point where only hoisted
-                // declarations exist. Only a nested impl (invalid) reaches
-                // here with unresolved methods.
+                // A top-level impl was already resolved in collect_declarations.
                 if self.symbol_table.current_depth() != 0 {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
@@ -1026,7 +1069,7 @@ impl SemanticAnalyzer {
         // registry instead of resolving it as one.
         if let Expr::Variable { name, .. } = callee {
             if let Some(arity) = crate::common::method_registry::constructor_arity(name) {
-                self.validate_arity(name, arity, arguments.len(), location);
+                self.validate_arity("Function", name, arity, arguments.len(), location);
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
@@ -1217,12 +1260,28 @@ impl SemanticAnalyzer {
                     ));
                 }
                 (MethodCallKind::Static, false) => {
-                    self.validate_arity(method, signature.param_count, arg_count, location);
+                    self.validate_arity(
+                        "Method",
+                        method,
+                        signature.param_count,
+                        arg_count,
+                        location,
+                    );
                 }
                 (MethodCallKind::Instance, true) => {
-                    self.validate_arity(method, signature.param_count - 1, arg_count, location);
+                    self.validate_arity(
+                        "Method",
+                        method,
+                        signature.param_count - 1,
+                        arg_count,
+                        location,
+                    );
                 }
             }
+            return;
+        }
+
+        if self.structs_with_rejected_nested_impl.contains(struct_name) {
             return;
         }
 
@@ -1233,26 +1292,7 @@ impl SemanticAnalyzer {
             .unwrap_or_default();
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
 
-        let error_message = if let Some(suggestion) =
-            crate::common::string_similarity::find_closest_match(method, &candidate_refs)
-        {
-            format!(
-                "Type '{}' has no method named '{}'. Did you mean '{}'?",
-                struct_name, method, suggestion
-            )
-        } else if candidates.is_empty() {
-            format!(
-                "Type '{}' has no method named '{}' and no available methods",
-                struct_name, method
-            )
-        } else {
-            format!(
-                "Type '{}' has no method named '{}'. Available methods: {}",
-                struct_name,
-                method,
-                candidates.join(", ")
-            )
-        };
+        let error_message = unknown_method_error(struct_name, method, &candidate_refs);
 
         self.errors.push(CompilationError::new(
             CompilationPhase::Semantic,
@@ -1282,33 +1322,9 @@ impl SemanticAnalyzer {
 
         // Check if the method is valid for this type
         if !crate::common::method_registry::is_valid_method(object_type, method) {
-            // Method is invalid - try to suggest a correction
-            let error_message = if let Some(suggestion) =
-                crate::common::method_registry::suggest_method(object_type, method)
-            {
-                // We found a close match - suggest it
-                format!(
-                    "Type '{}' has no method named '{}'. Did you mean '{}'?",
-                    object_type, method, suggestion
-                )
-            } else {
-                // No close match - list available methods
-                let available_methods =
-                    crate::common::method_registry::get_methods_for_type(object_type);
-                if available_methods.is_empty() {
-                    format!(
-                        "Type '{}' has no method named '{}' and no available methods",
-                        object_type, method
-                    )
-                } else {
-                    format!(
-                        "Type '{}' has no method named '{}'. Available methods: {}",
-                        object_type,
-                        method,
-                        available_methods.join(", ")
-                    )
-                }
-            };
+            let available_methods =
+                crate::common::method_registry::get_methods_for_type(object_type);
+            let error_message = unknown_method_error(object_type, method, &available_methods);
 
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
@@ -1351,11 +1367,23 @@ impl SemanticAnalyzer {
             match &symbol.kind {
                 SymbolKind::Function { arity } => {
                     let arity = *arity;
-                    self.validate_arity(function_name, arity, arguments.len(), location);
+                    self.validate_arity(
+                        "Function",
+                        function_name,
+                        arity,
+                        arguments.len(),
+                        location,
+                    );
                 }
                 SymbolKind::Struct { fields } => {
                     let arity = fields.len() as u8;
-                    self.validate_arity(function_name, arity, arguments.len(), location);
+                    self.validate_arity(
+                        "Function",
+                        function_name,
+                        arity,
+                        arguments.len(),
+                        location,
+                    );
                 }
                 SymbolKind::Value | SymbolKind::Variable | SymbolKind::Parameter => {
                     // Holds an arbitrary value; whether it's callable, and
@@ -1375,6 +1403,7 @@ impl SemanticAnalyzer {
 
     fn validate_arity(
         &mut self,
+        kind_label: &str,
         name: &str,
         expected: u8,
         actual: usize,
@@ -1390,12 +1419,37 @@ impl SemanticAnalyzer {
                 CompilationPhase::Semantic,
                 kind,
                 format!(
-                    "Function '{}' expects {} arguments but got {}",
-                    name, expected, actual
+                    "{} '{}' expects {} arguments but got {}",
+                    kind_label, name, expected, actual
                 ),
                 location,
             ));
         }
+    }
+}
+
+/// Builds the "unknown method" error message for `type_name`, suggesting
+/// the closest match among `candidates` when one exists.
+fn unknown_method_error(type_name: &str, method: &str, candidates: &[&str]) -> String {
+    if let Some(suggestion) =
+        crate::common::string_similarity::find_closest_match(method, candidates)
+    {
+        format!(
+            "Type '{}' has no method named '{}'. Did you mean '{}'?",
+            type_name, method, suggestion
+        )
+    } else if candidates.is_empty() {
+        format!(
+            "Type '{}' has no method named '{}' and no available methods",
+            type_name, method
+        )
+    } else {
+        format!(
+            "Type '{}' has no method named '{}'. Available methods: {}",
+            type_name,
+            method,
+            candidates.join(", ")
+        )
     }
 }
 

@@ -2310,7 +2310,7 @@ fn test_impl_for_undefined_type_is_compile_error() {
     let program = r#"
 impl Ghost {
     fn boo(self) {
-        return 1
+        return self.baz()
     }
 }
 "#;
@@ -2322,7 +2322,8 @@ impl Ghost {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("Ghost")));
+    assert_eq!(1, errors.len(), "{:?}", errors);
+    assert!(errors[0].message.contains("Ghost"));
 }
 
 #[test]
@@ -2532,9 +2533,6 @@ impl Point {
 
 #[test]
 fn test_method_referencing_top_level_val_is_compile_error() {
-    // Methods are hoisted and defined before any top-level val/var runs, so
-    // a method body can't see a top-level val even if it appears earlier in
-    // the source - same as codegen, which compiles methods in a pre-pass.
     let program = r#"
 struct Point {
     x
@@ -2668,4 +2666,32 @@ Point.make(1)
     assert!(errors
         .iter()
         .any(|e| e.message.contains("make") && e.message.contains("expects 2 arguments")));
+}
+
+#[test]
+fn test_rejected_nested_impl_does_not_double_error_at_call_site() {
+    let program = r#"
+struct Point {
+    x
+}
+fn wrapper() {
+    impl Point {
+        fn len(self) {
+            return 1
+        }
+    }
+}
+val p = Point(1)
+p.len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(1, errors.len(), "{:?}", errors);
+    assert!(errors[0].message.contains("top level"));
 }

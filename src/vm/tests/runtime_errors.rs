@@ -499,7 +499,7 @@ fn vm_is_usable_after_a_callback_error() {
 }
 
 #[test]
-fn instance_method_arity_error_excludes_self_on_unresolved_receiver_type() {
+fn method_arity_error_excludes_self() {
     let program = r#"
         struct Point { x y }
         impl Point {
