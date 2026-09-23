@@ -1,0 +1,44 @@
+// Expected:
+// true
+// false
+// -4
+// 0.25
+// 5
+// -0.25
+// -9
+// 5
+// 7
+// true
+// 0
+
+val x = 4
+print(x & 1 == 0)
+
+val y = 5
+print(y & 1 == 0)
+
+print(-2 ** 2)
+
+print(2 ** -2)
+
+val oa = 5
+val ob = 6
+val oc = 3
+print(oa || ob & oc)
+
+print(-2 ** -2)
+
+struct Point { z }
+val p = Point(3)
+print(-p.z ** 2)
+
+print(1 | 2 << 1)
+
+print(6 ^ 3 & 1)
+
+val ba = true
+val bb = false
+print(!ba == bb)
+
+val nx = 5
+print(~nx & 1)

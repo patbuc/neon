@@ -1,4 +1,4 @@
-use crate::compiler::ast::{Expr, Stmt};
+use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
 
 #[test]
@@ -1243,6 +1243,131 @@ fn test_parse_complex_logical_expression() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
     assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_bitwise_and_binds_tighter_than_equality() {
+    let mut parser = Parser::new("x & 1 == 0\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::Equal,
+                left,
+                right,
+                ..
+            } => {
+                match right.as_ref() {
+                    Expr::Number { value, .. } => assert_eq!(*value, 0.0),
+                    _ => panic!("Expected Number as right operand of =="),
+                }
+                match left.as_ref() {
+                    Expr::Binary {
+                        operator: BinaryOp::BitwiseAnd,
+                        left,
+                        right,
+                        ..
+                    } => {
+                        match left.as_ref() {
+                            Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                            _ => panic!("Expected Variable as left operand of &"),
+                        }
+                        match right.as_ref() {
+                            Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                            _ => panic!("Expected Number as right operand of &"),
+                        }
+                    }
+                    _ => panic!("Expected (x & 1) as left operand of =="),
+                }
+            }
+            _ => panic!("Expected Equal as top-level operator"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_logical_or_binds_looser_than_bitwise_and() {
+    let mut parser = Parser::new("a || b & c\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::Or,
+                left,
+                right,
+                ..
+            } => {
+                match left.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as left operand of ||"),
+                }
+                match right.as_ref() {
+                    Expr::Binary {
+                        operator: BinaryOp::BitwiseAnd,
+                        ..
+                    } => {}
+                    _ => panic!("Expected (b & c) as right operand of ||"),
+                }
+            }
+            _ => panic!("Expected Or as top-level operator"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_unary_minus_binds_looser_than_exponent() {
+    let mut parser = Parser::new("-2 ** 2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Unary {
+                operator: UnaryOp::Negate,
+                operand,
+                ..
+            } => match operand.as_ref() {
+                Expr::Binary {
+                    operator: BinaryOp::Exponent,
+                    ..
+                } => {}
+                _ => panic!("Expected (2 ** 2) as operand of unary minus"),
+            },
+            _ => panic!("Expected Unary negate at top level"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_exponent_right_operand_accepts_unary_minus() {
+    let mut parser = Parser::new("2 ** -2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::Exponent,
+                right,
+                ..
+            } => match right.as_ref() {
+                Expr::Unary {
+                    operator: UnaryOp::Negate,
+                    ..
+                } => {}
+                _ => panic!("Expected unary negate as right operand of **"),
+            },
+            _ => panic!("Expected Exponent at top level"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }
 
 // ===== Map Literal Tests =====

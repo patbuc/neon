@@ -23,18 +23,18 @@ enum Precedence {
     Assignment,
     Ternary,
     Or,
-    BitwiseOr,  // |
-    BitwiseXor, // ^
-    BitwiseAnd, // &
     And,
     Equality,
     Comparison,
-    Shift, // << >>
+    BitwiseOr,  // |
+    BitwiseXor, // ^
+    BitwiseAnd, // &
+    Shift,      // << >>
     Range,
     Term,
     Factor,
-    Exponent, // **
     Unary,
+    Exponent, // **
     Call,
     Primary,
 }
@@ -45,19 +45,19 @@ impl Precedence {
             Precedence::None => Precedence::Assignment,
             Precedence::Assignment => Precedence::Ternary,
             Precedence::Ternary => Precedence::Or,
-            Precedence::Or => Precedence::BitwiseOr,
-            Precedence::BitwiseOr => Precedence::BitwiseXor,
-            Precedence::BitwiseXor => Precedence::BitwiseAnd,
-            Precedence::BitwiseAnd => Precedence::And,
+            Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
-            Precedence::Comparison => Precedence::Shift,
+            Precedence::Comparison => Precedence::BitwiseOr,
+            Precedence::BitwiseOr => Precedence::BitwiseXor,
+            Precedence::BitwiseXor => Precedence::BitwiseAnd,
+            Precedence::BitwiseAnd => Precedence::Shift,
             Precedence::Shift => Precedence::Range,
             Precedence::Range => Precedence::Term,
             Precedence::Term => Precedence::Factor,
-            Precedence::Factor => Precedence::Exponent,
-            Precedence::Exponent => Precedence::Unary,
-            Precedence::Unary => Precedence::Call,
+            Precedence::Factor => Precedence::Unary,
+            Precedence::Unary => Precedence::Exponent,
+            Precedence::Exponent => Precedence::Call,
             Precedence::Call => Precedence::Primary,
             Precedence::Primary => Precedence::Primary,
         }
@@ -1004,7 +1004,7 @@ impl Parser {
         let operator_type = self.previous_token.token_type.clone();
         let location = self.current_location();
 
-        let operand = Box::new(self.parse_precedence(Precedence::Unary, false)?);
+        let operand = Box::new(self.parse_precedence(Precedence::Exponent, false)?);
 
         let operator = match operator_type {
             TokenType::Minus => UnaryOp::Negate,
