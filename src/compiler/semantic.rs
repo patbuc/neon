@@ -374,14 +374,26 @@ impl SemanticAnalyzer {
                 initializer,
                 location,
             } => {
-                self.resolve_val_declaration(name, initializer.as_ref(), *location);
+                self.resolve_variable_declaration(
+                    name,
+                    initializer.as_ref(),
+                    SymbolKind::Value,
+                    false,
+                    *location,
+                );
             }
             Stmt::Var {
                 name,
                 initializer,
                 location,
             } => {
-                self.resolve_var_declaration(name, initializer.as_ref(), *location);
+                self.resolve_variable_declaration(
+                    name,
+                    initializer.as_ref(),
+                    SymbolKind::Variable,
+                    true,
+                    *location,
+                );
             }
             Stmt::Fn {
                 params,
@@ -538,10 +550,12 @@ impl SemanticAnalyzer {
 
     // Statement resolution methods
 
-    fn resolve_val_declaration(
+    fn resolve_variable_declaration(
         &mut self,
         name: &str,
         initializer: Option<&Expr>,
+        kind: SymbolKind,
+        is_mutable: bool,
         location: SourceLocation,
     ) {
         // Resolve initializer first (if any), tracking its type (or
@@ -553,25 +567,7 @@ impl SemanticAnalyzer {
         });
         self.define_type(name, inferred_type.flatten());
         // Then define the variable in current scope
-        self.define_symbol(name.to_string(), SymbolKind::Value, false, location);
-    }
-
-    fn resolve_var_declaration(
-        &mut self,
-        name: &str,
-        initializer: Option<&Expr>,
-        location: SourceLocation,
-    ) {
-        // Resolve initializer first (if any), tracking its type (or
-        // unknown) in the current scope - this shadows any outer type
-        // recorded for the same name.
-        let inferred_type = initializer.map(|init| {
-            self.resolve_expr(init);
-            self.infer_expr_type(init)
-        });
-        self.define_type(name, inferred_type.flatten());
-        // Then define the variable in current scope
-        self.define_symbol(name.to_string(), SymbolKind::Variable, true, location);
+        self.define_symbol(name.to_string(), kind, is_mutable, location);
     }
 
     fn resolve_function_declaration(

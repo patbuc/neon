@@ -231,10 +231,11 @@ impl CodeGenerator {
 
     // ===== Statement Generation =====
 
-    fn generate_val_stmt(
+    fn generate_variable_declaration(
         &mut self,
         name: &str,
         initializer: &Option<Expr>,
+        readonly: bool,
         location: SourceLocation,
     ) {
         // Generate initializer or nil
@@ -245,26 +246,7 @@ impl CodeGenerator {
         }
 
         // Define local variable
-        let local = Local::new(name.to_string(), self.scope_depth, false);
-        self.current_chunk()
-            .define_local(local, location.line, location.column);
-    }
-
-    fn generate_var_stmt(
-        &mut self,
-        name: &str,
-        initializer: &Option<Expr>,
-        location: SourceLocation,
-    ) {
-        // Generate initializer or nil
-        if let Some(init) = initializer {
-            self.generate_expr(init);
-        } else {
-            self.emit_op_code(OpCode::Nil, location);
-        }
-
-        // Define local variable (mutable)
-        let local = Local::new(name.to_string(), self.scope_depth, true);
+        let local = Local::new(name.to_string(), self.scope_depth, readonly);
         self.current_chunk()
             .define_local(local, location.line, location.column);
     }
@@ -593,14 +575,14 @@ impl CodeGenerator {
                 initializer,
                 location,
             } => {
-                self.generate_val_stmt(name, initializer, *location);
+                self.generate_variable_declaration(name, initializer, false, *location);
             }
             Stmt::Var {
                 name,
                 initializer,
                 location,
             } => {
-                self.generate_var_stmt(name, initializer, *location);
+                self.generate_variable_declaration(name, initializer, true, *location);
             }
             Stmt::Fn {
                 name,
