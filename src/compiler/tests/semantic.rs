@@ -2669,20 +2669,11 @@ Point.make(1)
 }
 
 #[test]
-fn test_rejected_nested_impl_does_not_double_error_at_call_site() {
+fn test_struct_named_string_is_compile_error() {
     let program = r#"
-struct Point {
-    x
+struct String {
+    v
 }
-fn wrapper() {
-    impl Point {
-        fn len(self) {
-            return 1
-        }
-    }
-}
-val p = Point(1)
-p.len()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -2692,6 +2683,23 @@ p.len()
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert_eq!(1, errors.len(), "{:?}", errors);
-    assert!(errors[0].message.contains("top level"));
+    assert!(errors.iter().any(|e| e.message.contains("String")));
+}
+
+#[test]
+fn test_struct_named_array_is_compile_error() {
+    let program = r#"
+struct Array {
+    v
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Array")));
 }

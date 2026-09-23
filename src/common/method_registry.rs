@@ -607,6 +607,13 @@ pub fn is_static_namespace(name: &str) -> bool {
     !get_static_methods_for_type(name).is_empty()
 }
 
+/// Runtime type names `get_type_name` (`src/vm/functions.rs`) returns for
+/// builtin values. A struct may not be declared under one of these names -
+/// the semantic pass infers types by name alone, so a user instance and a
+/// builtin value would otherwise be indistinguishable.
+pub const BUILTIN_TYPE_NAMES: [&str; 7] =
+    ["Array", "String", "Map", "Set", "Number", "Boolean", "File"];
+
 /// Names of registry types that are namespaces rather than instance types:
 /// callable as `Name.method(...)` (has static methods) or constructible as
 /// `Name(...)` (has a constructor). This is the single source of truth the

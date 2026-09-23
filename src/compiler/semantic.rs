@@ -131,6 +131,16 @@ impl SemanticAnalyzer {
                     fields,
                     location,
                 } => {
+                    if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str())
+                    {
+                        self.errors.push(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::Other,
+                            format!("Struct name '{}' is reserved for a builtin type", name),
+                            *location,
+                        ));
+                        continue;
+                    }
                     self.define_symbol(
                         name.clone(),
                         SymbolKind::Struct {

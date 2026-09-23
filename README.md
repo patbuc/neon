@@ -278,6 +278,9 @@ pt.x = 15    // Fields are mutable
 print(pt.x)  // 15
 ```
 
+A struct can't be named after a builtin type (`Array`, `String`, `Map`,
+`Set`, `Number`, `Boolean`, `File`).
+
 #### Methods
 
 ```neon
