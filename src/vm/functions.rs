@@ -4,6 +4,7 @@ use crate::common::{ObjFunction, Object};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
+use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -647,7 +648,7 @@ impl VirtualMachine {
         let stack_len = self.stack.len();
         let pairs_start = stack_len - (count * 2);
 
-        let mut map = HashMap::with_capacity(count);
+        let mut map = IndexMap::with_capacity(count);
         for i in 0..count {
             let key_value = &self.stack[pairs_start + i];
             let value = &self.stack[pairs_start + count + i];

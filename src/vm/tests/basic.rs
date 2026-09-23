@@ -1018,9 +1018,7 @@ fn test_map_creation_with_string_keys() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
-    let output = vm.get_output();
-    // HashMap order is not guaranteed, check both possible orders
-    assert!(output.contains("name: Alice") && output.contains("age: 30"));
+    assert_eq!("{name: Alice, age: 30}", vm.get_output());
 }
 
 #[test]
@@ -1377,9 +1375,7 @@ fn test_map_keys_method_with_entries() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
-    // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
-    let output = vm.get_output();
-    assert!(output.starts_with('[') && output.ends_with(']'));
+    assert_eq!("[a, b]", vm.get_output());
 }
 
 #[test]
@@ -1407,9 +1403,7 @@ fn test_map_values_method_with_entries() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
-    // Note: HashMap order is not guaranteed, so we just check it's an array with 2 elements
-    let output = vm.get_output();
-    assert!(output.starts_with('[') && output.ends_with(']'));
+    assert_eq!("[1, 2]", vm.get_output());
 }
 
 #[test]
@@ -1437,9 +1431,7 @@ fn test_map_entries_method_with_entries() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
-    // Note: HashMap order is not guaranteed, so we just check it's an array
-    let output = vm.get_output();
-    assert!(output.starts_with('[') && output.ends_with(']'));
+    assert_eq!("[[name, Alice], [age, 30]]", vm.get_output());
 }
 
 #[test]

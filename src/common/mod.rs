@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
@@ -91,7 +92,7 @@ pub enum Object {
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
     Array(Rc<RefCell<Vec<Value>>>),
-    Map(Rc<RefCell<HashMap<MapKey, Value>>>),
+    Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<str>),
 }
@@ -192,7 +193,7 @@ impl Value {
         Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
     }
 
-    pub(crate) fn new_map(entries: HashMap<MapKey, Value>) -> Self {
+    pub(crate) fn new_map(entries: IndexMap<MapKey, Value>) -> Self {
         Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
     }
 

@@ -27,7 +27,7 @@
 ///
 /// - `String` → `&ObjString`
 /// - `Array` → `&Rc<RefCell<Vec<Value>>>`
-/// - `Map` → `&Rc<RefCell<HashMap<MapKey, Value>>>`
+/// - `Map` → `&Rc<RefCell<IndexMap<MapKey, Value>>>`
 /// - `Set` → `&Rc<RefCell<BTreeSet<SetKey>>>`
 /// - `File` → `&Rc<str>`
 /// - `Number` → `f64`

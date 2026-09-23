@@ -91,9 +91,9 @@ pub fn native_map_remove(args: &[Value]) -> Result<Value, String> {
         }
     };
 
-    // Remove entry and return its value
+    // shift_remove, not swap_remove, so the remaining entries keep their order.
     let mut map = map_ref.borrow_mut();
-    Ok(map.remove(&key).unwrap_or(Value::Nil))
+    Ok(map.shift_remove(&key).unwrap_or(Value::Nil))
 }
 
 pub fn native_map_keys(args: &[Value]) -> Result<Value, String> {

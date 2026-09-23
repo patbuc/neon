@@ -1,6 +1,7 @@
 use crate::common::*;
+use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 #[test]
@@ -69,7 +70,7 @@ fn test_mixed_type_array() {
 
 #[test]
 fn test_map_creation() {
-    let mut entries = HashMap::new();
+    let mut entries = IndexMap::new();
     entries.insert(
         MapKey::String(Rc::from("name")),
         Value::Object(Rc::new(Object::String(ObjString {
@@ -96,37 +97,36 @@ fn test_map_creation() {
 
 #[test]
 fn test_map_display() {
-    let mut entries = HashMap::new();
+    let mut entries = IndexMap::new();
     entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
     entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
 
     let map = Value::new_map(entries);
     let display = format!("{}", map);
 
-    // HashMap order is not guaranteed, so we test both possible orders
-    assert!(display == "{a: 1, b: 2}" || display == "{b: 2, a: 1}");
+    assert_eq!(display, "{a: 1, b: 2}");
 }
 
 #[test]
 fn test_empty_map_display() {
-    let map = Value::new_map(HashMap::new());
+    let map = Value::new_map(IndexMap::new());
     let display = format!("{}", map);
     assert_eq!(display, "{}");
 }
 
 #[test]
 fn test_map_equality() {
-    let mut entries1 = HashMap::new();
+    let mut entries1 = IndexMap::new();
     entries1.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
     entries1.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
     let map1 = Value::new_map(entries1);
 
-    let mut entries2 = HashMap::new();
+    let mut entries2 = IndexMap::new();
     entries2.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
     entries2.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
     let map2 = Value::new_map(entries2);
 
-    let mut entries3 = HashMap::new();
+    let mut entries3 = IndexMap::new();
     entries3.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
     entries3.insert(MapKey::String(Rc::from("y")), Value::Number(3.0));
     let map3 = Value::new_map(entries3);
@@ -139,8 +139,23 @@ fn test_map_equality() {
 }
 
 #[test]
+fn test_map_equality_ignores_insertion_order() {
+    let mut entries1 = IndexMap::new();
+    entries1.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+    entries1.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+    let map1 = Value::new_map(entries1);
+
+    let mut entries2 = IndexMap::new();
+    entries2.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+    entries2.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+    let map2 = Value::new_map(entries2);
+
+    assert_eq!(map1, map2);
+}
+
+#[test]
 fn test_map_with_different_key_types() {
-    let mut entries = HashMap::new();
+    let mut entries = IndexMap::new();
     entries.insert(
         MapKey::String(Rc::from("name")),
         Value::Object(Rc::new(Object::String(ObjString {
@@ -161,7 +176,7 @@ fn test_map_with_different_key_types() {
 
 #[test]
 fn test_map_with_mixed_value_types() {
-    let mut entries = HashMap::new();
+    let mut entries = IndexMap::new();
     entries.insert(MapKey::String(Rc::from("num")), Value::Number(42.0));
     entries.insert(MapKey::String(Rc::from("bool")), Value::Boolean(true));
     entries.insert(MapKey::String(Rc::from("nil")), Value::Nil);
