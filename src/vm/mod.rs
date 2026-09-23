@@ -1,5 +1,7 @@
-use crate::common::{CallFrame, Chunk, Value};
+use crate::common::{CallFrame, Chunk, Upvalue, Value};
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 mod functions;
 mod r#impl;
@@ -35,6 +37,9 @@ pub struct VirtualMachine {
     /// Used for for-in loops to track iteration progress
     /// Supports nested for-in loops by maintaining a stack of iterators
     iterator_stack: Vec<(usize, Value)>,
+    /// Upvalues still pointing at a live stack slot, so closures created
+    /// from the same slot share one cell instead of each getting their own.
+    open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
 }
 
 // Test-only methods
@@ -54,6 +59,7 @@ impl VirtualMachine {
         // Create the initial call frame
         let frame = CallFrame {
             function: test_function,
+            upvalues: Vec::new(),
             ip: 0,
             slot_start: -1, // Like script frame, no function object on stack
             iterator_depth: self.iterator_stack.len(),

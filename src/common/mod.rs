@@ -88,6 +88,7 @@ impl BitsSize {
 pub enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
+    Closure(Rc<ObjClosure>),
     NativeFunction(Rc<ObjNativeFunction>),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
@@ -136,6 +137,25 @@ pub struct ObjFunction {
     pub chunk: Rc<Chunk>,
 }
 
+/// A function bundled with the values it closes over. This is the only
+/// callable representation of a Neon function at runtime; `ObjFunction`
+/// itself is just the compiled template stored in a constant pool, read by
+/// the `Closure` opcode.
+#[derive(Debug, Clone)]
+pub struct ObjClosure {
+    pub function: Rc<ObjFunction>,
+    pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
+}
+
+/// A variable captured by a closure. Open while the stack slot that holds
+/// it is still live; closed (its value copied out) once that slot's frame
+/// returns or the block that declared it exits.
+#[derive(Debug)]
+pub enum Upvalue {
+    Open(usize),
+    Closed(Value),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjNativeFunction {
     pub name: String,
@@ -170,6 +190,16 @@ impl Value {
             name,
             arity,
             chunk: Rc::new(chunk),
+        }))))
+    }
+
+    pub(crate) fn new_closure(
+        function: Rc<ObjFunction>,
+        upvalues: Vec<Rc<RefCell<Upvalue>>>,
+    ) -> Self {
+        Value::Object(Rc::new(Object::Closure(Rc::new(ObjClosure {
+            function,
+            upvalues,
         }))))
     }
 
@@ -214,6 +244,7 @@ impl Value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::String(_) => "string",
                 Object::Function(_) => "function",
+                Object::Closure(_) => "function",
                 Object::NativeFunction(_) => "function",
                 Object::Struct(_) => "struct",
                 Object::Instance(_) => "instance",
@@ -228,6 +259,9 @@ impl Value {
 
 pub struct CallFrame {
     pub function: Rc<ObjFunction>,
+    /// The running closure's captured variables (empty for the script frame
+    /// and for any function that captures nothing).
+    pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
     /// iterator_stack depth when this frame was pushed.
@@ -239,6 +273,7 @@ impl Object {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
+            Object::Closure(obj_closure) => write!(f, "<fn {}>", obj_closure.function.name),
             Object::NativeFunction(obj_native_function) => {
                 write!(f, "<native fn {}>", obj_native_function.name)
             }
@@ -339,6 +374,13 @@ impl PartialEq for ObjFunction {
     }
 }
 
+impl PartialEq for ObjClosure {
+    fn eq(&self, other: &Self) -> bool {
+        self.function == other.function
+        // Upvalues aren't compared, matching ObjFunction's simplification.
+    }
+}
+
 impl PartialEq for ObjStruct {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.fields == other.fields
@@ -369,6 +411,7 @@ impl Object {
         match (self, other) {
             (Object::String(a), Object::String(b)) => a == b,
             (Object::Function(a), Object::Function(b)) => a == b,
+            (Object::Closure(a), Object::Closure(b)) => a == b,
             (Object::NativeFunction(a), Object::NativeFunction(b)) => a == b,
             (Object::Struct(a), Object::Struct(b)) => a == b,
             (Object::Instance(a), Object::Instance(b)) => guarded_eq(a, b, seen, |seen| {

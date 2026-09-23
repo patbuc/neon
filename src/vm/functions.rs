@@ -1,11 +1,12 @@
 use crate::common::constants::MAX_FRAMES;
 use crate::common::method_registry::NativeCallable;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
-use crate::common::{ObjFunction, Object};
+use crate::common::{ObjClosure, Object, Upvalue};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -103,7 +104,7 @@ impl VirtualMachine {
 
         let result = match &callable_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::Function(callable) => return self.call_function(arg_count, &callable),
+                Object::Closure(closure) => return self.call_closure(arg_count, closure),
                 Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
                     match self.call_native_function(arg_count, callable) {
@@ -202,7 +203,8 @@ impl VirtualMachine {
         None
     }
 
-    fn call_function(&mut self, arg_count: usize, func: &&Rc<ObjFunction>) -> Option<Result> {
+    fn call_closure(&mut self, arg_count: usize, closure: &Rc<ObjClosure>) -> Option<Result> {
+        let func = &closure.function;
         if arg_count != func.arity as usize {
             self.runtime_error(&format!(
                 "Expected {} arguments but got {}.",
@@ -220,6 +222,7 @@ impl VirtualMachine {
 
         let new_frame = CallFrame {
             function: Rc::clone(func),
+            upvalues: closure.upvalues.clone(),
             ip: 0,
             slot_start,
             iterator_depth: self.iterator_stack.len(),
@@ -239,6 +242,10 @@ impl VirtualMachine {
         let iterator_depth = self.current_frame().iterator_depth;
         self.call_frames.pop();
         self.iterator_stack.truncate(iterator_depth);
+
+        // A local captured by a closure that outlives this call must keep
+        // its value once this frame's stack slots go away.
+        self.close_upvalues_above((slot_start + 1) as usize);
 
         if self.call_frames.is_empty() {
             self.push(return_value);
@@ -502,8 +509,144 @@ impl VirtualMachine {
     /// nested inside another function can call itself recursively by name.
     #[inline(always)]
     pub(in crate::vm) fn fn_get_current_function(&mut self) {
-        let function = Rc::clone(&self.current_frame().function);
-        self.push(Value::Object(Rc::new(Object::Function(function))));
+        let frame = self.current_frame();
+        let function = Rc::clone(&frame.function);
+        let upvalues = frame.upvalues.clone();
+        self.push(Value::new_closure(function, upvalues));
+    }
+
+    /// Wraps a function constant in a closure, capturing whatever upvalues
+    /// its metadata (following the constant index) describes.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_closure(&mut self, bits: BitsSize) -> Option<Result> {
+        let const_index = self.read_bits(&bits);
+        let function = {
+            let frame = self.current_frame();
+            match frame.function.chunk.read_constant(const_index) {
+                Value::Object(obj) => match obj.as_ref() {
+                    Object::Function(function) => Rc::clone(function),
+                    _ => unreachable!("Closure operand must reference a function constant"),
+                },
+                _ => unreachable!("Closure operand must reference a function constant"),
+            }
+        };
+
+        let mut offset = bits.as_bytes();
+        let upvalue_count = {
+            let frame = self.current_frame();
+            frame.function.chunk.read_u8(frame.ip + 1 + offset) as usize
+        };
+        offset += 1;
+
+        let mut upvalues = Vec::with_capacity(upvalue_count);
+        for _ in 0..upvalue_count {
+            let (is_local, index) = {
+                let frame = self.current_frame();
+                let is_local = frame.function.chunk.read_u8(frame.ip + 1 + offset) != 0;
+                let index = frame.function.chunk.read_u16(frame.ip + 1 + offset + 1) as usize;
+                (is_local, index)
+            };
+            offset += 3;
+
+            let upvalue = if is_local {
+                let absolute_index =
+                    (self.current_frame().slot_start + 1 + index as isize) as usize;
+                self.capture_upvalue(absolute_index)
+            } else {
+                if index >= self.current_frame().upvalues.len() {
+                    self.runtime_error(&format!("Invalid upvalue index {}", index));
+                    return Some(Result::RuntimeError);
+                }
+                Rc::clone(&self.current_frame().upvalues[index])
+            };
+            upvalues.push(upvalue);
+        }
+
+        self.push(Value::new_closure(function, upvalues));
+        self.current_frame_mut().ip += offset;
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_upvalue(&mut self, bits: BitsSize) -> Option<Result> {
+        let index = self.read_bits(&bits);
+        if index >= self.current_frame().upvalues.len() {
+            self.runtime_error(&format!("Invalid upvalue index {}", index));
+            return Some(Result::RuntimeError);
+        }
+        let upvalue = Rc::clone(&self.current_frame().upvalues[index]);
+        let value = match &*upvalue.borrow() {
+            Upvalue::Open(stack_index) => self.stack[*stack_index].clone(),
+            Upvalue::Closed(value) => value.clone(),
+        };
+        self.current_frame_mut().ip += bits.as_bytes();
+        self.push(value);
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_set_upvalue(&mut self, bits: BitsSize) -> Option<Result> {
+        let index = self.read_bits(&bits);
+        if index >= self.current_frame().upvalues.len() {
+            self.runtime_error(&format!("Invalid upvalue index {}", index));
+            return Some(Result::RuntimeError);
+        }
+        let value = self.peek(0);
+        let upvalue = Rc::clone(&self.current_frame().upvalues[index]);
+        let stack_index = match &*upvalue.borrow() {
+            Upvalue::Open(stack_index) => Some(*stack_index),
+            Upvalue::Closed(_) => None,
+        };
+        match stack_index {
+            Some(stack_index) => self.stack[stack_index] = value,
+            None => *upvalue.borrow_mut() = Upvalue::Closed(value),
+        }
+        self.current_frame_mut().ip += bits.as_bytes();
+        None
+    }
+
+    /// Closes the upvalue (if any) pointing at the current top-of-stack
+    /// slot, then pops it. Used at block exit for a captured local, in
+    /// place of a plain Pop.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_close_upvalue(&mut self) {
+        let top_index = self.stack.len() - 1;
+        self.close_upvalues_above(top_index);
+        self.pop();
+    }
+
+    /// Returns the open upvalue for `stack_index`, reusing one already
+    /// open for that exact slot so two closures capturing the same local
+    /// share writes to it.
+    fn capture_upvalue(&mut self, stack_index: usize) -> Rc<RefCell<Upvalue>> {
+        for existing in &self.open_upvalues {
+            if let Upvalue::Open(index) = *existing.borrow() {
+                if index == stack_index {
+                    return Rc::clone(existing);
+                }
+            }
+        }
+        let upvalue = Rc::new(RefCell::new(Upvalue::Open(stack_index)));
+        self.open_upvalues.push(Rc::clone(&upvalue));
+        upvalue
+    }
+
+    /// Closes every open upvalue pointing at `stack_index` or higher,
+    /// copying its live stack value out so it survives that slot being
+    /// reused or the stack being truncated.
+    pub(in crate::vm) fn close_upvalues_above(&mut self, stack_index: usize) {
+        let stack = &self.stack;
+        self.open_upvalues.retain(|upvalue| {
+            let index = match *upvalue.borrow() {
+                Upvalue::Open(index) => index,
+                Upvalue::Closed(_) => return false,
+            };
+            if index < stack_index {
+                return true;
+            }
+            *upvalue.borrow_mut() = Upvalue::Closed(stack[index].clone());
+            false
+        });
     }
 
     #[inline(always)]

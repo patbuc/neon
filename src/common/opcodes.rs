@@ -67,6 +67,16 @@ impl OpCode {
             v if v == OpCode::LeftShift as u8 => Some(OpCode::LeftShift),
             v if v == OpCode::RightShift as u8 => Some(OpCode::RightShift),
             v if v == OpCode::GetCurrentFunction as u8 => Some(OpCode::GetCurrentFunction),
+            v if v == OpCode::Closure as u8 => Some(OpCode::Closure),
+            v if v == OpCode::Closure2 as u8 => Some(OpCode::Closure2),
+            v if v == OpCode::Closure4 as u8 => Some(OpCode::Closure4),
+            v if v == OpCode::GetUpvalue as u8 => Some(OpCode::GetUpvalue),
+            v if v == OpCode::GetUpvalue2 as u8 => Some(OpCode::GetUpvalue2),
+            v if v == OpCode::GetUpvalue4 as u8 => Some(OpCode::GetUpvalue4),
+            v if v == OpCode::SetUpvalue as u8 => Some(OpCode::SetUpvalue),
+            v if v == OpCode::SetUpvalue2 as u8 => Some(OpCode::SetUpvalue2),
+            v if v == OpCode::SetUpvalue4 as u8 => Some(OpCode::SetUpvalue4),
+            v if v == OpCode::CloseUpvalue as u8 => Some(OpCode::CloseUpvalue),
             _ => None,
         }
     }
@@ -148,4 +158,20 @@ pub(crate) enum OpCode {
     /// Lets a function nested inside another function call itself
     /// recursively by name without needing a captured upvalue.
     GetCurrentFunction,
+
+    /// Wraps a function constant in a closure: reads a function constant
+    /// index, then an upvalue count and that many (is_local, index) pairs
+    /// describing how to fill the closure's upvalue array.
+    Closure,
+    Closure2,
+    Closure4,
+    GetUpvalue,
+    GetUpvalue2,
+    GetUpvalue4,
+    SetUpvalue,
+    SetUpvalue2,
+    SetUpvalue4,
+    /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
+    /// pops it, so a captured local's value survives its scope exiting.
+    CloseUpvalue,
 }

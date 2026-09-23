@@ -101,6 +101,16 @@ impl Chunk {
             OpCode::GetCurrentFunction => {
                 self.simple_instruction(OpCode::GetCurrentFunction, offset)
             }
+            OpCode::Closure => self.closure_instruction(OpCode::Closure, offset),
+            OpCode::Closure2 => self.closure_instruction(OpCode::Closure2, offset),
+            OpCode::Closure4 => self.closure_instruction(OpCode::Closure4, offset),
+            OpCode::GetUpvalue => self.variable_instruction(OpCode::GetUpvalue, offset),
+            OpCode::GetUpvalue2 => self.variable_instruction(OpCode::GetUpvalue2, offset),
+            OpCode::GetUpvalue4 => self.variable_instruction(OpCode::GetUpvalue4, offset),
+            OpCode::SetUpvalue => self.variable_instruction(OpCode::SetUpvalue, offset),
+            OpCode::SetUpvalue2 => self.variable_instruction(OpCode::SetUpvalue2, offset),
+            OpCode::SetUpvalue4 => self.variable_instruction(OpCode::SetUpvalue4, offset),
+            OpCode::CloseUpvalue => self.simple_instruction(OpCode::CloseUpvalue, offset),
         }
     }
 
@@ -159,6 +169,12 @@ impl Chunk {
                 OpCode::SetGlobal => (chunk.read_u8(offset) as usize, 1),
                 OpCode::SetGlobal2 => (chunk.read_u16(offset) as usize, 2),
                 OpCode::SetGlobal4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::GetUpvalue => (chunk.read_u8(offset) as usize, 1),
+                OpCode::GetUpvalue2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::GetUpvalue4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::SetUpvalue => (chunk.read_u8(offset) as usize, 1),
+                OpCode::SetUpvalue2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::SetUpvalue4 => (chunk.read_u32(offset) as usize, 4),
                 _ => panic!("Invalid OpCode {:?}", op_code),
             }
         }
@@ -219,6 +235,32 @@ impl Chunk {
         let element_count = self.read_u16(offset + 1);
         println!("CreateSet (elements: {})", element_count);
         offset + 3
+    }
+
+    fn closure_instruction(&self, op_code: OpCode, offset: usize) -> usize {
+        let (index, index_width) = match op_code {
+            OpCode::Closure => (self.read_u8(offset + 1) as usize, 1),
+            OpCode::Closure2 => (self.read_u16(offset + 1) as usize, 2),
+            OpCode::Closure4 => (self.read_u32(offset + 1) as usize, 4),
+            _ => panic!("Invalid OpCode for closure instruction"),
+        };
+        let function = self.read_constant(index);
+        println!("{:?} {:02} '{}'", op_code, index, function);
+
+        let mut cursor = offset + 1 + index_width;
+        let upvalue_count = self.read_u8(cursor) as usize;
+        cursor += 1;
+        for _ in 0..upvalue_count {
+            let is_local = self.read_u8(cursor) != 0;
+            let upvalue_index = self.read_u16(cursor + 1);
+            println!(
+                "      |                     {} {:02}",
+                if is_local { "local" } else { "upvalue" },
+                upvalue_index
+            );
+            cursor += 3;
+        }
+        cursor
     }
 
     fn create_range_instruction(&self, offset: usize) -> usize {

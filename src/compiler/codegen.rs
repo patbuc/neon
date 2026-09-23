@@ -371,8 +371,11 @@ impl CodeGenerator {
         let function_value =
             Value::new_function(name.to_string(), params.len() as u8, function_chunk);
 
-        // Replace the nil placeholder with the actual function
-        self.emit_constant(function_value, location);
+        // Wrap the function in a closure (no captures yet) and replace the
+        // Nil placeholder with it.
+        let const_index = self.current_chunk().add_constant(function_value);
+        self.emit_op_code_variant(OpCode::Closure, const_index, location);
+        self.current_chunk().write_u8(0); // upvalue count
 
         // Get the index of the function variable we defined earlier
         let var = match self.get_variable_index(name) {

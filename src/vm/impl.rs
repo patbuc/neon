@@ -28,6 +28,7 @@ impl VirtualMachine {
             runtime_errors: String::new(),
             source: String::new(),
             iterator_stack: Vec::new(),
+            open_upvalues: Vec::new(),
         }
     }
 
@@ -68,6 +69,7 @@ impl VirtualMachine {
         // Use -1 for slot_start since the script has no function object on the stack
         let frame = CallFrame {
             function: script_function,
+            upvalues: Vec::new(),
             ip: 0,
             slot_start: -1,
             iterator_depth: self.iterator_stack.len(),
@@ -362,6 +364,52 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::GetCurrentFunction => self.fn_get_current_function(),
+                OpCode::Closure => {
+                    if let Some(result) = self.fn_closure(BitsSize::Eight) {
+                        return result;
+                    }
+                }
+                OpCode::Closure2 => {
+                    if let Some(result) = self.fn_closure(BitsSize::Sixteen) {
+                        return result;
+                    }
+                }
+                OpCode::Closure4 => {
+                    if let Some(result) = self.fn_closure(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                }
+                OpCode::GetUpvalue => {
+                    if let Some(result) = self.fn_get_upvalue(BitsSize::Eight) {
+                        return result;
+                    }
+                }
+                OpCode::GetUpvalue2 => {
+                    if let Some(result) = self.fn_get_upvalue(BitsSize::Sixteen) {
+                        return result;
+                    }
+                }
+                OpCode::GetUpvalue4 => {
+                    if let Some(result) = self.fn_get_upvalue(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                }
+                OpCode::SetUpvalue => {
+                    if let Some(result) = self.fn_set_upvalue(BitsSize::Eight) {
+                        return result;
+                    }
+                }
+                OpCode::SetUpvalue2 => {
+                    if let Some(result) = self.fn_set_upvalue(BitsSize::Sixteen) {
+                        return result;
+                    }
+                }
+                OpCode::SetUpvalue4 => {
+                    if let Some(result) = self.fn_set_upvalue(BitsSize::ThirtyTwo) {
+                        return result;
+                    }
+                }
+                OpCode::CloseUpvalue => self.fn_close_upvalue(),
             }
             self.current_frame_mut().ip += 1;
         }
@@ -454,5 +502,6 @@ impl VirtualMachine {
         self.chunk = None;
         self.runtime_errors.clear();
         self.iterator_stack.clear();
+        self.open_upvalues.clear();
     }
 }
