@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, CallFrame, Chunk, ObjFunction, Value};
+use crate::common::{BitsSize, CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
@@ -65,11 +65,14 @@ impl VirtualMachine {
             arity: 0,
             chunk: Rc::new(chunk),
         });
+        let script_closure = Rc::new(ObjClosure {
+            function: script_function,
+            upvalues: Vec::new(),
+        });
 
         // Use -1 for slot_start since the script has no function object on the stack
         let frame = CallFrame {
-            function: script_function,
-            upvalues: Vec::new(),
+            closure: script_closure,
             ip: 0,
             slot_start: -1,
             iterator_depth: self.iterator_stack.len(),
@@ -90,12 +93,12 @@ impl VirtualMachine {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
-            frame.function.chunk.disassemble_chunk();
+            frame.closure.function.chunk.disassemble_chunk();
         }
         loop {
             let byte = {
                 let frame = self.current_frame();
-                frame.function.chunk.read_u8(frame.ip)
+                frame.closure.function.chunk.read_u8(frame.ip)
             };
             let op_code = match OpCode::from_u8(byte) {
                 Some(op_code) => op_code,
@@ -485,7 +488,7 @@ impl VirtualMachine {
 
     fn get_current_source_location(&self) -> String {
         if let Some(frame) = self.call_frames.last() {
-            if let Some(location) = frame.function.chunk.get_source_location(frame.ip) {
+            if let Some(location) = frame.closure.function.chunk.get_source_location(frame.ip) {
                 format!("{}:{}", location.line, location.column)
             } else {
                 "unknown".to_string()

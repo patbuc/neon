@@ -262,10 +262,7 @@ impl Value {
 }
 
 pub struct CallFrame {
-    pub function: Rc<ObjFunction>,
-    /// The running closure's captured variables (empty for the script frame
-    /// and for any function that captures nothing).
-    pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
+    pub closure: Rc<ObjClosure>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
     /// iterator_stack depth when this frame was pushed.

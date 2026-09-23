@@ -46,7 +46,7 @@ pub struct VirtualMachine {
 #[cfg(test)]
 impl VirtualMachine {
     pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
-        use crate::common::ObjFunction;
+        use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
 
         // Create a synthetic function for the test chunk
@@ -55,11 +55,14 @@ impl VirtualMachine {
             arity: 0,
             chunk: Rc::new(chunk),
         });
+        let test_closure = Rc::new(ObjClosure {
+            function: test_function,
+            upvalues: Vec::new(),
+        });
 
         // Create the initial call frame
         let frame = CallFrame {
-            function: test_function,
-            upvalues: Vec::new(),
+            closure: test_closure,
             ip: 0,
             slot_start: -1, // Like script frame, no function object on stack
             iterator_depth: self.iterator_stack.len(),
