@@ -2836,6 +2836,28 @@ fn test_multiple_continues_in_loop() {
 }
 
 #[test]
+fn test_loop_body_local_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            var i = 0
+            while (i < {iterations}) {{
+                val temp = i * 2
+                i = i + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(1), stack_len_after_loop(1000));
+}
+
+#[test]
 fn debug_simple_param() {
     let program = r#"
         fn test(x) {

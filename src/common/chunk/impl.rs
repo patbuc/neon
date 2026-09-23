@@ -156,6 +156,19 @@ impl Chunk {
         self.instructions.len()
     }
 
+    /// Drops locals declared deeper than `depth`, returning how many were removed.
+    pub(crate) fn pop_locals_above(&mut self, depth: u32) -> u32 {
+        let mut count = 0;
+        while let Some(local) = self.locals.last() {
+            if local.depth <= depth as i32 {
+                break;
+            }
+            self.locals.pop();
+            count += 1;
+        }
+        count
+    }
+
     pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
         if self.locals.is_empty() {
             return (None, false);

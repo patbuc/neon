@@ -336,12 +336,25 @@ impl CodeGenerator {
         self.emit_op_code(OpCode::Pop, location);
     }
 
-    fn generate_block_stmt(&mut self, statements: &[Stmt]) {
+    fn generate_block_stmt(&mut self, statements: &[Stmt], location: SourceLocation) {
         self.scope_depth += 1;
         for stmt in statements {
             self.generate_stmt(stmt);
         }
+        self.end_scope(location);
+    }
+
+    fn end_scope(&mut self, location: SourceLocation) {
         self.scope_depth -= 1;
+        let popped = self.discard_locals_above_current_depth();
+        for _ in 0..popped {
+            self.emit_op_code(OpCode::Pop, location);
+        }
+    }
+
+    fn discard_locals_above_current_depth(&mut self) -> u32 {
+        let scope_depth = self.scope_depth;
+        self.current_chunk().pop_locals_above(scope_depth)
     }
 
     fn generate_if_stmt(
@@ -386,6 +399,8 @@ impl CodeGenerator {
         if let Stmt::Block { statements, .. } = body {
             if statements.len() == 2 {
                 // This is likely a desugared for loop: Block([user_body, increment])
+                self.scope_depth += 1;
+
                 // Generate the user body first
                 self.generate_stmt(&statements[0]);
 
@@ -398,6 +413,8 @@ impl CodeGenerator {
 
                 // Generate the increment
                 self.generate_stmt(&statements[1]);
+
+                self.end_scope(location);
             } else {
                 // Regular block, generate normally
                 self.generate_stmt(body);
@@ -554,9 +571,6 @@ impl CodeGenerator {
         // Pop the false value (done/no more elements)
         self.emit_op_code(OpCode::Pop, location);
 
-        // Note: The loop variable has already been popped in the last iteration
-        // before jumping back. So we don't need to pop it here.
-
         // Pop the iterator from the VM's iterator stack
         self.emit_op_code(OpCode::PopIterator, location);
 
@@ -565,8 +579,10 @@ impl CodeGenerator {
             self.patch_jump(break_jump);
         }
 
-        // Exit the loop scope
+        // Exit the loop scope. The loop variable's slot was already popped
+        // above, so only its Local entry needs dropping here.
         self.scope_depth -= 1;
+        self.discard_locals_above_current_depth();
     }
 
     fn generate_stmt(&mut self, stmt: &Stmt) {
@@ -599,8 +615,11 @@ impl CodeGenerator {
             Stmt::Expression { expr, location } => {
                 self.generate_expression_stmt(expr, *location);
             }
-            Stmt::Block { statements, .. } => {
-                self.generate_block_stmt(statements);
+            Stmt::Block {
+                statements,
+                location,
+            } => {
+                self.generate_block_stmt(statements, *location);
             }
             Stmt::If {
                 condition,

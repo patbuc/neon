@@ -1,0 +1,72 @@
+// Expected:
+// 2
+// 1
+// 2
+// 1
+// 2
+// 3
+// 4
+// 1
+// 2
+// 3
+// 4
+// 5
+// 2
+// 4
+// 6
+// 99
+// 7
+// 7
+// inner
+// outer
+
+// Inner block shadows an outer local without leaking past the block
+val x = 1
+{
+    val x = 2
+    print(x)
+}
+print(x)
+
+// A local declared in an untaken if-branch must not shift later locals
+if (false) {
+    val a = 1
+}
+val b = 2
+print(b)
+
+// Two consecutive for-in loops in the same scope
+for (i in 1..5) {
+    print(i)
+}
+for (i in 1..=5) {
+    print(i)
+}
+
+// A for-in body declaring its own local must not shift a later top-level local
+for (n in 1..=3) {
+    val doubled = n * 2
+    print(doubled)
+}
+val after_loop = 99
+print(after_loop)
+
+// A block inside a function body must not shift the function's own params
+fn add_reporting(a, b) {
+    {
+        val sum = a + b
+        print(sum)
+    }
+    return a + b
+}
+print(add_reporting(3, 4))
+
+// An outer block can declare a local after an inner block closes
+{
+    {
+        val inner = "inner"
+        print(inner)
+    }
+    val outer = "outer"
+    print(outer)
+}
