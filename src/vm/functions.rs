@@ -6,7 +6,7 @@ use crate::common::{
 use crate::common::{ObjClosure, Object, Upvalue};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, number, string};
+use crate::{as_number, as_string, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -128,6 +128,11 @@ impl VirtualMachine {
                 Object::Closure(closure) => return self.call_closure(arg_count, closure),
                 Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
+                    if callable.method_index == u32::MAX {
+                        if let Some(outcome) = self.dispatch_user_method_call(arg_count, callable) {
+                            return outcome;
+                        }
+                    }
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
                         Err(NativeCallError::Message(error)) => {
@@ -193,6 +198,39 @@ impl VirtualMachine {
             Ok(self.pop())
         } else {
             Err(NativeCallError::AlreadyReported)
+        }
+    }
+
+    /// Checks the user method table for a by-name call before the native
+    /// registry. Returns `None` when no user method matches (fall through to
+    /// native dispatch); otherwise dispatches to the method and returns the
+    /// outcome to hand straight back to `dispatch_call`'s caller.
+    ///
+    /// Static calls (`Point.origin()`) receive the struct value itself as
+    /// receiver: since the method has no `self` parameter, drop the receiver
+    /// slot before invoking the closure. Instance calls keep the receiver as
+    /// the closure's first (`self`) argument.
+    fn dispatch_user_method_call(
+        &mut self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> Option<Option<Result>> {
+        let args_start = self.stack.len() - arg_count - 1;
+        let receiver = &self.stack[args_start];
+        let type_name = self.get_type_name(receiver)?;
+        let is_static_call =
+            matches!(receiver, Value::Object(obj) if matches!(obj.as_ref(), Object::Struct(_)));
+
+        let closure = self
+            .methods
+            .get(&(type_name.as_str().to_string(), callable.method_name.clone()))?
+            .clone();
+
+        if is_static_call {
+            self.stack.remove(args_start);
+            Some(self.call_closure(arg_count - 1, &closure))
+        } else {
+            Some(self.call_closure(arg_count, &closure))
         }
     }
 
@@ -280,8 +318,8 @@ impl VirtualMachine {
         let func = &closure.function;
         if arg_count != func.arity as usize {
             self.runtime_error(&format!(
-                "Expected {} arguments but got {}.",
-                func.arity, arg_count
+                "Expected {} arguments but got {} for '{}'.",
+                func.arity, arg_count, func.name
             ));
             return Some(Result::RuntimeError);
         }
@@ -1398,6 +1436,9 @@ impl VirtualMachine {
                 Object::Instance(inst) => {
                     Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct)))
                 }
+                // The struct value itself (e.g. `Point` in `Point.origin()`)
+                // dispatches static methods under the struct's own name.
+                Object::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
                 _ => None,
             },
             Value::Number(_) => Some(TypeName::Static("Number")),
@@ -1445,6 +1486,36 @@ impl VirtualMachine {
                 callable.method_name, type_name
             )),
             Some(callable) => Ok(callable),
+        }
+    }
+
+    /// DefineMethod: pops the closure left on top of the stack by a
+    /// preceding Closure op and registers it under (type name, method name).
+    #[inline(always)]
+    pub(in crate::vm) fn fn_define_method(&mut self) {
+        let frame = self.current_frame_mut();
+        let type_name = {
+            let index = frame.closure.function.chunk.read_u32(frame.ip + 1) as usize;
+            frame.closure.function.chunk.read_string(index)
+        };
+        let method_name = {
+            let index = frame.closure.function.chunk.read_u32(frame.ip + 5) as usize;
+            frame.closure.function.chunk.read_string(index)
+        };
+        frame.ip += 8;
+
+        let closure_value = self.pop();
+        let type_name = as_string!(type_name).value.to_string();
+        let method_name = as_string!(method_name).value.to_string();
+        match closure_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Closure(closure) => {
+                    self.methods
+                        .insert((type_name, method_name), Rc::clone(closure));
+                }
+                _ => unreachable!("DefineMethod expects a closure on top of the stack"),
+            },
+            _ => unreachable!("DefineMethod expects a closure on top of the stack"),
         }
     }
 }

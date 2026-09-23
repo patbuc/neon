@@ -107,6 +107,30 @@ impl CodeGenerator {
             }
         }
 
+        // Then: Compile impl-block methods into closures and register them,
+        // so a method call textually before its `impl` block still works.
+        // Structs/fns are already defined above, so a method body can refer
+        // to them (e.g. a static method constructing its own struct).
+        for stmt in statements {
+            if let Stmt::Impl {
+                type_name, methods, ..
+            } = stmt
+            {
+                for method in methods {
+                    if let Stmt::Fn {
+                        name,
+                        params,
+                        body,
+                        location,
+                    } = method
+                    {
+                        self.generate_closure(name, params, body, *location);
+                        self.emit_define_method(type_name, name, *location);
+                    }
+                }
+            }
+        }
+
         // Then: Generate code for all statements
         for stmt in statements {
             self.generate_stmt(stmt);
@@ -764,7 +788,7 @@ impl CodeGenerator {
                 // Struct was already defined, nothing to do here
             }
             Stmt::Impl { .. } => {
-                // Methods are not compiled yet; a later unit will register them.
+                // Methods were already compiled and registered in generate()'s pre-pass.
             }
             Stmt::Expression { expr, location } => {
                 self.generate_expression_stmt(expr, *location);
@@ -1454,5 +1478,16 @@ impl CodeGenerator {
         self.emit_constant(callable, location);
         self.emit_op_code(OpCode::Call, location);
         self.current_chunk().write_u8(arity);
+    }
+
+    /// Emits `DefineMethod`, popping the closure left on top of the stack by
+    /// a preceding `generate_closure` call and registering it under
+    /// `(type_name, method_name)`.
+    fn emit_define_method(&mut self, type_name: &str, method_name: &str, location: SourceLocation) {
+        let type_index = self.current_chunk().add_string(string!(type_name));
+        let method_index = self.current_chunk().add_string(string!(method_name));
+        self.emit_op_code(OpCode::DefineMethod, location);
+        self.current_chunk().write_u32(type_index);
+        self.current_chunk().write_u32(method_index);
     }
 }
