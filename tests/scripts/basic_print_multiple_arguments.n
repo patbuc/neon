@@ -1,0 +1,8 @@
+// Print with multiple arguments, joined by spaces
+
+// Expected:
+// 1 2 x
+// true false nil
+
+print(1, 2, "x")
+print(true, false, nil)

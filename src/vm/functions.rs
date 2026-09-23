@@ -122,21 +122,20 @@ impl VirtualMachine {
         #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
             if callable.method_index == PRINT_METHOD_INDEX {
-                self.print_to_vm_buffer(arg_count);
+                self.print_to_vm_buffer(&args);
             }
         }
         native_callable.function()(&args)
     }
 
+    /// Mirrors native_system_print's stdout output into the in-VM buffer, so
+    /// tests and wasm (which has no stdout) can observe what print() wrote.
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
-    fn print_to_vm_buffer(&mut self, arg_count: usize) {
-        let stack_len = self.stack.len();
-        let args_start = stack_len - arg_count - 1;
-        let args_end = stack_len - 1;
-        let args = &self.stack[args_start..args_end];
+    fn print_to_vm_buffer(&mut self, args: &[Value]) {
         if !args.is_empty() {
+            use crate::common::stdlib::system_functions::format_print_args;
             use std::fmt::Write;
-            writeln!(self.string_buffer, "{}", args[0]).ok();
+            writeln!(self.string_buffer, "{}", format_print_args(args)).ok();
         }
     }
 

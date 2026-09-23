@@ -1,21 +1,21 @@
 use crate::common::Value;
 
-/// Native print(function - this is a placeholder that should never be called)
-/// The VM handles print(function calls directly in handle_print_function())
-/// This function exists only to satisfy the method registry requirements
+/// Joins print() arguments with spaces, the shared formatting used for both
+/// stdout output and the in-VM output buffer (used in tests and on wasm).
+pub fn format_print_args(args: &[Value]) -> String {
+    args.iter()
+        .map(|v: &Value| v.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Native implementation of print(): writes its arguments, space-joined, to stdout.
 pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
-    // This should never be called - the VM intercepts print(calls)
-    // But if it is called somehow, provide basic functionality
     if args.is_empty() {
         return Err("print() expects at least 1 argument".to_string());
     }
 
-    // Join all arguments with spaces
-    let output = args
-        .iter()
-        .map(|v: &Value| v.to_string())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let output = format_print_args(args);
 
     // Print to stdout
     #[cfg(not(target_arch = "wasm32"))]

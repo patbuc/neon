@@ -58,6 +58,19 @@ fn can_print_the_answer_to_everything_times_pi() {
 }
 
 #[test]
+fn can_print_multiple_arguments() {
+    let program = r#"
+        print(1, 2, "x")
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1 2 x", vm.get_output());
+}
+
+#[test]
 fn can_run_multi_line_statements() {
     let program = r#"
         print("Hello World 🌎")
