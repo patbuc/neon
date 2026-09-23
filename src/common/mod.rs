@@ -145,7 +145,7 @@ pub struct ObjFunction {
 /// callable representation of a Neon function at runtime; `ObjFunction`
 /// itself is just the compiled template stored in a constant pool, read by
 /// the `Closure` opcode.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ObjClosure {
     pub function: Rc<ObjFunction>,
     pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
@@ -375,13 +375,6 @@ impl PartialEq for ObjFunction {
     }
 }
 
-impl PartialEq for ObjClosure {
-    fn eq(&self, other: &Self) -> bool {
-        self.function == other.function
-        // Upvalues aren't compared, matching ObjFunction's simplification.
-    }
-}
-
 impl PartialEq for ObjStruct {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.fields == other.fields
@@ -412,7 +405,7 @@ impl Object {
         match (self, other) {
             (Object::String(a), Object::String(b)) => a == b,
             (Object::Function(a), Object::Function(b)) => a == b,
-            (Object::Closure(a), Object::Closure(b)) => a == b,
+            (Object::Closure(a), Object::Closure(b)) => Rc::ptr_eq(a, b),
             (Object::NativeFunction(a), Object::NativeFunction(b)) => a == b,
             (Object::Struct(a), Object::Struct(b)) => a == b,
             (Object::Instance(a), Object::Instance(b)) => guarded_eq(a, b, seen, |seen| {
