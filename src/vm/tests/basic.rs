@@ -2837,13 +2837,12 @@ fn test_multiple_continues_in_loop() {
 
 #[test]
 fn test_loop_body_local_does_not_grow_stack() {
-    fn stack_len_after_loop(iterations: i64) -> usize {
+    fn stack_len_after_loop(iterations: i64, body: &str) -> usize {
         let program = format!(
             r#"
             var i = 0
             while (i < {iterations}) {{
-                val temp = i * 2
-                i = i + 1
+                {body}
             }}
             "#
         );
@@ -2854,7 +2853,21 @@ fn test_loop_body_local_does_not_grow_stack() {
         vm.stack.len()
     }
 
-    assert_eq!(stack_len_after_loop(1), stack_len_after_loop(1000));
+    // A 3-statement body goes through the ordinary block path
+    // (generate_block_stmt). 0 iterations gives the stack depth the loop
+    // started at, since the condition is false immediately.
+    let ordinary_body = "val temp = i * 2\nval doubled = temp * 2\ni = i + 1";
+    assert_eq!(
+        stack_len_after_loop(0, ordinary_body),
+        stack_len_after_loop(1000, ordinary_body)
+    );
+
+    // A 2-statement body hits generate_while_stmt's desugared-for fast path.
+    let fast_path_body = "val temp = i * 2\ni = i + 1";
+    assert_eq!(
+        stack_len_after_loop(0, fast_path_body),
+        stack_len_after_loop(1000, fast_path_body)
+    );
 }
 
 #[test]
