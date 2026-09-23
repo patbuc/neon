@@ -544,7 +544,6 @@ fn test_parse_for_loop() {
                         Expr::Binary { .. } => {}
                         _ => panic!("Expected Binary expression for condition"),
                     }
-                    // Body should be the original loop body, not wrapped with the increment
                     match body.as_ref() {
                         Stmt::Block {
                             statements: body_stmts,
@@ -554,7 +553,6 @@ fn test_parse_for_loop() {
                         }
                         _ => panic!("Expected Block as while body"),
                     }
-                    // The increment is now an explicit field on the While node
                     match increment.as_deref() {
                         Some(Stmt::Expression { .. }) => {}
                         _ => panic!("Expected increment to be an Expression statement"),
@@ -669,7 +667,6 @@ fn test_parse_nested_for_loops() {
                 Stmt::While {
                     body, increment, ..
                 } => {
-                    // Body is now just the source block, not wrapped with the increment
                     match body.as_ref() {
                         Stmt::Block {
                             statements: source_block_stmts,
