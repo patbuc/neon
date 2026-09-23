@@ -56,6 +56,7 @@ impl VirtualMachine {
             function: test_function,
             ip: 0,
             slot_start: -1, // Like script frame, no function object on stack
+            iterator_depth: self.iterator_stack.len(),
         };
         self.call_frames.push(frame);
 

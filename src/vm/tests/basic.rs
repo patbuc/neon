@@ -2999,6 +2999,24 @@ fn test_while_continue_from_block_does_not_grow_stack() {
 }
 
 #[test]
+fn test_reset_clears_iterator_stack() {
+    let mut vm = VirtualMachine::new();
+
+    let program_with_error = r#"
+        for (x in [1, 2, 3]) {
+            print(x + true)
+        }
+        "#;
+    let result = vm.interpret(program_with_error.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(1, vm.iterator_stack.len());
+
+    let result = vm.interpret("print(1)".to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!(0, vm.iterator_stack.len());
+}
+
+#[test]
 fn debug_simple_param() {
     let program = r#"
         fn test(x) {

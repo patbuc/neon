@@ -70,6 +70,7 @@ impl VirtualMachine {
             function: script_function,
             ip: 0,
             slot_start: -1,
+            iterator_depth: self.iterator_stack.len(),
         };
         self.call_frames.push(frame);
 
@@ -451,5 +452,6 @@ impl VirtualMachine {
         self.stack.clear();
         self.chunk = None;
         self.runtime_errors.clear();
+        self.iterator_stack.clear();
     }
 }

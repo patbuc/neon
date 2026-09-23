@@ -222,6 +222,7 @@ impl VirtualMachine {
             function: Rc::clone(func),
             ip: 0,
             slot_start,
+            iterator_depth: self.iterator_stack.len(),
         };
 
         // NOTE: IP increment is handled by the caller (fn_call_unified)
@@ -235,7 +236,9 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_return(&mut self) -> Option<Result> {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
+        let iterator_depth = self.current_frame().iterator_depth;
         self.call_frames.pop();
+        self.iterator_stack.truncate(iterator_depth);
 
         if self.call_frames.is_empty() {
             self.push(return_value);
