@@ -339,7 +339,7 @@ fn test_parse_impl_block_rejects_non_fn_item() {
     let result = parser.parse();
     assert!(result.is_err(), "Should fail on a non-fn item in impl body");
     let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert!(errors[0].message.contains("method declaration"));
 }
 

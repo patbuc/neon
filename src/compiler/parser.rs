@@ -452,7 +452,10 @@ impl Parser {
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             if !self.consume(TokenType::Fn, "Expect method declaration.") {
-                return None;
+                while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+                    self.advance();
+                }
+                break;
             }
             let method = self.fn_declaration()?;
             methods.push(method);

@@ -407,8 +407,6 @@ impl SemanticAnalyzer {
                 // Struct declarations are already collected, nothing to resolve
             }
             Stmt::Impl { methods, .. } => {
-                // Method registration is a later unit; resolve each body the
-                // same way a top-level `fn` body is, so body errors surface.
                 for method in methods {
                     if let Stmt::Fn {
                         params,
