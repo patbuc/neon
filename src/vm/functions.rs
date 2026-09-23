@@ -1,6 +1,8 @@
-use crate::common::constants::MAX_FRAMES;
+use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::{
+    BitsSize, CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
+};
 use crate::common::{ObjClosure, Object, Upvalue};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -128,8 +130,11 @@ impl VirtualMachine {
                 Object::NativeFunction(callable) => {
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
-                        Err(error) => {
+                        Err(NativeCallError::Message(error)) => {
                             self.runtime_error(&error);
+                            return Some(Result::RuntimeError);
+                        }
+                        Err(NativeCallError::AlreadyReported) => {
                             return Some(Result::RuntimeError);
                         }
                     }
@@ -152,18 +157,57 @@ impl VirtualMachine {
         None
     }
 
+    /// Lets a native call a Neon value (closure, lambda, or native) with
+    /// the given arguments, running the dispatch loop re-entrantly until
+    /// that call returns.
+    pub(crate) fn call_value(
+        &mut self,
+        callee: Value,
+        args: &[Value],
+    ) -> std::result::Result<Value, NativeCallError> {
+        if self.frame_limit_reached() {
+            return Err(NativeCallError::AlreadyReported);
+        }
+        if self.native_call_depth >= MAX_NATIVE_CALL_DEPTH {
+            self.runtime_error("Stack overflow");
+            return Err(NativeCallError::AlreadyReported);
+        }
+
+        let frame_depth = self.call_frames.len();
+        self.native_call_depth += 1;
+
+        for arg in args {
+            self.push(arg.clone());
+        }
+        self.push(callee);
+
+        let outcome = match self.dispatch_call(args.len()) {
+            Some(result) => result,
+            None if self.call_frames.len() > frame_depth => self.run_until(frame_depth),
+            None => Result::Ok,
+        };
+
+        self.native_call_depth -= 1;
+
+        if outcome == Result::Ok {
+            Ok(self.pop())
+        } else {
+            Err(NativeCallError::AlreadyReported)
+        }
+    }
+
     fn call_native_function(
         &mut self,
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
-    ) -> std::result::Result<Value, String> {
+    ) -> std::result::Result<Value, NativeCallError> {
         let native_callable_result = if callable.method_index != u32::MAX {
             self.lookup_native_method_by_index(callable)
         } else {
             self.lookup_native_method_by_name(arg_count, callable)
         };
 
-        let native_callable = native_callable_result?;
+        let native_callable = native_callable_result.map_err(NativeCallError::Message)?;
 
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count - 1;
@@ -181,7 +225,17 @@ impl VirtualMachine {
                 }
             }
         }
-        native_callable.function()(&self.stack[args_start..args_end])
+        match *native_callable {
+            NativeCallable::InstanceMethodWithVm { function, .. } => {
+                let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
+                function(self, &args)
+            }
+            NativeCallable::StaticMethod { function, .. }
+            | NativeCallable::InstanceMethod { function, .. }
+            | NativeCallable::Constructor { function, .. } => {
+                function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
+            }
+        }
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> Option<Result> {

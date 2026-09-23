@@ -465,3 +465,90 @@ fn test_array_max_empty() {
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
 }
+
+// ============================================================================
+// Array.map() / Array.filter() / Array.reduce()
+// ============================================================================
+
+#[test]
+fn test_array_map_does_not_mutate_receiver() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        val doubled = arr.map(fn(x) { return x * 2 })
+        print(arr)
+        print(doubled)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n[2, 4, 6]", vm.get_output());
+}
+
+#[test]
+fn test_array_map_wrong_arg_count() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        arr.map()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_map_non_callable() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        arr.map(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_filter_keeps_truthy_non_boolean_results() {
+    let program = r#"
+        print([1, 2, 3].filter(fn(x) { return x }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]", vm.get_output());
+}
+
+#[test]
+fn test_array_filter_wrong_arg_count() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        arr.filter()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}
+
+#[test]
+fn test_array_reduce_with_closure() {
+    let program = r#"
+        val factor = 10
+        val result = [1, 2, 3].reduce(fn(acc, x) { return acc + x * factor }, 0)
+        print(result)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("60", vm.get_output());
+}
+
+#[test]
+fn test_array_reduce_wrong_arg_count() {
+    let program = r#"
+        fn add(acc, x) { return acc + x }
+        val arr = [1, 2, 3]
+        arr.reduce(add)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+}

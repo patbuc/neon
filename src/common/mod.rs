@@ -16,10 +16,23 @@ pub mod string_similarity;
 #[cfg(test)]
 mod tests;
 
-// Forward declare VirtualMachine for NativeFn signature
-// We can't import VirtualMachine directly as it would create a circular dependency
-// The actual implementation will be in vm/mod.rs
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
+pub(crate) type NativeFnWithVm =
+    fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, NativeCallError>;
+
+/// `AlreadyReported` means a callback run through `call_value` already
+/// recorded its own error; the caller must not record it again.
+#[derive(Debug)]
+pub(crate) enum NativeCallError {
+    Message(String),
+    AlreadyReported,
+}
+
+impl From<String> for NativeCallError {
+    fn from(message: String) -> Self {
+        NativeCallError::Message(message)
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Chunk {

@@ -1,0 +1,6 @@
+// Expected:
+// [[2, 4], [6, 8]]
+
+fn double(x) { return x * 2 }
+val rows = [[1, 2], [3, 4]]
+print(rows.map(fn(row) { return row.map(double) }))

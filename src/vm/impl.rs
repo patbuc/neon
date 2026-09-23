@@ -29,6 +29,7 @@ impl VirtualMachine {
             source: String::new(),
             iterator_stack: Vec::new(),
             open_upvalues: Vec::new(),
+            native_call_depth: 0,
         }
     }
 
@@ -508,5 +509,6 @@ impl VirtualMachine {
         self.runtime_errors.clear();
         self.iterator_stack.clear();
         self.open_upvalues.clear();
+        self.native_call_depth = 0;
     }
 }

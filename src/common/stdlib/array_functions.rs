@@ -1,5 +1,6 @@
-use crate::common::{Object, Value};
-use crate::{extract_arg, extract_receiver, extract_string_value};
+use crate::common::{NativeCallError, Object, Value};
+use crate::vm::VirtualMachine;
+use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil
@@ -357,4 +358,84 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     }
 
     Ok(max.clone())
+}
+
+/// Native implementation of Array.map(fn)
+/// Returns a new array with fn applied to each element.
+/// Snapshots the elements before calling fn, so a callback that mutates
+/// the receiving array doesn't change what map iterates over.
+pub fn native_array_map(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "map() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "map")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut mapped = Vec::with_capacity(elements.len());
+    for element in elements {
+        mapped.push(vm.call_value(callback.clone(), &[element])?);
+    }
+
+    Ok(Value::new_array(mapped))
+}
+
+/// Native implementation of Array.filter(fn)
+/// Returns a new array of the elements for which fn is truthy.
+pub fn native_array_filter(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "filter() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "filter")?;
+    let predicate = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut kept = Vec::new();
+    for element in elements {
+        let result = vm.call_value(predicate.clone(), std::slice::from_ref(&element))?;
+        if !is_false_like!(result) {
+            kept.push(element);
+        }
+    }
+
+    Ok(Value::new_array(kept))
+}
+
+/// Native implementation of Array.reduce(fn, initial)
+/// Folds the array from the left, calling fn(accumulator, element).
+pub fn native_array_reduce(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 3 {
+        return Err(format!(
+            "reduce() expects 2 arguments (function, initial value), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "reduce")?;
+    let callback = args[1].clone();
+    let mut accumulator = args[2].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    for element in elements {
+        accumulator = vm.call_value(callback.clone(), &[accumulator, element])?;
+    }
+
+    Ok(accumulator)
 }

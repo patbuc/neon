@@ -40,6 +40,8 @@ pub struct VirtualMachine {
     /// Upvalues still pointing at a live stack slot, so closures created
     /// from the same slot share one cell instead of each getting their own.
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
+    /// How many `call_value` calls are currently nested on the Rust stack.
+    native_call_depth: usize,
 }
 
 // Test-only methods

@@ -1,0 +1,5 @@
+// Expected:
+// 6
+
+fn add(acc, x) { return acc + x }
+print([1, 2, 3].reduce(add, 0))

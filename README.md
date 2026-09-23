@@ -477,6 +477,9 @@ print("42".toInt() + 8)               // 50
 - `.push(value)` - Add element to end
 - `.size()` / `.length()` - Get array length
 - `.contains(value)` - Check if contains value
+- `.map(fn)` - New array with `fn` applied to each element
+- `.filter(fn)` - New array of the elements for which `fn` is truthy
+- `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
 
 **Example:**
 ```neon
@@ -484,7 +487,14 @@ val arr = [1, 2, 3]
 arr.push(4)
 print(arr.size())          // 4
 print(arr.contains(2))     // true
+print(arr.map(fn(x) { return x * 2 }))          // [2, 4, 6, 8]
+print(arr.filter(fn(x) { return x % 2 == 0 }))  // [2, 4]
+print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
 ```
+
+`map`, `filter` and `reduce` accept a named function, a closure, or a lambda,
+and can call back into other Neon functions (including nested `map`/`filter`/
+`reduce` calls).
 
 ### Map Methods
 

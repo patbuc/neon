@@ -1,0 +1,5 @@
+// Expected:
+// [2, 4]
+
+fn isEven(x) { return x % 2 == 0 }
+print([1, 2, 3, 4].filter(isEven))

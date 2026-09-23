@@ -348,3 +348,125 @@ fn unbounded_recursion_reports_stack_overflow_at_the_call_site() {
     assert!(errors.contains("Stack overflow"), "{}", errors);
     assert!(errors.contains("[1:19]"), "{}", errors);
 }
+
+#[test]
+fn native_callback_runtime_error_reports_exactly_one_error() {
+    let program = r#"
+        fn boom(x) { return x + true }
+        print([1, 2, 3].map(boom))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(1, vm.get_runtime_errors().lines().count());
+    assert_eq!("", vm.get_output());
+}
+
+#[test]
+fn native_callback_wrong_arity_reports_exactly_one_error() {
+    let program = r#"
+        fn needs_two(a, b) { return a + b }
+        print([1, 2, 3].map(needs_two))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(1, vm.get_runtime_errors().lines().count());
+    assert!(
+        vm.get_runtime_errors().contains("Expected 2 arguments"),
+        "{}",
+        vm.get_runtime_errors()
+    );
+}
+
+#[test]
+fn native_callback_stack_overflow_reports_exactly_one_error() {
+    let program = r#"
+        fn recurse(n) { return recurse(n + 1) }
+        print([1].map(recurse))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(1, vm.get_runtime_errors().lines().count());
+    assert!(
+        vm.get_runtime_errors().contains("Stack overflow"),
+        "{}",
+        vm.get_runtime_errors()
+    );
+}
+
+#[test]
+fn native_callback_error_reports_a_single_location_prefix() {
+    let program = "fn boom(x) { return x + true }\nprint([1, 2].map(boom))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert_eq!(1, errors.lines().count());
+    assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
+}
+
+#[test]
+fn nested_native_callback_error_reports_a_single_location_prefix() {
+    let program =
+        "fn boom(x) { return x + true }\nprint([[1]].map(fn(row) { return row.map(boom) }))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert_eq!(1, errors.lines().count());
+    assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
+}
+
+#[test]
+fn recursive_callback_through_map_reports_stack_overflow_once() {
+    let program = r#"
+        fn r(n) {
+            if (n == 0) { return 0 }
+            return [n - 1].map(r)[0]
+        }
+        print(r(1000))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert_eq!(1, errors.lines().count());
+    assert!(errors.contains("Stack overflow"), "{}", errors);
+}
+
+#[test]
+fn unconditional_callback_recursion_through_map_reports_stack_overflow_once() {
+    let program = r#"
+        fn recurse(n) { return [n].map(recurse) }
+        recurse(0)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert_eq!(1, errors.lines().count());
+    assert!(errors.contains("Stack overflow"), "{}", errors);
+}
+
+#[test]
+fn map_over_a_large_array_produces_correct_output() {
+    let program = r#"
+        fn identity(x) { return x }
+        val result = (0..100000).map(identity)
+        print(result.size())
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("100000", vm.get_output());
+}

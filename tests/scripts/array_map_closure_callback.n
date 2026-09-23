@@ -1,0 +1,5 @@
+// Expected:
+// [11, 12]
+
+val k = 10
+print([1, 2].map(fn(x) { return x + k }))

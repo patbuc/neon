@@ -1,7 +1,7 @@
 use crate::common::constants::VARIADIC_ARITY;
 use crate::common::stdlib;
 use crate::common::string_similarity::find_closest_match;
-use crate::common::NativeFn;
+use crate::common::{NativeFn, NativeFnWithVm};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -20,6 +20,13 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
+    /// Instance method that calls back into Neon code, so it needs the VM:
+    /// arr.map(fn), arr.filter(fn), arr.reduce(fn, initial)
+    InstanceMethodWithVm {
+        function: NativeFnWithVm,
+        #[allow(dead_code)]
+        arity: u8,
+    },
     /// Constructor (creates new instance): File(path)
     Constructor {
         function: NativeFn,
@@ -29,19 +36,12 @@ pub(crate) enum NativeCallable {
 }
 
 impl NativeCallable {
-    pub fn function(&self) -> NativeFn {
-        match self {
-            NativeCallable::StaticMethod { function, .. } => *function,
-            NativeCallable::InstanceMethod { function, .. } => *function,
-            NativeCallable::Constructor { function, .. } => *function,
-        }
-    }
-
     #[allow(dead_code)]
     pub fn arity(&self) -> u8 {
         match self {
             NativeCallable::StaticMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethod { arity, .. } => *arity,
+            NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::Constructor { arity, .. } => *arity,
         }
     }
@@ -212,6 +212,30 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_max,
             arity: 0,
+        },
+    ),
+    (
+        "Array",
+        "map",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_map,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "filter",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_filter,
+            arity: 1,
+        },
+    ),
+    (
+        "Array",
+        "reduce",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_reduce,
+            arity: 2,
         },
     ),
     // String instance methods
