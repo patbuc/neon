@@ -69,6 +69,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run(&Chunk::new("dummy"))
+        self.run_until(0)
     }
 }

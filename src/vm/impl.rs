@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, CallFrame, Chunk, ObjClosure, ObjFunction, Value};
+use crate::common::{BitsSize, CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
@@ -79,7 +79,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run(&Chunk::new("dummy"));
+        let result = self.run_until(0);
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -89,7 +89,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn run(&mut self, _chunk: &Chunk) -> Result {
+    pub(in crate::vm) fn run_until(&mut self, target_depth: usize) -> Result {
         #[cfg(feature = "disassemble")]
         {
             let frame = self.call_frames.last().unwrap();
@@ -112,6 +112,9 @@ impl VirtualMachine {
                 OpCode::Return => {
                     if let Some(result) = self.fn_return() {
                         return result;
+                    }
+                    if self.call_frames.len() == target_depth {
+                        return Result::Ok;
                     }
                     continue;
                 }

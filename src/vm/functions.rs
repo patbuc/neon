@@ -86,8 +86,7 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
-        if self.call_frames.len() >= MAX_FRAMES {
-            self.runtime_error("Stack overflow");
+        if self.frame_limit_reached() {
             return Some(Result::RuntimeError);
         }
 
@@ -99,6 +98,26 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         frame.ip += 2; // Skip CALL opcode and arg_count byte
 
+        self.dispatch_call(arg_count)
+    }
+
+    /// Records "Stack overflow" and returns true if the call frame stack
+    /// is already at its limit. Checked before pushing a new frame, by
+    /// both fn_call (before its ip advances, so the error points at the
+    /// call site) and call_value's re-entrant native-to-Neon call.
+    fn frame_limit_reached(&mut self) -> bool {
+        if self.call_frames.len() >= MAX_FRAMES {
+            self.runtime_error("Stack overflow");
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Dispatches a call: the stack must already hold `[args..., callable]`
+    /// with the callable on top. Shared by the CALL opcode and by
+    /// `call_value`'s re-entrant native-to-Neon calls.
+    fn dispatch_call(&mut self, arg_count: usize) -> Option<Result> {
         // Get the callable from the stack
         let callable_value = self.peek(0);
 
