@@ -83,7 +83,7 @@ impl BitsSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub enum Object {
     String(ObjString),
     Function(Rc<ObjFunction>),
@@ -115,7 +115,7 @@ impl Display for MapKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Number(f64),
     Object(Rc<Object>),
@@ -211,8 +211,8 @@ pub struct CallFrame {
     pub slot_start: isize, // Can be -1 for script frame
 }
 
-impl Display for Object {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Object {
+    fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
         match self {
             Object::String(obj_string) => write!(f, "{}", obj_string.value),
             Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
@@ -225,28 +225,41 @@ impl Display for Object {
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
             }
             Object::Array(array) => {
-                let elements = array.borrow();
+                let ptr = Rc::as_ptr(array) as *const ();
+                if seen.contains(&ptr) {
+                    return write!(f, "[...]");
+                }
+                seen.push(ptr);
                 write!(f, "[")?;
-                for (i, value) in elements.iter().enumerate() {
+                for (i, value) in array.borrow().iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", value)?;
+                    value.fmt_with_seen(f, seen)?;
                 }
-                write!(f, "]")
+                write!(f, "]")?;
+                seen.pop();
+                Ok(())
             }
             Object::Map(map) => {
-                let entries = map.borrow();
+                let ptr = Rc::as_ptr(map) as *const ();
+                if seen.contains(&ptr) {
+                    return write!(f, "{{...}}");
+                }
+                seen.push(ptr);
                 write!(f, "{{")?;
                 let mut first = true;
-                for (key, value) in entries.iter() {
+                for (key, value) in map.borrow().iter() {
                     if !first {
                         write!(f, ", ")?;
                     }
                     first = false;
-                    write!(f, "{}: {}", key, value)?;
+                    write!(f, "{}: ", key)?;
+                    value.fmt_with_seen(f, seen)?;
                 }
-                write!(f, "}}")
+                write!(f, "}}")?;
+                seen.pop();
+                Ok(())
             }
             Object::Set(set) => {
                 let elements = set.borrow();
@@ -263,6 +276,18 @@ impl Display for Object {
             }
             Object::File(path) => write!(f, "<file: {}>", path),
         }
+    }
+}
+
+impl Display for Object {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.fmt_with_seen(f, &mut Vec::new())
+    }
+}
+
+impl std::fmt::Debug for Object {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -297,24 +322,101 @@ impl PartialEq for ObjStruct {
     }
 }
 
-impl PartialEq for ObjInstance {
+/// Runs `compare` guarded against cycles through `a`/`b`: if this exact
+/// pointer pair is already being compared further up the call stack, treats
+/// them as equal instead of recursing again.
+fn guarded_eq<T>(
+    a: &Rc<T>,
+    b: &Rc<T>,
+    seen: &mut Vec<(*const (), *const ())>,
+    compare: impl FnOnce(&mut Vec<(*const (), *const ())>) -> bool,
+) -> bool {
+    let key = (Rc::as_ptr(a) as *const (), Rc::as_ptr(b) as *const ());
+    if seen.contains(&key) {
+        return true;
+    }
+    seen.push(key);
+    let equal = compare(seen);
+    seen.pop();
+    equal
+}
+
+impl Object {
+    fn eq_with_seen(&self, other: &Self, seen: &mut Vec<(*const (), *const ())>) -> bool {
+        match (self, other) {
+            (Object::String(a), Object::String(b)) => a == b,
+            (Object::Function(a), Object::Function(b)) => a == b,
+            (Object::NativeFunction(a), Object::NativeFunction(b)) => a == b,
+            (Object::Struct(a), Object::Struct(b)) => a == b,
+            (Object::Instance(a), Object::Instance(b)) => guarded_eq(a, b, seen, |seen| {
+                let ia = a.borrow();
+                let ib = b.borrow();
+                ia.r#struct.name == ib.r#struct.name
+                    && ia.fields.len() == ib.fields.len()
+                    && ia
+                        .fields
+                        .iter()
+                        .all(|(k, v)| ib.fields.get(k).is_some_and(|w| v.eq_with_seen(w, seen)))
+            }),
+            (Object::Array(a), Object::Array(b)) => guarded_eq(a, b, seen, |seen| {
+                let va = a.borrow();
+                let vb = b.borrow();
+                va.len() == vb.len()
+                    && va
+                        .iter()
+                        .zip(vb.iter())
+                        .all(|(x, y)| x.eq_with_seen(y, seen))
+            }),
+            (Object::Map(a), Object::Map(b)) => guarded_eq(a, b, seen, |seen| {
+                let ma = a.borrow();
+                let mb = b.borrow();
+                ma.len() == mb.len()
+                    && ma
+                        .iter()
+                        .all(|(k, v)| mb.get(k).is_some_and(|w| v.eq_with_seen(w, seen)))
+            }),
+            (Object::Set(a), Object::Set(b)) => a == b,
+            (Object::File(a), Object::File(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
-        // Instances are equal if they point to the same struct and have same field values
-        self.r#struct.name == other.r#struct.name && self.fields == other.fields
+        self.eq_with_seen(other, &mut Vec::new())
+    }
+}
+
+impl Value {
+    fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
+        match self {
+            Value::Number(val) => write!(f, "{}", val),
+            Value::Boolean(val) => write!(f, "{}", val),
+            Value::Nil => write!(f, "nil"),
+            Value::Object(val) => val.fmt_with_seen(f, seen),
+        }
+    }
+
+    fn eq_with_seen(&self, other: &Self, seen: &mut Vec<(*const (), *const ())>) -> bool {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Nil, Value::Nil) => true,
+            (Value::Object(a), Value::Object(b)) => a.eq_with_seen(b, seen),
+            _ => false,
+        }
     }
 }
 
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Value::Number(val) => val.to_string(),
-                Value::Boolean(val) => val.to_string(),
-                Value::Nil => "nil".to_string(),
-                Value::Object(val) => format!("{}", val),
-            }
-        )
+        self.fmt_with_seen(f, &mut Vec::new())
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq_with_seen(other, &mut Vec::new())
     }
 }

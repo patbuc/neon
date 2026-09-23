@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Chunk;
+use crate::common::{Chunk, Object, Value};
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
@@ -2855,4 +2855,188 @@ fn debug_simple_param() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::Ok, result);
     assert_eq!("42", vm.get_output());
+}
+
+// =============================================================================
+// Cycle Guard Tests (print and equality on self-referencing values)
+// =============================================================================
+
+#[test]
+fn can_print_self_referencing_map() {
+    let program = r#"
+        var m = {}
+        m["self"] = m
+        print(m)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("{self: {...}}", vm.get_output());
+}
+
+#[test]
+fn can_print_value_shared_but_not_cyclic() {
+    let program = r#"
+        val x = [1]
+        val y = [x, x]
+        print(y)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("[[1], [1]]", vm.get_output());
+}
+
+#[test]
+fn self_referencing_array_equals_itself() {
+    let program = r#"
+        val a = [1]
+        a.push(a)
+        print(a == a)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn self_referencing_array_contains_itself() {
+    let program = r#"
+        val a = [1]
+        a.push(a)
+        print(a.contains(a))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn structurally_cyclic_distinct_arrays_are_equal() {
+    let program = r#"
+        val a = [1]
+        a.push(a)
+        val b = [1]
+        b.push(b)
+        print(a == b)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn structurally_cyclic_distinct_arrays_with_different_values_are_not_equal() {
+    let program = r#"
+        val d = [1]
+        d.push(d)
+        val e = [2]
+        e.push(e)
+        print(d == e)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn array_containing_nan_is_not_equal_to_itself() {
+    let program = r#"
+        val n = 0 / 0
+        val a = [n]
+        print(a == a)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn self_referencing_map_equals_itself() {
+    let program = r#"
+        var m = {}
+        m["self"] = m
+        print(m == m)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn structurally_cyclic_distinct_maps_are_equal() {
+    let program = r#"
+        var m1 = {}
+        m1["self"] = m1
+        var m2 = {}
+        m2["self"] = m2
+        print(m1 == m2)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn self_referencing_instance_equals_itself() {
+    let program = r#"
+        struct Node {
+            next
+        }
+        val p = Node(nil)
+        p.next = p
+        print(p == p)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn structurally_cyclic_distinct_instances_are_equal() {
+    let program = r#"
+        struct Node {
+            next
+        }
+        val p = Node(nil)
+        p.next = p
+        val q = Node(nil)
+        q.next = q
+        print(p == q)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn debug_format_of_self_referencing_array_terminates() {
+    let array = Value::new_array(vec![Value::Number(1.0)]);
+    if let Value::Object(obj) = &array {
+        if let Object::Array(elements) = obj.as_ref() {
+            elements.borrow_mut().push(array.clone());
+        }
+    }
+
+    assert_eq!("Object([1, [...]])", format!("{:?}", array));
 }

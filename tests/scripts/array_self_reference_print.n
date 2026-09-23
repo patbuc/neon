@@ -1,0 +1,8 @@
+// Printing a self-referencing array terminates and shows a placeholder
+
+// Expected:
+// [1, [...]]
+
+val a = [1]
+a.push(a)
+print(a)
