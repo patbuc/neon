@@ -2,16 +2,28 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
 impl Scanner {
+    #[cfg(test)]
     pub(in crate::compiler) fn new(source: &str) -> Scanner {
+        Scanner::new_at(source, 1, 1, 0)
+    }
+
+    /// Like `new`, but starts counting position at the given line/column/offset.
+    pub(in crate::compiler) fn new_at(
+        source: &str,
+        line: u32,
+        column: u32,
+        offset: usize,
+    ) -> Scanner {
         Scanner {
             source: source.chars().collect(),
             start: 0,
             current: 0,
-            line: 1,
-            column: 1,
-            start_line: 1,
-            start_column: 1,
+            line,
+            column,
+            start_line: line,
+            start_column: column,
             previous_token_type: TokenType::NewLine,
+            offset_base: offset,
         }
     }
 
@@ -512,7 +524,7 @@ impl Scanner {
             String::from(message),
             self.start_line,
             self.start_column,
-            self.start,
+            self.start + self.offset_base,
         )
     }
 
@@ -524,7 +536,7 @@ impl Scanner {
             token_str,
             self.start_line,
             self.start_column,
-            self.start,
+            self.start + self.offset_base,
         )
     }
     fn make_eof_token(&mut self) -> Token {
@@ -534,7 +546,7 @@ impl Scanner {
             String::new(),
             self.start_line,
             self.start_column,
-            self.start,
+            self.start + self.offset_base,
         )
     }
 }

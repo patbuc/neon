@@ -3066,3 +3066,16 @@ fn overflowing_literal_in_print_is_compile_error() {
         vm.get_compiler_error()
     );
 }
+
+#[test]
+fn undefined_variable_in_interpolation_reports_location() {
+    let program = "var s = \"abc\n${zz}\"\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Semantic] Undefined Symbol: Undefined variable 'zz' at 2:3",
+        vm.get_compiler_error()
+    );
+}

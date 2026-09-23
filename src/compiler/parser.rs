@@ -66,8 +66,13 @@ impl Precedence {
 
 impl Parser {
     pub fn new(source: &str) -> Self {
+        Parser::new_at(source, 1, 1, 0)
+    }
+
+    /// Like `new`, but starts counting position at the given line/column/offset.
+    fn new_at(source: &str, line: u32, column: u32, offset: usize) -> Self {
         Parser {
-            scanner: Scanner::new(source),
+            scanner: Scanner::new_at(source, line, column, offset),
             previous_token: Token::default(),
             current_token: Token::default(),
             errors: Vec::new(),
@@ -808,7 +813,7 @@ impl Parser {
     fn interpolated_string(&mut self) -> Option<Expr> {
         use crate::compiler::ast::InterpolationPart;
 
-        let token_value = &self.previous_token.token;
+        let token_value = self.previous_token.token.clone();
         let location = self.current_location();
 
         let content = &token_value[1..token_value.len() - 1];
@@ -817,19 +822,30 @@ impl Parser {
         let mut current_literal = String::new();
         let mut chars = content.chars().peekable();
 
+        // Right after the opening quote.
+        let mut line = location.line;
+        let mut column = location.column + 1;
+        let mut offset = location.offset + 1;
+
         while let Some(ch) = chars.next() {
+            Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
+
             if ch == '$' && chars.peek() == Some(&'{') {
                 chars.next();
+                Self::advance_text_position(&mut line, &mut column, &mut offset, '{');
 
                 if !current_literal.is_empty() {
                     parts.push(InterpolationPart::Literal(current_literal.clone()));
                     current_literal.clear();
                 }
 
+                let (expr_line, expr_column, expr_offset) = (line, column, offset);
+
                 let mut expr_str = String::new();
                 let mut brace_depth = 1;
 
                 for ch in chars.by_ref() {
+                    Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
                     if ch == '{' {
                         brace_depth += 1;
                         expr_str.push(ch);
@@ -844,12 +860,36 @@ impl Parser {
                     }
                 }
 
-                let mut expr_parser = Parser::new(&expr_str);
+                if brace_depth != 0 {
+                    let end_of_string = SourceLocation {
+                        offset,
+                        line,
+                        column,
+                    };
+                    self.report_error(
+                        end_of_string,
+                        "Expect '}' after interpolated expression.".to_string(),
+                    );
+                    return None;
+                }
+
+                let mut expr_parser =
+                    Parser::new_at(&expr_str, expr_line, expr_column, expr_offset);
                 expr_parser.advance();
-                if let Some(expr) = expr_parser.expression(true) {
-                    parts.push(InterpolationPart::Expression(Box::new(expr)));
-                } else {
-                    parts.push(InterpolationPart::Literal(String::new()));
+                let expr = expr_parser.expression(true);
+                let ends_cleanly = expr_parser
+                    .consume(TokenType::Eof, "Expect '}' after interpolated expression.");
+
+                match expr {
+                    Some(expr) if ends_cleanly => {
+                        parts.push(InterpolationPart::Expression(Box::new(expr)));
+                    }
+                    _ => {
+                        if let Some(error) = expr_parser.errors.into_iter().next() {
+                            self.record_error(error);
+                        }
+                        return None;
+                    }
                 }
             } else {
                 current_literal.push(ch);
@@ -861,6 +901,16 @@ impl Parser {
         }
 
         Some(Expr::StringInterpolation { parts, location })
+    }
+
+    fn advance_text_position(line: &mut u32, column: &mut u32, offset: &mut usize, ch: char) {
+        *offset += 1;
+        if ch == '\n' {
+            *line += 1;
+            *column = 1;
+        } else {
+            *column += 1;
+        }
     }
 
     fn literal(&self) -> Option<Expr> {

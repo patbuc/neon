@@ -2537,3 +2537,87 @@ fn test_val_overflow_initializer() {
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 9);
 }
+
+#[test]
+fn test_interpolation_syntax_error() {
+    let mut parser = Parser::new("print(\"a${)}b\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 12);
+}
+
+#[test]
+fn test_interpolation_leftover_tokens() {
+    let mut parser = Parser::new("print(\"x${a b c}y\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "Expect '}' after interpolated expression."
+    );
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 13);
+}
+
+#[test]
+fn test_interpolation_empty_expression() {
+    let mut parser = Parser::new("print(\"a${}b\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 11);
+}
+
+#[test]
+fn test_interpolation_unclosed_placeholder() {
+    let mut parser = Parser::new("print(\"${a} ${b\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "Expect '}' after interpolated expression."
+    );
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 16);
+}
+
+#[test]
+fn test_interpolation_error_in_second_placeholder() {
+    let mut parser = Parser::new("print(\"${1} x ${)}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 18);
+}
+
+#[test]
+fn test_interpolation_non_ascii_prefix() {
+    let mut parser = Parser::new("print(\"caf\u{e9}${)}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 15);
+}
