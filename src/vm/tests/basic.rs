@@ -3040,3 +3040,29 @@ fn debug_format_of_self_referencing_array_terminates() {
 
     assert_eq!("Object([1, [...]])", format!("{:?}", array));
 }
+
+#[test]
+fn overflowing_hex_initializer_is_compile_error() {
+    let program = "val a = 0xFFFFFFFFFFFFFFFFFFFF\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Parse] Unexpected Token: Number literal too large at 1:9",
+        vm.get_compiler_error()
+    );
+}
+
+#[test]
+fn overflowing_literal_in_print_is_compile_error() {
+    let program = "print(0xFFFFFFFFFFFFFFFFFFFF)\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert_eq!(
+        "[Parse] Unexpected Token: Number literal too large at 1:7",
+        vm.get_compiler_error()
+    );
+}

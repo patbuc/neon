@@ -2483,3 +2483,57 @@ fn test_parse_error_position_after_whitespace_only_line() {
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 10);
 }
+
+#[test]
+fn test_hex_overflow() {
+    let mut parser = Parser::new("0xFFFFFFFFFFFFFFFFFFFF\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 1);
+}
+
+#[test]
+fn test_binary_overflow() {
+    let source = format!("0b{}\n", "1".repeat(70));
+    let mut parser = Parser::new(&source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 1);
+}
+
+#[test]
+fn test_octal_overflow() {
+    let source = format!("0o{}\n", "7".repeat(24));
+    let mut parser = Parser::new(&source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 1);
+}
+
+#[test]
+fn test_val_overflow_initializer() {
+    let mut parser = Parser::new("val a = 0xFFFFFFFFFFFFFFFFFFFF\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 9);
+}

@@ -242,23 +242,30 @@ impl Parser {
     // ===== Error Handling =====
 
     fn report_error_at_current(&mut self, message: String) {
-        if self.panic_mode {
-            return;
-        }
-        self.panic_mode = true;
-
         let location = SourceLocation {
             offset: self.current_token.offset,
             line: self.current_token.line,
             column: self.current_token.column,
         };
+        self.report_error(location, message);
+    }
 
-        self.errors.push(CompilationError::new(
+    fn report_error(&mut self, location: SourceLocation, message: String) {
+        self.record_error(CompilationError::new(
             CompilationPhase::Parse,
             CompilationErrorKind::UnexpectedToken,
             message,
             location,
         ));
+    }
+
+    /// Like `report_error`, but for an error a sub-parser already built.
+    fn record_error(&mut self, error: CompilationError) {
+        if self.panic_mode {
+            return;
+        }
+        self.panic_mode = true;
+        self.errors.push(error);
     }
 
     fn synchronize(&mut self) {
@@ -312,7 +319,7 @@ impl Parser {
         let location = self.current_location();
 
         let initializer = if self.match_token(TokenType::Equal) {
-            self.expression(false)
+            Some(self.expression(false)?)
         } else {
             None
         };
@@ -757,35 +764,33 @@ impl Parser {
 
     // ===== Primary Expressions =====
 
-    fn number(&self) -> Option<Expr> {
-        let token_str = &self.previous_token.token;
-        let value = self.parse_number_literal(token_str)?;
+    fn number(&mut self) -> Option<Expr> {
+        let token_str = self.previous_token.token.clone();
+        let value = self.parse_number_literal(&token_str)?;
         let location = self.current_location();
         Some(Expr::Number { value, location })
     }
 
-    fn parse_number_literal(&self, s: &str) -> Option<f64> {
+    fn parse_number_literal(&mut self, s: &str) -> Option<f64> {
         // Remove all underscores for parsing
         let clean: String = s.chars().filter(|c| *c != '_').collect();
 
         if clean.len() >= 2 {
-            match &clean[..2] {
-                "0x" | "0X" => {
-                    let hex_part = &clean[2..];
-                    let int_value = u64::from_str_radix(hex_part, 16).ok()?;
-                    return Some(int_value as f64);
-                }
-                "0b" | "0B" => {
-                    let bin_part = &clean[2..];
-                    let int_value = u64::from_str_radix(bin_part, 2).ok()?;
-                    return Some(int_value as f64);
-                }
-                "0o" | "0O" => {
-                    let oct_part = &clean[2..];
-                    let int_value = u64::from_str_radix(oct_part, 8).ok()?;
-                    return Some(int_value as f64);
-                }
-                _ => {}
+            let radix = match &clean[..2] {
+                "0x" | "0X" => Some(16),
+                "0b" | "0B" => Some(2),
+                "0o" | "0O" => Some(8),
+                _ => None,
+            };
+            if let Some(radix) = radix {
+                return match u64::from_str_radix(&clean[2..], radix) {
+                    Ok(int_value) => Some(int_value as f64),
+                    Err(_) => {
+                        let location = self.current_location();
+                        self.report_error(location, "Number literal too large".to_string());
+                        None
+                    }
+                };
             }
         }
 
