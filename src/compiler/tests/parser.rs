@@ -2767,6 +2767,20 @@ fn test_parse_error_position_expect_expression_before_brace() {
     let errors = result.unwrap_err();
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 10);
+    assert!(errors[0].message.contains("Expect expression"));
+}
+
+#[test]
+fn test_parse_error_position_expect_expression_at_line_end() {
+    let source = "val b =\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 8);
+    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
