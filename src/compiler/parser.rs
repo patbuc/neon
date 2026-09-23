@@ -540,6 +540,7 @@ impl Parser {
         Some(Stmt::While {
             condition,
             body,
+            increment: None,
             location,
         })
     }
@@ -619,15 +620,11 @@ impl Parser {
         let body = self.statement()?;
         let body_location = *body.location();
 
-        // Desugar to: Block { init, While { condition, Block { body, increment } } }
-        let while_body = Stmt::Block {
-            statements: vec![body, increment],
-            location: body_location,
-        };
-
+        // Desugar to: Block { init, While { condition, body, increment } }
         let while_loop = Stmt::While {
             condition,
-            body: Box::new(while_body),
+            body: Box::new(body),
+            increment: Some(Box::new(increment)),
             location: body_location,
         };
 

@@ -413,9 +413,12 @@ impl SemanticAnalyzer {
                 );
             }
             Stmt::While {
-                condition, body, ..
+                condition,
+                body,
+                increment,
+                ..
             } => {
-                self.resolve_while_statement(condition, body);
+                self.resolve_while_statement(condition, body, increment.as_deref());
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
@@ -618,10 +621,13 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_while_statement(&mut self, condition: &Expr, body: &Stmt) {
+    fn resolve_while_statement(&mut self, condition: &Expr, body: &Stmt, increment: Option<&Stmt>) {
         self.resolve_expr(condition);
         self.loop_depth += 1;
         self.resolve_stmt(body);
+        if let Some(increment) = increment {
+            self.resolve_stmt(increment);
+        }
         self.loop_depth -= 1;
     }
 

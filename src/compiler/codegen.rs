@@ -381,7 +381,13 @@ impl CodeGenerator {
         self.patch_jump(else_jump);
     }
 
-    fn generate_while_stmt(&mut self, condition: &Expr, body: &Stmt, location: SourceLocation) {
+    fn generate_while_stmt(
+        &mut self,
+        condition: &Expr,
+        body: &Stmt,
+        increment: Option<&Stmt>,
+        location: SourceLocation,
+    ) {
         let loop_start = self.current_chunk().instruction_count() as u32;
 
         // Push loop context for break/continue tracking
@@ -397,43 +403,16 @@ impl CodeGenerator {
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the true case
 
-        // Check if this is a desugared C-style for loop (body is Block with 2 statements)
-        // In that case, we need to patch continue jumps after the first statement but before the second (increment)
-        if let Stmt::Block { statements, .. } = body {
-            if statements.len() == 2 {
-                // This is likely a desugared for loop: Block([user_body, increment])
-                self.scope_depth += 1;
+        self.generate_stmt(body);
 
-                // Generate the user body first
-                self.generate_stmt(&statements[0]);
-
-                // Now patch continue jumps to point here (before the increment)
-                let loop_context = self.loop_contexts.last_mut().unwrap();
-                let continue_jumps = std::mem::take(&mut loop_context.continue_jumps);
-                for continue_jump in continue_jumps {
-                    self.patch_jump(continue_jump);
-                }
-
-                // Generate the increment
-                self.generate_stmt(&statements[1]);
-
-                self.end_scope(location);
-            } else {
-                // Regular block, generate normally
-                self.generate_stmt(body);
-            }
-        } else {
-            // Not a block, generate normally
-            self.generate_stmt(body);
-        }
-
-        // Pop loop context
+        // Pop loop context; continue jumps land here, before the increment.
         let loop_context = self.loop_contexts.pop().unwrap();
-
-        // Patch any remaining continue jumps (for non-desugared while loops)
-        // These should jump to just before the Loop instruction
         for continue_jump in loop_context.continue_jumps {
             self.patch_jump(continue_jump);
+        }
+
+        if let Some(increment) = increment {
+            self.generate_stmt(increment);
         }
 
         self.emit_loop(loop_start, location);
@@ -654,9 +633,10 @@ impl CodeGenerator {
             Stmt::While {
                 condition,
                 body,
+                increment,
                 location,
             } => {
-                self.generate_while_stmt(condition, body, *location);
+                self.generate_while_stmt(condition, body, increment.as_deref(), *location);
             }
             Stmt::Return { value, location } => {
                 self.generate_return_stmt(value, *location);

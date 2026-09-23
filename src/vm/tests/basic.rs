@@ -2608,6 +2608,27 @@ fn test_continue_in_while_loop() {
 }
 
 #[test]
+fn test_continue_in_two_statement_while_body_targets_condition() {
+    let program = r#"
+        var i = 0
+        var n = 0
+        while (i < 4) {
+            if (i < 10) {
+                i = i + 1
+                continue
+            }
+            n = n + 1
+        }
+        print(n)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::Ok, result);
+    assert_eq!("0", vm.get_output());
+}
+
+#[test]
 fn test_break_in_for_loop() {
     let program = r#"
         for (var i = 0; i < 10; i = i + 1) {

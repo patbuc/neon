@@ -191,6 +191,7 @@ pub enum Stmt {
     While {
         condition: Expr,
         body: Box<Stmt>,
+        increment: Option<Box<Stmt>>,
         location: SourceLocation,
     },
     Return {

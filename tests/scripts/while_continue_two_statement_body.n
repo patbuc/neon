@@ -1,0 +1,13 @@
+// Expected:
+// 0
+
+var i = 0
+var n = 0
+while (i < 4) {
+    if (i < 10) {
+        i = i + 1
+        continue
+    }
+    n = n + 1
+}
+print(n)
