@@ -36,15 +36,15 @@ pub struct Chunk {
 pub struct Local {
     pub name: String,
     pub depth: i32,
-    pub is_captured: bool,
+    pub is_mutable: bool,
 }
 
 impl Local {
-    pub(crate) fn new(name: String, depth: u32, readonly: bool) -> Self {
+    pub(crate) fn new(name: String, depth: u32, is_mutable: bool) -> Self {
         Local {
             name,
             depth: depth as i32,
-            is_captured: readonly,
+            is_mutable,
         }
     }
 }

@@ -190,7 +190,7 @@ impl Chunk {
         loop {
             if self.locals[index].name == name {
                 let local = &self.locals[index];
-                return (Some(index as u32), local.is_captured);
+                return (Some(index as u32), local.is_mutable);
             }
             if index == 0 {
                 break;
