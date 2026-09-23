@@ -577,11 +577,7 @@ impl SemanticAnalyzer {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A top-level function was already defined by collect_declarations,
-        // which only hoists direct top-level statements; a nested one (in a
-        // block, loop, or another function) is not, so define it here, in
-        // the enclosing scope, before compiling its body. That lets it call
-        // itself recursively.
+        // A nested function isn't hoisted by collect_declarations, so define it now, before resolving its body, so it can recurse.
         if self.symbol_table.current_depth() > 0 {
             let arity = params.len() as u8;
             self.define_symbol(

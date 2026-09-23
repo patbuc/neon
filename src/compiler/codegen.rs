@@ -189,8 +189,6 @@ impl CodeGenerator {
         }
     }
 
-    /// Emits a Closure instruction's trailing upvalue metadata: a count
-    /// byte, then an (is_local, index) pair per upvalue.
     fn emit_upvalue_metadata(&mut self, upvalues: &[UpvalueDescriptor], location: SourceLocation) {
         let message = format!(
             "function captures too many variables: {} (maximum is {})",
@@ -404,10 +402,7 @@ impl CodeGenerator {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A top-level function was already defined with a Nil placeholder by
-        // generate()'s pre-pass; a nested one (in a block, loop, or another
-        // function) is not, so define it here, before compiling its body,
-        // so it can call itself recursively.
+        // A nested function isn't pre-defined by generate()'s pre-pass, so define it now, before compiling its body, so it can recurse.
         if self.scope_depth > 0 {
             self.emit_op_code(OpCode::Nil, location);
             let local = Local::new(name.to_string(), self.scope_depth, false);
@@ -428,14 +423,7 @@ impl CodeGenerator {
             self.current_chunk().add_parameter(param_local);
         }
 
-        // The calling convention leaves the callable itself in the slot
-        // right after the last param (or right after slot_start, for a
-        // 0-arg call), unconsumed. Without this, the first local declared
-        // in the body would compute that same slot as its own target, but
-        // its initializer's push lands one slot higher, leaving the real
-        // value stranded on top and everything after it misaligned.
-        // Reserving it (by name no identifier can spell) keeps compile-time
-        // local bookkeeping matching the actual stack shape.
+        // Reserve the slot the calling convention leaves the callable in, unconsumed, right after the last param.
         let reserved_slot = Local::new(String::new(), self.scope_depth, false);
         self.current_chunk().add_parameter(reserved_slot);
 
@@ -447,7 +435,6 @@ impl CodeGenerator {
         // Emit return at end of function
         self.emit_return();
 
-        // Exit function scope
         self.scope_depth -= 1;
         let context = self.function_contexts.pop().unwrap();
 
@@ -693,9 +680,6 @@ impl CodeGenerator {
         // Generate the loop body
         self.generate_stmt(body);
 
-        // Pop the old loop variable value before getting the next one,
-        // closing its upvalue first if the body captured it, so each
-        // iteration's closures see that iteration's own value.
         let loop_variable_captured = self
             .current_chunk()
             .locals
