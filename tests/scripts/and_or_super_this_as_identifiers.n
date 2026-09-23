@@ -1,0 +1,10 @@
+// and, or, super and this are usable as identifiers
+
+// Expected:
+// 10
+
+val and = 1
+val or = 2
+val super = 3
+val this = 4
+print(and + or + super + this)

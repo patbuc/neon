@@ -446,7 +446,6 @@ impl Scanner {
     fn make_identifier_type(&self) -> TokenType {
         let chr = self.source[self.start];
         match chr {
-            'a' => self.check_keyword(1, 2, "nd", TokenType::And),
             'b' => self.check_keyword(1, 4, "reak", TokenType::Break),
             'c' => self.check_keyword(1, 7, "ontinue", TokenType::Continue),
             'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
@@ -461,13 +460,11 @@ impl Scanner {
                 TokenType::Identifier
             }
             'n' => self.check_keyword(1, 2, "il", TokenType::Nil),
-            'o' => self.check_keyword(1, 1, "r", TokenType::Or),
             'r' => self.check_keyword(1, 5, "eturn", TokenType::Return),
             's' => {
                 if self.current - self.start > 1 {
                     return match self.source[self.start + 1] {
                         't' => self.check_keyword(2, 4, "ruct", TokenType::Struct),
-                        'u' => self.check_keyword(2, 3, "per", TokenType::Super),
                         _ => TokenType::Identifier,
                     };
                 }
@@ -498,7 +495,6 @@ impl Scanner {
             't' => {
                 if self.current - self.start > 1 {
                     return match self.source[self.start + 1] {
-                        'h' => self.check_keyword(2, 2, "is", TokenType::This),
                         'r' => self.check_keyword(2, 2, "ue", TokenType::True),
                         _ => TokenType::Identifier,
                     };

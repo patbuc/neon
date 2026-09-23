@@ -390,6 +390,21 @@ fn identifiers_with_keyword_prefixes_scan_as_identifiers() {
 }
 
 #[test]
+fn and_or_super_this_scan_as_identifiers() {
+    for src in ["and", "or", "super", "this"] {
+        let scanner = Scanner::new(src);
+        let tokens = collect_tokens(scanner);
+
+        assert_eq!(
+            tokens[0].token_type,
+            TokenType::Identifier,
+            "{src} should scan as Identifier"
+        );
+        assert_eq!(tokens[0].token, src);
+    }
+}
+
+#[test]
 fn can_scan_offsets_with_multiple_spaces_and_operators() {
     let scanner = Scanner::new("a  == b");
     let tokens = collect_tokens(scanner);
