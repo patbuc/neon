@@ -1970,7 +1970,10 @@ fn get_score(p) {
 }
 
 #[test]
-fn test_var_reassigned_to_different_struct_updates_field_validation() {
+fn test_var_reassigned_to_different_struct_stops_field_validation() {
+    // Reassignment makes the type unknown from then on (analysis is
+    // flow-insensitive, so it can't assume the assignment always runs) -
+    // field access after it is no longer checked, valid or not.
     let program = r#"
 struct A {
     x
@@ -1988,11 +1991,66 @@ print(v.x)
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
 
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("no field named 'x'")));
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_conditionally_reassigned_struct_does_not_false_positive() {
+    // The assignment inside the `if` may never run, so the original
+    // struct's fields must still be considered valid afterward.
+    let program = r#"
+struct P {
+    x
+}
+struct Q {
+    y
+}
+var p = P(1)
+if (false) {
+    p = Q(2)
+}
+print(p.x)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_conditionally_reassigned_primitive_does_not_false_positive() {
+    let program = r#"
+var s = "a"
+if (false) {
+    s = 1
+}
+print(s.toUpperCase())
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
 }
 
 #[test]

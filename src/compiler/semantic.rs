@@ -736,10 +736,12 @@ impl SemanticAnalyzer {
                         location,
                     ));
                 } else {
-                    // Update type tracking for mutable variables, wherever
-                    // in the scope chain the name is currently tracked
-                    let new_type = self.infer_expr_type(value);
-                    self.set_type(name, new_type);
+                    // This analysis is flow-insensitive: an assignment may
+                    // happen conditionally (e.g. inside an if branch), so
+                    // adopting the new value's type here would wrongly
+                    // apply it even on paths that never assign. Mark the
+                    // type unknown instead, wherever it's tracked.
+                    self.set_type(name, None);
                 }
             }
         }
