@@ -1768,6 +1768,124 @@ fn test_parse_map_with_multiline() {
     assert_eq!(stmts.len(), 1);
 }
 
+// ===== Set Literal Tests =====
+
+#[test]
+fn test_parse_empty_set() {
+    let program = "val s = #{}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::SetLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 0);
+            }
+            _ => panic!("Expected SetLiteral expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_set_with_elements() {
+    let program = r#"
+        val s = #{1, 2}
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::SetLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 2);
+
+                match &elements[0] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
+                    _ => panic!("Expected Number element"),
+                }
+                match &elements[1] {
+                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
+                    _ => panic!("Expected Number element"),
+                }
+            }
+            _ => panic!("Expected SetLiteral expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_set_with_multiline_trailing_comma() {
+    let program = "val s = #{\n    1,\n    2,\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    if result.is_err() {
+        let errors = result.unwrap_err();
+        for err in &errors {
+            eprintln!(
+                "Parse error at {}:{}: {}",
+                err.location.line, err.location.column, err.message
+            );
+        }
+        panic!("Parse failed with {} errors", errors.len());
+    }
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::SetLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 2);
+            }
+            _ => panic!("Expected SetLiteral expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
 // ===== Index Access Tests =====
 
 #[test]
@@ -2279,11 +2397,21 @@ fn test_parse_map_missing_colon() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    // With set support, {"key" 42} is ambiguous - could be:
-    // 1. A map with missing colon: {"key": 42}
-    // 2. A set with missing comma: {"key", 42}
-    // Parser treats it as a malformed set, so accept either error message
-    assert!(errors[0].message.contains("':'") || errors[0].message.contains("'}'"));
+    assert!(errors[0].message.contains("':'"));
+}
+
+#[test]
+fn test_parse_untagged_braces_with_multiple_values_is_error() {
+    let program = r#"
+        val s = {1, 2}
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Expect ':' after map key."));
 }
 
 #[test]

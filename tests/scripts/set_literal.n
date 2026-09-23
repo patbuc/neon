@@ -1,0 +1,46 @@
+// Expected:
+// 2
+// #{1, 2}
+// 0
+// true
+// true
+// #{1}
+// true
+// #{}
+// {}
+// 0
+// true
+// 3
+// #{1, 2}
+// 2
+// [#{1}]
+// {a: #{1}}
+
+val nums = #{1, 2, 2}
+print(nums.size())
+print(nums)
+
+val empty = #{}
+print(empty.size())
+print(empty.add(1))
+print(empty.has(1))
+print(empty)
+print(empty.remove(1))
+print(empty)
+
+val m = {}
+print(m)
+print(m.size())
+m["x"] = 3
+print(m.has("x"))
+print(m["x"])
+
+val multiline = #{
+    1,
+    2,
+}
+print(multiline)
+print(multiline.size())
+
+print([#{1}])
+print({"a": #{1}})
