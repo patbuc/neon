@@ -2,6 +2,9 @@ use std::fs;
 use std::io::Write;
 use std::process::Command;
 
+// The disassemble feature writes chunk traces and log output to stdout by
+// design, so it cannot satisfy this test's "only program output" assertion.
+#[cfg(not(feature = "disassemble"))]
 #[test]
 fn run_file_prints_only_program_output() {
     let temp_dir = std::env::temp_dir();

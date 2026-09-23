@@ -66,7 +66,7 @@ impl Chunk {
             OpCode::SetGlobal4 => self.variable_instruction(OpCode::SetGlobal4, offset),
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset),
             OpCode::Jump => self.jump_instruction(instruction, offset),
-            OpCode::Loop => self.simple_instruction(OpCode::Loop, offset),
+            OpCode::Loop => self.loop_instruction(offset),
             OpCode::Call => self.call_instruction(offset),
             OpCode::Modulo => self.simple_instruction(instruction, offset),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset),
@@ -75,27 +75,6 @@ impl Chunk {
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
             OpCode::SetField2 => self.field_instruction(OpCode::SetField2, offset),
             OpCode::SetField4 => self.field_instruction(OpCode::SetField4, offset),
-            OpCode::CallMethod => self.call_method_instruction(OpCode::CallMethod, offset),
-            OpCode::CallMethod2 => self.call_method_instruction(OpCode::CallMethod2, offset),
-            OpCode::CallMethod4 => self.call_method_instruction(OpCode::CallMethod4, offset),
-            OpCode::CallStaticMethod => {
-                self.call_static_method_instruction(OpCode::CallStaticMethod, offset)
-            }
-            OpCode::CallStaticMethod2 => {
-                self.call_static_method_instruction(OpCode::CallStaticMethod2, offset)
-            }
-            OpCode::CallStaticMethod4 => {
-                self.call_static_method_instruction(OpCode::CallStaticMethod4, offset)
-            }
-            OpCode::CallConstructor => {
-                self.call_constructor_instruction(OpCode::CallConstructor, offset)
-            }
-            OpCode::CallConstructor2 => {
-                self.call_constructor_instruction(OpCode::CallConstructor2, offset)
-            }
-            OpCode::CallConstructor4 => {
-                self.call_constructor_instruction(OpCode::CallConstructor4, offset)
-            }
             OpCode::CreateMap => self.create_map_instruction(offset),
             OpCode::CreateArray => self.create_array_instruction(offset),
             OpCode::CreateSet => self.create_set_instruction(offset),
@@ -159,6 +138,9 @@ impl Chunk {
                 OpCode::GetLocal => (chunk.read_u8(offset) as usize, 1),
                 OpCode::GetLocal2 => (chunk.read_u16(offset) as usize, 2),
                 OpCode::GetLocal4 => (chunk.read_u32(offset) as usize, 4),
+                OpCode::GetBuiltin => (chunk.read_u8(offset) as usize, 1),
+                OpCode::GetBuiltin2 => (chunk.read_u16(offset) as usize, 2),
+                OpCode::GetBuiltin4 => (chunk.read_u32(offset) as usize, 4),
                 OpCode::SetLocal => (chunk.read_u8(offset) as usize, 1),
                 OpCode::SetLocal2 => (chunk.read_u16(offset) as usize, 2),
                 OpCode::SetLocal4 => (chunk.read_u32(offset) as usize, 4),
@@ -173,8 +155,7 @@ impl Chunk {
         }
 
         let (index, offset_shift) = get_variable_index(self, &op_code, offset + 1);
-        let constant = self.read_constant(index);
-        println!("{:?} {:02} '{}'", op_code, index, constant);
+        println!("{:?} {:02}", op_code, index);
         offset + 1 + offset_shift
     }
 
@@ -185,6 +166,17 @@ impl Chunk {
             op_code,
             offset,
             offset + 5 + jump as usize
+        );
+        offset + 5
+    }
+
+    fn loop_instruction(&self, offset: usize) -> usize {
+        let jump = self.read_u32(offset + 1);
+        println!(
+            "{:?} {:04x} -> {:04x}",
+            OpCode::Loop,
+            offset,
+            offset + 5 - jump as usize
         );
         offset + 5
     }
@@ -200,58 +192,6 @@ impl Chunk {
         let arg_count = self.read_u8(offset + 1);
         println!("Call (args: {})", arg_count);
         offset + 2
-    }
-
-    fn call_method_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        let arg_count = self.read_u8(offset + 1);
-
-        let (method_index, index_size) = match op_code {
-            OpCode::CallMethod => (self.read_u8(offset + 2) as usize, 1),
-            OpCode::CallMethod2 => (self.read_u16(offset + 2) as usize, 2),
-            OpCode::CallMethod4 => (self.read_u32(offset + 2) as usize, 4),
-            _ => panic!("Invalid opcode for call_method_instruction"),
-        };
-
-        let method_name = self.read_string(method_index);
-        println!(
-            "{:?} (args: {}, method: '{}')",
-            op_code, arg_count, method_name
-        );
-        offset + 1 + 1 + index_size
-    }
-
-    fn call_static_method_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        let arg_count = self.read_u8(offset + 1);
-
-        let (registry_index, index_size) = match op_code {
-            OpCode::CallStaticMethod => (self.read_u8(offset + 2) as usize, 1),
-            OpCode::CallStaticMethod2 => (self.read_u16(offset + 2) as usize, 2),
-            OpCode::CallStaticMethod4 => (self.read_u32(offset + 2) as usize, 4),
-            _ => panic!("Invalid opcode for call_static_method_instruction"),
-        };
-
-        println!(
-            "{:?} (args: {}, registry_index: {})",
-            op_code, arg_count, registry_index
-        );
-        offset + 1 + 1 + index_size
-    }
-
-    fn call_constructor_instruction(&self, op_code: OpCode, offset: usize) -> usize {
-        let arg_count = self.read_u8(offset + 1);
-
-        let (registry_index, index_size) = match op_code {
-            OpCode::CallConstructor => (self.read_u8(offset + 2) as usize, 1),
-            OpCode::CallConstructor2 => (self.read_u16(offset + 2) as usize, 2),
-            OpCode::CallConstructor4 => (self.read_u32(offset + 2) as usize, 4),
-            _ => panic!("Invalid opcode for call_constructor_instruction"),
-        };
-
-        println!(
-            "{:?} (args: {}, registry_index: {})",
-            op_code, arg_count, registry_index
-        );
-        offset + 1 + 1 + index_size
     }
 
     fn create_map_instruction(&self, offset: usize) -> usize {
