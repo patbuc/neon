@@ -336,3 +336,15 @@ fn bad_operand_type_errors() {
         );
     }
 }
+
+#[test]
+fn unbounded_recursion_reports_stack_overflow_at_the_call_site() {
+    let program = "fn f(n) { return f(n + 1) }\nf(0)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Stack overflow"), "{}", errors);
+    assert!(errors.contains("[1:19]"), "{}", errors);
+}

@@ -1,3 +1,4 @@
+use crate::common::constants::MAX_FRAMES;
 use crate::common::method_registry::NativeCallable;
 use crate::common::{BitsSize, CallFrame, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjFunction, Object};
@@ -84,6 +85,11 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_call(&mut self) -> Option<Result> {
+        if self.call_frames.len() >= MAX_FRAMES {
+            self.runtime_error("Stack overflow");
+            return Some(Result::RuntimeError);
+        }
+
         let arg_count = {
             let frame = self.current_frame();
             frame.function.chunk.read_u8(frame.ip + 1) as usize
