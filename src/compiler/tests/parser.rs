@@ -2440,3 +2440,46 @@ fn test_parse_array_missing_closing_bracket() {
     assert!(!errors.is_empty());
     assert!(errors[0].message.contains("']'"));
 }
+
+#[test]
+fn test_parse_val_with_fn_prefixed_identifier() {
+    let mut parser = Parser::new("val fname = 1\n");
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_error_line_after_trailing_comment() {
+    let source = "val a = 1 // c\n)\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 2);
+}
+
+#[test]
+fn test_parse_error_position_after_comment_only_line() {
+    let source = "val a = 1\n// c\nval b = )\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 10);
+}
+
+#[test]
+fn test_parse_error_position_after_whitespace_only_line() {
+    let source = "val a = 1\n  \nval b = )\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 10);
+}

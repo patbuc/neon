@@ -29,6 +29,7 @@ pub(crate) struct Scanner {
     current: usize,
     line: u32,
     column: u32,
+    start_line: u32,
     start_column: u32,
     previous_token_type: TokenType,
 }

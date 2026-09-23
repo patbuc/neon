@@ -1,4 +1,3 @@
-use crate::compiler::parser::Parser;
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
@@ -391,25 +390,6 @@ fn identifiers_with_keyword_prefixes_scan_as_identifiers() {
 }
 
 #[test]
-fn val_declaration_with_fn_prefixed_identifier_parses() {
-    let mut parser = Parser::new("val fname = 1\n");
-    let result = parser.parse();
-
-    assert!(result.is_ok());
-}
-
-#[test]
-fn error_line_is_correct_after_trailing_comment() {
-    let source = "val a = 1 // c\n)\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert_eq!(errors[0].location.line, 2);
-}
-
-#[test]
 fn can_scan_offsets_with_multiple_spaces_and_operators() {
     let scanner = Scanner::new("a  == b");
     let tokens = collect_tokens(scanner);
@@ -424,12 +404,12 @@ fn can_scan_offsets_with_multiple_spaces_and_operators() {
 
 #[test]
 fn columns_and_offsets_are_correct_for_non_ascii_input() {
-    let scanner = Scanner::new("val ä = \"ü\" x");
+    let scanner = Scanner::new("val s = \"üü\" )");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[4].token, "x");
-    assert_eq!(tokens[4].column, 13);
-    assert_eq!(tokens[4].offset, 12);
+    assert_eq!(tokens[4].token_type, TokenType::RightParen);
+    assert_eq!(tokens[4].column, 14);
+    assert_eq!(tokens[4].offset, 13);
 }
 
 #[test]
@@ -442,4 +422,26 @@ fn multiline_string_resets_column_for_next_token() {
     assert_eq!(x_token.line, 2);
     assert_eq!(x_token.column, 8);
     assert_eq!(x_token.offset, 22);
+}
+
+#[test]
+fn multiline_string_reports_its_own_start_line_and_column() {
+    let scanner = Scanner::new("val a = \"line1\nline2\"");
+    let tokens = collect_tokens(scanner);
+
+    let string_token = &tokens[3];
+    assert_eq!(string_token.token_type, TokenType::String);
+    assert_eq!(string_token.line, 1);
+    assert_eq!(string_token.column, 9);
+}
+
+#[test]
+fn unterminated_multiline_string_reports_start_line_and_column() {
+    let scanner = Scanner::new("val a = \"line1\nline2");
+    let tokens = collect_tokens(scanner);
+
+    let error_token = &tokens[3];
+    assert_eq!(error_token.token_type, TokenType::Error);
+    assert_eq!(error_token.line, 1);
+    assert_eq!(error_token.column, 9);
 }

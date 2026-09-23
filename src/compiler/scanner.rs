@@ -9,6 +9,7 @@ impl Scanner {
             current: 0,
             line: 1,
             column: 1,
+            start_line: 1,
             start_column: 1,
             previous_token_type: TokenType::NewLine,
         }
@@ -20,6 +21,7 @@ impl Scanner {
         loop {
             self.skip_whitespace();
             self.start = self.current;
+            self.start_line = self.line;
             self.start_column = self.column;
 
             if self.is_at_end() {
@@ -30,11 +32,11 @@ impl Scanner {
                 break;
             }
 
-            // increment line number if this is an empty line
-            if self.previous() == '\n' && c == '\n' {
-                self.line += 1;
-                self.column = 1;
-            }
+            // A NewLine token was already emitted and this is another
+            // newline right after it: a blank, whitespace-only, or
+            // comment-only line. Count it without emitting a second token.
+            self.line += 1;
+            self.column = 1;
         }
 
         if Scanner::is_alpha(c) {
@@ -512,7 +514,7 @@ impl Scanner {
         Token::new(
             TokenType::Error,
             String::from(message),
-            self.line,
+            self.start_line,
             self.start_column,
             self.start,
         )
@@ -524,7 +526,7 @@ impl Scanner {
         Token::new(
             token_type,
             token_str,
-            self.line,
+            self.start_line,
             self.start_column,
             self.start,
         )
@@ -534,16 +536,9 @@ impl Scanner {
         Token::new(
             TokenType::Eof,
             String::new(),
-            self.line,
+            self.start_line,
             self.start_column,
             self.start,
         )
-    }
-
-    fn previous(&self) -> char {
-        if self.current < 2 {
-            return '\n';
-        }
-        self.source[self.current - 2]
     }
 }
