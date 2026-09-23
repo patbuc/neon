@@ -9,6 +9,24 @@ use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
 
+/// A method's call signature: the rule that decides whether it's callable
+/// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
+/// its first parameter literally read `self`.
+#[derive(Clone, Copy)]
+struct MethodSignature {
+    param_count: u8,
+    takes_self: bool,
+}
+
+/// Which syntactic form a method call used.
+#[derive(Clone, Copy, PartialEq)]
+enum MethodCallKind {
+    /// `Type.method(...)`
+    Static,
+    /// `receiver.method(...)`
+    Instance,
+}
+
 /// Semantic analyzer that validates the AST and builds symbol tables
 pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
@@ -19,9 +37,8 @@ pub struct SemanticAnalyzer {
     type_env: Vec<HashMap<String, Option<String>>>,
     loop_depth: u32,
     // Methods contributed by `impl` blocks, keyed by struct name then
-    // method name; the value is the arity a caller must supply (excluding
-    // a leading `self` parameter, if any).
-    struct_methods: HashMap<String, HashMap<String, u8>>,
+    // method name.
+    struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
 }
 
 impl SemanticAnalyzer {
@@ -221,12 +238,14 @@ impl SemanticAnalyzer {
                 continue;
             }
 
-            let arity = if params.first().map(String::as_str) == Some("self") {
-                (params.len() - 1) as u8
-            } else {
-                params.len() as u8
-            };
-            entry.insert(name.clone(), arity);
+            let takes_self = params.first().map(String::as_str) == Some("self");
+            entry.insert(
+                name.clone(),
+                MethodSignature {
+                    param_count: params.len() as u8,
+                    takes_self,
+                },
+            );
         }
     }
 
@@ -961,7 +980,13 @@ impl SemanticAnalyzer {
             // The receiver is the type itself, not a value of that type.
             if self.is_struct_type(name) {
                 let struct_name = name.clone();
-                self.validate_struct_method_call(&struct_name, method, arguments.len(), location);
+                self.validate_struct_method_call(
+                    &struct_name,
+                    method,
+                    arguments.len(),
+                    location,
+                    MethodCallKind::Static,
+                );
                 return;
             }
         }
@@ -1160,14 +1185,44 @@ impl SemanticAnalyzer {
         method: &str,
         arg_count: usize,
         location: SourceLocation,
+        call_kind: MethodCallKind,
     ) {
-        let arity = self
+        let signature = self
             .struct_methods
             .get(struct_name)
             .and_then(|methods| methods.get(method).copied());
 
-        if let Some(arity) = arity {
-            self.validate_arity(method, arity, arg_count, location);
+        if let Some(signature) = signature {
+            match (call_kind, signature.takes_self) {
+                (MethodCallKind::Static, true) => {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        format!(
+                            "Method '{}' needs an instance; call it on a {} value",
+                            method, struct_name
+                        ),
+                        location,
+                    ));
+                }
+                (MethodCallKind::Instance, false) => {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        format!(
+                            "Method '{}' is static; call it as {}.{}()",
+                            method, struct_name, method
+                        ),
+                        location,
+                    ));
+                }
+                (MethodCallKind::Static, false) => {
+                    self.validate_arity(method, signature.param_count, arg_count, location);
+                }
+                (MethodCallKind::Instance, true) => {
+                    self.validate_arity(method, signature.param_count - 1, arg_count, location);
+                }
+            }
             return;
         }
 
@@ -1215,7 +1270,13 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if self.is_struct_type(object_type) {
-            self.validate_struct_method_call(object_type, method, arg_count, location);
+            self.validate_struct_method_call(
+                object_type,
+                method,
+                arg_count,
+                location,
+                MethodCallKind::Instance,
+            );
             return;
         }
 

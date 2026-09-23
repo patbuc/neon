@@ -541,3 +541,60 @@ fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
         vm.get_runtime_errors()
     );
 }
+
+#[test]
+fn instance_call_on_static_method_halts_at_runtime() {
+    let program = r#"
+        struct Point { x y }
+        impl Point {
+            fn origin() { return Point(0, 0) }
+        }
+        fn call_origin(p) { return p.origin() }
+        call_origin(Point(1, 2))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("origin"), "{}", errors);
+    assert!(errors.contains("static"), "{}", errors);
+}
+
+#[test]
+fn static_call_on_instance_method_halts_at_runtime() {
+    let program = r#"
+        struct Point { x y }
+        impl Point {
+            fn len(self) { return self.x }
+        }
+        fn call_len(t) { return t.len() }
+        call_len(Point)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("len"), "{}", errors);
+    assert!(errors.contains("instance"), "{}", errors);
+}
+
+#[test]
+fn method_named_this_is_static_on_untyped_receiver_halts_at_runtime() {
+    let program = r#"
+        struct Point { x y }
+        impl Point {
+            fn len(this) { return this.x }
+        }
+        fn call_len(p) { return p.len() }
+        call_len(Point(1, 2))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("len"), "{}", errors);
+    assert!(errors.contains("static"), "{}", errors);
+}

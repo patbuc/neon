@@ -2559,3 +2559,113 @@ impl Point {
         .iter()
         .any(|e| e.message.contains("Undefined variable 'scale'")));
 }
+
+#[test]
+fn test_static_call_on_instance_method_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.x
+    }
+}
+Point.len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("len") && e.message.contains("instance")));
+}
+
+#[test]
+fn test_instance_call_on_static_method_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn origin() {
+        return Point(0, 0)
+    }
+}
+val p = Point(1, 2)
+p.origin()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("origin") && e.message.contains("static")));
+}
+
+#[test]
+fn test_method_named_this_is_static_typed_receiver_is_compile_error() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(this) {
+        return this.x
+    }
+}
+val p = Point(1, 2)
+p.len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("len") && e.message.contains("static")));
+}
+
+#[test]
+fn test_wrong_argument_count_to_static_method_names_method() {
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn make(a, b) {
+        return Point(a, b)
+    }
+}
+Point.make(1)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("make") && e.message.contains("expects 2 arguments")));
+}

@@ -125,7 +125,8 @@ impl CodeGenerator {
                     } = method
                     {
                         self.generate_closure(name, params, body, *location);
-                        self.emit_define_method(type_name, name, *location);
+                        let takes_self = params.first().map(String::as_str) == Some("self");
+                        self.emit_define_method(type_name, name, takes_self, *location);
                     }
                 }
             }
@@ -1482,12 +1483,21 @@ impl CodeGenerator {
 
     /// Emits `DefineMethod`, popping the closure left on top of the stack by
     /// a preceding `generate_closure` call and registering it under
-    /// `(type_name, method_name)`.
-    fn emit_define_method(&mut self, type_name: &str, method_name: &str, location: SourceLocation) {
+    /// `(type_name, method_name)`. `takes_self` records whether the
+    /// method's first parameter is literally `self`, the single fact that
+    /// decides whether it's an instance or a static method.
+    fn emit_define_method(
+        &mut self,
+        type_name: &str,
+        method_name: &str,
+        takes_self: bool,
+        location: SourceLocation,
+    ) {
         let type_index = self.current_chunk().add_string(string!(type_name));
         let method_index = self.current_chunk().add_string(string!(method_name));
         self.emit_op_code(OpCode::DefineMethod, location);
         self.current_chunk().write_u32(type_index);
         self.current_chunk().write_u32(method_index);
+        self.current_chunk().write_u8(takes_self as u8);
     }
 }

@@ -297,7 +297,8 @@ print(Point.origin().x)   // 0
 
 - `self` is the first parameter; assigning a field through `self` is visible
   to the caller. A method without `self` is static and is called on the type
-  itself, e.g. `Point.origin()`.
+  itself, e.g. `Point.origin()`. Calling a method the wrong way - a static
+  method on a value, or an instance method on the type - is an error.
 - Methods may be spread over several `impl` blocks for the same struct. An
   `impl` block must appear at the top level, and its type must be a declared
   struct. A method can't share a name with a field or with another method of
