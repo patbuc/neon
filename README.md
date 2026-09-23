@@ -278,6 +278,34 @@ pt.x = 15    // Fields are mutable
 print(pt.x)  // 15
 ```
 
+#### Methods
+
+```neon
+impl Point {
+    fn len(self) {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+
+    fn origin() {
+        return Point(0, 0)
+    }
+}
+
+print(Point(3, 4).len())  // 5
+print(Point.origin().x)   // 0
+```
+
+- `self` is the first parameter; assigning a field through `self` is visible
+  to the caller. A method without `self` is static and is called on the type
+  itself, e.g. `Point.origin()`.
+- Methods may be spread over several `impl` blocks for the same struct. An
+  `impl` block must appear at the top level, and its type must be a declared
+  struct. A method can't share a name with a field or with another method of
+  the same struct.
+- Methods are registered before the program runs, so they can be called from
+  code that appears before their `impl` block. A method body can see
+  functions, structs, and builtins, but not top-level variables.
+
 ## Code Examples
 
 ### Fibonacci
