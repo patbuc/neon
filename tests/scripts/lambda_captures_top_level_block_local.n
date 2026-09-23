@@ -1,0 +1,13 @@
+// Expected:
+// 10
+
+var f = nil
+{
+    var x = 10
+    val g = fn() {
+        return x
+    }
+    f = g
+}
+var y = 99
+print(f())

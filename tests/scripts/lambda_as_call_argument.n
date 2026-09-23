@@ -1,0 +1,8 @@
+// Expected:
+// 4
+
+fn apply(f, value) {
+    return f(value)
+}
+
+print(apply(fn(x) { return x + 1 }, 3))

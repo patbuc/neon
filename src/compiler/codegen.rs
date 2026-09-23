@@ -410,6 +410,38 @@ impl CodeGenerator {
                 .define_local(local, location.line, location.column);
         }
 
+        self.generate_closure(name, params, body, location);
+
+        // Get the index of the function variable we defined earlier
+        let var = match self.get_variable_index(name) {
+            Some(var) => var,
+            None => {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::Internal,
+                    format!("Function '{}' was not found after definition", name),
+                    location,
+                ));
+                return;
+            }
+        };
+
+        // Emit the appropriate Set opcode to update the placeholder
+        self.emit_set_for_variable(&var, location);
+        self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
+    }
+
+    /// Compiles `params`/`body` into a closure and leaves it on top of the
+    /// stack. Shared by named function declarations, which then store it
+    /// into the variable defined for the name, and lambda expressions,
+    /// which leave it as their expression value.
+    fn generate_closure(
+        &mut self,
+        name: &str,
+        params: &[String],
+        body: &[Stmt],
+        location: SourceLocation,
+    ) {
         // Create a new chunk for the function
         self.chunks.push(Chunk::new(&format!("function_{}", name)));
         self.function_contexts.push(FunctionContext::default());
@@ -442,29 +474,10 @@ impl CodeGenerator {
         let function_value =
             Value::new_function(name.to_string(), params.len() as u8, function_chunk);
 
-        // Wrap the function in a closure and replace the Nil placeholder
-        // with it.
+        // Wrap the function in a closure.
         let const_index = self.current_chunk().add_constant(function_value);
         self.emit_op_code_variant(OpCode::Closure, const_index, location);
         self.emit_upvalue_metadata(&context.upvalues, location);
-
-        // Get the index of the function variable we defined earlier
-        let var = match self.get_variable_index(name) {
-            Some(var) => var,
-            None => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::Internal,
-                    format!("Function '{}' was not found after definition", name),
-                    location,
-                ));
-                return;
-            }
-        };
-
-        // Emit the appropriate Set opcode to update the placeholder
-        self.emit_set_for_variable(&var, location);
-        self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -1394,6 +1407,13 @@ impl CodeGenerator {
 
                 // Patch the end jump to here
                 self.patch_jump(end_jump);
+            }
+            Expr::Function {
+                params,
+                body,
+                location,
+            } => {
+                self.generate_closure("anonymous", params, body, *location);
             }
         }
     }

@@ -1,0 +1,11 @@
+// Expected:
+// 6
+
+fn apply(f, value) {
+    return f(value)
+}
+
+val double = fn(x) {
+    return x * 2
+}
+print(apply(double, 3))

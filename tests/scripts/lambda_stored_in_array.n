@@ -1,0 +1,7 @@
+// Expected:
+// 2
+// 4
+
+val fns = [fn(x) { return x + 1 }, fn(x) { return x * 2 }]
+print(fns[0](1))
+print(fns[1](2))

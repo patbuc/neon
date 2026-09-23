@@ -175,6 +175,54 @@ fn test_parse_nested_single_line_blocks() {
 }
 
 #[test]
+fn test_parse_lambda_expression() {
+    let mut parser = Parser::new("val double = fn(x) {\n  return x * 2\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Val { initializer, .. } => match initializer {
+            Some(Expr::Function { params, body, .. }) => {
+                assert_eq!(params.len(), 1);
+                assert_eq!(body.len(), 1);
+                assert!(matches!(body[0], Stmt::Return { .. }));
+            }
+            _ => panic!("Expected Function expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_lambda_as_call_argument() {
+    let mut parser = Parser::new("apply(fn(x) { return x + 1 }, 3)\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => {
+            assert_eq!(arguments.len(), 2);
+            assert!(matches!(arguments[0], Expr::Function { .. }));
+        }
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
+fn test_fn_without_name_at_statement_level_is_error() {
+    // Statement-level `fn` is always the named declaration; a bare lambda
+    // is only valid in expression position.
+    let mut parser = Parser::new("fn(x) { return x }\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+}
+
+#[test]
 fn test_parse_stray_right_brace_after_statement() {
     let mut parser = Parser::new("print(1) }\n");
     let result = parser.parse();

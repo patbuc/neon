@@ -1833,6 +1833,29 @@ fn test_calling_math_namespace_is_not_a_function_error() {
 }
 
 #[test]
+fn test_break_in_lambda_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    val f = fn() {
+        break
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
+}
+
+#[test]
 fn test_postfix_in_function_parameters() {
     let program = r#"
         fn process(x) {

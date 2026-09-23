@@ -545,6 +545,13 @@ impl SemanticAnalyzer {
                 self.resolve_expr(then_expr);
                 self.resolve_expr(else_expr);
             }
+            Expr::Function {
+                params,
+                body,
+                location,
+            } => {
+                self.resolve_function_body(params, body, *location);
+            }
         }
     }
 
@@ -588,6 +595,18 @@ impl SemanticAnalyzer {
             );
         }
 
+        self.resolve_function_body(params, body, location);
+    }
+
+    /// Resolves a function's parameters and body in a fresh scope. Shared by
+    /// named function declarations and lambda expressions; a lambda has no
+    /// name to define for recursion, so it skips straight to this.
+    fn resolve_function_body(
+        &mut self,
+        params: &[String],
+        body: &[Stmt],
+        location: SourceLocation,
+    ) {
         // Enter function scope
         self.enter_scope();
 

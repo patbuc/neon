@@ -1,0 +1,15 @@
+// Expected:
+// 1
+// 2
+
+fn makeCounter() {
+    var n = 0
+    return fn() {
+        n = n + 1
+        return n
+    }
+}
+
+val inc = makeCounter()
+print(inc())
+print(inc())

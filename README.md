@@ -151,6 +151,22 @@ val other = counter()
 print(other())  // 1, independent of c
 ```
 
+Anonymous functions (`fn(params) { body }`) can be written directly where a
+value is expected, and close over their surroundings just like a named
+function.
+
+```neon
+fn apply(f, value) {
+    return f(value)
+}
+
+val double = fn(x) {
+    return x * 2
+}
+print(apply(double, 3))               // 6
+print(apply(fn(x) { return x + 1 }, 3))  // 4
+```
+
 ### Control Flow
 
 **If/Else:**

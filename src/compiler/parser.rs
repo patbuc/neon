@@ -467,7 +467,11 @@ impl Parser {
         Some(Stmt::Expression { expr, location })
     }
 
-    fn block_statements(&mut self) -> Option<Vec<Stmt>> {
+    /// Parses the statements of a `{ ... }` body up to and including the
+    /// closing brace, without requiring a statement terminator after it.
+    /// Shared by block statements, function declarations and lambda
+    /// expressions, whose surrounding context decides what may follow.
+    fn parse_block_body(&mut self) -> Option<Vec<Stmt>> {
         let mut statements = Vec::new();
         self.skip_new_lines();
 
@@ -480,6 +484,12 @@ impl Parser {
         if !self.consume(TokenType::RightBrace, "Expect '}' after block.") {
             return None;
         }
+
+        Some(statements)
+    }
+
+    fn block_statements(&mut self) -> Option<Vec<Stmt>> {
+        let statements = self.parse_block_body()?;
 
         if !self.check(TokenType::Else) {
             self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
@@ -697,6 +707,7 @@ impl Parser {
             TokenType::Identifier => self.variable(can_assign),
             TokenType::LeftBrace => self.brace_literal(),
             TokenType::LeftBracket => self.array_literal(),
+            TokenType::Fn => self.lambda(),
             _ => {
                 self.report_error_at_current("Expect expression".to_string());
                 return None;
@@ -1208,6 +1219,35 @@ impl Parser {
         }
 
         Some(Expr::ArrayLiteral { elements, location })
+    }
+
+    /// Parses `fn(params) { body }` in expression position, e.g.
+    /// `val double = fn(x) { return x * 2 }`. A statement beginning with
+    /// `fn` is always the named declaration (`fn_declaration`); this
+    /// parselet only runs where `fn` appears as a prefix inside an
+    /// expression.
+    fn lambda(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftParen, "Expect '(' after 'fn'.") {
+            return None;
+        }
+
+        let params = self.parse_parameter_list()?;
+        if !self.consume(TokenType::RightParen, "Expect ')' after parameters.") {
+            return None;
+        }
+
+        if !self.consume(TokenType::LeftBrace, "Expect '{' before function body.") {
+            return None;
+        }
+
+        let body = self.parse_block_body()?;
+        Some(Expr::Function {
+            params,
+            body,
+            location,
+        })
     }
 
     fn index(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {

@@ -148,6 +148,11 @@ pub enum Expr {
         else_expr: Box<Expr>,
         location: SourceLocation,
     },
+    Function {
+        params: Vec<String>,
+        body: Vec<Stmt>,
+        location: SourceLocation,
+    },
 }
 
 /// Statement nodes
@@ -237,7 +242,8 @@ impl Expr {
             | Expr::Range { location, .. }
             | Expr::PostfixIncrement { location, .. }
             | Expr::PostfixDecrement { location, .. }
-            | Expr::Conditional { location, .. } => location,
+            | Expr::Conditional { location, .. }
+            | Expr::Function { location, .. } => location,
         }
     }
 }
