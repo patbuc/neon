@@ -7,7 +7,7 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics
 use crate::compiler::ast::{Expr, Stmt};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
@@ -39,10 +39,6 @@ pub struct SemanticAnalyzer {
     // Methods contributed by `impl` blocks, keyed by struct name then
     // method name.
     struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
-    // Struct names that have at least one nested (invalid) impl block, so a
-    // call site referencing one of its methods isn't also flagged as
-    // unknown - the "not at the top level" error alone is enough.
-    structs_with_rejected_nested_impl: HashSet<String>,
 }
 
 impl SemanticAnalyzer {
@@ -84,7 +80,6 @@ impl SemanticAnalyzer {
             type_env,
             loop_depth: 0,
             struct_methods: HashMap::new(),
-            structs_with_rejected_nested_impl: HashSet::new(),
         }
     }
 
@@ -108,8 +103,6 @@ impl SemanticAnalyzer {
     // Variables (val/var) are defined during resolution
 
     fn collect_declarations(&mut self, statements: &[Stmt]) {
-        self.collect_nested_impls(statements, 0);
-
         for stmt in statements {
             match stmt {
                 Stmt::Fn {
@@ -131,8 +124,7 @@ impl SemanticAnalyzer {
                     fields,
                     location,
                 } => {
-                    if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str())
-                    {
+                    if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::Other,
@@ -189,46 +181,6 @@ impl SemanticAnalyzer {
                         self.resolve_function_body(params, body, *location, Some(type_name));
                     }
                 }
-            }
-        }
-    }
-
-    /// Recursively finds `impl` blocks nested below the top level (inside a
-    /// function body, block, or control-flow statement) and records their
-    /// struct name, so a call site anywhere doesn't also report the
-    /// method as unknown on top of the "not at the top level" error.
-    fn collect_nested_impls(&mut self, statements: &[Stmt], depth: u32) {
-        for stmt in statements {
-            match stmt {
-                Stmt::Impl { type_name, .. } if depth > 0 => {
-                    self.structs_with_rejected_nested_impl
-                        .insert(type_name.clone());
-                }
-                Stmt::Fn { body, .. } => self.collect_nested_impls(body, depth + 1),
-                Stmt::Block { statements, .. } => self.collect_nested_impls(statements, depth + 1),
-                Stmt::If {
-                    then_branch,
-                    else_branch,
-                    ..
-                } => {
-                    self.collect_nested_impls(
-                        std::slice::from_ref(then_branch.as_ref()),
-                        depth + 1,
-                    );
-                    if let Some(else_branch) = else_branch {
-                        self.collect_nested_impls(
-                            std::slice::from_ref(else_branch.as_ref()),
-                            depth + 1,
-                        );
-                    }
-                }
-                Stmt::While { body, .. } => {
-                    self.collect_nested_impls(std::slice::from_ref(body.as_ref()), depth + 1)
-                }
-                Stmt::ForIn { body, .. } => {
-                    self.collect_nested_impls(std::slice::from_ref(body.as_ref()), depth + 1)
-                }
-                _ => {}
             }
         }
     }
@@ -1288,10 +1240,6 @@ impl SemanticAnalyzer {
                     );
                 }
             }
-            return;
-        }
-
-        if self.structs_with_rejected_nested_impl.contains(struct_name) {
             return;
         }
 
