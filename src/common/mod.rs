@@ -204,6 +204,26 @@ impl Value {
     pub(crate) fn new_file(path: String) -> Self {
         Value::Object(Rc::new(Object::File(Rc::from(path))))
     }
+
+    /// Name of this value's type, for runtime error messages.
+    pub(crate) fn type_name(&self) -> &'static str {
+        match self {
+            Value::Number(_) => "number",
+            Value::Boolean(_) => "boolean",
+            Value::Nil => "nil",
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(_) => "string",
+                Object::Function(_) => "function",
+                Object::NativeFunction(_) => "function",
+                Object::Struct(_) => "struct",
+                Object::Instance(_) => "instance",
+                Object::Array(_) => "array",
+                Object::Map(_) => "map",
+                Object::Set(_) => "set",
+                Object::File(_) => "file",
+            },
+        }
+    }
 }
 
 pub struct CallFrame {

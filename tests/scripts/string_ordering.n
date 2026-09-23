@@ -1,0 +1,22 @@
+// Expected:
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// true
+// true
+// true
+
+print("a" < "b")       // true
+print("b" < "a")       // false
+print("abc" <= "abd")  // true
+print("abd" <= "abc")  // false
+print("b" > "a")       // true
+print("a" > "b")       // false
+print("abc" <= "abc")  // true
+print("abc" >= "abc")  // true
+print("ab" < "abc")    // true (a proper prefix is less than the string it prefixes)
+print("B" < "a")       // true (ordering is byte-wise, not case-insensitive)

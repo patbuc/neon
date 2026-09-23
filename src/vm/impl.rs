@@ -5,6 +5,7 @@ use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -121,17 +122,45 @@ impl VirtualMachine {
                         return value;
                     }
                 }
-                OpCode::Subtract => self.fn_subtract(),
-                OpCode::Multiply => self.fn_multiply(),
-                OpCode::Divide => self.fn_divide(),
-                OpCode::Modulo => self.fn_modulo(),
-                OpCode::Exponent => self.fn_exponent(),
+                OpCode::Subtract => {
+                    if let Some(result) = self.fn_subtract() {
+                        return result;
+                    }
+                }
+                OpCode::Multiply => {
+                    if let Some(result) = self.fn_multiply() {
+                        return result;
+                    }
+                }
+                OpCode::Divide => {
+                    if let Some(result) = self.fn_divide() {
+                        return result;
+                    }
+                }
+                OpCode::Modulo => {
+                    if let Some(result) = self.fn_modulo() {
+                        return result;
+                    }
+                }
+                OpCode::Exponent => {
+                    if let Some(result) = self.fn_exponent() {
+                        return result;
+                    }
+                }
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),
                 OpCode::Equal => self.fn_equal(),
-                OpCode::Greater => self.fn_greater(),
-                OpCode::Less => self.fn_less(),
+                OpCode::Greater => {
+                    if let Some(result) = self.fn_compare(Ordering::Greater) {
+                        return result;
+                    }
+                }
+                OpCode::Less => {
+                    if let Some(result) = self.fn_compare(Ordering::Less) {
+                        return result;
+                    }
+                }
                 OpCode::Not => self.fn_not(),
                 OpCode::String => self.fn_string(),
                 OpCode::String2 => self.fn_string2(),
@@ -301,16 +330,36 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::ToString => self.fn_to_string(),
-                OpCode::BitwiseAnd => self.fn_bitwise_and(),
-                OpCode::BitwiseOr => self.fn_bitwise_or(),
-                OpCode::BitwiseXor => self.fn_bitwise_xor(),
+                OpCode::BitwiseAnd => {
+                    if let Some(result) = self.fn_bitwise_and() {
+                        return result;
+                    }
+                }
+                OpCode::BitwiseOr => {
+                    if let Some(result) = self.fn_bitwise_or() {
+                        return result;
+                    }
+                }
+                OpCode::BitwiseXor => {
+                    if let Some(result) = self.fn_bitwise_xor() {
+                        return result;
+                    }
+                }
                 OpCode::BitwiseNot => {
                     if let Some(value) = self.fn_bitwise_not() {
                         return value;
                     }
                 }
-                OpCode::LeftShift => self.fn_left_shift(),
-                OpCode::RightShift => self.fn_right_shift(),
+                OpCode::LeftShift => {
+                    if let Some(result) = self.fn_left_shift() {
+                        return result;
+                    }
+                }
+                OpCode::RightShift => {
+                    if let Some(result) = self.fn_right_shift() {
+                        return result;
+                    }
+                }
             }
             self.current_frame_mut().ip += 1;
         }

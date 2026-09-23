@@ -5,6 +5,7 @@ use crate::vm::Result;
 use crate::vm::VirtualMachine;
 use crate::{as_number, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -243,17 +244,31 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_less(&mut self) {
+    pub(in crate::vm) fn fn_compare(&mut self, wanted: Ordering) -> Option<Result> {
         let b = self.pop();
         let a = self.pop();
-        self.push(boolean!(as_number!(a) < as_number!(b)));
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_greater(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(boolean!(as_number!(a) > as_number!(b)));
+        let is_match = match (&a, &b) {
+            (Value::Number(x), Value::Number(y)) => Some(x.partial_cmp(y) == Some(wanted)),
+            (Value::Object(oa), Value::Object(ob)) => match (oa.as_ref(), ob.as_ref()) {
+                (Object::String(sa), Object::String(sb)) => Some(sa.value.cmp(&sb.value) == wanted),
+                _ => None,
+            },
+            _ => None,
+        };
+        match is_match {
+            Some(is_match) => {
+                self.push(boolean!(is_match));
+                None
+            }
+            None => {
+                self.runtime_error(&format!(
+                    "Operands of a comparison must be two numbers or two strings, got {} and {}",
+                    a.type_name(),
+                    b.type_name()
+                ));
+                Some(Result::RuntimeError)
+            }
+        }
     }
 
     #[inline(always)]
@@ -264,24 +279,38 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_divide(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) / as_number!(b)));
+    pub(in crate::vm) fn fn_divide(&mut self) -> Option<Result> {
+        self.binary_number_op("/", |a, b| a / b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_modulo(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) % as_number!(b)));
+    pub(in crate::vm) fn fn_modulo(&mut self) -> Option<Result> {
+        self.binary_number_op("%", |a, b| a % b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_exponent(&mut self) {
+    pub(in crate::vm) fn fn_exponent(&mut self) -> Option<Result> {
+        self.binary_number_op("**", |a, b| a.powf(b))
+    }
+
+    fn binary_number_op(&mut self, op: &str, f: impl Fn(f64, f64) -> f64) -> Option<Result> {
         let b = self.pop();
         let a = self.pop();
-        self.push(Value::Number(as_number!(a).powf(as_number!(b))));
+        match (&a, &b) {
+            (Value::Number(x), Value::Number(y)) => {
+                self.push(Value::Number(f(*x, *y)));
+                None
+            }
+            _ => {
+                self.runtime_error(&format!(
+                    "Operands of '{}' must be numbers, got {} and {}",
+                    op,
+                    a.type_name(),
+                    b.type_name()
+                ));
+                Some(Result::RuntimeError)
+            }
+        }
     }
 
     /// Helper: Convert f64 to i64 for bitwise operations
@@ -295,27 +324,24 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_and(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        let result = Self::to_integer(as_number!(a)) & Self::to_integer(as_number!(b));
-        self.push(Value::Number(result as f64));
+    pub(in crate::vm) fn fn_bitwise_and(&mut self) -> Option<Result> {
+        self.binary_number_op("&", |a, b| {
+            (Self::to_integer(a) & Self::to_integer(b)) as f64
+        })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_or(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        let result = Self::to_integer(as_number!(a)) | Self::to_integer(as_number!(b));
-        self.push(Value::Number(result as f64));
+    pub(in crate::vm) fn fn_bitwise_or(&mut self) -> Option<Result> {
+        self.binary_number_op("|", |a, b| {
+            (Self::to_integer(a) | Self::to_integer(b)) as f64
+        })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_xor(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        let result = Self::to_integer(as_number!(a)) ^ Self::to_integer(as_number!(b));
-        self.push(Value::Number(result as f64));
+    pub(in crate::vm) fn fn_bitwise_xor(&mut self) -> Option<Result> {
+        self.binary_number_op("^", |a, b| {
+            (Self::to_integer(a) ^ Self::to_integer(b)) as f64
+        })
     }
 
     #[inline(always)]
@@ -331,35 +357,29 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_left_shift(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        let shift_amount = (Self::to_integer(as_number!(b)) & 0x3F) as u32; // Mask to 6 bits (0-63)
-        let result = Self::to_integer(as_number!(a)) << shift_amount;
-        self.push(Value::Number(result as f64));
+    pub(in crate::vm) fn fn_left_shift(&mut self) -> Option<Result> {
+        self.binary_number_op("<<", |a, b| {
+            let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
+            (Self::to_integer(a) << shift_amount) as f64
+        })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_right_shift(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        let shift_amount = (Self::to_integer(as_number!(b)) & 0x3F) as u32; // Mask to 6 bits (0-63)
-        let result = Self::to_integer(as_number!(a)) >> shift_amount; // Arithmetic right shift
-        self.push(Value::Number(result as f64));
+    pub(in crate::vm) fn fn_right_shift(&mut self) -> Option<Result> {
+        self.binary_number_op(">>", |a, b| {
+            let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
+            (Self::to_integer(a) >> shift_amount) as f64
+        })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_multiply(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) * as_number!(b)));
+    pub(in crate::vm) fn fn_multiply(&mut self) -> Option<Result> {
+        self.binary_number_op("*", |a, b| a * b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_subtract(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
-        self.push(Value::Number(as_number!(a) - as_number!(b)));
+    pub(in crate::vm) fn fn_subtract(&mut self) -> Option<Result> {
+        self.binary_number_op("-", |a, b| a - b)
     }
 
     #[inline(always)]

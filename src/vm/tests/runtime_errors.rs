@@ -182,3 +182,157 @@ fn invalid_opcode_byte_halts() {
     let result = vm.run_chunk(chunk);
     assert_eq!(Result::RuntimeError, result);
 }
+
+#[test]
+fn subtract_with_non_number_operand_reports_operator_location() {
+    let program = r#"
+        val a = 1
+        val b = a - "x"
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    assert!(vm.get_runtime_errors().starts_with("[3:19]"));
+}
+
+#[test]
+fn bad_operand_type_errors() {
+    let cases: &[(&str, &str)] = &[
+        (
+            r#"print(1 - "a")"#,
+            "Operands of '-' must be numbers, got number and string",
+        ),
+        (
+            r#"print("a" - 1)"#,
+            "Operands of '-' must be numbers, got string and number",
+        ),
+        (
+            "print(true - 1)",
+            "Operands of '-' must be numbers, got boolean and number",
+        ),
+        (
+            r#"print(5 * "x")"#,
+            "Operands of '*' must be numbers, got number and string",
+        ),
+        (
+            "print(nil * 5)",
+            "Operands of '*' must be numbers, got nil and number",
+        ),
+        (
+            r#"print(5 / "x")"#,
+            "Operands of '/' must be numbers, got number and string",
+        ),
+        (
+            "print([1] / 5)",
+            "Operands of '/' must be numbers, got array and number",
+        ),
+        (
+            r#"print(5 % "x")"#,
+            "Operands of '%' must be numbers, got number and string",
+        ),
+        (
+            "print(5 % true)",
+            "Operands of '%' must be numbers, got number and boolean",
+        ),
+        (
+            r#"print(5 ** "x")"#,
+            "Operands of '**' must be numbers, got number and string",
+        ),
+        (
+            "print(5 ** nil)",
+            "Operands of '**' must be numbers, got number and nil",
+        ),
+        (
+            r#"print(5 & "x")"#,
+            "Operands of '&' must be numbers, got number and string",
+        ),
+        (
+            "print(5 & [1])",
+            "Operands of '&' must be numbers, got number and array",
+        ),
+        (
+            r#"print(5 | "x")"#,
+            "Operands of '|' must be numbers, got number and string",
+        ),
+        (
+            "print(5 | {1: 2})",
+            "Operands of '|' must be numbers, got number and map",
+        ),
+        (
+            r#"print(5 ^ "x")"#,
+            "Operands of '^' must be numbers, got number and string",
+        ),
+        (
+            "print(5 ^ true)",
+            "Operands of '^' must be numbers, got number and boolean",
+        ),
+        (
+            r#"print(5 << "x")"#,
+            "Operands of '<<' must be numbers, got number and string",
+        ),
+        (
+            "print(5 << nil)",
+            "Operands of '<<' must be numbers, got number and nil",
+        ),
+        (
+            r#"print(5 >> "x")"#,
+            "Operands of '>>' must be numbers, got number and string",
+        ),
+        (
+            "print(5 >> [1])",
+            "Operands of '>>' must be numbers, got number and array",
+        ),
+        (
+            r#"print(1 < "a")"#,
+            "Operands of a comparison must be two numbers or two strings, got number and string",
+        ),
+        (
+            r#"print("a" < 1)"#,
+            "Operands of a comparison must be two numbers or two strings, got string and number",
+        ),
+        (
+            "print(nil < 1)",
+            "Operands of a comparison must be two numbers or two strings, got nil and number",
+        ),
+        (
+            "print(true < false)",
+            "Operands of a comparison must be two numbers or two strings, got boolean and boolean",
+        ),
+        (
+            r#"print(1 > "a")"#,
+            "Operands of a comparison must be two numbers or two strings, got number and string",
+        ),
+        (
+            "print([1] > [2])",
+            "Operands of a comparison must be two numbers or two strings, got array and array",
+        ),
+        (
+            r#"print(1 <= "a")"#,
+            "Operands of a comparison must be two numbers or two strings, got number and string",
+        ),
+        (
+            r#"print(1 >= "a")"#,
+            "Operands of a comparison must be two numbers or two strings, got number and string",
+        ),
+    ];
+
+    for (program, expected_message) in cases {
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+        assert_eq!(
+            Result::RuntimeError,
+            result,
+            "expected runtime error for: {}",
+            program
+        );
+        let errors = vm.get_runtime_errors();
+        assert!(
+            errors.contains(expected_message),
+            "program {:?}: expected {:?} in {:?}",
+            program,
+            expected_message,
+            errors
+        );
+    }
+}
