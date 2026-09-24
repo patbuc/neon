@@ -223,6 +223,7 @@ impl Parser {
             if !parser.consume(TokenType::Colon, "Expect ':' after map key.") {
                 return None;
             }
+            parser.skip_new_lines();
             let value = parser.expression(false)?;
             Some((key, value))
         })
@@ -332,6 +333,7 @@ impl Parser {
         let location = self.current_location();
 
         let initializer = if self.match_token(TokenType::Equal) {
+            self.skip_new_lines();
             Some(self.expression(false)?)
         } else {
             None
@@ -1005,6 +1007,7 @@ impl Parser {
         let location = self.current_location();
 
         if can_assign && self.match_token(TokenType::Equal) {
+            self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::Assign {
                 name,
@@ -1029,6 +1032,7 @@ impl Parser {
         } else {
             self.get_precedence(&operator_type).next()
         };
+        self.skip_new_lines();
         let right = Box::new(self.parse_precedence(precedence, false)?);
 
         let operator = match operator_type {
@@ -1088,6 +1092,7 @@ impl Parser {
 
         let inclusive = operator_type == TokenType::DotDotEqual;
         let precedence = self.get_precedence(&operator_type).next();
+        self.skip_new_lines();
         let end = Box::new(self.parse_precedence(precedence, false)?);
 
         Some(Expr::Range {
@@ -1101,6 +1106,7 @@ impl Parser {
     fn ternary(&mut self, condition: Expr) -> Option<Expr> {
         let location = self.current_location();
 
+        self.skip_new_lines();
         let then_expr = Box::new(self.expression(false)?);
 
         if !self.consume(
@@ -1110,6 +1116,7 @@ impl Parser {
             return None;
         }
 
+        self.skip_new_lines();
         let else_expr = Box::new(self.expression(false)?);
 
         Some(Expr::Conditional {
@@ -1166,6 +1173,7 @@ impl Parser {
                 location: method_location,
             })
         } else if can_assign && self.match_token(TokenType::Equal) {
+            self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
                 object: Box::new(object),
@@ -1257,6 +1265,7 @@ impl Parser {
         }
 
         if can_assign && self.match_token(TokenType::Equal) {
+            self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::IndexAssign {
                 object: Box::new(object),

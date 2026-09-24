@@ -2961,8 +2961,8 @@ fn test_parse_error_position_expect_expression_at_line_end() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 8);
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].location.column, 1);
     assert!(errors[0].message.contains("Expect expression"));
 }
 
@@ -3102,4 +3102,190 @@ fn test_interpolation_non_ascii_prefix() {
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 14);
+}
+
+// ===== Line Break After Operator Tests =====
+
+#[test]
+fn test_parse_binary_operand_after_newline() {
+    let mut parser = Parser::new("1 +\n2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::Add,
+                ..
+            } => {}
+            _ => panic!("Expected Binary expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_logical_operand_after_newline() {
+    let mut parser = Parser::new("true &&\nfalse\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::And,
+                ..
+            } => {}
+            _ => panic!("Expected Binary expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_range_operand_after_newline() {
+    let mut parser = Parser::new("1..\n5\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Range { .. } => {}
+            _ => panic!("Expected Range expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_ternary_operands_after_newlines() {
+    let mut parser = Parser::new("a ?\nb :\nc\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Conditional { .. } => {}
+            _ => panic!("Expected Conditional expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_assignment_value_after_newline() {
+    let mut parser = Parser::new("x =\n5\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Assign { name, .. } => assert_eq!(name, "x"),
+            _ => panic!("Expected Assign expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_set_field_value_after_newline() {
+    let mut parser = Parser::new("o.f =\n1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::SetField { field, .. } => assert_eq!(field, "f"),
+            _ => panic!("Expected SetField expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_index_assign_value_after_newline() {
+    let mut parser = Parser::new("a[0] =\n1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::IndexAssign { .. } => {}
+            _ => panic!("Expected IndexAssign expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_val_initializer_after_newline() {
+    let mut parser = Parser::new("val x =\n1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_map_value_after_newline() {
+    let mut parser = Parser::new("val m = {\"a\":\n1}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Val {
+            name, initializer, ..
+        } => {
+            assert_eq!(name, "m");
+            match initializer {
+                Some(Expr::MapLiteral { entries, .. }) => {
+                    assert_eq!(entries.len(), 1);
+                    match &entries[0] {
+                        (Expr::String { value, .. }, Expr::Number { value: num, .. }) => {
+                            assert_eq!(value, "a");
+                            assert_eq!(*num, 1.0);
+                        }
+                        _ => panic!("Expected String key and Number value"),
+                    }
+                }
+                _ => panic!("Expected MapLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_newline_before_operator_ends_statement() {
+    let mut parser = Parser::new("val x = 1\n-2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 2);
+    match &stmts[0] {
+        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        _ => panic!("Expected Val statement"),
+    }
+    match &stmts[1] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Unary {
+                operator: UnaryOp::Negate,
+                ..
+            } => {}
+            _ => panic!("Expected Unary expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }

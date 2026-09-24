@@ -1,0 +1,34 @@
+// newline_after_infix_operator.n - Line break after an infix operator
+
+// Expected:
+// 3
+// 3
+// 5
+// a
+// 1
+// 1
+
+val x = 1 +
+        2
+print(x)
+
+val y = (1 +
+        2)
+print(y)
+
+val z =
+    5
+print(z)
+
+val t = true ?
+    "a" :
+    "b"
+print(t)
+
+val w = 1
+-2
+print(w)
+
+val m = {"a":
+    1}
+print(m.get("a"))
