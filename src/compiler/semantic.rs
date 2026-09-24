@@ -1345,25 +1345,13 @@ impl SemanticAnalyzer {
             .get(object_type)
             .and_then(|methods| methods.get(method).copied())
         {
-            if signature.takes_self {
-                self.validate_arity(
-                    "Method",
-                    method,
-                    signature.param_count - 1,
-                    arg_count,
-                    location,
-                );
-            } else {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
-                    format!(
-                        "Method '{}' is static; call it as {}.{}()",
-                        method, object_type, method
-                    ),
-                    location,
-                ));
-            }
+            self.validate_arity(
+                "Method",
+                method,
+                signature.param_count - 1,
+                arg_count,
+                location,
+            );
             return;
         }
 
