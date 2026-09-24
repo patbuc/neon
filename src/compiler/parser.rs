@@ -101,7 +101,7 @@ impl Parser {
                 statements.push(stmt);
             }
             if self.panic_mode {
-                self.synchronize();
+                self.synchronize(false);
             }
         }
 
@@ -290,12 +290,19 @@ impl Parser {
         self.errors.push(error);
     }
 
-    fn synchronize(&mut self) {
+    /// Skips tokens until the start of the next statement. Inside a block,
+    /// `stop_at_right_brace` must be set so the enclosing `}` is left for the
+    /// block's own loop to consume, rather than being skipped over as if it
+    /// were just more garbage.
+    fn synchronize(&mut self, stop_at_right_brace: bool) {
         self.panic_mode = false;
         loop {
             if self.previous_token.token_type == TokenType::NewLine
                 || self.previous_token.token_type == TokenType::Eof
             {
+                return;
+            }
+            if stop_at_right_brace && self.current_token.token_type == TokenType::RightBrace {
                 return;
             }
             match self.current_token.token_type {
@@ -344,7 +351,17 @@ impl Parser {
         let location = self.current_location();
 
         let initializer = if self.match_token(TokenType::Equal) {
+            let equals_location = self.current_location();
+            let had_newline = self.check(TokenType::NewLine);
             self.skip_new_lines();
+            // A value missing entirely (nothing before the next statement) is
+            // blamed on the '=' rather than on whatever starts that next
+            // statement, so its token is left for that statement to parse
+            // instead of being silently swallowed here.
+            if had_newline && !self.can_start_expression() {
+                self.report_error(equals_location, "Expect expression".to_string());
+                return None;
+            }
             Some(self.expression(false)?)
         } else {
             None
@@ -469,7 +486,19 @@ impl Parser {
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             if !self.consume(TokenType::Fn, "Expect method declaration.") {
-                while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+                let mut depth = 0;
+                loop {
+                    if self.check(TokenType::Eof) {
+                        break;
+                    }
+                    if self.check(TokenType::RightBrace) {
+                        if depth == 0 {
+                            break;
+                        }
+                        depth -= 1;
+                    } else if self.check(TokenType::LeftBrace) {
+                        depth += 1;
+                    }
                     self.advance();
                 }
                 break;
@@ -536,6 +565,9 @@ impl Parser {
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             if let Some(stmt) = self.declaration() {
                 statements.push(stmt);
+            }
+            if self.panic_mode {
+                self.synchronize(true);
             }
         }
 
@@ -733,6 +765,29 @@ impl Parser {
 
     fn expression(&mut self, skip_new_lines: bool) -> Option<Expr> {
         self.parse_precedence(Precedence::Assignment, skip_new_lines)
+    }
+
+    /// Whether the current token can start a primary expression, i.e. whether
+    /// `parse_precedence` would succeed instead of reporting "Expect expression".
+    fn can_start_expression(&self) -> bool {
+        matches!(
+            self.current_token.token_type,
+            TokenType::Number
+                | TokenType::String
+                | TokenType::InterpolatedString
+                | TokenType::True
+                | TokenType::False
+                | TokenType::Nil
+                | TokenType::LeftParen
+                | TokenType::Minus
+                | TokenType::Bang
+                | TokenType::Tilde
+                | TokenType::Identifier
+                | TokenType::LeftBrace
+                | TokenType::HashLeftBrace
+                | TokenType::LeftBracket
+                | TokenType::Fn
+        )
     }
 
     fn parse_precedence(&mut self, precedence: Precedence, skip_new_lines: bool) -> Option<Expr> {
@@ -1067,7 +1122,12 @@ impl Parser {
         } else {
             self.get_precedence(&operator_type).next()
         };
+        let had_newline = self.check(TokenType::NewLine);
         self.skip_new_lines();
+        if had_newline && !self.can_start_expression() {
+            self.report_error(location, "Expect expression".to_string());
+            return None;
+        }
         let right = Box::new(self.parse_precedence(precedence, false)?);
 
         let operator = match operator_type {

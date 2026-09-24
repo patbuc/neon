@@ -2943,14 +2943,16 @@ fn test_parse_error_position_expect_expression_before_brace() {
 
 #[test]
 fn test_parse_error_position_expect_expression_at_line_end() {
+    // A value missing entirely is blamed on the '=' that expected it, not on
+    // whatever token happens to follow the skipped blank line.
     let source = "val b =\n";
     let mut parser = Parser::new(source);
     let result = parser.parse();
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert_eq!(errors[0].location.line, 2);
-    assert_eq!(errors[0].location.column, 1);
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 7);
     assert!(errors[0].message.contains("Expect expression"));
 }
 
