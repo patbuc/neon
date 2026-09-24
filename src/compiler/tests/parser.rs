@@ -3105,7 +3105,7 @@ fn test_interpolation_non_ascii_prefix() {
 }
 
 #[test]
-fn test_interpolation_decodes_literal_parts() {
+fn test_interpolation_escapes() {
     let mut parser = Parser::new("\"a\\t${x}\\n\"\n");
     let result = parser.parse();
 
@@ -3132,7 +3132,7 @@ fn test_interpolation_decodes_literal_parts() {
 }
 
 #[test]
-fn test_interpolation_decodes_escaped_dollar_in_literal_part() {
+fn test_interpolation_escaped_dollar() {
     let mut parser = Parser::new("\"\\${a} ${b}\"\n");
     let result = parser.parse();
 
@@ -3158,7 +3158,7 @@ fn test_interpolation_decodes_escaped_dollar_in_literal_part() {
 }
 
 #[test]
-fn test_interpolation_error_position_stays_raw_source_after_escape() {
+fn test_interpolation_error_position_after_escape() {
     let mut parser = Parser::new("print(\"\\n${)}\")\n");
     let result = parser.parse();
 
@@ -3171,7 +3171,7 @@ fn test_interpolation_error_position_stays_raw_source_after_escape() {
 }
 
 #[test]
-fn test_invalid_escape_fails_to_parse() {
+fn test_invalid_escape() {
     let mut parser = Parser::new("print(\"\\q\")\n");
     let result = parser.parse();
 

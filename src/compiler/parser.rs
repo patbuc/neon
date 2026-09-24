@@ -896,7 +896,6 @@ impl Parser {
             let ch = chars[i];
 
             if ch == '\\' {
-                // The scanner already validated every escape in this string.
                 let (decoded_char, consumed) = decode_escape(&chars[i + 1..])
                     .expect("scanner already validated this escape sequence");
                 current_literal.push(decoded_char);

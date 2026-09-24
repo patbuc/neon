@@ -7,10 +7,7 @@ struct InvalidDigit {
     message: &'static str,
 }
 
-/// Decodes the escape sequence starting right after a `\` in a string
-/// literal. `chars` is everything following the backslash. Returns the
-/// decoded character and how many of `chars` it consumed, or `None` if the
-/// escape is invalid.
+/// `chars` starts right after the `\`; the returned consumed count excludes it.
 pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
     match *chars.first()? {
         'n' => Some(('\n', 1)),
@@ -24,14 +21,14 @@ pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)
                 return None;
             }
             let mut end = 2;
-            while chars.get(end).is_some_and(|c| *c != '}') {
+            while end < 8 && chars.get(end).is_some_and(char::is_ascii_hexdigit) {
                 end += 1;
             }
             if chars.get(end) != Some(&'}') {
                 return None;
             }
             let hex: String = chars[2..end].iter().collect();
-            if hex.is_empty() || hex.len() > 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            if hex.is_empty() {
                 return None;
             }
             let code_point = u32::from_str_radix(&hex, 16).ok()?;
@@ -245,9 +242,12 @@ impl Scanner {
                             self.advance();
                         }
                     }
-                    None if invalid_escape.is_some() => {}
                     None => {
-                        invalid_escape = Some((backslash_line, backslash_column, backslash_offset));
+                        invalid_escape.get_or_insert((
+                            backslash_line,
+                            backslash_column,
+                            backslash_offset,
+                        ));
                     }
                 }
                 continue;
@@ -574,10 +574,8 @@ impl Scanner {
     }
 
     fn make_error_token(&mut self, message: &str) -> Token {
-        self.previous_token_type = TokenType::Error;
-        Token::new(
-            TokenType::Error,
-            String::from(message),
+        self.make_error_token_at(
+            message,
             self.start_line,
             self.start_column,
             self.start + self.offset_base,
