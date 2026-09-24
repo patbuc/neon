@@ -1324,10 +1324,8 @@ impl CodeGenerator {
                     return;
                 }
 
-                for (key, _) in entries {
+                for (key, value) in entries {
                     self.generate_expr(key);
-                }
-                for (_, value) in entries {
                     self.generate_expr(value);
                 }
                 self.emit_op_code(OpCode::CreateMap, *location);

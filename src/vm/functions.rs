@@ -1093,8 +1093,8 @@ impl VirtualMachine {
 
         let mut map = IndexMap::with_capacity(count);
         for i in 0..count {
-            let key_value = &self.stack[pairs_start + i];
-            let value = &self.stack[pairs_start + count + i];
+            let key_value = &self.stack[pairs_start + 2 * i];
+            let value = &self.stack[pairs_start + 2 * i + 1];
 
             let key = match Self::value_to_map_key(key_value) {
                 Some(k) => k,
