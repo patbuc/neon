@@ -1,0 +1,12 @@
+// call_evaluates_callee_before_arguments.n - the callee expression must be evaluated before its arguments
+
+// Expected:
+// callee
+// arg
+// 1
+
+fn getF() { print("callee")
+return fn(a) { return a } }
+fn getA() { print("arg")
+return 1 }
+print(getF()(getA()))
