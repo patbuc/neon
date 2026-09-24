@@ -2726,3 +2726,72 @@ struct Array {
     let errors = result.unwrap_err();
     assert!(errors.iter().any(|e| e.message.contains("Array")));
 }
+
+// ===== Issue #149: impl blocks on builtin types =====
+
+#[test]
+fn test_impl_method_shadowing_native_method_is_compile_error() {
+    let program = r#"
+impl Array {
+    fn len(self) {
+        return 0
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("len") && e.message.contains("native")));
+}
+
+#[test]
+fn test_impl_for_undefined_builtin_like_type_is_compile_error() {
+    // Guard: `impl Foo` with no struct `Foo` and no builtin type named `Foo`
+    // is already a compile error via `collect_impl_block`'s undefined-type
+    // check from #147. Kept here as a regression guard for #149, since unit
+    // 1 is expected to leave this behavior unchanged.
+    let program = r#"
+impl Foo {
+    fn bar(self) {}
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("Foo")));
+}
+
+#[test]
+fn test_typo_on_user_method_on_builtin_type_suggests_correction() {
+    let program = r#"
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+val x = [1, 2].secnd()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'second'")));
+}

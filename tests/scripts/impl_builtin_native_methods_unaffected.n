@@ -1,0 +1,23 @@
+// impl_builtin_native_methods_unaffected.n - native methods on a type still
+// work normally once a user impl block adds a method to that same type
+
+// Expected:
+// 3
+// true
+// [1, 2, 3]
+// 2
+// 3
+
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+
+val arr = [3, 1, 2]
+arr.sort()
+print(arr.length())
+print(arr.contains(2))
+print(arr)
+print(arr.second())
+print(arr.pop())

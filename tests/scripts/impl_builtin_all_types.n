@@ -1,0 +1,60 @@
+// impl_builtin_all_types.n - a user method works on Array, String, Map, Set,
+// Number and Boolean, on both a typed literal receiver and an untyped
+// receiver passed through a function parameter
+
+// Expected:
+// 2
+// SHOUT
+// true
+// true
+// 8
+// false
+// 2
+
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+
+impl String {
+    fn shout(self) {
+        return self.toUpperCase()
+    }
+}
+
+impl Map {
+    fn isEmpty(self) {
+        return self.size() == 0
+    }
+}
+
+impl Set {
+    fn isEmpty(self) {
+        return self.size() == 0
+    }
+}
+
+impl Number {
+    fn double(self) {
+        return self * 2
+    }
+}
+
+impl Boolean {
+    fn negate(self) {
+        return !self
+    }
+}
+
+print([1, 2, 3].second())
+print("shout".shout())
+print({}.isEmpty())
+print(#{}.isEmpty())
+print(4.double())
+print(true.negate())
+
+fn callSecond(x) {
+    return x.second()
+}
+print(callSecond([9, 2, 7]))

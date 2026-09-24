@@ -1,0 +1,12 @@
+// impl_builtin_array_second.n - impl on a builtin type (Array)
+
+// Expected:
+// 2
+
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+
+print([1, 2, 3].second())

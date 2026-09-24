@@ -1,0 +1,19 @@
+// impl_builtin_self_calls_native.n - inside a builtin method, self can call
+// native methods on the same builtin type
+
+// Expected:
+// SHOUT
+// 5
+
+impl String {
+    fn shout(self) {
+        return self.toUpperCase()
+    }
+
+    fn shoutLen(self) {
+        return self.shout().len()
+    }
+}
+
+print("shout".shout())
+print("shout".shoutLen())
