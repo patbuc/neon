@@ -2732,7 +2732,7 @@ struct Array {
 #[test]
 fn test_impl_method_shadowing_native_method_is_compile_error() {
     let program = r#"
-impl Array {
+impl String {
     fn len(self) {
         return 0
     }
@@ -2753,10 +2753,6 @@ impl Array {
 
 #[test]
 fn test_impl_for_undefined_builtin_like_type_is_compile_error() {
-    // Guard: `impl Foo` with no struct `Foo` and no builtin type named `Foo`
-    // is already a compile error via `collect_impl_block`'s undefined-type
-    // check from #147. Kept here as a regression guard for #149, since unit
-    // 1 is expected to leave this behavior unchanged.
     let program = r#"
 impl Foo {
     fn bar(self) {}
@@ -2794,4 +2790,73 @@ val x = [1, 2].secnd()
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'second'")));
+}
+
+#[test]
+fn test_self_in_builtin_impl_is_typed_as_that_builtin_type() {
+    // self is typed as the builtin type being implemented.
+    let program = r#"
+impl String {
+    fn shoutLen(self) {
+        return self.lenn()
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'len'")));
+}
+
+#[test]
+fn test_static_method_in_builtin_impl_is_compile_error() {
+    let program = r#"
+impl Array {
+    fn make() {
+        return []
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e.message.contains("make")
+        && e.message.contains("self")
+        && e.message
+            .contains("static methods are only supported on structs")));
+}
+
+#[test]
+fn test_calling_builtin_user_method_in_static_form_is_compile_error() {
+    let program = r#"
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+val x = Array.second([1, 2])
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Static methods are only supported on structs")));
 }

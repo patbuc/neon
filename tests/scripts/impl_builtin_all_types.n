@@ -10,6 +10,9 @@
 // 8
 // false
 // 2
+// SHOUT
+// 8
+// false
 
 impl Array {
     fn second(self) {
@@ -58,3 +61,18 @@ fn callSecond(x) {
     return x.second()
 }
 print(callSecond([9, 2, 7]))
+
+fn callShout(x) {
+    return x.shout()
+}
+print(callShout("shout"))
+
+fn callDouble(x) {
+    return x.double()
+}
+print(callDouble(4))
+
+fn callNegate(x) {
+    return x.negate()
+}
+print(callNegate(true))

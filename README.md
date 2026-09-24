@@ -304,11 +304,28 @@ print(Point.origin().x)   // 0
   method on a value, or an instance method on the type - is an error.
 - Methods may be spread over several `impl` blocks for the same struct. An
   `impl` block must appear at the top level, and its type must be a declared
-  struct. A method can't share a name with a field or with another method of
-  the same struct.
+  struct or a builtin type. A method can't share a name with a field or with
+  another method of the same struct.
 - Methods are registered before the program runs, so they can be called from
   code that appears before their `impl` block. A method body can see
   functions, structs, and builtins, but not top-level variables.
+
+A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`)
+can have an `impl` block too, adding an instance method callable on any value
+of that type. A method can't share a name with a native method of the type -
+that's a compile error, since a native method can never be redefined. Unlike
+a struct, a builtin type only supports instance methods; every method must
+take `self`.
+
+```neon
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+
+print([1, 2, 3].second())  // 2
+```
 
 #### Calling function-valued fields
 

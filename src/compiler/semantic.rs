@@ -36,8 +36,8 @@ pub struct SemanticAnalyzer {
     // the known static type, or None if the type is unknown.
     type_env: Vec<HashMap<String, Option<String>>>,
     loop_depth: u32,
-    // Methods contributed by `impl` blocks, keyed by struct name then
-    // method name.
+    // Methods contributed by `impl` blocks, keyed by type name (a struct or
+    // a builtin type) then method name.
     struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
 }
 
@@ -167,7 +167,10 @@ impl SemanticAnalyzer {
                 type_name, methods, ..
             } = stmt
             {
-                if !self.is_struct_type(type_name) {
+                if !self.is_struct_type(type_name)
+                    && !crate::common::method_registry::BUILTIN_TYPE_NAMES
+                        .contains(&type_name.as_str())
+                {
                     continue;
                 }
                 for method in methods {
@@ -185,23 +188,30 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Register the methods an `impl` block contributes to a struct,
-    /// flagging an impl for an undefined type, a method shadowing a field
-    /// name, or a method name already defined for this struct.
+    /// Register the methods an `impl` block contributes to a struct or a
+    /// builtin type, flagging an impl for an undefined type, a method
+    /// already defined for this type, one shadowing a field name, or one
+    /// shadowing a native method (builtin types only).
     fn collect_impl_block(&mut self, type_name: &str, methods: &[Stmt], location: SourceLocation) {
-        let field_names = match self.symbol_table.resolve(type_name) {
-            Some(Symbol {
-                kind: SymbolKind::Struct { fields },
-                ..
-            }) => fields.clone(),
-            _ => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::UndefinedSymbol,
-                    format!("Cannot implement undefined type '{}'", type_name),
-                    location,
-                ));
-                return;
+        let is_builtin_type =
+            crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&type_name);
+        let field_names = if is_builtin_type {
+            Vec::new()
+        } else {
+            match self.symbol_table.resolve(type_name) {
+                Some(Symbol {
+                    kind: SymbolKind::Struct { fields },
+                    ..
+                }) => fields.clone(),
+                _ => {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::UndefinedSymbol,
+                        format!("Cannot implement undefined type '{}'", type_name),
+                        location,
+                    ));
+                    return;
+                }
             }
         };
 
@@ -215,6 +225,33 @@ impl SemanticAnalyzer {
             else {
                 continue;
             };
+
+            if crate::common::method_registry::is_valid_method(type_name, name) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    format!(
+                        "Method '{}' is already a native method of {}",
+                        name, type_name
+                    ),
+                    *method_location,
+                ));
+                continue;
+            }
+
+            let takes_self = params.first().map(String::as_str) == Some("self");
+            if is_builtin_type && !takes_self {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    format!(
+                        "Method '{}' on {} must take self; static methods are only supported on structs",
+                        name, type_name
+                    ),
+                    *method_location,
+                ));
+                continue;
+            }
 
             if field_names.iter().any(|f| f == name) {
                 self.errors.push(CompilationError::new(
@@ -246,7 +283,6 @@ impl SemanticAnalyzer {
                 continue;
             }
 
-            let takes_self = params.first().map(String::as_str) == Some("self");
             entry.insert(
                 name.clone(),
                 MethodSignature {
@@ -994,6 +1030,19 @@ impl SemanticAnalyzer {
                 );
                 return;
             }
+
+            // A static call on a builtin type name, e.g. Array.second().
+            if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str())
+                && self.symbol_table.resolve(name).is_none()
+            {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    "Static methods are only supported on structs".to_string(),
+                    location,
+                ));
+                return;
+            }
         }
 
         self.resolve_expr(object);
@@ -1285,19 +1334,56 @@ impl SemanticAnalyzer {
             return;
         }
 
-        // Check if the method is valid for this type
-        if !crate::common::method_registry::is_valid_method(object_type, method) {
-            let available_methods =
-                crate::common::method_registry::get_methods_for_type(object_type);
-            let error_message = unknown_method_error(object_type, method, &available_methods);
-
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
-                error_message,
-                location,
-            ));
+        // A native method always wins; a user method can never shadow one.
+        if crate::common::method_registry::is_valid_method(object_type, method) {
+            return;
         }
+
+        // A user method contributed by an `impl` block on this builtin type.
+        if let Some(signature) = self
+            .struct_methods
+            .get(object_type)
+            .and_then(|methods| methods.get(method).copied())
+        {
+            if signature.takes_self {
+                self.validate_arity(
+                    "Method",
+                    method,
+                    signature.param_count - 1,
+                    arg_count,
+                    location,
+                );
+            } else {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::Other,
+                    format!(
+                        "Method '{}' is static; call it as {}.{}()",
+                        method, object_type, method
+                    ),
+                    location,
+                ));
+            }
+            return;
+        }
+
+        let mut candidates: Vec<String> =
+            crate::common::method_registry::get_methods_for_type(object_type)
+                .into_iter()
+                .map(String::from)
+                .collect();
+        if let Some(user_methods) = self.struct_methods.get(object_type) {
+            candidates.extend(user_methods.keys().cloned());
+        }
+        let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
+        let error_message = unknown_method_error(object_type, method, &candidate_refs);
+
+        self.errors.push(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::Other,
+            error_message,
+            location,
+        ));
     }
 
     /// True when `struct_name` is a known struct type declaring a field

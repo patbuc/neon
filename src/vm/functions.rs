@@ -161,6 +161,17 @@ impl VirtualMachine {
                                 self.stack[top] = field_value;
                                 return self.dispatch_call(arg_count - 1);
                             }
+                            match self.builtin_user_method_call(arg_count, callable) {
+                                MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                                    return self.call_closure_with(
+                                        arg_count,
+                                        &closure,
+                                        exclude_self,
+                                    );
+                                }
+                                MethodDispatch::Mismatch => return Some(Result::RuntimeError),
+                                MethodDispatch::NotFound => {}
+                            }
                             self.runtime_error(&error);
                             return Some(Result::RuntimeError);
                         }
@@ -246,9 +257,38 @@ impl VirtualMachine {
             _ => return MethodDispatch::NotFound,
         };
 
+        self.dispatch_method_by_name(&struct_name, is_static_call, arg_count, callable)
+    }
+
+    /// The user method registered for a builtin-type receiver, tried after
+    /// native dispatch misses.
+    fn builtin_user_method_call(
+        &mut self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> MethodDispatch {
+        let args_start = self.stack.len() - arg_count - 1;
+        let receiver = &self.stack[args_start];
+        let Some(TypeName::Static(type_name)) = self.get_type_name(receiver) else {
+            return MethodDispatch::NotFound;
+        };
+
+        self.dispatch_method_by_name(type_name, false, arg_count, callable)
+    }
+
+    /// Looks up `callable`'s method name in the user method table under
+    /// `type_name` and resolves the call form (static vs. instance)
+    /// against how the method was defined.
+    fn dispatch_method_by_name(
+        &mut self,
+        type_name: &str,
+        is_static_call: bool,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> MethodDispatch {
         let Some((closure, takes_self)) = self
             .methods
-            .get(&struct_name)
+            .get(type_name)
             .and_then(|methods| methods.get(&callable.method_name))
             .cloned()
         else {
@@ -259,18 +299,19 @@ impl VirtualMachine {
             (true, true) => {
                 self.runtime_error(&format!(
                     "Method '{}' needs an instance; call it on a {} value",
-                    callable.method_name, struct_name
+                    callable.method_name, type_name
                 ));
                 MethodDispatch::Mismatch
             }
             (false, false) => {
                 self.runtime_error(&format!(
                     "Method '{}' is static; call it as {}.{}()",
-                    callable.method_name, struct_name, callable.method_name
+                    callable.method_name, type_name, callable.method_name
                 ));
                 MethodDispatch::Mismatch
             }
             (true, false) => {
+                let args_start = self.stack.len() - arg_count - 1;
                 self.stack.remove(args_start);
                 MethodDispatch::Found(closure, arg_count - 1, false)
             }

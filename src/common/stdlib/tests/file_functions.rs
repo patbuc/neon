@@ -464,6 +464,24 @@ fn test_file_read_wrong_arg_count() {
 }
 
 #[test]
+fn test_impl_on_file_user_method() {
+    // File(path) only wraps a path, so this exercises impl-on-builtin
+    // dispatch without touching the filesystem.
+    let program = r#"
+        impl File {
+            fn describe(self) {
+                return "a file"
+            }
+        }
+        print(File("/tmp/claude/does_not_need_to_exist.txt").describe())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("a file", vm.get_output());
+}
+
+#[test]
 fn test_file_read_lines_wrong_arg_count() {
     // Setup: Create a test file
     let test_path = "/tmp/claude/file_read_lines_wrong_args_test.txt";
