@@ -476,10 +476,6 @@ impl CodeGenerator {
             self.current_chunk().add_parameter(param_local);
         }
 
-        // Reserve the slot the calling convention leaves the callable in, unconsumed, right after the last param.
-        let reserved_slot = Local::new(String::new(), self.scope_depth, false);
-        self.current_chunk().add_parameter(reserved_slot);
-
         // Compile function body
         for stmt in body {
             self.generate_stmt(stmt);
@@ -985,20 +981,14 @@ impl CodeGenerator {
         arguments: &[Expr],
         location: SourceLocation,
     ) {
-        // Regular function call - could be user-defined function
-        // Unified calling convention: [args..., callable]
+        // Unified calling convention: [callable, args...]
+        self.generate_expr(callee);
 
-        // Evaluate all arguments FIRST
         for arg in arguments {
             self.generate_expr(arg);
         }
 
-        // Evaluate the callee last to get the function object on top of stack
-        self.generate_expr(callee);
-
-        // Emit unified CALL instruction
-        self.emit_op_code(OpCode::Call, location);
-        self.current_chunk().write_u8(arguments.len() as u8);
+        self.emit_call(arguments.len() as u8, location);
     }
 
     fn generate_constructor_call_expr(
@@ -1014,21 +1004,22 @@ impl CodeGenerator {
             unreachable!("Already checked this is a Variable")
         };
 
-        // Evaluate all arguments (no callee!)
-        for arg in arguments {
-            self.generate_expr(arg);
-        }
-
         // Look up constructor index at compile time
         let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
             .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
 
-        self.emit_native_call_by_index(
+        self.push_native_callable_by_index(
             format!("{}.new", type_name),
             index,
             arguments.len() as u8,
             location,
         );
+
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        self.emit_call(arguments.len() as u8, location);
     }
 
     fn generate_global_call_expr(
@@ -1045,21 +1036,22 @@ impl CodeGenerator {
             unreachable!("Already checked this is a Variable")
         };
 
-        // Evaluate all arguments (no callee!)
-        for arg in arguments {
-            self.generate_expr(arg);
-        }
-
         // Look up global function index at compile time
         let index = crate::common::method_registry::get_native_method_index("", &function_name)
             .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
 
-        self.emit_native_call_by_index(
+        self.push_native_callable_by_index(
             function_name.to_string(),
             index,
             arguments.len() as u8,
             location,
         );
+
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        self.emit_call(arguments.len() as u8, location);
     }
 
     fn generate_method_call_expr(
@@ -1112,20 +1104,16 @@ impl CodeGenerator {
             return;
         }
 
-        // Evaluate receiver first
+        let arity = (arguments.len() + 1) as u8;
+        self.push_native_callable_by_name("".to_string(), method.to_string(), arity, location);
+
         self.generate_expr(callee);
 
-        // Evaluate all arguments
         for arg in arguments {
             self.generate_expr(arg);
         }
 
-        self.emit_native_call_by_name(
-            "".to_string(),
-            method.to_string(),
-            (arguments.len() + 1) as u8,
-            location,
-        );
+        self.emit_call(arity, location);
     }
 
     fn generate_static_method_call_expr(
@@ -1143,17 +1131,23 @@ impl CodeGenerator {
             unreachable!("Already checked this is a Variable")
         };
 
-        // Evaluate all arguments FIRST
-        for arg in arguments {
-            self.generate_expr(arg);
-        }
-
         // Look up static method index at compile time
         let index =
             crate::common::method_registry::get_native_method_index(&namespace_name, method)
                 .unwrap_or_else(|| panic!("Unknown static method: {}.{}", namespace_name, method));
 
-        self.emit_native_call_by_index(method.to_string(), index, arguments.len() as u8, location);
+        self.push_native_callable_by_index(
+            method.to_string(),
+            index,
+            arguments.len() as u8,
+            location,
+        );
+
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+
+        self.emit_call(arguments.len() as u8, location);
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1446,8 +1440,9 @@ impl CodeGenerator {
         self.builtin.get_index_of(name)
     }
 
-    /// Helper: Emit a native callable and CALL instruction
-    fn emit_native_call_by_index(
+    /// Pushes the placeholder native callable for a call dispatched by
+    /// registry index.
+    fn push_native_callable_by_index(
         &mut self,
         type_name: String,
         index: usize,
@@ -1456,11 +1451,12 @@ impl CodeGenerator {
     ) {
         let callable = Value::new_native_function(type_name, arity, index as u32, "".to_string());
         self.emit_constant(callable, location);
-        self.emit_op_code(OpCode::Call, location);
-        self.current_chunk().write_u8(arity);
     }
 
-    fn emit_native_call_by_name(
+    /// Pushes the placeholder native callable for a call dispatched by
+    /// method name at runtime (instance methods, whose receiver type isn't
+    /// known at compile time).
+    fn push_native_callable_by_name(
         &mut self,
         type_name: String,
         method_name: String,
@@ -1469,8 +1465,11 @@ impl CodeGenerator {
     ) {
         let callable = Value::new_native_function(type_name, arity, u32::MAX, method_name);
         self.emit_constant(callable, location);
+    }
+
+    fn emit_call(&mut self, argc: u8, location: SourceLocation) {
         self.emit_op_code(OpCode::Call, location);
-        self.current_chunk().write_u8(arity);
+        self.current_chunk().write_u8(argc);
     }
 
     /// Emits `DefineMethod`, popping the closure left on top of the stack by
