@@ -345,6 +345,33 @@ fn test_parse_impl_block_rejects_non_fn_item() {
 }
 
 #[test]
+fn test_block_body_recovers_from_multiple_errors() {
+    let program = "fn f() {\n    val x = \n    val y = \n    val z = 3 +\n}\nval w = \n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail with multiple errors");
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(
+        lines,
+        vec![2, 3, 4, 6],
+        "Should report one error per bad statement, in order"
+    );
+}
+
+#[test]
+fn test_impl_body_recovery_is_brace_depth_aware() {
+    let program =
+        "struct P { x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
+    assert_eq!(errors[0].location.line, 3);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
