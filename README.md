@@ -310,6 +310,20 @@ print(Point.origin().x)   // 0
   code that appears before their `impl` block. A method body can see
   functions, structs, and builtins, but not top-level variables.
 
+#### Calling function-valued fields
+
+A field holding a function can be called like a method, `s.f(x)`, but it does
+not receive the instance - it's called with just the arguments given.
+
+```neon
+struct Adder {
+    add
+}
+
+val a = Adder(fn(x, y) { return x + y })
+print(a.add(2, 3))  // 5
+```
+
 ## Code Examples
 
 ### Fibonacci

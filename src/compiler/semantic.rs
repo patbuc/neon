@@ -1243,6 +1243,13 @@ impl SemanticAnalyzer {
             return;
         }
 
+        // No method by this name; a field can still be called (its value is
+        // callable or not only known at runtime). Fields only exist on
+        // instances, so a static call keeps erroring.
+        if call_kind == MethodCallKind::Instance && self.struct_has_field(struct_name, method) {
+            return;
+        }
+
         let candidates: Vec<String> = self
             .struct_methods
             .get(struct_name)
@@ -1295,6 +1302,18 @@ impl SemanticAnalyzer {
 
     /// Check that a field access/set on a receiver of statically known
     /// struct type refers to one of the struct's declared fields.
+    /// True when `struct_name` is a known struct type declaring a field
+    /// named `field`.
+    fn struct_has_field(&self, struct_name: &str, field: &str) -> bool {
+        matches!(
+            self.symbol_table.resolve(struct_name),
+            Some(Symbol {
+                kind: SymbolKind::Struct { fields },
+                ..
+            }) if fields.iter().any(|f| f == field)
+        )
+    }
+
     fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
         let has_field = match self.symbol_table.resolve(struct_name) {
             Some(Symbol {

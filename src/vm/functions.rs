@@ -153,6 +153,14 @@ impl VirtualMachine {
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
                         Err(NativeCallError::Message(error)) => {
+                            if let Some(field_value) = self.field_call_target(arg_count, callable) {
+                                // [receiver, args..., callable] -> [args..., field_value]
+                                let args_start = self.stack.len() - arg_count - 1;
+                                self.stack.remove(args_start);
+                                let top = self.stack.len() - 1;
+                                self.stack[top] = field_value;
+                                return self.dispatch_call(arg_count - 1);
+                            }
                             self.runtime_error(&error);
                             return Some(Result::RuntimeError);
                         }
@@ -267,6 +275,29 @@ impl VirtualMachine {
                 MethodDispatch::Found(closure, arg_count - 1, false)
             }
             (false, true) => MethodDispatch::Found(closure, arg_count, true),
+        }
+    }
+
+    /// Falls back to a field lookup for a by-name call `s.f(...)` that
+    /// matched neither a user nor a native method: if the receiver is a
+    /// struct instance with a field named `f`, that field's value becomes
+    /// the callable. Returns `None` for any other receiver, keeping the
+    /// existing "Unknown method" error.
+    fn field_call_target(
+        &self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> Option<Value> {
+        if callable.method_index != u32::MAX {
+            return None;
+        }
+        let args_start = self.stack.len() - arg_count - 1;
+        match &self.stack[args_start] {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Instance(inst) => inst.borrow().fields.get(&callable.method_name).cloned(),
+                _ => None,
+            },
+            _ => None,
         }
     }
 
