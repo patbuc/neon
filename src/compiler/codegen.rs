@@ -188,8 +188,9 @@ impl CodeGenerator {
     fn emit_set_for_variable(&mut self, var: &VariableRef, location: SourceLocation) {
         let op_code = match var.scope {
             VariableScope::Local => OpCode::SetLocal,
-            VariableScope::Global | VariableScope::Builtin => OpCode::SetGlobal,
+            VariableScope::Global => OpCode::SetGlobal,
             VariableScope::Upvalue => OpCode::SetUpvalue,
+            VariableScope::Builtin => unreachable!("Builtins are never assignment targets"),
         };
         self.emit_op_code_variant(op_code, var.index, location);
     }
@@ -302,14 +303,6 @@ impl CodeGenerator {
     }
 
     fn get_variable_index(&mut self, name: &str) -> Option<VariableRef> {
-        if self.is_builtin(name) {
-            let index = self.get_builtin_index(name)?;
-            return Some(VariableRef {
-                index: index as u32,
-                scope: VariableScope::Builtin,
-            });
-        }
-
         // Search in chunk stack from innermost to outermost
         let current_chunk_idx = self.chunks.len() - 1;
 
@@ -322,25 +315,30 @@ impl CodeGenerator {
             });
         }
 
-        if current_chunk_idx == 0 {
-            return None;
+        if current_chunk_idx != 0 {
+            // Next, an enclosing function's local (captured as an upvalue,
+            // possibly chained through several levels of nesting).
+            if let Some(upvalue_index) = self.resolve_upvalue(current_chunk_idx, name) {
+                return Some(VariableRef {
+                    index: upvalue_index,
+                    scope: VariableScope::Upvalue,
+                });
+            }
+
+            // The script chunk's locals stay reachable from any nesting depth.
+            let (index, _) = self.chunks[0].get_local_index(name);
+            if let Some(index) = index {
+                return Some(VariableRef {
+                    index,
+                    scope: VariableScope::Global,
+                });
+            }
         }
 
-        // Next, an enclosing function's local (captured as an upvalue,
-        // possibly chained through several levels of nesting).
-        if let Some(upvalue_index) = self.resolve_upvalue(current_chunk_idx, name) {
+        if let Some(index) = self.get_builtin_index(name) {
             return Some(VariableRef {
-                index: upvalue_index,
-                scope: VariableScope::Upvalue,
-            });
-        }
-
-        // The script chunk's locals stay reachable from any nesting depth.
-        let (index, _) = self.chunks[0].get_local_index(name);
-        if let Some(index) = index {
-            return Some(VariableRef {
-                index,
-                scope: VariableScope::Global,
+                index: index as u32,
+                scope: VariableScope::Builtin,
             });
         }
 
@@ -1442,10 +1440,6 @@ impl CodeGenerator {
                 self.generate_closure("anonymous", params, body, *location);
             }
         }
-    }
-
-    fn is_builtin(&self, name: &str) -> bool {
-        self.builtin.keys().any(|k| k == name)
     }
 
     fn get_builtin_index(&self, name: &str) -> Option<usize> {
