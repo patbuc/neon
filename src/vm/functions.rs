@@ -129,12 +129,12 @@ impl VirtualMachine {
         }
     }
 
-    /// Dispatches a call: the stack must already hold `[args..., callable]`
-    /// with the callable on top. Shared by the CALL opcode and by
-    /// `call_value`'s re-entrant native-to-Neon calls.
+    /// Dispatches a call: the stack must already hold `[callable, args...]`.
+    /// Shared by the CALL opcode and by `call_value`'s re-entrant
+    /// native-to-Neon calls.
     fn dispatch_call(&mut self, arg_count: usize) -> Option<Result> {
         // Get the callable from the stack
-        let callable_value = self.peek(0);
+        let callable_value = self.peek(arg_count);
 
         let result = match &callable_value {
             Value::Object(obj) => match obj.as_ref() {
@@ -154,11 +154,10 @@ impl VirtualMachine {
                         Ok(value) => value,
                         Err(NativeCallError::Message(error)) => {
                             if let Some(field_value) = self.field_call_target(arg_count, callable) {
-                                // [receiver, args..., callable] -> [args..., field_value]
-                                let args_start = self.stack.len() - arg_count - 1;
-                                self.stack.remove(args_start);
-                                let top = self.stack.len() - 1;
-                                self.stack[top] = field_value;
+                                // [callable, receiver, args...] -> [field_value, args...]
+                                let callable_index = self.stack.len() - arg_count - 1;
+                                self.stack.remove(callable_index + 1);
+                                self.stack[callable_index] = field_value;
                                 return self.dispatch_call(arg_count - 1);
                             }
                             match self.builtin_user_method_call(arg_count, callable) {
@@ -217,10 +216,10 @@ impl VirtualMachine {
         let frame_depth = self.call_frames.len();
         self.native_call_depth += 1;
 
+        self.push(callee);
         for arg in args {
             self.push(arg.clone());
         }
-        self.push(callee);
 
         let outcome = match self.dispatch_call(args.len()) {
             Some(result) => result,
@@ -246,7 +245,7 @@ impl VirtualMachine {
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
     ) -> MethodDispatch {
-        let args_start = self.stack.len() - arg_count - 1;
+        let args_start = self.stack.len() - arg_count;
         let receiver = &self.stack[args_start];
         let (struct_name, is_static_call) = match receiver {
             Value::Object(obj) => match obj.as_ref() {
@@ -267,7 +266,10 @@ impl VirtualMachine {
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
     ) -> MethodDispatch {
-        let args_start = self.stack.len() - arg_count - 1;
+        if callable.method_index != u32::MAX {
+            return MethodDispatch::NotFound;
+        }
+        let args_start = self.stack.len() - arg_count;
         let receiver = &self.stack[args_start];
         let Some(TypeName::Static(type_name)) = self.get_type_name(receiver) else {
             return MethodDispatch::NotFound;
@@ -311,7 +313,7 @@ impl VirtualMachine {
                 MethodDispatch::Mismatch
             }
             (true, false) => {
-                let args_start = self.stack.len() - arg_count - 1;
+                let args_start = self.stack.len() - arg_count;
                 self.stack.remove(args_start);
                 MethodDispatch::Found(closure, arg_count - 1, false)
             }
@@ -328,7 +330,7 @@ impl VirtualMachine {
         if callable.method_index != u32::MAX {
             return None;
         }
-        let args_start = self.stack.len() - arg_count - 1;
+        let args_start = self.stack.len() - arg_count;
         match &self.stack[args_start] {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Instance(inst) => inst.borrow().fields.get(&callable.method_name).cloned(),
@@ -352,8 +354,8 @@ impl VirtualMachine {
         let native_callable = native_callable_result.map_err(NativeCallError::Message)?;
 
         let stack_len = self.stack.len();
-        let args_start = stack_len - arg_count - 1;
-        let args_end = stack_len - 1;
+        let args_start = stack_len - arg_count;
+        let args_end = stack_len;
 
         #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
         {
@@ -394,9 +396,8 @@ impl VirtualMachine {
         let mut fields = HashMap::with_capacity(field_count);
         let stack_len = self.stack.len();
 
-        // Unified calling convention: [args..., struct_obj]
-        // Extract arguments, excluding the struct object at the top
-        let stack_slice = &self.stack[stack_len - arg_count - 1..stack_len - 1];
+        // Unified calling convention: [struct_obj, args...]
+        let stack_slice = &self.stack[stack_len - arg_count..stack_len];
         for (field_name, value) in r#struct.fields.iter().zip(stack_slice.iter()) {
             fields.insert(field_name.clone(), value.clone());
         }
@@ -444,12 +445,7 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        // Calculate slot_start for unified calling convention [args..., func]
-        // The function object is still on the stack at this point
-        // Stack layout: [...previous..., arg0, arg1, ..., argN, func_obj]
-        // slot_start should point just BEFORE the first argument
-        // So: slot_start = current_len - arg_count - 1 (for func) - 1 (to go before first arg)
-        let slot_start = self.stack.len() as isize - arg_count as isize - 1 - 1;
+        let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
         let new_frame = CallFrame {
             closure: Rc::clone(closure),
@@ -482,9 +478,7 @@ impl VirtualMachine {
             return Some(Result::Ok);
         }
 
-        // Clear the stack back to slot_start + 1 (where first arg was)
-        // In unified calling convention [args..., func], we want to replace args+func with result
-        self.stack.truncate((slot_start + 1) as usize);
+        self.stack.truncate(slot_start as usize);
         self.push(return_value);
         None
     }
@@ -1589,7 +1583,7 @@ impl VirtualMachine {
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
     ) -> std::result::Result<&'static NativeCallable, String> {
-        let args_start = self.stack.len() - arg_count - 1;
+        let args_start = self.stack.len() - arg_count;
         let receiver = &self.stack[args_start];
 
         let type_name = match self.get_type_name(receiver) {
