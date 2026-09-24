@@ -317,9 +317,8 @@ fn test_file_write_multiline() {
     let mut vm = VirtualMachine::new();
     assert_eq!(Result::Ok, vm.interpret(program));
 
-    // Verify the file content - Neon escapes \n in string literals
     let content = fs::read_to_string(test_path).unwrap();
-    assert_eq!("Line 1\\nLine 2\\nLine 3", content);
+    assert_eq!("Line 1\nLine 2\nLine 3", content);
 
     // Cleanup
     fs::remove_file(test_path).ok();

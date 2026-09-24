@@ -1,0 +1,23 @@
+// Expected:
+// say "hi"
+// a
+// b
+// backslash: \
+// true
+// true
+// ${x}
+// 1
+// value=1
+// end
+
+print("say \"hi\"")
+print("a\nb")
+print("backslash: " + "\\")
+print("\t" == "\u{9}")
+print("\u{1F600}".len() == 1)
+
+var x = 1
+print("\${x}")
+print("${x}")
+
+print("value=${x}\nend")

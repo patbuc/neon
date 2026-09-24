@@ -263,6 +263,18 @@ val y = 10
 print("${x} + ${y} = ${x + y}")  // "5 + 10 = 15"
 ```
 
+### Escape Sequences
+
+String literals support `\n`, `\t`, `\r`, `\\`, `\"`, `\$` and `\u{XXXX}` (1 to 6 hex digits).
+`\$` keeps `${` from starting an interpolation. Any other escape is a compile error.
+
+```neon
+print("say \"hi\"")     // say "hi"
+print("a\nb")           // prints two lines
+print("\u{1F600}")      // 😀
+print("\${name}")       // ${name}
+```
+
 ### Structs
 
 ```neon

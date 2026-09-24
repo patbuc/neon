@@ -504,3 +504,264 @@ fn unterminated_multiline_string_reports_start_line_and_column() {
     assert_eq!(error_token.line, 1);
     assert_eq!(error_token.column, 9);
 }
+
+#[test]
+fn string_escape_newline() {
+    let scanner = Scanner::new("\"a\\nb\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "a\nb");
+}
+
+#[test]
+fn string_escape_tab() {
+    let scanner = Scanner::new("\"a\\tb\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "a\tb");
+}
+
+#[test]
+fn string_escape_carriage_return() {
+    let scanner = Scanner::new("\"a\\rb\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "a\rb");
+}
+
+#[test]
+fn string_escape_backslash() {
+    let scanner = Scanner::new("\"a\\\\b\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "a\\b");
+}
+
+#[test]
+fn string_escape_double_quote() {
+    let scanner = Scanner::new("\"a\\\"b\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "a\"b");
+}
+
+#[test]
+fn string_escape_dollar() {
+    let scanner = Scanner::new("\"cost: \\$5\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "cost: $5");
+}
+
+#[test]
+fn unicode_escape_emoji() {
+    let scanner = Scanner::new("\"\\u{1F600}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "\u{1F600}");
+}
+
+#[test]
+fn unicode_escape_short() {
+    let scanner = Scanner::new("\"\\u{41}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "A");
+}
+
+#[test]
+fn unicode_escape_six_hex_digits() {
+    let scanner = Scanner::new("\"\\u{00004A}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "J");
+}
+
+#[test]
+fn escaped_dollar_brace() {
+    let scanner = Scanner::new("\"\\${x}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::String);
+    assert_eq!(tokens[0].token, "${x}");
+}
+
+#[test]
+fn escaped_backslash_before_placeholder() {
+    let source = "\"\\\\${x}\"";
+    let scanner = Scanner::new(source);
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::InterpolatedString);
+    assert_eq!(tokens[0].token, source);
+}
+
+#[test]
+fn invalid_escape_recovery() {
+    let scanner = Scanner::new("\"a\\qb\" x");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].line, 1);
+    assert_eq!(tokens[0].column, 3);
+    assert_eq!(tokens[0].offset, 2);
+
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+    assert_eq!(tokens[1].token, "x");
+    assert_eq!(tokens[1].column, 8);
+    assert_eq!(tokens[1].offset, 7);
+}
+
+#[test]
+fn invalid_escape_non_ascii_character() {
+    let scanner = Scanner::new("\"a\\\u{1234}b\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 3);
+    assert_eq!(tokens[0].offset, 2);
+}
+
+#[test]
+fn invalid_escape_empty_unicode_braces() {
+    let scanner = Scanner::new("\"\\u{}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn invalid_escape_surrogate_codepoint() {
+    let scanner = Scanner::new("\"\\u{D800}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn invalid_escape_codepoint_too_large() {
+    let scanner = Scanner::new("\"\\u{110000}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn invalid_escape_too_many_hex_digits() {
+    let scanner = Scanner::new("\"\\u{0000041}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn invalid_escape_missing_closing_brace() {
+    let scanner = Scanner::new("\"\\u{41\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn position_after_escape() {
+    let scanner = Scanner::new("\"a\\nb\" y");
+    let tokens = collect_tokens(scanner);
+
+    let y_token = &tokens[1];
+    assert_eq!(y_token.token_type, TokenType::Identifier);
+    assert_eq!(y_token.token, "y");
+    assert_eq!(y_token.line, 1);
+    assert_eq!(y_token.column, 8);
+    assert_eq!(y_token.offset, 7);
+}
+
+#[test]
+fn multiline_string_with_escape() {
+    let scanner = Scanner::new("val a = \"line1\\t\nline2\" x");
+    let tokens = collect_tokens(scanner);
+
+    let string_token = &tokens[3];
+    assert_eq!(string_token.token_type, TokenType::String);
+    assert_eq!(string_token.token, "line1\t\nline2");
+
+    let x_token = &tokens[4];
+    assert_eq!(x_token.token, "x");
+    assert_eq!(x_token.line, 2);
+    assert_eq!(x_token.column, 8);
+    assert_eq!(x_token.offset, 24);
+}
+
+#[test]
+fn invalid_escape_on_second_line() {
+    let scanner = Scanner::new("\"line1\n \\q\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].line, 2);
+    assert_eq!(tokens[0].column, 2);
+}
+
+#[test]
+fn invalid_escape_reports_first_backslash() {
+    let scanner = Scanner::new("\"\\q\\z\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].column, 2);
+    assert_eq!(tokens[0].offset, 1);
+}
+
+#[test]
+fn backslash_before_eof_is_unterminated_string() {
+    let scanner = Scanner::new("\"abc\\");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Unterminated string");
+    assert_eq!(tokens[0].line, 1);
+    assert_eq!(tokens[0].column, 1);
+    assert_eq!(tokens[0].offset, 0);
+}
+
+#[test]
+fn invalid_escape_before_raw_newline() {
+    let scanner = Scanner::new("\"\\\n\" x");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(tokens[0].token, "Invalid escape sequence");
+    assert_eq!(tokens[0].line, 1);
+    assert_eq!(tokens[0].column, 2);
+
+    let x_token = &tokens[1];
+    assert_eq!(x_token.token, "x");
+    assert_eq!(x_token.line, 2);
+}
