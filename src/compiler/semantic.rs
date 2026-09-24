@@ -1300,8 +1300,6 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Check that a field access/set on a receiver of statically known
-    /// struct type refers to one of the struct's declared fields.
     /// True when `struct_name` is a known struct type declaring a field
     /// named `field`.
     fn struct_has_field(&self, struct_name: &str, field: &str) -> bool {
@@ -1314,17 +1312,21 @@ impl SemanticAnalyzer {
         )
     }
 
+    /// Check that a field access/set on a receiver of statically known
+    /// struct type refers to one of the struct's declared fields.
     fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
-        let has_field = match self.symbol_table.resolve(struct_name) {
+        if !matches!(
+            self.symbol_table.resolve(struct_name),
             Some(Symbol {
-                kind: SymbolKind::Struct { fields },
+                kind: SymbolKind::Struct { .. },
                 ..
-            }) => fields.iter().any(|f| f == field),
+            })
+        ) {
             // Not a known struct type - nothing to check.
-            _ => return,
-        };
+            return;
+        }
 
-        if !has_field {
+        if !self.struct_has_field(struct_name, field) {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::Other,

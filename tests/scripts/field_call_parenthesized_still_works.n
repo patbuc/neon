@@ -1,5 +1,4 @@
 // field_call_parenthesized_still_works.n - Guard: (s.f)(2) keeps working
-// This likely already passes today; kept as a regression guard alongside the new s.f(2) form.
 
 // Expected:
 // 3

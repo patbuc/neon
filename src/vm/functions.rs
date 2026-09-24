@@ -278,11 +278,7 @@ impl VirtualMachine {
         }
     }
 
-    /// Falls back to a field lookup for a by-name call `s.f(...)` that
-    /// matched neither a user nor a native method: if the receiver is a
-    /// struct instance with a field named `f`, that field's value becomes
-    /// the callable. Returns `None` for any other receiver, keeping the
-    /// existing "Unknown method" error.
+    /// The instance field named after a by-name call that matched no method, if any.
     fn field_call_target(
         &self,
         arg_count: usize,

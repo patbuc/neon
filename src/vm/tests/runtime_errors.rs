@@ -613,3 +613,22 @@ fn call_field_holding_number_is_not_callable() {
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("not callable"), "{}", errors);
 }
+
+#[test]
+fn call_name_that_is_neither_method_nor_field_is_unknown_method() {
+    let program = r#"
+        struct S { f }
+        fn call_g(s) { return s.g(2) }
+        call_g(S(1))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("Unknown method 'g' for type S"),
+        "{}",
+        errors
+    );
+}

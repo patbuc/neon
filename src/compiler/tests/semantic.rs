@@ -2106,6 +2106,29 @@ print(p.y)
 }
 
 #[test]
+fn test_static_call_on_field_name_is_compile_error() {
+    // Fields only exist on instances, so a static call naming a field is
+    // still an unknown method, even though s.f(...) on an instance is fine.
+    let program = r#"
+struct S {
+    f
+}
+S.f(1)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("has no method named 'f'")));
+}
+
+#[test]
 fn test_field_access_on_untyped_parameter_does_not_false_positive() {
     let program = r#"
 struct Player {
