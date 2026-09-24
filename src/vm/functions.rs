@@ -408,7 +408,7 @@ impl VirtualMachine {
         // Stack layout: [...previous..., arg0, arg1, ..., argN, func_obj]
         // slot_start should point just BEFORE the first argument
         // So: slot_start = current_len - arg_count - 1 (for func) - 1 (to go before first arg)
-        let slot_start = (self.stack.len() - arg_count - 1 - 1) as isize;
+        let slot_start = self.stack.len() as isize - arg_count as isize - 1 - 1;
 
         let new_frame = CallFrame {
             closure: Rc::clone(closure),

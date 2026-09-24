@@ -1,0 +1,7 @@
+// lambda_call_as_first_statement.n - calling a closure as the very first
+// top-level statement, before any global occupies the stack
+
+// Expected:
+// 1
+
+print((fn() { return 1 })())
