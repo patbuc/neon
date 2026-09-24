@@ -1,4 +1,4 @@
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
 
 #[test]
@@ -3102,6 +3102,85 @@ fn test_interpolation_non_ascii_prefix() {
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 14);
+}
+
+#[test]
+fn test_interpolation_decodes_literal_parts() {
+    let mut parser = Parser::new("\"a\\t${x}\\n\"\n");
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::StringInterpolation { parts, .. } => {
+                assert_eq!(parts.len(), 3);
+                assert_eq!(parts[0], InterpolationPart::Literal("a\t".to_string()));
+                match &parts[1] {
+                    InterpolationPart::Expression(expr) => match expr.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                        _ => panic!("Expected Variable expression"),
+                    },
+                    _ => panic!("Expected Expression part"),
+                }
+                assert_eq!(parts[2], InterpolationPart::Literal("\n".to_string()));
+            }
+            _ => panic!("Expected StringInterpolation expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_interpolation_decodes_escaped_dollar_in_literal_part() {
+    let mut parser = Parser::new("\"\\${a} ${b}\"\n");
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::StringInterpolation { parts, .. } => {
+                assert_eq!(parts.len(), 2);
+                assert_eq!(parts[0], InterpolationPart::Literal("${a} ".to_string()));
+                match &parts[1] {
+                    InterpolationPart::Expression(expr) => match expr.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "b"),
+                        _ => panic!("Expected Variable expression"),
+                    },
+                    _ => panic!("Expected Expression part"),
+                }
+            }
+            _ => panic!("Expected StringInterpolation expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_interpolation_error_position_stays_raw_source_after_escape() {
+    let mut parser = Parser::new("print(\"\\n${)}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 12);
+}
+
+#[test]
+fn test_invalid_escape_fails_to_parse() {
+    let mut parser = Parser::new("print(\"\\q\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Invalid escape sequence");
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 8);
 }
 
 // ===== Line Break After Operator Tests =====
