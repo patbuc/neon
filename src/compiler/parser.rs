@@ -868,35 +868,53 @@ impl Parser {
     }
 
     fn string(&self) -> Option<Expr> {
-        let token_value = &self.previous_token.token;
-        let value = token_value[1..token_value.len() - 1].to_string();
+        let value = self.previous_token.token.clone();
         let location = self.current_location();
         Some(Expr::String { value, location })
     }
 
     fn interpolated_string(&mut self) -> Option<Expr> {
         use crate::compiler::ast::InterpolationPart;
+        use crate::compiler::scanner::decode_escape;
 
         let token_value = self.previous_token.token.clone();
         let location = self.current_location();
 
         let content = &token_value[1..token_value.len() - 1];
+        let chars: Vec<char> = content.chars().collect();
 
         let mut parts = Vec::new();
         let mut current_literal = String::new();
-        let mut chars = content.chars().peekable();
 
         // Right after the opening quote.
         let mut line = location.line;
         let mut column = location.column + 1;
         let mut offset = location.offset + 1;
 
-        while let Some(ch) = chars.next() {
+        let mut i = 0;
+        while i < chars.len() {
+            let ch = chars[i];
+
+            if ch == '\\' {
+                // The scanner already validated every escape in this string.
+                let (decoded_char, consumed) = decode_escape(&chars[i + 1..])
+                    .expect("scanner already validated this escape sequence");
+                current_literal.push(decoded_char);
+                Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
+                i += 1;
+                for _ in 0..consumed {
+                    Self::advance_text_position(&mut line, &mut column, &mut offset, chars[i]);
+                    i += 1;
+                }
+                continue;
+            }
+
             Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
 
-            if ch == '$' && chars.peek() == Some(&'{') {
-                chars.next();
+            if ch == '$' && chars.get(i + 1) == Some(&'{') {
+                i += 1;
                 Self::advance_text_position(&mut line, &mut column, &mut offset, '{');
+                i += 1;
 
                 if !current_literal.is_empty() {
                     parts.push(InterpolationPart::Literal(current_literal.clone()));
@@ -908,7 +926,9 @@ impl Parser {
                 let mut expr_str = String::new();
                 let mut brace_depth = 1;
 
-                for ch in chars.by_ref() {
+                while i < chars.len() {
+                    let ch = chars[i];
+                    i += 1;
                     Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
                     if ch == '{' {
                         brace_depth += 1;
@@ -957,6 +977,7 @@ impl Parser {
                 }
             } else {
                 current_literal.push(ch);
+                i += 1;
             }
         }
 

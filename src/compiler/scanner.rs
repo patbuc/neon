@@ -7,6 +7,41 @@ struct InvalidDigit {
     message: &'static str,
 }
 
+/// Decodes the escape sequence starting right after a `\` in a string
+/// literal. `chars` is everything following the backslash. Returns the
+/// decoded character and how many of `chars` it consumed, or `None` if the
+/// escape is invalid.
+pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
+    match *chars.first()? {
+        'n' => Some(('\n', 1)),
+        't' => Some(('\t', 1)),
+        'r' => Some(('\r', 1)),
+        '\\' => Some(('\\', 1)),
+        '"' => Some(('"', 1)),
+        '$' => Some(('$', 1)),
+        'u' => {
+            if chars.get(1) != Some(&'{') {
+                return None;
+            }
+            let mut end = 2;
+            while chars.get(end).is_some_and(|c| *c != '}') {
+                end += 1;
+            }
+            if chars.get(end) != Some(&'}') {
+                return None;
+            }
+            let hex: String = chars[2..end].iter().collect();
+            if hex.is_empty() || hex.len() > 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                return None;
+            }
+            let code_point = u32::from_str_radix(&hex, 16).ok()?;
+            let decoded = char::from_u32(code_point)?;
+            Some((decoded, end + 1))
+        }
+        _ => None,
+    }
+}
+
 impl Scanner {
     #[cfg(test)]
     pub(in crate::compiler) fn new(source: &str) -> Scanner {
@@ -188,12 +223,34 @@ impl Scanner {
     fn make_string(&mut self) -> Token {
         let mut placeholders: Vec<(usize, usize)> = Vec::new();
         let mut placeholder_start = None;
+        let mut decoded = String::new();
+        let mut invalid_escape: Option<(u32, u32, usize)> = None;
+
         loop {
             if self.is_at_end() {
                 return self.make_error_token("Unterminated string");
             }
             if self.peek() == '"' {
                 break;
+            }
+            if self.peek() == '\\' {
+                let backslash_line = self.line;
+                let backslash_column = self.column;
+                let backslash_offset = self.current + self.offset_base;
+                self.advance();
+                match decode_escape(&self.source[self.current..]) {
+                    Some((decoded_char, consumed)) => {
+                        decoded.push(decoded_char);
+                        for _ in 0..consumed {
+                            self.advance();
+                        }
+                    }
+                    None if invalid_escape.is_some() => {}
+                    None => {
+                        invalid_escape = Some((backslash_line, backslash_column, backslash_offset));
+                    }
+                }
+                continue;
             }
             if self.peek() == '$' && self.peek_next() == '{' {
                 placeholder_start = Some(self.current);
@@ -203,16 +260,22 @@ impl Scanner {
                     placeholders.push((start, self.current));
                 }
             }
-            if self.advance() == '\n' {
+            let c = self.advance();
+            decoded.push(c);
+            if c == '\n' {
                 self.line += 1;
                 self.column = 1;
             }
         }
         self.advance();
+
+        if let Some((line, column, offset)) = invalid_escape {
+            return self.make_error_token_at("Invalid escape sequence", line, column, offset);
+        }
         if !placeholders.is_empty() {
             return self.make_token(TokenType::InterpolatedString);
         }
-        self.make_token(TokenType::String)
+        self.make_token_with_text(TokenType::String, decoded)
     }
 
     fn make_identifier(&mut self) -> Token {
@@ -522,14 +585,35 @@ impl Scanner {
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
-        self.previous_token_type = token_type.clone();
         let token_str = String::from_iter(&self.source[self.start..self.current]);
+        self.make_token_with_text(token_type, token_str)
+    }
+
+    fn make_token_with_text(&mut self, token_type: TokenType, text: String) -> Token {
+        self.previous_token_type = token_type.clone();
         Token::new(
             token_type,
-            token_str,
+            text,
             self.start_line,
             self.start_column,
             self.start + self.offset_base,
+        )
+    }
+
+    fn make_error_token_at(
+        &mut self,
+        message: &str,
+        line: u32,
+        column: u32,
+        offset: usize,
+    ) -> Token {
+        self.previous_token_type = TokenType::Error;
+        Token::new(
+            TokenType::Error,
+            String::from(message),
+            line,
+            column,
+            offset,
         )
     }
     fn make_eof_token(&mut self) -> Token {
