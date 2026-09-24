@@ -223,6 +223,7 @@ impl Parser {
             if !parser.consume(TokenType::Colon, "Expect ':' after map key.") {
                 return None;
             }
+            parser.skip_new_lines();
             let value = parser.expression(false)?;
             Some((key, value))
         })

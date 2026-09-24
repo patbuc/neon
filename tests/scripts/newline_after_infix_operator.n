@@ -6,6 +6,7 @@
 // 5
 // a
 // 1
+// 1
 
 val x = 1 +
         2
@@ -27,3 +28,7 @@ print(t)
 val w = 1
 -2
 print(w)
+
+val m = {"a":
+    1}
+print(m.get("a"))

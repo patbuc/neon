@@ -3238,6 +3238,36 @@ fn test_parse_val_initializer_after_newline() {
 }
 
 #[test]
+fn test_parse_map_value_after_newline() {
+    let mut parser = Parser::new("val m = {\"a\":\n1}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Val {
+            name, initializer, ..
+        } => {
+            assert_eq!(name, "m");
+            match initializer {
+                Some(Expr::MapLiteral { entries, .. }) => {
+                    assert_eq!(entries.len(), 1);
+                    match &entries[0] {
+                        (Expr::String { value, .. }, Expr::Number { value: num, .. }) => {
+                            assert_eq!(value, "a");
+                            assert_eq!(*num, 1.0);
+                        }
+                        _ => panic!("Expected String key and Number value"),
+                    }
+                }
+                _ => panic!("Expected MapLiteral expression"),
+            }
+        }
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
 fn test_parse_newline_before_operator_ends_statement() {
     let mut parser = Parser::new("val x = 1\n-2\n");
     let result = parser.parse();
