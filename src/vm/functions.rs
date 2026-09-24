@@ -6,7 +6,7 @@ use crate::common::{
 use crate::common::{ObjClosure, Object, Upvalue};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, number, string};
+use crate::{as_number, as_string, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -37,6 +37,19 @@ impl std::fmt::Display for TypeName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+/// Outcome of looking up a by-name call in the user method table.
+enum MethodDispatch {
+    /// No user method matches; fall through to native dispatch.
+    NotFound,
+    /// The call used the wrong form for the method (static vs. instance); a
+    /// runtime error has already been reported.
+    Mismatch,
+    /// The closure to call, its effective argument count (the receiver
+    /// slot is dropped for a static call), and whether to exclude `self`
+    /// from an arity-mismatch message.
+    Found(Rc<ObjClosure>, usize, bool),
 }
 
 impl VirtualMachine {
@@ -128,6 +141,15 @@ impl VirtualMachine {
                 Object::Closure(closure) => return self.call_closure(arg_count, closure),
                 Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
+                    if callable.method_index == u32::MAX {
+                        match self.dispatch_user_method_call(arg_count, callable) {
+                            MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                                return self.call_closure_with(arg_count, &closure, exclude_self);
+                            }
+                            MethodDispatch::Mismatch => return Some(Result::RuntimeError),
+                            MethodDispatch::NotFound => {}
+                        }
+                    }
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
                         Err(NativeCallError::Message(error)) => {
@@ -193,6 +215,58 @@ impl VirtualMachine {
             Ok(self.pop())
         } else {
             Err(NativeCallError::AlreadyReported)
+        }
+    }
+
+    /// Checks the user method table for a by-name call before the native
+    /// registry. Only a struct instance or a struct value itself can have a
+    /// user method; any other receiver falls straight through to native
+    /// dispatch.
+    fn dispatch_user_method_call(
+        &mut self,
+        arg_count: usize,
+        callable: &Rc<ObjNativeFunction>,
+    ) -> MethodDispatch {
+        let args_start = self.stack.len() - arg_count - 1;
+        let receiver = &self.stack[args_start];
+        let (struct_name, is_static_call) = match receiver {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::Instance(inst) => (inst.borrow().r#struct.name.clone(), false),
+                Object::Struct(r#struct) => (r#struct.name.clone(), true),
+                _ => return MethodDispatch::NotFound,
+            },
+            _ => return MethodDispatch::NotFound,
+        };
+
+        let Some((closure, takes_self)) = self
+            .methods
+            .get(&struct_name)
+            .and_then(|methods| methods.get(&callable.method_name))
+            .cloned()
+        else {
+            return MethodDispatch::NotFound;
+        };
+
+        match (is_static_call, takes_self) {
+            (true, true) => {
+                self.runtime_error(&format!(
+                    "Method '{}' needs an instance; call it on a {} value",
+                    callable.method_name, struct_name
+                ));
+                MethodDispatch::Mismatch
+            }
+            (false, false) => {
+                self.runtime_error(&format!(
+                    "Method '{}' is static; call it as {}.{}()",
+                    callable.method_name, struct_name, callable.method_name
+                ));
+                MethodDispatch::Mismatch
+            }
+            (true, false) => {
+                self.stack.remove(args_start);
+                MethodDispatch::Found(closure, arg_count - 1, false)
+            }
+            (false, true) => MethodDispatch::Found(closure, arg_count, true),
         }
     }
 
@@ -277,11 +351,27 @@ impl VirtualMachine {
     }
 
     fn call_closure(&mut self, arg_count: usize, closure: &Rc<ObjClosure>) -> Option<Result> {
+        self.call_closure_with(arg_count, closure, false)
+    }
+
+    /// Calls a closure; `exclude_self` leaves the leading `self` argument
+    /// out of an arity-mismatch message.
+    fn call_closure_with(
+        &mut self,
+        arg_count: usize,
+        closure: &Rc<ObjClosure>,
+        exclude_self: bool,
+    ) -> Option<Result> {
         let func = &closure.function;
         if arg_count != func.arity as usize {
+            let (expected, got) = if exclude_self {
+                (func.arity - 1, arg_count - 1)
+            } else {
+                (func.arity, arg_count)
+            };
             self.runtime_error(&format!(
-                "Expected {} arguments but got {}.",
-                func.arity, arg_count
+                "Expected {} arguments but got {} for '{}'.",
+                expected, got, func.name
             ));
             return Some(Result::RuntimeError);
         }
@@ -1398,6 +1488,9 @@ impl VirtualMachine {
                 Object::Instance(inst) => {
                     Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct)))
                 }
+                // The struct value itself (e.g. `Point` in `Point.origin()`)
+                // dispatches static methods under the struct's own name.
+                Object::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
                 _ => None,
             },
             Value::Number(_) => Some(TypeName::Static("Number")),
@@ -1446,5 +1539,37 @@ impl VirtualMachine {
             )),
             Some(callable) => Ok(callable),
         }
+    }
+
+    /// DefineMethod: pops the closure left on top of the stack by a
+    /// preceding Closure op and registers it under (type name, method name),
+    /// along with whether the method takes `self`.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_define_method(&mut self) {
+        let frame = self.current_frame_mut();
+        let type_name = {
+            let index = frame.closure.function.chunk.read_u32(frame.ip + 1) as usize;
+            frame.closure.function.chunk.read_string(index)
+        };
+        let method_name = {
+            let index = frame.closure.function.chunk.read_u32(frame.ip + 5) as usize;
+            frame.closure.function.chunk.read_string(index)
+        };
+        let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 9) != 0;
+        frame.ip += 9;
+
+        let closure_value = self.pop();
+        let type_name = as_string!(type_name).value.to_string();
+        let method_name = as_string!(method_name).value.to_string();
+        let Value::Object(obj) = &closure_value else {
+            unreachable!("DefineMethod expects a closure on top of the stack")
+        };
+        let Object::Closure(closure) = obj.as_ref() else {
+            unreachable!("DefineMethod expects a closure on top of the stack")
+        };
+        self.methods
+            .entry(type_name)
+            .or_default()
+            .insert(method_name, (Rc::clone(closure), takes_self));
     }
 }

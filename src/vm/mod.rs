@@ -1,5 +1,6 @@
-use crate::common::{CallFrame, Chunk, Upvalue, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -42,6 +43,9 @@ pub struct VirtualMachine {
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
+    /// User-defined methods from `impl` blocks, keyed by type name then
+    /// method name, alongside whether the method takes `self`.
+    methods: HashMap<String, HashMap<String, (Rc<ObjClosure>, bool)>>,
 }
 
 // Test-only methods

@@ -1,0 +1,18 @@
+// impl_static_method_with_args.n - Static method call with arguments drops
+// the receiver slot correctly
+
+// Expected:
+// 2
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn make(x, y) {
+        return Point(x, y)
+    }
+}
+
+print(Point.make(1, 2).y)

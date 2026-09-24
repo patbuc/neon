@@ -108,7 +108,25 @@ impl Chunk {
             OpCode::SetUpvalue2 => self.variable_instruction(OpCode::SetUpvalue2, offset),
             OpCode::SetUpvalue4 => self.variable_instruction(OpCode::SetUpvalue4, offset),
             OpCode::CloseUpvalue => self.simple_instruction(OpCode::CloseUpvalue, offset),
+            OpCode::DefineMethod => self.define_method_instruction(offset),
         }
+    }
+
+    fn define_method_instruction(&self, offset: usize) -> usize {
+        let type_index = self.read_u32(offset + 1) as usize;
+        let method_index = self.read_u32(offset + 5) as usize;
+        let takes_self = self.read_u8(offset + 9) != 0;
+        let type_name = self.read_string(type_index);
+        let method_name = self.read_string(method_index);
+        let kind = if takes_self { "instance" } else { "static" };
+        println!(
+            "{:?} {}.{} ({})",
+            OpCode::DefineMethod,
+            type_name,
+            method_name,
+            kind
+        );
+        offset + 10
     }
 
     fn simple_instruction(&self, op_code: OpCode, offset: usize) -> usize {

@@ -1,0 +1,19 @@
+// impl_mutates_self_field.n - Method assigns a field through self
+
+// Expected:
+// 13
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn translate(self, dx) {
+        self.x = self.x + dx
+    }
+}
+
+val p = Point(10, 3)
+p.translate(3)
+print(p.x)

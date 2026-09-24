@@ -30,6 +30,7 @@ impl VirtualMachine {
             iterator_stack: Vec::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
+            methods: std::collections::HashMap::new(),
         }
     }
 
@@ -416,6 +417,7 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::CloseUpvalue => self.fn_close_upvalue(),
+                OpCode::DefineMethod => self.fn_define_method(),
             }
             self.current_frame_mut().ip += 1;
         }
@@ -510,5 +512,6 @@ impl VirtualMachine {
         self.iterator_stack.clear();
         self.open_upvalues.clear();
         self.native_call_depth = 0;
+        self.methods.clear();
     }
 }

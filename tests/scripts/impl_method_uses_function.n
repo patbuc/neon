@@ -1,0 +1,25 @@
+// impl_method_uses_function.n - A method calls a top-level fn and constructs a struct
+
+// Expected:
+// 5
+
+struct Point {
+    x
+    y
+}
+
+fn hypot(x, y) {
+    return Math.sqrt(x * x + y * y)
+}
+
+impl Point {
+    fn len(self) {
+        return hypot(self.x, self.y)
+    }
+
+    fn scaled(self, factor) {
+        return Point(self.x * factor, self.y * factor)
+    }
+}
+
+print(Point(3, 4).scaled(1).len())

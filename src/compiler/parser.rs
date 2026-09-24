@@ -289,6 +289,7 @@ impl Parser {
             match self.current_token.token_type {
                 TokenType::Fn
                 | TokenType::Struct
+                | TokenType::Impl
                 | TokenType::Val
                 | TokenType::Var
                 | TokenType::For
@@ -312,6 +313,8 @@ impl Parser {
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
             self.struct_declaration()
+        } else if self.match_token(TokenType::Impl) {
+            self.impl_declaration()
         } else {
             self.statement()
         }
@@ -429,6 +432,44 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            location,
+        })
+    }
+
+    fn impl_declaration(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expect type name.") {
+            return None;
+        }
+        let type_name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftBrace, "Expect '{' after type name.") {
+            return None;
+        }
+
+        let mut methods = Vec::new();
+        self.skip_new_lines();
+
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            if !self.consume(TokenType::Fn, "Expect method declaration.") {
+                while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+                    self.advance();
+                }
+                break;
+            }
+            let method = self.fn_declaration()?;
+            methods.push(method);
+            self.skip_new_lines();
+        }
+
+        if !self.consume(TokenType::RightBrace, "Expect '}' after impl body.") {
+            return None;
+        }
+        self.consume_statement_end("Expecting '\\n' or '\\0' after impl declaration.");
+
+        Some(Stmt::Impl {
+            type_name,
+            methods,
             location,
         })
     }

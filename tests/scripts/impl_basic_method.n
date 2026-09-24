@@ -1,0 +1,17 @@
+// impl_basic_method.n - Struct method defined in an impl block
+
+// Expected:
+// 5
+
+struct Point {
+    x
+    y
+}
+
+impl Point {
+    fn len(self) {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+}
+
+print(Point(3, 4).len())

@@ -409,9 +409,17 @@ fn can_scan_fn_keyword() {
 }
 
 #[test]
+fn can_scan_impl_keyword() {
+    let scanner = Scanner::new("impl");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::Impl);
+}
+
+#[test]
 fn identifiers_with_keyword_prefixes_scan_as_identifiers() {
     for src in [
-        "fname", "iffy", "valid", "variable", "format", "returned", "nilly",
+        "fname", "iffy", "valid", "variable", "format", "returned", "nilly", "implicit",
     ] {
         let scanner = Scanner::new(src);
         let tokens = collect_tokens(scanner);

@@ -1,0 +1,21 @@
+// impl_method_used_before_block.n - Method call from code preceding its impl block
+
+// Expected:
+// 5
+
+struct Point {
+    x
+    y
+}
+
+fn compute(p) {
+    return p.len()
+}
+
+print(compute(Point(3, 4)))
+
+impl Point {
+    fn len(self) {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+}
