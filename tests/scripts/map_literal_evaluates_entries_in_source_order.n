@@ -1,0 +1,17 @@
+// map_literal_evaluates_entries_in_source_order.n - map literal entries must be evaluated key, value, key, value in source order
+
+// Expected:
+// key 1
+// value 10
+// key 2
+// value 20
+// 10
+// 20
+
+fn k(n) { print("key " + n.toString())
+return n }
+fn v(n) { print("value " + (n * 10).toString())
+return n * 10 }
+val m = {k(1): v(1), k(2): v(2)}
+print(m[1])
+print(m[2])
