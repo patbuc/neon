@@ -1,0 +1,15 @@
+// field_call_unknown_receiver_type.n - Calling a function field through a parameter of unknown static type
+
+// Expected:
+// 3
+
+struct S {
+    f
+}
+
+fn callIt(p) {
+    return p.f(2)
+}
+
+val s = S(fn(x) { return x + 1 })
+print(callIt(s))

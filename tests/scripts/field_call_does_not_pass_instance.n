@@ -1,0 +1,15 @@
+// field_call_does_not_pass_instance.n - The function in the field does not receive the instance implicitly
+
+// Expected:
+// 3
+// 7
+
+struct S {
+    f
+}
+
+val sum = S(fn(a, b) { return a + b })
+print(sum.f(1, 2))
+
+val constant = S(fn() { return 7 })
+print(constant.f())

@@ -598,3 +598,18 @@ fn method_named_this_is_static_on_untyped_receiver_halts_at_runtime() {
     assert!(errors.contains("len"), "{}", errors);
     assert!(errors.contains("static"), "{}", errors);
 }
+
+#[test]
+fn call_field_holding_number_is_not_callable() {
+    let program = r#"
+        struct S { f }
+        fn call_f(s) { return s.f(2) }
+        call_f(S(1))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("not callable"), "{}", errors);
+}

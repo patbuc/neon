@@ -1,0 +1,11 @@
+// field_call_basic.n - Calling a function stored in a struct field, receiver type known statically
+
+// Expected:
+// 3
+
+struct S {
+    f
+}
+
+val s = S(fn(x) { return x + 1 })
+print(s.f(2))
