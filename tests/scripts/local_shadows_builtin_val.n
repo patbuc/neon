@@ -1,0 +1,8 @@
+// Expected:
+// 3
+
+fn f() {
+    val args = [1, 2, 3]
+    return args.size()
+}
+print(f())

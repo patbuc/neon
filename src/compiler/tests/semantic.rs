@@ -2860,3 +2860,35 @@ val x = Array.second([1, 2])
         .message
         .contains("Static methods are only supported on structs")));
 }
+
+#[test]
+fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
+    let program = "val args = 5\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+}
+
+#[test]
+fn test_assign_to_builtin_at_top_level() {
+    let program = "args = 5\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment));
+}

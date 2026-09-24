@@ -1,0 +1,14 @@
+// Expected:
+// 5
+// 5
+
+fn outer() {
+    var args = 1
+    fn inner() {
+        args = 5
+    }
+    inner()
+    return args
+}
+print(outer())
+print(outer())

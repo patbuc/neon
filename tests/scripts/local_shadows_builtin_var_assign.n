@@ -1,0 +1,11 @@
+// Expected:
+// 2
+// 2
+
+fn f() {
+    var args = 1
+    args = 2
+    return args
+}
+print(f())
+print(f())
