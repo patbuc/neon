@@ -142,7 +142,7 @@ fn test_array_sort() {
 }
 
 #[test]
-fn test_array_sort_mixed_types_keeps_heap_bucket_order() {
+fn test_array_sort_mixed_types() {
     let program = r#"
         val a = [nil, [1], true]
         a.sort()

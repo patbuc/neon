@@ -286,3 +286,16 @@ fn test_set_uniqueness() {
 fn value_is_16_bytes() {
     assert_eq!(std::mem::size_of::<Value>(), 16);
 }
+
+#[test]
+fn value_debug_is_tagged() {
+    assert_eq!(format!("{:?}", Value::Number(1.0)), "Number(1.0)");
+    assert_eq!(
+        format!("{:?}", Value::String(Rc::new("x".to_string()))),
+        "String(\"x\")"
+    );
+    assert_eq!(format!("{:?}", Value::Nil), "Nil");
+
+    let arr = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
+    assert_eq!(format!("{:?}", arr), format!("{}", arr));
+}
