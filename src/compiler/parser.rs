@@ -356,10 +356,7 @@ impl Parser {
         let location = self.current_location();
 
         let initializer = if self.match_token(TokenType::Equal) {
-            if !self.skip_new_lines_before_expression() {
-                return None;
-            }
-            Some(self.expression(false)?)
+            Some(self.operand(Precedence::Assignment)?)
         } else {
             None
         };
@@ -770,59 +767,47 @@ impl Parser {
         self.parse_precedence(Precedence::Assignment, skip_new_lines)
     }
 
-    /// Whether the current token can start a primary expression.
-    fn can_start_expression(&self) -> bool {
+    /// Whether the current token can only start a new statement, never
+    /// continue the expression in progress.
+    fn is_statement_boundary(&self) -> bool {
         matches!(
             self.current_token.token_type,
-            TokenType::Number
-                | TokenType::String
-                | TokenType::InterpolatedString
-                | TokenType::True
-                | TokenType::False
-                | TokenType::Nil
-                | TokenType::LeftParen
-                | TokenType::Minus
-                | TokenType::Bang
-                | TokenType::Tilde
-                | TokenType::Identifier
-                | TokenType::LeftBrace
-                | TokenType::HashLeftBrace
-                | TokenType::LeftBracket
-                | TokenType::Fn
+            TokenType::Eof
+                | TokenType::RightBrace
+                | TokenType::Val
+                | TokenType::Var
+                | TokenType::Struct
+                | TokenType::Impl
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Return
         )
     }
 
-    /// Skips newlines before an expression that's allowed to continue onto
-    /// the next line. If nothing valid follows, reports "Expect expression"
-    /// at the token that expected a value (not wherever the skip landed)
-    /// and leaves that token unconsumed, so it isn't swallowed as if it
-    /// were part of the failed expression.
-    fn skip_new_lines_before_expression(&mut self) -> bool {
-        let location_before_skip = self.current_location();
+    /// Parses the operand of an operator (`=`, a binary operator, a range
+    /// bound, a ternary branch) that's allowed to continue onto the next
+    /// line. If skipping newlines lands on a statement boundary, reports
+    /// "Expect expression" at the operator instead of at the boundary, so
+    /// the error doesn't look like it belongs to the following statement.
+    fn operand(&mut self, precedence: Precedence) -> Option<Expr> {
+        let operator_location = self.current_location();
         let had_newline = self.check(TokenType::NewLine);
         self.skip_new_lines();
-        if !self.can_start_expression() {
-            let location = if had_newline {
-                location_before_skip
-            } else {
-                self.current_token_location()
-            };
-            self.report_error(location, "Expect expression".to_string());
-            return false;
+        if had_newline && self.is_statement_boundary() {
+            self.report_error(operator_location, "Expect expression".to_string());
+            return None;
         }
-        true
+        self.parse_precedence(precedence, false)
     }
 
     fn parse_precedence(&mut self, precedence: Precedence, skip_new_lines: bool) -> Option<Expr> {
         if skip_new_lines {
-            if !self.skip_new_lines_before_expression() {
-                return None;
-            }
-        } else if !self.can_start_expression() {
-            self.report_error(
-                self.current_token_location(),
-                "Expect expression".to_string(),
-            );
+            self.skip_new_lines();
+        }
+
+        if self.is_statement_boundary() {
+            self.report_error_at_current("Expect expression".to_string());
             return None;
         }
 
@@ -842,7 +827,10 @@ impl Parser {
             TokenType::HashLeftBrace => self.set_literal(),
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
-            _ => unreachable!("can_start_expression already checked the current token"),
+            _ => {
+                self.report_error_at_previous("Expect expression".to_string());
+                return None;
+            }
         }?;
 
         while precedence <= self.get_precedence(&self.current_token.token_type) {
@@ -1120,10 +1108,7 @@ impl Parser {
         let location = self.current_location();
 
         if can_assign && self.match_token(TokenType::Equal) {
-            if !self.skip_new_lines_before_expression() {
-                return None;
-            }
-            let value = Box::new(self.expression(false)?);
+            let value = Box::new(self.operand(Precedence::Assignment)?);
             Some(Expr::Assign {
                 name,
                 value,
@@ -1152,10 +1137,7 @@ impl Parser {
         } else {
             self.get_precedence(&operator_type).next()
         };
-        if !self.skip_new_lines_before_expression() {
-            return None;
-        }
-        let right = Box::new(self.parse_precedence(precedence, false)?);
+        let right = Box::new(self.operand(precedence)?);
 
         let operator = match operator_type {
             TokenType::Plus => BinaryOp::Add,
@@ -1214,10 +1196,7 @@ impl Parser {
 
         let inclusive = operator_type == TokenType::DotDotEqual;
         let precedence = self.get_precedence(&operator_type).next();
-        if !self.skip_new_lines_before_expression() {
-            return None;
-        }
-        let end = Box::new(self.parse_precedence(precedence, false)?);
+        let end = Box::new(self.operand(precedence)?);
 
         Some(Expr::Range {
             start: Box::new(start),
@@ -1230,10 +1209,7 @@ impl Parser {
     fn ternary(&mut self, condition: Expr) -> Option<Expr> {
         let location = self.current_location();
 
-        if !self.skip_new_lines_before_expression() {
-            return None;
-        }
-        let then_expr = Box::new(self.expression(false)?);
+        let then_expr = Box::new(self.operand(Precedence::Assignment)?);
 
         if !self.consume(
             TokenType::Colon,
@@ -1242,10 +1218,7 @@ impl Parser {
             return None;
         }
 
-        if !self.skip_new_lines_before_expression() {
-            return None;
-        }
-        let else_expr = Box::new(self.expression(false)?);
+        let else_expr = Box::new(self.operand(Precedence::Assignment)?);
 
         Some(Expr::Conditional {
             condition: Box::new(condition),

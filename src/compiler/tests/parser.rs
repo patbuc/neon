@@ -428,6 +428,28 @@ fn test_missing_assignment_value_does_not_swallow_enclosing_brace() {
 }
 
 #[test]
+fn test_if_branch_error_recovers_to_next_statement() {
+    let program = "fn f() {\n    if (true) { val a = ) } else { val b = 2 }\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
+    assert_eq!(errors[0].location.line, 2);
+}
+
+#[test]
+fn test_while_body_reports_both_bad_statements() {
+    let program = "fn f() {\n  while (true) {\n    val x = +\n  }\n  val y = +\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(lines, vec![3, 5]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
@@ -3519,13 +3541,11 @@ fn test_open_call_across_newline_reports_missing_operand() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|e| e.location.line == 2 && e.location.column == 5),
-        "Expected an error at 2:5, got {:?}",
-        errors
-    );
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 1), (2, 5)]);
 }
 
 #[test]
@@ -3535,13 +3555,11 @@ fn test_open_call_argument_across_newline_reports_missing_operand() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|e| e.location.line == 2 && e.location.column == 10),
-        "Expected an error at 2:10, got {:?}",
-        errors
-    );
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 1), (2, 10)]);
 }
 
 #[test]
@@ -3551,13 +3569,11 @@ fn test_open_array_across_newline_reports_missing_operand() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|e| e.location.line == 2 && e.location.column == 5),
-        "Expected an error at 2:5, got {:?}",
-        errors
-    );
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 1), (2, 5)]);
 }
 
 #[test]
@@ -3567,13 +3583,11 @@ fn test_open_set_across_newline_reports_missing_operand() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|e| e.location.line == 2 && e.location.column == 5),
-        "Expected an error at 2:5, got {:?}",
-        errors
-    );
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 1), (2, 5)]);
 }
 
 #[test]
@@ -3582,4 +3596,48 @@ fn test_missing_initializer_before_close_paren_terminates() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
     assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].location.column, 1);
+}
+
+#[test]
+fn test_grouping_missing_operand_after_newline_reports_one_error() {
+    let program = "val x = (1 +\n)\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn test_nested_call_argument_missing_operand_after_newline_reports_one_error() {
+    let program = "print(foo(1,\n  2 +\n))\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn test_array_missing_operand_after_newline_reports_one_error() {
+    let program = "val x = [1,\n  2 *\n]\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn test_ternary_missing_then_branch_after_newline_reports_one_error() {
+    let program = "val x = 1 ?\n: 2\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
 }
