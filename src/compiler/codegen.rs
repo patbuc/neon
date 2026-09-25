@@ -214,28 +214,29 @@ impl<'a> CodeGenerator<'a> {
             .unwrap_or_else(|| panic!("no slot recorded for {:?}", decl))
     }
 
-    /// Pushes a new local bound to `decl` on top of the current function's
-    /// stack, capturing whether it's captured from the resolutions, and
-    /// records its slot. The value it binds must already be on the stack.
-    fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
+    /// Pushes a new local bound to `decl`, capturing whether it's captured
+    /// from the resolutions, and records its slot.
+    fn bind_local(&mut self, decl: DeclId, push: impl FnOnce(&mut FunctionCompiler, Local)) {
         let is_captured = self.resolutions.is_captured(decl);
         let depth = self.current().scope_depth;
         let local = Local::new(depth, is_captured);
-        self.current()
-            .define_local(local, location.line, location.column);
+        push(self.current(), local);
         let slot = (self.current().locals.len() - 1) as u32;
         self.decl_slots.insert(decl, slot);
+    }
+
+    /// Pushes a new local bound to `decl` on top of the current function's
+    /// stack. The value it binds must already be on the stack.
+    fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
+        self.bind_local(decl, |function, local| {
+            function.define_local(local, location.line, location.column)
+        });
     }
 
     /// Registers a function parameter, already on the stack from the call,
     /// as a local bound to `decl`.
     fn bind_param(&mut self, decl: DeclId) {
-        let is_captured = self.resolutions.is_captured(decl);
-        let depth = self.current().scope_depth;
-        let local = Local::new(depth, is_captured);
-        self.current().add_parameter(local);
-        let slot = (self.current().locals.len() - 1) as u32;
-        self.decl_slots.insert(decl, slot);
+        self.bind_local(decl, |function, local| function.add_parameter(local));
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
@@ -387,8 +388,7 @@ impl<'a> CodeGenerator<'a> {
 
         self.generate_closure(id, name, params, body, location);
 
-        // Store the closure into the local defined for the function's name -
-        // either by the top-level pre-pass or just above.
+        // Store the closure into the local defined for the function's name.
         let slot = self.decl_slot(self.resolutions.decl(id));
         self.emit_op_code_variant(OpCode::SetLocal, slot, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
@@ -413,8 +413,8 @@ impl<'a> CodeGenerator<'a> {
         self.current().scope_depth += 1;
 
         // Define parameters as local variables in the function scope
-        let param_decls = self.resolutions.function(id).params.clone();
-        for decl in param_decls {
+        let resolutions = self.resolutions;
+        for &decl in &resolutions.function(id).params {
             self.bind_param(decl);
         }
 
@@ -434,8 +434,7 @@ impl<'a> CodeGenerator<'a> {
         let const_index = self.current_chunk().add_constant(function_value);
         self.emit_op_code_variant(OpCode::Closure, const_index, location);
 
-        let upvalues = self.resolutions.function(id).upvalues.clone();
-        self.emit_upvalue_metadata(&upvalues, location);
+        self.emit_upvalue_metadata(&resolutions.function(id).upvalues, location);
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -626,8 +625,6 @@ impl<'a> CodeGenerator<'a> {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
         // instruction.
-        // The semantic pass rejects a break/continue outside of a loop, so
-        // there's always an enclosing loop context here.
         let depth = self
             .current()
             .loop_contexts
@@ -1178,7 +1175,6 @@ impl<'a> CodeGenerator<'a> {
         operation: OpCode,
         location: SourceLocation,
     ) {
-        // Semantic analysis ensures operand is a Variable
         let Expr::Variable { id, .. } = operand else {
             unreachable!("semantic pass guarantees a postfix operand is a variable")
         };

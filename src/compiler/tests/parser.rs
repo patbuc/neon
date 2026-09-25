@@ -3390,6 +3390,13 @@ fn collect_expr_ids(expr: &Expr, ids: &mut Vec<u32>) {
             ids.push(id.0);
             body.iter().for_each(|stmt| collect_stmt_ids(stmt, ids));
         }
+        Expr::StringInterpolation { parts, .. } => {
+            parts.iter().for_each(|part| {
+                if let crate::compiler::ast::InterpolationPart::Expression(expr) = part {
+                    collect_expr_ids(expr, ids);
+                }
+            });
+        }
         _ => {}
     }
 }
@@ -3405,7 +3412,8 @@ fn test_node_ids_are_unique() {
                   }\n\
                   for (z in [1, 2]) {\n\
                   \ty = foo(z)\n\
-                  }\n";
+                  }\n\
+                  val s = \"${foo(y)}\"\n";
     let mut parser = Parser::new(source);
     let result = parser.parse();
     assert!(result.is_ok());

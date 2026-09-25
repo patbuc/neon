@@ -67,7 +67,6 @@ pub struct SemanticAnalyzer {
     resolutions: Resolutions,
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
-    // Its upvalue chain mirrors codegen's own function stack.
     function_frames: Vec<FunctionResolution>,
 }
 
@@ -1226,8 +1225,6 @@ impl SemanticAnalyzer {
         arguments: &[Expr],
         location: SourceLocation,
     ) {
-        // Resolve the receiver first, then the arguments, to match
-        // codegen's emission order (which determines upvalue indices).
         if let Expr::Variable { name, .. } = object {
             let is_namespace = matches!(
                 self.symbol_table.resolve(name),

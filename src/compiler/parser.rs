@@ -67,24 +67,14 @@ impl Precedence {
 
 impl Parser {
     pub fn new(source: &str) -> Self {
-        Parser::new_at(source, 1, 1, 0)
+        Parser::new_at(source, 1, 1, 0, 0)
     }
 
-    /// Like `new`, but starts counting position at the given line/column/offset.
-    fn new_at(source: &str, line: u32, column: u32, offset: usize) -> Self {
-        Parser::new_at_with_id(source, line, column, offset, 0)
-    }
-
-    /// Like `new_at`, but continues `NodeId` allocation from `next_node_id`
-    /// instead of restarting at 0 - for a sub-parser over an interpolated
-    /// expression, so its node ids don't collide with the enclosing parser's.
-    fn new_at_with_id(
-        source: &str,
-        line: u32,
-        column: u32,
-        offset: usize,
-        next_node_id: u32,
-    ) -> Self {
+    /// Like `new`, but starts counting position at the given line/column/offset,
+    /// and continues `NodeId` allocation from `next_node_id` instead of
+    /// restarting at 0 - for a sub-parser over an interpolated expression, so
+    /// its node ids don't collide with the enclosing parser's.
+    fn new_at(source: &str, line: u32, column: u32, offset: usize, next_node_id: u32) -> Self {
         Parser {
             scanner: Scanner::new_at(source, line, column, offset),
             previous_token: Token::default(),
@@ -970,7 +960,7 @@ impl Parser {
                     return None;
                 }
 
-                let mut expr_parser = Parser::new_at_with_id(
+                let mut expr_parser = Parser::new_at(
                     &expr_str,
                     expr_line,
                     expr_column,
