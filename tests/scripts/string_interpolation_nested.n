@@ -1,0 +1,27 @@
+// Expected:
+// 42
+// 7
+// ab7cd
+// }
+// 1
+// ${x} 7
+
+// Nested indexing inside interpolation
+val m = {"k": 42}
+print("${m["k"]}")
+
+// Nested string interpolation
+val x = 7
+print("${"${x}"}")
+
+// Nested string with literal prefix/suffix and interpolation
+print("a${"b${x}c"}d")
+
+// Closing brace inside a nested string within an interpolation
+print("${"}"}")
+
+// Map literal braces inside interpolation
+print("${{"k": 1}["k"]}")
+
+// Escaped dollar still suppresses interpolation
+print("\${x} ${x}")

@@ -52,7 +52,7 @@ fn can_scan_interpolated_string() {
     let scanner = Scanner::new(script);
     let x: Vec<Token> = collect_tokens(scanner);
 
-    assert_eq!(x.len(), 6);
+    assert_eq!(x.len(), 8);
 
     assert_eq!(x[0].token_type, TokenType::Var);
     assert_eq!(x[0].column, 1);
@@ -65,9 +65,21 @@ fn can_scan_interpolated_string() {
     assert_eq!(x[1].line, 1);
 
     assert_eq!(x[2].token_type, TokenType::Equal);
-    assert_eq!(x[3].token_type, TokenType::InterpolatedString);
-    assert_eq!(x[4].token_type, TokenType::Semicolon);
-    assert_eq!(x[5].token_type, TokenType::Eof);
+
+    assert_eq!(x[3].token_type, TokenType::StringStart);
+    assert_eq!(x[3].column, 9);
+    assert_eq!(x[3].token, "This is an ");
+
+    assert_eq!(x[4].token_type, TokenType::Identifier);
+    assert_eq!(x[4].column, 23);
+    assert_eq!(x[4].token, "interpolated");
+
+    assert_eq!(x[5].token_type, TokenType::StringEnd);
+    assert_eq!(x[5].column, 35);
+    assert_eq!(x[5].token, " string");
+
+    assert_eq!(x[6].token_type, TokenType::Semicolon);
+    assert_eq!(x[7].token_type, TokenType::Eof);
 }
 
 #[test]
@@ -601,8 +613,14 @@ fn escaped_backslash_before_placeholder() {
     let scanner = Scanner::new(source);
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::InterpolatedString);
-    assert_eq!(tokens[0].token, source);
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[0].token, "\\");
+
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+    assert_eq!(tokens[1].token, "x");
+
+    assert_eq!(tokens[2].token_type, TokenType::StringEnd);
+    assert_eq!(tokens[2].token, "");
 }
 
 #[test]
@@ -764,4 +782,78 @@ fn invalid_escape_before_raw_newline() {
     let x_token = &tokens[1];
     assert_eq!(x_token.token, "x");
     assert_eq!(x_token.line, 2);
+}
+
+#[test]
+fn nested_string_inside_interpolation() {
+    let scanner = Scanner::new("\"${\"a\"}\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[0].token, "");
+
+    assert_eq!(tokens[1].token_type, TokenType::String);
+    assert_eq!(tokens[1].token, "a");
+
+    assert_eq!(tokens[2].token_type, TokenType::StringEnd);
+    assert_eq!(tokens[2].token, "");
+
+    assert_eq!(tokens[3].token_type, TokenType::Eof);
+}
+
+#[test]
+fn interpolation_eof_in_nested_quote() {
+    let scanner = Scanner::new("\"${\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[1].token_type, TokenType::Error);
+    assert_eq!(tokens[1].token, "Expect '}' after interpolated expression.");
+    assert_eq!(tokens[1].line, 1);
+    assert_eq!(tokens[1].column, 2);
+    assert_eq!(tokens[1].offset, 1);
+
+    assert_eq!(tokens[2].token_type, TokenType::Eof);
+}
+
+#[test]
+fn unterminated_string_after_closed_interpolation() {
+    let scanner = Scanner::new("\"${a}");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+
+    assert_eq!(tokens[2].token_type, TokenType::Error);
+    assert_eq!(tokens[2].token, "Unterminated string");
+    assert_eq!(tokens[2].line, 1);
+    assert_eq!(tokens[2].column, 1);
+    assert_eq!(tokens[2].offset, 0);
+}
+
+#[test]
+fn interpolation_brace_expression() {
+    let scanner = Scanner::new("\"${ {} }\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[1].token_type, TokenType::LeftBrace);
+    assert_eq!(tokens[2].token_type, TokenType::RightBrace);
+    assert_eq!(tokens[3].token_type, TokenType::StringEnd);
+    assert_eq!(tokens[4].token_type, TokenType::Eof);
+}
+
+#[test]
+fn interpolation_line_comment_hides_closing_brace() {
+    let scanner = Scanner::new("\"${a // c }\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+
+    assert_eq!(tokens[2].token_type, TokenType::Error);
+    assert_eq!(tokens[2].token, "Expect '}' after interpolated expression.");
+    assert_eq!(tokens[2].column, 2);
+
+    assert_eq!(tokens[3].token_type, TokenType::Eof);
 }

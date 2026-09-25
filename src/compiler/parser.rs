@@ -17,9 +17,13 @@ pub struct Parser {
     errors: Vec<CompilationError>,
     panic_mode: bool,
     next_node_id: u32,
-    /// Open `{`/`#{`, `(`, and `[` counts, tracked separately so a stray
-    /// closer of one type can't be mistaken for closing another.
-    nesting_depth: (usize, usize, usize),
+    /// Open `{`/`#{`, `(`, `[` counts, and open `${...}` interpolation
+    /// count, tracked separately so a stray closer of one type can't be
+    /// mistaken for closing another.
+    nesting_depth: (usize, usize, usize, usize),
+    /// Read from the scanner because an Error token can replace a string
+    /// token.
+    pending_interpolation_depth: usize,
     /// Rust call-stack recursion depth, bounded to avoid a stack overflow.
     recursion_depth: usize,
 }
@@ -73,22 +77,15 @@ impl Precedence {
 
 impl Parser {
     pub fn new(source: &str) -> Self {
-        Parser::new_at(source, 1, 1, 0, 0)
-    }
-
-    /// Like `new`, but starts counting position at the given line/column/offset,
-    /// and continues `NodeId` allocation from `next_node_id` instead of
-    /// restarting at 0 - for a sub-parser over an interpolated expression, so
-    /// its node ids don't collide with the enclosing parser's.
-    fn new_at(source: &str, line: u32, column: u32, offset: usize, next_node_id: u32) -> Self {
         Parser {
-            scanner: Scanner::new_at(source, line, column, offset),
+            scanner: Scanner::new(source),
             previous_token: Token::default(),
             current_token: Token::default(),
             errors: Vec::new(),
             panic_mode: false,
-            next_node_id,
-            nesting_depth: (0, 0, 0),
+            next_node_id: 0,
+            nesting_depth: (0, 0, 0, 0),
+            pending_interpolation_depth: 0,
             recursion_depth: 0,
         }
     }
@@ -128,7 +125,8 @@ impl Parser {
 
     fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
-        let (braces, parens, brackets) = &mut self.nesting_depth;
+        self.nesting_depth.3 = self.pending_interpolation_depth;
+        let (braces, parens, brackets, _) = &mut self.nesting_depth;
         match self.previous_token.token_type {
             TokenType::LeftBrace | TokenType::HashLeftBrace => *braces += 1,
             TokenType::RightBrace => *braces = braces.saturating_sub(1),
@@ -145,6 +143,7 @@ impl Parser {
             }
             self.report_error_at_current(self.current_token.token.clone());
         }
+        self.pending_interpolation_depth = self.scanner.interpolation_depth();
     }
 
     fn match_token(&mut self, token_type: TokenType) -> bool {
@@ -336,16 +335,16 @@ impl Parser {
     /// parser's `nesting_depth` against `block_depth` (the block being
     /// recovered, `None` at the top level) to tell a group opened before
     /// the error from the block itself.
-    fn synchronize(&mut self, block_depth: Option<(usize, usize, usize)>) {
+    fn synchronize(&mut self, block_depth: Option<(usize, usize, usize, usize)>) {
         self.panic_mode = false;
         let mut local_depth: u32 = 0;
         loop {
             if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            if let Some(depth @ (block_braces, _, _)) = block_depth {
-                let (braces, _, _) = self.nesting_depth;
-                if braces == block_braces {
+            if let Some(depth @ (block_braces, _, _, block_interp)) = block_depth {
+                let (braces, _, _, interp) = self.nesting_depth;
+                if braces == block_braces && interp == block_interp {
                     if self.current_token.token_type == TokenType::RightBrace {
                         return;
                     }
@@ -371,7 +370,7 @@ impl Parser {
             }
             let at_block_depth = match block_depth {
                 Some(depth) => self.nesting_depth == depth,
-                None => local_depth == 0,
+                None => local_depth == 0 && self.nesting_depth.3 == 0,
             };
             if at_block_depth {
                 if self.previous_token.token_type == TokenType::NewLine {
@@ -902,7 +901,7 @@ impl Parser {
         let mut expr = match self.previous_token.token_type {
             TokenType::Number => self.number(),
             TokenType::String => self.string(),
-            TokenType::InterpolatedString => self.interpolated_string(),
+            TokenType::StringStart => self.interpolated_string(),
             TokenType::True | TokenType::False | TokenType::Nil => self.literal(),
             TokenType::LeftParen => self.grouping(),
             TokenType::Minus | TokenType::Bang | TokenType::Tilde => self.unary(),
@@ -1034,133 +1033,38 @@ impl Parser {
 
     fn interpolated_string(&mut self) -> Option<Expr> {
         use crate::compiler::ast::InterpolationPart;
-        use crate::compiler::scanner::decode_escape;
 
-        let token_value = self.previous_token.token.clone();
         let location = self.current_location();
-
-        let content = &token_value[1..token_value.len() - 1];
-        let chars: Vec<char> = content.chars().collect();
-
         let mut parts = Vec::new();
-        let mut current_literal = String::new();
 
-        // Right after the opening quote.
-        let mut line = location.line;
-        let mut column = location.column + 1;
-        let mut offset = location.offset + 1;
+        let start_text = self.previous_token.token.clone();
+        if !start_text.is_empty() {
+            parts.push(InterpolationPart::Literal(start_text));
+        }
 
-        let mut i = 0;
-        while i < chars.len() {
-            let ch = chars[i];
+        loop {
+            let expr = self.expression(true)?;
+            parts.push(InterpolationPart::Expression(Box::new(expr)));
 
-            if ch == '\\' {
-                let (decoded_char, consumed) = decode_escape(&chars[i + 1..])
-                    .expect("scanner already validated this escape sequence");
-                current_literal.push(decoded_char);
-                Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
-                i += 1;
-                for _ in 0..consumed {
-                    Self::advance_text_position(&mut line, &mut column, &mut offset, chars[i]);
-                    i += 1;
+            if self.match_token(TokenType::StringMiddle) {
+                let text = self.previous_token.token.clone();
+                if !text.is_empty() {
+                    parts.push(InterpolationPart::Literal(text));
                 }
                 continue;
             }
-
-            Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
-
-            if ch == '$' && chars.get(i + 1) == Some(&'{') {
-                i += 1;
-                Self::advance_text_position(&mut line, &mut column, &mut offset, '{');
-                i += 1;
-
-                if !current_literal.is_empty() {
-                    parts.push(InterpolationPart::Literal(current_literal.clone()));
-                    current_literal.clear();
+            if self.match_token(TokenType::StringEnd) {
+                let text = self.previous_token.token.clone();
+                if !text.is_empty() {
+                    parts.push(InterpolationPart::Literal(text));
                 }
-
-                let (expr_line, expr_column, expr_offset) = (line, column, offset);
-
-                let mut expr_str = String::new();
-                let mut brace_depth = 1;
-
-                while i < chars.len() {
-                    let ch = chars[i];
-                    i += 1;
-                    Self::advance_text_position(&mut line, &mut column, &mut offset, ch);
-                    if ch == '{' {
-                        brace_depth += 1;
-                        expr_str.push(ch);
-                    } else if ch == '}' {
-                        brace_depth -= 1;
-                        if brace_depth == 0 {
-                            break;
-                        }
-                        expr_str.push(ch);
-                    } else {
-                        expr_str.push(ch);
-                    }
-                }
-
-                if brace_depth != 0 {
-                    let end_of_string = SourceLocation {
-                        offset,
-                        line,
-                        column,
-                    };
-                    self.report_error(
-                        end_of_string,
-                        "Expect '}' after interpolated expression.".to_string(),
-                    );
-                    return None;
-                }
-
-                let mut expr_parser = Parser::new_at(
-                    &expr_str,
-                    expr_line,
-                    expr_column,
-                    expr_offset,
-                    self.next_node_id,
-                );
-                expr_parser.recursion_depth = self.recursion_depth;
-                expr_parser.advance();
-                let expr = expr_parser.expression(true);
-                let ends_cleanly = expr_parser
-                    .consume(TokenType::Eof, "Expect '}' after interpolated expression.");
-                self.next_node_id = expr_parser.next_node_id;
-
-                match expr {
-                    Some(expr) if ends_cleanly => {
-                        parts.push(InterpolationPart::Expression(Box::new(expr)));
-                    }
-                    _ => {
-                        if let Some(error) = expr_parser.errors.into_iter().next() {
-                            self.record_error(error);
-                        }
-                        return None;
-                    }
-                }
-            } else {
-                current_literal.push(ch);
-                i += 1;
+                break;
             }
-        }
-
-        if !current_literal.is_empty() {
-            parts.push(InterpolationPart::Literal(current_literal));
+            self.report_error_at_current("Expect '}' after interpolated expression.".to_string());
+            return None;
         }
 
         Some(Expr::StringInterpolation { parts, location })
-    }
-
-    fn advance_text_position(line: &mut u32, column: &mut u32, offset: &mut usize, ch: char) {
-        *offset += 1;
-        if ch == '\n' {
-            *line += 1;
-            *column = 1;
-        } else {
-            *column += 1;
-        }
     }
 
     fn literal(&self) -> Option<Expr> {

@@ -45,7 +45,9 @@ pub(crate) enum TokenType {
 
     Identifier,
     String,
-    InterpolatedString,
+    StringStart,
+    StringMiddle,
+    StringEnd,
     Number,
 
     Break,

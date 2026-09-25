@@ -7,8 +7,24 @@ struct InvalidDigit {
     message: &'static str,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Position {
+    line: u32,
+    column: u32,
+    offset: usize,
+}
+
+/// One open `${...}` interpolation. `brace_depth` counts unclosed `{`/`#{`
+/// opened since the `${`, so a nested brace expression's `}` doesn't end it.
+#[derive(Debug)]
+pub(in crate::compiler) struct Interpolation {
+    brace_depth: usize,
+    dollar: Position,
+    quote: Position,
+}
+
 /// `chars` starts right after the `\`; the returned consumed count excludes it.
-pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
+fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
     match *chars.first()? {
         'n' => Some(('\n', 1)),
         't' => Some(('\t', 1)),
@@ -40,29 +56,22 @@ pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)
 }
 
 impl Scanner {
-    #[cfg(test)]
     pub(in crate::compiler) fn new(source: &str) -> Scanner {
-        Scanner::new_at(source, 1, 1, 0)
-    }
-
-    /// Like `new`, but starts counting position at the given line/column/offset.
-    pub(in crate::compiler) fn new_at(
-        source: &str,
-        line: u32,
-        column: u32,
-        offset: usize,
-    ) -> Scanner {
         Scanner {
             source: source.chars().collect(),
             start: 0,
             current: 0,
-            line,
-            column,
-            start_line: line,
-            start_column: column,
+            line: 1,
+            column: 1,
+            start_line: 1,
+            start_column: 1,
             previous_token_type: TokenType::NewLine,
-            offset_base: offset,
+            interpolations: Vec::new(),
         }
+    }
+
+    pub(in crate::compiler) fn interpolation_depth(&self) -> usize {
+        self.interpolations.len()
     }
 
     //noinspection DuplicatedCode
@@ -75,6 +84,9 @@ impl Scanner {
             self.start_column = self.column;
 
             if self.is_at_end() {
+                if !self.interpolations.is_empty() {
+                    return self.make_interpolation_eof_error();
+                }
                 return self.make_eof_token();
             }
             c = self.advance();
@@ -106,8 +118,13 @@ impl Scanner {
         match c {
             '(' => self.make_token(TokenType::LeftParen),
             ')' => self.make_token(TokenType::RightParen),
-            '{' => self.make_token(TokenType::LeftBrace),
-            '}' => self.make_token(TokenType::RightBrace),
+            '{' => {
+                if let Some(frame) = self.interpolations.last_mut() {
+                    frame.brace_depth += 1;
+                }
+                self.make_token(TokenType::LeftBrace)
+            }
+            '}' => self.make_right_brace_or_string_continuation(),
             '[' => self.make_token(TokenType::LeftBracket),
             ']' => self.make_token(TokenType::RightBracket),
             ',' => self.make_token(TokenType::Comma),
@@ -205,6 +222,9 @@ impl Scanner {
             '"' => self.make_string(),
             '#' => {
                 if self.matches('{') {
+                    if let Some(frame) = self.interpolations.last_mut() {
+                        frame.brace_depth += 1;
+                    }
                     self.make_token(TokenType::HashLeftBrace)
                 } else {
                     self.make_error_token("Unexpected character")
@@ -215,22 +235,61 @@ impl Scanner {
     }
 
     fn make_string(&mut self) -> Token {
-        let mut placeholders: Vec<(usize, usize)> = Vec::new();
-        let mut placeholder_start = None;
+        let quote = Position {
+            line: self.start_line,
+            column: self.start_column,
+            offset: self.start,
+        };
+        self.scan_string_segment(true, quote)
+    }
+
+    fn make_right_brace_or_string_continuation(&mut self) -> Token {
+        match self.interpolations.last_mut() {
+            Some(frame) if frame.brace_depth > 0 => {
+                frame.brace_depth -= 1;
+                self.make_token(TokenType::RightBrace)
+            }
+            Some(_) => {
+                let frame = self.interpolations.pop().unwrap();
+                self.scan_string_segment(false, frame.quote)
+            }
+            None => self.make_token(TokenType::RightBrace),
+        }
+    }
+
+    /// `quote` is the position of the segment's enclosing `"`.
+    fn scan_string_segment(&mut self, is_fresh: bool, quote: Position) -> Token {
         let mut decoded = String::new();
         let mut invalid_escape: Option<(u32, u32, usize)> = None;
 
         loop {
             if self.is_at_end() {
-                return self.make_error_token("Unterminated string");
+                if !self.interpolations.is_empty() {
+                    return self.make_interpolation_eof_error();
+                }
+                return self.make_error_token_at(
+                    "Unterminated string",
+                    quote.line,
+                    quote.column,
+                    quote.offset,
+                );
             }
             if self.peek() == '"' {
-                break;
+                self.advance();
+                if let Some(error) = self.invalid_escape_error(invalid_escape) {
+                    return error;
+                }
+                let token_type = if is_fresh {
+                    TokenType::String
+                } else {
+                    TokenType::StringEnd
+                };
+                return self.make_token_with_text(token_type, decoded);
             }
             if self.peek() == '\\' {
                 let backslash_line = self.line;
                 let backslash_column = self.column;
-                let backslash_offset = self.current + self.offset_base;
+                let backslash_offset = self.current;
                 self.advance();
                 match decode_escape(&self.source[self.current..]) {
                     Some((decoded_char, consumed)) => {
@@ -250,12 +309,27 @@ impl Scanner {
                 continue;
             }
             if self.peek() == '$' && self.peek_next() == '{' {
-                placeholder_start = Some(self.current);
-            }
-            if self.peek() == '}' {
-                if let Some(start) = placeholder_start {
-                    placeholders.push((start, self.current));
+                let dollar = Position {
+                    line: self.line,
+                    column: self.column,
+                    offset: self.current,
+                };
+                self.advance(); // '$'
+                self.advance(); // '{'
+                self.interpolations.push(Interpolation {
+                    brace_depth: 0,
+                    dollar,
+                    quote,
+                });
+                if let Some(error) = self.invalid_escape_error(invalid_escape) {
+                    return error;
                 }
+                let token_type = if is_fresh {
+                    TokenType::StringStart
+                } else {
+                    TokenType::StringMiddle
+                };
+                return self.make_token_with_text(token_type, decoded);
             }
             let c = self.advance();
             decoded.push(c);
@@ -264,15 +338,25 @@ impl Scanner {
                 self.column = 1;
             }
         }
-        self.advance();
+    }
 
-        if let Some((line, column, offset)) = invalid_escape {
-            return self.make_error_token_at("Invalid escape sequence", line, column, offset);
-        }
-        if !placeholders.is_empty() {
-            return self.make_token(TokenType::InterpolatedString);
-        }
-        self.make_token_with_text(TokenType::String, decoded)
+    fn invalid_escape_error(&mut self, invalid_escape: Option<(u32, u32, usize)>) -> Option<Token> {
+        let (line, column, offset) = invalid_escape?;
+        Some(self.make_error_token_at("Invalid escape sequence", line, column, offset))
+    }
+
+    /// Reports the innermost open interpolation as unclosed at EOF and
+    /// clears the stack, so scanning resumes in ordinary token mode.
+    fn make_interpolation_eof_error(&mut self) -> Token {
+        let frame = self.interpolations.last().expect("stack checked non-empty");
+        let dollar = frame.dollar;
+        self.interpolations.clear();
+        self.make_error_token_at(
+            "Expect '}' after interpolated expression.",
+            dollar.line,
+            dollar.column,
+            dollar.offset,
+        )
     }
 
     fn make_identifier(&mut self) -> Token {
@@ -571,12 +655,7 @@ impl Scanner {
     }
 
     fn make_error_token(&mut self, message: &str) -> Token {
-        self.make_error_token_at(
-            message,
-            self.start_line,
-            self.start_column,
-            self.start + self.offset_base,
-        )
+        self.make_error_token_at(message, self.start_line, self.start_column, self.start)
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
@@ -591,7 +670,7 @@ impl Scanner {
             text,
             self.start_line,
             self.start_column,
-            self.start + self.offset_base,
+            self.start,
         )
     }
 
@@ -618,7 +697,7 @@ impl Scanner {
             String::new(),
             self.start_line,
             self.start_column,
-            self.start + self.offset_base,
+            self.start,
         )
     }
 }
