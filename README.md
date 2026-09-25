@@ -61,7 +61,7 @@ Neon is a functional dynamically-typed interpreter with a comprehensive feature 
 - Complete lexer, parser, and bytecode compiler
 - Stack-based virtual machine
 - Rich standard library with collection types and methods
-- 80+ integration tests validating all features
+- 177 integration tests validating all features
 - String interpolation and first-class functions
 
 While Neon is functional for many programs, it remains experimental. Expect rough edges, missing features, and occasional crashes as development continues.
@@ -93,6 +93,26 @@ var x = 10        // Mutable variable
 val name = "Bob"  // Immutable variable
 ```
 
+### Statements and Newlines
+
+A newline ends a statement, so two statements can't share a line without one:
+
+```neon
+val x = 1 val y = 2
+// error[E0005]: expecting '\n' or '\0' after value declaration.
+```
+
+An expression continues onto the next line only when the line ends with a
+binary operator. A line that instead begins with an operator starts a new
+statement, so `+ 2` is a syntax error (`+` isn't a valid statement start)
+while `- 2` compiles as its own expression statement (unary negation):
+
+```neon
+val x = 1 +
+    2
+print(x)  // 3
+```
+
 ### Functions
 
 ```neon
@@ -109,6 +129,16 @@ fn fibonacci(n) {
         return n
     }
     return fibonacci(n - 1) + fibonacci(n - 2)
+}
+```
+
+Parameters are immutable inside the function body: assigning to one is a
+compile error, naming the parameter.
+
+```neon
+fn f(x) {
+    x = x + 1  // error[E0015]: cannot assign to immutable variable 'x'
+    return x
 }
 ```
 

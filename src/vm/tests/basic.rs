@@ -1,6 +1,6 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Value};
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
 
@@ -29,7 +29,7 @@ fn can_execute_simple_arithmetics() {
     let mut vm = VirtualMachine::new();
 
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!(3.5, as_number!(vm.pop()));
 }
 
@@ -42,7 +42,7 @@ fn can_print_hello_world() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn can_print_the_answer_to_everything_times_pi() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn can_print_multiple_arguments() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1 2 x", vm.get_output());
 }
 
@@ -80,7 +80,7 @@ fn can_run_multi_line_statements() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn can_define_a_global_value() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello World 🌎", vm.get_output())
 }
 
@@ -106,7 +106,7 @@ fn can_negate_numbers() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("-42", vm.get_output());
 }
 
@@ -118,7 +118,7 @@ fn can_compare_numbers_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -130,7 +130,7 @@ fn can_compare_numbers_not_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -142,7 +142,7 @@ fn can_compare_greater_than() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -154,7 +154,7 @@ fn can_compare_less_than() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -166,7 +166,7 @@ fn can_use_logical_not() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -179,7 +179,7 @@ fn can_handle_nil() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("nil", vm.get_output());
 }
 
@@ -192,7 +192,7 @@ fn can_handle_boolean_true() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -205,7 +205,7 @@ fn can_handle_boolean_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -217,7 +217,7 @@ fn can_handle_string_concatenation() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello World", vm.get_output());
 }
 
@@ -231,7 +231,7 @@ fn can_handle_multiple_global_variables() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -245,7 +245,7 @@ fn can_handle_complex_arithmetic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("75", vm.get_output());
 }
 
@@ -257,7 +257,7 @@ fn can_handle_string_comparison() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -269,7 +269,7 @@ fn can_handle_multiple_boolean_operations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -281,7 +281,7 @@ fn can_handle_division_by_integers() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("5", vm.get_output());
 }
 
@@ -293,7 +293,7 @@ fn can_handle_float_division() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3.3333333333333335", vm.get_output());
 }
 
@@ -306,7 +306,7 @@ fn can_handle_negative_numbers() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -318,7 +318,7 @@ fn can_handle_boolean_arithmetic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -333,7 +333,7 @@ fn can_handle_complex_string_operations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello World!", vm.get_output());
 }
 
@@ -345,7 +345,7 @@ fn can_handle_multiple_negations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -361,7 +361,7 @@ fn can_handle_a_true_if_statement() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("The answer to everything\nThe end", vm.get_output());
 }
 
@@ -377,7 +377,7 @@ fn can_handle_a_false_if_statement() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("The end", vm.get_output());
 }
 
@@ -394,7 +394,7 @@ fn can_handle_a_true_if_else_statement() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("The answer to everything", vm.get_output());
 }
 
@@ -413,7 +413,7 @@ fn can_handle_multiple_if_else_statements() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("The end", vm.get_output());
 }
 
@@ -432,7 +432,7 @@ fn can_handle_multiple_if_else_statements_2() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("The beginning", vm.get_output());
 }
 
@@ -446,7 +446,7 @@ fn can_assign_value_to_variable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("15", vm.get_output());
 }
 
@@ -460,7 +460,7 @@ fn cannot_assign_value_to_value() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0015: Cannot assign to immutable variable 'x' at 3:9",
         vm.get_compiler_error()
@@ -477,7 +477,7 @@ fn cannot_access_undefined_variable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0013: Undefined variable 'z' at 3:13",
         vm.get_compiler_error()
@@ -497,7 +497,7 @@ fn can_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
 }
 
@@ -512,7 +512,7 @@ fn can_call_function() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello from function!", vm.get_output());
 }
 
@@ -528,7 +528,7 @@ fn can_call_function_multiple_times() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello again!\nHello again!", vm.get_output());
 }
 
@@ -552,7 +552,7 @@ fn can_calculate_fibonacci() {
     let result = vm.interpret(program.to_string());
     let elapsed = start.elapsed();
     println!("Fibonacci test (fib 0-30) took: {:?}", elapsed);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("55", vm.get_output());
 }
 
@@ -571,7 +571,7 @@ fn can_handle_nested_function_calls() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello\nWorld", vm.get_output());
 }
 
@@ -583,7 +583,7 @@ fn cannot_call_undefined_function() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0013: Undefined variable 'undefined_function' at 2:9",
         vm.get_compiler_error()
@@ -600,7 +600,7 @@ fn can_handle_function_with_no_body() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Done", vm.get_output());
 }
 
@@ -615,7 +615,7 @@ fn can_use_modulo_operator() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n1\n0\n4", vm.get_output());
 }
 
@@ -634,7 +634,7 @@ fn can_use_struct() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3\n4", vm.get_output());
 }
 
@@ -650,7 +650,7 @@ fn test_logical_and_true_true() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -662,7 +662,7 @@ fn test_logical_and_true_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -674,7 +674,7 @@ fn test_logical_and_false_true() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -686,7 +686,7 @@ fn test_logical_and_false_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -698,7 +698,7 @@ fn test_logical_or_true_true() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -710,7 +710,7 @@ fn test_logical_or_true_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -722,7 +722,7 @@ fn test_logical_or_false_true() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -734,7 +734,7 @@ fn test_logical_or_false_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -746,7 +746,7 @@ fn test_logical_operators_with_comparisons() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -760,7 +760,7 @@ fn test_logical_operators_with_variables() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -774,7 +774,7 @@ fn test_logical_or_with_variables() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -786,7 +786,7 @@ fn test_logical_precedence_or_and() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // Should parse as: false || (true && false)
     // true && false = false
     // false || false = false
@@ -801,7 +801,7 @@ fn test_logical_precedence_and_or() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // Should parse as: (true && false) || true
     // true && false = false
     // false || true = true
@@ -816,7 +816,7 @@ fn test_logical_precedence_with_parens() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // (false || true) = true
     // true && false = false
     assert_eq!("false", vm.get_output());
@@ -834,7 +834,7 @@ fn test_logical_and_short_circuit() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // x should still be 10 because the right side of && should not evaluate
     assert_eq!("10", vm.get_output());
 }
@@ -851,7 +851,7 @@ fn test_logical_or_short_circuit() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // x should still be 10 because the right side of || should not evaluate
     assert_eq!("Should reach here\n10", vm.get_output());
 }
@@ -867,7 +867,7 @@ fn test_logical_complex_expression() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // (true || false) = true
     // true && true = true
     assert_eq!("true", vm.get_output());
@@ -881,7 +881,7 @@ fn test_logical_with_not() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // !false = true
     // true && true = true
     assert_eq!("true", vm.get_output());
@@ -895,7 +895,7 @@ fn test_logical_chained_and() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -907,7 +907,7 @@ fn test_logical_chained_and_with_false() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -919,7 +919,7 @@ fn test_logical_chained_or() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -935,7 +935,7 @@ fn test_logical_in_if_statement() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Both positive", vm.get_output());
 }
 
@@ -954,7 +954,7 @@ fn test_logical_in_while_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3\n0", vm.get_output());
 }
 
@@ -967,7 +967,7 @@ fn test_logical_with_equality() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -983,7 +983,7 @@ fn test_logical_all_operators_combined() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // (true && false) = false
     // !false = true
     // (true && true) = true
@@ -1004,7 +1004,7 @@ fn test_empty_map_creation() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("{}", vm.get_output());
 }
 
@@ -1017,7 +1017,7 @@ fn test_map_creation_with_string_keys() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("{name: Alice, age: 30}", vm.get_output());
 }
 
@@ -1030,7 +1030,7 @@ fn test_map_access_string_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice", vm.get_output());
 }
 
@@ -1043,7 +1043,7 @@ fn test_map_access_missing_key_returns_nil() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("nil", vm.get_output());
 }
 
@@ -1057,7 +1057,7 @@ fn test_map_set_new_value() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("30", vm.get_output());
 }
 
@@ -1071,7 +1071,7 @@ fn test_map_update_existing_value() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Bob", vm.get_output());
 }
 
@@ -1084,7 +1084,7 @@ fn test_map_with_number_keys() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("two", vm.get_output());
 }
 
@@ -1098,7 +1098,7 @@ fn test_map_with_boolean_keys() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("yes\nno", vm.get_output());
 }
 
@@ -1113,7 +1113,7 @@ fn test_map_with_mixed_key_types() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice\nanswer\nyes", vm.get_output());
 }
 
@@ -1128,7 +1128,7 @@ fn test_map_with_mixed_value_types() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42\ntrue\nnil", vm.get_output());
 }
 
@@ -1141,7 +1141,7 @@ fn test_map_nested_in_map() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("{x: 10}", vm.get_output());
 }
 
@@ -1155,7 +1155,7 @@ fn test_map_assignment_returns_value() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -1169,7 +1169,7 @@ fn test_map_in_variable_assignment() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1", vm.get_output());
 }
 
@@ -1182,7 +1182,7 @@ fn test_map_in_expression() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("30", vm.get_output());
 }
 
@@ -1196,7 +1196,7 @@ fn test_map_key_evaluation() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1", vm.get_output());
 }
 
@@ -1210,7 +1210,7 @@ fn test_map_dynamic_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("two", vm.get_output());
 }
 
@@ -1225,7 +1225,7 @@ fn test_map_get_method_existing_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice", vm.get_output());
 }
 
@@ -1238,7 +1238,7 @@ fn test_map_get_method_nonexistent_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("nil", vm.get_output());
 }
 
@@ -1251,7 +1251,7 @@ fn test_map_get_method_number_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("answer", vm.get_output());
 }
 
@@ -1264,7 +1264,7 @@ fn test_map_size_method_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0", vm.get_output());
 }
 
@@ -1277,7 +1277,7 @@ fn test_map_size_method_with_entries() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3", vm.get_output());
 }
 
@@ -1290,7 +1290,7 @@ fn test_map_has_method_existing_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -1303,7 +1303,7 @@ fn test_map_has_method_nonexistent_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -1316,7 +1316,7 @@ fn test_map_has_method_boolean_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -1331,7 +1331,7 @@ fn test_map_remove_method_existing_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice\n1", vm.get_output());
 }
 
@@ -1346,7 +1346,7 @@ fn test_map_remove_method_nonexistent_key() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("nil\n1", vm.get_output());
 }
 
@@ -1360,7 +1360,7 @@ fn test_map_keys_method_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[]", vm.get_output());
 }
 
@@ -1374,7 +1374,7 @@ fn test_map_keys_method_with_entries() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[a, b]", vm.get_output());
 }
 
@@ -1388,7 +1388,7 @@ fn test_map_values_method_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[]", vm.get_output());
 }
 
@@ -1402,7 +1402,7 @@ fn test_map_values_method_with_entries() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 2]", vm.get_output());
 }
 
@@ -1416,7 +1416,7 @@ fn test_map_entries_method_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[]", vm.get_output());
 }
 
@@ -1430,7 +1430,7 @@ fn test_map_entries_method_with_entries() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[[name, Alice], [age, 30]]", vm.get_output());
 }
 
@@ -1447,7 +1447,7 @@ fn test_map_chained_operations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true\n2\n3\n2", vm.get_output());
 }
 
@@ -1461,7 +1461,7 @@ fn test_map_keys_with_different_types() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // Just verify it returns an array
     let output = vm.get_output();
     assert!(output.starts_with('[') && output.ends_with(']'));
@@ -1479,7 +1479,7 @@ fn test_map_method_after_modification() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3\ntrue", vm.get_output());
 }
 
@@ -1494,7 +1494,7 @@ fn test_map_remove_then_size() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("2\nfalse", vm.get_output());
 }
 
@@ -1508,7 +1508,7 @@ fn test_map_get_and_bracket_equivalence() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("value\nvalue", vm.get_output());
 }
 
@@ -1523,7 +1523,7 @@ fn test_map_values_reflect_changes() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     // Verify it's an array with 3 elements
     let output = vm.get_output();
     assert!(output.starts_with('[') && output.ends_with(']'));
@@ -1545,7 +1545,7 @@ fn test_map_with_string_values() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello\nGoodbye\nThank you\n3", vm.get_output());
 }
 
@@ -1567,7 +1567,7 @@ fn test_map_iteration_with_modification() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n11\n12\n13", vm.get_output());
 }
 
@@ -1588,7 +1588,7 @@ fn test_nested_map_access_chain() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice", vm.get_output());
 }
 
@@ -1623,7 +1623,7 @@ fn test_map_with_conditional_logic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice: A\nBob: F\nCharlie: B", vm.get_output());
 }
 
@@ -1640,7 +1640,7 @@ fn test_map_direct_value_access() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("60", vm.get_output());
 }
 
@@ -1667,7 +1667,7 @@ fn test_map_as_function_parameter() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n3", vm.get_output());
 }
 
@@ -1685,7 +1685,7 @@ fn test_map_with_computed_keys() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("100\n200\n2", vm.get_output());
 }
 
@@ -1710,7 +1710,7 @@ fn test_map_update_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n2\n4\n6", vm.get_output());
 }
 
@@ -1731,7 +1731,7 @@ fn test_map_multiple_removes() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("4\n3\n2\nfalse\ntrue\nfalse\ntrue", vm.get_output());
 }
 
@@ -1759,7 +1759,7 @@ fn test_map_with_struct_values() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n0\n1\n1", vm.get_output());
 }
 
@@ -1774,7 +1774,7 @@ fn test_map_boolean_key_expressions() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("yes\nno", vm.get_output());
 }
 
@@ -1796,7 +1796,7 @@ fn test_map_chaining_operations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3\n2\ntrue\nfalse\ntrue", vm.get_output());
 }
 
@@ -1824,7 +1824,7 @@ fn test_map_empty_to_full_lifecycle() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n[]\n1\n3\n2\n0", vm.get_output());
 }
 
@@ -1848,7 +1848,7 @@ fn test_map_in_recursive_function() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n4\n9", vm.get_output());
 }
 
@@ -1865,7 +1865,7 @@ fn test_array_literal_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[]", vm.get_output());
 }
 
@@ -1878,7 +1878,7 @@ fn test_array_literal_single_element() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[42]", vm.get_output());
 }
 
@@ -1891,7 +1891,7 @@ fn test_array_literal_multiple_elements() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
 }
 
@@ -1904,7 +1904,7 @@ fn test_array_literal_mixed_types() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, hello, true, nil]", vm.get_output());
 }
 
@@ -1919,7 +1919,7 @@ fn test_array_indexing_positive() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("10\n20\n30", vm.get_output());
 }
 
@@ -1934,7 +1934,7 @@ fn test_array_indexing_negative() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("30\n20\n10", vm.get_output());
 }
 
@@ -1952,7 +1952,7 @@ fn test_array_index_assignment() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("10\n20\n30", vm.get_output());
 }
 
@@ -1968,7 +1968,7 @@ fn test_array_index_assignment_negative() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("88\n99", vm.get_output());
 }
 
@@ -1982,7 +1982,7 @@ fn test_array_push() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 2, 3, 4]", vm.get_output());
 }
 
@@ -1998,7 +1998,7 @@ fn test_array_push_multiple() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
 }
 
@@ -2013,7 +2013,7 @@ fn test_array_pop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("3\n[1, 2]", vm.get_output());
 }
 
@@ -2027,7 +2027,7 @@ fn test_array_pop_empty() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("nil", vm.get_output());
 }
 
@@ -2044,7 +2044,7 @@ fn test_array_length() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n3", vm.get_output());
 }
 
@@ -2061,7 +2061,7 @@ fn test_array_length_after_push() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("2\n3\n4", vm.get_output());
 }
 
@@ -2078,7 +2078,7 @@ fn test_array_length_after_pop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("4\n3\n2", vm.get_output());
 }
 
@@ -2091,7 +2091,7 @@ fn test_array_nested() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[[1, 2], [3, 4]]", vm.get_output());
 }
 
@@ -2109,7 +2109,7 @@ fn test_array_nested_access() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
 }
 
@@ -2124,7 +2124,7 @@ fn test_array_nested_modification() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[[99, 2], [3, 4]]", vm.get_output());
 }
 
@@ -2140,7 +2140,7 @@ fn test_array_with_variables() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[10, 20, 30]", vm.get_output());
 }
 
@@ -2153,7 +2153,7 @@ fn test_array_with_expressions() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[2, 6, 5]", vm.get_output());
 }
 
@@ -2167,7 +2167,7 @@ fn test_array_in_expression() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("60", vm.get_output());
 }
 
@@ -2181,7 +2181,7 @@ fn test_array_in_variable_assignment() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 2, 3]", vm.get_output());
 }
 
@@ -2196,7 +2196,7 @@ fn test_array_dynamic_index() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("20\n30", vm.get_output());
 }
 
@@ -2211,7 +2211,7 @@ fn test_array_assignment_returns_value() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("99\n[1, 99, 3]", vm.get_output());
 }
 
@@ -2240,7 +2240,7 @@ fn test_array_as_function_parameter() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n99", vm.get_output());
 }
 
@@ -2271,7 +2271,7 @@ fn test_array_with_conditional_logic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("B\nA\nC", vm.get_output());
 }
 
@@ -2288,7 +2288,7 @@ fn test_array_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3", vm.get_output());
 }
 
@@ -2307,7 +2307,7 @@ fn test_array_accumulation() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("15", vm.get_output());
 }
 
@@ -2335,7 +2335,7 @@ fn test_array_push_pop_lifecycle() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n3\n[1, 2, 3]\n2\n[1, 2]\n0\n[]", vm.get_output());
 }
 
@@ -2355,7 +2355,7 @@ fn test_array_with_map_values() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n4", vm.get_output());
 }
 
@@ -2377,7 +2377,7 @@ fn test_map_with_array_values() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n3\nb", vm.get_output());
 }
 
@@ -2395,7 +2395,7 @@ fn test_array_build_with_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[1, 4, 9, 16, 25]", vm.get_output());
 }
 
@@ -2412,7 +2412,7 @@ fn test_array_reverse_with_negative_indices() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("5\n4\n3\n2\n1", vm.get_output());
 }
 
@@ -2435,7 +2435,7 @@ fn test_array_modification_in_function() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[2, 4, 6]", vm.get_output());
 }
 
@@ -2453,7 +2453,7 @@ fn test_array_chained_operations() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("5\n4\n[1, 2, 3, 4]", vm.get_output());
 }
 
@@ -2478,7 +2478,7 @@ fn test_array_with_struct_values() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
 }
 
@@ -2508,7 +2508,7 @@ fn test_array_empty_to_full_lifecycle() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n10\n3\n[10, 99, 30]\n0\n[]", vm.get_output());
 }
 
@@ -2532,7 +2532,7 @@ fn test_array_large_size() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("300\n0\n255\n256\n299", vm.get_output());
 }
 
@@ -2559,7 +2559,7 @@ fn test_array_literal_large_size() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("300\n0\n255\n256\n299", vm.get_output());
 }
 
@@ -2583,7 +2583,7 @@ fn test_break_in_while_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n2\n3\n4\nDone", vm.get_output());
 }
 
@@ -2603,7 +2603,7 @@ fn test_continue_in_while_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n4\n5\nDone", vm.get_output());
 }
 
@@ -2624,7 +2624,7 @@ fn test_continue_in_two_statement_while_body_targets_condition() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0", vm.get_output());
 }
 
@@ -2642,7 +2642,7 @@ fn test_break_in_for_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n2\n3\n4\nDone", vm.get_output());
 }
 
@@ -2660,7 +2660,7 @@ fn test_continue_in_for_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n3\n4\nDone", vm.get_output());
 }
 
@@ -2679,7 +2679,7 @@ fn test_break_in_for_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\nDone", vm.get_output());
 }
 
@@ -2698,7 +2698,7 @@ fn test_continue_in_for_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n4\n5\nDone", vm.get_output());
 }
 
@@ -2722,7 +2722,7 @@ fn test_nested_loops_with_break() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!(
         "i=0 j=0\ni=0 j=1\ni=1 j=0\ni=1 j=1\ni=2 j=0\ni=2 j=1\nDone",
         vm.get_output()
@@ -2749,7 +2749,7 @@ fn test_nested_loops_with_continue() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("i=1 j=0\ni=1 j=1\ni=3 j=0\ni=3 j=1\nDone", vm.get_output());
 }
 
@@ -2769,7 +2769,7 @@ fn test_break_with_accumulator() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("15", vm.get_output());
 }
 
@@ -2789,7 +2789,7 @@ fn test_continue_with_accumulator() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("12", vm.get_output());
 }
 
@@ -2806,7 +2806,7 @@ fn test_break_immediately() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0", vm.get_output());
 }
 
@@ -2829,7 +2829,7 @@ fn test_multiple_breaks_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n2\nDone", vm.get_output());
 }
 
@@ -2852,7 +2852,7 @@ fn test_multiple_continues_in_loop() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n3\n5\n6\nDone", vm.get_output());
 }
 
@@ -2870,7 +2870,7 @@ fn test_loop_body_local_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -2903,7 +2903,7 @@ fn test_for_in_break_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -2924,7 +2924,7 @@ fn test_for_in_continue_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -2945,7 +2945,7 @@ fn test_c_style_for_continue_with_block_local_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -2966,7 +2966,7 @@ fn test_c_style_for_closure_capture_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -3005,7 +3005,7 @@ fn test_while_break_from_block_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -3034,7 +3034,7 @@ fn test_while_continue_from_block_does_not_grow_stack() {
 
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
-        assert_eq!(Result::Ok, result);
+        assert_eq!(InterpretResult::Ok, result);
         vm.stack.len()
     }
 
@@ -3051,7 +3051,7 @@ fn test_reset_recovers_for_in_after_runtime_error() {
         }
         "#;
     let result = vm.interpret(program_with_error.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 
     let result = vm.interpret(
         r#"
@@ -3061,7 +3061,7 @@ fn test_reset_recovers_for_in_after_runtime_error() {
         "#
         .to_string(),
     );
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3", vm.get_output());
 }
 
@@ -3075,7 +3075,7 @@ fn debug_simple_param() {
     "#;
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42", vm.get_output());
 }
 
@@ -3093,7 +3093,7 @@ fn can_print_self_referencing_map() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("{self: {...}}", vm.get_output());
 }
 
@@ -3107,7 +3107,7 @@ fn can_print_value_shared_but_not_cyclic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("[[1], [1]]", vm.get_output());
 }
 
@@ -3121,7 +3121,7 @@ fn self_referencing_array_equals_itself() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3135,7 +3135,7 @@ fn self_referencing_array_contains_itself() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3151,7 +3151,7 @@ fn structurally_cyclic_distinct_arrays_are_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3167,7 +3167,7 @@ fn structurally_cyclic_distinct_arrays_with_different_values_are_not_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -3181,7 +3181,7 @@ fn array_containing_nan_is_not_equal_to_itself() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
 }
 
@@ -3195,7 +3195,7 @@ fn self_referencing_map_equals_itself() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3211,7 +3211,7 @@ fn structurally_cyclic_distinct_maps_are_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3228,7 +3228,7 @@ fn self_referencing_instance_equals_itself() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3247,7 +3247,7 @@ fn structurally_cyclic_distinct_instances_are_equal() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
 }
 
@@ -3267,7 +3267,7 @@ fn overflowing_hex_initializer_is_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Parse] E0008: Number literal too large at 1:9",
         vm.get_compiler_error()
@@ -3280,7 +3280,7 @@ fn overflowing_literal_in_print_is_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Parse] E0008: Number literal too large at 1:7",
         vm.get_compiler_error()
@@ -3294,7 +3294,7 @@ fn map_literal_with_300_entries_has_size_300() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("300", vm.get_output());
 }
 
@@ -3305,7 +3305,7 @@ fn set_literal_with_300_elements_has_size_300() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("300", vm.get_output());
 }
 
@@ -3321,7 +3321,7 @@ fn method_call_with_255_arguments_compiles_and_runs() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("254", vm.get_output());
 }
 
@@ -3332,7 +3332,7 @@ fn method_call_with_256_arguments_is_compile_error_naming_the_limit() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     let error = vm.get_compiler_error();
     assert!(error.contains("Can't have more than 255 arguments"));
 }
@@ -3343,7 +3343,7 @@ fn undefined_variable_in_interpolation_reports_location() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0013: Undefined variable 'zz' at 2:3",
         vm.get_compiler_error()
@@ -3398,7 +3398,7 @@ fn calling_unknown_method_on_instance_is_runtime_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -3407,7 +3407,7 @@ fn using_math_namespace_as_a_value_is_a_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0027: 'Math' is a namespace, not a value at 1:9",
         vm.get_compiler_error()
@@ -3420,7 +3420,7 @@ fn using_file_namespace_as_a_value_is_a_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0027: 'File' is a namespace, not a value at 1:9",
         vm.get_compiler_error()
@@ -3433,7 +3433,7 @@ fn printing_math_namespace_is_a_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
         "[Semantic] E0027: 'Math' is a namespace, not a value at 1:7",
         vm.get_compiler_error()
@@ -3449,7 +3449,7 @@ fn calling_a_number_held_in_a_variable_is_runtime_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(vm.get_runtime_errors().contains("Value is not callable"));
 }
 
@@ -3464,7 +3464,7 @@ fn calling_a_number_held_in_a_parameter_is_runtime_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(vm.get_runtime_errors().contains("Value is not callable"));
 }
 
@@ -3482,7 +3482,7 @@ fn wrong_argument_count_through_an_indirect_call_is_runtime_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(vm
         .get_runtime_errors()
         .contains("Expected 1 arguments but got 2"));
@@ -3495,7 +3495,7 @@ fn many_comment_lines_do_not_overflow_the_stack() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1", vm.get_output());
 }
 
@@ -3506,7 +3506,7 @@ fn deeply_nested_parens_are_a_compile_error_naming_the_limit() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
 
@@ -3517,7 +3517,7 @@ fn moderately_nested_parens_still_evaluate() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1", vm.get_output());
 }
 
@@ -3528,7 +3528,7 @@ fn ten_thousand_line_program_runs() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("9998", vm.get_output());
 }
 
@@ -3543,7 +3543,7 @@ fn deeply_nested_blocks_are_a_compile_error_naming_the_limit() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
 
@@ -3554,7 +3554,7 @@ fn deeply_nested_unbraced_ifs_are_a_compile_error_naming_the_limit() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
 
@@ -3566,7 +3566,7 @@ fn deeply_nested_else_if_arms_are_a_compile_error_naming_the_limit() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
 
@@ -3585,7 +3585,7 @@ fn interpolated_expression_inherits_the_enclosing_nesting_depth() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
 
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
 
@@ -3598,7 +3598,7 @@ fn top_level_val_using_later_val_is_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm
         .get_compiler_error()
         .contains("Cannot use 'b' before its declaration"));
@@ -3612,7 +3612,7 @@ fn val_reading_itself_in_initializer_is_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm
         .get_compiler_error()
         .contains("Cannot read 'x' in its own initializer"));
@@ -3632,6 +3632,6 @@ fn nested_fn_reading_later_block_val_is_compile_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::CompileError, result);
+    assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("Undefined variable 'v'"));
 }

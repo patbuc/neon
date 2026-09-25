@@ -109,3 +109,10 @@ fn can_read_line_information_chunk() {
 
     assert!(chunk.get_line_info(13).is_none());
 }
+
+#[test]
+fn get_line_info_on_empty_chunk_returns_none() {
+    let chunk = Chunk::new("empty");
+
+    assert!(chunk.get_line_info(0).is_none());
+}

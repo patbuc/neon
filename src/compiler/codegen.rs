@@ -94,19 +94,29 @@ pub struct CodeGenerator<'a> {
     /// Slot of each declaration in the `locals` of the function that owns it.
     /// `DeclId`s are unique program-wide, so one map serves every function.
     decl_slots: HashMap<DeclId, u32>,
+    /// Closing-brace location of each `fn`/lambda body, by `NodeId`.
+    end_locations: &'a HashMap<NodeId, SourceLocation>,
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(resolutions: &'a Resolutions) -> Self {
+    pub fn new(
+        resolutions: &'a Resolutions,
+        end_locations: &'a HashMap<NodeId, SourceLocation>,
+    ) -> Self {
         CodeGenerator {
             functions: vec![FunctionCompiler::new("main")],
+            end_locations,
             errors: Vec::new(),
             resolutions,
             decl_slots: HashMap::new(),
         }
     }
 
-    pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
+    pub fn generate(
+        &mut self,
+        statements: &[Stmt],
+        eof_location: SourceLocation,
+    ) -> CompilationResult<Chunk> {
         // First: allocate one slot per top-level declaration, in statement
         // order, so every slot is known before any body is compiled. A
         // val/var slot starts out holding the uninitialized sentinel, which
@@ -194,7 +204,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         // Emit final return
-        self.emit_return();
+        self.emit_return(eof_location);
 
         if self.errors.is_empty() {
             Ok(self.functions.pop().unwrap().chunk)
@@ -313,13 +323,19 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn emit_upvalue_metadata(&mut self, captures: &[Capture], location: SourceLocation) {
-        let message = format!(
-            "function captures too many variables: {} (maximum is {})",
-            captures.len(),
-            u8::MAX
-        );
         if self
-            .check_count_limit(captures.len(), u8::MAX as usize, message, location)
+            .check_count_limit(
+                captures.len(),
+                u8::MAX as usize,
+                || {
+                    format!(
+                        "function captures too many variables: {} (maximum is {})",
+                        captures.len(),
+                        u8::MAX
+                    )
+                },
+                location,
+            )
             .is_none()
         {
             return;
@@ -347,14 +363,14 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         count: usize,
         max: usize,
-        message: impl Into<String>,
+        message: impl FnOnce() -> String,
         location: SourceLocation,
     ) -> Option<()> {
         if count > max {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Codegen,
                 CompilationErrorKind::LimitExceeded,
-                message.into(),
+                message(),
                 location,
             ));
             None
@@ -373,12 +389,7 @@ impl<'a> CodeGenerator<'a> {
         self.emit_index_op(OpCode::String, index, "strings", location);
     }
 
-    fn emit_return(&mut self) {
-        let location = SourceLocation {
-            offset: 0,
-            line: 0,
-            column: 0,
-        };
+    fn emit_return(&mut self, location: SourceLocation) {
         self.emit_op_code(OpCode::Nil, location);
         self.emit_op_code(OpCode::Return, location);
     }
@@ -490,8 +501,11 @@ impl<'a> CodeGenerator<'a> {
             self.generate_stmt(stmt);
         }
 
-        // Emit return at end of function
-        self.emit_return();
+        let end_location = *self
+            .end_locations
+            .get(&id)
+            .unwrap_or_else(|| panic!("no end location recorded for {:?}", id));
+        self.emit_return(end_location);
 
         let compiler = self.functions.pop().unwrap();
         let function_value =
@@ -1107,13 +1121,19 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
-        let message = format!(
-            "array literal too large: {} elements (maximum is {})",
-            elements.len(),
-            u16::MAX
-        );
         if self
-            .check_count_limit(elements.len(), u16::MAX as usize, message, location)
+            .check_count_limit(
+                elements.len(),
+                u16::MAX as usize,
+                || {
+                    format!(
+                        "array literal too large: {} elements (maximum is {})",
+                        elements.len(),
+                        u16::MAX
+                    )
+                },
+                location,
+            )
             .is_none()
         {
             return;
@@ -1255,13 +1275,19 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(expr);
             }
             Expr::MapLiteral { entries, location } => {
-                let message = format!(
-                    "map literal too large: {} entries (maximum is {})",
-                    entries.len(),
-                    u16::MAX
-                );
                 if self
-                    .check_count_limit(entries.len(), u16::MAX as usize, message, *location)
+                    .check_count_limit(
+                        entries.len(),
+                        u16::MAX as usize,
+                        || {
+                            format!(
+                                "map literal too large: {} entries (maximum is {})",
+                                entries.len(),
+                                u16::MAX
+                            )
+                        },
+                        *location,
+                    )
                     .is_none()
                 {
                     return;
@@ -1278,13 +1304,19 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_array_literal_expr(elements, *location);
             }
             Expr::SetLiteral { elements, location } => {
-                let message = format!(
-                    "set literal too large: {} elements (maximum is {})",
-                    elements.len(),
-                    u16::MAX
-                );
                 if self
-                    .check_count_limit(elements.len(), u16::MAX as usize, message, *location)
+                    .check_count_limit(
+                        elements.len(),
+                        u16::MAX as usize,
+                        || {
+                            format!(
+                                "set literal too large: {} elements (maximum is {})",
+                                elements.len(),
+                                u16::MAX
+                            )
+                        },
+                        *location,
+                    )
                     .is_none()
                 {
                     return;

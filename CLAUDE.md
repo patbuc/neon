@@ -191,7 +191,7 @@ cargo run --features disassemble -- script.n
 
 - Compilation errors use `src/common/error_renderer.rs` for formatted output
 - Runtime errors should include context about what operation failed
-- VM returns `Result` enum: Ok, CompileError, RuntimeError
+- VM returns `InterpretResult` enum: Ok, CompileError, RuntimeError
 
 ## Project Philosophy
 
@@ -273,9 +273,9 @@ This project uses a three-agent workflow for feature development. The agents are
 ### Quality Gate Commands
 
 ```bash
-cargo fmt                      # Format code
-cargo clippy -- -D warnings    # Lint (no warnings allowed)
-cargo test                     # All tests must pass
+cargo fmt                                    # Format code
+cargo clippy --all-targets -- -D warnings    # Lint (no warnings allowed)
+cargo test                                   # All tests must pass
 ```
 
 ### Plan File State Machine

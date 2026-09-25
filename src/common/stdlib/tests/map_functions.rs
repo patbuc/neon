@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Map Functions - Success Cases
@@ -17,7 +17,7 @@ fn test_map_basic_operations() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("2\nAlice\n30\nnil\ntrue\nfalse", vm.get_output());
 }
 
@@ -35,7 +35,7 @@ fn test_map_subscript_assignment() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("0\n2\n10\n20", vm.get_output());
 }
 
@@ -51,7 +51,7 @@ fn test_map_remove() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\n2\n2\nfalse\nnil", vm.get_output());
 }
 
@@ -67,7 +67,7 @@ fn test_map_keys() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("2\ntrue\ntrue\nfalse", vm.get_output());
 }
 
@@ -83,7 +83,7 @@ fn test_map_values() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("2\ntrue\ntrue\nfalse", vm.get_output());
 }
 
@@ -96,7 +96,7 @@ fn test_map_entries() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("2", vm.get_output());
 }
 
@@ -113,7 +113,7 @@ fn test_map_number_keys() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("one\ntwo\ntrue\nfalse", vm.get_output());
 }
 
@@ -127,7 +127,7 @@ fn test_map_mixed_values() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("hello\n42\ntrue", vm.get_output());
 }
 
@@ -143,7 +143,10 @@ fn test_map_get_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -154,7 +157,10 @@ fn test_map_has_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -165,5 +171,8 @@ fn test_map_remove_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }

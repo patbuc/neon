@@ -1,4 +1,6 @@
-use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
+#[cfg(test)]
+use crate::common::Chunk;
+use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -13,7 +15,7 @@ mod tests;
 pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]
-pub enum Result {
+pub enum InterpretResult {
     Ok,
     CompileError,
     RuntimeError,
@@ -28,12 +30,11 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
-    chunk: Option<Chunk>,
-    /// Global built-in values (like Math) stored separately from the call stack
-    builtin: indexmap::IndexMap<String, Value>,
+    /// Runtime builtin values (e.g. `args`), stored separately from the
+    /// call stack. Math and File are namespaces, not values here.
+    builtin: Vec<Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,
-    compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     runtime_error: Option<RuntimeError>,
     source: String,
@@ -50,7 +51,7 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
+    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
 

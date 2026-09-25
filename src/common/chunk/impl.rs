@@ -117,24 +117,15 @@ impl Chunk {
 
 impl Chunk {
     pub(crate) fn get_line_info(&self, ip: usize) -> Option<LineInfo> {
-        let mut result = Option::default();
-        let mut low = 0;
-        let mut high = self.line_infos.len() - 1;
-
         if ip >= self.instructions.len() {
             return None;
         }
 
-        while low <= high {
-            let mid = (low + high) / 2;
-            let line = self.line_infos.get(mid).unwrap();
-            if line.ip > ip {
-                high = mid - 1;
-            } else {
-                result = Some(line);
-                low = mid + 1;
-            }
-        }
-        result.cloned()
+        // partition_point requires entries sorted by ip; they are pushed in increasing order.
+        let index = self.line_infos.partition_point(|info| info.ip <= ip);
+        index
+            .checked_sub(1)
+            .and_then(|i| self.line_infos.get(i))
+            .cloned()
     }
 }

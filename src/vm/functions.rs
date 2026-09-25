@@ -1,6 +1,8 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::{
+    CallFrame, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
+};
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
@@ -57,14 +59,14 @@ enum MethodDispatch {
 
 impl VirtualMachine {
     #[inline(always)]
-    pub(in crate::vm) fn fn_to_string(&mut self) {
+    pub(in crate::vm) fn op_to_string(&mut self) {
         let value = self.pop();
         let string_value = string!(value.to_string());
         self.push(string_value);
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_string(&mut self) {
+    pub(in crate::vm) fn op_string(&mut self) {
         let frame = self.current_frame_mut();
         let string = {
             let string_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
@@ -75,13 +77,13 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_not(&mut self) {
+    pub(in crate::vm) fn op_not(&mut self) {
         let value = self.pop();
         self.push(boolean!(is_false_like!(value)));
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_call(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_call(&mut self) -> OpResult {
         let arg_count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u8(frame.ip + 1) as usize
@@ -98,7 +100,7 @@ impl VirtualMachine {
     /// Invoke: a method call dispatched by name at runtime. Stack before:
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]
-    pub(in crate::vm) fn fn_invoke(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_invoke(&mut self) -> OpResult {
         let (method_name, arg_count) = {
             let frame = self.current_frame();
             let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
@@ -407,7 +409,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_return(&mut self) {
+    pub(in crate::vm) fn op_return(&mut self) {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
         self.call_frames.pop();
@@ -426,7 +428,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_compare(&mut self, wanted: Comparison) -> OpResult {
+    pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
         let b = self.pop();
         let a = self.pop();
         let is_match = match (&a, &b) {
@@ -458,24 +460,24 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_equal(&mut self) {
+    pub(in crate::vm) fn op_equal(&mut self) {
         let b = self.pop();
         let a = self.pop();
         self.push(boolean!(a == b));
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_divide(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_divide(&mut self) -> OpResult {
         self.binary_number_op("/", |a, b| a / b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_modulo(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_modulo(&mut self) -> OpResult {
         self.binary_number_op("%", |a, b| a % b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_exponent(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_exponent(&mut self) -> OpResult {
         self.binary_number_op("**", |a, b| a.powf(b))
     }
 
@@ -507,28 +509,28 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_and(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_bitwise_and(&mut self) -> OpResult {
         self.binary_number_op("&", |a, b| {
             (Self::to_integer(a) & Self::to_integer(b)) as f64
         })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_or(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_bitwise_or(&mut self) -> OpResult {
         self.binary_number_op("|", |a, b| {
             (Self::to_integer(a) | Self::to_integer(b)) as f64
         })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_xor(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_bitwise_xor(&mut self) -> OpResult {
         self.binary_number_op("^", |a, b| {
             (Self::to_integer(a) ^ Self::to_integer(b)) as f64
         })
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_bitwise_not(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_bitwise_not(&mut self) -> OpResult {
         if let Value::Number(..) = self.peek(0) {
             let value = self.pop();
             let int_val = Self::to_integer(as_number!(value));
@@ -539,7 +541,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_left_shift(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_left_shift(&mut self) -> OpResult {
         self.binary_number_op("<<", |a, b| {
             let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
             (Self::to_integer(a) << shift_amount) as f64
@@ -547,7 +549,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_right_shift(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_right_shift(&mut self) -> OpResult {
         self.binary_number_op(">>", |a, b| {
             let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
             (Self::to_integer(a) >> shift_amount) as f64
@@ -555,17 +557,17 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_multiply(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_multiply(&mut self) -> OpResult {
         self.binary_number_op("*", |a, b| a * b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_subtract(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_subtract(&mut self) -> OpResult {
         self.binary_number_op("-", |a, b| a - b)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_add(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_add(&mut self) -> OpResult {
         let b = self.pop();
         let a = self.pop();
         match (a, b) {
@@ -584,7 +586,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_negate(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
         if let Value::Number(..) = self.peek(0) {
             let value = self.pop();
             self.push(number!(-as_number!(value)));
@@ -594,7 +596,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant(&mut self) {
+    pub(in crate::vm) fn op_constant(&mut self) {
         let frame = self.current_frame_mut();
         let constant = {
             let constant_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
@@ -605,7 +607,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_local(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_local(&mut self) -> OpResult {
         let (index, absolute_index) = self.read_local_slot();
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
@@ -622,7 +624,7 @@ impl VirtualMachine {
     /// Wraps a function constant in a closure, capturing whatever upvalues
     /// its metadata (following the constant index) describes.
     #[inline(always)]
-    pub(in crate::vm) fn fn_closure(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_closure(&mut self) -> OpResult {
         let const_index = self.read_index();
         let function = {
             let frame = self.current_frame();
@@ -672,7 +674,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_upvalue(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_upvalue(&mut self) -> OpResult {
         let index = self.read_index();
         if index >= self.current_frame().closure.upvalues.len() {
             return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
@@ -688,7 +690,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_upvalue(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_upvalue(&mut self) -> OpResult {
         let index = self.read_index();
         if index >= self.current_frame().closure.upvalues.len() {
             return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
@@ -711,7 +713,7 @@ impl VirtualMachine {
     /// slot, then pops it. Used at block exit for a captured local, in
     /// place of a plain Pop.
     #[inline(always)]
-    pub(in crate::vm) fn fn_close_upvalue(&mut self) {
+    pub(in crate::vm) fn op_close_upvalue(&mut self) {
         let top_index = self.stack.len() - 1;
         self.close_upvalues_above(top_index);
         self.pop();
@@ -719,7 +721,7 @@ impl VirtualMachine {
 
     /// Closes the upvalue on the top-of-stack slot without popping it.
     #[inline(always)]
-    pub(in crate::vm) fn fn_close_upvalue_in_place(&mut self) {
+    pub(in crate::vm) fn op_close_upvalue_in_place(&mut self) {
         let top_index = self.stack.len() - 1;
         self.close_upvalues_above(top_index);
     }
@@ -771,7 +773,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_local(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_local(&mut self) -> OpResult {
         let (index, absolute_index) = self.read_local_slot();
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
@@ -781,7 +783,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_jump_if_false(&mut self) {
+    pub(in crate::vm) fn op_jump_if_false(&mut self) {
         let peeked_value = self.peek(0);
         let frame = self.current_frame_mut();
         let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
@@ -794,7 +796,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_jump(&mut self) {
+    pub(in crate::vm) fn op_jump(&mut self) {
         let frame = self.current_frame_mut();
         let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
         frame.ip += 4;
@@ -802,17 +804,17 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_loop(&mut self) {
+    pub(in crate::vm) fn op_loop(&mut self) {
         let frame = self.current_frame_mut();
         let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
         frame.ip += 4;
         frame.ip -= offset as usize;
     }
 
-    pub(in crate::vm) fn fn_get_builtin(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
         let index = self.read_index();
-        if let Some(entry) = self.builtin.get_index(index) {
-            self.push(entry.1.clone());
+        if let Some(value) = self.builtin.get(index) {
+            self.push(value.clone());
         } else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         }
@@ -822,7 +824,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_global(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_global(&mut self) -> OpResult {
         let index = self.read_index();
 
         // Regular global variables are in the script frame
@@ -851,7 +853,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_global(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_global(&mut self) -> OpResult {
         let index = self.read_index();
         // Global variables are always in the script frame (first frame)
         // Script frame has slot_start = -1, so globals start at index 0
@@ -877,7 +879,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_check_initialized(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_check_initialized(&mut self) -> OpResult {
         if let Some(message) = self.stack.last().and_then(Self::uninitialized_error) {
             return Err(self.runtime_error(message));
         }
@@ -897,7 +899,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_field(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let field_name_index = self.read_index();
         let instance_value = self.peek(0);
 
@@ -930,7 +932,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_field(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         let field_name_index = self.read_index();
         let value = self.peek(0);
         let instance_value = self.peek(1);
@@ -966,7 +968,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_create_map(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_create_map(&mut self) -> OpResult {
         let count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
@@ -980,7 +982,7 @@ impl VirtualMachine {
             let key_value = &self.stack[pairs_start + 2 * i];
             let value = &self.stack[pairs_start + 2 * i + 1];
 
-            let key = match Self::value_to_map_key(key_value) {
+            let key = match MapKey::from_value(key_value) {
                 Some(k) => k,
                 None => {
                     return Err(self.runtime_error(format!(
@@ -1002,7 +1004,7 @@ impl VirtualMachine {
         Ok(())
     }
 
-    pub(in crate::vm) fn fn_create_array(&mut self) {
+    pub(in crate::vm) fn op_create_array(&mut self) {
         let count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
@@ -1022,7 +1024,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_create_set(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_create_set(&mut self) -> OpResult {
         let count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
@@ -1035,7 +1037,7 @@ impl VirtualMachine {
         for i in 0..count {
             let element_value = &self.stack[elements_start + i];
 
-            let key = match Self::value_to_map_key(element_value) {
+            let key = match MapKey::from_value(element_value) {
                 Some(k) => k,
                 None => {
                     return Err(self.runtime_error(format!(
@@ -1057,7 +1059,7 @@ impl VirtualMachine {
         Ok(())
     }
 
-    pub(in crate::vm) fn fn_create_range(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_create_range(&mut self) -> OpResult {
         let inclusive = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u8(frame.ip + 1) != 0
@@ -1128,14 +1130,14 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_index(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_index(&mut self) -> OpResult {
         let index_value = self.pop();
         let collection_value = self.pop();
 
         match &collection_value {
             Value::Map(map_ref) => {
                 // Convert index to MapKey
-                let key = match Self::value_to_map_key(&index_value) {
+                let key = match MapKey::from_value(&index_value) {
                     Some(k) => k,
                     None => {
                         return Err(self.runtime_error(format!(
@@ -1209,7 +1211,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_index(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_index(&mut self) -> OpResult {
         let value = self.pop();
         let index_value = self.pop();
         let collection_value = self.pop();
@@ -1217,7 +1219,7 @@ impl VirtualMachine {
         match &collection_value {
             Value::Map(map_ref) => {
                 // Convert index to MapKey
-                let key = match Self::value_to_map_key(&index_value) {
+                let key = match MapKey::from_value(&index_value) {
                     Some(k) => k,
                     None => {
                         return Err(self.runtime_error(format!(
@@ -1271,24 +1273,12 @@ impl VirtualMachine {
         }
     }
 
-    fn value_to_map_key(value: &Value) -> Option<crate::common::MapKey> {
-        use crate::common::MapKey;
-        use ordered_float::OrderedFloat;
-
-        match value {
-            Value::String(s) => Some(MapKey::String(Rc::clone(s))),
-            Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
-            Value::Boolean(b) => Some(MapKey::Boolean(*b)),
-            _ => None,
-        }
-    }
-
     /// GetIterator: Convert a collection to an iterator
     /// Pops the collection and pushes two hidden locals: the iterable
     /// collection (arrays and ranges as-is, map keys or set elements
     /// collected into a new array) followed by the starting index, 0.
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_iterator(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_get_iterator(&mut self) -> OpResult {
         let collection = self.pop();
 
         let iterator_value = match &collection {
@@ -1296,27 +1286,13 @@ impl VirtualMachine {
             Value::Range(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
-                let keys: Vec<Value> = map
-                    .keys()
-                    .map(|k| match k {
-                        crate::common::MapKey::String(s) => Value::String(Rc::clone(s)),
-                        crate::common::MapKey::Number(n) => Value::Number(n.into_inner()),
-                        crate::common::MapKey::Boolean(b) => Value::Boolean(*b),
-                    })
-                    .collect();
+                let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
 
                 Value::new_array(keys)
             }
             Value::Set(set_ref) => {
                 let set = set_ref.borrow();
-                let elements: Vec<Value> = set
-                    .iter()
-                    .map(|k| match k {
-                        crate::common::SetKey::String(s) => Value::String(Rc::clone(s)),
-                        crate::common::SetKey::Number(n) => Value::Number(n.into_inner()),
-                        crate::common::SetKey::Boolean(b) => Value::Boolean(*b),
-                    })
-                    .collect();
+                let elements: Vec<Value> = set.iter().map(MapKey::to_value).collect();
 
                 Value::new_array(elements)
             }
@@ -1350,7 +1326,7 @@ impl VirtualMachine {
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
-    pub(in crate::vm) fn fn_iterator_done(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_iterator_done(&mut self) -> OpResult {
         let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
             Value::Number(n) => *n as usize,
@@ -1380,7 +1356,7 @@ impl VirtualMachine {
     /// hidden slots starting at the given local slot (collection, then index).
     /// Pushes the next value onto the stack and advances the index slot.
     #[inline(always)]
-    pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_iterator_next(&mut self) -> OpResult {
         let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
             Value::Number(n) => *n as usize,
@@ -1457,7 +1433,7 @@ impl VirtualMachine {
     /// preceding Closure op and registers it under (type name, method name),
     /// along with whether the method takes `self`.
     #[inline(always)]
-    pub(in crate::vm) fn fn_define_method(&mut self) {
+    pub(in crate::vm) fn op_define_method(&mut self) {
         let frame = self.current_frame_mut();
         let type_name = {
             let index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;

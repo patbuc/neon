@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Range.size() / Range.length()
@@ -14,7 +14,7 @@ fn test_range_size() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\n4\n0\n0", vm.get_output());
 }
 
@@ -26,7 +26,7 @@ fn test_range_length_matches_size() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("6\n7", vm.get_output());
 }
 
@@ -44,7 +44,7 @@ fn test_range_contains() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("false\ntrue\ntrue\nfalse", vm.get_output());
 }
 
@@ -57,7 +57,7 @@ fn test_range_contains_negative_bounds() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse\ntrue", vm.get_output());
 }
 
@@ -71,7 +71,7 @@ fn test_range_contains_non_integer_or_non_number() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("false\nfalse\nfalse\nfalse", vm.get_output());
 }
 
@@ -82,7 +82,7 @@ fn test_range_contains_empty_range() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("false", vm.get_output());
 }
 
@@ -99,7 +99,7 @@ fn test_range_to_array() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, 2, 3]\n[1, 2, 3, 4]\n[]", vm.get_output());
 }
 
@@ -114,7 +114,7 @@ fn test_range_sum() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("6", vm.get_output());
 }
 
@@ -130,7 +130,10 @@ fn test_range_size_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -141,7 +144,10 @@ fn test_range_slice_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("slice()"), "{}", errors);
 }

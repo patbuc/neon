@@ -381,7 +381,9 @@ impl Scanner {
             }
             self.advance();
         }
-        self.make_token(self.make_identifier_type())
+        let lexeme: String = self.source[self.start..self.current].iter().collect();
+        let token_type = Scanner::make_identifier_type(&lexeme);
+        self.make_token_with_text(token_type, lexeme)
     }
 
     fn make_number(&mut self) -> Token {
@@ -539,22 +541,6 @@ impl Scanner {
         self.make_token(TokenType::Number)
     }
 
-    fn check_keyword(
-        &self,
-        start: usize,
-        length: usize,
-        rest: &str,
-        token_type: TokenType,
-    ) -> TokenType {
-        if self.current - self.start == start + length {
-            let a = String::from_iter(self.source.iter().skip(self.start + start).take(length));
-            if a == rest {
-                return token_type;
-            }
-        }
-        TokenType::Identifier
-    }
-
     fn is_alpha(c: char) -> bool {
         c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
     }
@@ -624,65 +610,24 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    fn make_identifier_type(&self) -> TokenType {
-        let chr = self.source[self.start];
-        match chr {
-            'b' => self.check_keyword(1, 4, "reak", TokenType::Break),
-            'c' => self.check_keyword(1, 7, "ontinue", TokenType::Continue),
-            'e' => self.check_keyword(1, 3, "lse", TokenType::Else),
-            'i' => {
-                if self.current - self.start > 1 {
-                    return match self.source[self.start + 1] {
-                        'f' => self.check_keyword(2, 0, "", TokenType::If),
-                        'n' => self.check_keyword(2, 0, "", TokenType::In),
-                        'm' => self.check_keyword(2, 2, "pl", TokenType::Impl),
-                        _ => TokenType::Identifier,
-                    };
-                }
-                TokenType::Identifier
-            }
-            'n' => self.check_keyword(1, 2, "il", TokenType::Nil),
-            'r' => self.check_keyword(1, 5, "eturn", TokenType::Return),
-            's' => {
-                if self.current - self.start > 1 {
-                    return match self.source[self.start + 1] {
-                        't' => self.check_keyword(2, 4, "ruct", TokenType::Struct),
-                        _ => TokenType::Identifier,
-                    };
-                }
-                TokenType::Identifier
-            }
-            'v' => {
-                if self.current - self.start >= 3 && self.source[self.start + 1] == 'a' {
-                    return match self.source[self.start + 2] {
-                        'l' => self.check_keyword(3, 0, "", TokenType::Val),
-                        'r' => self.check_keyword(3, 0, "", TokenType::Var),
-                        _ => TokenType::Identifier,
-                    };
-                }
-                TokenType::Identifier
-            }
-            'w' => self.check_keyword(1, 4, "hile", TokenType::While),
-            'f' => {
-                if self.current - self.start > 1 {
-                    return match self.source[self.start + 1] {
-                        'a' => self.check_keyword(2, 3, "lse", TokenType::False),
-                        'o' => self.check_keyword(2, 1, "r", TokenType::For),
-                        'n' => self.check_keyword(2, 0, "", TokenType::Fn),
-                        _ => TokenType::Identifier,
-                    };
-                }
-                TokenType::Identifier
-            }
-            't' => {
-                if self.current - self.start > 1 {
-                    return match self.source[self.start + 1] {
-                        'r' => self.check_keyword(2, 2, "ue", TokenType::True),
-                        _ => TokenType::Identifier,
-                    };
-                }
-                TokenType::Identifier
-            }
+    fn make_identifier_type(lexeme: &str) -> TokenType {
+        match lexeme {
+            "break" => TokenType::Break,
+            "continue" => TokenType::Continue,
+            "else" => TokenType::Else,
+            "if" => TokenType::If,
+            "in" => TokenType::In,
+            "impl" => TokenType::Impl,
+            "nil" => TokenType::Nil,
+            "return" => TokenType::Return,
+            "struct" => TokenType::Struct,
+            "val" => TokenType::Val,
+            "var" => TokenType::Var,
+            "while" => TokenType::While,
+            "false" => TokenType::False,
+            "for" => TokenType::For,
+            "fn" => TokenType::Fn,
+            "true" => TokenType::True,
             _ => TokenType::Identifier,
         }
     }

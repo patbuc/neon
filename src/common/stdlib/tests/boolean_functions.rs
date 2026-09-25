@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Boolean.toString() - Success Cases
@@ -14,6 +14,6 @@ fn test_boolean_to_string() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse\ntrue\nfalse", vm.get_output());
 }

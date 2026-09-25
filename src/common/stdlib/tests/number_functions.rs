@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Number.toString() - Success Cases
@@ -18,7 +18,7 @@ fn test_number_to_string() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!(
         "123\n45.67\n0\n-42\n-3.15\n1000000\n0.001\n12300000000",
         vm.get_output()
@@ -37,7 +37,7 @@ fn test_number_to_string_special_values() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("inf\n-inf\nNaN", vm.get_output());
 }
 
@@ -50,7 +50,7 @@ fn test_number_to_string_very_small() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     let output = vm.get_output();
     assert!(output.starts_with("0.000000000"));
 }
