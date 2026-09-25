@@ -580,8 +580,28 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_function_declaration(name, params, body, *location);
             }
-            Stmt::Struct { .. } => {
-                // Struct declarations are already collected, nothing to resolve
+            Stmt::Struct {
+                name,
+                fields,
+                location,
+            } => {
+                // A top-level struct was already resolved in collect_declarations.
+                if self.symbol_table.current_depth() != 0 {
+                    self.errors.push(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::Other,
+                        format!("Struct '{}' must be declared at the top level", name),
+                        *location,
+                    ));
+                    self.define_symbol(
+                        name.clone(),
+                        SymbolKind::Struct {
+                            fields: fields.clone(),
+                        },
+                        false,
+                        *location,
+                    );
+                }
             }
             Stmt::Impl { location, .. } => {
                 // A top-level impl was already resolved in collect_declarations.
