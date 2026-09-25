@@ -36,11 +36,10 @@ pub(crate) struct Scanner {
     offset_base: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
-    builtin: indexmap::IndexMap<String, crate::common::Value>,
 }
 
 impl Compiler {

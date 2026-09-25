@@ -1,5 +1,4 @@
 use crate::common::opcodes::OpCode;
-use crate::common::stdlib::create_builtin_objects;
 use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
@@ -19,7 +18,7 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation
-    let mut codegen = CodeGenerator::new(create_builtin_objects(vec![]), &resolutions);
+    let mut codegen = CodeGenerator::new(&resolutions);
     codegen
         .generate(&ast)
         .map_err(|e| format!("Codegen error: {:?}", e))

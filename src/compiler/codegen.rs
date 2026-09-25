@@ -7,9 +7,8 @@ use crate::common::errors::{
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
-use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
+use crate::compiler::resolutions::{Capture, DeclId, NativeKind, Res, Resolutions};
 use crate::{number, string};
-use indexmap::IndexMap;
 use std::collections::HashMap;
 
 struct Local {
@@ -100,8 +99,6 @@ pub struct CodeGenerator<'a> {
     /// One entry per level of function nesting, outermost (the script) first.
     functions: Vec<FunctionCompiler>,
     errors: Vec<CompilationError>,
-    #[allow(dead_code)]
-    builtin: indexmap::IndexMap<String, Value>,
     resolutions: &'a Resolutions,
     /// Slot of each declaration in the `locals` of the function that owns it.
     /// `DeclId`s are unique program-wide, so one map serves every function.
@@ -109,11 +106,10 @@ pub struct CodeGenerator<'a> {
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(builtin: IndexMap<String, Value>, resolutions: &'a Resolutions) -> Self {
+    pub fn new(resolutions: &'a Resolutions) -> Self {
         CodeGenerator {
             functions: vec![FunctionCompiler::new("main")],
             errors: Vec::new(),
-            builtin,
             resolutions,
             decl_slots: HashMap::new(),
         }
@@ -946,29 +942,28 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_call_expr(&mut self, callee: &Expr, arguments: &[Expr], location: SourceLocation) {
-        // Check if this is a global function call (e.g., print("hello"))
-        let is_global_function = if let Expr::Variable { name, .. } = callee {
-            // Check if this is a global function by looking it up with empty namespace
-            crate::common::method_registry::get_native_method_index("", name).is_some()
-        } else {
-            false
-        };
-
-        // Check if this is a constructor call (e.g., File("path"))
-        let is_constructor_call = if let Expr::Variable { name, .. } = callee {
-            crate::common::method_registry::get_native_method_index(name, "new").is_some()
-        } else {
-            false
-        };
-
-        if is_global_function {
-            self.generate_global_call_expr(callee, arguments, location);
-        } else if is_constructor_call {
-            self.generate_constructor_call_expr(callee, arguments, location);
-        } else {
+    /// Dispatches a plain (non-method) call: a native global function or
+    /// constructor if the semantic pass resolved it as one, a regular call
+    /// (callee value, then args, then `Call`) otherwise.
+    fn generate_call_expr(
+        &mut self,
+        id: NodeId,
+        callee: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        let Some(index) = self.resolutions.native(id) else {
             self.generate_regular_call_expr(callee, arguments, location);
-        }
+            return;
+        };
+        let Expr::Variable { name, .. } = callee else {
+            unreachable!("only a bare name resolves to a native global function or constructor")
+        };
+        let label = match self.resolutions.native_kind(id) {
+            Some(NativeKind::Constructor) => format!("{}.new", name),
+            _ => name.clone(),
+        };
+        self.generate_native_call_expr(label, index, arguments, location);
     }
 
     fn generate_regular_call_expr(
@@ -987,29 +982,17 @@ impl<'a> CodeGenerator<'a> {
         self.emit_call(arguments.len() as u8, location);
     }
 
-    fn generate_constructor_call_expr(
+    /// Emits a call dispatched by registry index, known at compile time: a
+    /// global function, a constructor, or a static method. The callable is
+    /// pushed first (no callee/receiver is loaded), then the arguments.
+    fn generate_native_call_expr(
         &mut self,
-        callee: &Expr,
+        label: String,
+        index: usize,
         arguments: &[Expr],
         location: SourceLocation,
     ) {
-        // Constructor call: File("path")
-        let type_name = if let Expr::Variable { name, .. } = callee {
-            name.clone()
-        } else {
-            unreachable!("Already checked this is a Variable")
-        };
-
-        // Look up constructor index at compile time
-        let index = crate::common::method_registry::get_native_method_index(&type_name, "new")
-            .unwrap_or_else(|| panic!("Unknown constructor: {}.new", type_name));
-
-        self.push_native_callable_by_index(
-            format!("{}.new", type_name),
-            index,
-            arguments.len() as u8,
-            location,
-        );
+        self.push_native_callable_by_index(label, index, arguments.len() as u8, location);
 
         for arg in arguments {
             self.generate_expr(arg);
@@ -1018,56 +1001,22 @@ impl<'a> CodeGenerator<'a> {
         self.emit_call(arguments.len() as u8, location);
     }
 
-    fn generate_global_call_expr(
-        &mut self,
-        callee: &Expr,
-        arguments: &[Expr],
-        location: SourceLocation,
-    ) {
-        // Global function call: print("hello")
-        // Extract function name
-        let function_name = if let Expr::Variable { name, .. } = callee {
-            name.clone()
-        } else {
-            unreachable!("Already checked this is a Variable")
-        };
-
-        // Look up global function index at compile time
-        let index = crate::common::method_registry::get_native_method_index("", &function_name)
-            .unwrap_or_else(|| panic!("Unknown function: {}", function_name));
-
-        self.push_native_callable_by_index(
-            function_name.to_string(),
-            index,
-            arguments.len() as u8,
-            location,
-        );
-
-        for arg in arguments {
-            self.generate_expr(arg);
-        }
-
-        self.emit_call(arguments.len() as u8, location);
-    }
-
+    /// Dispatches a method call `object.method(args)`: a native static
+    /// method if the semantic pass resolved it as one, an instance method
+    /// call otherwise.
     fn generate_method_call_expr(
         &mut self,
+        id: NodeId,
         object: &Expr,
         method: &str,
         arguments: &[Expr],
         location: SourceLocation,
     ) {
-        // Check if this is a static method call (e.g., Math.abs)
-        let is_static_call = if let Expr::Variable { name, .. } = object {
-            crate::common::method_registry::is_static_method(name, method)
-        } else {
-            false
-        };
-
-        if is_static_call {
-            self.generate_static_method_call_expr(object, method, arguments, location);
-        } else {
-            self.generate_instance_method_call_expr(object, method, arguments, location);
+        match self.resolutions.native(id) {
+            Some(index) => {
+                self.generate_native_call_expr(method.to_string(), index, arguments, location)
+            }
+            None => self.generate_instance_method_call_expr(object, method, arguments, location),
         }
     }
 
@@ -1110,40 +1059,6 @@ impl<'a> CodeGenerator<'a> {
         }
 
         self.emit_call(arity, location);
-    }
-
-    fn generate_static_method_call_expr(
-        &mut self,
-        object: &Expr,
-        method: &str,
-        arguments: &[Expr],
-        location: SourceLocation,
-    ) {
-        // Static method call: Math.abs(x)
-        // Extract namespace name
-        let namespace_name = if let Expr::Variable { name, .. } = object {
-            name.clone()
-        } else {
-            unreachable!("Already checked this is a Variable")
-        };
-
-        // Look up static method index at compile time
-        let index =
-            crate::common::method_registry::get_native_method_index(&namespace_name, method)
-                .unwrap_or_else(|| panic!("Unknown static method: {}.{}", namespace_name, method));
-
-        self.push_native_callable_by_index(
-            method.to_string(),
-            index,
-            arguments.len() as u8,
-            location,
-        );
-
-        for arg in arguments {
-            self.generate_expr(arg);
-        }
-
-        self.emit_call(arguments.len() as u8, location);
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1260,16 +1175,14 @@ impl<'a> CodeGenerator<'a> {
             Expr::Call {
                 callee,
                 arguments,
+                id,
                 location,
-                ..
             } => {
-                // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
+                // Call { callee: GetField { object, field }, arguments } is a method call obj.method(args)
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
-                    // This is a method call obj.method(args)
-                    self.generate_method_call_expr(object, field, arguments, *location);
+                    self.generate_method_call_expr(*id, object, field, arguments, *location);
                 } else {
-                    // Regular function call
-                    self.generate_call_expr(callee, arguments, *location);
+                    self.generate_call_expr(*id, callee, arguments, *location);
                 }
             }
             Expr::GetField {

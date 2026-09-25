@@ -7,7 +7,9 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{Expr, NodeId, Stmt};
-use crate::compiler::resolutions::{Capture, DeclId, FunctionResolution, Res, Resolutions};
+use crate::compiler::resolutions::{
+    Capture, DeclId, FunctionResolution, NativeKind, Res, Resolutions,
+};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::HashMap;
 
@@ -1241,7 +1243,8 @@ impl SemanticAnalyzer {
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index(name, method)
                 {
-                    self.resolutions.record_native(id, index);
+                    self.resolutions
+                        .record_native(id, index, NativeKind::StaticMethod);
                 }
                 return;
             }
@@ -1314,7 +1317,8 @@ impl SemanticAnalyzer {
                     if let Some(index) =
                         crate::common::method_registry::get_native_method_index(name, "new")
                     {
-                        self.resolutions.record_native(id, index);
+                        self.resolutions
+                            .record_native(id, index, NativeKind::Constructor);
                     }
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -1327,7 +1331,8 @@ impl SemanticAnalyzer {
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index("", name)
                 {
-                    self.resolutions.record_native(id, index);
+                    self.resolutions
+                        .record_native(id, index, NativeKind::Global);
                     for arg in arguments {
                         self.resolve_expr(arg);
                     }

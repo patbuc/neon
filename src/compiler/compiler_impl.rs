@@ -1,17 +1,12 @@
-use crate::common::{Chunk, Value};
+use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
-use indexmap::IndexMap;
 
 impl Compiler {
-    pub fn new(builtin: IndexMap<String, Value>) -> Compiler {
-        Compiler {
-            compilation_errors: String::new(),
-            structured_errors: Vec::new(),
-            builtin,
-        }
+    pub fn new() -> Compiler {
+        Compiler::default()
     }
 
     pub fn compile(&mut self, source: &str) -> Option<Chunk> {
@@ -55,7 +50,7 @@ impl Compiler {
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(self.builtin.clone(), &resolutions);
+        let mut codegen = CodeGenerator::new(&resolutions);
         match codegen.generate(&ast) {
             Ok(chunk) => Some(chunk),
             Err(errors) => {
