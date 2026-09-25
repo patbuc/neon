@@ -1013,10 +1013,7 @@ impl SemanticAnalyzer {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A block/function-body-local fn was already declared by
-        // predeclare_block_functions; resolving its body reaches its own
-        // line, so it's no longer "not yet reached" - self-recursion is
-        // safe since the closure is stored before it can run.
+        // Its own line has now been reached, so it's no longer pending.
         if self.symbol_table.current_depth() > 0 {
             let decl_id = self.resolutions.decl(id);
             self.pending_block_fns.remove(&decl_id);
@@ -1026,9 +1023,7 @@ impl SemanticAnalyzer {
     }
 
     /// Pre-declares a statement list's own `fn` names before resolving any
-    /// of its statements, so siblings can call each other regardless of
-    /// order (Rust's item rule). Each is tracked as "not yet reached" until
-    /// its own `Stmt::Fn` is resolved.
+    /// of its statements, so siblings can call each other regardless of order.
     fn predeclare_block_functions(&mut self, statements: &[Stmt]) {
         for stmt in statements {
             if let Stmt::Fn {

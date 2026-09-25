@@ -2,10 +2,10 @@
 // even
 // odd
 // yes
-// 1
-// 2
-// 4
-// 5
+// 10
+// 20
+// 40
+// 50
 
 fn classify(n) {
     fn is_even(n) {
@@ -36,20 +36,27 @@ print(classify(3))
     }
 }
 
-var last = nil
-var i = 0
-while (i < 5) {
-    i = i + 1
-    if (i == 3) {
-        continue
+fn makeGetters() {
+    var closures = []
+    var i = 0
+    while (i < 6) {
+        i = i + 1
+        if (i == 3) {
+            continue
+        }
+        val value = i * 10
+        var wrapper = fn() { return report() }
+        fn report() {
+            return value
+        }
+        if (i == 6) {
+            break
+        }
+        closures.push(wrapper)
     }
-    fn report() {
-        return i
-    }
-    if (i == 5) {
-        break
-    }
-    print(report())
-    last = report
+    return closures
 }
-print(last())
+
+for (getter in makeGetters()) {
+    print(getter())
+}

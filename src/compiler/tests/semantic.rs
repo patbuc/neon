@@ -704,12 +704,9 @@ fn outer() {
         let mut idx = Index::default();
         index_stmts(&ast, &mut idx);
 
-        // `b` is read from `a`'s body, resolved before `b`'s own `fn` line.
         let use_b_in_a = find_var(&idx, "b", 0);
         assert!(res.is_checked(use_b_in_a));
 
-        // `a` is read from `b`'s body and from outer's own body, both
-        // after `a`'s `fn` line has already been resolved.
         let use_a_in_b = find_var(&idx, "a", 0);
         assert!(!res.is_checked(use_a_in_b));
         let use_a_in_outer_return = find_var(&idx, "a", 1);

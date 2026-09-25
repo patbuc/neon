@@ -402,8 +402,6 @@ impl<'a> CodeGenerator<'a> {
             return;
         }
 
-        // Its slot was already pre-allocated by hoist_block_functions;
-        // compile the closure and store it there.
         self.generate_closure(id, name, params, body, location);
 
         let slot = self.decl_slot(self.resolutions.decl(id));
@@ -411,10 +409,9 @@ impl<'a> CodeGenerator<'a> {
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
-    /// Pushes one uninitialized sentinel slot per `fn` in a statement list,
-    /// so every sibling function's slot exists from block/body entry (Rust's
-    /// item rule) and calling one before its own `fn` line has run hits the
-    /// runtime initialization check instead of reading garbage.
+    /// Pushes an uninitialized sentinel slot for each `fn` in a statement
+    /// list before any statement runs, so siblings can resolve each other's
+    /// slots regardless of call order.
     fn hoist_block_functions(&mut self, statements: &[Stmt]) {
         for stmt in statements {
             if let Stmt::Fn {
