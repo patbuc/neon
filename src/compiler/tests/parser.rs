@@ -3472,7 +3472,7 @@ fn test_interpolation_error_line() {
 }
 
 #[test]
-fn test_interpolation_error_recovery_does_not_cascade() {
+fn test_interpolation_error_recovery() {
     let mut parser = Parser::new("print(\"${)\n}\")\n");
     let result = parser.parse();
 
@@ -3483,7 +3483,7 @@ fn test_interpolation_error_recovery_does_not_cascade() {
 }
 
 #[test]
-fn test_interpolation_error_recovery_does_not_cascade_in_block() {
+fn test_interpolation_error_recovery_in_block() {
     let mut parser = Parser::new("fn f() {\n  print(\"${)\n  }\")\n  print(1)\n}\n");
     let result = parser.parse();
 
@@ -3491,6 +3491,63 @@ fn test_interpolation_error_recovery_does_not_cascade_in_block() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
+}
+
+#[test]
+fn test_interpolation_error_recovery_lambda_block() {
+    let mut parser = Parser::new("print(\"${ fn() {\n  return )\n}() }\")\nprint(2 +)\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 2);
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[1].location.line, 4);
+}
+
+#[test]
+fn test_interpolation_error_recovery_lambda_block_multiple_statements() {
+    let mut parser = Parser::new(
+        "print(\"${ fn() {\n  val x = )\n  print(1 +)\n}() }\")\nprint(2 +)\nprint(3 +)\n",
+    );
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 3);
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[1].location.line, 5);
+    assert_eq!(errors[2].location.line, 6);
+}
+
+#[test]
+fn test_interpolation_error_recovery_invalid_escape() {
+    let mut parser = Parser::new("print(\"\\q ${1\n} x\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn test_interpolation_error_recovery_two_interpolations() {
+    let mut parser = Parser::new("print(\"${)\n1} and ${2\n}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn test_interpolation_error_recovery_two_interpolations_in_block() {
+    let mut parser = Parser::new("print(\"x ${ a b\n} y ${ a c } z\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
 }
 
 #[test]

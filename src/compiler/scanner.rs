@@ -70,7 +70,6 @@ impl Scanner {
         }
     }
 
-    /// How many `${...}` interpolations are currently open.
     pub(in crate::compiler) fn interpolation_depth(&self) -> usize {
         self.interpolations.len()
     }
