@@ -160,6 +160,10 @@ impl VirtualMachine {
                     self.fn_call()?;
                     continue;
                 }
+                OpCode::Invoke => {
+                    self.fn_invoke()?;
+                    continue;
+                }
                 OpCode::GetField => self.fn_get_field()?,
                 OpCode::SetField => self.fn_set_field()?,
 

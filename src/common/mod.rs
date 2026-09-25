@@ -150,7 +150,6 @@ pub struct ObjNativeFunction {
     pub name: String,
     pub arity: u8,
     pub method_index: u32,
-    pub method_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -192,18 +191,12 @@ impl Value {
         }))))
     }
 
-    pub(crate) fn new_native_function(
-        name: String,
-        arity: u8,
-        method_index: u32,
-        method_name: String,
-    ) -> Self {
+    pub(crate) fn new_native_function(name: String, arity: u8, method_index: u32) -> Self {
         Value::Object(Rc::new(Object::NativeFunction(Rc::new(
             ObjNativeFunction {
                 name,
                 arity,
                 method_index,
-                method_name,
             },
         ))))
     }

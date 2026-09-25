@@ -3307,17 +3307,31 @@ fn set_literal_with_300_elements_has_size_300() {
 }
 
 #[test]
-fn method_call_with_255_arguments_is_compile_error_naming_the_limit() {
+fn method_call_with_255_arguments_compiles_and_runs() {
+    let params: Vec<String> = (0..255).map(|i| format!("p{}", i)).collect();
     let args: Vec<String> = (0..255).map(|i| i.to_string()).collect();
+    let program = format!(
+        "struct Point {{ x }}\nimpl Point {{\n    fn m({}) {{ return p254 }}\n}}\nprint(Point.m({}))",
+        params.join(", "),
+        args.join(", ")
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(Result::Ok, result);
+    assert_eq!("254", vm.get_output());
+}
+
+#[test]
+fn method_call_with_256_arguments_is_compile_error_naming_the_limit() {
+    let args: Vec<String> = (0..256).map(|i| i.to_string()).collect();
     let program = format!("val a = [1, 2, 3]\na.push({})", args.join(", "));
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
     assert_eq!(Result::CompileError, result);
     let error = vm.get_compiler_error();
-    assert!(error.contains("method call too large"));
-    assert!(error.contains("255"));
-    assert!(error.contains("254"));
+    assert!(error.contains("Can't have more than 255 arguments"));
 }
 
 #[test]

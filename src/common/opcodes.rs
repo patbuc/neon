@@ -28,6 +28,7 @@ impl OpCode {
             v if v == OpCode::Jump as u8 => Some(OpCode::Jump),
             v if v == OpCode::Loop as u8 => Some(OpCode::Loop),
             v if v == OpCode::Call as u8 => Some(OpCode::Call),
+            v if v == OpCode::Invoke as u8 => Some(OpCode::Invoke),
             v if v == OpCode::GetBuiltin as u8 => Some(OpCode::GetBuiltin),
             v if v == OpCode::GetGlobal as u8 => Some(OpCode::GetGlobal),
             v if v == OpCode::SetGlobal as u8 => Some(OpCode::SetGlobal),
@@ -92,6 +93,10 @@ pub(crate) enum OpCode {
     Jump,
     Loop,
     Call,
+    /// Method call dispatched by name at runtime: a 16-bit string-pool
+    /// index for the method name, then an 8-bit argument count excluding
+    /// the receiver. Stack: `[receiver, args...]`.
+    Invoke,
     GetBuiltin,
     GetGlobal,
     SetGlobal,

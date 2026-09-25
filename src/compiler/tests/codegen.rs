@@ -1002,6 +1002,8 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::CloseUpvalue
             | OpCode::CloseUpvalueInPlace => 0,
             OpCode::Call => 1,
+            OpCode::Invoke => 3,
+            OpCode::CreateArray => 2,
             OpCode::Constant
             | OpCode::String
             | OpCode::SetLocal
@@ -1152,4 +1154,18 @@ fn test_native_call_labels() {
         .collect();
 
     assert_eq!(labels, vec!["print", "File.new", "abs"]);
+}
+
+#[test]
+fn test_method_call_loads_receiver_then_invoke() {
+    let program = "val a = [1]\na.size()\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+
+    let invoke_index = ops
+        .iter()
+        .position(|op| *op == OpCode::Invoke)
+        .expect("expected an Invoke instruction");
+    assert_eq!(OpCode::GetLocal, ops[invoke_index - 1]);
 }

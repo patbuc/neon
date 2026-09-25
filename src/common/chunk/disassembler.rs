@@ -62,6 +62,7 @@ impl Chunk {
             OpCode::Jump => self.jump_instruction(instruction, offset),
             OpCode::Loop => self.loop_instruction(offset),
             OpCode::Call => self.call_instruction(offset),
+            OpCode::Invoke => self.invoke_instruction(offset),
             OpCode::Modulo => self.simple_instruction(instruction, offset),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset),
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset),
@@ -169,6 +170,14 @@ impl Chunk {
         let arg_count = self.read_u8(offset + 1);
         println!("Call (args: {})", arg_count);
         offset + 2
+    }
+
+    fn invoke_instruction(&self, offset: usize) -> usize {
+        let name_index = self.read_u16(offset + 1) as usize;
+        let name = self.read_string(name_index);
+        let arg_count = self.read_u8(offset + 3);
+        println!("Invoke {} (args: {})", name, arg_count);
+        offset + 4
     }
 
     fn create_map_instruction(&self, offset: usize) -> usize {

@@ -1101,3 +1101,39 @@ fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
         error.frames
     );
 }
+
+#[test]
+fn native_method_arity_error_reports_native_message() {
+    let program = "fn f(a) { return a.push() }\nf([1])";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("push() expects 1 argument (value), got 0"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn native_error_inside_builtin_type_user_method_reports_native_message() {
+    let program = r#"
+        impl Array {
+            fn addNothing(self) { return self.push() }
+        }
+        val a = [1]
+        a.addNothing()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("push() expects 1 argument (value), got 0"),
+        "{}",
+        errors
+    );
+}

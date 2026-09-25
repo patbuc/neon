@@ -51,9 +51,8 @@ enum MethodDispatch {
     NotFound,
     /// The call used the wrong form for the method (static vs. instance).
     Mismatch(RuntimeError),
-    /// The closure to call, its effective argument count (the receiver
-    /// slot is dropped for a static call), and whether to exclude `self`
-    /// from an arity-mismatch message.
+    /// The closure to call, its effective argument count, and whether to
+    /// exclude `self` from an arity-mismatch message.
     Found(Rc<ObjClosure>, usize, bool),
 }
 
@@ -97,6 +96,26 @@ impl VirtualMachine {
         self.dispatch_call(arg_count)
     }
 
+    /// Invoke: a method call dispatched by name at runtime. Stack before:
+    /// `[receiver, args...]`, argc excluding the receiver.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_invoke(&mut self) -> OpResult {
+        let (method_name, arg_count) = {
+            let frame = self.current_frame();
+            let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
+            let name = frame.closure.function.chunk.read_string(name_index);
+            let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
+            (name, arg_count)
+        };
+
+        let frame = self.current_frame_mut();
+        frame.ip += 4; // Skip Invoke opcode, name_index and arg_count byte
+
+        self.check_frame_limit()?;
+
+        self.dispatch_invoke(&as_string!(method_name).value, arg_count)
+    }
+
     /// Errors with "Stack overflow" if the call frame stack is already at
     /// its limit.
     fn check_frame_limit(&self) -> OpResult {
@@ -108,8 +127,8 @@ impl VirtualMachine {
     }
 
     /// Dispatches a call: the stack must already hold `[callable, args...]`.
-    /// Shared by the CALL opcode and by `call_value`'s re-entrant
-    /// native-to-Neon calls.
+    /// Shared by the CALL opcode, `call_value`'s re-entrant native-to-Neon
+    /// calls, and `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Get the callable from the stack
         let callable_value = self.peek(arg_count);
@@ -119,41 +138,10 @@ impl VirtualMachine {
                 Object::Closure(closure) => return self.call_closure(arg_count, closure),
                 Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
                 Object::NativeFunction(callable) => {
-                    if callable.method_index == u32::MAX {
-                        match self.dispatch_user_method_call(arg_count, callable) {
-                            MethodDispatch::Found(closure, arg_count, exclude_self) => {
-                                return self.call_closure_with(arg_count, &closure, exclude_self);
-                            }
-                            MethodDispatch::Mismatch(e) => return Err(e),
-                            MethodDispatch::NotFound => {}
-                        }
-                    }
                     match self.call_native_function(arg_count, callable) {
                         Ok(value) => value,
-                        Err(NativeCallError::Message(error)) => {
-                            if let Some(field_value) = self.field_call_target(arg_count, callable) {
-                                // [callable, receiver, args...] -> [field_value, args...]
-                                let callable_index = self.stack.len() - arg_count - 1;
-                                self.stack.remove(callable_index + 1);
-                                self.stack[callable_index] = field_value;
-                                return self.dispatch_call(arg_count - 1);
-                            }
-                            match self.builtin_user_method_call(arg_count, callable) {
-                                MethodDispatch::Found(closure, arg_count, exclude_self) => {
-                                    return self.call_closure_with(
-                                        arg_count,
-                                        &closure,
-                                        exclude_self,
-                                    );
-                                }
-                                MethodDispatch::Mismatch(e) => return Err(e),
-                                MethodDispatch::NotFound => {}
-                            }
-                            return Err(self.call_error(error));
-                        }
-                        Err(NativeCallError::Runtime(e)) => {
-                            return Err(e);
-                        }
+                        Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
+                        Err(NativeCallError::Runtime(e)) => return Err(e),
                     }
                 }
                 _ => {
@@ -170,6 +158,90 @@ impl VirtualMachine {
         self.stack.truncate(stack_len - arg_count - 1);
         self.stack.push(result);
         Ok(())
+    }
+
+    /// Dispatches a method call by name: the stack holds
+    /// `[receiver, args...]`, `arg_count` excluding the receiver. Tries, in
+    /// order, a user-defined method, a native method, and a callable
+    /// instance field; otherwise reports an unknown method.
+    fn dispatch_invoke(&mut self, method_name: &str, arg_count: usize) -> OpResult {
+        let receiver_index = self.stack.len() - arg_count - 1;
+        let receiver = self.stack[receiver_index].clone();
+        let type_name = self.get_type_name(&receiver);
+
+        if let Some(type_name) = &type_name {
+            let is_static_call = matches!(
+                receiver,
+                Value::Object(ref obj) if matches!(obj.as_ref(), Object::Struct(_))
+            );
+            match self.dispatch_method_by_name(
+                type_name.as_str(),
+                is_static_call,
+                receiver_index,
+                arg_count,
+                method_name,
+            ) {
+                MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                    return self.call_closure_with(arg_count, &closure, exclude_self);
+                }
+                MethodDispatch::Mismatch(e) => return Err(e),
+                MethodDispatch::NotFound => {}
+            }
+
+            if let Some(native) = crate::common::method_registry::get_native_method_by_name(
+                type_name.as_str(),
+                method_name,
+            ) {
+                let result = match self.run_native_callable(
+                    native,
+                    receiver_index,
+                    receiver_index + arg_count + 1,
+                ) {
+                    Ok(value) => value,
+                    Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
+                    Err(NativeCallError::Runtime(e)) => return Err(e),
+                };
+                self.stack.truncate(receiver_index);
+                self.push(result);
+                return Ok(());
+            }
+        }
+
+        if let Value::Object(obj) = &receiver {
+            if let Object::Instance(inst) = obj.as_ref() {
+                let field_value = inst.borrow().fields.get(method_name).cloned();
+                if let Some(field_value) = field_value {
+                    self.stack[receiver_index] = field_value;
+                    return self.dispatch_call(arg_count);
+                }
+            }
+        }
+
+        Err(self.call_error(match type_name {
+            Some(type_name) => format!("Unknown method '{}' for type {}", method_name, type_name),
+            None => "Cannot determine type of receiver for method call".to_string(),
+        }))
+    }
+
+    /// Runs a native callable with the stack range `args_start..args_end`
+    /// as its arguments.
+    fn run_native_callable(
+        &mut self,
+        native: &'static NativeCallable,
+        args_start: usize,
+        args_end: usize,
+    ) -> std::result::Result<Value, NativeCallError> {
+        match *native {
+            NativeCallable::InstanceMethodWithVm { function, .. } => {
+                let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
+                function(self, &args)
+            }
+            NativeCallable::StaticMethod { function, .. }
+            | NativeCallable::InstanceMethod { function, .. }
+            | NativeCallable::Constructor { function, .. } => {
+                function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
+            }
+        }
     }
 
     /// Lets a native call a Neon value (closure, lambda, or native) with
@@ -207,62 +279,22 @@ impl VirtualMachine {
         }
     }
 
-    /// Checks the user method table for a by-name call before the native
-    /// registry. Only a struct instance or a struct value itself can have a
-    /// user method; any other receiver falls straight through to native
-    /// dispatch.
-    fn dispatch_user_method_call(
-        &mut self,
-        arg_count: usize,
-        callable: &Rc<ObjNativeFunction>,
-    ) -> MethodDispatch {
-        let args_start = self.stack.len() - arg_count;
-        let receiver = &self.stack[args_start];
-        let (struct_name, is_static_call) = match receiver {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Instance(inst) => (inst.borrow().r#struct.name.clone(), false),
-                Object::Struct(r#struct) => (r#struct.name.clone(), true),
-                _ => return MethodDispatch::NotFound,
-            },
-            _ => return MethodDispatch::NotFound,
-        };
-
-        self.dispatch_method_by_name(&struct_name, is_static_call, arg_count, callable)
-    }
-
-    /// The user method registered for a builtin-type receiver, tried after
-    /// native dispatch misses.
-    fn builtin_user_method_call(
-        &mut self,
-        arg_count: usize,
-        callable: &Rc<ObjNativeFunction>,
-    ) -> MethodDispatch {
-        if callable.method_index != u32::MAX {
-            return MethodDispatch::NotFound;
-        }
-        let args_start = self.stack.len() - arg_count;
-        let receiver = &self.stack[args_start];
-        let Some(TypeName::Static(type_name)) = self.get_type_name(receiver) else {
-            return MethodDispatch::NotFound;
-        };
-
-        self.dispatch_method_by_name(type_name, false, arg_count, callable)
-    }
-
-    /// Looks up `callable`'s method name in the user method table under
-    /// `type_name` and resolves the call form (static vs. instance)
-    /// against how the method was defined.
+    /// Looks up `method_name` in the user method table under `type_name`
+    /// and checks the call form (static vs. instance) against the method's
+    /// definition. For an instance call, inserts a `Nil` callee slot below
+    /// the receiver so the receiver becomes `self`.
     fn dispatch_method_by_name(
         &mut self,
         type_name: &str,
         is_static_call: bool,
+        receiver_index: usize,
         arg_count: usize,
-        callable: &Rc<ObjNativeFunction>,
+        method_name: &str,
     ) -> MethodDispatch {
         let Some((closure, takes_self)) = self
             .methods
             .get(type_name)
-            .and_then(|methods| methods.get(&callable.method_name))
+            .and_then(|methods| methods.get(method_name))
             .cloned()
         else {
             return MethodDispatch::NotFound;
@@ -271,37 +303,17 @@ impl VirtualMachine {
         match (is_static_call, takes_self) {
             (true, true) => MethodDispatch::Mismatch(self.call_error(format!(
                 "Method '{}' needs an instance; call it on a {} value",
-                callable.method_name, type_name
+                method_name, type_name
             ))),
             (false, false) => MethodDispatch::Mismatch(self.call_error(format!(
                 "Method '{}' is static; call it as {}.{}()",
-                callable.method_name, type_name, callable.method_name
+                method_name, type_name, method_name
             ))),
-            (true, false) => {
-                let args_start = self.stack.len() - arg_count;
-                self.stack.remove(args_start);
-                MethodDispatch::Found(closure, arg_count - 1, false)
+            (true, false) => MethodDispatch::Found(closure, arg_count, false),
+            (false, true) => {
+                self.stack.insert(receiver_index, Value::Nil);
+                MethodDispatch::Found(closure, arg_count + 1, true)
             }
-            (false, true) => MethodDispatch::Found(closure, arg_count, true),
-        }
-    }
-
-    /// The instance field named after a by-name call that matched no method, if any.
-    fn field_call_target(
-        &self,
-        arg_count: usize,
-        callable: &Rc<ObjNativeFunction>,
-    ) -> Option<Value> {
-        if callable.method_index != u32::MAX {
-            return None;
-        }
-        let args_start = self.stack.len() - arg_count;
-        match &self.stack[args_start] {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Instance(inst) => inst.borrow().fields.get(&callable.method_name).cloned(),
-                _ => None,
-            },
-            _ => None,
         }
     }
 
@@ -310,13 +322,9 @@ impl VirtualMachine {
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
     ) -> std::result::Result<Value, NativeCallError> {
-        let native_callable_result = if callable.method_index != u32::MAX {
-            self.lookup_native_method_by_index(callable)
-        } else {
-            self.lookup_native_method_by_name(arg_count, callable)
-        };
-
-        let native_callable = native_callable_result.map_err(NativeCallError::Message)?;
+        let native_callable = self
+            .lookup_native_method_by_index(callable)
+            .map_err(NativeCallError::Message)?;
 
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count;
@@ -334,17 +342,7 @@ impl VirtualMachine {
                 }
             }
         }
-        match *native_callable {
-            NativeCallable::InstanceMethodWithVm { function, .. } => {
-                let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
-                function(self, &args)
-            }
-            NativeCallable::StaticMethod { function, .. }
-            | NativeCallable::InstanceMethod { function, .. }
-            | NativeCallable::Constructor { function, .. } => {
-                function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
-            }
-        }
+        self.run_native_callable(native_callable, args_start, args_end)
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> OpResult {
@@ -1482,32 +1480,6 @@ impl VirtualMachine {
             None => Err(format!(
                 "Unknown method index '{}' for native method call",
                 callable.method_index
-            )),
-            Some(callable) => Ok(callable),
-        }
-    }
-
-    /// Helper: Look up native method by name from receiver type
-    fn lookup_native_method_by_name(
-        &mut self,
-        arg_count: usize,
-        callable: &Rc<ObjNativeFunction>,
-    ) -> std::result::Result<&'static NativeCallable, String> {
-        let args_start = self.stack.len() - arg_count;
-        let receiver = &self.stack[args_start];
-
-        let type_name = match self.get_type_name(receiver) {
-            None => return Err("Cannot determine type of receiver for method call".to_string()),
-            Some(name) => name,
-        };
-
-        match crate::common::method_registry::get_native_method_by_name(
-            type_name.as_str(),
-            &callable.method_name,
-        ) {
-            None => Err(format!(
-                "Unknown method '{}' for type {}",
-                callable.method_name, type_name
             )),
             Some(callable) => Ok(callable),
         }
