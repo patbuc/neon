@@ -435,19 +435,35 @@ fn can_scan_number_then_comment_for_double_slash() {
 }
 
 #[test]
-fn can_scan_fn_keyword() {
-    let scanner = Scanner::new("fn");
-    let tokens = collect_tokens(scanner);
+fn can_scan_all_keywords() {
+    let keywords = [
+        ("break", TokenType::Break),
+        ("continue", TokenType::Continue),
+        ("else", TokenType::Else),
+        ("if", TokenType::If),
+        ("in", TokenType::In),
+        ("impl", TokenType::Impl),
+        ("nil", TokenType::Nil),
+        ("return", TokenType::Return),
+        ("struct", TokenType::Struct),
+        ("val", TokenType::Val),
+        ("var", TokenType::Var),
+        ("while", TokenType::While),
+        ("false", TokenType::False),
+        ("for", TokenType::For),
+        ("fn", TokenType::Fn),
+        ("true", TokenType::True),
+    ];
 
-    assert_eq!(tokens[0].token_type, TokenType::Fn);
-}
+    for (src, expected) in keywords {
+        let scanner = Scanner::new(src);
+        let tokens = collect_tokens(scanner);
 
-#[test]
-fn can_scan_impl_keyword() {
-    let scanner = Scanner::new("impl");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::Impl);
+        assert_eq!(
+            tokens[0].token_type, expected,
+            "{src} should scan as {expected:?}"
+        );
+    }
 }
 
 #[test]
