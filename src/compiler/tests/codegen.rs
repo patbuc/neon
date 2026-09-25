@@ -5,6 +5,19 @@ use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
+/// Parses `source` and runs codegen directly, skipping the semantic pass.
+fn generate_without_semantic_pass(source: &str) -> Result<Chunk, String> {
+    let mut parser = Parser::new(source);
+    let ast = parser
+        .parse()
+        .map_err(|e| format!("Parse error: {:?}", e))?;
+
+    let mut codegen = CodeGenerator::new(create_builtin_objects(vec![]));
+    codegen
+        .generate(&ast)
+        .map_err(|e| format!("Codegen error: {:?}", e))
+}
+
 fn compile_program(source: &str) -> Result<Chunk, String> {
     // Parse
     let mut parser = Parser::new(source);
@@ -1085,4 +1098,53 @@ fn test_captured_for_loop_emits_one_close_upvalue_in_place() {
         .count();
 
     assert_eq!(close_upvalue_in_place_count, 1);
+}
+
+// =============================================================================
+// Per-Function Loop State Tests
+// =============================================================================
+
+#[test]
+fn test_break_in_lambda_is_codegen_error() {
+    let program = r#"
+    while (true) {
+        val f = fn() {
+            break
+        }
+        f()
+    }
+    "#;
+    let result = generate_without_semantic_pass(program);
+    let err = result.expect_err("codegen must reject break in a lambda inside a loop");
+    assert!(err.contains("outside of a loop"));
+}
+
+#[test]
+fn test_continue_in_lambda_is_codegen_error() {
+    let program = r#"
+    while (true) {
+        val f = fn() {
+            continue
+        }
+        f()
+    }
+    "#;
+    let result = generate_without_semantic_pass(program);
+    let err = result.expect_err("codegen must reject continue in a lambda inside a loop");
+    assert!(err.contains("outside of a loop"));
+}
+
+#[test]
+fn test_break_in_nested_fn_is_codegen_error() {
+    let program = r#"
+    while (true) {
+        fn f() {
+            break
+        }
+        f()
+    }
+    "#;
+    let result = generate_without_semantic_pass(program);
+    let err = result.expect_err("codegen must reject break in a nested fn inside a loop");
+    assert!(err.contains("outside of a loop"));
 }

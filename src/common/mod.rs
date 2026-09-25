@@ -41,27 +41,7 @@ pub struct Chunk {
     pub constants: Constants,
     pub strings: Constants,
     pub instructions: Vec<u8>,
-    pub source_locations: Vec<SourceLocation>,
-    pub locals: Vec<Local>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Local {
-    pub name: String,
-    pub depth: i32,
-    pub is_mutable: bool,
-    pub is_captured: bool,
-}
-
-impl Local {
-    pub(crate) fn new(name: String, depth: u32, is_mutable: bool) -> Self {
-        Local {
-            name,
-            depth: depth as i32,
-            is_mutable,
-            is_captured: false,
-        }
-    }
+    pub line_infos: Vec<LineInfo>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -80,6 +60,13 @@ impl Display for SourceLocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.line, self.column)
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LineInfo {
+    pub ip: usize,
+    pub line: u32,
+    pub column: u32,
 }
 
 #[repr(u8)]

@@ -92,16 +92,16 @@ fn can_read_line_information_chunk() {
     chunk.write_op_code(OpCode::Multiply, 6, 0);
     chunk.write_op_code(OpCode::Return, 8, 0);
 
-    assert_eq!(2, chunk.get_source_location(0).unwrap().line);
-    assert_eq!(2, chunk.get_source_location(1).unwrap().line);
-    assert_eq!(3, chunk.get_source_location(2).unwrap().line);
-    assert_eq!(4, chunk.get_source_location(3).unwrap().line);
-    assert_eq!(4, chunk.get_source_location(4).unwrap().line);
-    assert_eq!(4, chunk.get_source_location(5).unwrap().line);
-    assert_eq!(5, chunk.get_source_location(6).unwrap().line);
-    assert_eq!(5, chunk.get_source_location(7).unwrap().line);
-    assert_eq!(6, chunk.get_source_location(8).unwrap().line);
-    assert_eq!(8, chunk.get_source_location(9).unwrap().line);
+    assert_eq!(2, chunk.get_line_info(0).unwrap().line);
+    assert_eq!(2, chunk.get_line_info(1).unwrap().line);
+    assert_eq!(3, chunk.get_line_info(2).unwrap().line);
+    assert_eq!(4, chunk.get_line_info(3).unwrap().line);
+    assert_eq!(4, chunk.get_line_info(4).unwrap().line);
+    assert_eq!(4, chunk.get_line_info(5).unwrap().line);
+    assert_eq!(5, chunk.get_line_info(6).unwrap().line);
+    assert_eq!(5, chunk.get_line_info(7).unwrap().line);
+    assert_eq!(6, chunk.get_line_info(8).unwrap().line);
+    assert_eq!(8, chunk.get_line_info(9).unwrap().line);
 
-    assert!(chunk.get_source_location(10).is_none());
+    assert!(chunk.get_line_info(10).is_none());
 }
