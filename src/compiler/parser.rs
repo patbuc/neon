@@ -16,6 +16,7 @@ pub struct Parser {
     errors: Vec<CompilationError>,
     panic_mode: bool,
     next_node_id: u32,
+    brace_depth: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -82,6 +83,7 @@ impl Parser {
             errors: Vec::new(),
             panic_mode: false,
             next_node_id,
+            brace_depth: 0,
         }
     }
 
@@ -105,7 +107,7 @@ impl Parser {
                 if self.current_token.offset == start_offset {
                     self.advance();
                 }
-                self.synchronize(false);
+                self.synchronize(None);
             }
         }
 
@@ -120,6 +122,11 @@ impl Parser {
 
     fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
+        match self.previous_token.token_type {
+            TokenType::LeftBrace | TokenType::HashLeftBrace => self.brace_depth += 1,
+            TokenType::RightBrace => self.brace_depth = self.brace_depth.saturating_sub(1),
+            _ => {}
+        }
         loop {
             self.current_token = self.scanner.scan_token();
             if self.current_token.token_type != TokenType::Error {
@@ -298,22 +305,28 @@ impl Parser {
         self.errors.push(error);
     }
 
-    /// Skips tokens until the start of the next statement, treating `{`/`#{`
-    /// and `}` as balanced so a brace opened by the token that failed to
-    /// parse (e.g. a block whose header was never consumed) doesn't get
-    /// mistaken for the enclosing body's closing brace.
-    fn synchronize(&mut self, stop_at_right_brace: bool) {
+    /// Skips tokens until the start of the next statement. `block_depth` is
+    /// the parser's `brace_depth` while inside the block being recovered
+    /// (`None` at the top level): a `}` only ends the skip once the parser
+    /// is back down to that depth, so a `}` that closes a map/set literal
+    /// or a nested block opened before the error isn't mistaken for the
+    /// enclosing block's own closing brace. The newline/keyword stops use a
+    /// separate, purely local count of braces opened during this skip, so
+    /// they don't fire while still inside a group the skip itself entered.
+    fn synchronize(&mut self, block_depth: Option<usize>) {
         self.panic_mode = false;
-        let mut depth: u32 = 0;
+        let mut local_depth: u32 = 0;
         loop {
             if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            if depth == 0 {
+            if local_depth == 0 {
                 if self.previous_token.token_type == TokenType::NewLine {
                     return;
                 }
-                if stop_at_right_brace && self.current_token.token_type == TokenType::RightBrace {
+                if block_depth == Some(self.brace_depth)
+                    && self.current_token.token_type == TokenType::RightBrace
+                {
                     return;
                 }
                 match self.current_token.token_type {
@@ -330,8 +343,8 @@ impl Parser {
                 }
             }
             match self.current_token.token_type {
-                TokenType::LeftBrace | TokenType::HashLeftBrace => depth += 1,
-                TokenType::RightBrace => depth = depth.saturating_sub(1),
+                TokenType::LeftBrace | TokenType::HashLeftBrace => local_depth += 1,
+                TokenType::RightBrace => local_depth = local_depth.saturating_sub(1),
                 _ => {}
             }
             self.advance();
@@ -568,6 +581,7 @@ impl Parser {
     /// expressions, whose surrounding context decides what may follow.
     fn parse_block_body(&mut self) -> Option<Vec<Stmt>> {
         let mut statements = Vec::new();
+        let block_depth = self.brace_depth;
         self.skip_new_lines();
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
@@ -579,7 +593,7 @@ impl Parser {
                 if self.current_token.offset == start_offset {
                     self.advance();
                 }
-                self.synchronize(true);
+                self.synchronize(Some(block_depth));
             }
         }
 

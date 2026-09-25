@@ -492,6 +492,34 @@ fn test_stray_brace_as_operand_is_not_consumed() {
 }
 
 #[test]
+fn test_map_literal_close_brace_is_not_mistaken_for_block_end() {
+    let program = "fn f() {\n    val m = { \"a\": 1 + }\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 24)]);
+}
+
+#[test]
+fn test_nested_call_with_bad_map_value_does_not_swallow_block_end() {
+    let program = "fn f() {\n    x = foo(1, {\n \"b\": ) })\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 7)]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
