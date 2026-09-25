@@ -995,8 +995,23 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::Nil
             | OpCode::GreaterEqual
             | OpCode::LessEqual
-            | OpCode::Pop => 0,
-            OpCode::Constant | OpCode::SetLocal | OpCode::GetLocal | OpCode::Call => 1,
+            | OpCode::Pop
+            | OpCode::Add
+            | OpCode::Less
+            | OpCode::CloseUpvalue
+            | OpCode::CloseUpvalueInPlace => 0,
+            OpCode::Constant
+            | OpCode::SetLocal
+            | OpCode::GetLocal
+            | OpCode::GetBuiltin
+            | OpCode::Call => 1,
+            OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 4,
+            OpCode::Closure => {
+                // 1-byte constant index, then a 1-byte upvalue count and
+                // that many (is_local, index) pairs (1 + 2 bytes each).
+                let upvalue_count = chunk.read_u8(offset + 2) as usize;
+                2 + upvalue_count * 3
+            }
             _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
         };
         offset += 1 + operand_bytes;
@@ -1035,4 +1050,39 @@ fn test_greater_equal_less_equal_opcodes() {
             OpCode::Return,
         ]
     );
+}
+
+#[test]
+fn test_uncaptured_for_loop_emits_no_close_upvalue_in_place() {
+    let program = r#"
+    for (var i = 0; i < 3; i = i + 1) {
+        print(i)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let close_upvalue_in_place_count = op_codes(&chunk)
+        .into_iter()
+        .filter(|op| *op == OpCode::CloseUpvalueInPlace)
+        .count();
+
+    assert_eq!(close_upvalue_in_place_count, 0);
+}
+
+#[test]
+fn test_captured_for_loop_emits_one_close_upvalue_in_place() {
+    let program = r#"
+    var last = nil
+    for (var i = 0; i < 3; i = i + 1) {
+        last = fn() { return i }
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let close_upvalue_in_place_count = op_codes(&chunk)
+        .into_iter()
+        .filter(|op| *op == OpCode::CloseUpvalueInPlace)
+        .count();
+
+    assert_eq!(close_upvalue_in_place_count, 1);
 }

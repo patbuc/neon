@@ -201,7 +201,6 @@ pub enum Stmt {
     While {
         condition: Expr,
         body: Box<Stmt>,
-        increment: Option<Box<Stmt>>,
         location: SourceLocation,
     },
     Return {
@@ -211,6 +210,13 @@ pub enum Stmt {
     ForIn {
         variable: String,
         collection: Expr,
+        body: Box<Stmt>,
+        location: SourceLocation,
+    },
+    For {
+        initializer: Box<Stmt>,
+        condition: Expr,
+        increment: Expr,
         body: Box<Stmt>,
         location: SourceLocation,
     },
@@ -254,6 +260,7 @@ impl Expr {
 }
 
 impl Stmt {
+    #[allow(dead_code)]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Stmt::Val { location, .. }
@@ -267,6 +274,7 @@ impl Stmt {
             | Stmt::While { location, .. }
             | Stmt::Return { location, .. }
             | Stmt::ForIn { location, .. }
+            | Stmt::For { location, .. }
             | Stmt::Break { location }
             | Stmt::Continue { location } => location,
         }

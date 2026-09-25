@@ -2883,11 +2883,11 @@ fn test_loop_body_local_does_not_grow_stack() {
         stack_len_after_loop(1000, ordinary_body)
     );
 
-    // A 2-statement body hits generate_while_stmt's desugared-for fast path.
-    let fast_path_body = "val temp = i * 2\ni = i + 1";
+    // A 2-statement body also goes through generate_block_stmt.
+    let short_body = "val temp = i * 2\ni = i + 1";
     assert_eq!(
-        stack_len_after_loop(0, fast_path_body),
-        stack_len_after_loop(1000, fast_path_body)
+        stack_len_after_loop(0, short_body),
+        stack_len_after_loop(1000, short_body)
     );
 }
 

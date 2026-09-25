@@ -614,48 +614,40 @@ fn test_parse_for_loop() {
     assert!(result.is_ok());
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 1);
-    // For loop is desugared to a Block containing a declaration and a While loop
     match &stmts[0] {
-        Stmt::Block { statements, .. } => {
-            assert_eq!(statements.len(), 2);
-            // First statement should be the initializer (var declaration)
-            match &statements[0] {
+        Stmt::For {
+            initializer,
+            condition,
+            increment,
+            body,
+            ..
+        } => {
+            match initializer.as_ref() {
                 Stmt::Var { name, .. } => {
                     assert_eq!(name, "i");
                 }
-                _ => panic!("Expected Var declaration as first statement in for loop"),
+                _ => panic!("Expected Var declaration as for loop initializer"),
             }
-            // Second statement should be the while loop
-            match &statements[1] {
-                Stmt::While {
-                    condition,
-                    body,
-                    increment,
+            // Verify condition is a binary comparison
+            match condition {
+                Expr::Binary { .. } => {}
+                _ => panic!("Expected Binary expression for condition"),
+            }
+            match body.as_ref() {
+                Stmt::Block {
+                    statements: body_stmts,
                     ..
                 } => {
-                    // Verify condition is a binary comparison
-                    match condition {
-                        Expr::Binary { .. } => {}
-                        _ => panic!("Expected Binary expression for condition"),
-                    }
-                    match body.as_ref() {
-                        Stmt::Block {
-                            statements: body_stmts,
-                            ..
-                        } => {
-                            assert_eq!(body_stmts.len(), 1, "Body should be the original block");
-                        }
-                        _ => panic!("Expected Block as while body"),
-                    }
-                    match increment.as_deref() {
-                        Some(Stmt::Expression { .. }) => {}
-                        _ => panic!("Expected increment to be an Expression statement"),
-                    }
+                    assert_eq!(body_stmts.len(), 1, "Body should be the original block");
                 }
-                _ => panic!("Expected While statement as second statement in for loop"),
+                _ => panic!("Expected Block as for body"),
+            }
+            match increment {
+                Expr::Assign { .. } => {}
+                _ => panic!("Expected Assign expression for increment"),
             }
         }
-        _ => panic!("Expected Block statement for for loop desugaring"),
+        _ => panic!("Expected For statement"),
     }
 }
 
@@ -673,22 +665,13 @@ fn test_parse_for_loop_with_val() {
     assert_eq!(stmts.len(), 1);
     // For loop with val should parse successfully (runtime will catch the error)
     match &stmts[0] {
-        Stmt::Block { statements, .. } => {
-            assert_eq!(statements.len(), 2);
-            // First statement should be the initializer (val declaration)
-            match &statements[0] {
-                Stmt::Val { name, .. } => {
-                    assert_eq!(name, "i");
-                }
-                _ => panic!("Expected Val declaration as first statement in for loop"),
+        Stmt::For { initializer, .. } => match initializer.as_ref() {
+            Stmt::Val { name, .. } => {
+                assert_eq!(name, "i");
             }
-            // Second statement should be the while loop
-            match &statements[1] {
-                Stmt::While { .. } => {}
-                _ => panic!("Expected While statement as second statement in for loop"),
-            }
-        }
-        _ => panic!("Expected Block statement for for loop desugaring"),
+            _ => panic!("Expected Val declaration as for loop initializer"),
+        },
+        _ => panic!("Expected For statement"),
     }
 }
 
@@ -704,31 +687,24 @@ fn test_parse_for_loop_empty_body() {
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
-        Stmt::Block { statements, .. } => {
-            assert_eq!(statements.len(), 2);
-            // Verify the while loop has an empty body and a separate increment
-            match &statements[1] {
-                Stmt::While {
-                    body, increment, ..
+        Stmt::For {
+            body, increment, ..
+        } => {
+            match body.as_ref() {
+                Stmt::Block {
+                    statements: empty_stmts,
+                    ..
                 } => {
-                    match body.as_ref() {
-                        Stmt::Block {
-                            statements: empty_stmts,
-                            ..
-                        } => {
-                            assert_eq!(empty_stmts.len(), 0, "Body should be empty");
-                        }
-                        _ => panic!("Expected Block for empty body"),
-                    }
-                    match increment.as_deref() {
-                        Some(Stmt::Expression { .. }) => {}
-                        _ => panic!("Expected increment to be an Expression statement"),
-                    }
+                    assert_eq!(empty_stmts.len(), 0, "Body should be empty");
                 }
-                _ => panic!("Expected While statement"),
+                _ => panic!("Expected Block for empty body"),
+            }
+            match increment {
+                Expr::Assign { .. } => {}
+                _ => panic!("Expected Assign expression for increment"),
             }
         }
-        _ => panic!("Expected Block statement"),
+        _ => panic!("Expected For statement"),
     }
 }
 
@@ -749,56 +725,46 @@ fn test_parse_nested_for_loops() {
     assert_eq!(stmts.len(), 1);
     // Outer for loop
     match &stmts[0] {
-        Stmt::Block { statements, .. } => {
-            assert_eq!(statements.len(), 2);
+        Stmt::For {
+            initializer,
+            body,
+            increment,
+            ..
+        } => {
             // Verify outer var declaration
-            match &statements[0] {
+            match initializer.as_ref() {
                 Stmt::Var { name, .. } => assert_eq!(name, "i"),
                 _ => panic!("Expected Var declaration for outer loop"),
             }
-            // Verify outer while loop
-            match &statements[1] {
-                Stmt::While {
-                    body, increment, ..
+            match body.as_ref() {
+                Stmt::Block {
+                    statements: outer_body_stmts,
+                    ..
                 } => {
-                    match body.as_ref() {
-                        Stmt::Block {
-                            statements: source_block_stmts,
+                    assert_eq!(
+                        outer_body_stmts.len(),
+                        1,
+                        "Outer body should contain one statement (the inner for loop)"
+                    );
+                    match &outer_body_stmts[0] {
+                        Stmt::For {
+                            initializer: inner_initializer,
                             ..
-                        } => {
-                            assert_eq!(source_block_stmts.len(), 1, "Source block should contain one statement (the desugared inner for loop)");
-                            // That statement should be the desugared inner for loop (another Block)
-                            match &source_block_stmts[0] {
-                                Stmt::Block {
-                                    statements: inner_for_stmts,
-                                    ..
-                                } => {
-                                    assert_eq!(inner_for_stmts.len(), 2);
-                                    // Verify inner var declaration
-                                    match &inner_for_stmts[0] {
-                                        Stmt::Var { name, .. } => assert_eq!(name, "j"),
-                                        _ => panic!("Expected Var declaration for inner loop"),
-                                    }
-                                    // Verify inner while loop exists
-                                    match &inner_for_stmts[1] {
-                                        Stmt::While { .. } => {}
-                                        _ => panic!("Expected While statement for inner loop"),
-                                    }
-                                }
-                                _ => panic!("Expected Block for desugared inner for loop"),
-                            }
-                        }
-                        _ => panic!("Expected Block as outer while body"),
-                    }
-                    match increment.as_deref() {
-                        Some(Stmt::Expression { .. }) => {}
-                        _ => panic!("Expected increment to be an Expression statement"),
+                        } => match inner_initializer.as_ref() {
+                            Stmt::Var { name, .. } => assert_eq!(name, "j"),
+                            _ => panic!("Expected Var declaration for inner loop"),
+                        },
+                        _ => panic!("Expected For statement for inner loop"),
                     }
                 }
-                _ => panic!("Expected While statement for outer loop"),
+                _ => panic!("Expected Block as outer for body"),
+            }
+            match increment {
+                Expr::Assign { .. } => {}
+                _ => panic!("Expected Assign expression for increment"),
             }
         }
-        _ => panic!("Expected Block statement for outer for loop"),
+        _ => panic!("Expected For statement for outer for loop"),
     }
 }
 
@@ -911,19 +877,13 @@ fn test_parse_for_loop_complex_increment() {
     assert!(result.is_ok());
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 1);
-    // Verify the increment expression is the While node's explicit increment field
+    // Verify the increment expression is the For node's explicit increment field
     match &stmts[0] {
-        Stmt::Block { statements, .. } => match &statements[1] {
-            Stmt::While { increment, .. } => match increment.as_deref() {
-                Some(Stmt::Expression { expr, .. }) => match expr {
-                    Expr::Assign { .. } => {}
-                    _ => panic!("Expected Assign expression for increment"),
-                },
-                _ => panic!("Expected Expression statement for increment"),
-            },
-            _ => panic!("Expected While statement"),
+        Stmt::For { increment, .. } => match increment {
+            Expr::Assign { .. } => {}
+            _ => panic!("Expected Assign expression for increment"),
         },
-        _ => panic!("Expected Block statement"),
+        _ => panic!("Expected For statement"),
     }
 }
 

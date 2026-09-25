@@ -633,12 +633,9 @@ impl SemanticAnalyzer {
                 );
             }
             Stmt::While {
-                condition,
-                body,
-                increment,
-                ..
+                condition, body, ..
             } => {
-                self.resolve_while_statement(condition, body, increment.as_deref());
+                self.resolve_while_statement(condition, body);
             }
             Stmt::Return { value, .. } => {
                 self.resolve_expr(value);
@@ -656,6 +653,15 @@ impl SemanticAnalyzer {
                 location,
             } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
+            }
+            Stmt::For {
+                initializer,
+                condition,
+                increment,
+                body,
+                ..
+            } => {
+                self.resolve_for_statement(initializer, condition, increment, body);
             }
         }
     }
@@ -872,14 +878,32 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_while_statement(&mut self, condition: &Expr, body: &Stmt, increment: Option<&Stmt>) {
+    fn resolve_while_statement(&mut self, condition: &Expr, body: &Stmt) {
         self.resolve_expr(condition);
         self.loop_depth += 1;
         self.resolve_stmt(body);
-        if let Some(increment) = increment {
-            self.resolve_stmt(increment);
-        }
         self.loop_depth -= 1;
+    }
+
+    fn resolve_for_statement(
+        &mut self,
+        initializer: &Stmt,
+        condition: &Expr,
+        increment: &Expr,
+        body: &Stmt,
+    ) {
+        self.enter_scope();
+
+        self.resolve_stmt(initializer);
+        self.resolve_expr(condition);
+
+        self.loop_depth += 1;
+        self.resolve_stmt(body);
+        self.loop_depth -= 1;
+
+        self.resolve_expr(increment);
+
+        self.exit_scope();
     }
 
     fn resolve_for_in_statement(
