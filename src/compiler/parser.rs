@@ -4,7 +4,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
@@ -15,6 +15,7 @@ pub struct Parser {
     current_token: Token,
     errors: Vec<CompilationError>,
     panic_mode: bool,
+    next_node_id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -77,7 +78,14 @@ impl Parser {
             current_token: Token::default(),
             errors: Vec::new(),
             panic_mode: false,
+            next_node_id: 0,
         }
+    }
+
+    fn next_id(&mut self) -> NodeId {
+        let id = NodeId(self.next_node_id);
+        self.next_node_id += 1;
+        id
     }
 
     pub fn parse(&mut self) -> CompilationResult<Vec<Stmt>> {
@@ -351,12 +359,14 @@ impl Parser {
             Stmt::Var {
                 name,
                 initializer,
+                id: self.next_id(),
                 location,
             }
         } else {
             Stmt::Val {
                 name,
                 initializer,
+                id: self.next_id(),
                 location,
             }
         })
@@ -395,6 +405,7 @@ impl Parser {
             name,
             params,
             body,
+            id: self.next_id(),
             location,
         })
     }
@@ -434,6 +445,7 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            id: self.next_id(),
             location,
         })
     }
@@ -690,6 +702,7 @@ impl Parser {
             variable,
             collection,
             body,
+            id: self.next_id(),
             location,
         })
     }
@@ -1020,10 +1033,15 @@ impl Parser {
             Some(Expr::Assign {
                 name,
                 value,
+                id: self.next_id(),
                 location,
             })
         } else {
-            Some(Expr::Variable { name, location })
+            Some(Expr::Variable {
+                name,
+                id: self.next_id(),
+                location,
+            })
         }
     }
 
@@ -1146,6 +1164,7 @@ impl Parser {
         Some(Expr::Call {
             callee: Box::new(callee),
             arguments,
+            id: self.next_id(),
             location,
         })
     }
@@ -1178,6 +1197,7 @@ impl Parser {
             Some(Expr::Call {
                 callee: Box::new(get_field_expr),
                 arguments,
+                id: self.next_id(),
                 location: method_location,
             })
         } else if can_assign && self.match_token(TokenType::Equal) {
@@ -1259,6 +1279,7 @@ impl Parser {
         Some(Expr::Function {
             params,
             body,
+            id: self.next_id(),
             location,
         })
     }

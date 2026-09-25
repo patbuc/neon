@@ -183,6 +183,7 @@ impl CodeGenerator {
                     name,
                     fields,
                     location,
+                    ..
                 } => {
                     // Create the struct value
                     let struct_value = Value::new_struct(name.clone(), fields.clone());
@@ -208,6 +209,7 @@ impl CodeGenerator {
                         params,
                         body,
                         location,
+                        ..
                     } = method
                     {
                         self.generate_closure(name, params, body, *location);
@@ -915,6 +917,7 @@ impl CodeGenerator {
                 name,
                 initializer,
                 location,
+                ..
             } => {
                 self.generate_variable_declaration(name, initializer, false, *location);
             }
@@ -922,6 +925,7 @@ impl CodeGenerator {
                 name,
                 initializer,
                 location,
+                ..
             } => {
                 self.generate_variable_declaration(name, initializer, true, *location);
             }
@@ -930,6 +934,7 @@ impl CodeGenerator {
                 params,
                 body,
                 location,
+                ..
             } => {
                 self.generate_fn_stmt(name, params, body, *location);
             }
@@ -977,6 +982,7 @@ impl CodeGenerator {
                 collection,
                 body,
                 location,
+                ..
             } => {
                 self.generate_for_in_stmt(variable, collection, body, *location);
             }
@@ -1400,13 +1406,14 @@ impl CodeGenerator {
             Expr::Nil { location } => {
                 self.emit_op_code(OpCode::Nil, *location);
             }
-            Expr::Variable { name, location } => {
+            Expr::Variable { name, location, .. } => {
                 self.generate_variable_expr(name, *location);
             }
             Expr::Assign {
                 name,
                 value,
                 location,
+                ..
             } => {
                 self.generate_assign_expr(name, value, *location);
             }
@@ -1434,6 +1441,7 @@ impl CodeGenerator {
                 callee,
                 arguments,
                 location,
+                ..
             } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
@@ -1586,6 +1594,7 @@ impl CodeGenerator {
                 params,
                 body,
                 location,
+                ..
             } => {
                 self.generate_closure("anonymous", params, body, *location);
             }

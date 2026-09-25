@@ -123,6 +123,7 @@ impl SemanticAnalyzer {
                     name,
                     fields,
                     location,
+                    ..
                 } => {
                     if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
                         self.errors.push(CompilationError::new(
@@ -550,6 +551,7 @@ impl SemanticAnalyzer {
                 name,
                 initializer,
                 location,
+                ..
             } => {
                 self.resolve_variable_declaration(
                     name,
@@ -563,6 +565,7 @@ impl SemanticAnalyzer {
                 name,
                 initializer,
                 location,
+                ..
             } => {
                 self.resolve_variable_declaration(
                     name,
@@ -577,6 +580,7 @@ impl SemanticAnalyzer {
                 params,
                 body,
                 location,
+                ..
             } => {
                 self.resolve_function_declaration(name, params, body, *location);
             }
@@ -584,6 +588,7 @@ impl SemanticAnalyzer {
                 name,
                 fields,
                 location,
+                ..
             } => {
                 // A top-level struct was already resolved in collect_declarations.
                 if self.symbol_table.current_depth() != 0 {
@@ -651,6 +656,7 @@ impl SemanticAnalyzer {
                 collection,
                 body,
                 location,
+                ..
             } => {
                 self.resolve_for_in_statement(variable, collection, body, *location);
             }
@@ -674,13 +680,14 @@ impl SemanticAnalyzer {
             Expr::StringInterpolation { parts, .. } => {
                 self.resolve_string_interpolation(parts);
             }
-            Expr::Variable { name, location } => {
+            Expr::Variable { name, location, .. } => {
                 self.resolve_variable(name, *location);
             }
             Expr::Assign {
                 name,
                 value,
                 location,
+                ..
             } => {
                 self.resolve_assignment(name, value, *location);
             }
@@ -699,6 +706,7 @@ impl SemanticAnalyzer {
                 callee,
                 arguments,
                 location,
+                ..
             } => {
                 self.resolve_call_expr(callee, arguments, *location);
             }
@@ -763,6 +771,7 @@ impl SemanticAnalyzer {
                 params,
                 body,
                 location,
+                ..
             } => {
                 self.resolve_function_body(params, body, *location, None);
             }
