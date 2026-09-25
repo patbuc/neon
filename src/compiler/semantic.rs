@@ -504,7 +504,7 @@ impl SemanticAnalyzer {
                 match operator {
                     BinaryOp::Add => {
                         // Add can be either string concatenation or numeric
-                        // addition. Only fn_add's own outcomes are valid at
+                        // addition. Only op_add's own outcomes are valid at
                         // runtime (String + String, or Number + Number), so
                         // an unknown operand can never rule out String: it
                         // could still turn out to be one at runtime.

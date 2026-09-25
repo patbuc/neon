@@ -119,73 +119,73 @@ impl VirtualMachine {
 
             match op_code {
                 OpCode::Return => {
-                    self.fn_return();
+                    self.op_return();
                     if self.call_frames.len() == target_depth {
                         return Ok(());
                     }
                     continue;
                 }
-                OpCode::Constant => self.fn_constant(),
-                OpCode::Negate => self.fn_negate()?,
-                OpCode::Add => self.fn_add()?,
-                OpCode::Subtract => self.fn_subtract()?,
-                OpCode::Multiply => self.fn_multiply()?,
-                OpCode::Divide => self.fn_divide()?,
-                OpCode::Modulo => self.fn_modulo()?,
-                OpCode::Exponent => self.fn_exponent()?,
+                OpCode::Constant => self.op_constant(),
+                OpCode::Negate => self.op_negate()?,
+                OpCode::Add => self.op_add()?,
+                OpCode::Subtract => self.op_subtract()?,
+                OpCode::Multiply => self.op_multiply()?,
+                OpCode::Divide => self.op_divide()?,
+                OpCode::Modulo => self.op_modulo()?,
+                OpCode::Exponent => self.op_exponent()?,
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),
-                OpCode::Equal => self.fn_equal(),
-                OpCode::Greater => self.fn_compare(Comparison::Greater)?,
-                OpCode::GreaterEqual => self.fn_compare(Comparison::GreaterEqual)?,
-                OpCode::Less => self.fn_compare(Comparison::Less)?,
-                OpCode::LessEqual => self.fn_compare(Comparison::LessEqual)?,
-                OpCode::Not => self.fn_not(),
-                OpCode::String => self.fn_string(),
+                OpCode::Equal => self.op_equal(),
+                OpCode::Greater => self.op_compare(Comparison::Greater)?,
+                OpCode::GreaterEqual => self.op_compare(Comparison::GreaterEqual)?,
+                OpCode::Less => self.op_compare(Comparison::Less)?,
+                OpCode::LessEqual => self.op_compare(Comparison::LessEqual)?,
+                OpCode::Not => self.op_not(),
+                OpCode::String => self.op_string(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::GetLocal => self.fn_get_local()?,
-                OpCode::SetLocal => self.fn_set_local()?,
-                OpCode::GetBuiltin => self.fn_get_builtin()?,
-                OpCode::GetGlobal => self.fn_get_global()?,
-                OpCode::SetGlobal => self.fn_set_global()?,
-                OpCode::JumpIfFalse => self.fn_jump_if_false(),
-                OpCode::Jump => self.fn_jump(),
-                OpCode::Loop => self.fn_loop(),
+                OpCode::GetLocal => self.op_get_local()?,
+                OpCode::SetLocal => self.op_set_local()?,
+                OpCode::GetBuiltin => self.op_get_builtin()?,
+                OpCode::GetGlobal => self.op_get_global()?,
+                OpCode::SetGlobal => self.op_set_global()?,
+                OpCode::JumpIfFalse => self.op_jump_if_false(),
+                OpCode::Jump => self.op_jump(),
+                OpCode::Loop => self.op_loop(),
                 OpCode::Call => {
-                    self.fn_call()?;
+                    self.op_call()?;
                     continue;
                 }
                 OpCode::Invoke => {
-                    self.fn_invoke()?;
+                    self.op_invoke()?;
                     continue;
                 }
-                OpCode::GetField => self.fn_get_field()?,
-                OpCode::SetField => self.fn_set_field()?,
+                OpCode::GetField => self.op_get_field()?,
+                OpCode::SetField => self.op_set_field()?,
 
-                OpCode::CreateMap => self.fn_create_map()?,
-                OpCode::CreateArray => self.fn_create_array(),
-                OpCode::CreateSet => self.fn_create_set()?,
-                OpCode::GetIndex => self.fn_get_index()?,
-                OpCode::SetIndex => self.fn_set_index()?,
-                OpCode::GetIterator => self.fn_get_iterator()?,
-                OpCode::IteratorNext => self.fn_iterator_next()?,
-                OpCode::IteratorDone => self.fn_iterator_done()?,
-                OpCode::CreateRange => self.fn_create_range()?,
-                OpCode::ToString => self.fn_to_string(),
-                OpCode::BitwiseAnd => self.fn_bitwise_and()?,
-                OpCode::BitwiseOr => self.fn_bitwise_or()?,
-                OpCode::BitwiseXor => self.fn_bitwise_xor()?,
-                OpCode::BitwiseNot => self.fn_bitwise_not()?,
-                OpCode::LeftShift => self.fn_left_shift()?,
-                OpCode::RightShift => self.fn_right_shift()?,
-                OpCode::Closure => self.fn_closure()?,
-                OpCode::GetUpvalue => self.fn_get_upvalue()?,
-                OpCode::SetUpvalue => self.fn_set_upvalue()?,
-                OpCode::CloseUpvalue => self.fn_close_upvalue(),
-                OpCode::CloseUpvalueInPlace => self.fn_close_upvalue_in_place(),
-                OpCode::DefineMethod => self.fn_define_method(),
-                OpCode::CheckInitialized => self.fn_check_initialized()?,
+                OpCode::CreateMap => self.op_create_map()?,
+                OpCode::CreateArray => self.op_create_array(),
+                OpCode::CreateSet => self.op_create_set()?,
+                OpCode::GetIndex => self.op_get_index()?,
+                OpCode::SetIndex => self.op_set_index()?,
+                OpCode::GetIterator => self.op_get_iterator()?,
+                OpCode::IteratorNext => self.op_iterator_next()?,
+                OpCode::IteratorDone => self.op_iterator_done()?,
+                OpCode::CreateRange => self.op_create_range()?,
+                OpCode::ToString => self.op_to_string(),
+                OpCode::BitwiseAnd => self.op_bitwise_and()?,
+                OpCode::BitwiseOr => self.op_bitwise_or()?,
+                OpCode::BitwiseXor => self.op_bitwise_xor()?,
+                OpCode::BitwiseNot => self.op_bitwise_not()?,
+                OpCode::LeftShift => self.op_left_shift()?,
+                OpCode::RightShift => self.op_right_shift()?,
+                OpCode::Closure => self.op_closure()?,
+                OpCode::GetUpvalue => self.op_get_upvalue()?,
+                OpCode::SetUpvalue => self.op_set_upvalue()?,
+                OpCode::CloseUpvalue => self.op_close_upvalue(),
+                OpCode::CloseUpvalueInPlace => self.op_close_upvalue_in_place(),
+                OpCode::DefineMethod => self.op_define_method(),
+                OpCode::CheckInitialized => self.op_check_initialized()?,
             }
             self.current_frame_mut().ip += 1;
         }
