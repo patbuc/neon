@@ -119,12 +119,17 @@ fn run_file(path: &str, args: Vec<String>) {
 }
 
 fn read_file(path: &str) -> String {
-    let mut file = File::open(path).unwrap_or_else(|_| panic!("Failed to open the file {}", path));
+    let mut file = File::open(path).unwrap_or_else(|err| {
+        eprintln!("Failed to open the file {}: {}", path, err);
+        exit(66);
+    });
 
     // Read the file contents into a string
     let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .unwrap_or_else(|_| panic!("Failed to read the file {}", path));
+    file.read_to_string(&mut contents).unwrap_or_else(|err| {
+        eprintln!("Failed to read the file {}: {}", path, err);
+        exit(74);
+    });
     contents
 }
 

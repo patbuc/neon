@@ -27,6 +27,34 @@ fn run_file_prints_only_program_output() {
 }
 
 #[test]
+fn run_file_reports_missing_file_on_stderr() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("/nonexistent_path_neon_cli_test.n")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(66, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("/nonexistent_path_neon_cli_test.n"));
+    assert!(!stderr.contains("panic"));
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+#[cfg(unix)]
+fn run_file_reports_unreadable_file_on_stderr() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(std::env::temp_dir())
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(74, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("panic"));
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
 fn run_file_reports_runtime_error_on_stderr() {
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join("neon_cli_test_run_file_reports_runtime_error_on_stderr.n");
