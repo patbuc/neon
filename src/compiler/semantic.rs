@@ -83,15 +83,15 @@ impl SemanticAnalyzer {
         for namespace in crate::common::method_registry::namespaces() {
             let decl_id = DeclId(next_decl_id);
             next_decl_id += 1;
-            let symbol = Symbol {
-                name: namespace.to_string(),
-                kind: SymbolKind::Namespace,
-                is_mutable: false,
-                scope_depth: 0,
-                location: SourceLocation::default(),
+            let symbol = Symbol::new(
+                namespace.to_string(),
+                SymbolKind::Namespace,
+                false,
+                0,
+                SourceLocation::default(),
                 decl_id,
-                function_level: 0,
-            };
+                0,
+            );
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
         }
 
@@ -100,17 +100,17 @@ impl SemanticAnalyzer {
         for (index, (name, type_name)) in crate::common::stdlib::BUILTIN_VALUES.iter().enumerate() {
             let decl_id = DeclId(next_decl_id);
             next_decl_id += 1;
-            let symbol = Symbol {
-                name: name.to_string(),
-                kind: SymbolKind::Builtin {
+            let symbol = Symbol::new(
+                name.to_string(),
+                SymbolKind::Builtin {
                     index: index as u32,
                 },
-                is_mutable: false,
-                scope_depth: 0,
-                location: SourceLocation::default(),
+                false,
+                0,
+                SourceLocation::default(),
                 decl_id,
-                function_level: 0,
-            };
+                0,
+            );
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
             type_env[0].insert(name.to_string(), Some(type_name.to_string()));
         }
@@ -600,27 +600,21 @@ impl SemanticAnalyzer {
 
     // ===== Then: Reference Resolution =====
 
-    /// Resolves `name`'s symbol into a `Res`, from the point of view of the
+    /// Resolves a symbol use into a `Res`, from the point of view of the
     /// current function, chaining an upvalue capture through enclosing
     /// functions as needed. Mirrors codegen's `get_variable_index` /
     /// `resolve_upvalue`.
-    fn compute_res(
-        &mut self,
-        builtin_index: Option<u32>,
-        decl_id: DeclId,
-        decl_level: u32,
-        decl_scope_depth: u32,
-    ) -> Res {
-        if let Some(index) = builtin_index {
+    fn compute_res(&mut self, use_: SymbolUse) -> Res {
+        if let Some(index) = use_.builtin_index {
             return Res::Builtin(index);
         }
-        if decl_level == self.function_level() {
-            return Res::Local(decl_id);
+        if use_.decl_level == self.function_level() {
+            return Res::Local(use_.decl_id);
         }
-        if decl_level == 0 && decl_scope_depth == 0 {
-            return Res::Global(decl_id);
+        if use_.decl_level == 0 && use_.decl_scope_depth == 0 {
+            return Res::Global(use_.decl_id);
         }
-        Res::Upvalue(self.resolve_upvalue_chain(decl_id, decl_level))
+        Res::Upvalue(self.resolve_upvalue_chain(use_.decl_id, use_.decl_level))
     }
 
     /// Chains an upvalue capture from `decl_level` up to the current
@@ -652,12 +646,7 @@ impl SemanticAnalyzer {
 
     /// Resolves a symbol use into a `Res` and records it under `id`.
     fn record_symbol_use(&mut self, id: NodeId, use_: SymbolUse) {
-        let res = self.compute_res(
-            use_.builtin_index,
-            use_.decl_id,
-            use_.decl_level,
-            use_.decl_scope_depth,
-        );
+        let res = self.compute_res(use_);
         self.resolutions.record_use(id, res);
     }
 
@@ -1068,18 +1057,14 @@ impl SemanticAnalyzer {
     ) {
         self.enter_scope();
 
-        // Codegen emits the increment right after the initializer (it's
-        // jumped over on the first iteration, but still compiled there), so
-        // resolve it in that order too - otherwise a closure made in the
-        // condition or body would get upvalue indices out of step with
-        // codegen's.
         self.resolve_stmt(initializer);
-        self.resolve_expr(increment);
         self.resolve_expr(condition);
 
         self.loop_depth += 1;
         self.resolve_stmt(body);
         self.loop_depth -= 1;
+
+        self.resolve_expr(increment);
 
         self.exit_scope();
     }

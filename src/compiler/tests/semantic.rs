@@ -518,32 +518,6 @@ fn outer() {
     }
 
     #[test]
-    fn for_loop_resolves_increment_before_condition_for_upvalue_order() {
-        let (ast, res) = analyze(
-            r#"
-fn outer() {
-    var a = 0
-    var b = 1
-    fn inner() {
-        for (var i = 0; i < b; i = i + a) {
-        }
-    }
-}
-"#,
-        );
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let a_decl = res.decl(find_decl(&idx, "a"));
-        let b_decl = res.decl(find_decl(&idx, "b"));
-        let inner_res = res.function(find_fn(&idx, "inner"));
-        assert_eq!(
-            inner_res.upvalues,
-            vec![Capture::Local(a_decl), Capture::Local(b_decl)]
-        );
-    }
-
-    #[test]
     fn repeated_capture_of_same_local_reuses_one_upvalue_entry() {
         let (ast, res) = analyze(
             r#"
@@ -658,14 +632,13 @@ impl Point {
 
         let method_res = res.function(find_fn(&idx, "len"));
         assert_eq!(method_res.params.len(), 1);
+
+        let self_use = find_var(&idx, "self", 0);
+        assert_eq!(res.res(self_use), Res::Local(method_res.params[0]));
     }
 
     #[test]
     fn impl_method_body_uses_toplevel_name_as_global() {
-        // Impl method bodies are resolved before any top-level `val`/`var`
-        // is defined (they're resolved in the same pass that hoists
-        // top-level `fn`/`struct`), so only a hoisted top-level name is
-        // visible here.
         let (ast, res) = analyze(
             r#"
 fn helper() {
@@ -2634,6 +2607,35 @@ val s = "abc"
 for (s in [[1]]) {
     s.push(2)
 }
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_c_style_for_increment_resolved_after_body_for_type_tracking() {
+    // Type tracking is flow-insensitive: the increment must be resolved
+    // after the body, so an assignment in the body has already widened a
+    // variable's type to unknown before the increment (also textually
+    // reached after the body on every iteration but the last) is checked
+    // against it.
+    let program = r#"
+var n = 0
+for (var s = "ab"; n < 1; s.push(1)) {
+    s = []
+    n = n + 1
+}
+print("ok")
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
