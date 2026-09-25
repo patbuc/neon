@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
@@ -289,7 +290,10 @@ fn rejects_invalid_binary_digit() {
     let scanner = Scanner::new("0b123");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0].token.contains("Invalid digit in binary literal"));
 }
 
@@ -298,7 +302,10 @@ fn rejects_invalid_leading_binary_digit() {
     let scanner = Scanner::new("0b2");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0]
         .token
         .contains("Invalid digit in binary literal (only 0 and 1 allowed)"));
@@ -309,7 +316,10 @@ fn rejects_invalid_octal_digit() {
     let scanner = Scanner::new("0o89");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0].token.contains("Invalid digit in octal literal"));
 }
 
@@ -318,7 +328,10 @@ fn rejects_empty_hex_literal() {
     let scanner = Scanner::new("0x");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0].token.contains("requires at least one digit"));
 }
 
@@ -327,7 +340,10 @@ fn rejects_empty_binary_literal() {
     let scanner = Scanner::new("0b");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0].token.contains("requires at least one digit"));
 }
 
@@ -336,7 +352,10 @@ fn rejects_trailing_underscore_in_decimal() {
     let scanner = Scanner::new("123_");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
     assert!(tokens[0].token.contains("underscore"));
 }
 
@@ -361,7 +380,10 @@ fn rejects_bare_hash() {
     let scanner = Scanner::new("val s = # {1}");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[3].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[3].token_type,
+        TokenType::Error(CompilationErrorKind::UnexpectedCharacter)
+    );
     assert!(tokens[3].token.contains("Unexpected character"));
 }
 
@@ -512,7 +534,10 @@ fn unterminated_multiline_string_reports_start_line_and_column() {
     let tokens = collect_tokens(scanner);
 
     let error_token = &tokens[3];
-    assert_eq!(error_token.token_type, TokenType::Error);
+    assert_eq!(
+        error_token.token_type,
+        TokenType::Error(CompilationErrorKind::UnterminatedString)
+    );
     assert_eq!(error_token.line, 1);
     assert_eq!(error_token.column, 9);
 }
@@ -628,7 +653,10 @@ fn invalid_escape_recovery() {
     let scanner = Scanner::new("\"a\\qb\" x");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].line, 1);
     assert_eq!(tokens[0].column, 3);
@@ -645,7 +673,10 @@ fn invalid_escape_non_ascii_character() {
     let scanner = Scanner::new("\"a\\\u{1234}b\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 3);
     assert_eq!(tokens[0].offset, 2);
@@ -656,7 +687,10 @@ fn invalid_escape_empty_unicode_braces() {
     let scanner = Scanner::new("\"\\u{}\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -667,7 +701,10 @@ fn invalid_escape_surrogate_codepoint() {
     let scanner = Scanner::new("\"\\u{D800}\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -678,7 +715,10 @@ fn invalid_escape_codepoint_too_large() {
     let scanner = Scanner::new("\"\\u{110000}\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -689,7 +729,10 @@ fn invalid_escape_too_many_hex_digits() {
     let scanner = Scanner::new("\"\\u{0000041}\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -700,7 +743,10 @@ fn invalid_escape_missing_closing_brace() {
     let scanner = Scanner::new("\"\\u{41\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -740,7 +786,10 @@ fn invalid_escape_on_second_line() {
     let scanner = Scanner::new("\"line1\n \\q\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].line, 2);
     assert_eq!(tokens[0].column, 2);
@@ -751,7 +800,10 @@ fn invalid_escape_reports_first_backslash() {
     let scanner = Scanner::new("\"\\q\\z\"");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].column, 2);
     assert_eq!(tokens[0].offset, 1);
@@ -762,7 +814,10 @@ fn backslash_before_eof_is_unterminated_string() {
     let scanner = Scanner::new("\"abc\\");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::UnterminatedString)
+    );
     assert_eq!(tokens[0].token, "Unterminated string");
     assert_eq!(tokens[0].line, 1);
     assert_eq!(tokens[0].column, 1);
@@ -774,7 +829,10 @@ fn invalid_escape_before_raw_newline() {
     let scanner = Scanner::new("\"\\\n\" x");
     let tokens = collect_tokens(scanner);
 
-    assert_eq!(tokens[0].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidEscapeSequence)
+    );
     assert_eq!(tokens[0].token, "Invalid escape sequence");
     assert_eq!(tokens[0].line, 1);
     assert_eq!(tokens[0].column, 2);
@@ -807,7 +865,10 @@ fn interpolation_eof_in_nested_quote() {
     let tokens = collect_tokens(scanner);
 
     assert_eq!(tokens[0].token_type, TokenType::StringStart);
-    assert_eq!(tokens[1].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[1].token_type,
+        TokenType::Error(CompilationErrorKind::ExpectedToken)
+    );
     assert_eq!(tokens[1].token, "Expect '}' after interpolated expression.");
     assert_eq!(tokens[1].line, 1);
     assert_eq!(tokens[1].column, 2);
@@ -824,7 +885,10 @@ fn unterminated_string_after_closed_interpolation() {
     assert_eq!(tokens[0].token_type, TokenType::StringStart);
     assert_eq!(tokens[1].token_type, TokenType::Identifier);
 
-    assert_eq!(tokens[2].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[2].token_type,
+        TokenType::Error(CompilationErrorKind::UnterminatedString)
+    );
     assert_eq!(tokens[2].token, "Unterminated string");
     assert_eq!(tokens[2].line, 1);
     assert_eq!(tokens[2].column, 1);
@@ -851,7 +915,10 @@ fn interpolation_line_comment_hides_closing_brace() {
     assert_eq!(tokens[0].token_type, TokenType::StringStart);
     assert_eq!(tokens[1].token_type, TokenType::Identifier);
 
-    assert_eq!(tokens[2].token_type, TokenType::Error);
+    assert_eq!(
+        tokens[2].token_type,
+        TokenType::Error(CompilationErrorKind::ExpectedToken)
+    );
     assert_eq!(tokens[2].token, "Expect '}' after interpolated expression.");
     assert_eq!(tokens[2].column, 2);
 

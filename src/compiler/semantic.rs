@@ -203,7 +203,7 @@ impl SemanticAnalyzer {
                     if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
-                            CompilationErrorKind::Other,
+                            CompilationErrorKind::ReservedStructName,
                             format!("Struct name '{}' is reserved for a builtin type", name),
                             *location,
                         ));
@@ -270,7 +270,7 @@ impl SemanticAnalyzer {
                 _ => {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::UndefinedSymbol,
+                        CompilationErrorKind::UndefinedType,
                         format!("Cannot implement undefined type '{}'", type_name),
                         location,
                     ));
@@ -293,7 +293,7 @@ impl SemanticAnalyzer {
             if crate::common::method_registry::is_valid_method(type_name, name) {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::NativeMethodConflict,
                     format!(
                         "Method '{}' is already a native method of {}",
                         name, type_name
@@ -307,7 +307,7 @@ impl SemanticAnalyzer {
             if is_builtin_type && !takes_self {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::StaticMethodOnBuiltinType,
                     format!(
                         "Method '{}' on {} must take self; static methods are only supported on structs",
                         name, type_name
@@ -320,7 +320,7 @@ impl SemanticAnalyzer {
             if field_names.iter().any(|f| f == name) {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::MethodFieldConflict,
                     format!(
                         "Method '{}' has the same name as field '{}' on struct '{}'",
                         name, name, type_name
@@ -337,7 +337,7 @@ impl SemanticAnalyzer {
             if entry.contains_key(name) {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::DuplicateSymbol,
+                    CompilationErrorKind::DuplicateMethod,
                     format!(
                         "Method '{}' is already defined for type '{}'",
                         name, type_name
@@ -643,7 +643,7 @@ impl SemanticAnalyzer {
         let Some(symbol) = self.symbol_table.resolve(name) else {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedSymbol,
+                CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
                 location,
             ));
@@ -681,14 +681,14 @@ impl SemanticAnalyzer {
         if self.currently_initializing == Some(decl_id) {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::ReadInOwnInitializer,
                 format!("Cannot read '{}' in its own initializer", name),
                 location,
             ));
         } else if self.not_initialized_top_level.contains(&decl_id) {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::UseBeforeDeclaration,
                 format!("Cannot use '{}' before its declaration", name),
                 location,
             ));
@@ -752,7 +752,7 @@ impl SemanticAnalyzer {
                 if self.symbol_table.current_depth() != 0 {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
+                        CompilationErrorKind::StructNotTopLevel,
                         format!("Struct '{}' must be declared at the top level", name),
                         *location,
                     ));
@@ -777,7 +777,7 @@ impl SemanticAnalyzer {
                 if self.symbol_table.current_depth() != 0 {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
+                        CompilationErrorKind::ImplNotTopLevel,
                         "'impl' blocks are only allowed at the top level".to_string(),
                         *location,
                     ));
@@ -1191,7 +1191,7 @@ impl SemanticAnalyzer {
         if self.loop_depth == 0 {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::LoopControlOutsideLoop,
                 format!("Cannot use '{}' outside of a loop", keyword),
                 location,
             ));
@@ -1214,7 +1214,7 @@ impl SemanticAnalyzer {
         let Some(symbol) = self.symbol_table.resolve(name) else {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedSymbol,
+                CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
                 location,
             ));
@@ -1224,7 +1224,7 @@ impl SemanticAnalyzer {
         if symbol.kind == SymbolKind::Namespace {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::NamespaceAsValue,
                 format!("'{}' is a namespace, not a value", name),
                 location,
             ));
@@ -1252,7 +1252,7 @@ impl SemanticAnalyzer {
         let Some(symbol) = self.symbol_table.resolve(name) else {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedSymbol,
+                CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
                 location,
             ));
@@ -1364,7 +1364,7 @@ impl SemanticAnalyzer {
                 }
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::StaticCallOnBuiltinType,
                     "Static methods are only supported on structs".to_string(),
                     location,
                 ));
@@ -1512,7 +1512,7 @@ impl SemanticAnalyzer {
             _ => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::InvalidIncrementTarget,
                     "Increment operator can only be applied to variables".to_string(),
                     location,
                 ));
@@ -1530,7 +1530,7 @@ impl SemanticAnalyzer {
             _ => {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::InvalidIncrementTarget,
                     "Decrement operator can only be applied to variables".to_string(),
                     location,
                 ));
@@ -1557,7 +1557,7 @@ impl SemanticAnalyzer {
         if index.is_none() {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::UnknownNamespaceMethod,
                 format!(
                     "Static method '{}' not found in namespace '{}'",
                     method, namespace
@@ -1602,7 +1602,7 @@ impl SemanticAnalyzer {
                 (MethodCallKind::Static, true) => {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
+                        CompilationErrorKind::MethodNeedsInstance,
                         format!(
                             "Method '{}' needs an instance; call it on a {} value",
                             method, struct_name
@@ -1613,7 +1613,7 @@ impl SemanticAnalyzer {
                 (MethodCallKind::Instance, false) => {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::Other,
+                        CompilationErrorKind::MethodIsStatic,
                         format!(
                             "Method '{}' is static; call it as {}.{}()",
                             method, struct_name, method
@@ -1661,7 +1661,7 @@ impl SemanticAnalyzer {
 
         self.errors.push(CompilationError::new(
             CompilationPhase::Semantic,
-            CompilationErrorKind::Other,
+            CompilationErrorKind::UnknownMethod,
             error_message,
             location,
         ));
@@ -1719,7 +1719,7 @@ impl SemanticAnalyzer {
 
         self.errors.push(CompilationError::new(
             CompilationPhase::Semantic,
-            CompilationErrorKind::Other,
+            CompilationErrorKind::UnknownMethod,
             error_message,
             location,
         ));
@@ -1754,7 +1754,7 @@ impl SemanticAnalyzer {
         if !self.struct_has_field(struct_name, field) {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::UnknownField,
                 format!("Struct '{}' has no field named '{}'", struct_name, field),
                 location,
             ));
@@ -1799,7 +1799,7 @@ impl SemanticAnalyzer {
                 SymbolKind::Namespace => {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
-                        CompilationErrorKind::UnexpectedToken,
+                        CompilationErrorKind::NotCallable,
                         format!("'{}' is not a function", function_name),
                         location,
                     ));
@@ -1820,7 +1820,7 @@ impl SemanticAnalyzer {
             let kind = if actual < expected as usize {
                 CompilationErrorKind::TooFewArguments
             } else {
-                CompilationErrorKind::ArityExceeded
+                CompilationErrorKind::TooManyArguments
             };
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,

@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
@@ -227,10 +228,16 @@ impl Scanner {
                     }
                     self.make_token(TokenType::HashLeftBrace)
                 } else {
-                    self.make_error_token("Unexpected character")
+                    self.make_error_token(
+                        CompilationErrorKind::UnexpectedCharacter,
+                        "Unexpected character",
+                    )
                 }
             }
-            _ => self.make_error_token("Unexpected character"),
+            _ => self.make_error_token(
+                CompilationErrorKind::UnexpectedCharacter,
+                "Unexpected character",
+            ),
         }
     }
 
@@ -268,6 +275,7 @@ impl Scanner {
                     return self.make_interpolation_eof_error();
                 }
                 return self.make_error_token_at(
+                    CompilationErrorKind::UnterminatedString,
                     "Unterminated string",
                     quote.line,
                     quote.column,
@@ -342,7 +350,13 @@ impl Scanner {
 
     fn invalid_escape_error(&mut self, invalid_escape: Option<(u32, u32, usize)>) -> Option<Token> {
         let (line, column, offset) = invalid_escape?;
-        Some(self.make_error_token_at("Invalid escape sequence", line, column, offset))
+        Some(self.make_error_token_at(
+            CompilationErrorKind::InvalidEscapeSequence,
+            "Invalid escape sequence",
+            line,
+            column,
+            offset,
+        ))
     }
 
     /// Reports the innermost open interpolation as unclosed at EOF and
@@ -352,6 +366,7 @@ impl Scanner {
         let dollar = frame.dollar;
         self.interpolations.clear();
         self.make_error_token_at(
+            CompilationErrorKind::ExpectedToken,
             "Expect '}' after interpolated expression.",
             dollar.line,
             dollar.column,
@@ -426,12 +441,17 @@ impl Scanner {
         let c = self.peek();
         if let Some(invalid_digit) = invalid_digit {
             if (invalid_digit.matches)(c) {
-                return self.make_error_token(invalid_digit.message);
+                return self.make_error_token(
+                    CompilationErrorKind::InvalidNumberLiteral,
+                    invalid_digit.message,
+                );
             }
         }
         if !is_valid_digit(c) {
-            return self
-                .make_error_token(&format!("{} literal requires at least one digit", label));
+            return self.make_error_token(
+                CompilationErrorKind::InvalidNumberLiteral,
+                &format!("{} literal requires at least one digit", label),
+            );
         }
 
         let mut has_digit = false;
@@ -442,15 +462,21 @@ impl Scanner {
                 self.advance();
             } else if c == '_' {
                 if !is_valid_digit(self.peek_next()) {
-                    return self.make_error_token(&format!(
-                        "Invalid underscore placement in {} literal",
-                        label.to_lowercase()
-                    ));
+                    return self.make_error_token(
+                        CompilationErrorKind::InvalidNumberLiteral,
+                        &format!(
+                            "Invalid underscore placement in {} literal",
+                            label.to_lowercase()
+                        ),
+                    );
                 }
                 self.advance();
             } else if let Some(invalid_digit) = invalid_digit {
                 if (invalid_digit.matches)(c) {
-                    return self.make_error_token(invalid_digit.message);
+                    return self.make_error_token(
+                        CompilationErrorKind::InvalidNumberLiteral,
+                        invalid_digit.message,
+                    );
                 }
                 break;
             } else {
@@ -459,8 +485,10 @@ impl Scanner {
         }
 
         if !has_digit {
-            return self
-                .make_error_token(&format!("{} literal requires at least one digit", label));
+            return self.make_error_token(
+                CompilationErrorKind::InvalidNumberLiteral,
+                &format!("{} literal requires at least one digit", label),
+            );
         }
 
         self.make_token(TokenType::Number)
@@ -474,7 +502,10 @@ impl Scanner {
                 self.advance();
             } else if c == '_' {
                 if !Scanner::is_digit(self.peek_next()) {
-                    return self.make_error_token("Invalid underscore placement in number literal");
+                    return self.make_error_token(
+                        CompilationErrorKind::InvalidNumberLiteral,
+                        "Invalid underscore placement in number literal",
+                    );
                 }
                 self.advance();
             } else {
@@ -493,8 +524,10 @@ impl Scanner {
                     self.advance();
                 } else if c == '_' {
                     if !Scanner::is_digit(self.peek_next()) {
-                        return self
-                            .make_error_token("Invalid underscore placement in number literal");
+                        return self.make_error_token(
+                            CompilationErrorKind::InvalidNumberLiteral,
+                            "Invalid underscore placement in number literal",
+                        );
                     }
                     self.advance();
                 } else {
@@ -654,8 +687,14 @@ impl Scanner {
         }
     }
 
-    fn make_error_token(&mut self, message: &str) -> Token {
-        self.make_error_token_at(message, self.start_line, self.start_column, self.start)
+    fn make_error_token(&mut self, kind: CompilationErrorKind, message: &str) -> Token {
+        self.make_error_token_at(
+            kind,
+            message,
+            self.start_line,
+            self.start_column,
+            self.start,
+        )
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
@@ -676,14 +715,15 @@ impl Scanner {
 
     fn make_error_token_at(
         &mut self,
+        kind: CompilationErrorKind,
         message: &str,
         line: u32,
         column: u32,
         offset: usize,
     ) -> Token {
-        self.previous_token_type = TokenType::Error;
+        self.previous_token_type = TokenType::Error(kind);
         Token::new(
-            TokenType::Error,
+            TokenType::Error(kind),
             String::from(message),
             line,
             column,

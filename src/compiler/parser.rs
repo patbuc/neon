@@ -138,10 +138,11 @@ impl Parser {
         }
         loop {
             self.current_token = self.scanner.scan_token();
-            if self.current_token.token_type != TokenType::Error {
-                break;
-            }
-            self.report_error_at_current(self.current_token.token.clone());
+            let kind = match &self.current_token.token_type {
+                TokenType::Error(kind) => *kind,
+                _ => break,
+            };
+            self.report_error_at_current(kind, self.current_token.token.clone());
         }
         self.pending_interpolation_depth = self.scanner.interpolation_depth();
     }
@@ -163,7 +164,7 @@ impl Parser {
             self.advance();
             return true;
         }
-        self.report_error_at_current(message.to_string());
+        self.report_error_at_current(CompilationErrorKind::ExpectedToken, message.to_string());
         false
     }
 
@@ -175,7 +176,7 @@ impl Parser {
             self.advance();
             return;
         }
-        self.report_error_at_current(message.to_string());
+        self.report_error_at_current(CompilationErrorKind::ExpectedToken, message.to_string());
     }
 
     fn skip_new_lines(&mut self) {
@@ -187,8 +188,7 @@ impl Parser {
     fn parse_comma_separated_list<T, F>(
         &mut self,
         closing_token: TokenType,
-        max_count: Option<usize>,
-        max_count_error: &str,
+        max_count: Option<(usize, CompilationErrorKind, &str)>,
         mut parse_element: F,
     ) -> Option<Vec<T>>
     where
@@ -200,9 +200,9 @@ impl Parser {
         if !self.check(closing_token.clone()) {
             loop {
                 // Check max count if specified
-                if let Some(max) = max_count {
+                if let Some((max, kind, max_count_error)) = max_count {
                     if items.len() >= max {
-                        self.report_error_at_current(max_count_error.to_string());
+                        self.report_error_at_current(kind, max_count_error.to_string());
                     }
                 }
 
@@ -227,19 +227,19 @@ impl Parser {
     fn parse_expression_list(
         &mut self,
         closing_token: TokenType,
-        max_count: Option<usize>,
-        max_count_error: &str,
+        max_count: Option<(usize, CompilationErrorKind, &str)>,
     ) -> Option<Vec<Expr>> {
-        self.parse_comma_separated_list(closing_token, max_count, max_count_error, |parser| {
-            parser.expression(false)
-        })
+        self.parse_comma_separated_list(closing_token, max_count, |parser| parser.expression(false))
     }
 
     fn parse_parameter_list(&mut self) -> Option<Vec<String>> {
         self.parse_comma_separated_list(
             TokenType::RightParen,
-            Some(crate::common::constants::MAX_FUNCTION_PARAMS),
-            "Can't have more than 255 parameters.",
+            Some((
+                crate::common::constants::MAX_FUNCTION_PARAMS,
+                CompilationErrorKind::TooManyParameters,
+                "Can't have more than 255 parameters.",
+            )),
             |parser| {
                 if !parser.consume(TokenType::Identifier, "Expect parameter name.") {
                     return None;
@@ -250,7 +250,7 @@ impl Parser {
     }
 
     fn parse_map_entry_list(&mut self) -> Option<Vec<(Expr, Expr)>> {
-        self.parse_comma_separated_list(TokenType::RightBrace, None, "", |parser| {
+        self.parse_comma_separated_list(TokenType::RightBrace, None, |parser| {
             let key = parser.expression(false)?;
             if !parser.consume(TokenType::Colon, "Expect ':' after map key.") {
                 return None;
@@ -264,8 +264,11 @@ impl Parser {
     fn parse_arguments(&mut self) -> Option<Vec<Expr>> {
         self.parse_expression_list(
             TokenType::RightParen,
-            Some(crate::common::constants::MAX_CALL_ARGUMENTS),
-            "Can't have more than 255 arguments.",
+            Some((
+                crate::common::constants::MAX_CALL_ARGUMENTS,
+                CompilationErrorKind::TooManyCallArguments,
+                "Can't have more than 255 arguments.",
+            )),
         )
     }
 
@@ -292,9 +295,10 @@ impl Parser {
     fn nested<T>(&mut self, parse: impl FnOnce(&mut Self) -> Option<T>) -> Option<T> {
         self.recursion_depth += 1;
         let result = if self.recursion_depth > MAX_PARSER_RECURSION_DEPTH {
-            self.report_error_at_current(format!(
-                "Nesting too deep (limit is {MAX_PARSER_RECURSION_DEPTH})."
-            ));
+            self.report_error_at_current(
+                CompilationErrorKind::NestingTooDeep,
+                format!("Nesting too deep (limit is {MAX_PARSER_RECURSION_DEPTH})."),
+            );
             None
         } else {
             parse(self)
@@ -303,23 +307,28 @@ impl Parser {
         result
     }
 
-    fn report_error_at_current(&mut self, message: String) {
+    fn report_error_at_current(&mut self, kind: CompilationErrorKind, message: String) {
         let location = self.current_token_location();
-        self.report_error(location, message);
+        self.report_error(kind, location, message);
     }
 
-    fn report_error(&mut self, location: SourceLocation, message: String) {
+    fn report_error(
+        &mut self,
+        kind: CompilationErrorKind,
+        location: SourceLocation,
+        message: String,
+    ) {
         self.record_error(CompilationError::new(
             CompilationPhase::Parse,
-            CompilationErrorKind::UnexpectedToken,
+            kind,
             message,
             location,
         ));
     }
 
-    fn report_error_at_previous(&mut self, message: String) {
+    fn report_error_at_previous(&mut self, kind: CompilationErrorKind, message: String) {
         let location = self.current_location();
-        self.report_error(location, message);
+        self.report_error(kind, location, message);
     }
 
     /// Like `report_error`, but for an error a sub-parser already built.
@@ -747,6 +756,7 @@ impl Parser {
                 // User wrote: for (identifier ...
                 // Expected either: for (identifier in ...) or for (val/var identifier ...)
                 self.report_error_at_current(
+                    CompilationErrorKind::ExpectedToken,
                     "Expecting 'in' after identifier in for-in loop, or 'val'/'var' for C-style for loop.".to_string()
                 );
                 return None;
@@ -761,6 +771,7 @@ impl Parser {
             self.parse_variable_declaration(true, false)?
         } else {
             self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
                 "Expecting 'val' or 'var' in for loop initializer.".to_string(),
             );
             return None;
@@ -870,7 +881,11 @@ impl Parser {
         let had_newline = self.check(TokenType::NewLine);
         self.skip_new_lines();
         if had_newline && self.is_statement_boundary() {
-            self.report_error(operator_location, "Expect expression".to_string());
+            self.report_error(
+                CompilationErrorKind::ExpectedExpression,
+                operator_location,
+                "Expect expression".to_string(),
+            );
             return None;
         }
         self.parse_precedence(precedence, false)
@@ -890,7 +905,10 @@ impl Parser {
         }
 
         if self.is_statement_boundary() {
-            self.report_error_at_current("Expect expression".to_string());
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedExpression,
+                "Expect expression".to_string(),
+            );
             return None;
         }
 
@@ -911,7 +929,10 @@ impl Parser {
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
             _ => {
-                self.report_error_at_previous("Expect expression".to_string());
+                self.report_error_at_previous(
+                    CompilationErrorKind::ExpectedExpression,
+                    "Expect expression".to_string(),
+                );
                 return None;
             }
         }?;
@@ -951,7 +972,10 @@ impl Parser {
         }
 
         if can_assign && self.match_token(TokenType::Equal) {
-            self.report_error_at_previous("Invalid assignment target.".to_string());
+            self.report_error_at_previous(
+                CompilationErrorKind::InvalidAssignmentTarget,
+                "Invalid assignment target.".to_string(),
+            );
             return None;
         }
 
@@ -1014,7 +1038,11 @@ impl Parser {
                     Ok(int_value) => Some(int_value as f64),
                     Err(_) => {
                         let location = self.current_location();
-                        self.report_error(location, "Number literal too large".to_string());
+                        self.report_error(
+                            CompilationErrorKind::NumberLiteralTooLarge,
+                            location,
+                            "Number literal too large".to_string(),
+                        );
                         None
                     }
                 };
@@ -1060,7 +1088,10 @@ impl Parser {
                 }
                 break;
             }
-            self.report_error_at_current("Expect '}' after interpolated expression.".to_string());
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
+                "Expect '}' after interpolated expression.".to_string(),
+            );
             return None;
         }
 
@@ -1297,7 +1328,7 @@ impl Parser {
     fn set_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
-        let elements = self.parse_expression_list(TokenType::RightBrace, None, "")?;
+        let elements = self.parse_expression_list(TokenType::RightBrace, None)?;
 
         if !self.consume(TokenType::RightBrace, "Expect '}' after set elements.") {
             return None;
@@ -1309,7 +1340,7 @@ impl Parser {
     fn array_literal(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
-        let elements = self.parse_expression_list(TokenType::RightBracket, None, "")?;
+        let elements = self.parse_expression_list(TokenType::RightBracket, None)?;
 
         if !self.consume(TokenType::RightBracket, "Expect ']' after array elements.") {
             return None;

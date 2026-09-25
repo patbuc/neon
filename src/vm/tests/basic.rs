@@ -462,7 +462,7 @@ fn cannot_assign_value_to_value() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Immutable Assignment: Cannot assign to immutable variable 'x' at 3:9",
+        "[Semantic] E0015: Cannot assign to immutable variable 'x' at 3:9",
         vm.get_compiler_error()
     );
 }
@@ -479,7 +479,7 @@ fn cannot_access_undefined_variable() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Undefined Symbol: Undefined variable 'z' at 3:13",
+        "[Semantic] E0013: Undefined variable 'z' at 3:13",
         vm.get_compiler_error()
     );
 }
@@ -585,7 +585,7 @@ fn cannot_call_undefined_function() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Undefined Symbol: Undefined variable 'undefined_function' at 2:9",
+        "[Semantic] E0013: Undefined variable 'undefined_function' at 2:9",
         vm.get_compiler_error()
     );
 }
@@ -3269,7 +3269,7 @@ fn overflowing_hex_initializer_is_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Parse] Unexpected Token: Number literal too large at 1:9",
+        "[Parse] E0008: Number literal too large at 1:9",
         vm.get_compiler_error()
     );
 }
@@ -3282,7 +3282,7 @@ fn overflowing_literal_in_print_is_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Parse] Unexpected Token: Number literal too large at 1:7",
+        "[Parse] E0008: Number literal too large at 1:7",
         vm.get_compiler_error()
     );
 }
@@ -3345,7 +3345,7 @@ fn undefined_variable_in_interpolation_reports_location() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Undefined Symbol: Undefined variable 'zz' at 2:3",
+        "[Semantic] E0013: Undefined variable 'zz' at 2:3",
         vm.get_compiler_error()
     );
 }
@@ -3409,7 +3409,7 @@ fn using_math_namespace_as_a_value_is_a_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Error: 'Math' is a namespace, not a value at 1:9",
+        "[Semantic] E0027: 'Math' is a namespace, not a value at 1:9",
         vm.get_compiler_error()
     );
 }
@@ -3422,7 +3422,7 @@ fn using_file_namespace_as_a_value_is_a_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Error: 'File' is a namespace, not a value at 1:9",
+        "[Semantic] E0027: 'File' is a namespace, not a value at 1:9",
         vm.get_compiler_error()
     );
 }
@@ -3435,7 +3435,7 @@ fn printing_math_namespace_is_a_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::CompileError, result);
     assert_eq!(
-        "[Semantic] Error: 'Math' is a namespace, not a value at 1:7",
+        "[Semantic] E0027: 'Math' is a namespace, not a value at 1:7",
         vm.get_compiler_error()
     );
 }

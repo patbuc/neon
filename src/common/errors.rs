@@ -9,32 +9,66 @@ pub enum CompilationPhase {
     Codegen,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompilationErrorKind {
-    UnexpectedToken,
-    DuplicateSymbol,
-    UndefinedSymbol,
-    ImmutableAssignment,
-    ArityExceeded,
-    TooFewArguments,
-    Internal,
-    #[allow(dead_code)]
-    Other,
+/// Declares `CompilationErrorKind`, its `code()`, and its `ALL` listing.
+macro_rules! compilation_error_kinds {
+    ($($variant:ident => $code:literal),+ $(,)?) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum CompilationErrorKind {
+            $($variant),+
+        }
+
+        impl CompilationErrorKind {
+            pub const ALL: &'static [CompilationErrorKind] = &[
+                $(CompilationErrorKind::$variant),+
+            ];
+
+            pub fn code(self) -> &'static str {
+                match self {
+                    $(CompilationErrorKind::$variant => $code),+
+                }
+            }
+        }
+    };
 }
 
-impl Display for CompilationErrorKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CompilationErrorKind::UnexpectedToken => write!(f, "Unexpected Token"),
-            CompilationErrorKind::DuplicateSymbol => write!(f, "Duplicate Symbol"),
-            CompilationErrorKind::UndefinedSymbol => write!(f, "Undefined Symbol"),
-            CompilationErrorKind::ImmutableAssignment => write!(f, "Immutable Assignment"),
-            CompilationErrorKind::ArityExceeded => write!(f, "Arity Exceeded"),
-            CompilationErrorKind::TooFewArguments => write!(f, "Too Few Arguments"),
-            CompilationErrorKind::Internal => write!(f, "Internal Error"),
-            CompilationErrorKind::Other => write!(f, "Error"),
-        }
-    }
+compilation_error_kinds! {
+    UnexpectedCharacter => "E0001",
+    UnterminatedString => "E0002",
+    InvalidEscapeSequence => "E0003",
+    InvalidNumberLiteral => "E0004",
+    ExpectedToken => "E0005",
+    ExpectedExpression => "E0006",
+    InvalidAssignmentTarget => "E0007",
+    NumberLiteralTooLarge => "E0008",
+    TooManyParameters => "E0009",
+    TooManyCallArguments => "E0010",
+    NestingTooDeep => "E0011",
+    DuplicateSymbol => "E0012",
+    UndefinedVariable => "E0013",
+    UndefinedType => "E0014",
+    ImmutableAssignment => "E0015",
+    ReadInOwnInitializer => "E0016",
+    UseBeforeDeclaration => "E0017",
+    ReservedStructName => "E0018",
+    StructNotTopLevel => "E0019",
+    ImplNotTopLevel => "E0020",
+    DuplicateMethod => "E0021",
+    NativeMethodConflict => "E0022",
+    MethodFieldConflict => "E0023",
+    StaticMethodOnBuiltinType => "E0024",
+    StaticCallOnBuiltinType => "E0025",
+    LoopControlOutsideLoop => "E0026",
+    NamespaceAsValue => "E0027",
+    InvalidIncrementTarget => "E0028",
+    UnknownNamespaceMethod => "E0029",
+    UnknownMethod => "E0030",
+    UnknownField => "E0031",
+    MethodNeedsInstance => "E0032",
+    MethodIsStatic => "E0033",
+    NotCallable => "E0034",
+    TooFewArguments => "E0035",
+    TooManyArguments => "E0036",
+    LimitExceeded => "E0037",
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +100,10 @@ impl Display for CompilationError {
         write!(
             f,
             "[{:?}] {}: {} at {}",
-            self.phase, self.kind, self.message, self.location
+            self.phase,
+            self.kind.code(),
+            self.message,
+            self.location
         )
     }
 }

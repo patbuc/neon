@@ -202,12 +202,12 @@ compile error instead:
 ```neon
 print(b)
 val b = 1
-// error: cannot use 'b' before its declaration
+// error[E0017]: cannot use 'b' before its declaration
 ```
 
 ```neon
 val x = x
-// error: cannot read 'x' in its own initializer
+// error[E0016]: cannot read 'x' in its own initializer
 ```
 
 The same hoisting applies inside a block or function body: a block's own

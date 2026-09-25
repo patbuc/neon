@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::Token;
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Default)]
@@ -67,7 +68,7 @@ pub(crate) enum TokenType {
     While,
     In,
 
-    Error,
+    Error(CompilationErrorKind),
 
     #[default]
     Eof,

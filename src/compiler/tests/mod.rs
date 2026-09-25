@@ -1,5 +1,6 @@
 mod ast;
 mod codegen;
+mod error_kinds;
 mod parser;
 mod scanner;
 mod semantic;
