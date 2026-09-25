@@ -416,7 +416,7 @@ fn f() {
     }
 
     #[test]
-    fn local_struct_named_math_is_not_a_native_call() {
+    fn local_val_named_math_is_not_a_native_call() {
         let (ast, res) = analyze(
             r#"
 struct MathLike {
@@ -433,6 +433,10 @@ fn f() {
 
         let call_id = find_call(&idx, "Math.abs", 0);
         assert!(res.native(call_id).is_none());
+
+        let decl = res.decl(find_decl(&idx, "Math"));
+        let use_id = find_var(&idx, "Math", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
     }
 
     #[test]
@@ -473,6 +477,216 @@ fn f() {
 
         let call_id = find_call(&idx, "File", 0);
         assert!(res.native(call_id).is_none());
+
+        let decl = res.decl(find_decl(&idx, "File"));
+        let use_id = find_var(&idx, "File", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn method_call_captures_receiver_before_argument() {
+        let (ast, res) = analyze(
+            r#"
+struct Obj {
+    m
+}
+fn outer() {
+    var a = Obj(fn(x) { return x })
+    var b = 3
+    fn inner() {
+        return a.m(b)
+    }
+    return inner()
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let a_decl = res.decl(find_decl(&idx, "a"));
+        let b_decl = res.decl(find_decl(&idx, "b"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(
+            inner_res.upvalues,
+            vec![Capture::Local(a_decl), Capture::Local(b_decl)]
+        );
+
+        let a_use = find_var(&idx, "a", 0);
+        let b_use = find_var(&idx, "b", 0);
+        assert_eq!(res.res(a_use), Res::Upvalue(0));
+        assert_eq!(res.res(b_use), Res::Upvalue(1));
+    }
+
+    #[test]
+    fn for_loop_resolves_increment_before_condition_for_upvalue_order() {
+        let (ast, res) = analyze(
+            r#"
+fn outer() {
+    var a = 0
+    var b = 1
+    fn inner() {
+        for (var i = 0; i < b; i = i + a) {
+        }
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let a_decl = res.decl(find_decl(&idx, "a"));
+        let b_decl = res.decl(find_decl(&idx, "b"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(
+            inner_res.upvalues,
+            vec![Capture::Local(a_decl), Capture::Local(b_decl)]
+        );
+    }
+
+    #[test]
+    fn repeated_capture_of_same_local_reuses_one_upvalue_entry() {
+        let (ast, res) = analyze(
+            r#"
+fn outer() {
+    var a = 1
+    fn inner() {
+        return a + a
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let a_decl = res.decl(find_decl(&idx, "a"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(inner_res.upvalues, vec![Capture::Local(a_decl)]);
+
+        let first_use = find_var(&idx, "a", 0);
+        let second_use = find_var(&idx, "a", 1);
+        assert_eq!(res.res(first_use), Res::Upvalue(0));
+        assert_eq!(res.res(second_use), Res::Upvalue(0));
+    }
+
+    #[test]
+    fn struct_static_call_receiver_is_resolved_as_a_value() {
+        let (ast, res) = analyze(
+            r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn origin() {
+        return 0
+    }
+}
+print(Point.origin())
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "Point"));
+        let use_id = find_var(&idx, "Point", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn postfix_increment_operand_is_resolved() {
+        let (ast, res) = analyze("var x = 1\nx++\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn for_in_variable_declaration_and_use() {
+        let (ast, res) = analyze(
+            r#"
+val arr = [1, 2, 3]
+for (item in arr) {
+    print(item)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "item"));
+        let use_id = find_var(&idx, "item", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn c_style_for_initializer_declaration_and_use() {
+        let (ast, res) = analyze(
+            r#"
+for (var i = 0; i < 3; i = i + 1) {
+    print(i)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "i"));
+        let body_use = find_var(&idx, "i", 2);
+        assert_eq!(res.res(body_use), Res::Local(decl));
+    }
+
+    #[test]
+    fn impl_method_function_resolution_includes_self_param() {
+        let (ast, res) = analyze(
+            r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.x
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let method_res = res.function(find_fn(&idx, "len"));
+        assert_eq!(method_res.params.len(), 1);
+    }
+
+    #[test]
+    fn impl_method_body_uses_toplevel_name_as_global() {
+        // Impl method bodies are resolved before any top-level `val`/`var`
+        // is defined (they're resolved in the same pass that hoists
+        // top-level `fn`/`struct`), so only a hoisted top-level name is
+        // visible here.
+        let (ast, res) = analyze(
+            r#"
+fn helper() {
+    return 42
+}
+struct Circle {
+    r
+}
+impl Circle {
+    fn area(self) {
+        return helper()
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "helper"));
+        let use_id = find_var(&idx, "helper", 0);
+        assert_eq!(res.res(use_id), Res::Global(decl));
     }
 }
 

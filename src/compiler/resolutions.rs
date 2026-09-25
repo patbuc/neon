@@ -63,10 +63,7 @@ impl Resolutions {
         self.captured.insert(decl);
     }
 
-    /// The resolution of an `Expr::Variable` or `Expr::Assign` node. Panics if
-    /// absent: the semantic pass records every one, and codegen only runs
-    /// after it succeeded, so a missing entry is a compiler bug.
-    /// Consumed by codegen starting in the next unit.
+    /// The resolution of an `Expr::Variable` or `Expr::Assign` node.
     #[allow(dead_code)]
     pub fn res(&self, id: NodeId) -> Res {
         *self
@@ -75,8 +72,7 @@ impl Resolutions {
             .unwrap_or_else(|| panic!("no resolution recorded for {:?}", id))
     }
 
-    /// The `DeclId` a declaration node was assigned. Panics if absent.
-    /// Consumed by codegen starting in the next unit.
+    /// The `DeclId` a declaration node was assigned.
     #[allow(dead_code)]
     pub fn decl(&self, id: NodeId) -> DeclId {
         *self
@@ -85,8 +81,7 @@ impl Resolutions {
             .unwrap_or_else(|| panic!("no declaration recorded for {:?}", id))
     }
 
-    /// The captures and parameter `DeclId`s of a function node. Panics if
-    /// absent. Consumed by codegen starting in the next unit.
+    /// The captures and parameter `DeclId`s of a function node.
     #[allow(dead_code)]
     pub fn function(&self, id: NodeId) -> &FunctionResolution {
         self.functions
@@ -94,15 +89,13 @@ impl Resolutions {
             .unwrap_or_else(|| panic!("no function resolution recorded for {:?}", id))
     }
 
-    /// The method-registry index a call dispatches to, if it was resolved as
-    /// a native. Consumed by codegen starting in the next unit.
+    /// The method-registry index a call dispatches to, if it was resolved as a native.
     #[allow(dead_code)]
     pub fn native(&self, id: NodeId) -> Option<usize> {
         self.natives.get(&id).copied()
     }
 
-    /// Whether some nested function captures this declaration. Consumed by
-    /// codegen starting in the next unit.
+    /// Whether some nested function captures this declaration.
     #[allow(dead_code)]
     pub fn is_captured(&self, decl: DeclId) -> bool {
         self.captured.contains(&decl)

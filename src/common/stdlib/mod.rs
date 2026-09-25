@@ -29,10 +29,18 @@ const ARGS: &str = "args";
 /// registry instead (see `method_registry::namespaces`).
 pub const BUILTIN_VALUES: &[(&str, &str)] = &[(ARGS, "Array")];
 
-/// Create stdlib objects for the VM.
+/// Create stdlib objects for the VM, in `BUILTIN_VALUES` order so its index
+/// order can never drift from what the semantic analyzer assigns `Res::Builtin`.
 pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
+    let mut args = Some(args);
     let mut builtin = IndexMap::new();
-    builtin.insert(ARGS.to_string(), create_args_array(args));
+    for (name, _type_name) in BUILTIN_VALUES {
+        let value = match *name {
+            ARGS => create_args_array(args.take().expect("args builtin used more than once")),
+            other => panic!("no constructor for builtin value '{}'", other),
+        };
+        builtin.insert(name.to_string(), value);
+    }
     builtin
 }
 

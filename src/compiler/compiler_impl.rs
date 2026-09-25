@@ -40,7 +40,7 @@ impl Compiler {
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
         let _ = match analyzer.analyze(&ast) {
-            Ok(table) => table,
+            Ok(resolutions) => resolutions,
             Err(errors) => {
                 // Store structured errors
                 self.structured_errors = errors.clone();

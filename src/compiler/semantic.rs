@@ -29,11 +29,27 @@ enum MethodCallKind {
     Instance,
 }
 
-/// A function's upvalue array as it's built up while resolving its body.
-#[derive(Default)]
-struct FnFrame {
-    params: Vec<DeclId>,
-    upvalues: Vec<Capture>,
+/// The fields of a `Symbol` a name use needs, copied out so they can outlive
+/// the symbol table borrow.
+#[derive(Clone, Copy)]
+struct SymbolUse {
+    is_mutable: bool,
+    builtin_index: Option<u32>,
+    decl_id: DeclId,
+    decl_level: u32,
+    decl_scope_depth: u32,
+}
+
+impl From<&Symbol> for SymbolUse {
+    fn from(symbol: &Symbol) -> Self {
+        SymbolUse {
+            is_mutable: symbol.is_mutable,
+            builtin_index: builtin_index(symbol),
+            decl_id: symbol.decl_id,
+            decl_level: symbol.function_level,
+            decl_scope_depth: symbol.scope_depth,
+        }
+    }
 }
 
 /// Semantic analyzer that validates the AST and builds symbol tables
@@ -52,7 +68,7 @@ pub struct SemanticAnalyzer {
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
     // Its upvalue chain mirrors codegen's own function stack.
-    function_frames: Vec<FnFrame>,
+    function_frames: Vec<FunctionResolution>,
 }
 
 impl SemanticAnalyzer {
@@ -67,15 +83,15 @@ impl SemanticAnalyzer {
         for namespace in crate::common::method_registry::namespaces() {
             let decl_id = DeclId(next_decl_id);
             next_decl_id += 1;
-            let symbol = Symbol::new(
-                namespace.to_string(),
-                SymbolKind::Namespace,
-                false,
-                0,
-                SourceLocation::default(),
+            let symbol = Symbol {
+                name: namespace.to_string(),
+                kind: SymbolKind::Namespace,
+                is_mutable: false,
+                scope_depth: 0,
+                location: SourceLocation::default(),
                 decl_id,
-                0,
-            );
+                function_level: 0,
+            };
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
         }
 
@@ -84,17 +100,17 @@ impl SemanticAnalyzer {
         for (index, (name, type_name)) in crate::common::stdlib::BUILTIN_VALUES.iter().enumerate() {
             let decl_id = DeclId(next_decl_id);
             next_decl_id += 1;
-            let symbol = Symbol::new(
-                name.to_string(),
-                SymbolKind::Builtin {
+            let symbol = Symbol {
+                name: name.to_string(),
+                kind: SymbolKind::Builtin {
                     index: index as u32,
                 },
-                false,
-                0,
-                SourceLocation::default(),
+                is_mutable: false,
+                scope_depth: 0,
+                location: SourceLocation::default(),
                 decl_id,
-                0,
-            );
+                function_level: 0,
+            };
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
             type_env[0].insert(name.to_string(), Some(type_name.to_string()));
         }
@@ -107,7 +123,7 @@ impl SemanticAnalyzer {
             struct_methods: HashMap::new(),
             resolutions: Resolutions::default(),
             next_decl_id,
-            function_frames: vec![FnFrame::default()],
+            function_frames: vec![FunctionResolution::default()],
         }
     }
 
@@ -634,6 +650,17 @@ impl SemanticAnalyzer {
         (upvalues.len() - 1) as u32
     }
 
+    /// Resolves a symbol use into a `Res` and records it under `id`.
+    fn record_symbol_use(&mut self, id: NodeId, use_: SymbolUse) {
+        let res = self.compute_res(
+            use_.builtin_index,
+            use_.decl_id,
+            use_.decl_level,
+            use_.decl_scope_depth,
+        );
+        self.resolutions.record_use(id, res);
+    }
+
     /// Helper method to check if a variable exists and is mutable, recording
     /// its resolution under `id` either way.
     fn check_variable_mutability(&mut self, id: NodeId, name: &str, location: SourceLocation) {
@@ -646,13 +673,9 @@ impl SemanticAnalyzer {
             ));
             return;
         };
-        let is_mutable = symbol.is_mutable;
-        let builtin_index = builtin_index(symbol);
-        let decl_id = symbol.decl_id;
-        let decl_level = symbol.function_level;
-        let decl_scope_depth = symbol.scope_depth;
+        let use_ = SymbolUse::from(symbol);
 
-        if !is_mutable {
+        if !use_.is_mutable {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ImmutableAssignment,
@@ -661,8 +684,7 @@ impl SemanticAnalyzer {
             ));
         }
 
-        let res = self.compute_res(builtin_index, decl_id, decl_level, decl_scope_depth);
-        self.resolutions.record_use(id, res);
+        self.record_symbol_use(id, use_);
     }
 
     fn resolve_statements(&mut self, statements: &[Stmt]) {
@@ -968,7 +990,7 @@ impl SemanticAnalyzer {
     ) {
         // Enter function scope
         self.enter_scope();
-        self.function_frames.push(FnFrame::default());
+        self.function_frames.push(FunctionResolution::default());
 
         // A loop enclosing this declaration must not let break/continue
         // inside the function body see themselves as inside that loop.
@@ -1005,14 +1027,8 @@ impl SemanticAnalyzer {
 
         // Exit function scope
         self.exit_scope();
-        let frame = self.function_frames.pop().expect("just pushed");
-        self.resolutions.record_function(
-            id,
-            FunctionResolution {
-                params: frame.params,
-                upvalues: frame.upvalues,
-            },
-        );
+        let resolution = self.function_frames.pop().expect("just pushed");
+        self.resolutions.record_function(id, resolution);
     }
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
@@ -1052,14 +1068,18 @@ impl SemanticAnalyzer {
     ) {
         self.enter_scope();
 
+        // Codegen emits the increment right after the initializer (it's
+        // jumped over on the first iteration, but still compiled there), so
+        // resolve it in that order too - otherwise a closure made in the
+        // condition or body would get upvalue indices out of step with
+        // codegen's.
         self.resolve_stmt(initializer);
+        self.resolve_expr(increment);
         self.resolve_expr(condition);
 
         self.loop_depth += 1;
         self.resolve_stmt(body);
         self.loop_depth -= 1;
-
-        self.resolve_expr(increment);
 
         self.exit_scope();
     }
@@ -1140,12 +1160,8 @@ impl SemanticAnalyzer {
             return;
         }
 
-        let builtin_index = builtin_index(symbol);
-        let decl_id = symbol.decl_id;
-        let decl_level = symbol.function_level;
-        let decl_scope_depth = symbol.scope_depth;
-        let res = self.compute_res(builtin_index, decl_id, decl_level, decl_scope_depth);
-        self.resolutions.record_use(id, res);
+        let use_ = SymbolUse::from(symbol);
+        self.record_symbol_use(id, use_);
     }
 
     fn resolve_assignment(
@@ -1168,13 +1184,9 @@ impl SemanticAnalyzer {
             return;
         };
 
-        let is_mutable = symbol.is_mutable;
-        let builtin_index = builtin_index(symbol);
-        let decl_id = symbol.decl_id;
-        let decl_level = symbol.function_level;
-        let decl_scope_depth = symbol.scope_depth;
+        let use_ = SymbolUse::from(symbol);
 
-        if !is_mutable {
+        if !use_.is_mutable {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ImmutableAssignment,
@@ -1190,8 +1202,7 @@ impl SemanticAnalyzer {
             self.set_type(name, None);
         }
 
-        let res = self.compute_res(builtin_index, decl_id, decl_level, decl_scope_depth);
-        self.resolutions.record_use(id, res);
+        self.record_symbol_use(id, use_);
     }
 
     fn resolve_binary_expr(
@@ -1240,18 +1251,16 @@ impl SemanticAnalyzer {
             );
 
             // A static method call, e.g. Math.abs(x). The namespace name
-            // isn't a variable reference, so don't resolve it as one - and
-            // only take this path when the name still resolves to the
-            // namespace here (a local of the same name shadows it).
+            // isn't a variable reference, so don't resolve it as one.
             if is_namespace && crate::common::method_registry::is_static_namespace(name) {
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
                 self.validate_static_method(name, method, location);
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index(name, method)
                 {
                     self.resolutions.record_native(id, index);
-                }
-                for arg in arguments {
-                    self.resolve_expr(arg);
                 }
                 return;
             }
