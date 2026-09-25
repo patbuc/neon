@@ -1112,3 +1112,31 @@ fn test_top_level_fn_named_print_shadows_native() {
 
     assert_eq!(result, crate::vm::Result::Ok);
 }
+
+#[test]
+fn test_native_call_labels() {
+    use crate::common::Object;
+    use crate::common::Value;
+
+    let program = r#"
+    print(1)
+    File("x")
+    Math.abs(1)
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let labels: Vec<String> = chunk
+        .constants
+        .values
+        .iter()
+        .filter_map(|value| match value {
+            Value::Object(object) => match object.as_ref() {
+                Object::NativeFunction(native) => Some(native.name.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(labels, vec!["print", "File.new", "abs"]);
+}

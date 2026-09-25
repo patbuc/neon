@@ -579,6 +579,17 @@ pub(crate) fn get_native_method_by_index(index: usize) -> Option<&'static Native
     NATIVE_METHODS.get(index).map(|(_, _, callable)| callable)
 }
 
+/// The display label for the native callable at this registry index: the
+/// function name for a global, `"{Type}.new"` for a constructor, or the
+/// bare method name for a static method.
+pub fn native_label(index: usize) -> String {
+    let (type_name, method_name, callable) = NATIVE_METHODS[index];
+    match callable {
+        NativeCallable::Constructor { .. } => format!("{}.new", type_name),
+        _ => method_name.to_string(),
+    }
+}
+
 pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
     NATIVE_METHODS
         .iter()

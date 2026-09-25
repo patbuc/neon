@@ -7,7 +7,7 @@ use crate::common::errors::{
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
-use crate::compiler::resolutions::{Capture, DeclId, NativeKind, Res, Resolutions};
+use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
 use std::collections::HashMap;
 
@@ -51,18 +51,6 @@ impl FunctionCompiler {
             scope_depth: 0,
             loop_contexts: Vec::new(),
         }
-    }
-
-    fn add_parameter(&mut self, local: Local) {
-        // Parameters are already on the stack, just register them
-        self.locals.push(local);
-    }
-
-    fn define_local(&mut self, local: Local, line: u32, column: u32) {
-        self.locals.push(local);
-        let index = (self.locals.len() - 1) as u32;
-        self.chunk
-            .write_op_code_variant(OpCode::SetLocal, index, line, column);
     }
 
     /// Drops locals declared deeper than `depth`, returning whether each one
@@ -212,11 +200,11 @@ impl<'a> CodeGenerator<'a> {
 
     /// Pushes a new local bound to `decl`, capturing whether it's captured
     /// from the resolutions, and records its slot.
-    fn bind_local(&mut self, decl: DeclId, push: impl FnOnce(&mut FunctionCompiler, Local)) {
+    fn bind_local(&mut self, decl: DeclId) {
         let is_captured = self.resolutions.is_captured(decl);
         let depth = self.current().scope_depth;
         let local = Local::new(depth, is_captured);
-        push(self.current(), local);
+        self.current().locals.push(local);
         let slot = (self.current().locals.len() - 1) as u32;
         self.decl_slots.insert(decl, slot);
     }
@@ -224,15 +212,15 @@ impl<'a> CodeGenerator<'a> {
     /// Pushes a new local bound to `decl` on top of the current function's
     /// stack. The value it binds must already be on the stack.
     fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
-        self.bind_local(decl, |function, local| {
-            function.define_local(local, location.line, location.column)
-        });
+        self.bind_param(decl);
+        let slot = self.decl_slot(decl);
+        self.emit_op_code_variant(OpCode::SetLocal, slot, location);
     }
 
     /// Registers a function parameter, already on the stack from the call,
     /// as a local bound to `decl`.
     fn bind_param(&mut self, decl: DeclId) {
-        self.bind_local(decl, |function, local| function.add_parameter(local));
+        self.bind_local(decl);
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
@@ -942,9 +930,6 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    /// Dispatches a plain (non-method) call: a native global function or
-    /// constructor if the semantic pass resolved it as one, a regular call
-    /// (callee value, then args, then `Call`) otherwise.
     fn generate_call_expr(
         &mut self,
         id: NodeId,
@@ -956,13 +941,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_regular_call_expr(callee, arguments, location);
             return;
         };
-        let Expr::Variable { name, .. } = callee else {
-            unreachable!("only a bare name resolves to a native global function or constructor")
-        };
-        let label = match self.resolutions.native_kind(id) {
-            Some(NativeKind::Constructor) => format!("{}.new", name),
-            _ => name.clone(),
-        };
+        let label = crate::common::method_registry::native_label(index);
         self.generate_native_call_expr(label, index, arguments, location);
     }
 
@@ -1001,9 +980,6 @@ impl<'a> CodeGenerator<'a> {
         self.emit_call(arguments.len() as u8, location);
     }
 
-    /// Dispatches a method call `object.method(args)`: a native static
-    /// method if the semantic pass resolved it as one, an instance method
-    /// call otherwise.
     fn generate_method_call_expr(
         &mut self,
         id: NodeId,
@@ -1178,7 +1154,6 @@ impl<'a> CodeGenerator<'a> {
                 id,
                 location,
             } => {
-                // Call { callee: GetField { object, field }, arguments } is a method call obj.method(args)
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     self.generate_method_call_expr(*id, object, field, arguments, *location);
                 } else {

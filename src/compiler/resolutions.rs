@@ -25,17 +25,6 @@ pub enum Capture {
     Upvalue(u32),
 }
 
-/// What kind of native dispatch a call resolved to, so codegen can pick the
-/// right display label for the native callable from the AST text - a global
-/// function's own name, a constructor's `"{Type}.new"`, or a static method's
-/// bare name.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum NativeKind {
-    Global,
-    Constructor,
-    StaticMethod,
-}
-
 /// What a function captures and how its parameters are named.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FunctionResolution {
@@ -47,7 +36,7 @@ pub struct FunctionResolution {
 #[derive(Debug, Default)]
 pub struct Resolutions {
     uses: HashMap<NodeId, Res>,
-    natives: HashMap<NodeId, (usize, NativeKind)>,
+    natives: HashMap<NodeId, usize>,
     decls: HashMap<NodeId, DeclId>,
     functions: HashMap<NodeId, FunctionResolution>,
     captured: HashSet<DeclId>,
@@ -58,8 +47,8 @@ impl Resolutions {
         self.uses.insert(id, res);
     }
 
-    pub(crate) fn record_native(&mut self, id: NodeId, index: usize, kind: NativeKind) {
-        self.natives.insert(id, (index, kind));
+    pub(crate) fn record_native(&mut self, id: NodeId, index: usize) {
+        self.natives.insert(id, index);
     }
 
     pub(crate) fn record_decl(&mut self, id: NodeId, decl: DeclId) {
@@ -99,12 +88,7 @@ impl Resolutions {
 
     /// The method-registry index a call dispatches to, if it was resolved as a native.
     pub fn native(&self, id: NodeId) -> Option<usize> {
-        self.natives.get(&id).map(|(index, _)| *index)
-    }
-
-    /// Which kind of native dispatch a call resolved to, if any.
-    pub fn native_kind(&self, id: NodeId) -> Option<NativeKind> {
-        self.natives.get(&id).map(|(_, kind)| *kind)
+        self.natives.get(&id).copied()
     }
 
     /// Whether some nested function captures this declaration.
