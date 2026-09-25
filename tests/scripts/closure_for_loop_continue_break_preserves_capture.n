@@ -1,0 +1,36 @@
+// Expected:
+// 0
+// 1
+// 2
+// 3
+// 4
+// ---
+// 0
+// 1
+// 2
+
+var continueFns = []
+for (var i = 0; i < 5; i = i + 1) {
+    val local = i * 10
+    continueFns.push(fn() { return i })
+    if (i == 2) {
+        continue
+    }
+}
+for (f in continueFns) {
+    print(f())
+}
+
+print("---")
+
+var breakFns = []
+for (var i = 0; i < 5; i = i + 1) {
+    val local = i * 10
+    breakFns.push(fn() { return i })
+    if (i == 2) {
+        break
+    }
+}
+for (f in breakFns) {
+    print(f())
+}
