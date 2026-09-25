@@ -2874,20 +2874,12 @@ fn test_loop_body_local_does_not_grow_stack() {
         vm.stack.len()
     }
 
-    // A 3-statement body goes through the ordinary block path
-    // (generate_block_stmt). 0 iterations gives the stack depth the loop
-    // started at, since the condition is false immediately.
-    let ordinary_body = "val temp = i * 2\nval doubled = temp * 2\ni = i + 1";
+    // 0 iterations gives the stack depth the loop started at, since the
+    // condition is false immediately.
+    let body = "val temp = i * 2\nval doubled = temp * 2\ni = i + 1";
     assert_eq!(
-        stack_len_after_loop(0, ordinary_body),
-        stack_len_after_loop(1000, ordinary_body)
-    );
-
-    // A 2-statement body also goes through generate_block_stmt.
-    let short_body = "val temp = i * 2\ni = i + 1";
-    assert_eq!(
-        stack_len_after_loop(0, short_body),
-        stack_len_after_loop(1000, short_body)
+        stack_len_after_loop(0, body),
+        stack_len_after_loop(1000, body)
     );
 }
 

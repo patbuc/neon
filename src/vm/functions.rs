@@ -849,11 +849,7 @@ impl VirtualMachine {
         self.pop();
     }
 
-    /// Closes the upvalue (if any) pointing at the current top-of-stack
-    /// slot, without popping it. Used at the end of each C-style for loop
-    /// iteration: closures made so far keep this iteration's value, while
-    /// the slot itself carries on as a fresh, uncaptured variable for the
-    /// next iteration.
+    /// Closes the upvalue on the top-of-stack slot without popping it.
     #[inline(always)]
     pub(in crate::vm) fn fn_close_upvalue_in_place(&mut self) {
         let top_index = self.stack.len() - 1;

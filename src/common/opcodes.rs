@@ -174,11 +174,7 @@ pub(crate) enum OpCode {
     /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
     /// pops it, so a captured local's value survives its scope exiting.
     CloseUpvalue,
-    /// Like CloseUpvalue, but leaves the top-of-stack slot and its value in
-    /// place: closures made so far keep this iteration's value, and the slot
-    /// carries on as a fresh, uncaptured variable. Used at the end of each
-    /// C-style for loop iteration so its loop variable gets its own binding
-    /// per iteration.
+    /// Closes the upvalue on the top-of-stack slot without popping it.
     CloseUpvalueInPlace,
     /// Pops a closure and registers it as a method under a type name and
     /// method name (both read as fixed 32-bit string indices).

@@ -610,11 +610,6 @@ impl CodeGenerator {
     ///   exit: Pop                ; the false condition
     ///   break_target:
     ///   <end loop scope: Pop or CloseUpvalue for the loop variable>
-    ///
-    /// The increment is compiled before the body, so by the time the body
-    /// (and any closures in it) has been compiled, the loop variable's
-    /// captured status is final and CloseUpvalueInPlace is emitted only when
-    /// actually needed.
     fn generate_for_stmt(
         &mut self,
         initializer: &Stmt,
@@ -670,7 +665,6 @@ impl CodeGenerator {
             self.patch_jump(break_jump);
         }
 
-        // Exit the loop scope: pops (or closes the upvalue for) the loop variable.
         self.end_scope(location);
     }
 
@@ -687,9 +681,8 @@ impl CodeGenerator {
 
     fn generate_loop_exit_stmt(&mut self, exit: LoopExit, location: SourceLocation) {
         // Emit a Jump opcode and record it for later patching. For continue,
-        // this allows jumping to the right place (before the Loop
-        // instruction), which is crucial for C-style for loops where the
-        // increment comes at the end.
+        // this allows jumping to the right place, just before the Loop
+        // instruction.
         let keyword = match exit {
             LoopExit::Break => "break",
             LoopExit::Continue => "continue",
