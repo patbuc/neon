@@ -298,28 +298,40 @@ impl Parser {
         self.errors.push(error);
     }
 
-    /// Skips tokens until the start of the next statement.
+    /// Skips tokens until the start of the next statement, treating `{`/`#{`
+    /// and `}` as balanced so a brace opened by the token that failed to
+    /// parse (e.g. a block whose header was never consumed) doesn't get
+    /// mistaken for the enclosing body's closing brace.
     fn synchronize(&mut self, stop_at_right_brace: bool) {
         self.panic_mode = false;
+        let mut depth: u32 = 0;
         loop {
-            if self.previous_token.token_type == TokenType::NewLine
-                || self.previous_token.token_type == TokenType::Eof
-            {
+            if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            if stop_at_right_brace && self.current_token.token_type == TokenType::RightBrace {
-                return;
+            if depth == 0 {
+                if self.previous_token.token_type == TokenType::NewLine {
+                    return;
+                }
+                if stop_at_right_brace && self.current_token.token_type == TokenType::RightBrace {
+                    return;
+                }
+                match self.current_token.token_type {
+                    TokenType::Fn
+                    | TokenType::Struct
+                    | TokenType::Impl
+                    | TokenType::Val
+                    | TokenType::Var
+                    | TokenType::For
+                    | TokenType::If
+                    | TokenType::While
+                    | TokenType::Return => return,
+                    _ => {}
+                }
             }
             match self.current_token.token_type {
-                TokenType::Fn
-                | TokenType::Struct
-                | TokenType::Impl
-                | TokenType::Val
-                | TokenType::Var
-                | TokenType::For
-                | TokenType::If
-                | TokenType::While
-                | TokenType::Return => return,
+                TokenType::LeftBrace | TokenType::HashLeftBrace => depth += 1,
+                TokenType::RightBrace => depth = depth.saturating_sub(1),
                 _ => {}
             }
             self.advance();
@@ -767,8 +779,9 @@ impl Parser {
         self.parse_precedence(Precedence::Assignment, skip_new_lines)
     }
 
-    /// Whether the current token can only start a new statement, never
-    /// continue the expression in progress.
+    /// Whether the current token can only start a new statement (`Eof`,
+    /// `}`, or a statement keyword), never continue the expression in
+    /// progress.
     fn is_statement_boundary(&self) -> bool {
         matches!(
             self.current_token.token_type,
@@ -782,14 +795,11 @@ impl Parser {
                 | TokenType::If
                 | TokenType::While
                 | TokenType::Return
+                | TokenType::Break
+                | TokenType::Continue
         )
     }
 
-    /// Parses the operand of an operator (`=`, a binary operator, a range
-    /// bound, a ternary branch) that's allowed to continue onto the next
-    /// line. If skipping newlines lands on a statement boundary, reports
-    /// "Expect expression" at the operator instead of at the boundary, so
-    /// the error doesn't look like it belongs to the following statement.
     fn operand(&mut self, precedence: Precedence) -> Option<Expr> {
         let operator_location = self.current_location();
         let had_newline = self.check(TokenType::NewLine);

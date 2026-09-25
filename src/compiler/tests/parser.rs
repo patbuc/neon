@@ -450,6 +450,48 @@ fn test_while_body_reports_both_bad_statements() {
 }
 
 #[test]
+fn test_missing_if_header_parens_skips_balanced_braces() {
+    let program = "fn f() {\n    if true { val a = ) } else { val b = 2 }\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 8)]);
+}
+
+#[test]
+fn test_missing_while_header_parens_skips_balanced_braces() {
+    let program = "fn f() {\n  while true {\n    val x = +\n  }\n  val y = +\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 9), (5, 11)]);
+}
+
+#[test]
+fn test_stray_brace_as_operand_is_not_consumed() {
+    let program = "fn f() { val x = }\nval w = )\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(1, 18), (2, 9)]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
