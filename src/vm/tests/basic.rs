@@ -3464,3 +3464,82 @@ fn many_comment_lines_do_not_overflow_the_stack() {
     assert_eq!(Result::Ok, result);
     assert_eq!("1", vm.get_output());
 }
+
+#[test]
+fn deeply_nested_parens_are_a_compile_error_naming_the_limit() {
+    let program = format!("print({}1{})", "(".repeat(5000), ")".repeat(5000));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("600"));
+}
+
+#[test]
+fn moderately_nested_parens_still_evaluate() {
+    let program = format!("print({}1{})", "(".repeat(500), ")".repeat(500));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1", vm.get_output());
+}
+
+#[test]
+fn deeply_nested_blocks_are_a_compile_error_naming_the_limit() {
+    let program = format!(
+        "{}print(1){}",
+        "if (true) { ".repeat(5000),
+        " }".repeat(5000)
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("600"));
+}
+
+#[test]
+fn deeply_nested_unbraced_ifs_are_a_compile_error_naming_the_limit() {
+    let program = format!("{}print(1)", "if (true) ".repeat(5000));
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("600"));
+}
+
+#[test]
+fn deeply_nested_else_if_arms_are_a_compile_error_naming_the_limit() {
+    let mut program = "if (false) {} else ".repeat(5000);
+    program.push_str("{ print(1) }");
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("600"));
+}
+
+#[test]
+fn interpolated_expression_inherits_the_enclosing_nesting_depth() {
+    // Combined with the 590 parens inside the interpolation, this only
+    // exceeds the limit if the sub-parser inherits the outer depth.
+    let program = format!(
+        "print({}\"${{{}1{}}}\"{})",
+        "(".repeat(50),
+        "(".repeat(590),
+        ")".repeat(590),
+        ")".repeat(50)
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("600"));
+}

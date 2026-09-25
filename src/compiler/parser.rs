@@ -1,3 +1,4 @@
+use crate::common::constants::MAX_PARSER_RECURSION_DEPTH;
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
@@ -19,6 +20,8 @@ pub struct Parser {
     /// Open `{`/`#{`, `(`, and `[` counts, tracked separately so a stray
     /// closer of one type can't be mistaken for closing another.
     nesting_depth: (usize, usize, usize),
+    /// Rust call-stack recursion depth, bounded to avoid a stack overflow.
+    recursion_depth: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -86,6 +89,7 @@ impl Parser {
             panic_mode: false,
             next_node_id,
             nesting_depth: (0, 0, 0),
+            recursion_depth: 0,
         }
     }
 
@@ -283,6 +287,22 @@ impl Parser {
     }
 
     // ===== Error Handling =====
+
+    /// Runs `parse` one recursion level deeper, or reports an error once
+    /// `MAX_PARSER_RECURSION_DEPTH` is exceeded.
+    fn nested<T>(&mut self, parse: impl FnOnce(&mut Self) -> Option<T>) -> Option<T> {
+        self.recursion_depth += 1;
+        let result = if self.recursion_depth > MAX_PARSER_RECURSION_DEPTH {
+            self.report_error_at_current(format!(
+                "Nesting too deep (limit is {MAX_PARSER_RECURSION_DEPTH})."
+            ));
+            None
+        } else {
+            parse(self)
+        };
+        self.recursion_depth -= 1;
+        result
+    }
 
     fn report_error_at_current(&mut self, message: String) {
         let location = self.current_token_location();
@@ -574,6 +594,10 @@ impl Parser {
     // ===== Statements =====
 
     fn statement(&mut self) -> Option<Stmt> {
+        self.nested(Self::statement_inner)
+    }
+
+    fn statement_inner(&mut self) -> Option<Stmt> {
         if self.match_token(TokenType::LeftBrace) {
             let location = self.current_location();
             let statements = self.block_statements()?;
@@ -610,6 +634,10 @@ impl Parser {
     /// Shared by block statements, function declarations and lambda
     /// expressions, whose surrounding context decides what may follow.
     fn parse_block_body(&mut self) -> Option<Vec<Stmt>> {
+        self.nested(Self::parse_block_body_inner)
+    }
+
+    fn parse_block_body_inner(&mut self) -> Option<Vec<Stmt>> {
         let mut statements = Vec::new();
         let block_depth = self.nesting_depth;
         self.skip_new_lines();
@@ -659,13 +687,7 @@ impl Parser {
 
         let then_branch = Box::new(self.statement()?);
         let else_branch = if self.match_token(TokenType::Else) {
-            // Check for 'else if' syntax
-            if self.check(TokenType::If) {
-                self.advance();
-                Some(Box::new(self.if_statement()?))
-            } else {
-                Some(Box::new(self.statement()?))
-            }
+            Some(Box::new(self.statement()?))
         } else {
             None
         };
@@ -856,6 +878,14 @@ impl Parser {
     }
 
     fn parse_precedence(&mut self, precedence: Precedence, skip_new_lines: bool) -> Option<Expr> {
+        self.nested(|parser| parser.parse_precedence_inner(precedence, skip_new_lines))
+    }
+
+    fn parse_precedence_inner(
+        &mut self,
+        precedence: Precedence,
+        skip_new_lines: bool,
+    ) -> Option<Expr> {
         if skip_new_lines {
             self.skip_new_lines();
         }
@@ -1092,6 +1122,7 @@ impl Parser {
                     expr_offset,
                     self.next_node_id,
                 );
+                expr_parser.recursion_depth = self.recursion_depth;
                 expr_parser.advance();
                 let expr = expr_parser.expression(true);
                 let ends_cleanly = expr_parser
