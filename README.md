@@ -167,6 +167,66 @@ print(apply(double, 3))               // 6
 print(apply(fn(x) { return x + 1 }, 3))  // 4
 ```
 
+#### Hoisting
+
+Every top-level `fn`, `struct`, `val`, and `var` is visible throughout the
+file. Functions and structs are ready before any statement runs, so a
+top-level function can be called above its own declaration, and its body can
+name any top-level declaration, including ones that come later:
+
+```neon
+print(f())  // 1
+fn f() { return 1 }
+```
+
+```neon
+fn f() { return y }
+val y = 2
+print(f())  // 2
+```
+
+`val`/`var` are initialized when their statement runs, in order. Reading one
+from inside a function that gets called too early is a runtime error, naming
+the variable and the reading line:
+
+```neon
+fn f() { return y }
+print(f())
+val y = 2
+// [1:17] variable 'y' used before initialization
+```
+
+At the top level itself, naming a `val`/`var` before its declaration is a
+compile error instead:
+
+```neon
+print(b)
+val b = 1
+// error: cannot use 'b' before its declaration
+```
+
+```neon
+val x = x
+// error: cannot read 'x' in its own initializer
+```
+
+The same hoisting applies inside a block or function body: a block's own
+`fn` declarations are visible throughout that block, so nested functions can
+call each other in any order. Calling one before its `fn` line has run is
+the same use-before-initialization error, naming the function:
+
+```neon
+fn outer() {
+    fn a(n) { return b(n) }
+    fn b(n) { return n }
+    return a(1)
+}
+print(outer())  // 1
+```
+
+`val`/`var` declared in a block stay ordered: a nested function can't name a
+block variable declared after it.
+
 ### Control Flow
 
 **If/Else:**
@@ -324,7 +384,7 @@ print(Point.origin().x)   // 0
   another method of the same struct.
 - Methods are registered before the program runs, so they can be called from
   code that appears before their `impl` block. A method body can see
-  functions, structs, and builtins, but not top-level variables.
+  functions, structs, builtins, and top-level variables.
 
 A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`)
 can have an `impl` block too, adding an instance method callable on any value
