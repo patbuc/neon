@@ -108,9 +108,10 @@ cargo run --features disassemble -- script.n
 
 **Value System** (`src/common/mod.rs`)
 
-- `Value` enum: Number(f64), Boolean, Nil, Object(Rc<Object>)
-- Object types: String, Function, NativeFunction, Struct, Instance, Array, Map, Set, File
-- Reference-counted objects with interior mutability where needed (RefCell)
+- Scalars (Number, Boolean, Nil) are stored inline
+- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
+- Strings are `Rc<String>` so `Value` stays 16 bytes
+- `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 
 **Standard Library** (`src/common/stdlib/`)
 
