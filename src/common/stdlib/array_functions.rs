@@ -123,9 +123,6 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
     // Sort the array
     let mut array = array_ref.borrow_mut();
 
-    // Sort with custom comparison that handles mixed types: numbers first,
-    // then every other heap value as one bucket (only strings ordered within
-    // it), then booleans and nil.
     array.sort_by(|a, b| match (a, b) {
         (Value::Number(n1), Value::Number(n2)) => {
             n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
