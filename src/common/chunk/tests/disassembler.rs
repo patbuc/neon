@@ -8,7 +8,8 @@ fn create_map_instruction_round_trips_counts_above_255() {
     chunk.write_op_code(OpCode::CreateMap, 1, 1);
     chunk.write_u16(300);
 
-    let next_offset = chunk.disassemble_instruction(0);
+    let mut out = String::new();
+    let next_offset = chunk.disassemble_instruction(0, &mut out);
 
     assert_eq!(300, chunk.read_u16(1));
     assert_eq!(3, next_offset);
@@ -20,7 +21,8 @@ fn create_set_instruction_round_trips_counts_above_255() {
     chunk.write_op_code(OpCode::CreateSet, 1, 1);
     chunk.write_u16(300);
 
-    let next_offset = chunk.disassemble_instruction(0);
+    let mut out = String::new();
+    let next_offset = chunk.disassemble_instruction(0, &mut out);
 
     assert_eq!(300, chunk.read_u16(1));
     assert_eq!(3, next_offset);
@@ -34,7 +36,8 @@ fn invoke_instruction_next_offset_is_four() {
     chunk.write_u16(name_index);
     chunk.write_u8(2);
 
-    let next_offset = chunk.disassemble_instruction(0);
+    let mut out = String::new();
+    let next_offset = chunk.disassemble_instruction(0, &mut out);
 
     assert_eq!(4, next_offset);
 }

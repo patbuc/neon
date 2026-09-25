@@ -3522,6 +3522,17 @@ fn moderately_nested_parens_still_evaluate() {
 }
 
 #[test]
+fn ten_thousand_line_program_runs() {
+    let program = "var x = 0\n".to_string() + &"x = x + 1\n".repeat(9_998) + "print(x)\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::Ok, result);
+    assert_eq!("9998", vm.get_output());
+}
+
+#[test]
 fn deeply_nested_blocks_are_a_compile_error_naming_the_limit() {
     let program = format!(
         "{}print(1){}",

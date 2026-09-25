@@ -1,7 +1,7 @@
 mod constants;
 mod r#impl;
 
-#[cfg(feature = "disassemble")]
+#[cfg(any(test, feature = "disassemble"))]
 mod disassembler;
 #[cfg(test)]
 mod tests;
