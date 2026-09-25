@@ -1,4 +1,5 @@
 use crate::common::SourceLocation;
+use crate::compiler::resolutions::DeclId;
 use std::collections::HashMap;
 
 /// Kind of symbol in the symbol table
@@ -17,6 +18,8 @@ pub enum SymbolKind {
     /// Built-in namespace (e.g. Math, File); usable only as `Name.method(...)`
     /// or, for namespaces with a constructor, as a call `Name(...)`
     Namespace,
+    /// Runtime builtin value (e.g. `args`); index into `stdlib::BUILTIN_VALUES`
+    Builtin { index: u32 },
 }
 
 /// Symbol in the symbol table
@@ -32,15 +35,22 @@ pub struct Symbol {
     pub scope_depth: u32,
     /// Source location where defined
     pub location: SourceLocation,
+    /// Identity of the declaration this symbol names
+    pub decl_id: DeclId,
+    /// Function-nesting level where this symbol was declared (0 = the script)
+    pub function_level: u32,
 }
 
 impl Symbol {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         kind: SymbolKind,
         is_mutable: bool,
         scope_depth: u32,
         location: SourceLocation,
+        decl_id: DeclId,
+        function_level: u32,
     ) -> Self {
         Symbol {
             name,
@@ -48,6 +58,8 @@ impl Symbol {
             is_mutable,
             scope_depth,
             location,
+            decl_id,
+            function_level,
         }
     }
 }

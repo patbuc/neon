@@ -4,6 +4,7 @@ pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
 pub(crate) mod parser;
+pub(crate) mod resolutions;
 mod scanner;
 pub(crate) mod semantic;
 pub(crate) mod symbol_table;
