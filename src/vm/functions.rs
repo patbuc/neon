@@ -1,6 +1,8 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::{
+    CallFrame, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
+};
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
@@ -980,7 +982,7 @@ impl VirtualMachine {
             let key_value = &self.stack[pairs_start + 2 * i];
             let value = &self.stack[pairs_start + 2 * i + 1];
 
-            let key = match Self::value_to_map_key(key_value) {
+            let key = match MapKey::from_value(key_value) {
                 Some(k) => k,
                 None => {
                     return Err(self.runtime_error(format!(
@@ -1035,7 +1037,7 @@ impl VirtualMachine {
         for i in 0..count {
             let element_value = &self.stack[elements_start + i];
 
-            let key = match Self::value_to_map_key(element_value) {
+            let key = match MapKey::from_value(element_value) {
                 Some(k) => k,
                 None => {
                     return Err(self.runtime_error(format!(
@@ -1135,7 +1137,7 @@ impl VirtualMachine {
         match &collection_value {
             Value::Map(map_ref) => {
                 // Convert index to MapKey
-                let key = match Self::value_to_map_key(&index_value) {
+                let key = match MapKey::from_value(&index_value) {
                     Some(k) => k,
                     None => {
                         return Err(self.runtime_error(format!(
@@ -1217,7 +1219,7 @@ impl VirtualMachine {
         match &collection_value {
             Value::Map(map_ref) => {
                 // Convert index to MapKey
-                let key = match Self::value_to_map_key(&index_value) {
+                let key = match MapKey::from_value(&index_value) {
                     Some(k) => k,
                     None => {
                         return Err(self.runtime_error(format!(
@@ -1271,18 +1273,6 @@ impl VirtualMachine {
         }
     }
 
-    fn value_to_map_key(value: &Value) -> Option<crate::common::MapKey> {
-        use crate::common::MapKey;
-        use ordered_float::OrderedFloat;
-
-        match value {
-            Value::String(s) => Some(MapKey::String(Rc::clone(s))),
-            Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
-            Value::Boolean(b) => Some(MapKey::Boolean(*b)),
-            _ => None,
-        }
-    }
-
     /// GetIterator: Convert a collection to an iterator
     /// Pops the collection and pushes two hidden locals: the iterable
     /// collection (arrays and ranges as-is, map keys or set elements
@@ -1296,27 +1286,13 @@ impl VirtualMachine {
             Value::Range(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
-                let keys: Vec<Value> = map
-                    .keys()
-                    .map(|k| match k {
-                        crate::common::MapKey::String(s) => Value::String(Rc::clone(s)),
-                        crate::common::MapKey::Number(n) => Value::Number(n.into_inner()),
-                        crate::common::MapKey::Boolean(b) => Value::Boolean(*b),
-                    })
-                    .collect();
+                let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
 
                 Value::new_array(keys)
             }
             Value::Set(set_ref) => {
                 let set = set_ref.borrow();
-                let elements: Vec<Value> = set
-                    .iter()
-                    .map(|k| match k {
-                        crate::common::SetKey::String(s) => Value::String(Rc::clone(s)),
-                        crate::common::SetKey::Number(n) => Value::Number(n.into_inner()),
-                        crate::common::SetKey::Boolean(b) => Value::Boolean(*b),
-                    })
-                    .collect();
+                let elements: Vec<Value> = set.iter().map(MapKey::to_value).collect();
 
                 Value::new_array(elements)
             }

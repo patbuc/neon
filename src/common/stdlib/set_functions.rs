@@ -1,8 +1,6 @@
-use crate::common::{SetKey, Value};
+use crate::common::{MapKey, SetKey, Value};
 use crate::{extract_arg, extract_receiver};
-use ordered_float::OrderedFloat;
 use std::collections::BTreeSet;
-use std::rc::Rc;
 
 /// Native implementation of Set.add(element)
 /// Adds an element to the set, returns true if added (was not present), false otherwise
@@ -17,7 +15,7 @@ pub fn native_set_add(args: &[Value]) -> Result<Value, String> {
     let set_ref = extract_receiver!(args, Set, "add")?;
 
     // Convert element to SetKey
-    let key = match value_to_set_key(&args[1]) {
+    let key = match MapKey::from_value(&args[1]) {
         Some(k) => k,
         None => {
             return Err(format!(
@@ -46,7 +44,7 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
     let set_ref = extract_receiver!(args, Set, "remove")?;
 
     // Convert element to SetKey
-    let key = match value_to_set_key(&args[1]) {
+    let key = match MapKey::from_value(&args[1]) {
         Some(k) => k,
         None => {
             return Err(format!(
@@ -75,7 +73,7 @@ pub fn native_set_has(args: &[Value]) -> Result<Value, String> {
     let set_ref = extract_receiver!(args, Set, "has")?;
 
     // Convert element to SetKey
-    let key = match value_to_set_key(&args[1]) {
+    let key = match MapKey::from_value(&args[1]) {
         Some(k) => k,
         None => {
             return Err(format!(
@@ -195,25 +193,6 @@ pub fn native_set_is_subset(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(is_subset))
 }
 
-/// Helper function to convert a Value to a SetKey
-fn value_to_set_key(value: &Value) -> Option<SetKey> {
-    match value {
-        Value::String(s) => Some(SetKey::String(Rc::clone(s))),
-        Value::Number(n) => Some(SetKey::Number(OrderedFloat(*n))),
-        Value::Boolean(b) => Some(SetKey::Boolean(*b)),
-        _ => None,
-    }
-}
-
-/// Helper function to convert a SetKey back to a Value
-fn set_key_to_value(key: &SetKey) -> Value {
-    match key {
-        SetKey::String(s) => Value::String(Rc::clone(s)),
-        SetKey::Number(n) => Value::Number(n.0),
-        SetKey::Boolean(b) => Value::Boolean(*b),
-    }
-}
-
 /// Native implementation of Set.toArray()
 /// Returns a new array containing all elements from the set
 pub fn native_set_to_array(args: &[Value]) -> Result<Value, String> {
@@ -223,7 +202,7 @@ pub fn native_set_to_array(args: &[Value]) -> Result<Value, String> {
 
     let set_ref = extract_receiver!(args, Set, "toArray")?;
     let set = set_ref.borrow();
-    let array_elements: Vec<Value> = set.iter().map(set_key_to_value).collect();
+    let array_elements: Vec<Value> = set.iter().map(MapKey::to_value).collect();
 
     Ok(Value::new_array(array_elements))
 }

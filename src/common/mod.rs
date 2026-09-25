@@ -78,6 +78,28 @@ pub enum MapKey {
 
 pub type SetKey = MapKey;
 
+impl MapKey {
+    /// Converts a hashable `Value` into a `MapKey`, or `None` if `value`
+    /// can't be used as a map/set key.
+    pub fn from_value(value: &Value) -> Option<MapKey> {
+        match value {
+            Value::String(s) => Some(MapKey::String(Rc::clone(s))),
+            Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
+            Value::Boolean(b) => Some(MapKey::Boolean(*b)),
+            _ => None,
+        }
+    }
+
+    /// Converts a `MapKey` back into the `Value` it was built from.
+    pub fn to_value(&self) -> Value {
+        match self {
+            MapKey::String(s) => Value::String(Rc::clone(s)),
+            MapKey::Number(n) => Value::Number(n.into_inner()),
+            MapKey::Boolean(b) => Value::Boolean(*b),
+        }
+    }
+}
+
 impl Display for MapKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
