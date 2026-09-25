@@ -1,5 +1,5 @@
 use crate::common::static_type::StaticType;
-use crate::common::{ObjString, Object, Value};
+use crate::common::Value;
 use indexmap::IndexMap;
 use std::rc::Rc;
 
@@ -49,11 +49,7 @@ pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
 fn create_args_array(args: &[String]) -> Value {
     let elements: Vec<Value> = args
         .iter()
-        .map(|arg| {
-            Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::from(arg.as_str()),
-            })))
-        })
+        .map(|arg| Value::String(Rc::new(arg.clone())))
         .collect();
     Value::new_array(elements)
 }

@@ -1,4 +1,4 @@
-use crate::common::{ObjString, Object, Value};
+use crate::common::Value;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 use std::rc::Rc;
 
@@ -10,7 +10,7 @@ pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
     }
 
     let s = extract_arg!(args, 0, String, "path", "File")?;
-    Ok(Value::new_file(s.value.to_string()))
+    Ok(Value::new_file(s.to_string()))
 }
 
 /// Native implementation of File.read()
@@ -29,9 +29,7 @@ pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
     match std::fs::read_to_string(file_path.as_ref()) {
         Ok(contents) => {
             // Return the contents as a String value
-            Ok(Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::from(contents),
-            }))))
+            Ok(Value::String(Rc::new(contents)))
         }
         Err(e) => {
             // Return descriptive error message based on error kind
@@ -70,11 +68,7 @@ pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
             // Split by lines - this automatically strips \n and \r\n line endings
             let lines: Vec<Value> = contents
                 .lines()
-                .map(|line| {
-                    Value::Object(Rc::new(Object::String(ObjString {
-                        value: Rc::from(line),
-                    })))
-                })
+                .map(|line| Value::String(Rc::new(line.to_string())))
                 .collect();
 
             // Return an array of string values

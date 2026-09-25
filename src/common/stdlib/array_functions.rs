@@ -1,4 +1,4 @@
-use crate::common::{NativeCallError, Object, Value};
+use crate::common::{NativeCallError, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -97,6 +97,16 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(contains))
 }
 
+/// Sort bucket for `sort()`'s mixed-type ordering: numbers first, then
+/// everything else, then booleans/nil/uninitialized last.
+fn sort_rank(value: &Value) -> u8 {
+    match value {
+        Value::Number(_) => 0,
+        Value::Boolean(_) | Value::Nil | Value::Uninitialized(_) => 2,
+        _ => 1,
+    }
+}
+
 /// Native implementation of Array.sort()
 /// Sorts array in place (numbers ascending, strings alphabetically)
 pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
@@ -113,20 +123,12 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
     // Sort the array
     let mut array = array_ref.borrow_mut();
 
-    // Sort with custom comparison that handles mixed types
     array.sort_by(|a, b| match (a, b) {
         (Value::Number(n1), Value::Number(n2)) => {
             n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
         }
-        (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-            (Object::String(s1), Object::String(s2)) => s1.value.cmp(&s2.value),
-            _ => std::cmp::Ordering::Equal,
-        },
-        (Value::Number(_), _) => std::cmp::Ordering::Less,
-        (_, Value::Number(_)) => std::cmp::Ordering::Greater,
-        (Value::Object(_), _) => std::cmp::Ordering::Less,
-        (_, Value::Object(_)) => std::cmp::Ordering::Greater,
-        _ => std::cmp::Ordering::Equal,
+        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+        _ => sort_rank(a).cmp(&sort_rank(b)),
     });
 
     Ok(Value::Nil)
@@ -217,11 +219,7 @@ pub fn native_array_join(args: &[Value]) -> Result<Value, String> {
     let parts: Vec<String> = array.iter().map(|v| format!("{}", v)).collect();
     let result = parts.join(delimiter);
 
-    Ok(Value::Object(std::rc::Rc::new(Object::String(
-        crate::common::ObjString {
-            value: std::rc::Rc::from(result),
-        },
-    ))))
+    Ok(Value::String(std::rc::Rc::new(result)))
 }
 
 /// Native implementation of Array.indexOf(element)
@@ -305,10 +303,7 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_less = match (value, min) {
             (Value::Number(n1), Value::Number(n2)) => n1 < n2,
-            (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-                (Object::String(s1), Object::String(s2)) => s1.value < s2.value,
-                _ => return Err("min() can only compare numbers or strings".to_string()),
-            },
+            (Value::String(s1), Value::String(s2)) => s1 < s2,
             _ => return Err("min() can only compare numbers or strings".to_string()),
         };
 
@@ -345,10 +340,7 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_greater = match (value, max) {
             (Value::Number(n1), Value::Number(n2)) => n1 > n2,
-            (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-                (Object::String(s1), Object::String(s2)) => s1.value > s2.value,
-                _ => return Err("max() can only compare numbers or strings".to_string()),
-            },
+            (Value::String(s1), Value::String(s2)) => s1 > s2,
             _ => return Err("max() can only compare numbers or strings".to_string()),
         };
 

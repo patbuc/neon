@@ -1,7 +1,7 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::{CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
-use crate::common::{ObjClosure, Object, Upvalue};
+use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
 use crate::{as_number, as_string, boolean, is_false_like, number, string};
@@ -112,7 +112,7 @@ impl VirtualMachine {
 
         self.check_frame_limit()?;
 
-        self.dispatch_invoke(&as_string!(method_name).value, arg_count)
+        self.dispatch_invoke(as_string!(method_name), arg_count)
     }
 
     /// Errors with "Stack overflow" if the call frame stack is already at
@@ -133,20 +133,15 @@ impl VirtualMachine {
         let callable_value = self.peek(arg_count);
 
         let result = match &callable_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Closure(closure) => return self.call_closure(arg_count, closure),
-                Object::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
-                Object::NativeFunction(callable) => {
-                    match self.call_native_function(arg_count, callable) {
-                        Ok(value) => value,
-                        Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
-                        Err(NativeCallError::Runtime(e)) => return Err(e),
-                    }
+            Value::Closure(closure) => return self.call_closure(arg_count, closure),
+            Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
+            Value::NativeFunction(callable) => {
+                match self.call_native_function(arg_count, callable) {
+                    Ok(value) => value,
+                    Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
+                    Err(NativeCallError::Runtime(e)) => return Err(e),
                 }
-                _ => {
-                    return Err(self.call_error("Value is not callable"));
-                }
-            },
+            }
             _ => {
                 return Err(self.call_error("Value is not callable"));
             }
@@ -169,10 +164,7 @@ impl VirtualMachine {
         let type_name = self.get_type_name(&receiver);
 
         if let Some(type_name) = &type_name {
-            let is_static_call = matches!(
-                receiver,
-                Value::Object(ref obj) if matches!(obj.as_ref(), Object::Struct(_))
-            );
+            let is_static_call = matches!(receiver, Value::Struct(_));
             match self.dispatch_method_by_name(
                 type_name.as_str(),
                 is_static_call,
@@ -206,13 +198,11 @@ impl VirtualMachine {
             }
         }
 
-        if let Value::Object(obj) = &receiver {
-            if let Object::Instance(inst) = obj.as_ref() {
-                let field_value = inst.borrow().field(method_name).cloned();
-                if let Some(field_value) = field_value {
-                    self.stack[receiver_index] = field_value;
-                    return self.dispatch_call(arg_count);
-                }
+        if let Value::Instance(inst) = &receiver {
+            let field_value = inst.borrow().field(method_name).cloned();
+            if let Some(field_value) = field_value {
+                self.stack[receiver_index] = field_value;
+                return self.dispatch_call(arg_count);
             }
         }
 
@@ -370,7 +360,7 @@ impl VirtualMachine {
         self.stack.drain(start..);
 
         // Push the new instance
-        self.push(Value::new_object(instance));
+        self.push(Value::new_instance(instance));
 
         // IP already incremented by fn_call_unified
         Ok(())
@@ -449,15 +439,12 @@ impl VirtualMachine {
                 Comparison::Less => x < y,
                 Comparison::LessEqual => x <= y,
             }),
-            (Value::Object(oa), Value::Object(ob)) => match (oa.as_ref(), ob.as_ref()) {
-                (Object::String(sa), Object::String(sb)) => Some(match wanted {
-                    Comparison::Greater => sa.value > sb.value,
-                    Comparison::GreaterEqual => sa.value >= sb.value,
-                    Comparison::Less => sa.value < sb.value,
-                    Comparison::LessEqual => sa.value <= sb.value,
-                }),
-                _ => None,
-            },
+            (Value::String(sa), Value::String(sb)) => Some(match wanted {
+                Comparison::Greater => sa > sb,
+                Comparison::GreaterEqual => sa >= sb,
+                Comparison::Less => sa < sb,
+                Comparison::LessEqual => sa <= sb,
+            }),
             _ => None,
         };
         match is_match {
@@ -586,29 +573,17 @@ impl VirtualMachine {
         let a = self.pop();
         match (a, b) {
             (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
-            (Value::Object(a), Value::Object(b)) => {
-                let obj_a = a.as_ref();
-                let obj_b = b.as_ref();
-                self.fn_add_object(obj_a, obj_b)?;
+            (Value::String(a), Value::String(b)) => {
+                let mut combined = String::with_capacity(a.len() + b.len());
+                combined.push_str(&a);
+                combined.push_str(&b);
+                self.push(string!(combined));
             }
             _ => {
                 return Err(self.runtime_error("Operands must be two numbers or two strings"));
             }
         }
         Ok(())
-    }
-
-    fn fn_add_object(&mut self, a: &Object, b: &Object) -> OpResult {
-        match (a, b) {
-            (Object::String(obj_a), Object::String(obj_b)) => {
-                let mut combined = String::with_capacity(obj_a.value.len() + obj_b.value.len());
-                combined.push_str(&obj_a.value);
-                combined.push_str(&obj_b.value);
-                self.push(string!(combined));
-                Ok(())
-            }
-            _ => Err(self.runtime_error("Operands must be two numbers or two strings")),
-        }
     }
 
     #[inline(always)]
@@ -661,10 +636,7 @@ impl VirtualMachine {
         let function = {
             let frame = self.current_frame();
             match frame.closure.function.chunk.read_constant(const_index) {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::Function(function) => Rc::clone(function),
-                    _ => unreachable!("Closure operand must reference a function constant"),
-                },
+                Value::Function(function) => function,
                 _ => unreachable!("Closure operand must reference a function constant"),
             }
         };
@@ -934,29 +906,21 @@ impl VirtualMachine {
             frame.closure.function.chunk.read_string(field_name_index)
         };
         let field_name = match &field_name_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => s.value.as_ref(),
-                _ => return Err(self.runtime_error("Field name must be a string.")),
-            },
+            Value::String(s) => s.as_str(),
             _ => return Err(self.runtime_error("Field name must be a string.")),
         };
 
         match &instance_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Instance(instance_ref) => {
-                    let instance = instance_ref.borrow();
+            Value::Instance(instance_ref) => {
+                let instance = instance_ref.borrow();
 
-                    if let Some(value) = instance.field(field_name).cloned() {
-                        self.pop();
-                        self.push(value);
-                    } else {
-                        return Err(
-                            self.runtime_error(format!("Undefined field '{}'.", field_name))
-                        );
-                    }
+                if let Some(value) = instance.field(field_name).cloned() {
+                    self.pop();
+                    self.push(value);
+                } else {
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
                 }
-                _ => return Err(self.runtime_error("Only instances have fields.")),
-            },
+            }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -976,31 +940,23 @@ impl VirtualMachine {
             frame.closure.function.chunk.read_string(field_name_index)
         };
         let field_name = match &field_name_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => s.value.as_ref(),
-                _ => return Err(self.runtime_error("Field name must be a string.")),
-            },
+            Value::String(s) => s.as_str(),
             _ => return Err(self.runtime_error("Field name must be a string.")),
         };
 
         match &instance_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Instance(instance_ref) => {
-                    let mut instance = instance_ref.borrow_mut();
-                    let Some(index) = instance.r#struct.field_index(field_name) else {
-                        return Err(
-                            self.runtime_error(format!("Undefined field '{}'.", field_name))
-                        );
-                    };
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(index) = instance.r#struct.field_index(field_name) else {
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
+                };
 
-                    instance.fields[index] = value.clone();
+                instance.fields[index] = value.clone();
 
-                    self.pop();
-                    self.pop();
-                    self.push(value);
-                }
-                _ => return Err(self.runtime_error("Only instances have fields.")),
-            },
+                self.pop();
+                self.pop();
+                self.push(value);
+            }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -1170,56 +1126,50 @@ impl VirtualMachine {
         let collection_value = self.pop();
 
         match &collection_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Map(map_ref) => {
-                    // Convert index to MapKey
-                    let key = match Self::value_to_map_key(&index_value) {
-                        Some(k) => k,
-                        None => {
-                            return Err(self.runtime_error(format!(
-                                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                                index_value
-                            )));
-                        }
-                    };
-
-                    let map = map_ref.borrow();
-                    let result = map.get(&key).cloned().unwrap_or(Value::Nil);
-                    self.push(result);
-                    Ok(())
-                }
-                Object::Array(array_ref) => {
-                    let index = match index_value {
-                        Value::Number(n) => n as i32,
-                        _ => {
-                            return Err(self.runtime_error(format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            )));
-                        }
-                    };
-
-                    let array = array_ref.borrow();
-                    let len = array.len() as i32;
-
-                    let actual_index = if index < 0 { len + index } else { index };
-
-                    if actual_index < 0 || actual_index >= len {
+            Value::Map(map_ref) => {
+                // Convert index to MapKey
+                let key = match Self::value_to_map_key(&index_value) {
+                    Some(k) => k,
+                    None => {
                         return Err(self.runtime_error(format!(
-                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
-                            index, actual_index, len
+                            "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
+                            index_value
                         )));
                     }
+                };
 
-                    let result = array[actual_index as usize].clone();
-                    self.push(result);
-                    Ok(())
+                let map = map_ref.borrow();
+                let result = map.get(&key).cloned().unwrap_or(Value::Nil);
+                self.push(result);
+                Ok(())
+            }
+            Value::Array(array_ref) => {
+                let index = match index_value {
+                    Value::Number(n) => n as i32,
+                    _ => {
+                        return Err(self.runtime_error(format!(
+                            "Array index must be a number, got {}.",
+                            index_value
+                        )));
+                    }
+                };
+
+                let array = array_ref.borrow();
+                let len = array.len() as i32;
+
+                let actual_index = if index < 0 { len + index } else { index };
+
+                if actual_index < 0 || actual_index >= len {
+                    return Err(self.runtime_error(format!(
+                        "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                        index, actual_index, len
+                    )));
                 }
-                _ => Err(self.runtime_error(format!(
-                    "Only arrays and maps support index access, got {}.",
-                    collection_value
-                ))),
-            },
+
+                let result = array[actual_index as usize].clone();
+                self.push(result);
+                Ok(())
+            }
             _ => Err(self.runtime_error(format!(
                 "Only arrays and maps support index access, got {}.",
                 collection_value
@@ -1234,58 +1184,52 @@ impl VirtualMachine {
         let collection_value = self.pop();
 
         match &collection_value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Map(map_ref) => {
-                    // Convert index to MapKey
-                    let key = match Self::value_to_map_key(&index_value) {
-                        Some(k) => k,
-                        None => {
-                            return Err(self.runtime_error(format!(
-                                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                                index_value
-                            )));
-                        }
-                    };
-
-                    let mut map = map_ref.borrow_mut();
-                    map.insert(key, value.clone());
-
-                    self.push(value);
-                    Ok(())
-                }
-                Object::Array(array_ref) => {
-                    let index = match index_value {
-                        Value::Number(n) => n as i32,
-                        _ => {
-                            return Err(self.runtime_error(format!(
-                                "Array index must be a number, got {}.",
-                                index_value
-                            )));
-                        }
-                    };
-
-                    let mut array = array_ref.borrow_mut();
-                    let len = array.len() as i32;
-
-                    let actual_index = if index < 0 { len + index } else { index };
-
-                    if actual_index < 0 || actual_index >= len {
+            Value::Map(map_ref) => {
+                // Convert index to MapKey
+                let key = match Self::value_to_map_key(&index_value) {
+                    Some(k) => k,
+                    None => {
                         return Err(self.runtime_error(format!(
-                            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
-                            index, actual_index, len
+                            "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
+                            index_value
                         )));
                     }
+                };
 
-                    array[actual_index as usize] = value.clone();
+                let mut map = map_ref.borrow_mut();
+                map.insert(key, value.clone());
 
-                    self.push(value);
-                    Ok(())
+                self.push(value);
+                Ok(())
+            }
+            Value::Array(array_ref) => {
+                let index = match index_value {
+                    Value::Number(n) => n as i32,
+                    _ => {
+                        return Err(self.runtime_error(format!(
+                            "Array index must be a number, got {}.",
+                            index_value
+                        )));
+                    }
+                };
+
+                let mut array = array_ref.borrow_mut();
+                let len = array.len() as i32;
+
+                let actual_index = if index < 0 { len + index } else { index };
+
+                if actual_index < 0 || actual_index >= len {
+                    return Err(self.runtime_error(format!(
+                        "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+                        index, actual_index, len
+                    )));
                 }
-                _ => Err(self.runtime_error(format!(
-                    "Only arrays and maps support index assignment, got {}.",
-                    collection_value
-                ))),
-            },
+
+                array[actual_index as usize] = value.clone();
+
+                self.push(value);
+                Ok(())
+            }
             _ => Err(self.runtime_error(format!(
                 "Only arrays and maps support index assignment, got {}.",
                 collection_value
@@ -1298,14 +1242,10 @@ impl VirtualMachine {
         use ordered_float::OrderedFloat;
 
         match value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => Some(MapKey::String(Rc::clone(&s.value))),
-                _ => None,
-            },
+            Value::String(s) => Some(MapKey::String(Rc::clone(s))),
             Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
             Value::Boolean(b) => Some(MapKey::Boolean(*b)),
-            Value::Nil => None,
-            Value::Uninitialized(_) => None,
+            _ => None,
         }
     }
 
@@ -1319,49 +1259,33 @@ impl VirtualMachine {
         let collection = self.pop();
 
         let iterator_value = match &collection {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Array(_) => collection,
-                Object::Map(map_ref) => {
-                    let map = map_ref.borrow();
-                    let keys: Vec<Value> = map
-                        .keys()
-                        .map(|k| match k {
-                            crate::common::MapKey::String(s) => {
-                                Value::Object(Rc::new(Object::String(crate::common::ObjString {
-                                    value: Rc::clone(s),
-                                })))
-                            }
-                            crate::common::MapKey::Number(n) => Value::Number(n.into_inner()),
-                            crate::common::MapKey::Boolean(b) => Value::Boolean(*b),
-                        })
-                        .collect();
+            Value::Array(_) => collection,
+            Value::Map(map_ref) => {
+                let map = map_ref.borrow();
+                let keys: Vec<Value> = map
+                    .keys()
+                    .map(|k| match k {
+                        crate::common::MapKey::String(s) => Value::String(Rc::clone(s)),
+                        crate::common::MapKey::Number(n) => Value::Number(n.into_inner()),
+                        crate::common::MapKey::Boolean(b) => Value::Boolean(*b),
+                    })
+                    .collect();
 
-                    Value::new_array(keys)
-                }
-                Object::Set(set_ref) => {
-                    let set = set_ref.borrow();
-                    let elements: Vec<Value> = set
-                        .iter()
-                        .map(|k| match k {
-                            crate::common::SetKey::String(s) => {
-                                Value::Object(Rc::new(Object::String(crate::common::ObjString {
-                                    value: Rc::clone(s),
-                                })))
-                            }
-                            crate::common::SetKey::Number(n) => Value::Number(n.into_inner()),
-                            crate::common::SetKey::Boolean(b) => Value::Boolean(*b),
-                        })
-                        .collect();
+                Value::new_array(keys)
+            }
+            Value::Set(set_ref) => {
+                let set = set_ref.borrow();
+                let elements: Vec<Value> = set
+                    .iter()
+                    .map(|k| match k {
+                        crate::common::SetKey::String(s) => Value::String(Rc::clone(s)),
+                        crate::common::SetKey::Number(n) => Value::Number(n.into_inner()),
+                        crate::common::SetKey::Boolean(b) => Value::Boolean(*b),
+                    })
+                    .collect();
 
-                    Value::new_array(elements)
-                }
-                _ => {
-                    return Err(self.runtime_error(format!(
-                        "Cannot iterate over type: {}. Only arrays, maps, and sets are iterable.",
-                        collection
-                    )));
-                }
-            },
+                Value::new_array(elements)
+            }
             _ => {
                 return Err(self.runtime_error(format!(
                     "Cannot iterate over type: {}. Only arrays, maps, and sets are iterable.",
@@ -1381,13 +1305,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_iterator_done(&mut self) -> OpResult {
         if let Some((index, collection)) = self.iterator_stack.last() {
             let has_more = match collection {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::Array(array_ref) => {
-                        let array = array_ref.borrow();
-                        *index < array.len()
-                    }
-                    _ => false,
-                },
+                Value::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    *index < array.len()
+                }
                 _ => false,
             };
 
@@ -1405,18 +1326,15 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
         let (value, new_index) = if let Some((index, collection)) = self.iterator_stack.last() {
             match collection {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::Array(array_ref) => {
-                        let array = array_ref.borrow();
-                        if *index < array.len() {
-                            let value = array[*index].clone();
-                            (Some(value), Some(*index + 1))
-                        } else {
-                            (None, None)
-                        }
+                Value::Array(array_ref) => {
+                    let array = array_ref.borrow();
+                    if *index < array.len() {
+                        let value = array[*index].clone();
+                        (Some(value), Some(*index + 1))
+                    } else {
+                        (None, None)
                     }
-                    _ => (None, None),
-                },
+                }
                 _ => (None, None),
             }
         } else {
@@ -1441,20 +1359,15 @@ impl VirtualMachine {
     /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<TypeName> {
         match value {
-            Value::Object(obj) => match obj.as_ref() {
-                Object::Array(_) => Some(TypeName::Static("Array")),
-                Object::String(_) => Some(TypeName::Static("String")),
-                Object::Map(_) => Some(TypeName::Static("Map")),
-                Object::Set(_) => Some(TypeName::Static("Set")),
-                Object::File(_) => Some(TypeName::Static("File")),
-                Object::Instance(inst) => {
-                    Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct)))
-                }
-                // The struct value itself (e.g. `Point` in `Point.origin()`)
-                // dispatches static methods under the struct's own name.
-                Object::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
-                _ => None,
-            },
+            Value::Array(_) => Some(TypeName::Static("Array")),
+            Value::String(_) => Some(TypeName::Static("String")),
+            Value::Map(_) => Some(TypeName::Static("Map")),
+            Value::Set(_) => Some(TypeName::Static("Set")),
+            Value::File(_) => Some(TypeName::Static("File")),
+            Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
+            // The struct value itself (e.g. `Point` in `Point.origin()`)
+            // dispatches static methods under the struct's own name.
+            Value::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
             Value::Number(_) => Some(TypeName::Static("Number")),
             Value::Boolean(_) => Some(TypeName::Static("Boolean")),
             _ => None,
@@ -1495,12 +1408,9 @@ impl VirtualMachine {
         frame.ip += 5;
 
         let closure_value = self.pop();
-        let type_name = as_string!(type_name).value.to_string();
-        let method_name = as_string!(method_name).value.to_string();
-        let Value::Object(obj) = &closure_value else {
-            unreachable!("DefineMethod expects a closure on top of the stack")
-        };
-        let Object::Closure(closure) = obj.as_ref() else {
+        let type_name = as_string!(type_name).to_string();
+        let method_name = as_string!(method_name).to_string();
+        let Value::Closure(closure) = &closure_value else {
             unreachable!("DefineMethod expects a closure on top of the stack")
         };
         self.methods

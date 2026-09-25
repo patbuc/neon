@@ -7,7 +7,7 @@
 //!
 //! ```ignore
 //! // Extract a string receiver (args[0])
-//! let obj_string = extract_receiver!(args, String, "len")?;
+//! let string = extract_receiver!(args, String, "len")?;
 //!
 //! // Extract an array receiver
 //! let array_ref = extract_receiver!(args, Array, "push")?;
@@ -15,7 +15,7 @@
 //! // Extract a number argument at index 1
 //! let index = extract_arg!(args, 1, Number, "index", "substring")?;
 //!
-//! // Extract a string value (unwraps ObjString.value)
+//! // Extract a string value (as &str)
 //! let delimiter = extract_string_value!(args, 1, "delimiter", "split")?;
 //! ```
 
@@ -25,18 +25,18 @@
 ///
 /// # Supported Types
 ///
-/// - `String` → `&ObjString`
+/// - `String` → `&Rc<String>`
 /// - `Array` → `&Rc<RefCell<Vec<Value>>>`
 /// - `Map` → `&Rc<RefCell<IndexMap<MapKey, Value>>>`
 /// - `Set` → `&Rc<RefCell<BTreeSet<SetKey>>>`
-/// - `File` → `&Rc<str>`
+/// - `File` → `&Rc<String>`
 /// - `Number` → `f64`
 /// - `Boolean` → `bool`
 ///
 /// # Examples
 ///
 /// ```ignore
-/// let obj_string = extract_receiver!(args, String, "len")?;
+/// let string = extract_receiver!(args, String, "len")?;
 /// let array_ref = extract_receiver!(args, Array, "push")?;
 /// let num = extract_receiver!(args, Number, "abs")?;
 /// ```
@@ -45,10 +45,7 @@ macro_rules! extract_receiver {
     // String extraction
     ($args:expr, String, $method:expr) => {
         match $args.get(0) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::String(s) => Ok(s),
-                _ => Err(format!("{}() can only be called on strings", $method)),
-            },
+            Some(Value::String(s)) => Ok(s),
             Some(_) => Err(format!("{}() can only be called on strings", $method)),
             None => Err(format!("{}() can only be called on strings", $method)),
         }
@@ -57,10 +54,7 @@ macro_rules! extract_receiver {
     // Array extraction
     ($args:expr, Array, $method:expr) => {
         match $args.get(0) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::Array(arr) => Ok(arr),
-                _ => Err(format!("{}() can only be called on arrays", $method)),
-            },
+            Some(Value::Array(arr)) => Ok(arr),
             Some(_) => Err(format!("{}() can only be called on arrays", $method)),
             None => Err(format!("{}() can only be called on arrays", $method)),
         }
@@ -69,10 +63,7 @@ macro_rules! extract_receiver {
     // Map extraction
     ($args:expr, Map, $method:expr) => {
         match $args.get(0) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::Map(m) => Ok(m),
-                _ => Err(format!("{}() can only be called on maps", $method)),
-            },
+            Some(Value::Map(m)) => Ok(m),
             Some(_) => Err(format!("{}() can only be called on maps", $method)),
             None => Err(format!("{}() can only be called on maps", $method)),
         }
@@ -81,10 +72,7 @@ macro_rules! extract_receiver {
     // Set extraction
     ($args:expr, Set, $method:expr) => {
         match $args.get(0) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::Set(s) => Ok(s),
-                _ => Err(format!("{}() can only be called on sets", $method)),
-            },
+            Some(Value::Set(s)) => Ok(s),
             Some(_) => Err(format!("{}() can only be called on sets", $method)),
             None => Err(format!("{}() can only be called on sets", $method)),
         }
@@ -93,10 +81,7 @@ macro_rules! extract_receiver {
     // File extraction
     ($args:expr, File, $method:expr) => {
         match $args.get(0) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::File(f) => Ok(f),
-                _ => Err(format!("{}() can only be called on File objects", $method)),
-            },
+            Some(Value::File(f)) => Ok(f),
             Some(_) => Err(format!("{}() can only be called on File objects", $method)),
             None => Err(format!("{}() can only be called on File objects", $method)),
         }
@@ -127,7 +112,7 @@ macro_rules! extract_receiver {
 ///
 /// # Supported Types
 ///
-/// - `String` → `&ObjString`
+/// - `String` → `&Rc<String>`
 /// - `Number` → `f64`
 /// - `Set` → `&Rc<RefCell<BTreeSet<SetKey>>>`
 /// - `Array` → `&Rc<RefCell<Vec<Value>>>`
@@ -147,10 +132,7 @@ macro_rules! extract_arg {
     // String argument
     ($args:expr, $idx:expr, String, $arg_name:expr, $method:expr) => {
         match $args.get($idx) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::String(s) => Ok(s),
-                _ => Err(format!("{}() {} must be a string", $method, $arg_name)),
-            },
+            Some(Value::String(s)) => Ok(s),
             Some(_) => Err(format!("{}() {} must be a string", $method, $arg_name)),
             None => Err(format!(
                 "{}() missing required argument: {}",
@@ -174,10 +156,7 @@ macro_rules! extract_arg {
     // Set argument
     ($args:expr, $idx:expr, Set, $arg_name:expr, $method:expr) => {
         match $args.get($idx) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::Set(s) => Ok(s),
-                _ => Err(format!("{}() {} must be a set", $method, $arg_name)),
-            },
+            Some(Value::Set(s)) => Ok(s),
             Some(_) => Err(format!("{}() {} must be a set", $method, $arg_name)),
             None => Err(format!(
                 "{}() missing required argument: {}",
@@ -189,10 +168,7 @@ macro_rules! extract_arg {
     // Array argument
     ($args:expr, $idx:expr, Array, $arg_name:expr, $method:expr) => {
         match $args.get($idx) {
-            Some(Value::Object(obj)) => match obj.as_ref() {
-                Object::Array(arr) => Ok(arr),
-                _ => Err(format!("{}() {} must be an array", $method, $arg_name)),
-            },
+            Some(Value::Array(arr)) => Ok(arr),
             Some(_) => Err(format!("{}() {} must be an array", $method, $arg_name)),
             None => Err(format!(
                 "{}() missing required argument: {}",
@@ -202,7 +178,7 @@ macro_rules! extract_arg {
     };
 }
 
-/// Extract the &str value from a String argument (unwraps ObjString.value).
+/// Extract the &str value from a String argument.
 ///
 /// This is a convenience macro that combines `extract_arg!` with unwrapping
 /// the inner string value, which is a common pattern in string operations.
@@ -211,8 +187,8 @@ macro_rules! extract_arg {
 ///
 /// ```ignore
 /// // Instead of:
-/// let obj_string = extract_arg!(args, 1, String, "delimiter", "split")?;
-/// let delimiter = obj_string.value.as_ref();
+/// let string = extract_arg!(args, 1, String, "delimiter", "split")?;
+/// let delimiter = string.as_str();
 ///
 /// // Use:
 /// let delimiter = extract_string_value!(args, 1, "delimiter", "split");
@@ -220,8 +196,6 @@ macro_rules! extract_arg {
 #[macro_export]
 macro_rules! extract_string_value {
     ($args:expr, $idx:expr, $arg_name:expr, $method:expr) => {{
-        extract_arg!($args, $idx, String, $arg_name, $method)?
-            .value
-            .as_ref()
+        extract_arg!($args, $idx, String, $arg_name, $method)?.as_str()
     }};
 }

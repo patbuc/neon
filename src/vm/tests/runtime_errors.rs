@@ -749,7 +749,7 @@ outer()
 #[test]
 fn get_global_uninitialized_slot_halts() {
     let mut chunk = Chunk::new("get_global_uninitialized");
-    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_constant(Value::Uninitialized(Rc::new("x".to_string())), 1, 1);
     chunk.write_indexed(OpCode::GetGlobal, 0, 2, 5);
     chunk.write_op_code(OpCode::Return, 3, 1);
 
@@ -768,7 +768,7 @@ fn get_global_uninitialized_slot_halts() {
 #[test]
 fn set_global_uninitialized_slot_halts() {
     let mut chunk = Chunk::new("set_global_uninitialized");
-    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_constant(Value::Uninitialized(Rc::new("x".to_string())), 1, 1);
     chunk.write_constant(number!(1.0), 1, 1);
     chunk.write_indexed(OpCode::SetGlobal, 0, 2, 5);
     chunk.write_op_code(OpCode::Return, 3, 1);
@@ -788,7 +788,7 @@ fn set_global_uninitialized_slot_halts() {
 #[test]
 fn check_initialized_on_uninitialized_value_halts() {
     let mut chunk = Chunk::new("check_initialized_uninitialized");
-    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_constant(Value::Uninitialized(Rc::new("x".to_string())), 1, 1);
     chunk.write_op_code(OpCode::CheckInitialized, 2, 5);
     chunk.write_op_code(OpCode::Return, 3, 1);
 

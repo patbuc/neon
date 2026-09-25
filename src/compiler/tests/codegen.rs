@@ -1130,7 +1130,6 @@ fn test_top_level_fn_named_print_shadows_native() {
 
 #[test]
 fn test_native_call_labels() {
-    use crate::common::Object;
     use crate::common::Value;
 
     let program = r#"
@@ -1145,10 +1144,7 @@ fn test_native_call_labels() {
         .values
         .iter()
         .filter_map(|value| match value {
-            Value::Object(object) => match object.as_ref() {
-                Object::NativeFunction(native) => Some(native.name.clone()),
-                _ => None,
-            },
+            Value::NativeFunction(native) => Some(native.name.clone()),
             _ => None,
         })
         .collect();

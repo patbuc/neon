@@ -14,15 +14,10 @@ fn test_array_creation() {
 
     // Test that the array was created
     match arr {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Array(_) => {
-                    // Success - array was created
-                }
-                _ => panic!("Expected Array object"),
-            }
+        Value::Array(_) => {
+            // Success - array was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Array value"),
     }
 }
 
@@ -72,10 +67,8 @@ fn test_mixed_type_array() {
 fn test_map_creation() {
     let mut entries = IndexMap::new();
     entries.insert(
-        MapKey::String(Rc::from("name")),
-        Value::Object(Rc::new(Object::String(ObjString {
-            value: Rc::from("Alice"),
-        }))),
+        MapKey::String(Rc::new("name".to_string())),
+        Value::String(Rc::new("Alice".to_string())),
     );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
 
@@ -83,23 +76,18 @@ fn test_map_creation() {
 
     // Test that the map was created
     match map {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Map(_) => {
-                    // Success - map was created
-                }
-                _ => panic!("Expected Map object"),
-            }
+        Value::Map(_) => {
+            // Success - map was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Map value"),
     }
 }
 
 #[test]
 fn test_map_display() {
     let mut entries = IndexMap::new();
-    entries.insert(MapKey::String(Rc::from("a")), Value::Number(1.0));
-    entries.insert(MapKey::String(Rc::from("b")), Value::Number(2.0));
+    entries.insert(MapKey::String(Rc::new("a".to_string())), Value::Number(1.0));
+    entries.insert(MapKey::String(Rc::new("b".to_string())), Value::Number(2.0));
 
     let map = Value::new_map(entries);
     let display = format!("{}", map);
@@ -117,18 +105,18 @@ fn test_empty_map_display() {
 #[test]
 fn test_map_equality() {
     let mut entries1 = IndexMap::new();
-    entries1.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
-    entries1.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+    entries1.insert(MapKey::String(Rc::new("x".to_string())), Value::Number(1.0));
+    entries1.insert(MapKey::String(Rc::new("y".to_string())), Value::Number(2.0));
     let map1 = Value::new_map(entries1);
 
     let mut entries2 = IndexMap::new();
-    entries2.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
-    entries2.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+    entries2.insert(MapKey::String(Rc::new("x".to_string())), Value::Number(1.0));
+    entries2.insert(MapKey::String(Rc::new("y".to_string())), Value::Number(2.0));
     let map2 = Value::new_map(entries2);
 
     let mut entries3 = IndexMap::new();
-    entries3.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
-    entries3.insert(MapKey::String(Rc::from("y")), Value::Number(3.0));
+    entries3.insert(MapKey::String(Rc::new("x".to_string())), Value::Number(1.0));
+    entries3.insert(MapKey::String(Rc::new("y".to_string())), Value::Number(3.0));
     let map3 = Value::new_map(entries3);
 
     // These should be equal
@@ -141,13 +129,13 @@ fn test_map_equality() {
 #[test]
 fn test_map_equality_ignores_insertion_order() {
     let mut entries1 = IndexMap::new();
-    entries1.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
-    entries1.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
+    entries1.insert(MapKey::String(Rc::new("x".to_string())), Value::Number(1.0));
+    entries1.insert(MapKey::String(Rc::new("y".to_string())), Value::Number(2.0));
     let map1 = Value::new_map(entries1);
 
     let mut entries2 = IndexMap::new();
-    entries2.insert(MapKey::String(Rc::from("y")), Value::Number(2.0));
-    entries2.insert(MapKey::String(Rc::from("x")), Value::Number(1.0));
+    entries2.insert(MapKey::String(Rc::new("y".to_string())), Value::Number(2.0));
+    entries2.insert(MapKey::String(Rc::new("x".to_string())), Value::Number(1.0));
     let map2 = Value::new_map(entries2);
 
     assert_eq!(map1, map2);
@@ -157,10 +145,8 @@ fn test_map_equality_ignores_insertion_order() {
 fn test_map_with_different_key_types() {
     let mut entries = IndexMap::new();
     entries.insert(
-        MapKey::String(Rc::from("name")),
-        Value::Object(Rc::new(Object::String(ObjString {
-            value: Rc::from("Alice"),
-        }))),
+        MapKey::String(Rc::new("name".to_string())),
+        Value::String(Rc::new("Alice".to_string())),
     );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
     entries.insert(MapKey::Boolean(true), Value::Boolean(false));
@@ -177,9 +163,15 @@ fn test_map_with_different_key_types() {
 #[test]
 fn test_map_with_mixed_value_types() {
     let mut entries = IndexMap::new();
-    entries.insert(MapKey::String(Rc::from("num")), Value::Number(42.0));
-    entries.insert(MapKey::String(Rc::from("bool")), Value::Boolean(true));
-    entries.insert(MapKey::String(Rc::from("nil")), Value::Nil);
+    entries.insert(
+        MapKey::String(Rc::new("num".to_string())),
+        Value::Number(42.0),
+    );
+    entries.insert(
+        MapKey::String(Rc::new("bool".to_string())),
+        Value::Boolean(true),
+    );
+    entries.insert(MapKey::String(Rc::new("nil".to_string())), Value::Nil);
 
     let map = Value::new_map(entries);
     let display = format!("{}", map);
@@ -201,15 +193,10 @@ fn test_set_creation() {
 
     // Test that the set was created
     match set {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Set(_) => {
-                    // Success - set was created
-                }
-                _ => panic!("Expected Set object"),
-            }
+        Value::Set(_) => {
+            // Success - set was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Set value"),
     }
 }
 
@@ -241,18 +228,18 @@ fn test_empty_set_display() {
 #[test]
 fn test_set_equality() {
     let mut elements1 = BTreeSet::new();
-    elements1.insert(SetKey::String(Rc::from("a")));
-    elements1.insert(SetKey::String(Rc::from("b")));
+    elements1.insert(SetKey::String(Rc::new("a".to_string())));
+    elements1.insert(SetKey::String(Rc::new("b".to_string())));
     let set1 = Value::new_set(elements1);
 
     let mut elements2 = BTreeSet::new();
-    elements2.insert(SetKey::String(Rc::from("a")));
-    elements2.insert(SetKey::String(Rc::from("b")));
+    elements2.insert(SetKey::String(Rc::new("a".to_string())));
+    elements2.insert(SetKey::String(Rc::new("b".to_string())));
     let set2 = Value::new_set(elements2);
 
     let mut elements3 = BTreeSet::new();
-    elements3.insert(SetKey::String(Rc::from("a")));
-    elements3.insert(SetKey::String(Rc::from("c")));
+    elements3.insert(SetKey::String(Rc::new("a".to_string())));
+    elements3.insert(SetKey::String(Rc::new("c".to_string())));
     let set3 = Value::new_set(elements3);
 
     // These should be equal
@@ -265,7 +252,7 @@ fn test_set_equality() {
 #[test]
 fn test_set_with_different_key_types() {
     let mut elements = BTreeSet::new();
-    elements.insert(SetKey::String(Rc::from("hello")));
+    elements.insert(SetKey::String(Rc::new("hello".to_string())));
     elements.insert(SetKey::Number(OrderedFloat(42.0)));
     elements.insert(SetKey::Boolean(true));
 
@@ -288,13 +275,27 @@ fn test_set_uniqueness() {
     let set = Value::new_set(elements);
 
     // Verify that the set contains only unique elements
-    if let Value::Object(obj) = &set {
-        if let Object::Set(set_ref) = obj.as_ref() {
-            assert_eq!(set_ref.borrow().len(), 2); // Should only contain 2 unique elements
-        } else {
-            panic!("Expected Set object");
-        }
+    if let Value::Set(set_ref) = &set {
+        assert_eq!(set_ref.borrow().len(), 2); // Should only contain 2 unique elements
     } else {
-        panic!("Expected Object value");
+        panic!("Expected Set value");
     }
+}
+
+#[test]
+fn value_is_16_bytes() {
+    assert_eq!(std::mem::size_of::<Value>(), 16);
+}
+
+#[test]
+fn value_debug_is_tagged() {
+    assert_eq!(format!("{:?}", Value::Number(1.0)), "Number(1.0)");
+    assert_eq!(
+        format!("{:?}", Value::String(Rc::new("x".to_string()))),
+        "String(\"x\")"
+    );
+    assert_eq!(format!("{:?}", Value::Nil), "Nil");
+
+    let arr = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
+    assert_eq!(format!("{:?}", arr), format!("{}", arr));
 }
