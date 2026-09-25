@@ -40,6 +40,7 @@ pub struct Resolutions {
     decls: HashMap<NodeId, DeclId>,
     functions: HashMap<NodeId, FunctionResolution>,
     captured: HashSet<DeclId>,
+    checked: HashSet<NodeId>,
 }
 
 impl Resolutions {
@@ -61,6 +62,13 @@ impl Resolutions {
 
     pub(crate) fn mark_captured(&mut self, decl: DeclId) {
         self.captured.insert(decl);
+    }
+
+    /// Marks a name use as one that can run before the hoisted `fn` it
+    /// resolves to has bound its slot, so codegen must emit a runtime
+    /// initialization check for it.
+    pub(crate) fn mark_checked(&mut self, id: NodeId) {
+        self.checked.insert(id);
     }
 
     /// The resolution of an `Expr::Variable` or `Expr::Assign` node.
@@ -94,5 +102,10 @@ impl Resolutions {
     /// Whether some nested function captures this declaration.
     pub fn is_captured(&self, decl: DeclId) -> bool {
         self.captured.contains(&decl)
+    }
+
+    /// Whether this name use needs a runtime initialization check.
+    pub fn is_checked(&self, id: NodeId) -> bool {
+        self.checked.contains(&id)
     }
 }

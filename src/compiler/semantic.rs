@@ -77,6 +77,11 @@ pub struct SemanticAnalyzer {
     // initializer, if any - a direct read of it there is "in its own
     // initializer", not "before its declaration".
     currently_initializing: Option<DeclId>,
+    // DeclIds of block/function-body-local `fn` declarations whose own
+    // `Stmt::Fn` hasn't been resolved yet. A read that resolves to one of
+    // these can run before that `fn`'s slot is bound, so it needs a
+    // runtime initialization check.
+    pending_block_fns: HashSet<DeclId>,
 }
 
 impl SemanticAnalyzer {
@@ -135,6 +140,7 @@ impl SemanticAnalyzer {
             function_frames: vec![FunctionResolution::default()],
             not_initialized_top_level: HashSet::new(),
             currently_initializing: None,
+            pending_block_fns: HashSet::new(),
         }
     }
 
@@ -727,13 +733,13 @@ impl SemanticAnalyzer {
                 );
             }
             Stmt::Fn {
-                name,
                 params,
                 body,
                 id,
                 location,
+                ..
             } => {
-                self.resolve_function_declaration(*id, name, params, body, *location);
+                self.resolve_function_declaration(*id, params, body, *location);
             }
             Stmt::Struct {
                 name,
@@ -1003,24 +1009,47 @@ impl SemanticAnalyzer {
     fn resolve_function_declaration(
         &mut self,
         id: NodeId,
-        name: &str,
         params: &[String],
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A nested function isn't hoisted by collect_declarations, so define it now, before resolving its body, so it can recurse.
+        // A block/function-body-local fn was already declared by
+        // predeclare_block_functions; resolving its body reaches its own
+        // line, so it's no longer "not yet reached" - self-recursion is
+        // safe since the closure is stored before it can run.
         if self.symbol_table.current_depth() > 0 {
-            let arity = params.len() as u8;
-            self.declare_symbol(
-                id,
-                name.to_string(),
-                SymbolKind::Function { arity },
-                false,
-                location,
-            );
+            let decl_id = self.resolutions.decl(id);
+            self.pending_block_fns.remove(&decl_id);
         }
 
         self.resolve_function_body(id, params, body, location, None);
+    }
+
+    /// Pre-declares a statement list's own `fn` names before resolving any
+    /// of its statements, so siblings can call each other regardless of
+    /// order (Rust's item rule). Each is tracked as "not yet reached" until
+    /// its own `Stmt::Fn` is resolved.
+    fn predeclare_block_functions(&mut self, statements: &[Stmt]) {
+        for stmt in statements {
+            if let Stmt::Fn {
+                name,
+                params,
+                id,
+                location,
+                ..
+            } = stmt
+            {
+                let arity = params.len() as u8;
+                let decl_id = self.declare_symbol(
+                    *id,
+                    name.clone(),
+                    SymbolKind::Function { arity },
+                    false,
+                    *location,
+                );
+                self.pending_block_fns.insert(decl_id);
+            }
+        }
     }
 
     /// Resolves a function's parameters and body in a fresh scope and
@@ -1067,6 +1096,7 @@ impl SemanticAnalyzer {
         }
 
         // Resolve function body
+        self.predeclare_block_functions(body);
         for stmt in body {
             self.resolve_stmt(stmt);
         }
@@ -1081,6 +1111,7 @@ impl SemanticAnalyzer {
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
         self.enter_scope();
+        self.predeclare_block_functions(statements);
         for stmt in statements {
             self.resolve_stmt(stmt);
         }
@@ -1206,6 +1237,9 @@ impl SemanticAnalyzer {
 
         let use_ = SymbolUse::from(symbol);
         self.check_top_level_forward_use(use_, name, location);
+        if self.pending_block_fns.contains(&use_.decl_id) {
+            self.resolutions.mark_checked(id);
+        }
         self.record_symbol_use(id, use_);
     }
 

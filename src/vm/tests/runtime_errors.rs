@@ -701,6 +701,29 @@ outer()
 }
 
 #[test]
+fn nested_fn_stored_in_val_before_its_declaration_line() {
+    let program = r#"
+fn outer() {
+    val g = f
+    fn f() { return 1 }
+    return g
+}
+outer()
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'f' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
 fn get_global_uninitialized_slot_halts() {
     let mut chunk = Chunk::new("get_global_uninitialized");
     chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);

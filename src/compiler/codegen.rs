@@ -256,6 +256,9 @@ impl<'a> CodeGenerator<'a> {
             Res::Builtin(index) => (OpCode::GetBuiltin, index),
         };
         self.emit_op_code_variant(op_code, index, location);
+        if self.resolutions.is_checked(id) {
+            self.emit_op_code(OpCode::CheckInitialized, location);
+        }
     }
 
     fn emit_variable_set(&mut self, id: NodeId, location: SourceLocation) {
@@ -399,17 +402,31 @@ impl<'a> CodeGenerator<'a> {
             return;
         }
 
-        // A nested function isn't pre-defined, so define it now, before compiling its body, so it can recurse.
-        self.emit_op_code(OpCode::Nil, location);
-        let decl = self.resolutions.decl(id);
-        self.bind_decl_local(decl, location);
-
+        // Its slot was already pre-allocated by hoist_block_functions;
+        // compile the closure and store it there.
         self.generate_closure(id, name, params, body, location);
 
-        // Store the closure into the local defined for the function's name.
         let slot = self.decl_slot(self.resolutions.decl(id));
         self.emit_op_code_variant(OpCode::SetLocal, slot, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
+    }
+
+    /// Pushes one uninitialized sentinel slot per `fn` in a statement list,
+    /// so every sibling function's slot exists from block/body entry (Rust's
+    /// item rule) and calling one before its own `fn` line has run hits the
+    /// runtime initialization check instead of reading garbage.
+    fn hoist_block_functions(&mut self, statements: &[Stmt]) {
+        for stmt in statements {
+            if let Stmt::Fn {
+                name, id, location, ..
+            } = stmt
+            {
+                let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                self.emit_constant(sentinel, *location);
+                let decl = self.resolutions.decl(*id);
+                self.bind_decl_local(decl, *location);
+            }
+        }
     }
 
     /// Compiles `params`/`body` into a closure and leaves it on top of the
@@ -437,6 +454,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         // Compile function body
+        self.hoist_block_functions(body);
         for stmt in body {
             self.generate_stmt(stmt);
         }
@@ -462,6 +480,7 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_block_stmt(&mut self, statements: &[Stmt], location: SourceLocation) {
         self.current().scope_depth += 1;
+        self.hoist_block_functions(statements);
         for stmt in statements {
             self.generate_stmt(stmt);
         }
