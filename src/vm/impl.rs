@@ -19,7 +19,6 @@ impl VirtualMachine {
         VirtualMachine {
             call_frames: Vec::new(),
             stack: Vec::new(),
-            chunk: None,
             builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
@@ -80,7 +79,6 @@ impl VirtualMachine {
         self.call_frames.push(frame);
 
         let result = self.run_script(0);
-        self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -298,7 +296,6 @@ impl VirtualMachine {
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
-        self.chunk = None;
         self.runtime_error = None;
         self.open_upvalues.clear();
         self.native_call_depth = 0;

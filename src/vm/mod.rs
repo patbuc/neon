@@ -1,4 +1,6 @@
-use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
+#[cfg(test)]
+use crate::common::Chunk;
+use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -28,7 +30,6 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
-    chunk: Option<Chunk>,
     /// Global built-in values (like Math) stored separately from the call stack
     builtin: indexmap::IndexMap<String, Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
