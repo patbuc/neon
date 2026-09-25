@@ -2,7 +2,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
-use crate::vm::{Result, RuntimeError, VirtualMachine};
+use crate::vm::{Result, RuntimeError, TraceFrame, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
@@ -225,9 +225,44 @@ impl VirtualMachine {
     }
 
     pub(in crate::vm) fn runtime_error(&self, message: impl Into<String>) -> RuntimeError {
+        self.build_runtime_error(message, 0)
+    }
+
+    /// Like `runtime_error`, but for a failure raised while dispatching a
+    /// call, whose `ip` has already moved past the CALL the same way a
+    /// caller frame's has.
+    pub(in crate::vm) fn call_error(&self, message: impl Into<String>) -> RuntimeError {
+        self.build_runtime_error(message, 1)
+    }
+
+    fn build_runtime_error(
+        &self,
+        message: impl Into<String>,
+        innermost_offset: usize,
+    ) -> RuntimeError {
+        let mut frames = Vec::with_capacity(self.call_frames.len());
+        let mut location = None;
+
+        for (depth, frame) in self.call_frames.iter().rev().enumerate() {
+            let ip = if depth == 0 {
+                frame.ip.saturating_sub(innermost_offset)
+            } else {
+                frame.ip.saturating_sub(1)
+            };
+            let info = frame.closure.function.chunk.get_line_info(ip);
+            if depth == 0 {
+                location = info.as_ref().map(|i| (i.line, i.column));
+            }
+            frames.push(TraceFrame {
+                function: frame.closure.function.name.clone(),
+                line: info.map(|i| i.line),
+            });
+        }
+
         RuntimeError {
             message: message.into(),
-            location: self.get_current_source_location(),
+            location,
+            frames,
         }
     }
 
@@ -262,12 +297,6 @@ impl VirtualMachine {
             .as_ref()
             .map(|e| e.to_string())
             .unwrap_or_default()
-    }
-
-    fn get_current_source_location(&self) -> Option<(u32, u32)> {
-        let frame = self.call_frames.last()?;
-        let location = frame.closure.function.chunk.get_line_info(frame.ip)?;
-        Some((location.line, location.column))
     }
 
     fn reset(&mut self) {

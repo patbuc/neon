@@ -40,7 +40,11 @@ impl NeonVM {
                 .unwrap()
             }
             Result::RuntimeError => {
-                let errors = self.vm.get_runtime_errors();
+                let errors = self
+                    .vm
+                    .get_runtime_error()
+                    .map(|e| e.report())
+                    .unwrap_or_default();
                 serde_wasm_bindgen::to_value(&InterpretResult {
                     success: false,
                     output: None,
@@ -85,7 +89,10 @@ pub fn interpret_once(source: String) -> JsValue {
             .unwrap()
         }
         Result::RuntimeError => {
-            let errors = vm.get_runtime_errors();
+            let errors = vm
+                .get_runtime_error()
+                .map(|e| e.report())
+                .unwrap_or_default();
             serde_wasm_bindgen::to_value(&InterpretResult {
                 success: false,
                 output: None,

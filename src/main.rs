@@ -74,7 +74,7 @@ fn run_repl() {
             }
             Result::RuntimeError => {
                 if let Some(error) = vm.get_runtime_error() {
-                    eprintln!("{}", error);
+                    eprintln!("{}", error.report());
                 }
                 eprintln!("{}", "Runtime error.".red());
             }
@@ -111,7 +111,7 @@ fn run_file(path: &str, args: Vec<String>) {
         }
         Result::RuntimeError => {
             if let Some(error) = vm.get_runtime_error() {
-                eprintln!("{}", error);
+                eprintln!("{}", error.report());
             }
             exit(70);
         }

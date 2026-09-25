@@ -10,7 +10,7 @@ mod runtime_error;
 #[cfg(test)]
 mod tests;
 
-pub use runtime_error::RuntimeError;
+pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]
 pub enum Result {

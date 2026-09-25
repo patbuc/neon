@@ -84,8 +84,6 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_call(&mut self) -> OpResult {
-        self.check_frame_limit()?;
-
         let arg_count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u8(frame.ip + 1) as usize
@@ -94,16 +92,16 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         frame.ip += 2; // Skip CALL opcode and arg_count byte
 
+        self.check_frame_limit()?;
+
         self.dispatch_call(arg_count)
     }
 
     /// Errors with "Stack overflow" if the call frame stack is already at
-    /// its limit. Checked before pushing a new frame, by both fn_call
-    /// (before its ip advances, so the error points at the call site) and
-    /// call_value's re-entrant native-to-Neon call.
+    /// its limit.
     fn check_frame_limit(&self) -> OpResult {
         if self.call_frames.len() >= MAX_FRAMES {
-            Err(self.runtime_error("Stack overflow"))
+            Err(self.call_error("Stack overflow"))
         } else {
             Ok(())
         }
@@ -151,7 +149,7 @@ impl VirtualMachine {
                                 MethodDispatch::Mismatch(e) => return Err(e),
                                 MethodDispatch::NotFound => {}
                             }
-                            return Err(self.runtime_error(error));
+                            return Err(self.call_error(error));
                         }
                         Err(NativeCallError::Runtime(e)) => {
                             return Err(e);
@@ -159,11 +157,11 @@ impl VirtualMachine {
                     }
                 }
                 _ => {
-                    return Err(self.runtime_error("Value is not callable"));
+                    return Err(self.call_error("Value is not callable"));
                 }
             },
             _ => {
-                return Err(self.runtime_error("Value is not callable"));
+                return Err(self.call_error("Value is not callable"));
             }
         };
 
@@ -184,9 +182,7 @@ impl VirtualMachine {
     ) -> std::result::Result<Value, NativeCallError> {
         self.check_frame_limit().map_err(NativeCallError::Runtime)?;
         if self.native_call_depth >= MAX_NATIVE_CALL_DEPTH {
-            return Err(NativeCallError::Runtime(
-                self.runtime_error("Stack overflow"),
-            ));
+            return Err(NativeCallError::Runtime(self.call_error("Stack overflow")));
         }
 
         let frame_depth = self.call_frames.len();
@@ -273,11 +269,11 @@ impl VirtualMachine {
         };
 
         match (is_static_call, takes_self) {
-            (true, true) => MethodDispatch::Mismatch(self.runtime_error(format!(
+            (true, true) => MethodDispatch::Mismatch(self.call_error(format!(
                 "Method '{}' needs an instance; call it on a {} value",
                 callable.method_name, type_name
             ))),
-            (false, false) => MethodDispatch::Mismatch(self.runtime_error(format!(
+            (false, false) => MethodDispatch::Mismatch(self.call_error(format!(
                 "Method '{}' is static; call it as {}.{}()",
                 callable.method_name, type_name, callable.method_name
             ))),
@@ -353,7 +349,7 @@ impl VirtualMachine {
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> OpResult {
         if arg_count != r#struct.fields.len() {
-            return Err(self.runtime_error(format!(
+            return Err(self.call_error(format!(
                 "Expected {} fields but got {}.",
                 r#struct.fields.len(),
                 arg_count
@@ -406,7 +402,7 @@ impl VirtualMachine {
             } else {
                 (func.arity, arg_count)
             };
-            return Err(self.runtime_error(format!(
+            return Err(self.call_error(format!(
                 "Expected {} arguments but got {} for '{}'.",
                 expected, got, func.name
             )));
