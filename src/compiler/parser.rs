@@ -593,7 +593,6 @@ impl Parser {
         Some(Stmt::While {
             condition,
             body,
-            increment: None,
             location,
         })
     }
@@ -658,12 +657,7 @@ impl Parser {
         }
 
         // Parse increment - any expression is allowed
-        let increment_expr = self.expression(false)?;
-        let increment_location = self.current_location();
-        let increment = Stmt::Expression {
-            expr: increment_expr,
-            location: increment_location,
-        };
+        let increment = self.expression(false)?;
 
         if !self.consume(TokenType::RightParen, "Expecting ')' after for clauses.") {
             return None;
@@ -671,18 +665,12 @@ impl Parser {
 
         // Parse loop body
         let body = self.statement()?;
-        let body_location = *body.location();
 
-        // Desugar to: Block { init, While { condition, body, increment } }
-        let while_loop = Stmt::While {
+        Some(Stmt::For {
+            initializer: Box::new(init),
             condition,
+            increment,
             body: Box::new(body),
-            increment: Some(Box::new(increment)),
-            location: body_location,
-        };
-
-        Some(Stmt::Block {
-            statements: vec![init, while_loop],
             location,
         })
     }

@@ -110,6 +110,9 @@ impl Chunk {
             OpCode::SetUpvalue2 => self.variable_instruction(OpCode::SetUpvalue2, offset),
             OpCode::SetUpvalue4 => self.variable_instruction(OpCode::SetUpvalue4, offset),
             OpCode::CloseUpvalue => self.simple_instruction(OpCode::CloseUpvalue, offset),
+            OpCode::CloseUpvalueInPlace => {
+                self.simple_instruction(OpCode::CloseUpvalueInPlace, offset)
+            }
             OpCode::DefineMethod => self.define_method_instruction(offset),
         }
     }

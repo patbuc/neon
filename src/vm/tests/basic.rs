@@ -2874,20 +2874,12 @@ fn test_loop_body_local_does_not_grow_stack() {
         vm.stack.len()
     }
 
-    // A 3-statement body goes through the ordinary block path
-    // (generate_block_stmt). 0 iterations gives the stack depth the loop
-    // started at, since the condition is false immediately.
-    let ordinary_body = "val temp = i * 2\nval doubled = temp * 2\ni = i + 1";
+    // 0 iterations gives the stack depth the loop started at, since the
+    // condition is false immediately.
+    let body = "val temp = i * 2\nval doubled = temp * 2\ni = i + 1";
     assert_eq!(
-        stack_len_after_loop(0, ordinary_body),
-        stack_len_after_loop(1000, ordinary_body)
-    );
-
-    // A 2-statement body hits generate_while_stmt's desugared-for fast path.
-    let fast_path_body = "val temp = i * 2\ni = i + 1";
-    assert_eq!(
-        stack_len_after_loop(0, fast_path_body),
-        stack_len_after_loop(1000, fast_path_body)
+        stack_len_after_loop(0, body),
+        stack_len_after_loop(1000, body)
     );
 }
 
@@ -2959,6 +2951,37 @@ fn test_c_style_for_continue_with_block_local_does_not_grow_stack() {
     }
 
     assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
+fn test_c_style_for_closure_capture_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64, body: &str) -> usize {
+        let program = format!(
+            r#"
+            var fns = []
+            for (var i = 0; i < {iterations}; i = i + 1) {{
+                {body}
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(Result::Ok, result);
+        vm.stack.len()
+    }
+
+    let capture_body = "fns.push(fn() { return i })";
+    assert_eq!(
+        stack_len_after_loop(0, capture_body),
+        stack_len_after_loop(1000, capture_body)
+    );
+
+    let capture_then_continue_body = "fns.push(fn() { return i })\ncontinue";
+    assert_eq!(
+        stack_len_after_loop(0, capture_then_continue_body),
+        stack_len_after_loop(1000, capture_then_continue_body)
+    );
 }
 
 #[test]

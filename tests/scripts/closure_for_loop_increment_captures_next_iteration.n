@@ -1,0 +1,17 @@
+// Expected:
+// 3
+// 5
+// 6
+
+val saved = []
+fn remember(f) {
+    saved.push(f)
+    return 0
+}
+for (var i = 0; i < 6; i = remember(fn() { return i }) + i + 1) {
+    i = i + 1
+}
+
+for (f in saved) {
+    print(f())
+}

@@ -1,0 +1,12 @@
+// Expected:
+// 0
+// 1
+// 2
+
+val fns = []
+for (var i = 0; i < 3; i = i + 1) {
+    fns.push(fn() { return i })
+}
+for (f in fns) {
+    print(f())
+}

@@ -222,6 +222,10 @@ for (num in numbers) {
 }
 ```
 
+Both loop forms give every iteration its own binding of the loop variable, so a closure
+created in the body keeps that iteration's value. In a traditional `for` loop, a write to
+the variable in the body carries over to the increment and the next iteration.
+
 ### Operators
 
 **Arithmetic:**

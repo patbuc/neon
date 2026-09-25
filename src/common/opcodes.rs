@@ -78,6 +78,7 @@ impl OpCode {
             v if v == OpCode::SetUpvalue2 as u8 => Some(OpCode::SetUpvalue2),
             v if v == OpCode::SetUpvalue4 as u8 => Some(OpCode::SetUpvalue4),
             v if v == OpCode::CloseUpvalue as u8 => Some(OpCode::CloseUpvalue),
+            v if v == OpCode::CloseUpvalueInPlace as u8 => Some(OpCode::CloseUpvalueInPlace),
             v if v == OpCode::DefineMethod as u8 => Some(OpCode::DefineMethod),
             _ => None,
         }
@@ -173,6 +174,8 @@ pub(crate) enum OpCode {
     /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
     /// pops it, so a captured local's value survives its scope exiting.
     CloseUpvalue,
+    /// Closes the upvalue on the top-of-stack slot without popping it.
+    CloseUpvalueInPlace,
     /// Pops a closure and registers it as a method under a type name and
     /// method name (both read as fixed 32-bit string indices).
     DefineMethod,

@@ -427,6 +427,7 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::CloseUpvalue => self.fn_close_upvalue(),
+                OpCode::CloseUpvalueInPlace => self.fn_close_upvalue_in_place(),
                 OpCode::DefineMethod => self.fn_define_method(),
             }
             self.current_frame_mut().ip += 1;

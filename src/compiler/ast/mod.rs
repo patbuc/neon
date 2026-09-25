@@ -201,7 +201,6 @@ pub enum Stmt {
     While {
         condition: Expr,
         body: Box<Stmt>,
-        increment: Option<Box<Stmt>>,
         location: SourceLocation,
     },
     Return {
@@ -214,6 +213,13 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
+    For {
+        initializer: Box<Stmt>,
+        condition: Expr,
+        increment: Expr,
+        body: Box<Stmt>,
+        location: SourceLocation,
+    },
     Break {
         location: SourceLocation,
     },
@@ -223,7 +229,6 @@ pub enum Stmt {
 }
 
 impl Expr {
-    #[allow(dead_code)]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Expr::Number { location, .. }
@@ -249,26 +254,6 @@ impl Expr {
             | Expr::PostfixDecrement { location, .. }
             | Expr::Conditional { location, .. }
             | Expr::Function { location, .. } => location,
-        }
-    }
-}
-
-impl Stmt {
-    pub fn location(&self) -> &SourceLocation {
-        match self {
-            Stmt::Val { location, .. }
-            | Stmt::Var { location, .. }
-            | Stmt::Fn { location, .. }
-            | Stmt::Struct { location, .. }
-            | Stmt::Impl { location, .. }
-            | Stmt::Expression { location, .. }
-            | Stmt::Block { location, .. }
-            | Stmt::If { location, .. }
-            | Stmt::While { location, .. }
-            | Stmt::Return { location, .. }
-            | Stmt::ForIn { location, .. }
-            | Stmt::Break { location }
-            | Stmt::Continue { location } => location,
         }
     }
 }

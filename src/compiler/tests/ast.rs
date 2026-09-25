@@ -53,7 +53,10 @@ fn test_stmt_val() {
         }),
         location: dummy_location(),
     };
-    assert_eq!(stmt.location().line, 1);
+    match stmt {
+        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        _ => panic!("Expected Val statement"),
+    }
 }
 
 #[test]
