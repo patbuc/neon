@@ -78,6 +78,13 @@ impl Scanner {
                 return self.make_eof_token();
             }
             c = self.advance();
+            if c == '/' && self.matches('/') {
+                // A comment runs to (not including) the newline.
+                while self.peek() != '\n' && !self.is_at_end() {
+                    self.advance();
+                }
+                continue;
+            }
             if !(self.previous_token_type == TokenType::NewLine && c == '\n') {
                 break;
             }
@@ -188,17 +195,7 @@ impl Scanner {
             }
             '^' => self.make_token(TokenType::Caret),
             '~' => self.make_token(TokenType::Tilde),
-            '/' => {
-                if self.matches('/') {
-                    // A comment runs to (not including) the newline.
-                    while self.peek() != '\n' && !self.is_at_end() {
-                        self.advance();
-                    }
-                    self.scan_token()
-                } else {
-                    self.make_token(TokenType::Slash)
-                }
-            }
+            '/' => self.make_token(TokenType::Slash),
             '\n' => {
                 let new_line = self.make_token(TokenType::NewLine);
                 self.line += 1;

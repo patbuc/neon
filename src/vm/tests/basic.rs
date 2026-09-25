@@ -3453,3 +3453,14 @@ fn wrong_argument_count_through_an_indirect_call_is_runtime_error() {
         .get_runtime_errors()
         .contains("Expected 1 arguments but got 2"));
 }
+
+#[test]
+fn many_comment_lines_do_not_overflow_the_stack() {
+    let program = "// c\n".repeat(200_000) + "print(1)\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+
+    assert_eq!(Result::Ok, result);
+    assert_eq!("1", vm.get_output());
+}
