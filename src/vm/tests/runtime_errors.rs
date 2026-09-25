@@ -1103,7 +1103,7 @@ fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
 }
 
 #[test]
-fn native_method_arity_error_on_array_receiver_reports_its_own_message() {
+fn native_method_arity_error_reports_native_message() {
     let program = "fn f(a) { return a.push() }\nf([1])";
 
     let mut vm = VirtualMachine::new();
@@ -1118,7 +1118,7 @@ fn native_method_arity_error_on_array_receiver_reports_its_own_message() {
 }
 
 #[test]
-fn native_error_inside_a_user_method_on_a_builtin_type_is_not_swallowed() {
+fn native_error_inside_builtin_type_user_method_reports_native_message() {
     let program = r#"
         impl Array {
             fn addNothing(self) { return self.push() }

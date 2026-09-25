@@ -1157,14 +1157,12 @@ fn test_native_call_labels() {
 }
 
 #[test]
-fn test_method_call_on_untyped_receiver_emits_invoke_not_constant() {
+fn method_call_loads_receiver_then_invoke() {
     let program = "val a = [1]\na.size()\n";
     let chunk = compile_program(program).unwrap();
 
     let ops = op_codes(&chunk);
 
-    // The receiver (GetLocal) is loaded directly, then Invoke follows: no
-    // placeholder Constant is pushed ahead of it for the call itself.
     let invoke_index = ops
         .iter()
         .position(|op| *op == OpCode::Invoke)
