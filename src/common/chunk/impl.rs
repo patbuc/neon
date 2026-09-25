@@ -6,7 +6,6 @@ impl Chunk {
         Chunk {
             name: String::from(name),
             constants: Constants::new(),
-            strings: Constants::new(),
             instructions: Vec::new(),
             line_infos: Vec::new(),
         }
@@ -25,10 +24,6 @@ impl Chunk {
 
     pub(crate) fn add_constant(&mut self, value: Value) -> u32 {
         self.constants.write_value(value)
-    }
-
-    pub(crate) fn add_string(&mut self, value: Value) -> u32 {
-        self.strings.write_value(value)
     }
 
     #[cfg(test)]
@@ -61,11 +56,6 @@ impl Chunk {
     #[inline(always)]
     pub(crate) fn read_constant(&self, index: usize) -> Value {
         self.constants.read_value(index)
-    }
-
-    #[inline(always)]
-    pub(crate) fn read_string(&self, index: usize) -> Value {
-        self.strings.read_value(index)
     }
 
     #[inline(always)]

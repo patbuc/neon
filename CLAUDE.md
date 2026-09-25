@@ -96,7 +96,7 @@ cargo run --features disassemble -- script.n
 
 **Bytecode Format** (`src/common/chunk/`)
 
-- Chunk: name, bytecode instructions, constant pool, string table, and a line table of `LineInfo` entries
+- Chunk: name, bytecode instructions, constant pool, and a line table of `LineInfo` entries
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting
 
@@ -104,7 +104,7 @@ cargo run --features disassemble -- script.n
 
 - Instruction set definition as `#[repr(u8)]` enum
 - Stack manipulation, arithmetic, control flow, function calls
-- Index operands (constants, strings, locals, globals, upvalues, builtins) are a fixed 16 bits; jump/loop offsets are 32 bits
+- Index operands (constants, locals, globals, upvalues, builtins) are a fixed 16 bits; jump/loop offsets are 32 bits
 
 **Value System** (`src/common/mod.rs`)
 

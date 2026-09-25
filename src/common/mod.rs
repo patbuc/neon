@@ -39,7 +39,6 @@ pub struct Chunk {
     #[allow(dead_code)]
     pub name: String,
     pub constants: Constants,
-    pub strings: Constants,
     pub instructions: Vec<u8>,
     pub line_infos: Vec<LineInfo>,
 }

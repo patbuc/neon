@@ -223,8 +223,7 @@ fn test_else_if_bytecode_simple() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -291,8 +290,7 @@ fn test_else_if_bytecode_multiple_branches() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -353,8 +351,7 @@ fn test_else_if_bytecode_without_final_else() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -1018,7 +1015,6 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             OpCode::Invoke => 3,
             OpCode::CreateArray => 2,
             OpCode::Constant
-            | OpCode::String
             | OpCode::SetLocal
             | OpCode::GetLocal
             | OpCode::GetGlobal
@@ -1398,23 +1394,23 @@ fn test_closure_capturing_loop_variable_bytecode() {
 0040      | Loop 0040 -> 0018
 0045      | Pop
 0046      | CloseUpvalue
-0047      6 Constant 05 '<native fn print>'
+0047      6 Constant 06 '<native fn print>'
 004a      | GetLocal 00
-004d      | Constant 06 '0'
+004d      | Constant 07 '0'
 0050      | GetIndex
 0051      | Call (args: 0)
 0053      | Call (args: 1)
 0055      5 Pop
-0056      7 Constant 07 '<native fn print>'
+0056      7 Constant 08 '<native fn print>'
 0059      | GetLocal 00
-005c      | Constant 08 '1'
+005c      | Constant 09 '1'
 005f      | GetIndex
 0060      | Call (args: 0)
 0062      | Call (args: 1)
 0064      6 Pop
-0065      8 Constant 09 '<native fn print>'
+0065      8 Constant 10 '<native fn print>'
 0068      | GetLocal 00
-006b      | Constant 10 '2'
+006b      | Constant 11 '2'
 006e      | GetIndex
 006f      | Call (args: 0)
 0071      | Call (args: 1)
