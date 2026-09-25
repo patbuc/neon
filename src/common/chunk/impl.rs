@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, Constants, Local, SourceLocation, Value};
+use crate::common::{Chunk, Constants, SourceLocation, Value};
 
 impl Chunk {
     pub(crate) fn new(name: &str) -> Self {
@@ -9,7 +9,6 @@ impl Chunk {
             strings: Constants::new(),
             instructions: Vec::new(),
             source_locations: Vec::new(),
-            locals: Vec::new(),
         }
     }
 }
@@ -67,17 +66,6 @@ impl Chunk {
         let constant_index = self.add_constant(value);
         self.write_op_code_variant(OpCode::Constant, constant_index, line, column);
         constant_index
-    }
-
-    pub(crate) fn add_parameter(&mut self, local: Local) {
-        // Parameters are already on the stack, just register them
-        self.locals.push(local);
-    }
-
-    pub(crate) fn define_local(&mut self, local: Local, line: u32, column: u32) {
-        self.locals.push(local);
-        let index = (self.locals.len() - 1) as u32;
-        self.write_op_code_variant(OpCode::SetLocal, index, line, column);
     }
 
     pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
@@ -154,59 +142,6 @@ impl Chunk {
 
     pub(crate) fn instruction_count(&self) -> usize {
         self.instructions.len()
-    }
-
-    /// Drops locals declared deeper than `depth`, returning whether each one
-    /// was captured (top-most local first), so the caller can emit
-    /// CloseUpvalue instead of a plain Pop for it.
-    pub(crate) fn pop_locals_above(&mut self, depth: u32) -> Vec<bool> {
-        let mut captured = Vec::new();
-        while let Some(local) = self.locals.last() {
-            if local.depth <= depth as i32 {
-                break;
-            }
-            captured.push(local.is_captured);
-            self.locals.pop();
-        }
-        captured
-    }
-
-    /// Same as `pop_locals_above`, without removing the locals: for a
-    /// break/continue jump, which unwinds the runtime stack early but
-    /// leaves the compile-time locals in scope for the code that follows.
-    pub(crate) fn captured_flags_above(&self, depth: u32) -> Vec<bool> {
-        let mut captured = Vec::new();
-        for local in self.locals.iter().rev() {
-            if local.depth <= depth as i32 {
-                break;
-            }
-            captured.push(local.is_captured);
-        }
-        captured
-    }
-
-    /// Marks the local at `index` as captured by a nested function.
-    pub(crate) fn mark_captured(&mut self, index: u32) {
-        self.locals[index as usize].is_captured = true;
-    }
-
-    pub(crate) fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
-        if self.locals.is_empty() {
-            return (None, false);
-        }
-
-        let mut index = self.locals.len() - 1;
-        loop {
-            if self.locals[index].name == name {
-                let local = &self.locals[index];
-                return (Some(index as u32), local.is_mutable);
-            }
-            if index == 0 {
-                break;
-            }
-            index -= 1;
-        }
-        (None, false)
     }
 }
 

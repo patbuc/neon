@@ -42,26 +42,6 @@ pub struct Chunk {
     pub strings: Constants,
     pub instructions: Vec<u8>,
     pub source_locations: Vec<SourceLocation>,
-    pub locals: Vec<Local>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Local {
-    pub name: String,
-    pub depth: i32,
-    pub is_mutable: bool,
-    pub is_captured: bool,
-}
-
-impl Local {
-    pub(crate) fn new(name: String, depth: u32, is_mutable: bool) -> Self {
-        Local {
-            name,
-            depth: depth as i32,
-            is_mutable,
-            is_captured: false,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
