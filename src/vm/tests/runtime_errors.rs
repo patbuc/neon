@@ -1255,3 +1255,29 @@ fn range_non_integer_end_halts() {
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("must be an integer"), "{}", errors);
 }
+
+#[test]
+fn range_huge_start_halts() {
+    let program = r#"
+        print((-9000000000000000000..9000000000000000000)[0])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+}
+
+#[test]
+fn range_huge_end_halts() {
+    let program = r#"
+        print((0..=9223372036854775807)[-1])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+}

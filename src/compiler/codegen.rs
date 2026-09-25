@@ -719,17 +719,17 @@ impl<'a> CodeGenerator<'a> {
     ) {
         // For-in loop code generation strategy: uses iterator opcodes rather
         // than the increment/condition structure of a C-style for loop.
-        // The iterator state lives in two hidden locals (array, index) below
+        // The iterator state lives in two hidden locals (collection, index) below
         // the loop variable.
         //
         // Bytecode structure:
         //   <evaluate collection>
-        //   GetIterator              ; pop collection, push [iterable array, index 0]
+        //   GetIterator              ; pop collection, push [iterable collection, index 0]
         //   loop_start:
         //   IteratorDone slot        ; pushes true if more, false if done
         //   JumpIfFalse exit_jump    ; if false (done), exit loop
         //   Pop                      ; pop the true value (has more)
-        //   IteratorNext slot        ; push array[index], slot+1 index += 1
+        //   IteratorNext slot        ; push collection[index], slot+1 index += 1
         //   <body with loop variable>       ; break/continue pop the loop variable
         //                                    ; and any body locals before jumping
         //   Pop                      ; Pop the loop variable value
@@ -742,8 +742,8 @@ impl<'a> CodeGenerator<'a> {
         // Evaluate the collection expression
         self.generate_expr(collection);
 
-        // Convert collection to iterator: pushes the iterable array and the
-        // starting index as two hidden locals.
+        // Convert collection to iterator: pushes the iterable collection and
+        // the starting index as two hidden locals.
         self.emit_op_code(OpCode::GetIterator, location);
 
         // Enter a block scope owning the two hidden iterator slots.

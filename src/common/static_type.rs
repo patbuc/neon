@@ -9,6 +9,7 @@ pub enum StaticType {
     Array,
     Map,
     Set,
+    Range,
     Struct(String),
 }
 
@@ -24,6 +25,7 @@ impl StaticType {
             StaticType::Array => "Array",
             StaticType::Map => "Map",
             StaticType::Set => "Set",
+            StaticType::Range => "Range",
             StaticType::Struct(name) => name,
         }
     }
@@ -39,6 +41,7 @@ impl StaticType {
             "Array" => StaticType::Array,
             "Map" => StaticType::Map,
             "Set" => StaticType::Set,
+            "Range" => StaticType::Range,
             other => StaticType::Struct(other.to_string()),
         }
     }

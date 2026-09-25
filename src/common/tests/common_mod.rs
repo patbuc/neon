@@ -299,3 +299,35 @@ fn value_debug_is_tagged() {
     let arr = Value::new_array(vec![Value::Number(1.0), Value::Number(2.0)]);
     assert_eq!(format!("{:?}", arr), format!("{}", arr));
 }
+
+#[test]
+fn test_range_display() {
+    assert_eq!(format!("{}", Value::new_range(1, 4, false)), "1..4");
+    assert_eq!(format!("{}", Value::new_range(1, 4, true)), "1..=4");
+    assert_eq!(format!("{}", Value::new_range(5, 1, false)), "5..1");
+}
+
+#[test]
+fn test_range_equality() {
+    assert_eq!(Value::new_range(1, 4, false), Value::new_range(1, 4, false));
+    assert_ne!(Value::new_range(1, 4, false), Value::new_range(1, 4, true));
+    assert_ne!(Value::new_range(1, 4, false), Value::new_range(1, 5, false));
+}
+
+#[test]
+fn test_range_len() {
+    let Value::Range(exclusive) = Value::new_range(1, 4, false) else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(exclusive.len(), 3);
+
+    let Value::Range(inclusive) = Value::new_range(1, 4, true) else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(inclusive.len(), 4);
+
+    let Value::Range(empty) = Value::new_range(5, 1, false) else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(empty.len(), 0);
+}

@@ -694,8 +694,9 @@ pub fn is_static_namespace(name: &str) -> bool {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 7] =
-    ["Array", "String", "Map", "Set", "Number", "Boolean", "File"];
+pub const BUILTIN_TYPE_NAMES: [&str; 8] = [
+    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range",
+];
 
 /// Names of registry types that are namespaces rather than instance types:
 /// callable as `Name.method(...)` (has static methods) or constructible as

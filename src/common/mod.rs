@@ -107,6 +107,31 @@ pub enum Value {
     Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<String>),
+    Range(Rc<ObjRange>),
+}
+
+/// An immutable range of integers.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjRange {
+    pub start: i64,
+    pub end: i64,
+    pub inclusive: bool,
+}
+
+impl ObjRange {
+    /// Number of integers the range covers; empty (e.g. `5..1`) is 0, never negative.
+    pub(crate) fn len(&self) -> i64 {
+        if self.inclusive {
+            (self.end - self.start + 1).max(0)
+        } else {
+            (self.end - self.start).max(0)
+        }
+    }
+
+    /// The i-th element (0-based), assuming `0 <= i < self.len()`.
+    pub(crate) fn get(&self, i: i64) -> i64 {
+        self.start + i
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -226,6 +251,14 @@ impl Value {
         Value::File(Rc::new(path))
     }
 
+    pub(crate) fn new_range(start: i64, end: i64, inclusive: bool) -> Self {
+        Value::Range(Rc::new(ObjRange {
+            start,
+            end,
+            inclusive,
+        }))
+    }
+
     /// Name of this value's type, for runtime error messages.
     pub(crate) fn type_name(&self) -> &'static str {
         match self {
@@ -243,6 +276,7 @@ impl Value {
             Value::Map(_) => "map",
             Value::Set(_) => "set",
             Value::File(_) => "file",
+            Value::Range(_) => "range",
         }
     }
 }
@@ -353,6 +387,13 @@ impl Value {
                 write!(f, "}}")
             }
             Value::File(path) => write!(f, "<file: {}>", path),
+            Value::Range(range) => {
+                if range.inclusive {
+                    write!(f, "{}..={}", range.start, range.end)
+                } else {
+                    write!(f, "{}..{}", range.start, range.end)
+                }
+            }
         }
     }
 
@@ -395,6 +436,7 @@ impl Value {
             }),
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::File(a), Value::File(b)) => a == b,
+            (Value::Range(a), Value::Range(b)) => a == b,
             _ => false,
         }
     }

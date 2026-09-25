@@ -1093,26 +1093,26 @@ impl VirtualMachine {
             return Err(self.runtime_error(format!("Range end must be an integer, got {}", end)));
         }
 
+        const MAX_RANGE_BOUND: f64 = 9007199254740992.0; // 2^53, the largest integer an f64 represents exactly
+
+        if start.abs() > MAX_RANGE_BOUND {
+            return Err(self.runtime_error(format!(
+                "Range start must be between -2^53 and 2^53, got {}",
+                start
+            )));
+        }
+
+        if end.abs() > MAX_RANGE_BOUND {
+            return Err(self.runtime_error(format!(
+                "Range end must be between -2^53 and 2^53, got {}",
+                end
+            )));
+        }
+
         let start_int = start as i64;
         let end_int = end as i64;
 
-        let elements: Vec<Value> = if inclusive {
-            if start_int <= end_int {
-                (start_int..=end_int)
-                    .map(|i| Value::Number(i as f64))
-                    .collect()
-            } else {
-                Vec::new()
-            }
-        } else if start_int < end_int {
-            (start_int..end_int)
-                .map(|i| Value::Number(i as f64))
-                .collect()
-        } else {
-            Vec::new()
-        };
-
-        self.push(Value::new_array(elements));
+        self.push(Value::new_range(start_int, end_int, inclusive));
 
         let frame = self.current_frame_mut();
         frame.ip += 1;
@@ -1170,8 +1170,32 @@ impl VirtualMachine {
                 self.push(result);
                 Ok(())
             }
+            Value::Range(range) => {
+                let index = match index_value {
+                    Value::Number(n) => n as i64,
+                    _ => {
+                        return Err(self.runtime_error(format!(
+                            "Range index must be a number, got {}.",
+                            index_value
+                        )));
+                    }
+                };
+
+                let len = range.len();
+                let actual_index = if index < 0 { len + index } else { index };
+
+                if actual_index < 0 || actual_index >= len {
+                    return Err(self.runtime_error(format!(
+                        "Range index out of bounds: index {} (normalized: {}) on range of length {}.",
+                        index, actual_index, len
+                    )));
+                }
+
+                self.push(Value::Number(range.get(actual_index) as f64));
+                Ok(())
+            }
             _ => Err(self.runtime_error(format!(
-                "Only arrays and maps support index access, got {}.",
+                "Only arrays, maps, and ranges support index access, got {}.",
                 collection_value
             ))),
         }
@@ -1230,6 +1254,9 @@ impl VirtualMachine {
                 self.push(value);
                 Ok(())
             }
+            Value::Range(_) => Err(self.runtime_error(
+                "Cannot assign to an index of a range: ranges are immutable.".to_string(),
+            )),
             _ => Err(self.runtime_error(format!(
                 "Only arrays and maps support index assignment, got {}.",
                 collection_value
@@ -1250,15 +1277,16 @@ impl VirtualMachine {
     }
 
     /// GetIterator: Convert a collection to an iterator
-    /// Pops the collection and pushes two hidden locals: the iterable array
-    /// (arrays as-is, map keys or set elements collected into a new array)
-    /// followed by the starting index, 0.
+    /// Pops the collection and pushes two hidden locals: the iterable
+    /// collection (arrays and ranges as-is, map keys or set elements
+    /// collected into a new array) followed by the starting index, 0.
     #[inline(always)]
     pub(in crate::vm) fn fn_get_iterator(&mut self) -> OpResult {
         let collection = self.pop();
 
         let iterator_value = match &collection {
             Value::Array(_) => collection,
+            Value::Range(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
                 let keys: Vec<Value> = map
@@ -1287,7 +1315,7 @@ impl VirtualMachine {
             }
             _ => {
                 return Err(self.runtime_error(format!(
-                    "Cannot iterate over type: {}. Only arrays, maps, and sets are iterable.",
+                    "Cannot iterate over type: {}. Only arrays, maps, sets, and ranges are iterable.",
                     collection
                 )));
             }
@@ -1299,7 +1327,7 @@ impl VirtualMachine {
     }
 
     /// Resolves the u16 slot operand for an iterator opcode to the absolute
-    /// index of its first hidden slot (array), checking that both it and
+    /// index of its first hidden slot (collection), checking that both it and
     /// the index slot right after it are in range.
     #[inline(always)]
     fn read_iterator_slot(&mut self) -> std::result::Result<usize, RuntimeError> {
@@ -1311,7 +1339,7 @@ impl VirtualMachine {
     }
 
     /// IteratorDone: Check if iteration is complete for the hidden iterator
-    /// slots starting at the given local slot (array, then index).
+    /// slots starting at the given local slot (collection, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
@@ -1328,6 +1356,7 @@ impl VirtualMachine {
         };
         let has_more = match &self.stack[slot] {
             Value::Array(array_ref) => index < array_ref.borrow().len(),
+            Value::Range(range) => (index as i64) < range.len(),
             other => {
                 return Err(self.runtime_error(format!(
                     "Invalid iterator collection, got {}.",
@@ -1341,7 +1370,7 @@ impl VirtualMachine {
     }
 
     /// IteratorNext: Get the next element from the iterator held in the
-    /// hidden slots starting at the given local slot (array, then index).
+    /// hidden slots starting at the given local slot (collection, then index).
     /// Pushes the next value onto the stack and advances the index slot.
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
@@ -1362,6 +1391,12 @@ impl VirtualMachine {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
                 array[index].clone()
+            }
+            Value::Range(range) => {
+                if (index as i64) >= range.len() {
+                    return Err(self.runtime_error("Iterator exhausted"));
+                }
+                Value::Number(range.get(index as i64) as f64)
             }
             other => {
                 return Err(self.runtime_error(format!(
@@ -1384,6 +1419,7 @@ impl VirtualMachine {
             Value::Map(_) => Some(TypeName::Static("Map")),
             Value::Set(_) => Some(TypeName::Static("Set")),
             Value::File(_) => Some(TypeName::Static("File")),
+            Value::Range(_) => Some(TypeName::Static("Range")),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
