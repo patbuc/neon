@@ -72,13 +72,26 @@ impl Parser {
 
     /// Like `new`, but starts counting position at the given line/column/offset.
     fn new_at(source: &str, line: u32, column: u32, offset: usize) -> Self {
+        Parser::new_at_with_id(source, line, column, offset, 0)
+    }
+
+    /// Like `new_at`, but continues `NodeId` allocation from `next_node_id`
+    /// instead of restarting at 0 - for a sub-parser over an interpolated
+    /// expression, so its node ids don't collide with the enclosing parser's.
+    fn new_at_with_id(
+        source: &str,
+        line: u32,
+        column: u32,
+        offset: usize,
+        next_node_id: u32,
+    ) -> Self {
         Parser {
             scanner: Scanner::new_at(source, line, column, offset),
             previous_token: Token::default(),
             current_token: Token::default(),
             errors: Vec::new(),
             panic_mode: false,
-            next_node_id: 0,
+            next_node_id,
         }
     }
 
@@ -957,12 +970,18 @@ impl Parser {
                     return None;
                 }
 
-                let mut expr_parser =
-                    Parser::new_at(&expr_str, expr_line, expr_column, expr_offset);
+                let mut expr_parser = Parser::new_at_with_id(
+                    &expr_str,
+                    expr_line,
+                    expr_column,
+                    expr_offset,
+                    self.next_node_id,
+                );
                 expr_parser.advance();
                 let expr = expr_parser.expression(true);
                 let ends_cleanly = expr_parser
                     .consume(TokenType::Eof, "Expect '}' after interpolated expression.");
+                self.next_node_id = expr_parser.next_node_id;
 
                 match expr {
                     Some(expr) if ends_cleanly => {

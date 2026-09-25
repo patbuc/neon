@@ -2385,6 +2385,29 @@ while (true) {
         .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
 }
 
+#[test]
+fn test_continue_in_nested_fn_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    fn f() {
+        continue
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Cannot use 'continue' outside of a loop")));
+}
+
 // =============================================================================
 // Builtin Namespace Tests (Math, File)
 // =============================================================================
@@ -2514,6 +2537,29 @@ while (true) {
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
+}
+
+#[test]
+fn test_continue_in_lambda_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    val f = fn() {
+        continue
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Cannot use 'continue' outside of a loop")));
 }
 
 #[test]

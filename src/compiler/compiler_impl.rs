@@ -39,7 +39,7 @@ impl Compiler {
 
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
-        let _ = match analyzer.analyze(&ast) {
+        let resolutions = match analyzer.analyze(&ast) {
             Ok(resolutions) => resolutions,
             Err(errors) => {
                 // Store structured errors
@@ -55,7 +55,7 @@ impl Compiler {
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(self.builtin.clone());
+        let mut codegen = CodeGenerator::new(self.builtin.clone(), &resolutions);
         match codegen.generate(&ast) {
             Ok(chunk) => Some(chunk),
             Err(errors) => {

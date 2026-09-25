@@ -3,28 +3,23 @@ use crate::common::errors::{
 };
 
 /// Code generator for the multi-pass compiler
-/// Generates bytecode from AST using symbol table information
+/// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
+use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 struct Local {
-    name: String,
     depth: u32,
-    is_mutable: bool,
     is_captured: bool,
 }
 
 impl Local {
-    fn new(name: String, depth: u32, is_mutable: bool) -> Self {
-        Local {
-            name,
-            depth,
-            is_mutable,
-            is_captured: false,
-        }
+    fn new(depth: u32, is_captured: bool) -> Self {
+        Local { depth, is_captured }
     }
 }
 
@@ -42,34 +37,9 @@ enum LoopExit {
     Continue,
 }
 
-enum VariableScope {
-    Local,
-    Global,
-    Builtin,
-    /// A variable captured from an enclosing function, addressed by index
-    /// into the current function's own upvalue array.
-    Upvalue,
-}
-
-struct VariableRef {
-    index: u32,
-    scope: VariableScope,
-}
-
-/// One entry in a function's upvalue array: where to find the value when
-/// the function's closure is created. `is_local` means a local slot of the
-/// immediately enclosing function; otherwise it's one of that enclosing
-/// function's own upvalues (chaining a capture through multiple levels).
-#[derive(Clone, Copy, PartialEq)]
-struct UpvalueDescriptor {
-    is_local: bool,
-    index: u32,
-}
-
 struct FunctionCompiler {
     chunk: Chunk,
     locals: Vec<Local>,
-    upvalues: Vec<UpvalueDescriptor>,
     scope_depth: u32,
     loop_contexts: Vec<LoopContext>,
 }
@@ -79,7 +49,6 @@ impl FunctionCompiler {
         FunctionCompiler {
             chunk: Chunk::new(name),
             locals: Vec::new(),
-            upvalues: Vec::new(),
             scope_depth: 0,
             loop_contexts: Vec::new(),
         }
@@ -125,45 +94,28 @@ impl FunctionCompiler {
         }
         captured
     }
-
-    /// Marks the local at `index` as captured by a nested function.
-    fn mark_captured(&mut self, index: u32) {
-        self.locals[index as usize].is_captured = true;
-    }
-
-    fn get_local_index(&self, name: &str) -> (Option<u32>, bool) {
-        if self.locals.is_empty() {
-            return (None, false);
-        }
-
-        let mut index = self.locals.len() - 1;
-        loop {
-            if self.locals[index].name == name {
-                let local = &self.locals[index];
-                return (Some(index as u32), local.is_mutable);
-            }
-            if index == 0 {
-                break;
-            }
-            index -= 1;
-        }
-        (None, false)
-    }
 }
 
-pub struct CodeGenerator {
+pub struct CodeGenerator<'a> {
     /// One entry per level of function nesting, outermost (the script) first.
     functions: Vec<FunctionCompiler>,
     errors: Vec<CompilationError>,
+    #[allow(dead_code)]
     builtin: indexmap::IndexMap<String, Value>,
+    resolutions: &'a Resolutions,
+    /// Slot of each declaration in the `locals` of the function that owns it.
+    /// `DeclId`s are unique program-wide, so one map serves every function.
+    decl_slots: HashMap<DeclId, u32>,
 }
 
-impl CodeGenerator {
-    pub fn new(builtin: IndexMap<String, Value>) -> Self {
+impl<'a> CodeGenerator<'a> {
+    pub fn new(builtin: IndexMap<String, Value>, resolutions: &'a Resolutions) -> Self {
         CodeGenerator {
             functions: vec![FunctionCompiler::new("main")],
             errors: Vec::new(),
             builtin,
+            resolutions,
+            decl_slots: HashMap::new(),
         }
     }
 
@@ -172,25 +124,24 @@ impl CodeGenerator {
         // This allows forward references to work
         for stmt in statements {
             match stmt {
-                Stmt::Fn { name, location, .. } => {
+                Stmt::Fn { id, location, .. } => {
                     // Define function with nil placeholder
                     self.emit_op_code(OpCode::Nil, *location);
-                    let local = Local::new(name.clone(), self.current().scope_depth, false);
-                    self.current()
-                        .define_local(local, location.line, location.column);
+                    let decl = self.resolutions.decl(*id);
+                    self.bind_decl_local(decl, *location);
                 }
                 Stmt::Struct {
                     name,
                     fields,
+                    id,
                     location,
                     ..
                 } => {
                     // Create the struct value
                     let struct_value = Value::new_struct(name.clone(), fields.clone());
                     self.emit_constant(struct_value, *location);
-                    let local = Local::new(name.clone(), self.current().scope_depth, false);
-                    self.current()
-                        .define_local(local, location.line, location.column);
+                    let decl = self.resolutions.decl(*id);
+                    self.bind_decl_local(decl, *location);
                 }
                 _ => {}
             }
@@ -208,11 +159,11 @@ impl CodeGenerator {
                         name,
                         params,
                         body,
+                        id,
                         location,
-                        ..
                     } = method
                     {
-                        self.generate_closure(name, params, body, *location);
+                        self.generate_closure(*id, name, params, body, *location);
                         let takes_self = params.first().map(String::as_str) == Some("self");
                         self.emit_define_method(type_name, name, takes_self, *location);
                     }
@@ -255,87 +206,90 @@ impl CodeGenerator {
             .write_op_code_variant(op_code, index, location.line, location.column);
     }
 
-    fn emit_variable_get(&mut self, name: &str, location: SourceLocation) -> Option<()> {
-        match self.get_variable_index(name) {
-            Some(var) => {
-                let op_code = match var.scope {
-                    VariableScope::Builtin => OpCode::GetBuiltin,
-                    VariableScope::Global => OpCode::GetGlobal,
-                    VariableScope::Local => OpCode::GetLocal,
-                    VariableScope::Upvalue => OpCode::GetUpvalue,
-                };
-                self.emit_op_code_variant(op_code, var.index, location);
-                Some(())
-            }
-            None => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::UndefinedSymbol,
-                    format!("Undefined variable '{}'", name),
-                    location,
-                ));
-                None
-            }
-        }
+    /// Slot of `decl` in the `locals` of the function that owns it.
+    fn decl_slot(&self, decl: DeclId) -> u32 {
+        *self
+            .decl_slots
+            .get(&decl)
+            .unwrap_or_else(|| panic!("no slot recorded for {:?}", decl))
     }
 
-    fn emit_set_for_variable(&mut self, var: &VariableRef, location: SourceLocation) {
-        let op_code = match var.scope {
-            VariableScope::Local => OpCode::SetLocal,
-            VariableScope::Global => OpCode::SetGlobal,
-            VariableScope::Upvalue => OpCode::SetUpvalue,
-            VariableScope::Builtin => unreachable!("Builtins are never assignment targets"),
+    /// Pushes a new local bound to `decl` on top of the current function's
+    /// stack, capturing whether it's captured from the resolutions, and
+    /// records its slot. The value it binds must already be on the stack.
+    fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
+        let is_captured = self.resolutions.is_captured(decl);
+        let depth = self.current().scope_depth;
+        let local = Local::new(depth, is_captured);
+        self.current()
+            .define_local(local, location.line, location.column);
+        let slot = (self.current().locals.len() - 1) as u32;
+        self.decl_slots.insert(decl, slot);
+    }
+
+    /// Registers a function parameter, already on the stack from the call,
+    /// as a local bound to `decl`.
+    fn bind_param(&mut self, decl: DeclId) {
+        let is_captured = self.resolutions.is_captured(decl);
+        let depth = self.current().scope_depth;
+        let local = Local::new(depth, is_captured);
+        self.current().add_parameter(local);
+        let slot = (self.current().locals.len() - 1) as u32;
+        self.decl_slots.insert(decl, slot);
+    }
+
+    fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
+        let (op_code, index) = match self.resolutions.res(id) {
+            Res::Local(decl) => (OpCode::GetLocal, self.decl_slot(decl)),
+            Res::Global(decl) => (OpCode::GetGlobal, self.decl_slot(decl)),
+            Res::Upvalue(index) => (OpCode::GetUpvalue, index),
+            Res::Builtin(index) => (OpCode::GetBuiltin, index),
         };
-        self.emit_op_code_variant(op_code, var.index, location);
+        self.emit_op_code_variant(op_code, index, location);
     }
 
-    fn emit_variable_set(&mut self, name: &str, location: SourceLocation) -> Option<()> {
-        match self.get_variable_index(name) {
-            Some(var) => {
-                self.emit_set_for_variable(&var, location);
-                Some(())
-            }
-            None => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::UndefinedSymbol,
-                    format!("Undefined variable '{}'", name),
-                    location,
-                ));
-                None
-            }
-        }
+    fn emit_variable_set(&mut self, id: NodeId, location: SourceLocation) {
+        let (op_code, index) = match self.resolutions.res(id) {
+            Res::Local(decl) => (OpCode::SetLocal, self.decl_slot(decl)),
+            Res::Global(decl) => (OpCode::SetGlobal, self.decl_slot(decl)),
+            Res::Upvalue(index) => (OpCode::SetUpvalue, index),
+            Res::Builtin(_) => unreachable!("the semantic pass rejects assignment to a builtin"),
+        };
+        self.emit_op_code_variant(op_code, index, location);
     }
 
-    fn emit_upvalue_metadata(&mut self, upvalues: &[UpvalueDescriptor], location: SourceLocation) {
+    fn emit_upvalue_metadata(&mut self, captures: &[Capture], location: SourceLocation) {
         let message = format!(
             "function captures too many variables: {} (maximum is {})",
-            upvalues.len(),
+            captures.len(),
             u8::MAX
         );
         if self
-            .check_count_limit(upvalues.len(), u8::MAX as usize, message, location)
+            .check_count_limit(captures.len(), u8::MAX as usize, message, location)
             .is_none()
         {
             return;
         }
-        self.current_chunk().write_u8(upvalues.len() as u8);
+        self.current_chunk().write_u8(captures.len() as u8);
 
-        for upvalue in upvalues {
+        for capture in captures {
+            let (is_local, index) = match *capture {
+                Capture::Local(decl) => (true, self.decl_slot(decl)),
+                Capture::Upvalue(index) => (false, index),
+            };
             let message = format!(
                 "captured variable index too large: {} (maximum is {})",
-                upvalue.index,
+                index,
                 u16::MAX
             );
             if self
-                .check_count_limit(upvalue.index as usize, u16::MAX as usize, message, location)
+                .check_count_limit(index as usize, u16::MAX as usize, message, location)
                 .is_none()
             {
                 return;
             }
-            self.current_chunk()
-                .write_u8(if upvalue.is_local { 1 } else { 0 });
-            self.current_chunk().write_u16(upvalue.index as u16);
+            self.current_chunk().write_u8(if is_local { 1 } else { 0 });
+            self.current_chunk().write_u16(index as u16);
         }
     }
 
@@ -396,104 +350,12 @@ impl CodeGenerator {
             .emit_loop(loop_start, location.line, location.column);
     }
 
-    fn get_variable_index(&mut self, name: &str) -> Option<VariableRef> {
-        let current_idx = self.functions.len() - 1;
-
-        // First try to find in the current function (parameters and locals)
-        let (index, _) = self.functions[current_idx].get_local_index(name);
-        if let Some(index) = index {
-            return Some(VariableRef {
-                index,
-                scope: VariableScope::Local,
-            });
-        }
-
-        if current_idx != 0 {
-            // Next, an enclosing function's local (captured as an upvalue,
-            // possibly chained through several levels of nesting).
-            if let Some(upvalue_index) = self.resolve_upvalue(current_idx, name) {
-                return Some(VariableRef {
-                    index: upvalue_index,
-                    scope: VariableScope::Upvalue,
-                });
-            }
-
-            // The script function's locals stay reachable from any nesting depth.
-            let (index, _) = self.functions[0].get_local_index(name);
-            if let Some(index) = index {
-                return Some(VariableRef {
-                    index,
-                    scope: VariableScope::Global,
-                });
-            }
-        }
-
-        if let Some(index) = self.get_builtin_index(name) {
-            return Some(VariableRef {
-                index: index as u32,
-                scope: VariableScope::Builtin,
-            });
-        }
-
-        None
-    }
-
-    /// Resolves `name` as an upvalue of the function at `functions[fn_idx]`:
-    /// a local of the immediately enclosing function, or one of *that*
-    /// function's own upvalues, chaining the capture through as many levels
-    /// of nesting as needed. A depth-0 local of the outermost (script)
-    /// function is never captured this way — it's read as a global instead,
-    /// since it's never popped.
-    fn resolve_upvalue(&mut self, fn_idx: usize, name: &str) -> Option<u32> {
-        if fn_idx == 0 {
-            return None;
-        }
-        let enclosing_idx = fn_idx - 1;
-
-        let (local_index, _) = self.functions[enclosing_idx].get_local_index(name);
-        if let Some(local_index) = local_index {
-            if enclosing_idx == 0 && self.functions[0].locals[local_index as usize].depth == 0 {
-                return None;
-            }
-            self.functions[enclosing_idx].mark_captured(local_index);
-            return Some(self.add_upvalue(
-                fn_idx,
-                UpvalueDescriptor {
-                    is_local: true,
-                    index: local_index,
-                },
-            ));
-        }
-
-        let enclosing_upvalue = self.resolve_upvalue(enclosing_idx, name)?;
-        Some(self.add_upvalue(
-            fn_idx,
-            UpvalueDescriptor {
-                is_local: false,
-                index: enclosing_upvalue,
-            },
-        ))
-    }
-
-    /// Adds `descriptor` to the upvalue array of the function at
-    /// `functions[fn_idx]`, reusing a matching existing entry instead of
-    /// duplicating it.
-    fn add_upvalue(&mut self, fn_idx: usize, descriptor: UpvalueDescriptor) -> u32 {
-        let upvalues = &mut self.functions[fn_idx].upvalues;
-        if let Some(existing) = upvalues.iter().position(|d| *d == descriptor) {
-            return existing as u32;
-        }
-        upvalues.push(descriptor);
-        (upvalues.len() - 1) as u32
-    }
-
     // ===== Statement Generation =====
 
     fn generate_variable_declaration(
         &mut self,
-        name: &str,
+        id: NodeId,
         initializer: &Option<Expr>,
-        is_mutable: bool,
         location: SourceLocation,
     ) {
         // Generate initializer or nil
@@ -504,13 +366,13 @@ impl CodeGenerator {
         }
 
         // Define local variable
-        let local = Local::new(name.to_string(), self.current().scope_depth, is_mutable);
-        self.current()
-            .define_local(local, location.line, location.column);
+        let decl = self.resolutions.decl(id);
+        self.bind_decl_local(decl, location);
     }
 
     fn generate_fn_stmt(
         &mut self,
+        id: NodeId,
         name: &str,
         params: &[String],
         body: &[Stmt],
@@ -519,29 +381,16 @@ impl CodeGenerator {
         // A nested function isn't pre-defined by generate()'s pre-pass, so define it now, before compiling its body, so it can recurse.
         if self.current().scope_depth > 0 {
             self.emit_op_code(OpCode::Nil, location);
-            let local = Local::new(name.to_string(), self.current().scope_depth, false);
-            self.current()
-                .define_local(local, location.line, location.column);
+            let decl = self.resolutions.decl(id);
+            self.bind_decl_local(decl, location);
         }
 
-        self.generate_closure(name, params, body, location);
+        self.generate_closure(id, name, params, body, location);
 
-        // Get the index of the function variable we defined earlier
-        let var = match self.get_variable_index(name) {
-            Some(var) => var,
-            None => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::Internal,
-                    format!("Function '{}' was not found after definition", name),
-                    location,
-                ));
-                return;
-            }
-        };
-
-        // Emit the appropriate Set opcode to update the placeholder
-        self.emit_set_for_variable(&var, location);
+        // Store the closure into the local defined for the function's name -
+        // either by the top-level pre-pass or just above.
+        let slot = self.decl_slot(self.resolutions.decl(id));
+        self.emit_op_code_variant(OpCode::SetLocal, slot, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
@@ -551,6 +400,7 @@ impl CodeGenerator {
     /// which leave it as their expression value.
     fn generate_closure(
         &mut self,
+        id: NodeId,
         name: &str,
         params: &[String],
         body: &[Stmt],
@@ -563,9 +413,9 @@ impl CodeGenerator {
         self.current().scope_depth += 1;
 
         // Define parameters as local variables in the function scope
-        for param in params {
-            let param_local = Local::new(param.clone(), self.current().scope_depth, false);
-            self.current().add_parameter(param_local);
+        let param_decls = self.resolutions.function(id).params.clone();
+        for decl in param_decls {
+            self.bind_param(decl);
         }
 
         // Compile function body
@@ -583,7 +433,9 @@ impl CodeGenerator {
         // Wrap the function in a closure.
         let const_index = self.current_chunk().add_constant(function_value);
         self.emit_op_code_variant(OpCode::Closure, const_index, location);
-        self.emit_upvalue_metadata(&compiler.upvalues, location);
+
+        let upvalues = self.resolutions.function(id).upvalues.clone();
+        self.emit_upvalue_metadata(&upvalues, location);
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -774,20 +626,14 @@ impl CodeGenerator {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
         // instruction.
-        let keyword = match exit {
-            LoopExit::Break => "break",
-            LoopExit::Continue => "continue",
-        };
-        if self.current().loop_contexts.is_empty() {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
-                format!("Cannot use '{}' outside of a loop", keyword),
-                location,
-            ));
-            return;
-        }
-        let depth = self.current().loop_contexts.last().unwrap().depth;
+        // The semantic pass rejects a break/continue outside of a loop, so
+        // there's always an enclosing loop context here.
+        let depth = self
+            .current()
+            .loop_contexts
+            .last()
+            .expect("semantic pass guarantees a loop context")
+            .depth;
         self.emit_loop_exit_pops(depth, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
@@ -801,7 +647,7 @@ impl CodeGenerator {
 
     fn generate_for_in_stmt(
         &mut self,
-        variable: &str,
+        id: NodeId,
         collection: &Expr,
         body: &Stmt,
         location: SourceLocation,
@@ -861,9 +707,8 @@ impl CodeGenerator {
         self.emit_op_code(OpCode::IteratorNext, location);
 
         // Define the loop variable (value is already on stack from IteratorNext)
-        let local = Local::new(variable.to_string(), self.current().scope_depth, false);
-        self.current()
-            .define_local(local, location.line, location.column);
+        let decl = self.resolutions.decl(id);
+        self.bind_decl_local(decl, location);
 
         // Generate the loop body
         self.generate_stmt(body);
@@ -914,29 +759,29 @@ impl CodeGenerator {
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
-                name,
                 initializer,
+                id,
                 location,
                 ..
             } => {
-                self.generate_variable_declaration(name, initializer, false, *location);
+                self.generate_variable_declaration(*id, initializer, *location);
             }
             Stmt::Var {
-                name,
                 initializer,
+                id,
                 location,
                 ..
             } => {
-                self.generate_variable_declaration(name, initializer, true, *location);
+                self.generate_variable_declaration(*id, initializer, *location);
             }
             Stmt::Fn {
                 name,
                 params,
                 body,
+                id,
                 location,
-                ..
             } => {
-                self.generate_fn_stmt(name, params, body, *location);
+                self.generate_fn_stmt(*id, name, params, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
@@ -978,13 +823,13 @@ impl CodeGenerator {
                 self.generate_loop_exit_stmt(LoopExit::Continue, *location);
             }
             Stmt::ForIn {
-                variable,
                 collection,
                 body,
+                id,
                 location,
                 ..
             } => {
-                self.generate_for_in_stmt(variable, collection, body, *location);
+                self.generate_for_in_stmt(*id, collection, body, *location);
             }
             Stmt::For {
                 initializer,
@@ -1033,16 +878,6 @@ impl CodeGenerator {
         if parts.is_empty() {
             self.emit_string(string!(""), location);
         }
-    }
-
-    fn generate_variable_expr(&mut self, name: &str, location: SourceLocation) {
-        self.emit_variable_get(name, location);
-    }
-
-    fn generate_assign_expr(&mut self, name: &str, value: &Expr, location: SourceLocation) {
-        // Generate the value being assigned
-        self.generate_expr(value);
-        self.emit_variable_set(name, location);
     }
 
     fn generate_binary_expr(
@@ -1341,48 +1176,36 @@ impl CodeGenerator {
         &mut self,
         operand: &Expr,
         operation: OpCode,
-        operation_name: &str,
         location: SourceLocation,
     ) {
         // Semantic analysis ensures operand is a Variable
-        if let Expr::Variable { name, .. } = operand {
-            // Load old value (will be the return value)
-            if self.emit_variable_get(name, location).is_none() {
-                return;
-            }
+        let Expr::Variable { id, .. } = operand else {
+            unreachable!("semantic pass guarantees a postfix operand is a variable")
+        };
 
-            // Load old value again (for modification)
-            if self.emit_variable_get(name, location).is_none() {
-                return;
-            }
+        // Load old value (will be the return value)
+        self.emit_variable_get(*id, location);
 
-            // Push 1 and perform operation (add or subtract)
-            self.emit_constant(number!(1.0), location);
-            self.emit_op_code(operation, location);
+        // Load old value again (for modification)
+        self.emit_variable_get(*id, location);
 
-            // Store new value
-            if self.emit_variable_set(name, location).is_none() {
-                return;
-            }
+        // Push 1 and perform operation (add or subtract)
+        self.emit_constant(number!(1.0), location);
+        self.emit_op_code(operation, location);
 
-            // Pop the new value, leaving old value on stack
-            self.emit_op_code(OpCode::Pop, location);
-        } else {
-            self.errors.push(CompilationError::new(
-                CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
-                format!("Postfix {} operand must be a variable", operation_name),
-                location,
-            ));
-        }
+        // Store new value
+        self.emit_variable_set(*id, location);
+
+        // Pop the new value, leaving old value on stack
+        self.emit_op_code(OpCode::Pop, location);
     }
 
     fn generate_postfix_increment_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Add, "increment", location);
+        self.generate_postfix_operation(operand, OpCode::Add, location);
     }
 
     fn generate_postfix_decrement_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Subtract, "decrement", location);
+        self.generate_postfix_operation(operand, OpCode::Subtract, location);
     }
 
     fn generate_expr(&mut self, expr: &Expr) {
@@ -1406,16 +1229,17 @@ impl CodeGenerator {
             Expr::Nil { location } => {
                 self.emit_op_code(OpCode::Nil, *location);
             }
-            Expr::Variable { name, location, .. } => {
-                self.generate_variable_expr(name, *location);
+            Expr::Variable { id, location, .. } => {
+                self.emit_variable_get(*id, *location);
             }
             Expr::Assign {
-                name,
                 value,
+                id,
                 location,
                 ..
             } => {
-                self.generate_assign_expr(name, value, *location);
+                self.generate_expr(value);
+                self.emit_variable_set(*id, *location);
             }
             Expr::Binary {
                 left,
@@ -1593,16 +1417,12 @@ impl CodeGenerator {
             Expr::Function {
                 params,
                 body,
+                id,
                 location,
-                ..
             } => {
-                self.generate_closure("anonymous", params, body, *location);
+                self.generate_closure(*id, "anonymous", params, body, *location);
             }
         }
-    }
-
-    fn get_builtin_index(&self, name: &str) -> Option<usize> {
-        self.builtin.get_index_of(name)
     }
 
     /// Pushes the placeholder native callable for a call dispatched by

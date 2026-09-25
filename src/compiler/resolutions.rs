@@ -64,7 +64,6 @@ impl Resolutions {
     }
 
     /// The resolution of an `Expr::Variable` or `Expr::Assign` node.
-    #[allow(dead_code)]
     pub fn res(&self, id: NodeId) -> Res {
         *self
             .uses
@@ -73,7 +72,6 @@ impl Resolutions {
     }
 
     /// The `DeclId` a declaration node was assigned.
-    #[allow(dead_code)]
     pub fn decl(&self, id: NodeId) -> DeclId {
         *self
             .decls
@@ -82,7 +80,6 @@ impl Resolutions {
     }
 
     /// The captures and parameter `DeclId`s of a function node.
-    #[allow(dead_code)]
     pub fn function(&self, id: NodeId) -> &FunctionResolution {
         self.functions
             .get(&id)
@@ -96,7 +93,6 @@ impl Resolutions {
     }
 
     /// Whether some nested function captures this declaration.
-    #[allow(dead_code)]
     pub fn is_captured(&self, decl: DeclId) -> bool {
         self.captured.contains(&decl)
     }

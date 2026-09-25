@@ -602,8 +602,7 @@ impl SemanticAnalyzer {
 
     /// Resolves a symbol use into a `Res`, from the point of view of the
     /// current function, chaining an upvalue capture through enclosing
-    /// functions as needed. Mirrors codegen's `get_variable_index` /
-    /// `resolve_upvalue`.
+    /// functions as needed.
     fn compute_res(&mut self, use_: SymbolUse) -> Res {
         if let Some(index) = use_.builtin_index {
             return Res::Builtin(index);
