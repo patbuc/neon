@@ -1029,13 +1029,10 @@ fn test_greater_equal_less_equal_opcodes() {
     assert_eq!(
         ops,
         vec![
-            // Prologue: one pre-allocated slot per top-level val, holding
-            // the uninitialized sentinel.
             OpCode::Constant,
             OpCode::SetLocal,
             OpCode::Constant,
             OpCode::SetLocal,
-            // val a = 1; val b = 2 - each stores into its pre-allocated slot.
             OpCode::Constant,
             OpCode::SetLocal,
             OpCode::Pop,

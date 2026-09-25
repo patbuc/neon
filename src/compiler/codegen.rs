@@ -112,8 +112,6 @@ impl<'a> CodeGenerator<'a> {
         for stmt in statements {
             match stmt {
                 Stmt::Fn { id, location, .. } => {
-                    // Define function with nil placeholder; overwritten
-                    // below before any statement runs.
                     self.emit_op_code(OpCode::Nil, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -189,8 +187,6 @@ impl<'a> CodeGenerator<'a> {
             }
         }
 
-        // Then: Generate code for all statements. A top-level Stmt::Fn is a
-        // no-op here - its closure was already compiled and stored above.
         for stmt in statements {
             self.generate_stmt(stmt);
         }
@@ -381,8 +377,7 @@ impl<'a> CodeGenerator<'a> {
 
         let decl = self.resolutions.decl(id);
         if self.current().scope_depth == 0 {
-            // Top level: the slot was pre-allocated in generate()'s
-            // prologue, holding the uninitialized sentinel - store into it.
+            // Top level: store into the slot generate()'s prologue pre-allocated.
             let slot = self.decl_slot(decl);
             self.emit_op_code_variant(OpCode::SetLocal, slot, location);
             self.emit_op_code(OpCode::Pop, location);
@@ -400,8 +395,7 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         if self.current().scope_depth == 0 {
-            // Top level: already compiled into a closure and stored into its
-            // pre-allocated slot by generate()'s prologue.
+            // Top level: already compiled and stored by generate()'s prologue.
             return;
         }
 
