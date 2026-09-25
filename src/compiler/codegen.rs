@@ -930,15 +930,9 @@ impl CodeGenerator {
                         self.emit_op_code(OpCode::Not, location);
                     }
                     BinaryOp::Greater => self.emit_op_code(OpCode::Greater, location),
-                    BinaryOp::GreaterEqual => {
-                        self.emit_op_code(OpCode::Less, location);
-                        self.emit_op_code(OpCode::Not, location);
-                    }
+                    BinaryOp::GreaterEqual => self.emit_op_code(OpCode::GreaterEqual, location),
                     BinaryOp::Less => self.emit_op_code(OpCode::Less, location),
-                    BinaryOp::LessEqual => {
-                        self.emit_op_code(OpCode::Greater, location);
-                        self.emit_op_code(OpCode::Not, location);
-                    }
+                    BinaryOp::LessEqual => self.emit_op_code(OpCode::LessEqual, location),
                     BinaryOp::BitwiseAnd => self.emit_op_code(OpCode::BitwiseAnd, location),
                     BinaryOp::BitwiseOr => self.emit_op_code(OpCode::BitwiseOr, location),
                     BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),

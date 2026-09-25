@@ -1,11 +1,11 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{BitsSize, CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
+use crate::vm::functions::Comparison;
 use crate::vm::{Result, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
-use std::cmp::Ordering;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -163,12 +163,22 @@ impl VirtualMachine {
                 OpCode::False => self.push(boolean!(false)),
                 OpCode::Equal => self.fn_equal(),
                 OpCode::Greater => {
-                    if let Some(result) = self.fn_compare(Ordering::Greater) {
+                    if let Some(result) = self.fn_compare(Comparison::Greater) {
+                        return result;
+                    }
+                }
+                OpCode::GreaterEqual => {
+                    if let Some(result) = self.fn_compare(Comparison::GreaterEqual) {
                         return result;
                     }
                 }
                 OpCode::Less => {
-                    if let Some(result) = self.fn_compare(Ordering::Less) {
+                    if let Some(result) = self.fn_compare(Comparison::Less) {
+                        return result;
+                    }
+                }
+                OpCode::LessEqual => {
+                    if let Some(result) = self.fn_compare(Comparison::LessEqual) {
                         return result;
                     }
                 }
