@@ -1,8 +1,8 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
-use crate::vm::functions::Comparison;
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::functions::{Comparison, OpResult};
+use crate::vm::{Result, RuntimeError, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
@@ -25,7 +25,7 @@ impl VirtualMachine {
             string_buffer: String::new(),
             compilation_errors: String::new(),
             structured_errors: Vec::new(),
-            runtime_errors: String::new(),
+            runtime_error: None,
             source: String::new(),
             iterator_stack: Vec::new(),
             open_upvalues: Vec::new(),
@@ -81,7 +81,7 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        let result = self.run_until(0);
+        let result = self.run_script(0);
         self.chunk = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -90,8 +90,20 @@ impl VirtualMachine {
         result
     }
 
+    /// Runs until `target_depth`, converting a runtime error into the VM's
+    /// stored error and the public `Result` enum.
+    pub(in crate::vm) fn run_script(&mut self, target_depth: usize) -> Result {
+        match self.run_until(target_depth) {
+            Ok(()) => Result::Ok,
+            Err(e) => {
+                self.runtime_error = Some(e);
+                Result::RuntimeError
+            }
+        }
+    }
+
     #[inline(always)]
-    pub(in crate::vm) fn run_until(&mut self, target_depth: usize) -> Result {
+    pub(in crate::vm) fn run_until(&mut self, target_depth: usize) -> OpResult {
         #[cfg(feature = "disassemble")]
         if target_depth == 0 {
             let frame = self.call_frames.last().unwrap();
@@ -105,231 +117,81 @@ impl VirtualMachine {
             let op_code = match OpCode::from_u8(byte) {
                 Some(op_code) => op_code,
                 None => {
-                    self.runtime_error(&format!("Unknown opcode {:#04x}", byte));
-                    return Result::RuntimeError;
+                    return Err(self.runtime_error(format!("Unknown opcode {:#04x}", byte)));
                 }
             };
 
             match op_code {
                 OpCode::Return => {
-                    if let Some(result) = self.fn_return() {
-                        return result;
-                    }
+                    self.fn_return();
                     if self.call_frames.len() == target_depth {
-                        return Result::Ok;
+                        return Ok(());
                     }
                     continue;
                 }
                 OpCode::Constant => self.fn_constant(),
-                OpCode::Negate => {
-                    if let Some(value) = self.fn_negate() {
-                        return value;
-                    }
-                }
-                OpCode::Add => {
-                    if let Some(value) = self.fn_add() {
-                        return value;
-                    }
-                }
-                OpCode::Subtract => {
-                    if let Some(result) = self.fn_subtract() {
-                        return result;
-                    }
-                }
-                OpCode::Multiply => {
-                    if let Some(result) = self.fn_multiply() {
-                        return result;
-                    }
-                }
-                OpCode::Divide => {
-                    if let Some(result) = self.fn_divide() {
-                        return result;
-                    }
-                }
-                OpCode::Modulo => {
-                    if let Some(result) = self.fn_modulo() {
-                        return result;
-                    }
-                }
-                OpCode::Exponent => {
-                    if let Some(result) = self.fn_exponent() {
-                        return result;
-                    }
-                }
+                OpCode::Negate => self.fn_negate()?,
+                OpCode::Add => self.fn_add()?,
+                OpCode::Subtract => self.fn_subtract()?,
+                OpCode::Multiply => self.fn_multiply()?,
+                OpCode::Divide => self.fn_divide()?,
+                OpCode::Modulo => self.fn_modulo()?,
+                OpCode::Exponent => self.fn_exponent()?,
                 OpCode::Nil => self.push(nil!()),
                 OpCode::True => self.push(boolean!(true)),
                 OpCode::False => self.push(boolean!(false)),
                 OpCode::Equal => self.fn_equal(),
-                OpCode::Greater => {
-                    if let Some(result) = self.fn_compare(Comparison::Greater) {
-                        return result;
-                    }
-                }
-                OpCode::GreaterEqual => {
-                    if let Some(result) = self.fn_compare(Comparison::GreaterEqual) {
-                        return result;
-                    }
-                }
-                OpCode::Less => {
-                    if let Some(result) = self.fn_compare(Comparison::Less) {
-                        return result;
-                    }
-                }
-                OpCode::LessEqual => {
-                    if let Some(result) = self.fn_compare(Comparison::LessEqual) {
-                        return result;
-                    }
-                }
+                OpCode::Greater => self.fn_compare(Comparison::Greater)?,
+                OpCode::GreaterEqual => self.fn_compare(Comparison::GreaterEqual)?,
+                OpCode::Less => self.fn_compare(Comparison::Less)?,
+                OpCode::LessEqual => self.fn_compare(Comparison::LessEqual)?,
                 OpCode::Not => self.fn_not(),
                 OpCode::String => self.fn_string(),
                 OpCode::Pop => _ = self.pop(),
-                OpCode::GetLocal => {
-                    if let Some(result) = self.fn_get_local() {
-                        return result;
-                    }
-                }
-                OpCode::SetLocal => {
-                    if let Some(result) = self.fn_set_local() {
-                        return result;
-                    }
-                }
-                OpCode::GetBuiltin => {
-                    if let Some(result) = self.fn_get_builtin() {
-                        return result;
-                    }
-                }
-                OpCode::GetGlobal => {
-                    if let Some(result) = self.fn_get_global() {
-                        return result;
-                    }
-                }
-                OpCode::SetGlobal => {
-                    if let Some(result) = self.fn_set_global() {
-                        return result;
-                    }
-                }
+                OpCode::GetLocal => self.fn_get_local()?,
+                OpCode::SetLocal => self.fn_set_local()?,
+                OpCode::GetBuiltin => self.fn_get_builtin()?,
+                OpCode::GetGlobal => self.fn_get_global()?,
+                OpCode::SetGlobal => self.fn_set_global()?,
                 OpCode::JumpIfFalse => self.fn_jump_if_false(),
                 OpCode::Jump => self.fn_jump(),
                 OpCode::Loop => self.fn_loop(),
                 OpCode::Call => {
-                    if let Some(result) = self.fn_call() {
-                        return result;
-                    }
+                    self.fn_call()?;
                     continue;
                 }
-                OpCode::GetField => {
-                    if let Some(result) = self.fn_get_field() {
-                        return result;
-                    }
-                }
-                OpCode::SetField => {
-                    if let Some(result) = self.fn_set_field() {
-                        return result;
-                    }
-                }
+                OpCode::GetField => self.fn_get_field()?,
+                OpCode::SetField => self.fn_set_field()?,
 
-                OpCode::CreateMap => {
-                    if let Some(result) = self.fn_create_map() {
-                        return result;
-                    }
-                }
+                OpCode::CreateMap => self.fn_create_map()?,
                 OpCode::CreateArray => self.fn_create_array(),
-                OpCode::CreateSet => {
-                    if let Some(result) = self.fn_create_set() {
-                        return result;
-                    }
-                }
-                OpCode::GetIndex => {
-                    if let Some(result) = self.fn_get_index() {
-                        return result;
-                    }
-                }
-                OpCode::SetIndex => {
-                    if let Some(result) = self.fn_set_index() {
-                        return result;
-                    }
-                }
-                OpCode::GetIterator => {
-                    if let Some(result) = self.fn_get_iterator() {
-                        return result;
-                    }
-                }
-                OpCode::IteratorNext => {
-                    if let Some(result) = self.fn_iterator_next() {
-                        return result;
-                    }
-                }
-                OpCode::IteratorDone => {
-                    if let Some(result) = self.fn_iterator_done() {
-                        return result;
-                    }
-                }
+                OpCode::CreateSet => self.fn_create_set()?,
+                OpCode::GetIndex => self.fn_get_index()?,
+                OpCode::SetIndex => self.fn_set_index()?,
+                OpCode::GetIterator => self.fn_get_iterator()?,
+                OpCode::IteratorNext => self.fn_iterator_next()?,
+                OpCode::IteratorDone => self.fn_iterator_done()?,
                 OpCode::PopIterator => {
                     if self.iterator_stack.is_empty() {
-                        self.runtime_error("No iterator to pop");
-                        return Result::RuntimeError;
+                        return Err(self.runtime_error("No iterator to pop"));
                     }
                     self.iterator_stack.pop();
                 }
-                OpCode::CreateRange => {
-                    if let Some(result) = self.fn_create_range() {
-                        return result;
-                    }
-                }
+                OpCode::CreateRange => self.fn_create_range()?,
                 OpCode::ToString => self.fn_to_string(),
-                OpCode::BitwiseAnd => {
-                    if let Some(result) = self.fn_bitwise_and() {
-                        return result;
-                    }
-                }
-                OpCode::BitwiseOr => {
-                    if let Some(result) = self.fn_bitwise_or() {
-                        return result;
-                    }
-                }
-                OpCode::BitwiseXor => {
-                    if let Some(result) = self.fn_bitwise_xor() {
-                        return result;
-                    }
-                }
-                OpCode::BitwiseNot => {
-                    if let Some(value) = self.fn_bitwise_not() {
-                        return value;
-                    }
-                }
-                OpCode::LeftShift => {
-                    if let Some(result) = self.fn_left_shift() {
-                        return result;
-                    }
-                }
-                OpCode::RightShift => {
-                    if let Some(result) = self.fn_right_shift() {
-                        return result;
-                    }
-                }
-                OpCode::Closure => {
-                    if let Some(result) = self.fn_closure() {
-                        return result;
-                    }
-                }
-                OpCode::GetUpvalue => {
-                    if let Some(result) = self.fn_get_upvalue() {
-                        return result;
-                    }
-                }
-                OpCode::SetUpvalue => {
-                    if let Some(result) = self.fn_set_upvalue() {
-                        return result;
-                    }
-                }
+                OpCode::BitwiseAnd => self.fn_bitwise_and()?,
+                OpCode::BitwiseOr => self.fn_bitwise_or()?,
+                OpCode::BitwiseXor => self.fn_bitwise_xor()?,
+                OpCode::BitwiseNot => self.fn_bitwise_not()?,
+                OpCode::LeftShift => self.fn_left_shift()?,
+                OpCode::RightShift => self.fn_right_shift()?,
+                OpCode::Closure => self.fn_closure()?,
+                OpCode::GetUpvalue => self.fn_get_upvalue()?,
+                OpCode::SetUpvalue => self.fn_set_upvalue()?,
                 OpCode::CloseUpvalue => self.fn_close_upvalue(),
                 OpCode::CloseUpvalueInPlace => self.fn_close_upvalue_in_place(),
                 OpCode::DefineMethod => self.fn_define_method(),
-                OpCode::CheckInitialized => {
-                    if let Some(result) = self.fn_check_initialized() {
-                        return result;
-                    }
-                }
+                OpCode::CheckInitialized => self.fn_check_initialized()?,
             }
             self.current_frame_mut().ip += 1;
         }
@@ -362,16 +224,11 @@ impl VirtualMachine {
         self.stack[self.stack.len() - 1 - distance].clone()
     }
 
-    pub(in crate::vm) fn runtime_error(&mut self, error: &str) {
-        let source_location = self.get_current_source_location();
-        let error_message = format!("[{}] {}", source_location, error);
-
-        eprintln!("{}", error_message);
-
-        if !self.runtime_errors.is_empty() {
-            self.runtime_errors.push('\n');
+    pub(in crate::vm) fn runtime_error(&self, message: impl Into<String>) -> RuntimeError {
+        RuntimeError {
+            message: message.into(),
+            location: self.get_current_source_location(),
         }
-        self.runtime_errors.push_str(&error_message);
     }
 
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
@@ -396,31 +253,28 @@ impl VirtualMachine {
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 
+    pub fn get_runtime_error(&self) -> Option<&RuntimeError> {
+        self.runtime_error.as_ref()
+    }
+
     pub fn get_runtime_errors(&self) -> String {
-        self.runtime_errors.clone()
+        self.runtime_error
+            .as_ref()
+            .map(|e| e.to_string())
+            .unwrap_or_default()
     }
 
-    pub fn clear_runtime_errors(&mut self) {
-        self.runtime_errors.clear();
-    }
-
-    fn get_current_source_location(&self) -> String {
-        if let Some(frame) = self.call_frames.last() {
-            if let Some(location) = frame.closure.function.chunk.get_line_info(frame.ip) {
-                format!("{}:{}", location.line, location.column)
-            } else {
-                "unknown".to_string()
-            }
-        } else {
-            "unknown".to_string()
-        }
+    fn get_current_source_location(&self) -> Option<(u32, u32)> {
+        let frame = self.call_frames.last()?;
+        let location = frame.closure.function.chunk.get_line_info(frame.ip)?;
+        Some((location.line, location.column))
     }
 
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
         self.chunk = None;
-        self.runtime_errors.clear();
+        self.runtime_error = None;
         self.iterator_stack.clear();
         self.open_upvalues.clear();
         self.native_call_depth = 0;

@@ -72,7 +72,12 @@ fn run_repl() {
                 let formatted_errors = vm.get_formatted_errors("<repl>");
                 eprintln!("{}", formatted_errors);
             }
-            Result::RuntimeError => eprintln!("{}", "Runtime error.".red()),
+            Result::RuntimeError => {
+                if let Some(error) = vm.get_runtime_error() {
+                    eprintln!("{}", error);
+                }
+                eprintln!("{}", "Runtime error.".red());
+            }
         }
         println!();
     }
@@ -104,7 +109,12 @@ fn run_file(path: &str, args: Vec<String>) {
             eprintln!("{}", formatted_errors);
             exit(65);
         }
-        Result::RuntimeError => exit(70),
+        Result::RuntimeError => {
+            if let Some(error) = vm.get_runtime_error() {
+                eprintln!("{}", error);
+            }
+            exit(70);
+        }
     }
 }
 
