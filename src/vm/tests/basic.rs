@@ -3365,6 +3365,23 @@ fn setting_undefined_field_on_instance_is_runtime_error() {
 }
 
 #[test]
+fn getting_undefined_field_on_instance_is_runtime_error() {
+    let program = r#"
+        struct Point {
+            x
+            y
+        }
+
+        fn get_z(p) { return p.z }
+        get_z(Point(3, 4))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    vm.interpret(program.to_string());
+    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
+}
+
+#[test]
 fn calling_unknown_method_on_instance_is_runtime_error() {
     let program = r#"
         struct Point {

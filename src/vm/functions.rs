@@ -7,7 +7,6 @@ use crate::vm::VirtualMachine;
 use crate::{as_number, as_string, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 pub(in crate::vm) type OpResult = std::result::Result<(), RuntimeError>;
@@ -209,7 +208,7 @@ impl VirtualMachine {
 
         if let Value::Object(obj) = &receiver {
             if let Object::Instance(inst) = obj.as_ref() {
-                let field_value = inst.borrow().fields.get(method_name).cloned();
+                let field_value = inst.borrow().field(method_name).cloned();
                 if let Some(field_value) = field_value {
                     self.stack[receiver_index] = field_value;
                     return self.dispatch_call(arg_count);
@@ -354,15 +353,11 @@ impl VirtualMachine {
             )));
         }
 
-        let field_count = r#struct.fields.len();
-        let mut fields = HashMap::with_capacity(field_count);
         let stack_len = self.stack.len();
 
         // Unified calling convention: [struct_obj, args...]
         let stack_slice = &self.stack[stack_len - arg_count..stack_len];
-        for (field_name, value) in r#struct.fields.iter().zip(stack_slice.iter()) {
-            fields.insert(field_name.clone(), value.clone());
-        }
+        let fields = stack_slice.to_vec();
 
         let instance = ObjInstance {
             r#struct: Rc::clone(r#struct),
@@ -934,16 +929,16 @@ impl VirtualMachine {
         let field_name_index = self.read_index();
         let instance_value = self.peek(0);
 
-        let field_name = {
+        let field_name_value = {
             let frame = self.current_frame();
-            let field_value = frame.closure.function.chunk.read_string(field_name_index);
-            match field_value {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::String(s) => s.value.to_string(),
-                    _ => return Err(self.runtime_error("Field name must be a string.")),
-                },
+            frame.closure.function.chunk.read_string(field_name_index)
+        };
+        let field_name = match &field_name_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(s) => s.value.as_ref(),
                 _ => return Err(self.runtime_error("Field name must be a string.")),
-            }
+            },
+            _ => return Err(self.runtime_error("Field name must be a string.")),
         };
 
         match &instance_value {
@@ -951,8 +946,7 @@ impl VirtualMachine {
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
 
-                    if let Some(value) = instance.fields.get(&field_name) {
-                        let value = value.clone();
+                    if let Some(value) = instance.field(field_name).cloned() {
                         self.pop();
                         self.push(value);
                     } else {
@@ -977,31 +971,29 @@ impl VirtualMachine {
         let value = self.peek(0);
         let instance_value = self.peek(1);
 
-        let field_name = {
+        let field_name_value = {
             let frame = self.current_frame();
-            let field_value = frame.closure.function.chunk.read_string(field_name_index);
-            match field_value {
-                Value::Object(obj) => match obj.as_ref() {
-                    Object::String(s) => s.value.to_string(),
-                    _ => return Err(self.runtime_error("Field name must be a string.")),
-                },
+            frame.closure.function.chunk.read_string(field_name_index)
+        };
+        let field_name = match &field_name_value {
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(s) => s.value.as_ref(),
                 _ => return Err(self.runtime_error("Field name must be a string.")),
-            }
+            },
+            _ => return Err(self.runtime_error("Field name must be a string.")),
         };
 
         match &instance_value {
             Value::Object(obj) => match obj.as_ref() {
                 Object::Instance(instance_ref) => {
                     let mut instance = instance_ref.borrow_mut();
-                    // Instance fields are always fully populated from the struct's field
-                    // list at construction, so this is equivalent to a struct.fields scan.
-                    if !instance.fields.contains_key(&field_name) {
+                    let Some(index) = instance.r#struct.field_index(field_name) else {
                         return Err(
                             self.runtime_error(format!("Undefined field '{}'.", field_name))
                         );
-                    }
+                    };
 
-                    instance.fields.insert(field_name, value.clone());
+                    instance.fields[index] = value.clone();
 
                     self.pop();
                     self.pop();
