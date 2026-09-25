@@ -813,8 +813,8 @@ impl VirtualMachine {
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
         let index = self.read_index();
-        if let Some(entry) = self.builtin.get_index(index) {
-            self.push(entry.1.clone());
+        if let Some(value) = self.builtin.get(index) {
+            self.push(value.clone());
         } else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         }

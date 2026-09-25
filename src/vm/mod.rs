@@ -30,8 +30,9 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
-    /// Global built-in values (like Math) stored separately from the call stack
-    builtin: indexmap::IndexMap<String, Value>,
+    /// Runtime builtin values (e.g. `args`), stored separately from the
+    /// call stack. Math and File are namespaces, not values here.
+    builtin: Vec<Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,

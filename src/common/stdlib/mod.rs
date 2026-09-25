@@ -1,6 +1,5 @@
 use crate::common::static_type::StaticType;
 use crate::common::Value;
-use indexmap::IndexMap;
 use std::rc::Rc;
 
 pub(crate) mod array_functions;
@@ -34,15 +33,12 @@ const ARGS: &str = "args";
 pub const BUILTIN_VALUES: &[(&str, StaticType)] = &[(ARGS, StaticType::Array)];
 
 /// Create stdlib objects for the VM, in `BUILTIN_VALUES` order.
-pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
+pub fn create_builtin_objects(args: Vec<String>) -> Vec<Value> {
     BUILTIN_VALUES
         .iter()
-        .map(|(name, _type_name)| {
-            let value = match *name {
-                ARGS => create_args_array(&args),
-                other => panic!("no constructor for builtin value '{}'", other),
-            };
-            (name.to_string(), value)
+        .map(|(name, _type_name)| match *name {
+            ARGS => create_args_array(&args),
+            other => panic!("no constructor for builtin value '{}'", other),
         })
         .collect()
 }
