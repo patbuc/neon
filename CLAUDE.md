@@ -125,7 +125,8 @@ cargo run --features disassemble -- script.n
 - **CallFrame**: Links function object to instruction pointer and stack slot range
 - **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
   status for closures
-- **Iterator Stack**: Supports nested for-in loops by tracking (index, collection) pairs
+- **For-in State**: Each for-in loop keeps its collection and index in two hidden locals, which
+  `IteratorDone`/`IteratorNext` address by slot
 - **Builtin Storage**: Separate from call stack to avoid polluting stack frames
 
 ## Adding New Features

@@ -27,7 +27,6 @@ impl VirtualMachine {
             structured_errors: Vec::new(),
             runtime_error: None,
             source: String::new(),
-            iterator_stack: Vec::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: std::collections::HashMap::new(),
@@ -77,7 +76,6 @@ impl VirtualMachine {
             closure: script_closure,
             ip: 0,
             slot_start: -1,
-            iterator_depth: self.iterator_stack.len(),
         };
         self.call_frames.push(frame);
 
@@ -175,12 +173,6 @@ impl VirtualMachine {
                 OpCode::GetIterator => self.fn_get_iterator()?,
                 OpCode::IteratorNext => self.fn_iterator_next()?,
                 OpCode::IteratorDone => self.fn_iterator_done()?,
-                OpCode::PopIterator => {
-                    if self.iterator_stack.is_empty() {
-                        return Err(self.runtime_error("No iterator to pop"));
-                    }
-                    self.iterator_stack.pop();
-                }
                 OpCode::CreateRange => self.fn_create_range()?,
                 OpCode::ToString => self.fn_to_string(),
                 OpCode::BitwiseAnd => self.fn_bitwise_and()?,
@@ -308,7 +300,6 @@ impl VirtualMachine {
         self.stack.clear();
         self.chunk = None;
         self.runtime_error = None;
-        self.iterator_stack.clear();
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.methods.clear();

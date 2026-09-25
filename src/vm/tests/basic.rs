@@ -2884,7 +2884,7 @@ fn test_loop_body_local_does_not_grow_stack() {
 }
 
 #[test]
-fn test_for_in_break_does_not_leak_stack_or_iterator() {
+fn test_for_in_break_does_not_grow_stack() {
     fn stack_len_after_loop(iterations: i64) -> usize {
         let program = format!(
             r#"
@@ -2904,7 +2904,6 @@ fn test_for_in_break_does_not_leak_stack_or_iterator() {
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program);
         assert_eq!(Result::Ok, result);
-        assert_eq!(0, vm.iterator_stack.len());
         vm.stack.len()
     }
 
@@ -3043,7 +3042,7 @@ fn test_while_continue_from_block_does_not_grow_stack() {
 }
 
 #[test]
-fn test_reset_clears_iterator_stack() {
+fn test_reset_recovers_for_in_after_runtime_error() {
     let mut vm = VirtualMachine::new();
 
     let program_with_error = r#"
@@ -3053,11 +3052,17 @@ fn test_reset_clears_iterator_stack() {
         "#;
     let result = vm.interpret(program_with_error.to_string());
     assert_eq!(Result::RuntimeError, result);
-    assert_eq!(1, vm.iterator_stack.len());
 
-    let result = vm.interpret("print(1)".to_string());
+    let result = vm.interpret(
+        r#"
+        for (x in [1, 2, 3]) {
+            print(x)
+        }
+        "#
+        .to_string(),
+    );
     assert_eq!(Result::Ok, result);
-    assert_eq!(0, vm.iterator_stack.len());
+    assert_eq!("1\n2\n3", vm.get_output());
 }
 
 #[test]

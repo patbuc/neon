@@ -1,0 +1,21 @@
+// Expected:
+// [1, 2]
+// [10, 20]
+// [3, 4]
+// [30, 40]
+// done
+
+val groups = [[1, 2], [3, 4]]
+for (g in groups) {
+    print(g)
+    print(g.map(fn(x) {
+        for (y in [x, x * 10]) {
+            if (y == x) {
+                continue
+            }
+            return y
+        }
+        return nil
+    }))
+}
+print("done")
