@@ -505,7 +505,7 @@ impl VirtualMachine {
 
     fn get_current_source_location(&self) -> String {
         if let Some(frame) = self.call_frames.last() {
-            if let Some(location) = frame.closure.function.chunk.get_source_location(frame.ip) {
+            if let Some(location) = frame.closure.function.chunk.get_line_info(frame.ip) {
                 format!("{}:{}", location.line, location.column)
             } else {
                 "unknown".to_string()

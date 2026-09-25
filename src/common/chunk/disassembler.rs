@@ -19,8 +19,8 @@ impl Chunk {
     pub(crate) fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{:04x} ", offset);
 
-        let line = self.get_source_location(offset).unwrap();
-        if offset > 0 && line.line == self.get_source_location(offset - 1).unwrap().line {
+        let line = self.get_line_info(offset).unwrap();
+        if offset > 0 && line.line == self.get_line_info(offset - 1).unwrap().line {
             print!("     | ");
         } else {
             print!("{:6} ", line.line);

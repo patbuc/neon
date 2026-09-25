@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, Constants, SourceLocation, Value};
+use crate::common::{Chunk, Constants, LineInfo, Value};
 
 impl Chunk {
     pub(crate) fn new(name: &str) -> Self {
@@ -8,15 +8,15 @@ impl Chunk {
             constants: Constants::new(),
             strings: Constants::new(),
             instructions: Vec::new(),
-            source_locations: Vec::new(),
+            line_infos: Vec::new(),
         }
     }
 }
 
 impl Chunk {
     pub(crate) fn write_op_code(&mut self, op_code: OpCode, line: u32, column: u32) {
-        self.source_locations.push(SourceLocation {
-            offset: self.instructions.len(),
+        self.line_infos.push(LineInfo {
+            ip: self.instructions.len(),
             line,
             column,
         });
@@ -146,19 +146,19 @@ impl Chunk {
 }
 
 impl Chunk {
-    pub(crate) fn get_source_location(&self, offset: usize) -> Option<SourceLocation> {
+    pub(crate) fn get_line_info(&self, ip: usize) -> Option<LineInfo> {
         let mut result = Option::default();
         let mut low = 0;
-        let mut high = self.source_locations.len() - 1;
+        let mut high = self.line_infos.len() - 1;
 
-        if offset >= self.instructions.len() {
+        if ip >= self.instructions.len() {
             return None;
         }
 
         while low <= high {
             let mid = (low + high) / 2;
-            let line = self.source_locations.get(mid).unwrap();
-            if line.offset > offset {
+            let line = self.line_infos.get(mid).unwrap();
+            if line.ip > ip {
                 high = mid - 1;
             } else {
                 result = Some(line);

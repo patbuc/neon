@@ -41,7 +41,7 @@ pub struct Chunk {
     pub constants: Constants,
     pub strings: Constants,
     pub instructions: Vec<u8>,
-    pub source_locations: Vec<SourceLocation>,
+    pub line_infos: Vec<LineInfo>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -60,6 +60,13 @@ impl Display for SourceLocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.line, self.column)
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LineInfo {
+    pub ip: usize,
+    pub line: u32,
+    pub column: u32,
 }
 
 #[repr(u8)]
