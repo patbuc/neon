@@ -21,6 +21,7 @@ impl Compiler {
             Ok(ast) => ast,
             Err(errors) => return self.fail(errors),
         };
+        let eof_location = parser.eof_location();
 
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
@@ -30,8 +31,8 @@ impl Compiler {
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(&resolutions);
-        match codegen.generate(&ast) {
+        let mut codegen = CodeGenerator::new(&resolutions, parser.end_locations());
+        match codegen.generate(&ast, eof_location) {
             Ok(chunk) => Some(chunk),
             Err(errors) => self.fail(errors),
         }

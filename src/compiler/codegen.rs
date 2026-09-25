@@ -94,19 +94,29 @@ pub struct CodeGenerator<'a> {
     /// Slot of each declaration in the `locals` of the function that owns it.
     /// `DeclId`s are unique program-wide, so one map serves every function.
     decl_slots: HashMap<DeclId, u32>,
+    /// Closing-brace location of each `fn`/lambda body, by `NodeId`.
+    end_locations: &'a HashMap<NodeId, SourceLocation>,
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(resolutions: &'a Resolutions) -> Self {
+    pub fn new(
+        resolutions: &'a Resolutions,
+        end_locations: &'a HashMap<NodeId, SourceLocation>,
+    ) -> Self {
         CodeGenerator {
             functions: vec![FunctionCompiler::new("main")],
+            end_locations,
             errors: Vec::new(),
             resolutions,
             decl_slots: HashMap::new(),
         }
     }
 
-    pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
+    pub fn generate(
+        &mut self,
+        statements: &[Stmt],
+        eof_location: SourceLocation,
+    ) -> CompilationResult<Chunk> {
         // First: allocate one slot per top-level declaration, in statement
         // order, so every slot is known before any body is compiled. A
         // val/var slot starts out holding the uninitialized sentinel, which
@@ -194,7 +204,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         // Emit final return
-        self.emit_return();
+        self.emit_return(eof_location);
 
         if self.errors.is_empty() {
             Ok(self.functions.pop().unwrap().chunk)
@@ -379,12 +389,7 @@ impl<'a> CodeGenerator<'a> {
         self.emit_index_op(OpCode::String, index, "strings", location);
     }
 
-    fn emit_return(&mut self) {
-        let location = SourceLocation {
-            offset: 0,
-            line: 0,
-            column: 0,
-        };
+    fn emit_return(&mut self, location: SourceLocation) {
         self.emit_op_code(OpCode::Nil, location);
         self.emit_op_code(OpCode::Return, location);
     }
@@ -496,8 +501,11 @@ impl<'a> CodeGenerator<'a> {
             self.generate_stmt(stmt);
         }
 
-        // Emit return at end of function
-        self.emit_return();
+        let end_location = *self
+            .end_locations
+            .get(&id)
+            .unwrap_or_else(|| panic!("no end location recorded for {:?}", id));
+        self.emit_return(end_location);
 
         let compiler = self.functions.pop().unwrap();
         let function_value =

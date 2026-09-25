@@ -8,6 +8,7 @@ use crate::common::SourceLocation;
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
+use std::collections::HashMap;
 
 /// AST Parser that builds an Abstract Syntax Tree
 pub struct Parser {
@@ -26,6 +27,9 @@ pub struct Parser {
     pending_interpolation_depth: usize,
     /// Rust call-stack recursion depth, bounded to avoid a stack overflow.
     recursion_depth: usize,
+    /// Closing-brace location of each `fn` declaration/method and lambda
+    /// body, keyed by its `NodeId`.
+    end_locations: HashMap<NodeId, SourceLocation>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -87,6 +91,7 @@ impl Parser {
             nesting_depth: (0, 0, 0, 0),
             pending_interpolation_depth: 0,
             recursion_depth: 0,
+            end_locations: HashMap::new(),
         }
     }
 
@@ -278,6 +283,17 @@ impl Parser {
             line: self.previous_token.line,
             column: self.previous_token.column,
         }
+    }
+
+    /// Location of the end of the source, valid after `parse()` returns:
+    /// its main loop only exits once the `Eof` token has been consumed.
+    pub(crate) fn eof_location(&self) -> SourceLocation {
+        self.current_location()
+    }
+
+    /// Valid after `parse()` returns.
+    pub(crate) fn end_locations(&self) -> &HashMap<NodeId, SourceLocation> {
+        &self.end_locations
     }
 
     fn current_token_location(&self) -> SourceLocation {
@@ -497,12 +513,17 @@ impl Parser {
             return None;
         }
 
-        let body = self.block_statements()?;
+        let body = self.parse_block_body()?;
+        let end_location = self.current_location();
+        self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
+
+        let id = self.next_id();
+        self.end_locations.insert(id, end_location);
         Some(Stmt::Fn {
             name,
             params,
             body,
-            id: self.next_id(),
+            id,
             location,
         })
     }
@@ -1371,10 +1392,13 @@ impl Parser {
         }
 
         let body = self.parse_block_body()?;
+        let end_location = self.current_location();
+        let id = self.next_id();
+        self.end_locations.insert(id, end_location);
         Some(Expr::Function {
             params,
             body,
-            id: self.next_id(),
+            id,
             location,
         })
     }

@@ -22,6 +22,7 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
     let ast = parser
         .parse()
         .map_err(|e| format!("Parse error: {:?}", e))?;
+    let eof_location = parser.eof_location();
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
@@ -30,9 +31,9 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation
-    let mut codegen = CodeGenerator::new(&resolutions);
+    let mut codegen = CodeGenerator::new(&resolutions, parser.end_locations());
     codegen
-        .generate(&ast)
+        .generate(&ast, eof_location)
         .map_err(|e| format!("Codegen error: {:?}", e))
 }
 
@@ -1231,7 +1232,7 @@ fn test_while_break_continue_bytecode() {
 005d      6 Pop
 005e      3 Loop 005e -> 000d
 0063      | Pop
-0064      0 Nil
+0064      9 Nil
 0065      | Return
 === </main> ===
 "#;
@@ -1289,7 +1290,7 @@ fn test_c_style_for_bytecode() {
 0044      2 Loop 0044 -> 000b
 0049      | Pop
 004a      | Pop
-004b      0 Nil
+004b      6 Nil
 004c      | Return
 === </main> ===
 "#;
@@ -1337,7 +1338,7 @@ fn test_for_in_bytecode() {
 002b      | Pop
 002c      | Pop
 002d      | Pop
-002e      0 Nil
+002e      5 Nil
 002f      | Return
 === </main> ===
 "#;
@@ -1418,13 +1419,13 @@ fn test_closure_capturing_loop_variable_bytecode() {
 006f      | Call (args: 0)
 0071      | Call (args: 1)
 0073      7 Pop
-0074      0 Nil
+0074      9 Nil
 0075      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      4 GetUpvalue 00
 0003      | Return
-0004      0 Nil
+0004      | Nil
 0005      | Return
 === </function_anonymous> ===
 "#;
@@ -1499,13 +1500,13 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 0058      | Call (args: 0)
 005a      | Call (args: 1)
 005c     11 Pop
-005d      0 Nil
+005d     13 Nil
 005e      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
 0003      | Return
-0004      0 Nil
+0004      | Nil
 0005      | Return
 === </function_anonymous> ===
 "#;
@@ -1520,4 +1521,28 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
     {
         assert_eq!(vm.get_output(), "10");
     }
+}
+
+#[test]
+fn implicit_return_uses_closing_brace_line() {
+    use crate::common::Value;
+
+    let program = "fn f(x) {\n    print(x)\n}\n";
+    let chunk = compile_program(program).unwrap();
+
+    let function_chunk = chunk
+        .constants
+        .values
+        .iter()
+        .find_map(|value| match value {
+            Value::Function(function) => Some(&function.chunk),
+            _ => None,
+        })
+        .expect("expected the function constant compiled from `fn f`");
+
+    // The trailing Return has no operand, so it sits at the last offset.
+    let return_offset = function_chunk.instruction_count() - 1;
+    let line = function_chunk.get_line_info(return_offset).unwrap().line;
+
+    assert_eq!(line, 3);
 }
