@@ -80,6 +80,7 @@ impl OpCode {
             v if v == OpCode::CloseUpvalue as u8 => Some(OpCode::CloseUpvalue),
             v if v == OpCode::CloseUpvalueInPlace as u8 => Some(OpCode::CloseUpvalueInPlace),
             v if v == OpCode::DefineMethod as u8 => Some(OpCode::DefineMethod),
+            v if v == OpCode::CheckInitialized as u8 => Some(OpCode::CheckInitialized),
             _ => None,
         }
     }
@@ -179,4 +180,7 @@ pub(crate) enum OpCode {
     /// Pops a closure and registers it as a method under a type name and
     /// method name (both read as fixed 32-bit string indices).
     DefineMethod,
+    /// Peeks the top of the stack and errors if it holds a hoisted
+    /// declaration's uninitialized sentinel; otherwise a no-op.
+    CheckInitialized,
 }

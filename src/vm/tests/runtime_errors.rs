@@ -1,7 +1,8 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Chunk;
-use crate::number;
+use crate::common::{Chunk, Value};
 use crate::vm::{Result, VirtualMachine};
+use crate::{as_number, number};
+use std::rc::Rc;
 
 #[test]
 fn array_index_read_out_of_bounds_halts() {
@@ -631,4 +632,187 @@ fn call_name_that_is_neither_method_nor_field_is_unknown_method() {
         "{}",
         errors
     );
+}
+
+#[test]
+fn top_level_fn_reads_later_val_before_init() {
+    let program = r#"
+fn f() {
+    return y
+}
+print(f())
+val y = 2
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'y' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn top_level_fn_assigns_later_var_before_init() {
+    let program = r#"
+fn f() {
+    x = 5
+}
+f()
+var x = 3
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'x' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn nested_fn_called_before_its_declaration_line() {
+    let program = r#"
+fn outer() {
+    g()
+    fn g() { return 1 }
+}
+outer()
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'g' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn nested_fn_stored_in_val_before_its_declaration_line() {
+    let program = r#"
+fn outer() {
+    val g = f
+    fn f() { return 1 }
+    return g
+}
+outer()
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'f' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn sibling_fn_called_before_its_declaration_line() {
+    let program = r#"
+fn outer() {
+    fn a() { return b() }
+    print(a())
+    fn b() { return 1 }
+}
+outer()
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'b' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn get_global_uninitialized_slot_halts() {
+    let mut chunk = Chunk::new("get_global_uninitialized");
+    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_op_code_variant(OpCode::GetGlobal, 0, 2, 5);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'x' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[2:5]"), "{}", errors);
+}
+
+#[test]
+fn set_global_uninitialized_slot_halts() {
+    let mut chunk = Chunk::new("set_global_uninitialized");
+    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_constant(number!(1.0), 1, 1);
+    chunk.write_op_code_variant(OpCode::SetGlobal, 0, 2, 5);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'x' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[2:5]"), "{}", errors);
+}
+
+#[test]
+fn check_initialized_on_uninitialized_value_halts() {
+    let mut chunk = Chunk::new("check_initialized_uninitialized");
+    chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
+    chunk.write_op_code(OpCode::CheckInitialized, 2, 5);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'x' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[2:5]"), "{}", errors);
+}
+
+#[test]
+fn check_initialized_on_normal_value_passes_through() {
+    let mut chunk = Chunk::new("check_initialized_normal");
+    chunk.write_constant(number!(42.0), 0, 0);
+    chunk.write_op_code(OpCode::CheckInitialized, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(Result::Ok, result);
+    assert_eq!(42.0, as_number!(vm.pop()));
 }

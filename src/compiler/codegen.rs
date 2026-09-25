@@ -10,6 +10,7 @@ use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 struct Local {
     depth: u32,
@@ -104,12 +105,13 @@ impl<'a> CodeGenerator<'a> {
     }
 
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
-        // First: Define all functions and structs with placeholders
-        // This allows forward references to work
+        // First: allocate one slot per top-level declaration, in statement
+        // order, so every slot is known before any body is compiled. A
+        // val/var slot starts out holding the uninitialized sentinel, which
+        // GetGlobal/SetGlobal reject until its statement runs.
         for stmt in statements {
             match stmt {
                 Stmt::Fn { id, location, .. } => {
-                    // Define function with nil placeholder
                     self.emit_op_code(OpCode::Nil, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -127,7 +129,37 @@ impl<'a> CodeGenerator<'a> {
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
                 }
+                Stmt::Val {
+                    name, id, location, ..
+                }
+                | Stmt::Var {
+                    name, id, location, ..
+                } => {
+                    let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                    self.emit_constant(sentinel, *location);
+                    let decl = self.resolutions.decl(*id);
+                    self.bind_decl_local(decl, *location);
+                }
                 _ => {}
+            }
+        }
+
+        // Then: compile every top-level fn body into a closure and store it
+        // into its pre-allocated slot, so a body can call - or be called by
+        // - any other top-level function regardless of declaration order.
+        for stmt in statements {
+            if let Stmt::Fn {
+                name,
+                params,
+                body,
+                id,
+                location,
+            } = stmt
+            {
+                self.generate_closure(*id, name, params, body, *location);
+                let slot = self.decl_slot(self.resolutions.decl(*id));
+                self.emit_op_code_variant(OpCode::SetLocal, slot, *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
         }
 
@@ -155,7 +187,6 @@ impl<'a> CodeGenerator<'a> {
             }
         }
 
-        // Then: Generate code for all statements
         for stmt in statements {
             self.generate_stmt(stmt);
         }
@@ -225,6 +256,9 @@ impl<'a> CodeGenerator<'a> {
             Res::Builtin(index) => (OpCode::GetBuiltin, index),
         };
         self.emit_op_code_variant(op_code, index, location);
+        if self.resolutions.is_checked(id) {
+            self.emit_op_code(OpCode::CheckInitialized, location);
+        }
     }
 
     fn emit_variable_set(&mut self, id: NodeId, location: SourceLocation) {
@@ -344,9 +378,15 @@ impl<'a> CodeGenerator<'a> {
             self.emit_op_code(OpCode::Nil, location);
         }
 
-        // Define local variable
         let decl = self.resolutions.decl(id);
-        self.bind_decl_local(decl, location);
+        if self.current().scope_depth == 0 {
+            // Top level: store into the slot generate()'s prologue pre-allocated.
+            let slot = self.decl_slot(decl);
+            self.emit_op_code_variant(OpCode::SetLocal, slot, location);
+            self.emit_op_code(OpCode::Pop, location);
+        } else {
+            self.bind_decl_local(decl, location);
+        }
     }
 
     fn generate_fn_stmt(
@@ -357,19 +397,33 @@ impl<'a> CodeGenerator<'a> {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A nested function isn't pre-defined by generate()'s pre-pass, so define it now, before compiling its body, so it can recurse.
-        if self.current().scope_depth > 0 {
-            self.emit_op_code(OpCode::Nil, location);
-            let decl = self.resolutions.decl(id);
-            self.bind_decl_local(decl, location);
+        if self.current().scope_depth == 0 {
+            // Top level: already compiled and stored by generate()'s prologue.
+            return;
         }
 
         self.generate_closure(id, name, params, body, location);
 
-        // Store the closure into the local defined for the function's name.
         let slot = self.decl_slot(self.resolutions.decl(id));
         self.emit_op_code_variant(OpCode::SetLocal, slot, location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
+    }
+
+    /// Pushes an uninitialized sentinel slot for each `fn` in a statement
+    /// list before any statement runs, so siblings can resolve each other's
+    /// slots regardless of call order.
+    fn hoist_block_functions(&mut self, statements: &[Stmt]) {
+        for stmt in statements {
+            if let Stmt::Fn {
+                name, id, location, ..
+            } = stmt
+            {
+                let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                self.emit_constant(sentinel, *location);
+                let decl = self.resolutions.decl(*id);
+                self.bind_decl_local(decl, *location);
+            }
+        }
     }
 
     /// Compiles `params`/`body` into a closure and leaves it on top of the
@@ -397,6 +451,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         // Compile function body
+        self.hoist_block_functions(body);
         for stmt in body {
             self.generate_stmt(stmt);
         }
@@ -422,6 +477,7 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_block_stmt(&mut self, statements: &[Stmt], location: SourceLocation) {
         self.current().scope_depth += 1;
+        self.hoist_block_functions(statements);
         for stmt in statements {
             self.generate_stmt(stmt);
         }

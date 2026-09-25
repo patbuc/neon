@@ -114,6 +114,7 @@ impl Chunk {
                 self.simple_instruction(OpCode::CloseUpvalueInPlace, offset)
             }
             OpCode::DefineMethod => self.define_method_instruction(offset),
+            OpCode::CheckInitialized => self.simple_instruction(OpCode::CheckInitialized, offset),
         }
     }
 

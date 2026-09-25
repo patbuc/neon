@@ -205,6 +205,7 @@ fn value_to_set_key(value: &Value) -> Option<SetKey> {
         Value::Number(n) => Some(SetKey::Number(OrderedFloat(*n))),
         Value::Boolean(b) => Some(SetKey::Boolean(*b)),
         Value::Nil => None,
+        Value::Uninitialized(_) => None,
     }
 }
 

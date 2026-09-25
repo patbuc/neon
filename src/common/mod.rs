@@ -126,6 +126,10 @@ pub enum Value {
     Object(Rc<Object>),
     Boolean(bool),
     Nil,
+    /// Placeholder held by a hoisted global or block-level function slot
+    /// until its declaration runs; GetGlobal, SetGlobal, and CheckInitialized
+    /// turn reading it into a runtime error.
+    Uninitialized(Rc<str>),
 }
 
 #[derive(Debug, Clone)]
@@ -244,6 +248,7 @@ impl Value {
             Value::Number(_) => "number",
             Value::Boolean(_) => "boolean",
             Value::Nil => "nil",
+            Value::Uninitialized(_) => "uninitialized",
             Value::Object(obj) => match obj.as_ref() {
                 Object::String(_) => "string",
                 Object::Function(_) => "function",
@@ -453,6 +458,7 @@ impl Value {
             Value::Number(val) => write!(f, "{}", val),
             Value::Boolean(val) => write!(f, "{}", val),
             Value::Nil => write!(f, "nil"),
+            Value::Uninitialized(_) => write!(f, "<uninitialized>"),
             Value::Object(val) => val.fmt_with_seen(f, seen),
         }
     }

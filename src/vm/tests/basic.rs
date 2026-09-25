@@ -3543,3 +3543,50 @@ fn interpolated_expression_inherits_the_enclosing_nesting_depth() {
     assert_eq!(Result::CompileError, result);
     assert!(vm.get_compiler_error().contains("600"));
 }
+
+#[test]
+fn top_level_val_using_later_val_is_compile_error() {
+    let program = r#"
+        val a = b
+        val b = 1
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert!(vm
+        .get_compiler_error()
+        .contains("Cannot use 'b' before its declaration"));
+}
+
+#[test]
+fn val_reading_itself_in_initializer_is_compile_error() {
+    let program = r#"
+        val x = x
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert!(vm
+        .get_compiler_error()
+        .contains("Cannot read 'x' in its own initializer"));
+}
+
+#[test]
+fn nested_fn_reading_later_block_val_is_compile_error() {
+    let program = r#"
+        fn outer() {
+            fn f() {
+                return v
+            }
+            val v = 1
+            return f()
+        }
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::CompileError, result);
+    assert!(vm.get_compiler_error().contains("Undefined variable 'v'"));
+}

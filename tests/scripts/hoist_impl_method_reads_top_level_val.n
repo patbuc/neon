@@ -1,0 +1,16 @@
+// Expected:
+// 42
+
+struct Box {
+    label
+}
+
+impl Box {
+    fn read(self) {
+        return answer
+    }
+}
+
+val answer = 42
+
+print(Box("b").read())

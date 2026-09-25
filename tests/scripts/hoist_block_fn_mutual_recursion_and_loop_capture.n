@@ -1,0 +1,62 @@
+// Expected:
+// even
+// odd
+// yes
+// 10
+// 20
+// 40
+// 50
+
+fn classify(n) {
+    fn is_even(n) {
+        if (n == 0) { return "even" }
+        return is_odd(n - 1)
+    }
+    fn is_odd(n) {
+        if (n == 0) { return "odd" }
+        return is_even(n - 1)
+    }
+    return is_even(n)
+}
+
+print(classify(4))
+print(classify(3))
+
+{
+    fn is_even2(n) {
+        if (n == 0) { return true }
+        return is_odd2(n - 1)
+    }
+    fn is_odd2(n) {
+        if (n == 0) { return false }
+        return is_even2(n - 1)
+    }
+    if (is_even2(6)) {
+        print("yes")
+    }
+}
+
+fn makeGetters() {
+    var closures = []
+    var i = 0
+    while (i < 6) {
+        i = i + 1
+        if (i == 3) {
+            continue
+        }
+        val value = i * 10
+        var wrapper = fn() { return report() }
+        fn report() {
+            return value
+        }
+        if (i == 6) {
+            break
+        }
+        closures.push(wrapper)
+    }
+    return closures
+}
+
+for (getter in makeGetters()) {
+    print(getter())
+}

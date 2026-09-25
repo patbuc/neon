@@ -965,7 +965,13 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
-        self.push(self.stack[absolute_index].clone());
+        let value = &self.stack[absolute_index];
+        if let Some(message) = Self::uninitialized_error(value) {
+            self.runtime_error(&message);
+            return Some(Result::RuntimeError);
+        }
+
+        self.push(value.clone());
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
         None
@@ -988,10 +994,36 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
+        if let Some(message) = Self::uninitialized_error(&self.stack[absolute_index]) {
+            self.runtime_error(&message);
+            return Some(Result::RuntimeError);
+        }
+
         self.stack[absolute_index] = self.peek(0);
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
         None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_check_initialized(&mut self) -> Option<Result> {
+        if let Some(message) = self.stack.last().and_then(Self::uninitialized_error) {
+            self.runtime_error(&message);
+            return Some(Result::RuntimeError);
+        }
+        None
+    }
+
+    /// The "used before initialization" message for `value`, if it's the
+    /// uninitialized sentinel. A free function (no `self`) so callers can
+    /// build it while still holding an immutable borrow of the stack.
+    fn uninitialized_error(value: &Value) -> Option<String> {
+        match value {
+            Value::Uninitialized(name) => {
+                Some(format!("variable '{}' used before initialization", name))
+            }
+            _ => None,
+        }
     }
 
     #[inline(always)]
@@ -1422,6 +1454,7 @@ impl VirtualMachine {
             Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
             Value::Boolean(b) => Some(MapKey::Boolean(*b)),
             Value::Nil => None,
+            Value::Uninitialized(_) => None,
         }
     }
 

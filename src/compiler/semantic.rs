@@ -10,7 +10,7 @@ use crate::common::SourceLocation;
 use crate::compiler::ast::{Expr, NodeId, Stmt};
 use crate::compiler::resolutions::{Capture, DeclId, FunctionResolution, Res, Resolutions};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
@@ -69,6 +69,19 @@ pub struct SemanticAnalyzer {
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
     function_frames: Vec<FunctionResolution>,
+    // Top-level val/var DeclIds whose declaration statement hasn't been
+    // resolved yet; a direct script-level read/write/postfix-op naming one
+    // is a compile error.
+    not_initialized_top_level: HashSet<DeclId>,
+    // DeclId of the top-level val/var currently resolving its own
+    // initializer, if any - a direct read of it there is "in its own
+    // initializer", not "before its declaration".
+    currently_initializing: Option<DeclId>,
+    // DeclIds of block/function-body-local `fn` declarations whose own
+    // `Stmt::Fn` hasn't been resolved yet. A read that resolves to one of
+    // these can run before that `fn`'s slot is bound, so it needs a
+    // runtime initialization check.
+    pending_block_fns: HashSet<DeclId>,
 }
 
 impl SemanticAnalyzer {
@@ -125,6 +138,9 @@ impl SemanticAnalyzer {
             resolutions: Resolutions::default(),
             next_decl_id,
             function_frames: vec![FunctionResolution::default()],
+            not_initialized_top_level: HashSet::new(),
+            currently_initializing: None,
+            pending_block_fns: HashSet::new(),
         }
     }
 
@@ -203,11 +219,27 @@ impl SemanticAnalyzer {
                         *location,
                     );
                 }
+                Stmt::Val {
+                    name, id, location, ..
+                }
+                | Stmt::Var {
+                    name, id, location, ..
+                } => {
+                    let is_mutable = matches!(stmt, Stmt::Var { .. });
+                    let kind = if is_mutable {
+                        SymbolKind::Variable
+                    } else {
+                        SymbolKind::Value
+                    };
+                    let decl_id =
+                        self.declare_symbol(*id, name.clone(), kind, is_mutable, *location);
+                    self.not_initialized_top_level.insert(decl_id);
+                }
                 _ => {}
             }
         }
 
-        // Second pass: impl blocks, so a method call anywhere validates.
+        // Second pass, after all structs are declared: impl blocks.
         for stmt in statements {
             if let Stmt::Impl {
                 type_name,
@@ -216,36 +248,6 @@ impl SemanticAnalyzer {
             } = stmt
             {
                 self.collect_impl_block(type_name, methods, *location);
-            }
-        }
-
-        // Third pass: resolve method bodies now that every impl block has
-        // contributed its methods. Skip an impl for an undefined type - its
-        // methods were never registered, so resolving bodies would only add
-        // follow-on errors on top of the undefined-type error.
-        for stmt in statements {
-            if let Stmt::Impl {
-                type_name, methods, ..
-            } = stmt
-            {
-                if !self.is_struct_type(type_name)
-                    && !crate::common::method_registry::BUILTIN_TYPE_NAMES
-                        .contains(&type_name.as_str())
-                {
-                    continue;
-                }
-                for method in methods {
-                    if let Stmt::Fn {
-                        params,
-                        body,
-                        id,
-                        location,
-                        ..
-                    } = method
-                    {
-                        self.resolve_function_body(*id, params, body, *location, Some(type_name));
-                    }
-                }
             }
         }
     }
@@ -395,9 +397,10 @@ impl SemanticAnalyzer {
         kind: SymbolKind,
         is_mutable: bool,
         location: SourceLocation,
-    ) {
+    ) -> DeclId {
         let decl_id = self.define_symbol(name, kind, is_mutable, location);
         self.resolutions.record_decl(id, decl_id);
+        decl_id
     }
 
     /// Enter a new lexical scope, keeping the type environment in step
@@ -646,6 +649,7 @@ impl SemanticAnalyzer {
             return;
         };
         let use_ = SymbolUse::from(symbol);
+        self.check_top_level_forward_use(use_, name, location);
 
         if !use_.is_mutable {
             self.errors.push(CompilationError::new(
@@ -657,6 +661,37 @@ impl SemanticAnalyzer {
         }
 
         self.record_symbol_use(id, use_);
+    }
+
+    /// Compile error for a script-level (function level 0) direct use of a
+    /// top-level val/var whose declaration statement hasn't resolved yet. A
+    /// name shadowed by a block local never reaches here, since
+    /// `decl_scope_depth` is then non-zero.
+    fn check_top_level_forward_use(
+        &mut self,
+        use_: SymbolUse,
+        name: &str,
+        location: SourceLocation,
+    ) {
+        if self.function_level() != 0 || use_.decl_scope_depth != 0 {
+            return;
+        }
+        let decl_id = use_.decl_id;
+        if self.currently_initializing == Some(decl_id) {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                format!("Cannot read '{}' in its own initializer", name),
+                location,
+            ));
+        } else if self.not_initialized_top_level.contains(&decl_id) {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::Other,
+                format!("Cannot use '{}' before its declaration", name),
+                location,
+            ));
+        }
     }
 
     fn resolve_statements(&mut self, statements: &[Stmt]) {
@@ -698,13 +733,13 @@ impl SemanticAnalyzer {
                 );
             }
             Stmt::Fn {
-                name,
                 params,
                 body,
                 id,
                 location,
+                ..
             } => {
-                self.resolve_function_declaration(*id, name, params, body, *location);
+                self.resolve_function_declaration(*id, params, body, *location);
             }
             Stmt::Struct {
                 name,
@@ -731,8 +766,13 @@ impl SemanticAnalyzer {
                     );
                 }
             }
-            Stmt::Impl { location, .. } => {
-                // A top-level impl was already resolved in collect_declarations.
+            Stmt::Impl {
+                type_name,
+                methods,
+                location,
+            } => {
+                // Resolve method bodies here, at the impl's textual position,
+                // so they see top-level val/var like other script-level code.
                 if self.symbol_table.current_depth() != 0 {
                     self.errors.push(CompilationError::new(
                         CompilationPhase::Semantic,
@@ -740,6 +780,31 @@ impl SemanticAnalyzer {
                         "'impl' blocks are only allowed at the top level".to_string(),
                         *location,
                     ));
+                } else if self.is_struct_type(type_name)
+                    || crate::common::method_registry::BUILTIN_TYPE_NAMES
+                        .contains(&type_name.as_str())
+                {
+                    // An impl for an undefined type never registered its
+                    // methods, so resolving bodies would only add follow-on
+                    // errors on top of the undefined-type error.
+                    for method in methods {
+                        if let Stmt::Fn {
+                            params,
+                            body,
+                            id,
+                            location,
+                            ..
+                        } = method
+                        {
+                            self.resolve_function_body(
+                                *id,
+                                params,
+                                body,
+                                *location,
+                                Some(type_name),
+                            );
+                        }
+                    }
                 }
             }
             Stmt::Expression { expr, .. } => {
@@ -912,6 +977,23 @@ impl SemanticAnalyzer {
         is_mutable: bool,
         location: SourceLocation,
     ) {
+        if self.symbol_table.current_depth() == 0 {
+            // Top level: collect_declarations already declared this name and
+            // recorded this node's DeclId - resolve the initializer,
+            // tracking which decl is initializing so a self-read reports the
+            // right message, then mark it initialized.
+            let decl_id = self.resolutions.decl(id);
+            let previous = self.currently_initializing.replace(decl_id);
+            let inferred_type = initializer.map(|init| {
+                self.resolve_expr(init);
+                self.infer_expr_type(init)
+            });
+            self.currently_initializing = previous;
+            self.define_type(name, inferred_type.flatten());
+            self.not_initialized_top_level.remove(&decl_id);
+            return;
+        }
+
         // Resolve initializer first (if any), tracking its type (or
         // unknown) in the current scope - this shadows any outer type
         // recorded for the same name.
@@ -927,24 +1009,42 @@ impl SemanticAnalyzer {
     fn resolve_function_declaration(
         &mut self,
         id: NodeId,
-        name: &str,
         params: &[String],
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A nested function isn't hoisted by collect_declarations, so define it now, before resolving its body, so it can recurse.
+        // Its own line has now been reached, so it's no longer pending.
         if self.symbol_table.current_depth() > 0 {
-            let arity = params.len() as u8;
-            self.declare_symbol(
-                id,
-                name.to_string(),
-                SymbolKind::Function { arity },
-                false,
-                location,
-            );
+            let decl_id = self.resolutions.decl(id);
+            self.pending_block_fns.remove(&decl_id);
         }
 
         self.resolve_function_body(id, params, body, location, None);
+    }
+
+    /// Pre-declares a statement list's own `fn` names before resolving any
+    /// of its statements, so siblings can call each other regardless of order.
+    fn predeclare_block_functions(&mut self, statements: &[Stmt]) {
+        for stmt in statements {
+            if let Stmt::Fn {
+                name,
+                params,
+                id,
+                location,
+                ..
+            } = stmt
+            {
+                let arity = params.len() as u8;
+                let decl_id = self.declare_symbol(
+                    *id,
+                    name.clone(),
+                    SymbolKind::Function { arity },
+                    false,
+                    *location,
+                );
+                self.pending_block_fns.insert(decl_id);
+            }
+        }
     }
 
     /// Resolves a function's parameters and body in a fresh scope and
@@ -991,6 +1091,7 @@ impl SemanticAnalyzer {
         }
 
         // Resolve function body
+        self.predeclare_block_functions(body);
         for stmt in body {
             self.resolve_stmt(stmt);
         }
@@ -1005,6 +1106,7 @@ impl SemanticAnalyzer {
 
     fn resolve_block_statement(&mut self, statements: &[Stmt]) {
         self.enter_scope();
+        self.predeclare_block_functions(statements);
         for stmt in statements {
             self.resolve_stmt(stmt);
         }
@@ -1129,6 +1231,10 @@ impl SemanticAnalyzer {
         }
 
         let use_ = SymbolUse::from(symbol);
+        self.check_top_level_forward_use(use_, name, location);
+        if self.pending_block_fns.contains(&use_.decl_id) {
+            self.resolutions.mark_checked(id);
+        }
         self.record_symbol_use(id, use_);
     }
 
@@ -1153,6 +1259,7 @@ impl SemanticAnalyzer {
         };
 
         let use_ = SymbolUse::from(symbol);
+        self.check_top_level_forward_use(use_, name, location);
 
         if !use_.is_mutable {
             self.errors.push(CompilationError::new(
