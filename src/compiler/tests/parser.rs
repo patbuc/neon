@@ -3511,3 +3511,75 @@ fn test_node_ids_are_unique() {
     let unique: HashSet<u32> = ids.iter().copied().collect();
     assert_eq!(unique.len(), ids.len(), "node ids must be unique: {ids:?}");
 }
+
+#[test]
+fn test_open_call_across_newline_reports_missing_operand() {
+    let program = "print(1\nx = )\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.location.line == 2 && e.location.column == 5),
+        "Expected an error at 2:5, got {:?}",
+        errors
+    );
+}
+
+#[test]
+fn test_open_call_argument_across_newline_reports_missing_operand() {
+    let program = "print(1\nprint(2 +)\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.location.line == 2 && e.location.column == 10),
+        "Expected an error at 2:10, got {:?}",
+        errors
+    );
+}
+
+#[test]
+fn test_open_array_across_newline_reports_missing_operand() {
+    let program = "[1, 2\nx = )\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.location.line == 2 && e.location.column == 5),
+        "Expected an error at 2:5, got {:?}",
+        errors
+    );
+}
+
+#[test]
+fn test_open_set_across_newline_reports_missing_operand() {
+    let program = "#{1\nx = )\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.location.line == 2 && e.location.column == 5),
+        "Expected an error at 2:5, got {:?}",
+        errors
+    );
+}
+
+#[test]
+fn test_missing_initializer_before_close_paren_terminates() {
+    let program = "val x =\n)\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+}

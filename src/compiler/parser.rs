@@ -97,10 +97,14 @@ impl Parser {
         self.advance();
 
         while !self.match_token(TokenType::Eof) {
+            let start_offset = self.current_token.offset;
             if let Some(stmt) = self.declaration() {
                 statements.push(stmt);
             }
             if self.panic_mode {
+                if self.current_token.offset == start_offset {
+                    self.advance();
+                }
                 self.synchronize(false);
             }
         }
@@ -297,9 +301,10 @@ impl Parser {
     /// Skips tokens until the start of the next statement.
     fn synchronize(&mut self, stop_at_right_brace: bool) {
         self.panic_mode = false;
-        let mut advanced = false;
         loop {
-            if self.current_token.token_type == TokenType::Eof {
+            if self.previous_token.token_type == TokenType::NewLine
+                || self.previous_token.token_type == TokenType::Eof
+            {
                 return;
             }
             if stop_at_right_brace && self.current_token.token_type == TokenType::RightBrace {
@@ -317,15 +322,7 @@ impl Parser {
                 | TokenType::Return => return,
                 _ => {}
             }
-            // A prefix-less failure (see parse_precedence) leaves the token
-            // that failed unconsumed, so the very first iteration must not
-            // bail out here without making progress, or the caller's loop
-            // would retry the same token forever.
-            if advanced && self.previous_token.token_type == TokenType::NewLine {
-                return;
-            }
             self.advance();
-            advanced = true;
         }
     }
 
@@ -565,10 +562,14 @@ impl Parser {
         self.skip_new_lines();
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            let start_offset = self.current_token.offset;
             if let Some(stmt) = self.declaration() {
                 statements.push(stmt);
             }
             if self.panic_mode {
+                if self.current_token.offset == start_offset {
+                    self.advance();
+                }
                 self.synchronize(true);
             }
         }
@@ -797,12 +798,12 @@ impl Parser {
     /// and leaves that token unconsumed, so it isn't swallowed as if it
     /// were part of the failed expression.
     fn skip_new_lines_before_expression(&mut self) -> bool {
-        let fallback = self.current_location();
+        let location_before_skip = self.current_location();
         let had_newline = self.check(TokenType::NewLine);
         self.skip_new_lines();
         if !self.can_start_expression() {
             let location = if had_newline {
-                fallback
+                location_before_skip
             } else {
                 self.current_token_location()
             };
