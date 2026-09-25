@@ -42,9 +42,6 @@ struct FunctionCompiler {
     locals: Vec<Local>,
     scope_depth: u32,
     loop_contexts: Vec<LoopContext>,
-    /// Operand-overflow kinds already reported for this function, so a
-    /// function with many overflowing indices produces one error per kind
-    /// instead of one per occurrence.
     reported_overflows: HashSet<&'static str>,
 }
 
@@ -230,21 +227,15 @@ impl<'a> CodeGenerator<'a> {
         kind: &'static str,
         location: SourceLocation,
     ) -> Option<u16> {
-        let count = index as u64 + 1;
-        if count > u16::MAX as u64 {
+        let count = index as usize + 1;
+        if count > u16::MAX as usize {
             if self.current().reported_overflows.insert(kind) {
                 let message = format!(
-                    "too many {} in one function: {} (maximum is {})",
+                    "too many {} in one function (maximum is {})",
                     kind,
-                    count,
                     u16::MAX
                 );
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Codegen,
-                    CompilationErrorKind::Other,
-                    message,
-                    location,
-                ));
+                self.check_count_limit(count, u16::MAX as usize, message, location);
             }
             None
         } else {
@@ -335,19 +326,12 @@ impl<'a> CodeGenerator<'a> {
                 Capture::Local(decl) => (true, self.decl_slot(decl)),
                 Capture::Upvalue(index) => (false, index),
             };
-            let message = format!(
-                "captured variable index too large: {} (maximum is {})",
-                index,
-                u16::MAX
-            );
-            if self
-                .check_count_limit(index as usize, u16::MAX as usize, message, location)
-                .is_none()
-            {
+            let kind = if is_local { "locals" } else { "upvalues" };
+            let Some(index) = self.checked_index(index, kind, location) else {
                 return;
-            }
+            };
             self.current_chunk().write_u8(if is_local { 1 } else { 0 });
-            self.current_chunk().write_u16(index as u16);
+            self.current_chunk().write_u16(index);
         }
     }
 

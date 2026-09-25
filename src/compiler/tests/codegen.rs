@@ -714,6 +714,50 @@ fn test_function_constant_pool_too_large() {
 }
 
 #[test]
+fn test_function_constant_pool_at_limit_compiles() {
+    // 65,535 distinct constants is exactly the u16 index limit.
+    let mut body = String::new();
+    for i in 0..65535 {
+        body.push_str(&i.to_string());
+        body.push('\n');
+    }
+    let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
+
+    assert!(compile_program(&program).is_ok());
+}
+
+#[test]
+fn test_function_constant_pool_overflow_reports_once() {
+    // Overflowing further than the minimum still reports a single error.
+    let mut body = String::new();
+    for i in 0..65540 {
+        body.push_str(&i.to_string());
+        body.push('\n');
+    }
+    let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
+
+    let err = compile_program(&program).unwrap_err();
+    assert_eq!(err.matches("too many constants").count(), 1, "{}", err);
+}
+
+#[test]
+fn test_nested_functions_each_report_their_own_constant_overflow() {
+    // Overflowing constant pools in two different functions are two
+    // independent errors, not deduplicated across functions.
+    let mut body = String::new();
+    for i in 0..65536 {
+        body.push_str(&i.to_string());
+        body.push('\n');
+    }
+    let program = format!(
+        "fn outer() {{\n{body}\n    fn inner() {{\n{body}\n    }}\n    inner()\n}}\nouter()\n"
+    );
+
+    let err = compile_program(&program).unwrap_err();
+    assert_eq!(err.matches("too many constants").count(), 2, "{}", err);
+}
+
+#[test]
 fn test_map_literal_too_large() {
     // Generate a map literal with more than 65535 entries
     let entries: Vec<String> = (0..70000).map(|i| format!("{}: {}", i, i)).collect();

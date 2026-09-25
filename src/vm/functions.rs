@@ -690,7 +690,6 @@ impl VirtualMachine {
         None
     }
 
-    /// Reads the u16 index operand following the current opcode.
     fn read_index(&self) -> usize {
         let frame = self.current_frame();
         frame.closure.function.chunk.read_u16(frame.ip + 1) as usize

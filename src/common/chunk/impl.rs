@@ -31,10 +31,6 @@ impl Chunk {
         self.strings.write_value(value)
     }
 
-    /// Writes `op_code` followed by its u16 index operand. Test-only: real
-    /// codegen routes every index through `CodeGenerator::emit_index_op`,
-    /// which reports a compile error instead of letting an oversized index
-    /// panic or truncate.
     #[cfg(test)]
     pub(crate) fn write_indexed(&mut self, op_code: OpCode, index: u32, line: u32, column: u32) {
         self.write_op_code(op_code, line, column);
@@ -46,13 +42,6 @@ impl Chunk {
         let constant_index = self.add_constant(value);
         self.write_indexed(OpCode::Constant, constant_index, line, column);
         constant_index
-    }
-
-    #[cfg(test)]
-    pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
-        let string_index = self.add_string(value);
-        self.write_indexed(OpCode::String, string_index, line, column);
-        string_index
     }
 
     pub(crate) fn write_u8(&mut self, value: u8) {
