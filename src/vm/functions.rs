@@ -1109,10 +1109,17 @@ impl VirtualMachine {
             )));
         }
 
-        let start_int = start as i64;
-        let end_int = end as i64;
+        let range = Value::new_range(start as i64, end as i64, inclusive);
+        if let Value::Range(r) = &range {
+            if r.len() > MAX_RANGE_BOUND as i64 {
+                return Err(self.runtime_error(format!(
+                    "Range must have at most 2^53 elements, got {}",
+                    range
+                )));
+            }
+        }
 
-        self.push(Value::new_range(start_int, end_int, inclusive));
+        self.push(range);
 
         let frame = self.current_frame_mut();
         frame.ip += 1;

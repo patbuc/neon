@@ -1283,3 +1283,16 @@ fn range_huge_end_halts() {
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
 }
+
+#[test]
+fn range_longer_than_2_pow_53_halts() {
+    let program = r#"
+        print((0..=9007199254740992).size())
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
+}
