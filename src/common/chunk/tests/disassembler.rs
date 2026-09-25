@@ -31,7 +31,7 @@ fn create_set_instruction_round_trips_counts_above_255() {
 #[test]
 fn invoke_instruction_next_offset_is_four() {
     let mut chunk = Chunk::new("origin");
-    let name_index = chunk.add_string(string!("push")) as u16;
+    let name_index = chunk.add_constant(string!("push")) as u16;
     chunk.write_op_code(OpCode::Invoke, 1, 1);
     chunk.write_u16(name_index);
     chunk.write_u8(2);

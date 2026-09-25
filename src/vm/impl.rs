@@ -140,7 +140,6 @@ impl VirtualMachine {
                 OpCode::Less => self.op_compare(Comparison::Less)?,
                 OpCode::LessEqual => self.op_compare(Comparison::LessEqual)?,
                 OpCode::Not => self.op_not(),
-                OpCode::String => self.op_string(),
                 OpCode::Pop => _ = self.pop(),
                 OpCode::GetLocal => self.op_get_local()?,
                 OpCode::SetLocal => self.op_set_local()?,

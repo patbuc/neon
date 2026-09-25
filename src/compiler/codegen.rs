@@ -37,12 +37,22 @@ enum LoopExit {
     Continue,
 }
 
+/// Key under which a deduplicable constant is looked up. Strings are keyed
+/// by content; numbers by their bit pattern, so `0.0` and `-0.0` (whose
+/// values compare equal) stay distinct pool entries.
+#[derive(PartialEq, Eq, Hash)]
+enum ConstantKey {
+    String(Rc<String>),
+    Number(u64),
+}
+
 struct FunctionCompiler {
     chunk: Chunk,
     locals: Vec<Local>,
     scope_depth: u32,
     loop_contexts: Vec<LoopContext>,
     reported_overflows: HashSet<&'static str>,
+    constant_keys: HashMap<ConstantKey, u32>,
 }
 
 impl FunctionCompiler {
@@ -53,6 +63,7 @@ impl FunctionCompiler {
             scope_depth: 0,
             loop_contexts: Vec::new(),
             reported_overflows: HashSet::new(),
+            constant_keys: HashMap::new(),
         }
     }
 
@@ -379,14 +390,28 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn emit_constant(&mut self, value: Value, location: SourceLocation) {
+    /// Adds `value` to the current function's constant pool, reusing the
+    /// existing index for a repeated string or number.
+    pub(super) fn add_constant(&mut self, value: Value) -> u32 {
+        let key = match &value {
+            Value::String(s) => Some(ConstantKey::String(Rc::clone(s))),
+            Value::Number(n) => Some(ConstantKey::Number(n.to_bits())),
+            _ => None,
+        };
+        let Some(key) = key else {
+            return self.current_chunk().add_constant(value);
+        };
+        if let Some(&index) = self.current().constant_keys.get(&key) {
+            return index;
+        }
         let index = self.current_chunk().add_constant(value);
-        self.emit_index_op(OpCode::Constant, index, "constants", location);
+        self.current().constant_keys.insert(key, index);
+        index
     }
 
-    fn emit_string(&mut self, value: Value, location: SourceLocation) {
-        let index = self.current_chunk().add_string(value);
-        self.emit_index_op(OpCode::String, index, "strings", location);
+    fn emit_constant(&mut self, value: Value, location: SourceLocation) {
+        let index = self.add_constant(value);
+        self.emit_index_op(OpCode::Constant, index, "constants", location);
     }
 
     fn emit_return(&mut self, location: SourceLocation) {
@@ -947,7 +972,7 @@ impl<'a> CodeGenerator<'a> {
         for part in parts {
             match part {
                 InterpolationPart::Literal(s) => {
-                    self.emit_string(string!(s.as_str()), location);
+                    self.emit_constant(string!(s.as_str()), location);
                 }
                 InterpolationPart::Expression(expr) => {
                     // Generate the expression
@@ -966,7 +991,7 @@ impl<'a> CodeGenerator<'a> {
 
         // If there are no parts, emit an empty string
         if parts.is_empty() {
-            self.emit_string(string!(""), location);
+            self.emit_constant(string!(""), location);
         }
     }
 
@@ -1190,7 +1215,7 @@ impl<'a> CodeGenerator<'a> {
                 self.emit_constant(number!(*value), *location);
             }
             Expr::String { value, location } => {
-                self.emit_string(string!(value.as_str()), *location);
+                self.emit_constant(string!(value.as_str()), *location);
             }
             Expr::StringInterpolation { parts, location } => {
                 self.generate_string_interpolation_expr(parts, *location);
@@ -1256,8 +1281,8 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_expr(object);
                 let field_string = string!(field.as_str());
-                let field_index = self.current_chunk().add_string(field_string);
-                self.emit_index_op(OpCode::GetField, field_index, "strings", *location);
+                let field_index = self.add_constant(field_string);
+                self.emit_index_op(OpCode::GetField, field_index, "constants", *location);
             }
             Expr::SetField {
                 object,
@@ -1268,8 +1293,8 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(object);
                 self.generate_expr(value);
                 let field_string = string!(field.as_str());
-                let field_index = self.current_chunk().add_string(field_string);
-                self.emit_index_op(OpCode::SetField, field_index, "strings", *location);
+                let field_index = self.add_constant(field_string);
+                self.emit_index_op(OpCode::SetField, field_index, "constants", *location);
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
@@ -1431,8 +1456,8 @@ impl<'a> CodeGenerator<'a> {
     /// Emits `Invoke`: a method call dispatched by name at runtime. The
     /// stack must already hold `[receiver, args...]`.
     fn emit_invoke(&mut self, method_name: &str, argc: u8, location: SourceLocation) {
-        let name_index = self.current_chunk().add_string(string!(method_name));
-        let Some(name_index) = self.checked_index(name_index, "strings", location) else {
+        let name_index = self.add_constant(string!(method_name));
+        let Some(name_index) = self.checked_index(name_index, "constants", location) else {
             return;
         };
         self.emit_op_code(OpCode::Invoke, location);
@@ -1450,10 +1475,10 @@ impl<'a> CodeGenerator<'a> {
         takes_self: bool,
         location: SourceLocation,
     ) {
-        let type_index = self.current_chunk().add_string(string!(type_name));
-        let method_index = self.current_chunk().add_string(string!(method_name));
-        let type_index = self.checked_index(type_index, "strings", location);
-        let method_index = self.checked_index(method_index, "strings", location);
+        let type_index = self.add_constant(string!(type_name));
+        let method_index = self.add_constant(string!(method_name));
+        let type_index = self.checked_index(type_index, "constants", location);
+        let method_index = self.checked_index(method_index, "constants", location);
         let (Some(type_index), Some(method_index)) = (type_index, method_index) else {
             return;
         };

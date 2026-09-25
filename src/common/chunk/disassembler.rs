@@ -60,7 +60,6 @@ impl Chunk {
             OpCode::Less => self.simple_instruction(OpCode::Less, offset, out),
             OpCode::LessEqual => self.simple_instruction(OpCode::LessEqual, offset, out),
             OpCode::Not => self.simple_instruction(OpCode::Not, offset, out),
-            OpCode::String => self.string_instruction(offset, out),
             OpCode::Pop => self.simple_instruction(OpCode::Pop, offset, out),
             OpCode::SetLocal => self.variable_instruction(OpCode::SetLocal, offset, out),
             OpCode::GetLocal => self.variable_instruction(OpCode::GetLocal, offset, out),
@@ -109,8 +108,8 @@ impl Chunk {
         let type_index = self.read_u16(offset + 1) as usize;
         let method_index = self.read_u16(offset + 3) as usize;
         let takes_self = self.read_u8(offset + 5) != 0;
-        let type_name = self.read_string(type_index);
-        let method_name = self.read_string(method_index);
+        let type_name = self.read_constant(type_index);
+        let method_name = self.read_constant(method_index);
         let kind = if takes_self { "instance" } else { "static" };
         writeln!(
             out,
@@ -131,7 +130,7 @@ impl Chunk {
 
     fn field_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let index = self.read_u16(offset + 1) as usize;
-        let field_name = self.read_string(index);
+        let field_name = self.read_constant(index);
         writeln!(out, "{:?} {:02} '{}'", op_code, index, field_name).unwrap();
         offset + 3
     }
@@ -175,13 +174,6 @@ impl Chunk {
         offset + 5
     }
 
-    fn string_instruction(&self, offset: usize, out: &mut String) -> usize {
-        let index = self.read_u16(offset + 1) as usize;
-        let string = self.read_string(index);
-        writeln!(out, "{:?} {:02} '{}'", OpCode::String, index, string).unwrap();
-        offset + 3
-    }
-
     fn call_instruction(&self, offset: usize, out: &mut String) -> usize {
         let arg_count = self.read_u8(offset + 1);
         writeln!(out, "Call (args: {})", arg_count).unwrap();
@@ -190,7 +182,7 @@ impl Chunk {
 
     fn invoke_instruction(&self, offset: usize, out: &mut String) -> usize {
         let name_index = self.read_u16(offset + 1) as usize;
-        let name = self.read_string(name_index);
+        let name = self.read_constant(name_index);
         let arg_count = self.read_u8(offset + 3);
         writeln!(out, "Invoke {} (args: {})", name, arg_count).unwrap();
         offset + 4

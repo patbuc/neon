@@ -223,8 +223,7 @@ fn test_else_if_bytecode_simple() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -291,8 +290,7 @@ fn test_else_if_bytecode_multiple_branches() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -353,8 +351,7 @@ fn test_else_if_bytecode_without_final_else() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::String => {
+            | OpCode::SetField => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -770,6 +767,103 @@ fn test_nested_functions_each_report_their_own_constant_overflow() {
     assert_eq!(err.matches("too many constants").count(), 2, "{}", err);
 }
 
+// =============================================================================
+// Constant pool deduplication tests
+// =============================================================================
+
+fn count_strings(chunk: &Chunk, s: &str) -> usize {
+    use crate::common::Value;
+    chunk
+        .constants
+        .values
+        .iter()
+        .filter(|value| matches!(value, Value::String(v) if v.as_str() == s))
+        .count()
+}
+
+fn count_numbers(chunk: &Chunk, n: f64) -> usize {
+    use crate::common::Value;
+    chunk
+        .constants
+        .values
+        .iter()
+        .filter(|value| matches!(value, Value::Number(v) if *v == n))
+        .count()
+}
+
+#[test]
+fn test_repeated_string_literal_dedups() {
+    let program = "print(\"hi\")\n".repeat(10);
+    let chunk = compile_program(&program).unwrap();
+    assert_eq!(count_strings(&chunk, "hi"), 1);
+}
+
+#[test]
+fn test_repeated_field_name_dedups() {
+    let program = r#"
+    struct P { x }
+    val p = P(1)
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    p.x
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert_eq!(count_strings(&chunk, "x"), 1);
+}
+
+#[test]
+fn test_repeated_method_name_dedups() {
+    let program = r#"
+    struct P { }
+    impl P {
+        fn m(self) { return 1 }
+    }
+    val p = P()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    p.m()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    assert_eq!(count_strings(&chunk, "m"), 1);
+}
+
+#[test]
+fn test_repeated_number_literal_dedups() {
+    let program = "1\n".repeat(10);
+    let chunk = compile_program(&program).unwrap();
+    assert_eq!(count_numbers(&chunk, 1.0), 1);
+}
+
+#[test]
+fn test_zero_and_negative_zero_stay_distinct() {
+    use crate::common::Value;
+
+    let mut parser = Parser::new("");
+    let ast = parser.parse().unwrap();
+    let mut analyzer = SemanticAnalyzer::new();
+    let resolutions = analyzer.analyze(&ast).unwrap();
+    let mut codegen = CodeGenerator::new(&resolutions, parser.end_locations());
+
+    let positive_zero = codegen.add_constant(Value::Number(0.0));
+    let negative_zero = codegen.add_constant(Value::Number(-0.0));
+
+    assert_ne!(positive_zero, negative_zero);
+}
+
 #[test]
 fn test_map_literal_too_large() {
     // Generate a map literal with more than 65535 entries
@@ -1018,7 +1112,6 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             OpCode::Invoke => 3,
             OpCode::CreateArray => 2,
             OpCode::Constant
-            | OpCode::String
             | OpCode::SetLocal
             | OpCode::GetLocal
             | OpCode::GetGlobal
@@ -1276,14 +1369,14 @@ fn test_c_style_for_bytecode() {
 001d      | JumpIfFalse 001d -> 0049
 0022      | Pop
 0023      3 GetLocal 00
-0026      | Constant 03 '1'
+0026      | Constant 01 '1'
 0029      | Equal
 002a      | JumpIfFalse 002a -> 003a
 002f      | Pop
 0030      | Jump 0030 -> 0044
 0035      | Jump 0035 -> 003b
 003a      | Pop
-003b      4 Constant 04 '<native fn print>'
+003b      4 Constant 03 '<native fn print>'
 003e      | GetLocal 00
 0041      | Call (args: 1)
 0043      3 Pop
@@ -1398,23 +1491,23 @@ fn test_closure_capturing_loop_variable_bytecode() {
 0040      | Loop 0040 -> 0018
 0045      | Pop
 0046      | CloseUpvalue
-0047      6 Constant 05 '<native fn print>'
+0047      6 Constant 06 '<native fn print>'
 004a      | GetLocal 00
-004d      | Constant 06 '0'
+004d      | Constant 01 '0'
 0050      | GetIndex
 0051      | Call (args: 0)
 0053      | Call (args: 1)
 0055      5 Pop
 0056      7 Constant 07 '<native fn print>'
 0059      | GetLocal 00
-005c      | Constant 08 '1'
+005c      | Constant 02 '1'
 005f      | GetIndex
 0060      | Call (args: 0)
 0062      | Call (args: 1)
 0064      6 Pop
-0065      8 Constant 09 '<native fn print>'
+0065      8 Constant 08 '<native fn print>'
 0068      | GetLocal 00
-006b      | Constant 10 '2'
+006b      | Constant 09 '2'
 006e      | GetIndex
 006f      | Call (args: 0)
 0071      | Call (args: 1)

@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 55] = [
+        const OPCODES: [OpCode; 54] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -20,7 +20,6 @@ impl OpCode {
             OpCode::Less,
             OpCode::LessEqual,
             OpCode::Not,
-            OpCode::String,
             OpCode::Pop,
             OpCode::SetLocal,
             OpCode::GetLocal,
@@ -84,7 +83,6 @@ pub(crate) enum OpCode {
     Less,
     LessEqual,
     Not,
-    String,
     Pop,
     SetLocal,
     GetLocal,
@@ -92,7 +90,7 @@ pub(crate) enum OpCode {
     Jump,
     Loop,
     Call,
-    /// Method call dispatched by name at runtime: a 16-bit string-pool
+    /// Method call dispatched by name at runtime: a 16-bit constant-pool
     /// index for the method name, then an 8-bit argument count excluding
     /// the receiver. Stack: `[receiver, args...]`.
     Invoke,
@@ -133,7 +131,7 @@ pub(crate) enum OpCode {
     /// Closes the upvalue on the top-of-stack slot without popping it.
     CloseUpvalueInPlace,
     /// Pops a closure and registers it as a method under a type name and
-    /// method name (both read as fixed 16-bit string indices).
+    /// method name (both read as fixed 16-bit constant-pool indices).
     DefineMethod,
     /// Peeks the top of the stack and errors if it holds a hoisted
     /// declaration's uninitialized sentinel; otherwise a no-op.

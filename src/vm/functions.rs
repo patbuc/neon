@@ -66,17 +66,6 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_string(&mut self) {
-        let frame = self.current_frame_mut();
-        let string = {
-            let string_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_string(string_index)
-        };
-        frame.ip += 2;
-        self.push(string);
-    }
-
-    #[inline(always)]
     pub(in crate::vm) fn op_not(&mut self) {
         let value = self.pop();
         self.push(boolean!(is_false_like!(value)));
@@ -104,7 +93,7 @@ impl VirtualMachine {
         let (method_name, arg_count) = {
             let frame = self.current_frame();
             let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            let name = frame.closure.function.chunk.read_string(name_index);
+            let name = frame.closure.function.chunk.read_constant(name_index);
             let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
             (name, arg_count)
         };
@@ -905,7 +894,7 @@ impl VirtualMachine {
 
         let field_name_value = {
             let frame = self.current_frame();
-            frame.closure.function.chunk.read_string(field_name_index)
+            frame.closure.function.chunk.read_constant(field_name_index)
         };
         let field_name = match &field_name_value {
             Value::String(s) => s.as_str(),
@@ -939,7 +928,7 @@ impl VirtualMachine {
 
         let field_name_value = {
             let frame = self.current_frame();
-            frame.closure.function.chunk.read_string(field_name_index)
+            frame.closure.function.chunk.read_constant(field_name_index)
         };
         let field_name = match &field_name_value {
             Value::String(s) => s.as_str(),
@@ -1437,11 +1426,11 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         let type_name = {
             let index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_string(index)
+            frame.closure.function.chunk.read_constant(index)
         };
         let method_name = {
             let index = frame.closure.function.chunk.read_u16(frame.ip + 3) as usize;
-            frame.closure.function.chunk.read_string(index)
+            frame.closure.function.chunk.read_constant(index)
         };
         let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 5) != 0;
         frame.ip += 5;
