@@ -10,6 +10,7 @@ use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 struct Local {
     depth: u32,
@@ -104,12 +105,15 @@ impl<'a> CodeGenerator<'a> {
     }
 
     pub fn generate(&mut self, statements: &[Stmt]) -> CompilationResult<Chunk> {
-        // First: Define all functions and structs with placeholders
-        // This allows forward references to work
+        // First: allocate one slot per top-level declaration, in statement
+        // order, so every slot is known before any body is compiled. A
+        // val/var slot starts out holding the uninitialized sentinel, which
+        // GetGlobal/SetGlobal reject until its statement runs.
         for stmt in statements {
             match stmt {
                 Stmt::Fn { id, location, .. } => {
-                    // Define function with nil placeholder
+                    // Define function with nil placeholder; overwritten
+                    // below before any statement runs.
                     self.emit_op_code(OpCode::Nil, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -127,7 +131,37 @@ impl<'a> CodeGenerator<'a> {
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
                 }
+                Stmt::Val {
+                    name, id, location, ..
+                }
+                | Stmt::Var {
+                    name, id, location, ..
+                } => {
+                    let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                    self.emit_constant(sentinel, *location);
+                    let decl = self.resolutions.decl(*id);
+                    self.bind_decl_local(decl, *location);
+                }
                 _ => {}
+            }
+        }
+
+        // Then: compile every top-level fn body into a closure and store it
+        // into its pre-allocated slot, so a body can call - or be called by
+        // - any other top-level function regardless of declaration order.
+        for stmt in statements {
+            if let Stmt::Fn {
+                name,
+                params,
+                body,
+                id,
+                location,
+            } = stmt
+            {
+                self.generate_closure(*id, name, params, body, *location);
+                let slot = self.decl_slot(self.resolutions.decl(*id));
+                self.emit_op_code_variant(OpCode::SetLocal, slot, *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
         }
 
@@ -155,7 +189,8 @@ impl<'a> CodeGenerator<'a> {
             }
         }
 
-        // Then: Generate code for all statements
+        // Then: Generate code for all statements. A top-level Stmt::Fn is a
+        // no-op here - its closure was already compiled and stored above.
         for stmt in statements {
             self.generate_stmt(stmt);
         }
@@ -344,9 +379,16 @@ impl<'a> CodeGenerator<'a> {
             self.emit_op_code(OpCode::Nil, location);
         }
 
-        // Define local variable
         let decl = self.resolutions.decl(id);
-        self.bind_decl_local(decl, location);
+        if self.current().scope_depth == 0 {
+            // Top level: the slot was pre-allocated in generate()'s
+            // prologue, holding the uninitialized sentinel - store into it.
+            let slot = self.decl_slot(decl);
+            self.emit_op_code_variant(OpCode::SetLocal, slot, location);
+            self.emit_op_code(OpCode::Pop, location);
+        } else {
+            self.bind_decl_local(decl, location);
+        }
     }
 
     fn generate_fn_stmt(
@@ -357,12 +399,16 @@ impl<'a> CodeGenerator<'a> {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        // A nested function isn't pre-defined by generate()'s pre-pass, so define it now, before compiling its body, so it can recurse.
-        if self.current().scope_depth > 0 {
-            self.emit_op_code(OpCode::Nil, location);
-            let decl = self.resolutions.decl(id);
-            self.bind_decl_local(decl, location);
+        if self.current().scope_depth == 0 {
+            // Top level: already compiled into a closure and stored into its
+            // pre-allocated slot by generate()'s prologue.
+            return;
         }
+
+        // A nested function isn't pre-defined, so define it now, before compiling its body, so it can recurse.
+        self.emit_op_code(OpCode::Nil, location);
+        let decl = self.resolutions.decl(id);
+        self.bind_decl_local(decl, location);
 
         self.generate_closure(id, name, params, body, location);
 

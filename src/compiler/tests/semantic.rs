@@ -661,6 +661,30 @@ impl Circle {
         let use_id = find_var(&idx, "helper", 0);
         assert_eq!(res.res(use_id), Res::Global(decl));
     }
+
+    #[test]
+    fn impl_method_body_reads_toplevel_val_as_global() {
+        let (ast, res) = analyze(
+            r#"
+struct Point {
+    x
+    y
+}
+val scale = 10
+impl Point {
+    fn scaled(self) {
+        return self.x * scale
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "scale"));
+        let use_id = find_var(&idx, "scale", 0);
+        assert_eq!(res.res(use_id), Res::Global(decl));
+    }
 }
 
 #[test]
@@ -3320,33 +3344,6 @@ impl Point {
 }
 
 #[test]
-fn test_method_referencing_top_level_val_is_compile_error() {
-    let program = r#"
-struct Point {
-    x
-    y
-}
-val scale = 10
-impl Point {
-    fn scaled(self) {
-        return self.x * scale
-    }
-}
-"#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Undefined variable 'scale'")));
-}
-
-#[test]
 fn test_static_call_on_instance_method_is_compile_error() {
     let program = r#"
 struct Point {
@@ -3756,4 +3753,79 @@ impl Array {
     assert!(errors.iter().any(|e| e
         .message
         .contains("Type 'Array' has no method named 'bogus'")));
+}
+
+#[test]
+fn forward_use_inside_top_level_block_is_compile_error() {
+    let program = r#"
+{
+    print(b)
+}
+val b = 1
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot use 'b' before its declaration")));
+}
+
+#[test]
+fn top_level_lambda_reading_later_val_compiles() {
+    let program = r#"
+val f = fn() { return b }
+val b = 1
+print(f())
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok(), "{:?}", result.unwrap_err());
+}
+
+#[test]
+fn top_level_postfix_increment_before_declaration_is_compile_error() {
+    let program = r#"
+x++
+var x = 1
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
+}
+
+#[test]
+fn top_level_assignment_before_declaration_is_compile_error() {
+    let program = r#"
+x = 5
+var x = 1
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
 }
