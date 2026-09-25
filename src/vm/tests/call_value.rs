@@ -1,3 +1,4 @@
+use crate::common::NativeCallError;
 use crate::number;
 use crate::vm::{Result, VirtualMachine};
 
@@ -20,6 +21,10 @@ fn call_value_wrong_arity_is_an_error_without_running_the_callee() {
 
     let callee = vm.stack[0].clone();
     let outcome = vm.call_value(callee, &[number!(1.0)]);
-    assert!(outcome.is_err());
-    assert!(vm.get_runtime_errors().contains("Expected 2 arguments"));
+    match outcome {
+        Err(NativeCallError::Runtime(e)) => {
+            assert!(e.message.contains("Expected 2 arguments"))
+        }
+        other => panic!("expected a runtime error, got {:?}", other),
+    }
 }

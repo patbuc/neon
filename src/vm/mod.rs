@@ -6,8 +6,11 @@ use std::rc::Rc;
 
 mod functions;
 mod r#impl;
+mod runtime_error;
 #[cfg(test)]
 mod tests;
+
+pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]
 pub enum Result {
@@ -32,7 +35,7 @@ pub struct VirtualMachine {
     string_buffer: String,
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
-    runtime_errors: String,
+    runtime_error: Option<RuntimeError>,
     source: String,
     /// Iterator stack: Vec of (current_index, collection_value)
     /// Used for for-in loops to track iteration progress
@@ -75,6 +78,6 @@ impl VirtualMachine {
         };
         self.call_frames.push(frame);
 
-        self.run_until(0)
+        self.run_script(0)
     }
 }

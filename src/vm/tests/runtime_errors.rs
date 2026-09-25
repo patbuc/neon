@@ -1,6 +1,6 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Value};
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{Result, TraceFrame, VirtualMachine};
 use crate::{as_number, number};
 use std::rc::Rc;
 
@@ -815,4 +815,289 @@ fn check_initialized_on_normal_value_passes_through() {
     let result = vm.run_chunk(chunk);
     assert_eq!(Result::Ok, result);
     assert_eq!(42.0, as_number!(vm.pop()));
+}
+
+#[test]
+fn nested_call_error_reports_frames_innermost_first() {
+    let program = "fn outer() { return inner() }\nfn inner() { return 1 + true }\nouter()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "inner".to_string(),
+                line: Some(2),
+            },
+            TraceFrame {
+                function: "outer".to_string(),
+                line: Some(1),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(3),
+            },
+        ],
+        error.frames
+    );
+    assert_eq!(
+        "  at inner (line 2)\n  at outer (line 1)\n  at <script> (line 3)",
+        error.trace()
+    );
+}
+
+#[test]
+fn native_callback_error_trace_has_no_native_frame() {
+    let program = r#"
+        fn boom(x) { return x + true }
+        print([1, 2, 3].map(boom))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "boom".to_string(),
+                line: Some(2),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(3),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn unbounded_recursion_trace_is_capped() {
+    let program = "fn f(n) { return f(n + 1) }\nf(0)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(10_000, error.frames.len());
+
+    let trace = error.trace();
+    let lines: Vec<&str> = trace.lines().collect();
+    assert_eq!(21, lines.len());
+    assert_eq!("  ... 9980 frames omitted", lines[10]);
+    for line in &lines[..10] {
+        assert_eq!("  at f (line 1)", *line);
+    }
+    for line in &lines[11..20] {
+        assert_eq!("  at f (line 1)", *line);
+    }
+    assert_eq!("  at <script> (line 2)", lines[20]);
+}
+
+#[test]
+fn trace_at_exactly_twenty_one_frames_is_not_collapsed() {
+    let program = r#"
+        fn f(n) {
+            if (n == 0) { return 1 + true }
+            return f(n - 1)
+        }
+        f(19)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(21, error.frames.len());
+    let trace = error.trace();
+    let lines: Vec<&str> = trace.lines().collect();
+    assert_eq!(21, lines.len());
+    assert!(!trace.contains("omitted"));
+    assert_eq!("  at f (line 3)", lines[0]);
+    for line in &lines[1..20] {
+        assert_eq!("  at f (line 4)", *line);
+    }
+    assert_eq!("  at <script> (line 6)", lines[20]);
+}
+
+#[test]
+fn trace_at_twenty_two_frames_is_collapsed() {
+    let program = r#"
+        fn f(n) {
+            if (n == 0) { return 1 + true }
+            return f(n - 1)
+        }
+        f(20)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(22, error.frames.len());
+    let trace = error.trace();
+    let lines: Vec<&str> = trace.lines().collect();
+    assert_eq!(21, lines.len());
+    assert_eq!("  ... 2 frames omitted", lines[10]);
+}
+
+#[test]
+fn caller_frame_line_is_the_call_site_not_the_next_statement() {
+    let program = "fn boom() { return 1 + true }\nfn outer() {\n  boom()\n  print(1)\n}\nouter()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "boom".to_string(),
+                line: Some(1),
+            },
+            TraceFrame {
+                function: "outer".to_string(),
+                line: Some(3),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(6),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn arity_mismatch_through_a_stored_function_reports_the_call_site() {
+    let program = "fn g(a) { return a }\nval k = g\nfn h() {\n  k()\n  print(1)\n}\nh()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(Some((4, 4)), error.location);
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "h".to_string(),
+                line: Some(4),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(7),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn native_message_error_through_a_nested_call_reports_the_call_site() {
+    let program = "fn h() {\n  Math.sqrt(\"a\")\n  print(1)\n}\nh()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(2, error.location.unwrap().0);
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "h".to_string(),
+                line: Some(2),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(5),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn not_callable_error_through_a_nested_call_reports_the_call_site() {
+    let program = "fn h() {\n  val x = 1\n  x()\n  print(1)\n}\nh()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(3, error.location.unwrap().0);
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "h".to_string(),
+                line: Some(3),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(6),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn struct_field_count_error_through_a_nested_call_reports_the_call_site() {
+    // Calling through a stored value, since a literal `P(1)` is an arity
+    // error the compiler catches before this runs.
+    let program = "struct P { x y }\nval ctor = P\nfn h() {\n  ctor(1)\n  print(1)\n}\nh()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(4, error.location.unwrap().0);
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "h".to_string(),
+                line: Some(4),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(7),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
+    let program = "struct Point { x y }\nimpl Point {\n    fn origin() { return Point(0, 0) }\n}\nfn call_origin(p) {\n  p.origin()\n  print(1)\n}\ncall_origin(Point(1, 2))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(6, error.location.unwrap().0);
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "call_origin".to_string(),
+                line: Some(6),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(9),
+            },
+        ],
+        error.frames
+    );
 }

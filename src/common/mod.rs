@@ -21,12 +21,11 @@ pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 pub(crate) type NativeFnWithVm =
     fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, NativeCallError>;
 
-/// `AlreadyReported` means a callback run through `call_value` already
-/// recorded its own error; the caller must not record it again.
+/// `Runtime` holds an error a `call_value` callback already built.
 #[derive(Debug)]
 pub(crate) enum NativeCallError {
     Message(String),
-    AlreadyReported,
+    Runtime(crate::vm::RuntimeError),
 }
 
 impl From<String> for NativeCallError {
