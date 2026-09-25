@@ -273,9 +273,9 @@ This project uses a three-agent workflow for feature development. The agents are
 ### Quality Gate Commands
 
 ```bash
-cargo fmt                      # Format code
-cargo clippy -- -D warnings    # Lint (no warnings allowed)
-cargo test                     # All tests must pass
+cargo fmt                                    # Format code
+cargo clippy --all-targets -- -D warnings    # Lint (no warnings allowed)
+cargo test                                   # All tests must pass
 ```
 
 ### Plan File State Machine

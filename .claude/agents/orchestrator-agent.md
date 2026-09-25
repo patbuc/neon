@@ -281,7 +281,7 @@ After coding-agent returns, run these commands:
 
 ```bash
 cargo fmt
-cargo clippy -- -D warnings
+cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
@@ -383,7 +383,7 @@ Check plan file - all steps should be `passed` or `skipped`.
 Run full quality check:
 
 ```bash
-cargo build --release && cargo test && cargo clippy -- -D warnings
+cargo build --release && cargo test && cargo clippy --all-targets -- -D warnings
 ```
 
 If this fails, investigate and fix before proceeding.

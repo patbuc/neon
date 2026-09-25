@@ -256,9 +256,8 @@ fn test_parse_complex_program() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -666,9 +665,8 @@ fn test_parse_simple_else_if() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -720,9 +718,8 @@ fn test_parse_multiple_else_if_branches() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -789,9 +786,8 @@ fn test_parse_else_if_without_final_else() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -844,9 +840,8 @@ fn test_parse_nested_if_within_else_if() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1183,9 +1178,8 @@ fn test_parse_method_call_no_args() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1235,9 +1229,8 @@ fn test_parse_method_call_one_arg() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1291,9 +1284,8 @@ fn test_parse_method_call_multiple_args() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1351,9 +1343,8 @@ fn test_parse_chained_method_calls() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1436,9 +1427,8 @@ fn test_parse_method_call_vs_field_access() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1807,9 +1797,8 @@ fn test_parse_empty_map() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1844,9 +1833,8 @@ fn test_parse_map_with_string_keys() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1903,9 +1891,8 @@ fn test_parse_map_with_variable_keys() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -1952,9 +1939,8 @@ fn test_parse_nested_map() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2006,9 +1992,8 @@ fn test_parse_map_with_trailing_comma() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2046,9 +2031,8 @@ fn test_parse_map_with_multiline() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2070,9 +2054,8 @@ fn test_parse_empty_set() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2107,9 +2090,8 @@ fn test_parse_set_with_elements() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2151,9 +2133,8 @@ fn test_parse_set_with_multiline_trailing_comma() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2199,9 +2180,8 @@ fn test_parse_index_access() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2243,9 +2223,8 @@ fn test_parse_index_assignment() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2293,9 +2272,8 @@ fn test_parse_chained_index_access() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2355,9 +2333,8 @@ fn test_parse_index_with_variable_key() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2393,9 +2370,8 @@ fn test_parse_index_with_expression_key() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2438,9 +2414,8 @@ fn test_parse_postfix_increment() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2475,9 +2450,8 @@ fn test_parse_postfix_decrement() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2512,9 +2486,8 @@ fn test_parse_postfix_in_expression() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2555,9 +2528,8 @@ fn test_parse_postfix_with_field_access() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2597,9 +2569,8 @@ fn test_parse_postfix_with_array_index() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2643,9 +2614,8 @@ fn test_parse_postfix_precedence() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2766,9 +2736,8 @@ fn test_parse_map_with_index_access() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2801,9 +2770,8 @@ fn test_parse_complex_map_program() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2825,9 +2793,8 @@ fn test_parse_empty_array() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2860,9 +2827,8 @@ fn test_parse_array_with_numbers() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2907,9 +2873,8 @@ fn test_parse_array_with_mixed_types() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2946,9 +2911,8 @@ fn test_parse_array_with_trailing_comma() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -2981,9 +2945,8 @@ fn test_parse_nested_arrays() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -3050,9 +3013,8 @@ fn test_parse_array_with_multiline() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
@@ -3085,9 +3047,8 @@ fn test_parse_array_with_expressions() {
     let mut parser = Parser::new(program);
     let result = parser.parse();
 
-    if result.is_err() {
-        let errors = result.unwrap_err();
-        for err in &errors {
+    if let Err(errors) = &result {
+        for err in errors {
             eprintln!(
                 "Parse error at {}:{}: {}",
                 err.location.line, err.location.column, err.message
