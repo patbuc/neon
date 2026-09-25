@@ -2479,6 +2479,40 @@ if (true) {
 }
 
 #[test]
+fn test_struct_inside_fn_is_compile_error() {
+    let program = "fn f() {\n    struct P { x }\n    return P(1)\n}\nprint(f().x)\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert!(errors[0].message.contains("'P'"));
+    assert!(errors[0].message.contains("top level"));
+}
+
+#[test]
+fn test_struct_inside_block_is_compile_error() {
+    let program = "if (true) {\n    struct P { x }\n    print(P(1).x)\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert!(errors[0].message.contains("'P'"));
+    assert!(errors[0].message.contains("top level"));
+}
+
+#[test]
 fn test_wrong_argument_count_to_method_names_method() {
     let program = r#"
 struct Point {
