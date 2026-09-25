@@ -4,6 +4,18 @@ use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
+fn disassemble_program(chunk: &Chunk) -> String {
+    use crate::common::Value;
+
+    let mut out = chunk.disassemble();
+    for constant in &chunk.constants.values {
+        if let Value::Function(function) = constant {
+            out.push_str(&disassemble_program(&function.chunk));
+        }
+    }
+    out
+}
+
 fn compile_program(source: &str) -> Result<Chunk, String> {
     // Parse
     let mut parser = Parser::new(source);
@@ -1164,4 +1176,74 @@ fn test_method_call_loads_receiver_then_invoke() {
         .position(|op| *op == OpCode::Invoke)
         .expect("expected an Invoke instruction");
     assert_eq!(OpCode::GetLocal, ops[invoke_index - 1]);
+}
+
+#[test]
+fn test_while_break_continue_bytecode() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    var i = 0
+    while (i < 10) {
+        i = i + 1
+        if (i == 2) { continue }
+        if (i == 5) { break }
+        print(i)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 Constant 00 '<uninitialized>'
+0003      | SetLocal 00
+0006      | Constant 01 '0'
+0009      | SetLocal 00
+000c      | Pop
+000d      3 GetLocal 00
+0010      | Constant 02 '10'
+0013      | Less
+0014      | JumpIfFalse 0014 -> 0063
+0019      | Pop
+001a      4 GetLocal 00
+001d      | Constant 03 '1'
+0020      | Add
+0021      | SetLocal 00
+0024      3 Pop
+0025      5 GetLocal 00
+0028      | Constant 04 '2'
+002b      | Equal
+002c      | JumpIfFalse 002c -> 003c
+0031      | Pop
+0032      | Jump 0032 -> 005e
+0037      | Jump 0037 -> 003d
+003c      | Pop
+003d      6 GetLocal 00
+0040      | Constant 05 '5'
+0043      | Equal
+0044      | JumpIfFalse 0044 -> 0054
+0049      | Pop
+004a      | Jump 004a -> 0064
+004f      | Jump 004f -> 0055
+0054      | Pop
+0055      7 Constant 06 '<native fn print>'
+0058      | GetLocal 00
+005b      | Call (args: 1)
+005d      6 Pop
+005e      3 Loop 005e -> 000d
+0063      | Pop
+0064      0 Nil
+0065      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    assert_eq!(result, crate::vm::Result::Ok);
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "1\n3\n4");
+    }
 }
