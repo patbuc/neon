@@ -22,7 +22,6 @@ impl VirtualMachine {
             builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
             string_buffer: String::new(),
-            compilation_errors: String::new(),
             structured_errors: Vec::new(),
             runtime_error: None,
             source: String::new(),
@@ -53,7 +52,6 @@ impl VirtualMachine {
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
         if chunk.is_none() {
-            self.compilation_errors = compiler.get_compilation_errors();
             self.structured_errors = compiler.get_structured_errors();
             return InterpretResult::CompileError;
         }
@@ -272,7 +270,11 @@ impl VirtualMachine {
 
     #[cfg(test)]
     pub(in crate::vm) fn get_compiler_error(&self) -> String {
-        self.compilation_errors.clone()
+        self.structured_errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     pub fn get_formatted_errors(&self, filename: &str) -> String {

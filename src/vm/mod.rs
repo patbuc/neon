@@ -34,7 +34,6 @@ pub struct VirtualMachine {
     builtin: indexmap::IndexMap<String, Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,
-    compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
     runtime_error: Option<RuntimeError>,
     source: String,
