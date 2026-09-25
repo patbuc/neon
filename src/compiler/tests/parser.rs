@@ -604,6 +604,34 @@ fn test_open_set_across_newline_in_block_reports_one_error() {
 }
 
 #[test]
+fn test_mismatched_closing_delimiter_does_not_swallow_later_statements() {
+    let program = "fn f() {\n    val a = (1 + 2]\n    val b = +\n    val c = +\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 19), (3, 13), (4, 13)]);
+}
+
+#[test]
+fn test_stray_paren_in_lambda_argument_does_not_swallow_later_statements() {
+    let program = "fn f() {\n    foo(fn() { val a = )\n    val b = +\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(2, 24), (3, 13), (5, 1), (5, 1)]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0

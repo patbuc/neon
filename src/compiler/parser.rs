@@ -16,12 +16,8 @@ pub struct Parser {
     errors: Vec<CompilationError>,
     panic_mode: bool,
     next_node_id: u32,
-    /// Open `{`/`#{`, `(`, and `[` counts, tracked separately per bracket
-    /// type. A stray, unmatched closer of one type (consumed as a bad
-    /// expression token during error recovery, e.g. the `)` in
-    /// `val a = )`) only ever throws off its own count, never the others,
-    /// so it can't be mistaken for closing a brace/paren/bracket of a
-    /// different type that's still genuinely open.
+    /// Open `{`/`#{`, `(`, and `[` counts, tracked separately so a stray
+    /// closer of one type can't be mistaken for closing another.
     nesting_depth: (usize, usize, usize),
 }
 
@@ -316,20 +312,10 @@ impl Parser {
         self.errors.push(error);
     }
 
-    /// Skips tokens until the start of the next statement. `block_depth` is
-    /// the parser's `nesting_depth` while inside the block being recovered
-    /// (`None` at the top level). The newline and statement-keyword stops
-    /// fire only once the parser is back down to that full depth, so a
-    /// `}`/`)`/`]` that closes a map/set literal, call, or bracketed group
-    /// opened before the error isn't mistaken for the end of the block, and
-    /// a newline inside such a group doesn't end the skip early either. The
-    /// `}`-closes-the-block stop only needs the brace count to match: `}`
-    /// can never be consumed as a stray bad-expression token (unlike `)`/
-    /// `]`), so it reliably marks the block's own end even while a `(`/`[`
-    /// elsewhere in the recovered statement never finds its match. At the
-    /// top level there's no block depth to compare against, so the same
-    /// stops instead use a local count of groups opened during this skip,
-    /// exactly as before.
+    /// Skips tokens until the start of the next statement, comparing the
+    /// parser's `nesting_depth` against `block_depth` (the block being
+    /// recovered, `None` at the top level) to tell a group opened before
+    /// the error from the block itself.
     fn synchronize(&mut self, block_depth: Option<(usize, usize, usize)>) {
         self.panic_mode = false;
         let mut local_depth: u32 = 0;
@@ -337,11 +323,30 @@ impl Parser {
             if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            if let Some((block_braces, _, _)) = block_depth {
+            if let Some(depth @ (block_braces, _, _)) = block_depth {
                 let (braces, _, _) = self.nesting_depth;
-                if braces == block_braces && self.current_token.token_type == TokenType::RightBrace
-                {
-                    return;
+                if braces == block_braces {
+                    if self.current_token.token_type == TokenType::RightBrace {
+                        return;
+                    }
+                    // Unlike `fn`, these can only start a statement, never
+                    // an expression, so seeing one means any paren/bracket
+                    // the failed statement opened was abandoned, not that
+                    // we're still inside it.
+                    match self.current_token.token_type {
+                        TokenType::Struct
+                        | TokenType::Impl
+                        | TokenType::Val
+                        | TokenType::Var
+                        | TokenType::For
+                        | TokenType::If
+                        | TokenType::While
+                        | TokenType::Return => {
+                            self.nesting_depth = depth;
+                            return;
+                        }
+                        _ => {}
+                    }
                 }
             }
             let at_block_depth = match block_depth {
