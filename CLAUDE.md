@@ -70,11 +70,16 @@ cargo run --features disassemble -- script.n
 
 3. **Semantic Analysis** (`src/compiler/semantic.rs`)
     - Type checking and validation
-    - Symbol resolution via `src/compiler/symbol_table.rs`
-    - Scoped symbol tables with lexical scoping
+    - Resolves every name once, using scoped symbol tables (`src/compiler/symbol_table.rs`) for
+      lexical scoping — including which calls dispatch to a native
+    - Returns `Resolutions` (`src/compiler/resolutions.rs`): a `Res` per name-use node (keyed by the
+      parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
+      captures, and which declarations are captured
+    - Owns name-related diagnostics: undefined variable, break/continue outside a loop, postfix operand
 
 4. **Code Generation** (`src/compiler/codegen.rs`)
-    - Traverses AST and emits bytecode
+    - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
+      and maps each `DeclId` to a stack slot when it defines the local
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts, upvalues) lives in the per-function
       `FunctionCompiler`, not in the Chunk
@@ -116,8 +121,8 @@ cargo run --features disassemble -- script.n
 ### Key Type Interactions
 
 - **CallFrame**: Links function object to instruction pointer and stack slot range
-- **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — variable names, scope
-  depth, capture status for closures
+- **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
+  status for closures; codegen maps each `DeclId` to its slot instead of looking up a name
 - **Iterator Stack**: Supports nested for-in loops by tracking (index, collection) pairs
 - **Builtin Storage**: Separate from call stack to avoid polluting stack frames
 
@@ -137,8 +142,9 @@ cargo run --features disassemble -- script.n
 2. Update scanner in `src/compiler/scanner.rs`
 3. Extend AST nodes in `src/compiler/ast/mod.rs`
 4. Add parsing logic in `src/compiler/parser.rs`
-5. Add semantic validation in `src/compiler/semantic.rs`
-6. Implement code generation in `src/compiler/codegen.rs`
+5. Add semantic validation in `src/compiler/semantic.rs`; a new binding form is resolved here too, so
+   codegen never has to look it up by name
+6. Implement code generation in `src/compiler/codegen.rs`, reading the resolution recorded in step 5
 7. Write integration test in `tests/scripts/` with expected output
 
 ### New Standard Library Function
@@ -165,6 +171,8 @@ cargo run --features disassemble -- script.n
 - **Stack invariants**: Document expected stack state before/after operations in comments
 - **Error reporting**: Always include source location (line/column) from tokens
 - **Symbol tables**: Maintain proper lexical scope depth
+- **Name resolution**: Names shadow lexically — a local or user function named like a native (`print`,
+  `Math`, `File`) wins; the method registry is consulted only when a name resolves to nothing else
 - **Bytecode emission**: Append-only except for jump address backpatching
 - **Opcode design**: Keep instruction set minimal and orthogonal
 
