@@ -208,7 +208,7 @@ impl VirtualMachine {
 
         if let Value::Object(obj) = &receiver {
             if let Object::Instance(inst) = obj.as_ref() {
-                let field_value = { inst.borrow().field(method_name).cloned() };
+                let field_value = inst.borrow().field(method_name).cloned();
                 if let Some(field_value) = field_value {
                     self.stack[receiver_index] = field_value;
                     return self.dispatch_call(arg_count);
