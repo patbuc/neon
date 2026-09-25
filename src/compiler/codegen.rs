@@ -235,7 +235,12 @@ impl<'a> CodeGenerator<'a> {
                     kind,
                     u16::MAX
                 );
-                self.check_count_limit(count, u16::MAX as usize, message, location);
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::Other,
+                    message,
+                    location,
+                ));
             }
             None
         } else {
