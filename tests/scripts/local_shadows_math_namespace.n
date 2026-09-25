@@ -1,0 +1,19 @@
+// local_shadows_math_namespace.n - a local variable named `Math` shadows the
+// native Math namespace within its lexical scope; the top-level `Math`
+// remains the native namespace
+
+// Expected:
+// local abs
+// 3
+
+struct MathLike {
+    abs
+}
+
+fn f() {
+    val Math = MathLike(fn(x) { return "local abs" })
+    return Math.abs(-1)
+}
+
+print(f())
+print(Math.abs(-3))

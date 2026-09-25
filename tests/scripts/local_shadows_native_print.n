@@ -1,0 +1,12 @@
+// local_shadows_native_print.n - a local variable named `print` shadows the
+// native print function within its lexical scope
+
+// Expected:
+// local call
+
+fn f() {
+    val print = fn(x) { return "local " + x }
+    return print("call")
+}
+
+print(f())

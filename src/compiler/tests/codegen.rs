@@ -1148,3 +1148,26 @@ fn test_break_in_nested_fn_is_codegen_error() {
     let err = result.expect_err("codegen must reject break in a nested fn inside a loop");
     assert!(err.contains("outside of a loop"));
 }
+
+#[test]
+fn test_top_level_fn_named_print_shadows_native() {
+    use crate::vm::VirtualMachine;
+
+    let program = r#"
+    fn print(x) {}
+    print("native")
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        // The user-defined print runs instead of the native, so nothing is
+        // printed.
+        assert_eq!(vm.get_output(), "");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
+}

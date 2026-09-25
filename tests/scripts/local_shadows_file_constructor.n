@@ -1,0 +1,12 @@
+// local_shadows_file_constructor.n - a local variable named `File` shadows
+// the native File constructor within its lexical scope
+
+// Expected:
+// mine x
+
+fn f() {
+    val File = fn(p) { return "mine " + p }
+    return File("x")
+}
+
+print(f())
