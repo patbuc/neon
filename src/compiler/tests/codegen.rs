@@ -1,3 +1,4 @@
+use crate::common::opcodes::OpCode;
 use crate::common::stdlib::create_builtin_objects;
 use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
@@ -978,4 +979,60 @@ fn test_postfix_operations_in_function() {
     }
 
     assert_eq!(result, crate::vm::Result::Ok);
+}
+
+/// Walks a chunk's bytecode, stepping over each instruction's operand bytes,
+/// and returns just the opcodes in order. Only knows the operand width of
+/// the opcodes the `>=`/`<=` fixture below emits; panics by name on any
+/// other opcode rather than guessing its width.
+fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
+    let mut ops = Vec::new();
+    let mut offset = 0;
+    while offset < chunk.instruction_count() {
+        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
+        let operand_bytes = match op {
+            OpCode::Return
+            | OpCode::Nil
+            | OpCode::GreaterEqual
+            | OpCode::LessEqual
+            | OpCode::Pop => 0,
+            OpCode::Constant | OpCode::SetLocal | OpCode::GetLocal | OpCode::Call => 1,
+            _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
+        };
+        offset += 1 + operand_bytes;
+        ops.push(op);
+    }
+    ops
+}
+
+#[test]
+fn test_greater_equal_less_equal_opcodes() {
+    let program = "val a = 1\nval b = 2\nprint(a >= b)\nprint(a <= b)\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+
+    assert_eq!(
+        ops,
+        vec![
+            OpCode::Constant,
+            OpCode::SetLocal,
+            OpCode::Constant,
+            OpCode::SetLocal,
+            OpCode::Constant,
+            OpCode::GetLocal,
+            OpCode::GetLocal,
+            OpCode::GreaterEqual,
+            OpCode::Call,
+            OpCode::Pop,
+            OpCode::Constant,
+            OpCode::GetLocal,
+            OpCode::GetLocal,
+            OpCode::LessEqual,
+            OpCode::Call,
+            OpCode::Pop,
+            OpCode::Nil,
+            OpCode::Return,
+        ]
+    );
 }

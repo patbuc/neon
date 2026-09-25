@@ -9,9 +9,15 @@ use crate::vm::VirtualMachine;
 use crate::{as_number, as_string, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+pub(in crate::vm) enum Comparison {
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+}
 
 /// Registry index for the print() function (always at index 0)
 const PRINT_METHOD_INDEX: u32 = 0;
@@ -484,13 +490,23 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_compare(&mut self, wanted: Ordering) -> Option<Result> {
+    pub(in crate::vm) fn fn_compare(&mut self, wanted: Comparison) -> Option<Result> {
         let b = self.pop();
         let a = self.pop();
         let is_match = match (&a, &b) {
-            (Value::Number(x), Value::Number(y)) => Some(x.partial_cmp(y) == Some(wanted)),
+            (Value::Number(x), Value::Number(y)) => Some(match wanted {
+                Comparison::Greater => x > y,
+                Comparison::GreaterEqual => x >= y,
+                Comparison::Less => x < y,
+                Comparison::LessEqual => x <= y,
+            }),
             (Value::Object(oa), Value::Object(ob)) => match (oa.as_ref(), ob.as_ref()) {
-                (Object::String(sa), Object::String(sb)) => Some(sa.value.cmp(&sb.value) == wanted),
+                (Object::String(sa), Object::String(sb)) => Some(match wanted {
+                    Comparison::Greater => sa.value > sb.value,
+                    Comparison::GreaterEqual => sa.value >= sb.value,
+                    Comparison::Less => sa.value < sb.value,
+                    Comparison::LessEqual => sa.value <= sb.value,
+                }),
                 _ => None,
             },
             _ => None,
