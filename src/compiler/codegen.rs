@@ -719,31 +719,44 @@ impl<'a> CodeGenerator<'a> {
     ) {
         // For-in loop code generation strategy: uses iterator opcodes rather
         // than the increment/condition structure of a C-style for loop.
+        // The iterator state lives in two hidden locals (array, index) below
+        // the loop variable, like Lua's generic-for hidden slots, so it is
+        // popped for free on every path out of the loop (break, return,
+        // unwinding through a native callback).
         //
         // Bytecode structure:
         //   <evaluate collection>
-        //   GetIterator              ; Convert collection to iterator state (VM internal)
+        //   GetIterator              ; pop collection, push [iterable array, index 0]
         //   loop_start:
-        //   IteratorDone            ; Check if has more (pushes true if more, false if done)
-        //   JumpIfFalse exit_jump   ; If false (done), exit loop
-        //   Pop                     ; Pop the true value (has more)
-        //   IteratorNext            ; Get next value (pushes value onto stack)
+        //   IteratorDone slot        ; pushes true if more, false if done
+        //   JumpIfFalse exit_jump    ; if false (done), exit loop
+        //   Pop                      ; pop the true value (has more)
+        //   IteratorNext slot        ; push array[index], slot+1 index += 1
         //   <body with loop variable>       ; break/continue pop the loop variable
         //                                    ; and any body locals before jumping
-        //   Pop                     ; Pop the loop variable value
-        //   Loop loop_start         ; Jump back
+        //   Pop                      ; Pop the loop variable value
+        //   Loop loop_start          ; Jump back
         //   exit_jump:
-        //   Pop                     ; Pop the false value (done)
+        //   Pop                      ; Pop the false value (done)
         //   <break lands here>
-        //   PopIterator             ; Pop the iterator from the VM's iterator stack
+        //   Pop, Pop                 ; pop the two hidden iterator slots
 
         // Evaluate the collection expression
         self.generate_expr(collection);
 
-        // Convert collection to iterator (stores iterator state in VM)
+        // Convert collection to iterator: pushes the iterable array and the
+        // starting index as two hidden locals.
         self.emit_op_code(OpCode::GetIterator, location);
 
-        // Enter a block scope for the loop
+        // Enter a block scope owning the two hidden iterator slots.
+        self.current().scope_depth += 1;
+        let hidden_depth = self.current().scope_depth;
+        self.current().locals.push(Local::new(hidden_depth, false));
+        self.current().locals.push(Local::new(hidden_depth, false));
+        let iterator_slot = (self.current().locals.len() - 2) as u32;
+
+        // Enter a nested scope for the loop variable and body, so break and
+        // continue never pop the hidden iterator slots.
         self.current().scope_depth += 1;
 
         // Mark the start of the loop
@@ -760,7 +773,7 @@ impl<'a> CodeGenerator<'a> {
         });
 
         // Check if iterator has more elements (pushes true if more, false if done)
-        self.emit_op_code(OpCode::IteratorDone, location);
+        self.emit_index_op(OpCode::IteratorDone, iterator_slot, "locals", location);
 
         // JumpIfFalse exits when false (done/no more elements)
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
@@ -769,7 +782,7 @@ impl<'a> CodeGenerator<'a> {
         self.emit_op_code(OpCode::Pop, location);
 
         // Get next value from iterator (pushes value)
-        self.emit_op_code(OpCode::IteratorNext, location);
+        self.emit_index_op(OpCode::IteratorNext, iterator_slot, "locals", location);
 
         // Define the loop variable (value is already on stack from IteratorNext)
         let decl = self.resolutions.decl(id);
@@ -812,13 +825,13 @@ impl<'a> CodeGenerator<'a> {
             self.patch_jump(break_jump);
         }
 
-        // Pop the iterator from the VM's iterator stack
-        self.emit_op_code(OpCode::PopIterator, location);
-
-        // Exit the loop scope. The loop variable's slot was already popped
+        // Exit the inner scope. The loop variable's slot was already popped
         // above, so only its Local entry needs dropping here.
         self.current().scope_depth -= 1;
         self.discard_locals_above_current_depth();
+
+        // Exit the outer scope, popping the two hidden iterator slots.
+        self.end_scope(location);
     }
 
     fn generate_stmt(&mut self, stmt: &Stmt) {

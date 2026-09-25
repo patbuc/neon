@@ -251,8 +251,6 @@ pub struct CallFrame {
     pub closure: Rc<ObjClosure>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
-    /// iterator_stack depth when this frame was pushed.
-    pub iterator_depth: usize,
 }
 
 impl PartialEq for ObjFunction {

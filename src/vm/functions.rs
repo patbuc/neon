@@ -397,7 +397,6 @@ impl VirtualMachine {
             closure: Rc::clone(closure),
             ip: 0,
             slot_start,
-            iterator_depth: self.iterator_stack.len(),
         };
 
         // NOTE: IP increment is handled by the caller (fn_call_unified)
@@ -411,9 +410,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_return(&mut self) {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
-        let iterator_depth = self.current_frame().iterator_depth;
         self.call_frames.pop();
-        self.iterator_stack.truncate(iterator_depth);
 
         // A local captured by a closure that outlives this call must keep
         // its value once this frame's stack slots go away.
@@ -1250,7 +1247,9 @@ impl VirtualMachine {
     }
 
     /// GetIterator: Convert a collection to an iterator
-    /// Pops collection from stack, pushes iterator onto iterator stack
+    /// Pops the collection and pushes two hidden locals: the iterable array
+    /// (arrays as-is, map keys / set elements collected into a new array)
+    /// followed by the starting index, 0.
     /// For arrays: iterate over elements directly
     /// For maps: iterate over keys
     /// For sets: convert to array and iterate
@@ -1294,66 +1293,94 @@ impl VirtualMachine {
             }
         };
 
-        self.iterator_stack.push((0, iterator_value));
+        self.push(iterator_value);
+        self.push(number!(0.0));
         Ok(())
     }
 
-    /// IteratorDone: Check if iteration is complete
+    /// Reads the u16 slot operand for an iterator opcode, the same way
+    /// GetLocal does, and returns its absolute stack index.
+    #[inline(always)]
+    fn iterator_slot(&mut self) -> Option<usize> {
+        let index = self.read_index();
+        let frame = self.current_frame_mut();
+        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
+        frame.ip += 2;
+        if absolute_index >= self.stack.len() {
+            None
+        } else {
+            Some(absolute_index)
+        }
+    }
+
+    /// IteratorDone: Check if iteration is complete for the hidden iterator
+    /// slots starting at the given local slot (array, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_done(&mut self) -> OpResult {
-        if let Some((index, collection)) = self.iterator_stack.last() {
-            let has_more = match collection {
-                Value::Array(array_ref) => {
-                    let array = array_ref.borrow();
-                    *index < array.len()
-                }
-                _ => false,
-            };
-
-            self.push(boolean!(has_more));
-            Ok(())
-        } else {
-            Err(self.runtime_error("No iterator initialized"))
-        }
-    }
-
-    /// IteratorNext: Get the next element from the iterator
-    /// Pushes the next value onto the stack and advances the iterator
-    /// When exiting a loop, pops the iterator from the iterator stack
-    #[inline(always)]
-    pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
-        let (value, new_index) = if let Some((index, collection)) = self.iterator_stack.last() {
-            match collection {
-                Value::Array(array_ref) => {
-                    let array = array_ref.borrow();
-                    if *index < array.len() {
-                        let value = array[*index].clone();
-                        (Some(value), Some(*index + 1))
-                    } else {
-                        (None, None)
-                    }
-                }
-                _ => (None, None),
+        let Some(slot) = self.iterator_slot() else {
+            return Err(self.runtime_error("Invalid local slot"));
+        };
+        let index = match &self.stack[slot + 1] {
+            Value::Number(n) => *n as usize,
+            other => {
+                return Err(self.runtime_error(format!(
+                    "Invalid iterator index, got {}.",
+                    other.type_name()
+                )));
             }
-        } else {
-            (None, None)
+        };
+        let has_more = match &self.stack[slot] {
+            Value::Array(array_ref) => index < array_ref.borrow().len(),
+            other => {
+                return Err(self.runtime_error(format!(
+                    "Invalid iterator collection, got {}.",
+                    other.type_name()
+                )));
+            }
         };
 
-        match (value, new_index) {
-            (Some(v), Some(idx)) => {
-                if let Some((index, _)) = self.iterator_stack.last_mut() {
-                    *index = idx;
+        self.push(boolean!(has_more));
+        Ok(())
+    }
+
+    /// IteratorNext: Get the next element from the iterator held in the
+    /// hidden slots starting at the given local slot (array, then index).
+    /// Pushes the next value onto the stack and advances the index slot.
+    #[inline(always)]
+    pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
+        let Some(slot) = self.iterator_slot() else {
+            return Err(self.runtime_error("Invalid local slot"));
+        };
+        let index = match &self.stack[slot + 1] {
+            Value::Number(n) => *n as usize,
+            other => {
+                return Err(self.runtime_error(format!(
+                    "Invalid iterator index, got {}.",
+                    other.type_name()
+                )));
+            }
+        };
+        let value = match &self.stack[slot] {
+            Value::Array(array_ref) => {
+                let array = array_ref.borrow();
+                if index >= array.len() {
+                    return Err(self.runtime_error("Iterator exhausted"));
                 }
-                self.push(v);
-                Ok(())
+                array[index].clone()
             }
-            (None, None) if self.iterator_stack.is_empty() => {
-                Err(self.runtime_error("No iterator initialized"))
+            other => {
+                return Err(self.runtime_error(format!(
+                    "Invalid iterator collection, got {}.",
+                    other.type_name()
+                )));
             }
-            _ => Err(self.runtime_error("Iterator exhausted or invalid state")),
-        }
+        };
+
+        self.stack[slot + 1] = number!((index + 1) as f64);
+        self.push(value);
+        Ok(())
     }
 
     /// Helper: Extract type name from a value for method dispatch

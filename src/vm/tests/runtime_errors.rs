@@ -166,7 +166,7 @@ fn get_builtin_unknown_index_halts() {
 #[test]
 fn iterator_done_without_iterator_halts() {
     let mut chunk = Chunk::new("iterator_done_without_iterator");
-    chunk.write_op_code(OpCode::IteratorDone, 0, 0);
+    chunk.write_indexed(OpCode::IteratorDone, 0, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);

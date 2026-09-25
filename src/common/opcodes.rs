@@ -42,7 +42,6 @@ impl OpCode {
             v if v == OpCode::GetIterator as u8 => Some(OpCode::GetIterator),
             v if v == OpCode::IteratorNext as u8 => Some(OpCode::IteratorNext),
             v if v == OpCode::IteratorDone as u8 => Some(OpCode::IteratorDone),
-            v if v == OpCode::PopIterator as u8 => Some(OpCode::PopIterator),
             v if v == OpCode::CreateRange as u8 => Some(OpCode::CreateRange),
             v if v == OpCode::ToString as u8 => Some(OpCode::ToString),
             v if v == OpCode::BitwiseAnd as u8 => Some(OpCode::BitwiseAnd),
@@ -111,7 +110,6 @@ pub(crate) enum OpCode {
     GetIterator,
     IteratorNext,
     IteratorDone,
-    PopIterator,
     CreateRange,
     ToString,
 
