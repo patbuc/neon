@@ -1148,3 +1148,110 @@ fn native_error_inside_builtin_type_user_method_reports_native_message() {
         errors
     );
 }
+
+#[test]
+fn range_index_out_of_bounds_halts() {
+    let program = r#"
+        print((1..10)[9])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+}
+
+#[test]
+fn range_push_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.push(5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_pop_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.pop()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_sort_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.sort()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_reverse_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.reverse()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_index_assign_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r[0] = 9
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_non_integer_start_halts() {
+    let program = r#"
+        print(1.5..4)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("must be an integer"), "{}", errors);
+}
+
+#[test]
+fn range_non_integer_end_halts() {
+    let program = r#"
+        print(1..4.5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("must be an integer"), "{}", errors);
+}

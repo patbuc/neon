@@ -1,0 +1,6 @@
+// Expected:
+// false
+// true
+
+print((1..10).contains(10))
+print((1..=10).contains(10))
