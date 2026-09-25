@@ -104,7 +104,7 @@ cargo run --features disassemble -- script.n
 
 - Instruction set definition as `#[repr(u8)]` enum
 - Stack manipulation, arithmetic, control flow, function calls
-- Variable-width operands (8/16/32-bit indices)
+- Index operands (constants, strings, locals, globals, upvalues, builtins) are a fixed 16 bits; jump/loop offsets are 32 bits
 
 **Value System** (`src/common/mod.rs`)
 
