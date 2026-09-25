@@ -51,7 +51,7 @@ fn create_args_array(args: &[String]) -> Value {
         .iter()
         .map(|arg| {
             Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::from(arg.as_str()),
+                value: Rc::new(arg.clone()),
             })))
         })
         .collect();

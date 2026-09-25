@@ -30,7 +30,7 @@ pub fn native_file_read(args: &[Value]) -> Result<Value, String> {
         Ok(contents) => {
             // Return the contents as a String value
             Ok(Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::from(contents),
+                value: Rc::new(contents),
             }))))
         }
         Err(e) => {
@@ -72,7 +72,7 @@ pub fn native_file_read_lines(args: &[Value]) -> Result<Value, String> {
                 .lines()
                 .map(|line| {
                     Value::Object(Rc::new(Object::String(ObjString {
-                        value: Rc::from(line),
+                        value: Rc::new(line.to_string()),
                     })))
                 })
                 .collect();

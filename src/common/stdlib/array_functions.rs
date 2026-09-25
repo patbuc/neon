@@ -219,7 +219,7 @@ pub fn native_array_join(args: &[Value]) -> Result<Value, String> {
 
     Ok(Value::Object(std::rc::Rc::new(Object::String(
         crate::common::ObjString {
-            value: std::rc::Rc::from(result),
+            value: std::rc::Rc::new(result),
         },
     ))))
 }

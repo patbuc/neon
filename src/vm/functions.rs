@@ -935,7 +935,7 @@ impl VirtualMachine {
         };
         let field_name = match &field_name_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => s.value.as_ref(),
+                Object::String(s) => s.value.as_str(),
                 _ => return Err(self.runtime_error("Field name must be a string.")),
             },
             _ => return Err(self.runtime_error("Field name must be a string.")),
@@ -977,7 +977,7 @@ impl VirtualMachine {
         };
         let field_name = match &field_name_value {
             Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => s.value.as_ref(),
+                Object::String(s) => s.value.as_str(),
                 _ => return Err(self.runtime_error("Field name must be a string.")),
             },
             _ => return Err(self.runtime_error("Field name must be a string.")),

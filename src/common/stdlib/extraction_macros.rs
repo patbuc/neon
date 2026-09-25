@@ -29,7 +29,7 @@
 /// - `Array` → `&Rc<RefCell<Vec<Value>>>`
 /// - `Map` → `&Rc<RefCell<IndexMap<MapKey, Value>>>`
 /// - `Set` → `&Rc<RefCell<BTreeSet<SetKey>>>`
-/// - `File` → `&Rc<str>`
+/// - `File` → `&Rc<String>`
 /// - `Number` → `f64`
 /// - `Boolean` → `bool`
 ///
@@ -212,7 +212,7 @@ macro_rules! extract_arg {
 /// ```ignore
 /// // Instead of:
 /// let obj_string = extract_arg!(args, 1, String, "delimiter", "split")?;
-/// let delimiter = obj_string.value.as_ref();
+/// let delimiter = obj_string.value.as_str();
 ///
 /// // Use:
 /// let delimiter = extract_string_value!(args, 1, "delimiter", "split");
@@ -222,6 +222,6 @@ macro_rules! extract_string_value {
     ($args:expr, $idx:expr, $arg_name:expr, $method:expr) => {{
         extract_arg!($args, $idx, String, $arg_name, $method)?
             .value
-            .as_ref()
+            .as_str()
     }};
 }

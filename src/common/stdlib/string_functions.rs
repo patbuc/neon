@@ -189,7 +189,7 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
             .collect()
     } else if !obj_string.value.contains(delimiter) {
         // Delimiter not found: return array with original string
-        vec![string!(obj_string.value.as_ref())]
+        vec![string!(obj_string.value.as_str())]
     } else {
         // Normal split
         obj_string

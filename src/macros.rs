@@ -17,7 +17,7 @@ macro_rules! string {
     ($value: expr) => {
         $crate::common::Value::Object(std::rc::Rc::from($crate::common::Object::String(
             $crate::common::ObjString {
-                value: std::rc::Rc::from($value),
+                value: std::rc::Rc::new(String::from($value)),
             },
         )))
     };

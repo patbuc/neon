@@ -80,12 +80,12 @@ pub enum Object {
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
-    File(Rc<str>),
+    File(Rc<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum MapKey {
-    String(Rc<str>),
+    String(Rc<String>),
     Number(OrderedFloat<f64>),
     Boolean(bool),
 }
@@ -111,12 +111,12 @@ pub enum Value {
     /// Placeholder held by a hoisted global or block-level function slot
     /// until its declaration runs; GetGlobal, SetGlobal, and CheckInitialized
     /// turn reading it into a runtime error.
-    Uninitialized(Rc<str>),
+    Uninitialized(Rc<String>),
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjString {
-    pub value: Rc<str>,
+    pub value: Rc<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -238,7 +238,7 @@ impl Value {
     }
 
     pub(crate) fn new_file(path: String) -> Self {
-        Value::Object(Rc::new(Object::File(Rc::from(path))))
+        Value::Object(Rc::new(Object::File(Rc::new(path))))
     }
 
     /// Name of this value's type, for runtime error messages.
@@ -353,8 +353,8 @@ impl std::fmt::Debug for Object {
     }
 }
 
-impl PartialEq<Rc<str>> for ObjString {
-    fn eq(&self, other: &Rc<str>) -> bool {
+impl PartialEq<Rc<String>> for ObjString {
+    fn eq(&self, other: &Rc<String>) -> bool {
         self.value == *other
     }
 }
@@ -367,7 +367,7 @@ impl PartialEq for ObjString {
 
 impl PartialEq<&ObjString> for &str {
     fn eq(&self, other: &&ObjString) -> bool {
-        *self == other.value.as_ref()
+        *self == other.value.as_str()
     }
 }
 

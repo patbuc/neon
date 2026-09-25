@@ -137,7 +137,7 @@ impl<'a> CodeGenerator<'a> {
                 | Stmt::Var {
                     name, id, location, ..
                 } => {
-                    let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                    let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                     self.emit_constant(sentinel, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -452,7 +452,7 @@ impl<'a> CodeGenerator<'a> {
                 name, id, location, ..
             } = stmt
             {
-                let sentinel = Value::Uninitialized(Rc::from(name.as_str()));
+                let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                 self.emit_constant(sentinel, *location);
                 let decl = self.resolutions.decl(*id);
                 self.bind_decl_local(decl, *location);
