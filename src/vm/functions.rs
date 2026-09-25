@@ -208,12 +208,7 @@ impl VirtualMachine {
 
         if let Value::Object(obj) = &receiver {
             if let Object::Instance(inst) = obj.as_ref() {
-                let instance = inst.borrow();
-                let field_value = instance
-                    .r#struct
-                    .field_index(method_name)
-                    .map(|index| instance.fields[index].clone());
-                drop(instance);
+                let field_value = { inst.borrow().field(method_name).cloned() };
                 if let Some(field_value) = field_value {
                     self.stack[receiver_index] = field_value;
                     return self.dispatch_call(arg_count);
@@ -951,11 +946,7 @@ impl VirtualMachine {
                 Object::Instance(instance_ref) => {
                     let instance = instance_ref.borrow();
 
-                    if let Some(value) = instance
-                        .r#struct
-                        .field_index(field_name)
-                        .map(|index| instance.fields[index].clone())
-                    {
+                    if let Some(value) = instance.field(field_name).cloned() {
                         self.pop();
                         self.push(value);
                     } else {

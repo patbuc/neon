@@ -158,6 +158,14 @@ pub struct ObjInstance {
     pub fields: Vec<Value>,
 }
 
+impl ObjInstance {
+    pub(crate) fn field(&self, name: &str) -> Option<&Value> {
+        self.r#struct
+            .field_index(name)
+            .map(|index| &self.fields[index])
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ObjStruct {
     pub name: String,

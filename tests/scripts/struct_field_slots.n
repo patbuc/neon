@@ -13,7 +13,6 @@
 // false
 // false
 
-// Each field must round-trip through its own slot, not a neighbor's.
 struct Five {
     a
     b
