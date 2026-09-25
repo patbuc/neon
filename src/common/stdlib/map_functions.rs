@@ -150,6 +150,7 @@ fn value_to_map_key(value: &Value) -> Option<MapKey> {
         Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
         Value::Boolean(b) => Some(MapKey::Boolean(*b)),
         Value::Nil => None,
+        Value::Uninitialized(_) => None,
     }
 }
 

@@ -965,6 +965,11 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
+        if let Value::Uninitialized(name) = &self.stack[absolute_index] {
+            self.runtime_error(&format!("variable '{}' used before initialization", name));
+            return Some(Result::RuntimeError);
+        }
+
         self.push(self.stack[absolute_index].clone());
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
@@ -988,9 +993,23 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
 
+        if let Value::Uninitialized(name) = &self.stack[absolute_index] {
+            self.runtime_error(&format!("variable '{}' used before initialization", name));
+            return Some(Result::RuntimeError);
+        }
+
         self.stack[absolute_index] = self.peek(0);
         let frame = self.current_frame_mut();
         frame.ip += bits.as_bytes();
+        None
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_check_initialized(&mut self) -> Option<Result> {
+        if let Value::Uninitialized(name) = self.peek(0) {
+            self.runtime_error(&format!("variable '{}' used before initialization", name));
+            return Some(Result::RuntimeError);
+        }
         None
     }
 
@@ -1422,6 +1441,7 @@ impl VirtualMachine {
             Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
             Value::Boolean(b) => Some(MapKey::Boolean(*b)),
             Value::Nil => None,
+            Value::Uninitialized(_) => None,
         }
     }
 
