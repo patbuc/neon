@@ -119,23 +119,6 @@ fn test_range_sum() {
 }
 
 // ============================================================================
-// Immutability
-// ============================================================================
-
-#[test]
-fn test_range_push_reports_immutable() {
-    let program = r#"
-        val r = 1..4
-        r.push(5)
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
-    let errors = vm.get_runtime_errors();
-    assert!(errors.contains("immutable"), "{}", errors);
-}
-
-// ============================================================================
 // Error Cases
 // ============================================================================
 

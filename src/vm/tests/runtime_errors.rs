@@ -1158,6 +1158,8 @@ fn range_index_out_of_bounds_halts() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Range index out of bounds"), "{}", errors);
 }
 
 #[test]
