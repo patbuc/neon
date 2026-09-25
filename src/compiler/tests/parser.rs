@@ -372,6 +372,62 @@ fn test_impl_body_recovery_is_brace_depth_aware() {
 }
 
 #[test]
+fn test_impl_body_recovery_is_brace_depth_aware_for_set_literals() {
+    let program =
+        "struct P { x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
+    assert_eq!(errors[0].location.line, 3);
+}
+
+#[test]
+fn test_synchronize_stops_at_enclosing_brace_after_same_line_error() {
+    let program = "fn f() { val x = ) }\nval w = \n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(lines, vec![1, 2]);
+}
+
+#[test]
+fn test_missing_range_end_does_not_swallow_enclosing_brace() {
+    let program = "fn f() {\n    val x = 1 ..\n}\nval w = \n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(lines, vec![2, 4]);
+}
+
+#[test]
+fn test_missing_ternary_branch_does_not_swallow_enclosing_brace() {
+    let program = "fn f() {\n    val t = true ?\n}\nval w = \n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(lines, vec![2, 4]);
+}
+
+#[test]
+fn test_missing_assignment_value_does_not_swallow_enclosing_brace() {
+    let program = "fn f() {\n    x =\n}\nval w = \n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
+    assert_eq!(lines, vec![2, 4]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
@@ -2943,8 +2999,6 @@ fn test_parse_error_position_expect_expression_before_brace() {
 
 #[test]
 fn test_parse_error_position_expect_expression_at_line_end() {
-    // A value missing entirely is blamed on the '=' that expected it, not on
-    // whatever token happens to follow the skipped blank line.
     let source = "val b =\n";
     let mut parser = Parser::new(source);
     let result = parser.parse();
