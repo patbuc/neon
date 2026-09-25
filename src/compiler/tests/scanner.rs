@@ -802,7 +802,7 @@ fn nested_string_inside_interpolation() {
 }
 
 #[test]
-fn unclosed_interpolation_with_nested_quote_reports_at_dollar() {
+fn interpolation_eof_in_nested_quote() {
     let scanner = Scanner::new("\"${\"");
     let tokens = collect_tokens(scanner);
 
@@ -832,7 +832,7 @@ fn unterminated_string_after_closed_interpolation() {
 }
 
 #[test]
-fn brace_expression_inside_interpolation_does_not_close_it() {
+fn interpolation_brace_expression() {
     let scanner = Scanner::new("\"${ {} }\"");
     let tokens = collect_tokens(scanner);
 
@@ -841,4 +841,19 @@ fn brace_expression_inside_interpolation_does_not_close_it() {
     assert_eq!(tokens[2].token_type, TokenType::RightBrace);
     assert_eq!(tokens[3].token_type, TokenType::StringEnd);
     assert_eq!(tokens[4].token_type, TokenType::Eof);
+}
+
+#[test]
+fn interpolation_line_comment_hides_closing_brace() {
+    let scanner = Scanner::new("\"${a // c }\"");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(tokens[0].token_type, TokenType::StringStart);
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+
+    assert_eq!(tokens[2].token_type, TokenType::Error);
+    assert_eq!(tokens[2].token, "Expect '}' after interpolated expression.");
+    assert_eq!(tokens[2].column, 2);
+
+    assert_eq!(tokens[3].token_type, TokenType::Eof);
 }

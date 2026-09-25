@@ -14,9 +14,8 @@ struct Position {
     offset: usize,
 }
 
-/// One open `${...}` interpolation. `brace_depth` counts `{`/`#{` opened
-/// since the `${` that have not yet been closed by a matching `}`, so a
-/// `}` belonging to a nested brace expression doesn't end the interpolation.
+/// One open `${...}` interpolation. `brace_depth` counts unclosed `{`/`#{`
+/// opened since the `${`, so a nested brace expression's `}` doesn't end it.
 #[derive(Debug)]
 pub(in crate::compiler) struct Interpolation {
     brace_depth: usize,
@@ -25,7 +24,7 @@ pub(in crate::compiler) struct Interpolation {
 }
 
 /// `chars` starts right after the `\`; the returned consumed count excludes it.
-pub(in crate::compiler) fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
+fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
     match *chars.first()? {
         'n' => Some(('\n', 1)),
         't' => Some(('\t', 1)),
@@ -69,6 +68,11 @@ impl Scanner {
             previous_token_type: TokenType::NewLine,
             interpolations: Vec::new(),
         }
+    }
+
+    /// How many `${...}` interpolations are currently open.
+    pub(in crate::compiler) fn interpolation_depth(&self) -> usize {
+        self.interpolations.len()
     }
 
     //noinspection DuplicatedCode
@@ -231,7 +235,6 @@ impl Scanner {
         }
     }
 
-    /// A `"` in ordinary token mode always opens a fresh string, nested or not.
     fn make_string(&mut self) -> Token {
         let quote = Position {
             line: self.start_line,
@@ -241,28 +244,21 @@ impl Scanner {
         self.scan_string_segment(true, quote)
     }
 
-    /// Dispatches a `}` seen in ordinary token mode: it closes the innermost
-    /// open interpolation (resuming the string it interrupted) only when no
-    /// nested brace expression is still open inside that interpolation.
     fn make_right_brace_or_string_continuation(&mut self) -> Token {
-        match self.interpolations.last() {
-            Some(frame) if frame.brace_depth == 0 => {
-                let frame = self.interpolations.pop().unwrap();
-                self.scan_string_segment(false, frame.quote)
+        match self.interpolations.last_mut() {
+            Some(frame) if frame.brace_depth > 0 => {
+                frame.brace_depth -= 1;
+                self.make_token(TokenType::RightBrace)
             }
             Some(_) => {
-                self.interpolations.last_mut().unwrap().brace_depth -= 1;
-                self.make_token(TokenType::RightBrace)
+                let frame = self.interpolations.pop().unwrap();
+                self.scan_string_segment(false, frame.quote)
             }
             None => self.make_token(TokenType::RightBrace),
         }
     }
 
-    /// Scans string content up to a closing `"` or an unescaped `${`, shared
-    /// between a fresh string (`is_fresh`, after an opening `"`) and a
-    /// continuation (after a `}` that closed an interpolation). `quote` is
-    /// the position of the string's opening `"`, used to report an
-    /// unterminated string regardless of how far into it we are.
+    /// `quote` is the position of the segment's enclosing `"`.
     fn scan_string_segment(&mut self, is_fresh: bool, quote: Position) -> Token {
         let mut decoded = String::new();
         let mut invalid_escape: Option<(u32, u32, usize)> = None;
@@ -281,13 +277,8 @@ impl Scanner {
             }
             if self.peek() == '"' {
                 self.advance();
-                if let Some((line, column, offset)) = invalid_escape {
-                    return self.make_error_token_at(
-                        "Invalid escape sequence",
-                        line,
-                        column,
-                        offset,
-                    );
+                if let Some(error) = self.invalid_escape_error(invalid_escape) {
+                    return error;
                 }
                 let token_type = if is_fresh {
                     TokenType::String
@@ -331,13 +322,8 @@ impl Scanner {
                     dollar,
                     quote,
                 });
-                if let Some((line, column, offset)) = invalid_escape {
-                    return self.make_error_token_at(
-                        "Invalid escape sequence",
-                        line,
-                        column,
-                        offset,
-                    );
+                if let Some(error) = self.invalid_escape_error(invalid_escape) {
+                    return error;
                 }
                 let token_type = if is_fresh {
                     TokenType::StringStart
@@ -353,6 +339,11 @@ impl Scanner {
                 self.column = 1;
             }
         }
+    }
+
+    fn invalid_escape_error(&mut self, invalid_escape: Option<(u32, u32, usize)>) -> Option<Token> {
+        let (line, column, offset) = invalid_escape?;
+        Some(self.make_error_token_at("Invalid escape sequence", line, column, offset))
     }
 
     /// Reports the innermost open interpolation as unclosed at EOF and

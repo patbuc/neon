@@ -3459,7 +3459,7 @@ fn test_interpolation_nested_quotes() {
 }
 
 #[test]
-fn test_interpolation_error_after_newline_reports_that_line() {
+fn test_interpolation_error_line() {
     let mut parser = Parser::new("print(\"${\n)}\")\n");
     let result = parser.parse();
 
@@ -3469,6 +3469,28 @@ fn test_interpolation_error_after_newline_reports_that_line() {
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[0].location.column, 1);
+}
+
+#[test]
+fn test_interpolation_error_recovery_does_not_cascade() {
+    let mut parser = Parser::new("print(\"${)\n}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+}
+
+#[test]
+fn test_interpolation_error_recovery_does_not_cascade_in_block() {
+    let mut parser = Parser::new("fn f() {\n  print(\"${)\n  }\")\n  print(1)\n}\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
 }
 
 #[test]

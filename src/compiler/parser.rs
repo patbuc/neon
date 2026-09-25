@@ -20,6 +20,16 @@ pub struct Parser {
     /// Open `{`/`#{`, `(`, and `[` counts, tracked separately so a stray
     /// closer of one type can't be mistaken for closing another.
     nesting_depth: (usize, usize, usize),
+    /// Number of `${...}` interpolations open as of `previous_token`, read
+    /// from the scanner rather than derived from token types so it's still
+    /// correct when a StringStart/StringMiddle/StringEnd was replaced by an
+    /// Error (e.g. an invalid escape) that `advance`'s error-skipping loop
+    /// discarded before it reached `previous_token`. Updated with the same
+    /// one-token lag as `nesting_depth`: `pending_interpolation_depth` holds
+    /// the depth as of `current_token`, applied here once that token is
+    /// consumed.
+    interpolation_depth: usize,
+    pending_interpolation_depth: usize,
     /// Rust call-stack recursion depth, bounded to avoid a stack overflow.
     recursion_depth: usize,
 }
@@ -81,6 +91,8 @@ impl Parser {
             panic_mode: false,
             next_node_id: 0,
             nesting_depth: (0, 0, 0),
+            interpolation_depth: 0,
+            pending_interpolation_depth: 0,
             recursion_depth: 0,
         }
     }
@@ -120,6 +132,7 @@ impl Parser {
 
     fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
+        self.interpolation_depth = self.pending_interpolation_depth;
         let (braces, parens, brackets) = &mut self.nesting_depth;
         match self.previous_token.token_type {
             TokenType::LeftBrace | TokenType::HashLeftBrace => *braces += 1,
@@ -137,6 +150,7 @@ impl Parser {
             }
             self.report_error_at_current(self.current_token.token.clone());
         }
+        self.pending_interpolation_depth = self.scanner.interpolation_depth();
     }
 
     fn match_token(&mut self, token_type: TokenType) -> bool {
@@ -335,9 +349,13 @@ impl Parser {
             if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
+            // A newline inside an open `${...}` is part of the interpolated
+            // expression, not a statement separator - don't treat it (or
+            // anything else below) as a resync point while one is open.
+            let in_interpolation = self.interpolation_depth > 0;
             if let Some(depth @ (block_braces, _, _)) = block_depth {
                 let (braces, _, _) = self.nesting_depth;
-                if braces == block_braces {
+                if !in_interpolation && braces == block_braces {
                     if self.current_token.token_type == TokenType::RightBrace {
                         return;
                     }
@@ -361,10 +379,11 @@ impl Parser {
                     }
                 }
             }
-            let at_block_depth = match block_depth {
-                Some(depth) => self.nesting_depth == depth,
-                None => local_depth == 0,
-            };
+            let at_block_depth = !in_interpolation
+                && match block_depth {
+                    Some(depth) => self.nesting_depth == depth,
+                    None => local_depth == 0,
+                };
             if at_block_depth {
                 if self.previous_token.token_type == TokenType::NewLine {
                     return;
