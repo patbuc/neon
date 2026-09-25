@@ -2,6 +2,667 @@ use crate::common::errors::CompilationErrorKind;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
+mod resolutions {
+    use crate::compiler::ast::{Expr, NodeId, Stmt};
+    use crate::compiler::parser::Parser;
+    use crate::compiler::resolutions::{Capture, Res, Resolutions};
+    use crate::compiler::semantic::SemanticAnalyzer;
+
+    /// Parses and resolves `program`, panicking on any compile error.
+    fn analyze(program: &str) -> (Vec<Stmt>, Resolutions) {
+        let mut parser = Parser::new(program);
+        let ast = parser.parse().expect("parse error");
+        let mut analyzer = SemanticAnalyzer::new();
+        let resolutions = analyzer.analyze(&ast).expect("semantic error");
+        (ast, resolutions)
+    }
+
+    /// Every name use, declaration, and call site found in an AST, in
+    /// source order, so a test can find the node it wants to assert on.
+    #[derive(Default)]
+    struct Index<'a> {
+        vars: Vec<(&'a str, NodeId)>,
+        calls: Vec<(String, NodeId)>,
+        decls: Vec<(&'a str, NodeId)>,
+        fns: Vec<(&'a str, NodeId)>,
+    }
+
+    fn index_stmts<'a>(stmts: &'a [Stmt], idx: &mut Index<'a>) {
+        for stmt in stmts {
+            index_stmt(stmt, idx);
+        }
+    }
+
+    fn index_stmt<'a>(stmt: &'a Stmt, idx: &mut Index<'a>) {
+        match stmt {
+            Stmt::Val {
+                name,
+                initializer,
+                id,
+                ..
+            }
+            | Stmt::Var {
+                name,
+                initializer,
+                id,
+                ..
+            } => {
+                idx.decls.push((name, *id));
+                if let Some(expr) = initializer {
+                    index_expr(expr, idx);
+                }
+            }
+            Stmt::Fn { name, body, id, .. } => {
+                idx.decls.push((name, *id));
+                idx.fns.push((name, *id));
+                index_stmts(body, idx);
+            }
+            Stmt::Struct { name, id, .. } => idx.decls.push((name, *id)),
+            Stmt::Impl { methods, .. } => index_stmts(methods, idx),
+            Stmt::Expression { expr, .. } => index_expr(expr, idx),
+            Stmt::Block { statements, .. } => index_stmts(statements, idx),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                index_expr(condition, idx);
+                index_stmt(then_branch, idx);
+                if let Some(stmt) = else_branch {
+                    index_stmt(stmt, idx);
+                }
+            }
+            Stmt::While {
+                condition, body, ..
+            } => {
+                index_expr(condition, idx);
+                index_stmt(body, idx);
+            }
+            Stmt::Return { value, .. } => index_expr(value, idx),
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                id,
+                ..
+            } => {
+                idx.decls.push((variable, *id));
+                index_expr(collection, idx);
+                index_stmt(body, idx);
+            }
+            Stmt::For {
+                initializer,
+                condition,
+                increment,
+                body,
+                ..
+            } => {
+                index_stmt(initializer, idx);
+                index_expr(condition, idx);
+                index_expr(increment, idx);
+                index_stmt(body, idx);
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
+        }
+    }
+
+    fn index_expr<'a>(expr: &'a Expr, idx: &mut Index<'a>) {
+        match expr {
+            Expr::Variable { name, id, .. } => idx.vars.push((name, *id)),
+            Expr::Assign { value, .. } => index_expr(value, idx),
+            Expr::Binary { left, right, .. } => {
+                index_expr(left, idx);
+                index_expr(right, idx);
+            }
+            Expr::Unary { operand, .. } => index_expr(operand, idx),
+            Expr::Call {
+                callee,
+                arguments,
+                id,
+                ..
+            } => {
+                idx.calls.push((call_desc(callee), *id));
+                index_expr(callee, idx);
+                for arg in arguments {
+                    index_expr(arg, idx);
+                }
+            }
+            Expr::GetField { object, .. } => index_expr(object, idx),
+            Expr::SetField { object, value, .. } => {
+                index_expr(object, idx);
+                index_expr(value, idx);
+            }
+            Expr::Grouping { expr, .. } => index_expr(expr, idx),
+            Expr::MapLiteral { entries, .. } => {
+                for (key, value) in entries {
+                    index_expr(key, idx);
+                    index_expr(value, idx);
+                }
+            }
+            Expr::ArrayLiteral { elements, .. } | Expr::SetLiteral { elements, .. } => {
+                for element in elements {
+                    index_expr(element, idx);
+                }
+            }
+            Expr::Index { object, index, .. } => {
+                index_expr(object, idx);
+                index_expr(index, idx);
+            }
+            Expr::IndexAssign {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                index_expr(object, idx);
+                index_expr(index, idx);
+                index_expr(value, idx);
+            }
+            Expr::Range { start, end, .. } => {
+                index_expr(start, idx);
+                index_expr(end, idx);
+            }
+            Expr::PostfixIncrement { operand, .. } | Expr::PostfixDecrement { operand, .. } => {
+                index_expr(operand, idx)
+            }
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                index_expr(condition, idx);
+                index_expr(then_expr, idx);
+                index_expr(else_expr, idx);
+            }
+            Expr::Function { body, id, .. } => {
+                idx.fns.push(("<lambda>", *id));
+                index_stmts(body, idx);
+            }
+            Expr::Number { .. }
+            | Expr::String { .. }
+            | Expr::StringInterpolation { .. }
+            | Expr::Boolean { .. }
+            | Expr::Nil { .. } => {}
+        }
+    }
+
+    fn call_desc(callee: &Expr) -> String {
+        match callee {
+            Expr::Variable { name, .. } => name.clone(),
+            Expr::GetField { object, field, .. } => match object.as_ref() {
+                Expr::Variable { name, .. } => format!("{}.{}", name, field),
+                _ => format!("?.{}", field),
+            },
+            _ => "?".to_string(),
+        }
+    }
+
+    fn find_var(idx: &Index, name: &str, n: usize) -> NodeId {
+        idx.vars
+            .iter()
+            .filter(|(found, _)| *found == name)
+            .nth(n)
+            .map(|(_, id)| *id)
+            .unwrap_or_else(|| panic!("variable use '{}' #{} not found", name, n))
+    }
+
+    fn find_decl(idx: &Index, name: &str) -> NodeId {
+        idx.decls
+            .iter()
+            .find(|(found, _)| *found == name)
+            .map(|(_, id)| *id)
+            .unwrap_or_else(|| panic!("declaration '{}' not found", name))
+    }
+
+    fn find_fn(idx: &Index, name: &str) -> NodeId {
+        idx.fns
+            .iter()
+            .find(|(found, _)| *found == name)
+            .map(|(_, id)| *id)
+            .unwrap_or_else(|| panic!("function '{}' not found", name))
+    }
+
+    fn find_call(idx: &Index, desc: &str, n: usize) -> NodeId {
+        idx.calls
+            .iter()
+            .filter(|(found, _)| found == desc)
+            .nth(n)
+            .map(|(_, id)| *id)
+            .unwrap_or_else(|| panic!("call '{}' #{} not found", desc, n))
+    }
+
+    #[test]
+    fn script_local_used_in_script_is_local() {
+        let (ast, res) = analyze("val x = 1\nprint(x)\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn toplevel_name_used_inside_fn_is_global() {
+        let (ast, res) = analyze(
+            r#"
+val x = 1
+fn f() {
+    return x
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Global(decl));
+    }
+
+    #[test]
+    fn parameter_use_is_local() {
+        let (ast, res) = analyze(
+            r#"
+fn f(a) {
+    return a
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let fn_id = find_fn(&idx, "f");
+        let param_decl = res.function(fn_id).params[0];
+        let use_id = find_var(&idx, "a", 0);
+        assert_eq!(res.res(use_id), Res::Local(param_decl));
+    }
+
+    #[test]
+    fn nested_fn_captures_enclosing_local_as_upvalue() {
+        let (ast, res) = analyze(
+            r#"
+fn outer() {
+    var x = 1
+    fn inner() {
+        return x
+    }
+    return inner()
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let x_decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Upvalue(0));
+
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(inner_res.upvalues, vec![Capture::Local(x_decl)]);
+        assert!(res.is_captured(x_decl));
+    }
+
+    #[test]
+    fn grandparent_capture_chain_assigns_upvalue_indices_per_level() {
+        let (ast, res) = analyze(
+            r#"
+fn outer() {
+    var x = 1
+    fn middle() {
+        fn inner() {
+            return x
+        }
+        return inner()
+    }
+    return middle()
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let x_decl = res.decl(find_decl(&idx, "x"));
+        let middle_res = res.function(find_fn(&idx, "middle"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(middle_res.upvalues, vec![Capture::Local(x_decl)]);
+        assert_eq!(inner_res.upvalues, vec![Capture::Upvalue(0)]);
+
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Upvalue(0));
+    }
+
+    #[test]
+    fn script_block_local_captured_by_fn_is_upvalue_not_global() {
+        let (ast, res) = analyze(
+            r#"
+{
+    var x = 1
+    fn f() {
+        return x
+    }
+    print(f())
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let x_decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Upvalue(0));
+        assert!(res.is_captured(x_decl));
+    }
+
+    #[test]
+    fn args_builtin_use_is_builtin_zero() {
+        let (ast, res) = analyze("print(args)\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let use_id = find_var(&idx, "args", 0);
+        assert_eq!(res.res(use_id), Res::Builtin(0));
+    }
+
+    #[test]
+    fn local_args_shadows_builtin() {
+        let (ast, res) = analyze(
+            r#"
+fn f() {
+    val args = [1, 2, 3]
+    return args
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "args"));
+        let use_id = find_var(&idx, "args", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn global_print_call_is_native() {
+        let (ast, res) = analyze("print(1)\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "print", 0);
+        assert!(res.native(call_id).is_some());
+    }
+
+    #[test]
+    fn local_print_shadows_native_print_call() {
+        let (ast, res) = analyze(
+            r#"
+fn f() {
+    val print = fn(x) { return x }
+    return print(1)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "print", 0);
+        assert!(res.native(call_id).is_none());
+
+        let decl = res.decl(find_decl(&idx, "print"));
+        let use_id = find_var(&idx, "print", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn local_val_named_math_is_not_a_native_call() {
+        let (ast, res) = analyze(
+            r#"
+struct MathLike {
+    abs
+}
+fn f() {
+    val Math = MathLike(fn(x) { return "local abs" })
+    return Math.abs(-1)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "Math.abs", 0);
+        assert!(res.native(call_id).is_none());
+
+        let decl = res.decl(find_decl(&idx, "Math"));
+        let use_id = find_var(&idx, "Math", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn toplevel_math_abs_call_is_native() {
+        let (ast, res) = analyze("print(Math.abs(-1))\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "Math.abs", 0);
+        assert!(res.native(call_id).is_some());
+    }
+
+    #[test]
+    fn file_constructor_call_is_native() {
+        let (ast, res) = analyze("val f = File(\"x.txt\")\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "File", 0);
+        assert_eq!(
+            res.native(call_id),
+            crate::common::method_registry::get_native_method_index("File", "new")
+        );
+    }
+
+    #[test]
+    fn local_file_shadows_native_constructor() {
+        let (ast, res) = analyze(
+            r#"
+fn f() {
+    val File = fn(p) { return p }
+    return File("x")
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let call_id = find_call(&idx, "File", 0);
+        assert!(res.native(call_id).is_none());
+
+        let decl = res.decl(find_decl(&idx, "File"));
+        let use_id = find_var(&idx, "File", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn method_call_captures_receiver_before_argument() {
+        let (ast, res) = analyze(
+            r#"
+struct Obj {
+    m
+}
+fn outer() {
+    var a = Obj(fn(x) { return x })
+    var b = 3
+    fn inner() {
+        return a.m(b)
+    }
+    return inner()
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let a_decl = res.decl(find_decl(&idx, "a"));
+        let b_decl = res.decl(find_decl(&idx, "b"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(
+            inner_res.upvalues,
+            vec![Capture::Local(a_decl), Capture::Local(b_decl)]
+        );
+
+        let a_use = find_var(&idx, "a", 0);
+        let b_use = find_var(&idx, "b", 0);
+        assert_eq!(res.res(a_use), Res::Upvalue(0));
+        assert_eq!(res.res(b_use), Res::Upvalue(1));
+    }
+
+    #[test]
+    fn repeated_capture_of_same_local_reuses_one_upvalue_entry() {
+        let (ast, res) = analyze(
+            r#"
+fn outer() {
+    var a = 1
+    fn inner() {
+        return a + a
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let a_decl = res.decl(find_decl(&idx, "a"));
+        let inner_res = res.function(find_fn(&idx, "inner"));
+        assert_eq!(inner_res.upvalues, vec![Capture::Local(a_decl)]);
+
+        let first_use = find_var(&idx, "a", 0);
+        let second_use = find_var(&idx, "a", 1);
+        assert_eq!(res.res(first_use), Res::Upvalue(0));
+        assert_eq!(res.res(second_use), Res::Upvalue(0));
+    }
+
+    #[test]
+    fn struct_static_call_receiver_is_resolved_as_a_value() {
+        let (ast, res) = analyze(
+            r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn origin() {
+        return 0
+    }
+}
+print(Point.origin())
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "Point"));
+        let use_id = find_var(&idx, "Point", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn postfix_increment_operand_is_resolved() {
+        let (ast, res) = analyze("var x = 1\nx++\n");
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "x"));
+        let use_id = find_var(&idx, "x", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn for_in_variable_declaration_and_use() {
+        let (ast, res) = analyze(
+            r#"
+val arr = [1, 2, 3]
+for (item in arr) {
+    print(item)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "item"));
+        let use_id = find_var(&idx, "item", 0);
+        assert_eq!(res.res(use_id), Res::Local(decl));
+    }
+
+    #[test]
+    fn c_style_for_initializer_declaration_and_use() {
+        let (ast, res) = analyze(
+            r#"
+for (var i = 0; i < 3; i = i + 1) {
+    print(i)
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "i"));
+        let body_use = find_var(&idx, "i", 2);
+        assert_eq!(res.res(body_use), Res::Local(decl));
+    }
+
+    #[test]
+    fn impl_method_function_resolution_includes_self_param() {
+        let (ast, res) = analyze(
+            r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.x
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let method_res = res.function(find_fn(&idx, "len"));
+        assert_eq!(method_res.params.len(), 1);
+
+        let self_use = find_var(&idx, "self", 0);
+        assert_eq!(res.res(self_use), Res::Local(method_res.params[0]));
+    }
+
+    #[test]
+    fn impl_method_body_uses_toplevel_name_as_global() {
+        let (ast, res) = analyze(
+            r#"
+fn helper() {
+    return 42
+}
+struct Circle {
+    r
+}
+impl Circle {
+    fn area(self) {
+        return helper()
+    }
+}
+"#,
+        );
+        let mut idx = Index::default();
+        index_stmts(&ast, &mut idx);
+
+        let decl = res.decl(find_decl(&idx, "helper"));
+        let use_id = find_var(&idx, "helper", 0);
+        assert_eq!(res.res(use_id), Res::Global(decl));
+    }
+}
+
 #[test]
 fn test_undefined_variable() {
     let program = "print(x)\n";
@@ -1724,6 +2385,29 @@ while (true) {
         .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
 }
 
+#[test]
+fn test_continue_in_nested_fn_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    fn f() {
+        continue
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Cannot use 'continue' outside of a loop")));
+}
+
 // =============================================================================
 // Builtin Namespace Tests (Math, File)
 // =============================================================================
@@ -1856,6 +2540,29 @@ while (true) {
 }
 
 #[test]
+fn test_continue_in_lambda_inside_loop_is_error() {
+    let program = r#"
+while (true) {
+    val f = fn() {
+        continue
+    }
+    f()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Cannot use 'continue' outside of a loop")));
+}
+
+#[test]
 fn test_postfix_in_function_parameters() {
     let program = r#"
         fn process(x) {
@@ -1946,6 +2653,30 @@ val s = "abc"
 for (s in [[1]]) {
     s.push(2)
 }
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            eprintln!("Error: {}", err.message);
+        }
+    }
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_for_increment_sees_body_assignments() {
+    let program = r#"
+var n = 0
+for (var s = "ab"; n < 1; s.push(1)) {
+    s = []
+    n = n + 1
+}
+print("ok")
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();

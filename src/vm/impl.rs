@@ -46,7 +46,7 @@ impl VirtualMachine {
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
 
-        let mut compiler = Compiler::new(self.builtin.clone());
+        let mut compiler = Compiler::new();
         let chunk = compiler.compile(&source);
 
         #[cfg(not(target_arch = "wasm32"))]

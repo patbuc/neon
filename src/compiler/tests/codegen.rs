@@ -1,22 +1,8 @@
 use crate::common::opcodes::OpCode;
-use crate::common::stdlib::create_builtin_objects;
 use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
-
-/// Parses `source` and runs codegen directly, skipping the semantic pass.
-fn generate_without_semantic_pass(source: &str) -> Result<Chunk, String> {
-    let mut parser = Parser::new(source);
-    let ast = parser
-        .parse()
-        .map_err(|e| format!("Parse error: {:?}", e))?;
-
-    let mut codegen = CodeGenerator::new(create_builtin_objects(vec![]));
-    codegen
-        .generate(&ast)
-        .map_err(|e| format!("Codegen error: {:?}", e))
-}
 
 fn compile_program(source: &str) -> Result<Chunk, String> {
     // Parse
@@ -27,12 +13,12 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
-    let _ = analyzer
+    let resolutions = analyzer
         .analyze(&ast)
         .map_err(|e| format!("Semantic error: {:?}", e))?;
 
     // Code generation
-    let mut codegen = CodeGenerator::new(create_builtin_objects(vec![]));
+    let mut codegen = CodeGenerator::new(&resolutions);
     codegen
         .generate(&ast)
         .map_err(|e| format!("Codegen error: {:?}", e))
@@ -1105,46 +1091,50 @@ fn test_captured_for_loop_emits_one_close_upvalue_in_place() {
 // =============================================================================
 
 #[test]
-fn test_break_in_lambda_is_codegen_error() {
+fn test_top_level_fn_named_print_shadows_native() {
+    use crate::vm::VirtualMachine;
+
     let program = r#"
-    while (true) {
-        val f = fn() {
-            break
-        }
-        f()
-    }
+    fn print(x) {}
+    print("native")
     "#;
-    let result = generate_without_semantic_pass(program);
-    let err = result.expect_err("codegen must reject break in a lambda inside a loop");
-    assert!(err.contains("outside of a loop"));
+    let chunk = compile_program(program).unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+
+    #[cfg(any(test, debug_assertions))]
+    {
+        assert_eq!(vm.get_output(), "");
+    }
+
+    assert_eq!(result, crate::vm::Result::Ok);
 }
 
 #[test]
-fn test_continue_in_lambda_is_codegen_error() {
-    let program = r#"
-    while (true) {
-        val f = fn() {
-            continue
-        }
-        f()
-    }
-    "#;
-    let result = generate_without_semantic_pass(program);
-    let err = result.expect_err("codegen must reject continue in a lambda inside a loop");
-    assert!(err.contains("outside of a loop"));
-}
+fn test_native_call_labels() {
+    use crate::common::Object;
+    use crate::common::Value;
 
-#[test]
-fn test_break_in_nested_fn_is_codegen_error() {
     let program = r#"
-    while (true) {
-        fn f() {
-            break
-        }
-        f()
-    }
+    print(1)
+    File("x")
+    Math.abs(1)
     "#;
-    let result = generate_without_semantic_pass(program);
-    let err = result.expect_err("codegen must reject break in a nested fn inside a loop");
-    assert!(err.contains("outside of a loop"));
+    let chunk = compile_program(program).unwrap();
+
+    let labels: Vec<String> = chunk
+        .constants
+        .values
+        .iter()
+        .filter_map(|value| match value {
+            Value::Object(object) => match object.as_ref() {
+                Object::NativeFunction(native) => Some(native.name.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(labels, vec!["print", "File.new", "abs"]);
 }

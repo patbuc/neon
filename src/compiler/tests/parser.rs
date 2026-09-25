@@ -1,5 +1,6 @@
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
+use std::collections::HashSet;
 
 #[test]
 fn test_parse_number() {
@@ -3327,4 +3328,103 @@ fn test_parse_newline_before_operator_ends_statement() {
         },
         _ => panic!("Expected Expression statement"),
     }
+}
+
+fn collect_stmt_ids(stmt: &Stmt, ids: &mut Vec<u32>) {
+    match stmt {
+        Stmt::Val {
+            id, initializer, ..
+        }
+        | Stmt::Var {
+            id, initializer, ..
+        } => {
+            ids.push(id.0);
+            if let Some(expr) = initializer {
+                collect_expr_ids(expr, ids);
+            }
+        }
+        Stmt::Fn { id, body, .. } => {
+            ids.push(id.0);
+            body.iter().for_each(|stmt| collect_stmt_ids(stmt, ids));
+        }
+        Stmt::Struct { id, .. } => ids.push(id.0),
+        Stmt::ForIn {
+            id,
+            collection,
+            body,
+            ..
+        } => {
+            ids.push(id.0);
+            collect_expr_ids(collection, ids);
+            collect_stmt_ids(body, ids);
+        }
+        Stmt::Expression { expr, .. } => collect_expr_ids(expr, ids),
+        Stmt::Block { statements, .. } => {
+            statements
+                .iter()
+                .for_each(|stmt| collect_stmt_ids(stmt, ids));
+        }
+        Stmt::Return { value, .. } => collect_expr_ids(value, ids),
+        _ => {}
+    }
+}
+
+fn collect_expr_ids(expr: &Expr, ids: &mut Vec<u32>) {
+    match expr {
+        Expr::Variable { id, .. } => ids.push(id.0),
+        Expr::Assign { id, value, .. } => {
+            ids.push(id.0);
+            collect_expr_ids(value, ids);
+        }
+        Expr::Call {
+            id,
+            callee,
+            arguments,
+            ..
+        } => {
+            ids.push(id.0);
+            collect_expr_ids(callee, ids);
+            arguments.iter().for_each(|arg| collect_expr_ids(arg, ids));
+        }
+        Expr::Function { id, body, .. } => {
+            ids.push(id.0);
+            body.iter().for_each(|stmt| collect_stmt_ids(stmt, ids));
+        }
+        Expr::StringInterpolation { parts, .. } => {
+            parts.iter().for_each(|part| {
+                if let crate::compiler::ast::InterpolationPart::Expression(expr) = part {
+                    collect_expr_ids(expr, ids);
+                }
+            });
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn test_node_ids_are_unique() {
+    let source = "val f = fn(a) { return a }\n\
+                  var y = 1\n\
+                  fn foo(a) { return a }\n\
+                  struct Point {\n\
+                  \tx\n\
+                  \ty\n\
+                  }\n\
+                  for (z in [1, 2]) {\n\
+                  \ty = foo(z)\n\
+                  }\n\
+                  val s = \"${foo(y)}\"\n";
+    let mut parser = Parser::new(source);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+
+    let mut ids = Vec::new();
+    stmts
+        .iter()
+        .for_each(|stmt| collect_stmt_ids(stmt, &mut ids));
+
+    assert!(ids.len() >= 8);
+    let unique: HashSet<u32> = ids.iter().copied().collect();
+    assert_eq!(unique.len(), ids.len(), "node ids must be unique: {ids:?}");
 }

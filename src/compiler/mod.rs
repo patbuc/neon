@@ -4,6 +4,7 @@ pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
 pub(crate) mod parser;
+pub(crate) mod resolutions;
 mod scanner;
 pub(crate) mod semantic;
 pub(crate) mod symbol_table;
@@ -35,11 +36,10 @@ pub(crate) struct Scanner {
     offset_base: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Compiler {
     compilation_errors: String,
     structured_errors: Vec<crate::common::errors::CompilationError>,
-    builtin: indexmap::IndexMap<String, crate::common::Value>,
 }
 
 impl Compiler {

@@ -1,5 +1,9 @@
 use crate::common::SourceLocation;
 
+/// Stable identity for a name-use or name-declaration AST node, assigned by the parser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(pub u32);
+
 /// Binary operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
@@ -67,11 +71,13 @@ pub enum Expr {
     },
     Variable {
         name: String,
+        id: NodeId,
         location: SourceLocation,
     },
     Assign {
         name: String,
         value: Box<Expr>,
+        id: NodeId,
         location: SourceLocation,
     },
     Binary {
@@ -88,6 +94,7 @@ pub enum Expr {
     Call {
         callee: Box<Expr>,
         arguments: Vec<Expr>,
+        id: NodeId,
         location: SourceLocation,
     },
     GetField {
@@ -151,6 +158,7 @@ pub enum Expr {
     Function {
         params: Vec<String>,
         body: Vec<Stmt>,
+        id: NodeId,
         location: SourceLocation,
     },
 }
@@ -161,22 +169,26 @@ pub enum Stmt {
     Val {
         name: String,
         initializer: Option<Expr>,
+        id: NodeId,
         location: SourceLocation,
     },
     Var {
         name: String,
         initializer: Option<Expr>,
+        id: NodeId,
         location: SourceLocation,
     },
     Fn {
         name: String,
         params: Vec<String>,
         body: Vec<Stmt>,
+        id: NodeId,
         location: SourceLocation,
     },
     Struct {
         name: String,
         fields: Vec<String>,
+        id: NodeId,
         location: SourceLocation,
     },
     Impl {
@@ -211,6 +223,7 @@ pub enum Stmt {
         variable: String,
         collection: Expr,
         body: Box<Stmt>,
+        id: NodeId,
         location: SourceLocation,
     },
     For {

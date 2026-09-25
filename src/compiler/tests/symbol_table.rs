@@ -1,4 +1,5 @@
 use crate::common::SourceLocation;
+use crate::compiler::resolutions::DeclId;
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 
 fn dummy_location() -> SourceLocation {
@@ -17,6 +18,8 @@ fn test_symbol_creation() {
         false,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     assert_eq!(symbol.name, "x");
     assert!(!symbol.is_mutable);
@@ -32,6 +35,8 @@ fn test_symbol_table_global() {
         true,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
 
     assert!(table.define(symbol).is_ok());
@@ -50,6 +55,8 @@ fn test_symbol_table_nested_scopes() {
         false,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     table.define(global_sym).unwrap();
 
@@ -64,6 +71,8 @@ fn test_symbol_table_nested_scopes() {
         true,
         1,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     table.define(local_sym).unwrap();
 
@@ -92,6 +101,8 @@ fn test_symbol_shadowing() {
         false,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     table.define(global_x).unwrap();
 
@@ -105,6 +116,8 @@ fn test_symbol_shadowing() {
         true,
         1,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     table.define(local_x).unwrap();
 
@@ -124,6 +137,8 @@ fn test_duplicate_definition_error() {
         false,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     table.define(sym1).unwrap();
 
@@ -134,6 +149,8 @@ fn test_duplicate_definition_error() {
         true,
         0,
         dummy_location(),
+        DeclId(0),
+        0,
     );
     let result = table.define(sym2);
     assert!(result.is_err());

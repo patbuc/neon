@@ -4,7 +4,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 
@@ -15,6 +15,7 @@ pub struct Parser {
     current_token: Token,
     errors: Vec<CompilationError>,
     panic_mode: bool,
+    next_node_id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -66,18 +67,28 @@ impl Precedence {
 
 impl Parser {
     pub fn new(source: &str) -> Self {
-        Parser::new_at(source, 1, 1, 0)
+        Parser::new_at(source, 1, 1, 0, 0)
     }
 
-    /// Like `new`, but starts counting position at the given line/column/offset.
-    fn new_at(source: &str, line: u32, column: u32, offset: usize) -> Self {
+    /// Like `new`, but starts counting position at the given line/column/offset,
+    /// and continues `NodeId` allocation from `next_node_id` instead of
+    /// restarting at 0 - for a sub-parser over an interpolated expression, so
+    /// its node ids don't collide with the enclosing parser's.
+    fn new_at(source: &str, line: u32, column: u32, offset: usize, next_node_id: u32) -> Self {
         Parser {
             scanner: Scanner::new_at(source, line, column, offset),
             previous_token: Token::default(),
             current_token: Token::default(),
             errors: Vec::new(),
             panic_mode: false,
+            next_node_id,
         }
+    }
+
+    fn next_id(&mut self) -> NodeId {
+        let id = NodeId(self.next_node_id);
+        self.next_node_id += 1;
+        id
     }
 
     pub fn parse(&mut self) -> CompilationResult<Vec<Stmt>> {
@@ -351,12 +362,14 @@ impl Parser {
             Stmt::Var {
                 name,
                 initializer,
+                id: self.next_id(),
                 location,
             }
         } else {
             Stmt::Val {
                 name,
                 initializer,
+                id: self.next_id(),
                 location,
             }
         })
@@ -395,6 +408,7 @@ impl Parser {
             name,
             params,
             body,
+            id: self.next_id(),
             location,
         })
     }
@@ -434,6 +448,7 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            id: self.next_id(),
             location,
         })
     }
@@ -690,6 +705,7 @@ impl Parser {
             variable,
             collection,
             body,
+            id: self.next_id(),
             location,
         })
     }
@@ -944,12 +960,18 @@ impl Parser {
                     return None;
                 }
 
-                let mut expr_parser =
-                    Parser::new_at(&expr_str, expr_line, expr_column, expr_offset);
+                let mut expr_parser = Parser::new_at(
+                    &expr_str,
+                    expr_line,
+                    expr_column,
+                    expr_offset,
+                    self.next_node_id,
+                );
                 expr_parser.advance();
                 let expr = expr_parser.expression(true);
                 let ends_cleanly = expr_parser
                     .consume(TokenType::Eof, "Expect '}' after interpolated expression.");
+                self.next_node_id = expr_parser.next_node_id;
 
                 match expr {
                     Some(expr) if ends_cleanly => {
@@ -1020,10 +1042,15 @@ impl Parser {
             Some(Expr::Assign {
                 name,
                 value,
+                id: self.next_id(),
                 location,
             })
         } else {
-            Some(Expr::Variable { name, location })
+            Some(Expr::Variable {
+                name,
+                id: self.next_id(),
+                location,
+            })
         }
     }
 
@@ -1146,6 +1173,7 @@ impl Parser {
         Some(Expr::Call {
             callee: Box::new(callee),
             arguments,
+            id: self.next_id(),
             location,
         })
     }
@@ -1178,6 +1206,7 @@ impl Parser {
             Some(Expr::Call {
                 callee: Box::new(get_field_expr),
                 arguments,
+                id: self.next_id(),
                 location: method_location,
             })
         } else if can_assign && self.match_token(TokenType::Equal) {
@@ -1259,6 +1288,7 @@ impl Parser {
         Some(Expr::Function {
             params,
             body,
+            id: self.next_id(),
             location,
         })
     }

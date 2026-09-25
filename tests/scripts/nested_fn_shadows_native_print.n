@@ -1,0 +1,15 @@
+// nested_fn_shadows_native_print.n - a nested user function named `print`
+// shadows the native print for calls within its enclosing function; the
+// top-level `print` remains the native
+
+// Expected:
+// local nested
+
+fn f() {
+    fn print(x) {
+        return "local " + x
+    }
+    return print("nested")
+}
+
+print(f())

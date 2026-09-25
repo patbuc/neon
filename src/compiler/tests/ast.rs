@@ -1,5 +1,5 @@
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, Stmt};
+use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt};
 
 fn dummy_location() -> SourceLocation {
     SourceLocation {
@@ -51,6 +51,7 @@ fn test_stmt_val() {
             value: 5.0,
             location: dummy_location(),
         }),
+        id: NodeId(0),
         location: dummy_location(),
     };
     match stmt {
@@ -65,6 +66,7 @@ fn test_stmt_fn() {
         name: "foo".to_string(),
         params: vec!["a".to_string(), "b".to_string()],
         body: vec![],
+        id: NodeId(0),
         location: dummy_location(),
     };
 
