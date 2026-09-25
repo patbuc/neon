@@ -470,9 +470,7 @@ impl SemanticAnalyzer {
             Expr::Call { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
-                    // This is a method call obj.method(args) - the method
-                    // registry is the single source of truth for its
-                    // return type, when it tracks one.
+                    // This is a method call obj.method(args)
                     let object_type = self.infer_expr_type(object)?;
                     crate::common::method_registry::instance_return_type(object_type.name(), field)
                 } else if let Expr::Variable { name, .. } = callee.as_ref() {

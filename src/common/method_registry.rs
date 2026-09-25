@@ -20,8 +20,6 @@ pub(crate) enum NativeCallable {
         function: NativeFn,
         #[allow(dead_code)]
         arity: u8,
-        /// The method's statically known return type, when the semantic
-        /// analyzer needs it to validate a chained method call.
         returns: Option<StaticType>,
     },
     /// Instance method that calls back into Neon code, so it needs the VM:

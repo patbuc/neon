@@ -3662,12 +3662,9 @@ fn test_assign_to_builtin_at_top_level() {
 
 #[test]
 fn test_native_method_return_types_are_inferred() {
-    // Each snippet calls a native method whose return type the type
-    // inference table knows, then chains an unknown method onto the
-    // result - the error must name the inferred type. `String.toString`
-    // is not a registered native method (only Number/Boolean have one),
-    // so it's omitted here even though the old hardcoded table listed it;
-    // that entry could never fire on a valid method call.
+    // Each snippet calls a native method whose return type the registry
+    // tracks, then chains an unknown method onto the result - the error
+    // must name the inferred type.
     let cases: &[(&str, &str)] = &[
         (r#"val m = {"a": 1}\nm.keys().bogus()"#, "Array"),
         (r#"val m = {"a": 1}\nm.values().bogus()"#, "Array"),
@@ -3714,8 +3711,11 @@ fn test_native_method_return_types_are_inferred() {
 }
 
 #[test]
-fn test_native_method_not_in_return_type_table_has_unknown_type() {
-    let program = "[1].length().bogus()\n";
+fn test_method_with_unknowable_return_type_has_no_error() {
+    // Array.pop() returns whatever element was stored, which can be of any
+    // type - the registry tracks no return type for it, so chaining an
+    // unknown method must not error.
+    let program = r#"[1, "a"].pop().bogus()"#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
 
@@ -3726,9 +3726,34 @@ fn test_native_method_not_in_return_type_table_has_unknown_type() {
         for err in errors {
             assert!(
                 !err.message.contains("has no method named"),
-                "length()'s return type isn't tracked, so no method validation should run, but got: {}",
+                "unexpected method validation error: {}",
                 err.message
             );
         }
     }
+}
+
+#[test]
+fn test_self_typed_as_builtin_type_in_impl_validates_methods() {
+    // Pins StaticType::from_name's builtin arms: `self` inside `impl Array`
+    // must be typed as StaticType::Array (not Struct("Array")), so a
+    // ternary returning `self` still validates against Array's methods.
+    let program = r#"
+impl Array {
+    fn f(self) {
+        return (true ? self : [1]).bogus()
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Type 'Array' has no method named 'bogus'")));
 }

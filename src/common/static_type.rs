@@ -28,15 +28,14 @@ impl StaticType {
         }
     }
 
-    /// The `StaticType` for a builtin type name, or `Struct(name)` for
-    /// anything else - used for `impl` blocks, which can target either a
-    /// struct or a builtin type.
+    /// The `StaticType` for an `impl` target: a builtin type name, or
+    /// `Struct(name)` otherwise. `Nil` is not mapped because a struct may
+    /// be named `Nil`.
     pub fn from_name(name: &str) -> StaticType {
         match name {
             "Number" => StaticType::Number,
             "String" => StaticType::String,
             "Boolean" => StaticType::Boolean,
-            "Nil" => StaticType::Nil,
             "Array" => StaticType::Array,
             "Map" => StaticType::Map,
             "Set" => StaticType::Set,

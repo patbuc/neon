@@ -36,7 +36,7 @@ pub const BUILTIN_VALUES: &[(&str, StaticType)] = &[(ARGS, StaticType::Array)];
 pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {
     BUILTIN_VALUES
         .iter()
-        .map(|(name, _static_type)| {
+        .map(|(name, _type_name)| {
             let value = match *name {
                 ARGS => create_args_array(&args),
                 other => panic!("no constructor for builtin value '{}'", other),
