@@ -265,6 +265,160 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    // Range instance methods
+    (
+        "Range",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_size,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "length",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_length,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "contains",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_contains,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "toArray",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_to_array,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "slice",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_slice,
+            arity: 2,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "join",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_join,
+            arity: 1,
+            returns: Some(StaticType::String),
+        },
+    ),
+    (
+        "Range",
+        "indexOf",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_index_of,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "sum",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_sum,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "min",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_min,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "max",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_max,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "map",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "filter",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_filter,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "reduce",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_reduce,
+            arity: 2,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "push",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_push,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "pop",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_pop,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "sort",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_sort,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "reverse",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_reverse,
+            arity: 0,
+            returns: None,
+        },
+    ),
     // String instance methods
     (
         "String",

@@ -32,6 +32,7 @@
 /// - `File` → `&Rc<String>`
 /// - `Number` → `f64`
 /// - `Boolean` → `bool`
+/// - `Range` → `&Rc<ObjRange>`
 ///
 /// # Examples
 ///
@@ -102,6 +103,15 @@ macro_rules! extract_receiver {
             Some(Value::Boolean(b)) => Ok(*b),
             Some(_) => Err(format!("{}() can only be called on booleans", $method)),
             None => Err(format!("{}() can only be called on booleans", $method)),
+        }
+    };
+
+    // Range extraction
+    ($args:expr, Range, $method:expr) => {
+        match $args.get(0) {
+            Some(Value::Range(r)) => Ok(r),
+            Some(_) => Err(format!("{}() can only be called on ranges", $method)),
+            None => Err(format!("{}() can only be called on ranges", $method)),
         }
     };
 }
