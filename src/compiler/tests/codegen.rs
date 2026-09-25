@@ -756,6 +756,24 @@ fn test_array_literal_too_large() {
 }
 
 #[test]
+fn test_function_constant_pool_too_large() {
+    // 65,536 distinct number-literal statements in one function overflow the
+    // u16 constant-pool index.
+    let mut body = String::new();
+    for i in 0..65536 {
+        body.push_str(&i.to_string());
+        body.push('\n');
+    }
+    let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
+
+    let result = compile_program(&program);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("constants"));
+    assert!(err.contains("65535"));
+}
+
+#[test]
 fn test_map_literal_too_large() {
     // Generate a map literal with more than 65535 entries
     let entries: Vec<String> = (0..70000).map(|i| format!("{}: {}", i, i)).collect();
