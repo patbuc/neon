@@ -3419,6 +3419,46 @@ fn test_interpolation_error_position_after_escape() {
 }
 
 #[test]
+fn test_interpolation_unclosed_at_eof() {
+    let mut parser = Parser::new("print(\"${\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "Expect '}' after interpolated expression."
+    );
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 8);
+}
+
+#[test]
+fn test_interpolation_nested_quotes() {
+    let mut parser = Parser::new("\"${m[\"k\"]}\"\n");
+    let result = parser.parse();
+
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::StringInterpolation { parts, .. } => {
+                assert_eq!(parts.len(), 1);
+                match &parts[0] {
+                    InterpolationPart::Expression(expr) => {
+                        assert!(matches!(expr.as_ref(), Expr::Index { .. }));
+                    }
+                    _ => panic!("Expected Expression part"),
+                }
+            }
+            _ => panic!("Expected StringInterpolation expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
 fn test_invalid_escape() {
     let mut parser = Parser::new("print(\"\\q\")\n");
     let result = parser.parse();
