@@ -155,13 +155,20 @@ pub struct ObjNativeFunction {
 #[derive(Debug, Clone)]
 pub struct ObjInstance {
     pub r#struct: Rc<ObjStruct>,
-    pub fields: HashMap<String, Value>,
+    pub fields: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
+    pub field_indices: HashMap<String, usize>,
+}
+
+impl ObjStruct {
+    pub(crate) fn field_index(&self, name: &str) -> Option<usize> {
+        self.field_indices.get(name).copied()
+    }
 }
 
 impl Value {
@@ -170,7 +177,16 @@ impl Value {
     }
 
     pub(crate) fn new_struct(name: String, fields: Vec<String>) -> Self {
-        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct { name, fields }))))
+        let field_indices = fields
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), index))
+            .collect();
+        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct {
+            name,
+            fields,
+            field_indices,
+        }))))
     }
 
     pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
@@ -390,12 +406,12 @@ impl Object {
             (Object::Instance(a), Object::Instance(b)) => guarded_eq(a, b, seen, |seen| {
                 let ia = a.borrow();
                 let ib = b.borrow();
-                ia.r#struct.name == ib.r#struct.name
-                    && ia.fields.len() == ib.fields.len()
+                *ia.r#struct == *ib.r#struct
                     && ia
                         .fields
                         .iter()
-                        .all(|(k, v)| ib.fields.get(k).is_some_and(|w| v.eq_with_seen(w, seen)))
+                        .zip(ib.fields.iter())
+                        .all(|(v, w)| v.eq_with_seen(w, seen))
             }),
             (Object::Array(a), Object::Array(b)) => guarded_eq(a, b, seen, |seen| {
                 let va = a.borrow();

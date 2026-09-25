@@ -1,0 +1,57 @@
+// Expected:
+// 1
+// 2
+// 3
+// 4
+// 5
+// 10
+// 2
+// 3
+// 4
+// 50
+// true
+// false
+// false
+
+// Each field must round-trip through its own slot, not a neighbor's.
+struct Five {
+    a
+    b
+    c
+    d
+    e
+}
+
+val f = Five(1, 2, 3, 4, 5)
+print(f.a)
+print(f.b)
+print(f.c)
+print(f.d)
+print(f.e)
+
+f.a = 10
+f.e = 50
+print(f.a)
+print(f.b)
+print(f.c)
+print(f.d)
+print(f.e)
+
+struct Point {
+    x
+    y
+}
+
+val p1 = Point(1, 2)
+val p2 = Point(1, 2)
+val p3 = Point(1, 3)
+print(p1 == p2)
+print(p1 == p3)
+
+struct Other {
+    x
+    y
+}
+
+val o1 = Other(1, 2)
+print(p1 == o1)
