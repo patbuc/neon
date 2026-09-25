@@ -632,3 +632,69 @@ fn call_name_that_is_neither_method_nor_field_is_unknown_method() {
         errors
     );
 }
+
+#[test]
+fn top_level_fn_reads_later_val_before_init() {
+    let program = r#"
+fn f() {
+    return y
+}
+print(f())
+val y = 2
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'y' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn top_level_fn_assigns_later_var_before_init() {
+    let program = r#"
+fn f() {
+    x = 5
+}
+f()
+var x = 3
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'x' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}
+
+#[test]
+fn nested_fn_called_before_its_declaration_line() {
+    let program = r#"
+fn outer() {
+    g()
+    fn g() { return 1 }
+}
+outer()
+"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("variable 'g' used before initialization"),
+        "{}",
+        errors
+    );
+    assert!(errors.contains("[3:"), "{}", errors);
+}

@@ -1,0 +1,14 @@
+// Expected:
+// 1
+
+fn outer() {
+    fn a(n) {
+        return b(n)
+    }
+    fn b(n) {
+        return n
+    }
+    return a(1)
+}
+
+print(outer())

@@ -1,0 +1,10 @@
+// Expected:
+// 2
+
+fn f() {
+    return y
+}
+
+val y = 2
+
+print(f())
