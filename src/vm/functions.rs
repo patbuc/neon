@@ -606,13 +606,7 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn fn_set_local(&mut self) -> OpResult {
-        let index = self.read_index();
-        let frame = self.current_frame_mut();
-        // For functions: slot_start points to function object, args start at slot_start + 1
-        // For script: slot_start = -1, so locals start at 0
-        // locals (params) are indexed from 0, so param 0 is at slot_start + 1
-        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        frame.ip += 2;
+        let (index, absolute_index) = self.read_local_slot();
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -764,12 +758,21 @@ impl VirtualMachine {
         });
     }
 
+    /// Reads a u16 local-slot operand, advancing `ip` past it, and returns
+    /// it with its absolute stack index. Locals start at `slot_start + 1`,
+    /// which is 0 for the script frame (`slot_start` is -1).
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_local(&mut self) -> OpResult {
+    fn read_local_slot(&mut self) -> (usize, usize) {
         let index = self.read_index();
         let frame = self.current_frame_mut();
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
         frame.ip += 2;
+        (index, absolute_index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn fn_get_local(&mut self) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot();
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1248,11 +1251,8 @@ impl VirtualMachine {
 
     /// GetIterator: Convert a collection to an iterator
     /// Pops the collection and pushes two hidden locals: the iterable array
-    /// (arrays as-is, map keys / set elements collected into a new array)
+    /// (arrays as-is, map keys or set elements collected into a new array)
     /// followed by the starting index, 0.
-    /// For arrays: iterate over elements directly
-    /// For maps: iterate over keys
-    /// For sets: convert to array and iterate
     #[inline(always)]
     pub(in crate::vm) fn fn_get_iterator(&mut self) -> OpResult {
         let collection = self.pop();
@@ -1298,19 +1298,16 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// Reads the u16 slot operand for an iterator opcode, the same way
-    /// GetLocal does, and returns its absolute stack index.
+    /// Resolves the u16 slot operand for an iterator opcode to the absolute
+    /// index of its first hidden slot (array), checking that both it and
+    /// the index slot right after it are in range.
     #[inline(always)]
-    fn iterator_slot(&mut self) -> Option<usize> {
-        let index = self.read_index();
-        let frame = self.current_frame_mut();
-        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        frame.ip += 2;
-        if absolute_index >= self.stack.len() {
-            None
-        } else {
-            Some(absolute_index)
+    fn read_iterator_slot(&mut self) -> std::result::Result<usize, RuntimeError> {
+        let (index, slot) = self.read_local_slot();
+        if slot + 1 >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
+        Ok(slot)
     }
 
     /// IteratorDone: Check if iteration is complete for the hidden iterator
@@ -1319,9 +1316,7 @@ impl VirtualMachine {
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_done(&mut self) -> OpResult {
-        let Some(slot) = self.iterator_slot() else {
-            return Err(self.runtime_error("Invalid local slot"));
-        };
+        let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
             Value::Number(n) => *n as usize,
             other => {
@@ -1350,9 +1345,7 @@ impl VirtualMachine {
     /// Pushes the next value onto the stack and advances the index slot.
     #[inline(always)]
     pub(in crate::vm) fn fn_iterator_next(&mut self) -> OpResult {
-        let Some(slot) = self.iterator_slot() else {
-            return Err(self.runtime_error("Invalid local slot"));
-        };
+        let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
             Value::Number(n) => *n as usize,
             other => {

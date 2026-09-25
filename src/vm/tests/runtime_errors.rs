@@ -174,6 +174,17 @@ fn iterator_done_without_iterator_halts() {
 }
 
 #[test]
+fn iterator_done_with_only_the_array_slot_halts() {
+    let mut chunk = Chunk::new("iterator_done_with_only_the_array_slot");
+    chunk.write_op_code(OpCode::Nil, 0, 0);
+    chunk.write_indexed(OpCode::IteratorDone, 0, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(Result::RuntimeError, result);
+}
+
+#[test]
 fn invalid_opcode_byte_halts() {
     let mut chunk = Chunk::new("invalid_opcode");
     chunk.write_op_code(OpCode::Nil, 1, 1);

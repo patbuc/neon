@@ -720,9 +720,7 @@ impl<'a> CodeGenerator<'a> {
         // For-in loop code generation strategy: uses iterator opcodes rather
         // than the increment/condition structure of a C-style for loop.
         // The iterator state lives in two hidden locals (array, index) below
-        // the loop variable, like Lua's generic-for hidden slots, so it is
-        // popped for free on every path out of the loop (break, return,
-        // unwinding through a native callback).
+        // the loop variable.
         //
         // Bytecode structure:
         //   <evaluate collection>
