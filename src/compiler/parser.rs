@@ -16,7 +16,13 @@ pub struct Parser {
     errors: Vec<CompilationError>,
     panic_mode: bool,
     next_node_id: u32,
-    brace_depth: usize,
+    /// Open `{`/`#{`, `(`, and `[` counts, tracked separately per bracket
+    /// type. A stray, unmatched closer of one type (consumed as a bad
+    /// expression token during error recovery, e.g. the `)` in
+    /// `val a = )`) only ever throws off its own count, never the others,
+    /// so it can't be mistaken for closing a brace/paren/bracket of a
+    /// different type that's still genuinely open.
+    nesting_depth: (usize, usize, usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -83,7 +89,7 @@ impl Parser {
             errors: Vec::new(),
             panic_mode: false,
             next_node_id,
-            brace_depth: 0,
+            nesting_depth: (0, 0, 0),
         }
     }
 
@@ -122,9 +128,14 @@ impl Parser {
 
     fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
+        let (braces, parens, brackets) = &mut self.nesting_depth;
         match self.previous_token.token_type {
-            TokenType::LeftBrace | TokenType::HashLeftBrace => self.brace_depth += 1,
-            TokenType::RightBrace => self.brace_depth = self.brace_depth.saturating_sub(1),
+            TokenType::LeftBrace | TokenType::HashLeftBrace => *braces += 1,
+            TokenType::RightBrace => *braces = braces.saturating_sub(1),
+            TokenType::LeftParen => *parens += 1,
+            TokenType::RightParen => *parens = parens.saturating_sub(1),
+            TokenType::LeftBracket => *brackets += 1,
+            TokenType::RightBracket => *brackets = brackets.saturating_sub(1),
             _ => {}
         }
         loop {
@@ -306,27 +317,39 @@ impl Parser {
     }
 
     /// Skips tokens until the start of the next statement. `block_depth` is
-    /// the parser's `brace_depth` while inside the block being recovered
-    /// (`None` at the top level): a `}` only ends the skip once the parser
-    /// is back down to that depth, so a `}` that closes a map/set literal
-    /// or a nested block opened before the error isn't mistaken for the
-    /// enclosing block's own closing brace. The newline/keyword stops use a
-    /// separate, purely local count of braces opened during this skip, so
-    /// they don't fire while still inside a group the skip itself entered.
-    fn synchronize(&mut self, block_depth: Option<usize>) {
+    /// the parser's `nesting_depth` while inside the block being recovered
+    /// (`None` at the top level). The newline and statement-keyword stops
+    /// fire only once the parser is back down to that full depth, so a
+    /// `}`/`)`/`]` that closes a map/set literal, call, or bracketed group
+    /// opened before the error isn't mistaken for the end of the block, and
+    /// a newline inside such a group doesn't end the skip early either. The
+    /// `}`-closes-the-block stop only needs the brace count to match: `}`
+    /// can never be consumed as a stray bad-expression token (unlike `)`/
+    /// `]`), so it reliably marks the block's own end even while a `(`/`[`
+    /// elsewhere in the recovered statement never finds its match. At the
+    /// top level there's no block depth to compare against, so the same
+    /// stops instead use a local count of groups opened during this skip,
+    /// exactly as before.
+    fn synchronize(&mut self, block_depth: Option<(usize, usize, usize)>) {
         self.panic_mode = false;
         let mut local_depth: u32 = 0;
         loop {
             if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            if local_depth == 0 {
-                if self.previous_token.token_type == TokenType::NewLine {
+            if let Some((block_braces, _, _)) = block_depth {
+                let (braces, _, _) = self.nesting_depth;
+                if braces == block_braces && self.current_token.token_type == TokenType::RightBrace
+                {
                     return;
                 }
-                if block_depth == Some(self.brace_depth)
-                    && self.current_token.token_type == TokenType::RightBrace
-                {
+            }
+            let at_block_depth = match block_depth {
+                Some(depth) => self.nesting_depth == depth,
+                None => local_depth == 0,
+            };
+            if at_block_depth {
+                if self.previous_token.token_type == TokenType::NewLine {
                     return;
                 }
                 match self.current_token.token_type {
@@ -342,10 +365,12 @@ impl Parser {
                     _ => {}
                 }
             }
-            match self.current_token.token_type {
-                TokenType::LeftBrace | TokenType::HashLeftBrace => local_depth += 1,
-                TokenType::RightBrace => local_depth = local_depth.saturating_sub(1),
-                _ => {}
+            if block_depth.is_none() {
+                match self.current_token.token_type {
+                    TokenType::LeftBrace | TokenType::HashLeftBrace => local_depth += 1,
+                    TokenType::RightBrace => local_depth = local_depth.saturating_sub(1),
+                    _ => {}
+                }
             }
             self.advance();
         }
@@ -581,7 +606,7 @@ impl Parser {
     /// expressions, whose surrounding context decides what may follow.
     fn parse_block_body(&mut self) -> Option<Vec<Stmt>> {
         let mut statements = Vec::new();
-        let block_depth = self.brace_depth;
+        let block_depth = self.nesting_depth;
         self.skip_new_lines();
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {

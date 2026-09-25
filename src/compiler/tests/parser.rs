@@ -520,6 +520,90 @@ fn test_nested_call_with_bad_map_value_does_not_swallow_block_end() {
 }
 
 #[test]
+fn test_multiline_array_element_does_not_swallow_block_end() {
+    let program = "fn f() {\n    val x = [1,\n        2 +,\n        3]\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 12)]);
+}
+
+#[test]
+fn test_multiline_call_argument_does_not_swallow_block_end() {
+    let program = "fn f() {\n    print(1,\n        2 +,\n        3)\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 12)]);
+}
+
+#[test]
+fn test_open_call_across_newline_in_block_reports_one_error() {
+    let program = "fn f() {\n    print(1\n    x = )\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 5)]);
+}
+
+#[test]
+fn test_open_call_argument_across_newline_in_block_reports_one_error() {
+    let program = "fn f() {\n    print(1\n    print(2 +)\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 5)]);
+}
+
+#[test]
+fn test_open_array_across_newline_in_block_reports_one_error() {
+    let program = "fn f() {\n    [1, 2\n    x = )\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 5)]);
+}
+
+#[test]
+fn test_open_set_across_newline_in_block_reports_one_error() {
+    let program = "fn f() {\n    #{1\n    x = )\n    }\n    val y = 1\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let locations: Vec<(u32, u32)> = errors
+        .iter()
+        .map(|e| (e.location.line, e.location.column))
+        .collect();
+    assert_eq!(locations, vec![(3, 5)]);
+}
+
+#[test]
 fn test_parse_while_loop() {
     let program = r#"
         var i = 0
