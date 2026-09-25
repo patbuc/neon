@@ -141,6 +141,23 @@ fn test_array_sort() {
     );
 }
 
+#[test]
+fn test_array_sort_mixed_types_keeps_heap_bucket_order() {
+    let program = r#"
+        val a = [nil, [1], true]
+        a.sort()
+        print(a)
+
+        val b = [[1], "a"]
+        b.sort()
+        print(b)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1], nil, true]\n[[1], a]", vm.get_output());
+}
+
 // ============================================================================
 // Array.reverse() - Success Cases
 // ============================================================================

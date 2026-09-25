@@ -97,6 +97,16 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(contains))
 }
 
+/// True for every reference-counted variant (everything but numbers,
+/// booleans, nil, and the uninitialized sentinel). Used by `sort()` to bucket
+/// non-string heap values together, matching the old `Value::Object` bucket.
+fn is_heap_value(value: &Value) -> bool {
+    !matches!(
+        value,
+        Value::Number(_) | Value::Boolean(_) | Value::Nil | Value::Uninitialized(_)
+    )
+}
+
 /// Native implementation of Array.sort()
 /// Sorts array in place (numbers ascending, strings alphabetically)
 pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
@@ -113,7 +123,9 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
     // Sort the array
     let mut array = array_ref.borrow_mut();
 
-    // Sort with custom comparison that handles mixed types
+    // Sort with custom comparison that handles mixed types: numbers first,
+    // then every heap value as one bucket (only strings ordered within it),
+    // then booleans and nil.
     array.sort_by(|a, b| match (a, b) {
         (Value::Number(n1), Value::Number(n2)) => {
             n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
@@ -121,8 +133,9 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
         (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
         (Value::Number(_), _) => std::cmp::Ordering::Less,
         (_, Value::Number(_)) => std::cmp::Ordering::Greater,
-        (Value::String(_), _) => std::cmp::Ordering::Less,
-        (_, Value::String(_)) => std::cmp::Ordering::Greater,
+        _ if is_heap_value(a) && is_heap_value(b) => std::cmp::Ordering::Equal,
+        _ if is_heap_value(a) => std::cmp::Ordering::Less,
+        _ if is_heap_value(b) => std::cmp::Ordering::Greater,
         _ => std::cmp::Ordering::Equal,
     });
 

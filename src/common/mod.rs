@@ -409,8 +409,18 @@ impl Display for Value {
 }
 
 impl std::fmt::Debug for Value {
+    /// Scalars get tagged output (`Number(1.0)`, `String("x")`) so panic
+    /// messages stay unambiguous; heap values fall back to the cycle-safe
+    /// Display form, same as the old `Object` Debug did.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self, f)
+        match self {
+            Value::Number(n) => f.debug_tuple("Number").field(n).finish(),
+            Value::Boolean(b) => f.debug_tuple("Boolean").field(b).finish(),
+            Value::Nil => write!(f, "Nil"),
+            Value::Uninitialized(name) => f.debug_tuple("Uninitialized").field(name).finish(),
+            Value::String(s) => f.debug_tuple("String").field(s).finish(),
+            _ => self.fmt_with_seen(f, &mut Vec::new()),
+        }
     }
 }
 
