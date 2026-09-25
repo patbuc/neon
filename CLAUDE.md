@@ -76,6 +76,8 @@ cargo run --features disassemble -- script.n
 4. **Code Generation** (`src/compiler/codegen.rs`)
     - Traverses AST and emits bytecode
     - Produces Chunk objects containing instructions and constant pool
+    - Compile-time state (locals, scope depth, loop contexts, upvalues) lives in the per-function
+      `FunctionCompiler`, not in the Chunk
 
 ### Runtime Architecture
 
@@ -88,9 +90,9 @@ cargo run --features disassemble -- script.n
 
 **Bytecode Format** (`src/common/chunk/`)
 
-- Chunk: bytecode instructions + constant pool + string table + source locations
+- Chunk: name, bytecode instructions, constant pool, string table, and a line table of `LineInfo` entries
 - Constants pool stores literals referenced by index
-- Source locations map bytecode positions to source line/column for error reporting
+- `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting
 
 **Opcodes** (`src/common/opcodes.rs`)
 
@@ -114,7 +116,8 @@ cargo run --features disassemble -- script.n
 ### Key Type Interactions
 
 - **CallFrame**: Links function object to instruction pointer and stack slot range
-- **Locals**: Track variable names, scope depth, capture status for closures
+- **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — variable names, scope
+  depth, capture status for closures
 - **Iterator Stack**: Supports nested for-in loops by tracking (index, collection) pairs
 - **Builtin Storage**: Separate from call stack to avoid polluting stack frames
 
