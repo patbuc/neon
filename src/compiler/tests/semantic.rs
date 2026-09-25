@@ -3688,7 +3688,9 @@ fn test_native_method_return_types_are_inferred() {
     for (source, expected_type) in cases {
         let source = source.replace("\\n", "\n");
         let mut parser = Parser::new(&source);
-        let ast = parser.parse().unwrap_or_else(|_| panic!("parse error in: {}", source));
+        let ast = parser
+            .parse()
+            .unwrap_or_else(|_| panic!("parse error in: {}", source));
 
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&ast);

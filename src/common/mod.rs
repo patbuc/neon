@@ -11,6 +11,7 @@ pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
+pub mod static_type;
 pub mod stdlib;
 pub mod string_similarity;
 #[cfg(test)]

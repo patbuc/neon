@@ -1,4 +1,5 @@
 use crate::common::constants::VARIADIC_ARITY;
+use crate::common::static_type::StaticType;
 use crate::common::stdlib;
 use crate::common::string_similarity::find_closest_match;
 use crate::common::{NativeFn, NativeFnWithVm};
@@ -6,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 /// Classifies native callable functions by their calling convention.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) enum NativeCallable {
     /// Static method (no receiver): Math.abs(x), JSON.parse(s)
     StaticMethod {
@@ -19,6 +20,9 @@ pub(crate) enum NativeCallable {
         function: NativeFn,
         #[allow(dead_code)]
         arity: u8,
+        /// The method's statically known return type, when the semantic
+        /// analyzer needs it to validate a chained method call.
+        returns: Option<StaticType>,
     },
     /// Instance method that calls back into Neon code, so it needs the VM:
     /// arr.map(fn), arr.filter(fn), arr.reduce(fn, initial)
@@ -26,6 +30,7 @@ pub(crate) enum NativeCallable {
         function: NativeFnWithVm,
         #[allow(dead_code)]
         arity: u8,
+        returns: Option<StaticType>,
     },
     /// Constructor (creates new instance): File(path)
     Constructor {
@@ -43,6 +48,14 @@ impl NativeCallable {
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::Constructor { arity, .. } => *arity,
+        }
+    }
+
+    fn returns(&self) -> Option<&StaticType> {
+        match self {
+            NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
+            NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
+            NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. } => None,
         }
     }
 }
@@ -116,6 +129,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_push,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -124,6 +138,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_pop,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -132,6 +147,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_length,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -140,6 +156,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_size,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -148,6 +165,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_contains,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -156,6 +174,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_sort,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -164,6 +183,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_reverse,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -172,6 +192,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_slice,
             arity: 2,
+            returns: None,
         },
     ),
     (
@@ -180,6 +201,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_join,
             arity: 1,
+            returns: Some(StaticType::String),
         },
     ),
     (
@@ -188,6 +210,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_index_of,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -196,6 +219,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_sum,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -204,6 +228,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_min,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -212,6 +237,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_max,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -220,6 +246,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_map,
             arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (
@@ -228,6 +255,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_filter,
             arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (
@@ -236,6 +264,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_reduce,
             arity: 2,
+            returns: None,
         },
     ),
     // String instance methods
@@ -245,6 +274,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_len,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -253,6 +283,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_substring,
             arity: 2,
+            returns: None,
         },
     ),
     (
@@ -261,6 +292,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_replace,
             arity: 2,
+            returns: None,
         },
     ),
     (
@@ -269,6 +301,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_split,
             arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (
@@ -277,6 +310,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_int,
             arity: 0,
+            returns: Some(StaticType::Number),
         },
     ),
     (
@@ -285,6 +319,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_float,
             arity: 0,
+            returns: Some(StaticType::Number),
         },
     ),
     (
@@ -293,6 +328,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_bool,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -301,6 +337,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_trim,
             arity: 0,
+            returns: Some(StaticType::String),
         },
     ),
     (
@@ -309,6 +346,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_starts_with,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -317,6 +355,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_ends_with,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -325,6 +364,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_index_of,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -333,6 +373,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_char_at,
             arity: 1,
+            returns: Some(StaticType::String),
         },
     ),
     (
@@ -341,6 +382,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_upper_case,
             arity: 0,
+            returns: Some(StaticType::String),
         },
     ),
     (
@@ -349,6 +391,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_lower_case,
             arity: 0,
+            returns: Some(StaticType::String),
         },
     ),
     // Number instance methods
@@ -358,6 +401,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::number_functions::native_number_to_string,
             arity: 0,
+            returns: Some(StaticType::String),
         },
     ),
     // Boolean instance methods
@@ -367,6 +411,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::boolean_functions::native_boolean_to_string,
             arity: 0,
+            returns: None,
         },
     ),
     // Map instance methods
@@ -376,6 +421,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_get,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -384,6 +430,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_size,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -392,6 +439,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_has,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -400,6 +448,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_remove,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -408,6 +457,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_keys,
             arity: 0,
+            returns: Some(StaticType::Array),
         },
     ),
     (
@@ -416,6 +466,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_values,
             arity: 0,
+            returns: Some(StaticType::Array),
         },
     ),
     (
@@ -424,6 +475,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_entries,
             arity: 0,
+            returns: None,
         },
     ),
     // Set instance methods
@@ -433,6 +485,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_add,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -441,6 +494,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_remove,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -449,6 +503,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_has,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -457,6 +512,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_size,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -465,6 +521,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_clear,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -473,6 +530,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_union,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -481,6 +539,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_intersection,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -489,6 +548,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_difference,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -497,6 +557,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_is_subset,
             arity: 1,
+            returns: None,
         },
     ),
     (
@@ -505,6 +566,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_to_array,
             arity: 0,
+            returns: Some(StaticType::Array),
         },
     ),
     // File constructor
@@ -523,6 +585,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::file_functions::native_file_read,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -531,6 +594,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::file_functions::native_file_read_lines,
             arity: 0,
+            returns: None,
         },
     ),
     (
@@ -539,6 +603,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::file_functions::native_file_write,
             arity: 1,
+            returns: None,
         },
     ),
 ];
@@ -583,11 +648,20 @@ pub(crate) fn get_native_method_by_index(index: usize) -> Option<&'static Native
 /// function name for a global, `"{Type}.new"` for a constructor, or the
 /// bare method name for a static method.
 pub fn native_label(index: usize) -> String {
-    let (type_name, method_name, callable) = NATIVE_METHODS[index];
+    let (type_name, method_name, callable) = &NATIVE_METHODS[index];
     match callable {
         NativeCallable::Constructor { .. } => format!("{}.new", type_name),
         _ => method_name.to_string(),
     }
+}
+
+/// The statically known return type of a builtin instance method, if the
+/// registry tracks one - consulted by the semantic analyzer to type the
+/// result of a method call for further chaining.
+pub fn instance_return_type(type_name: &str, method_name: &str) -> Option<StaticType> {
+    get_native_method_by_name(type_name, method_name)
+        .and_then(|callable| callable.returns())
+        .cloned()
 }
 
 pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
