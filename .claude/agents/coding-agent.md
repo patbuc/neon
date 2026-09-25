@@ -138,7 +138,7 @@ match node {
 fn emit_index_get(&mut self) { ... }
 
 // Ownership: Rc for shared, RefCell only when mutation needed
-let value = Rc::new(Object::String(s));
+let value = Value::String(Rc::new(s));
 ```
 
 ---

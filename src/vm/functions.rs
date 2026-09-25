@@ -360,7 +360,7 @@ impl VirtualMachine {
         self.stack.drain(start..);
 
         // Push the new instance
-        self.push(Value::new_object(instance));
+        self.push(Value::new_instance(instance));
 
         // IP already incremented by fn_call_unified
         Ok(())

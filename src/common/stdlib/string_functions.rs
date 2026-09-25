@@ -12,8 +12,8 @@ pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    let obj_string = extract_receiver!(args, String, "len")?;
-    let len = obj_string.chars().count();
+    let string = extract_receiver!(args, String, "len")?;
+    let len = string.chars().count();
     Ok(Value::Number(len as f64))
 }
 
@@ -29,14 +29,14 @@ pub fn native_string_substring(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "substring")?;
+    let string = extract_receiver!(args, String, "substring")?;
 
     // Extract start and end indices
     let start_arg = extract_arg!(args, 1, Number, "start index", "substring")?;
     let end_arg = extract_arg!(args, 2, Number, "end index", "substring")?;
 
     // Collect characters for proper Unicode handling
-    let chars: Vec<char> = obj_string.chars().collect();
+    let chars: Vec<char> = string.chars().collect();
     let str_len = chars.len() as i32;
 
     // Handle negative indices
@@ -73,7 +73,7 @@ pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "replace")?;
+    let string = extract_receiver!(args, String, "replace")?;
 
     // Extract old substring
     let old_str = extract_string_value!(args, 1, "old", "replace");
@@ -82,7 +82,7 @@ pub fn native_string_replace(args: &[Value]) -> Result<Value, String> {
     let new_str = extract_string_value!(args, 2, "new", "replace");
 
     // Perform replacement
-    let result = obj_string.replace(old_str, new_str);
+    let result = string.replace(old_str, new_str);
     Ok(string!(result))
 }
 
@@ -98,15 +98,15 @@ pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "toInt")?;
+    let string = extract_receiver!(args, String, "toInt")?;
 
     // Trim whitespace and parse as i64
-    let trimmed = obj_string.trim();
+    let trimmed = string.trim();
     match trimmed.parse::<i64>() {
         Ok(num) => Ok(Value::Number(num as f64)),
         Err(_) => Err(format!(
             "toInt() failed: '{}' is not a valid integer",
-            obj_string
+            string
         )),
     }
 }
@@ -123,15 +123,15 @@ pub fn native_string_to_float(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "toFloat")?;
+    let string = extract_receiver!(args, String, "toFloat")?;
 
     // Trim whitespace and parse as f64
-    let trimmed = obj_string.trim();
+    let trimmed = string.trim();
     match trimmed.parse::<f64>() {
         Ok(num) => Ok(Value::Number(num)),
         Err(_) => Err(format!(
             "toFloat() failed: '{}' is not a valid float",
-            obj_string
+            string
         )),
     }
 }
@@ -148,17 +148,17 @@ pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "toBool")?;
+    let string = extract_receiver!(args, String, "toBool")?;
 
     // Trim whitespace and convert to lowercase for case-insensitive comparison
-    let normalized = obj_string.trim().to_lowercase();
+    let normalized = string.trim().to_lowercase();
 
     match normalized.as_str() {
         "true" => Ok(Value::Boolean(true)),
         "false" => Ok(Value::Boolean(false)),
         _ => Err(format!(
             "toBool() failed: '{}' is not a valid boolean (expected 'true' or 'false')",
-            obj_string
+            string
         )),
     }
 }
@@ -174,7 +174,7 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "split")?;
+    let string = extract_receiver!(args, String, "split")?;
 
     // Extract delimiter
     let delimiter = extract_string_value!(args, 1, "delimiter", "split");
@@ -182,13 +182,13 @@ pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
     // Handle edge cases
     let parts: Vec<Value> = if delimiter.is_empty() {
         // Empty delimiter: split into individual characters
-        obj_string.chars().map(|c| string!(c.to_string())).collect()
-    } else if !obj_string.contains(delimiter) {
+        string.chars().map(|c| string!(c.to_string())).collect()
+    } else if !string.contains(delimiter) {
         // Delimiter not found: return array with original string
-        vec![string!(obj_string.as_str())]
+        vec![string!(string.as_str())]
     } else {
         // Normal split
-        obj_string.split(delimiter).map(|s| string!(s)).collect()
+        string.split(delimiter).map(|s| string!(s)).collect()
     };
 
     Ok(Value::new_array(parts))
@@ -205,9 +205,9 @@ pub fn native_string_trim(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "trim")?;
+    let string = extract_receiver!(args, String, "trim")?;
 
-    let trimmed = obj_string.trim();
+    let trimmed = string.trim();
     Ok(string!(trimmed))
 }
 
@@ -222,12 +222,12 @@ pub fn native_string_starts_with(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "startsWith")?;
+    let string = extract_receiver!(args, String, "startsWith")?;
 
     // Extract prefix
     let prefix = extract_string_value!(args, 1, "prefix", "startsWith");
 
-    Ok(Value::Boolean(obj_string.starts_with(prefix)))
+    Ok(Value::Boolean(string.starts_with(prefix)))
 }
 
 /// Native implementation of String.endsWith(suffix)
@@ -241,12 +241,12 @@ pub fn native_string_ends_with(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "endsWith")?;
+    let string = extract_receiver!(args, String, "endsWith")?;
 
     // Extract suffix
     let suffix = extract_string_value!(args, 1, "suffix", "endsWith");
 
-    Ok(Value::Boolean(obj_string.ends_with(suffix)))
+    Ok(Value::Boolean(string.ends_with(suffix)))
 }
 
 /// Native implementation of String.indexOf(substring)
@@ -260,13 +260,13 @@ pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "indexOf")?;
+    let string = extract_receiver!(args, String, "indexOf")?;
 
     // Extract substring
     let substring = extract_string_value!(args, 1, "substring", "indexOf");
 
     // Find the index (character-based, not byte-based)
-    let chars: Vec<char> = obj_string.chars().collect();
+    let chars: Vec<char> = string.chars().collect();
     let substring_chars: Vec<char> = substring.chars().collect();
 
     if substring_chars.is_empty() {
@@ -293,13 +293,13 @@ pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "charAt")?;
+    let string = extract_receiver!(args, String, "charAt")?;
 
     // Extract index
     let index_arg = extract_arg!(args, 1, Number, "index", "charAt")?;
 
     // Handle negative indices and bounds checking
-    let chars: Vec<char> = obj_string.chars().collect();
+    let chars: Vec<char> = string.chars().collect();
     let str_len = chars.len() as i32;
 
     let index = if index_arg < 0.0 {
@@ -330,9 +330,9 @@ pub fn native_string_to_upper_case(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "toUpperCase")?;
+    let string = extract_receiver!(args, String, "toUpperCase")?;
 
-    let uppercase = obj_string.to_uppercase();
+    let uppercase = string.to_uppercase();
     Ok(string!(uppercase))
 }
 
@@ -347,8 +347,8 @@ pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
     }
 
     // Extract the string
-    let obj_string = extract_receiver!(args, String, "toLowerCase")?;
+    let string = extract_receiver!(args, String, "toLowerCase")?;
 
-    let lowercase = obj_string.to_lowercase();
+    let lowercase = string.to_lowercase();
     Ok(string!(lowercase))
 }

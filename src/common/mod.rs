@@ -170,7 +170,7 @@ impl ObjStruct {
 }
 
 impl Value {
-    pub(crate) fn new_object(instance: ObjInstance) -> Value {
+    pub(crate) fn new_instance(instance: ObjInstance) -> Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
 
