@@ -16,6 +16,9 @@ pub struct Parser {
     errors: Vec<CompilationError>,
     panic_mode: bool,
     next_node_id: u32,
+    /// Open `{`/`#{`, `(`, and `[` counts, tracked separately so a stray
+    /// closer of one type can't be mistaken for closing another.
+    nesting_depth: (usize, usize, usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -82,6 +85,7 @@ impl Parser {
             errors: Vec::new(),
             panic_mode: false,
             next_node_id,
+            nesting_depth: (0, 0, 0),
         }
     }
 
@@ -97,11 +101,15 @@ impl Parser {
         self.advance();
 
         while !self.match_token(TokenType::Eof) {
+            let start_offset = self.current_token.offset;
             if let Some(stmt) = self.declaration() {
                 statements.push(stmt);
             }
             if self.panic_mode {
-                self.synchronize();
+                if self.current_token.offset == start_offset {
+                    self.advance();
+                }
+                self.synchronize(None);
             }
         }
 
@@ -116,6 +124,16 @@ impl Parser {
 
     fn advance(&mut self) {
         std::mem::swap(&mut self.previous_token, &mut self.current_token);
+        let (braces, parens, brackets) = &mut self.nesting_depth;
+        match self.previous_token.token_type {
+            TokenType::LeftBrace | TokenType::HashLeftBrace => *braces += 1,
+            TokenType::RightBrace => *braces = braces.saturating_sub(1),
+            TokenType::LeftParen => *parens += 1,
+            TokenType::RightParen => *parens = parens.saturating_sub(1),
+            TokenType::LeftBracket => *brackets += 1,
+            TokenType::RightBracket => *brackets = brackets.saturating_sub(1),
+            _ => {}
+        }
         loop {
             self.current_token = self.scanner.scan_token();
             if self.current_token.token_type != TokenType::Error {
@@ -256,14 +274,18 @@ impl Parser {
         }
     }
 
-    // ===== Error Handling =====
-
-    fn report_error_at_current(&mut self, message: String) {
-        let location = SourceLocation {
+    fn current_token_location(&self) -> SourceLocation {
+        SourceLocation {
             offset: self.current_token.offset,
             line: self.current_token.line,
             column: self.current_token.column,
-        };
+        }
+    }
+
+    // ===== Error Handling =====
+
+    fn report_error_at_current(&mut self, message: String) {
+        let location = self.current_token_location();
         self.report_error(location, message);
     }
 
@@ -290,25 +312,70 @@ impl Parser {
         self.errors.push(error);
     }
 
-    fn synchronize(&mut self) {
+    /// Skips tokens until the start of the next statement, comparing the
+    /// parser's `nesting_depth` against `block_depth` (the block being
+    /// recovered, `None` at the top level) to tell a group opened before
+    /// the error from the block itself.
+    fn synchronize(&mut self, block_depth: Option<(usize, usize, usize)>) {
         self.panic_mode = false;
+        let mut local_depth: u32 = 0;
         loop {
-            if self.previous_token.token_type == TokenType::NewLine
-                || self.previous_token.token_type == TokenType::Eof
-            {
+            if self.previous_token.token_type == TokenType::Eof {
                 return;
             }
-            match self.current_token.token_type {
-                TokenType::Fn
-                | TokenType::Struct
-                | TokenType::Impl
-                | TokenType::Val
-                | TokenType::Var
-                | TokenType::For
-                | TokenType::If
-                | TokenType::While
-                | TokenType::Return => return,
-                _ => {}
+            if let Some(depth @ (block_braces, _, _)) = block_depth {
+                let (braces, _, _) = self.nesting_depth;
+                if braces == block_braces {
+                    if self.current_token.token_type == TokenType::RightBrace {
+                        return;
+                    }
+                    // Unlike `fn`, these can only start a statement, never
+                    // an expression, so seeing one means any paren/bracket
+                    // the failed statement opened was abandoned, not that
+                    // we're still inside it.
+                    match self.current_token.token_type {
+                        TokenType::Struct
+                        | TokenType::Impl
+                        | TokenType::Val
+                        | TokenType::Var
+                        | TokenType::For
+                        | TokenType::If
+                        | TokenType::While
+                        | TokenType::Return => {
+                            self.nesting_depth = depth;
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let at_block_depth = match block_depth {
+                Some(depth) => self.nesting_depth == depth,
+                None => local_depth == 0,
+            };
+            if at_block_depth {
+                if self.previous_token.token_type == TokenType::NewLine {
+                    return;
+                }
+                match self.current_token.token_type {
+                    TokenType::Fn
+                    | TokenType::Struct
+                    | TokenType::Impl
+                    | TokenType::Val
+                    | TokenType::Var
+                    | TokenType::For
+                    | TokenType::If
+                    | TokenType::While
+                    | TokenType::Return => return,
+                    _ => {}
+                }
+            }
+            if block_depth.is_none() {
+                match self.current_token.token_type {
+                    TokenType::LeftBrace | TokenType::HashLeftBrace => local_depth += 1,
+                    TokenType::RightBrace => local_depth = local_depth.saturating_sub(1),
+                    _ => {}
+                }
             }
             self.advance();
         }
@@ -344,8 +411,7 @@ impl Parser {
         let location = self.current_location();
 
         let initializer = if self.match_token(TokenType::Equal) {
-            self.skip_new_lines();
-            Some(self.expression(false)?)
+            Some(self.operand(Precedence::Assignment)?)
         } else {
             None
         };
@@ -469,7 +535,21 @@ impl Parser {
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
             if !self.consume(TokenType::Fn, "Expect method declaration.") {
-                while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+                let mut depth = 0;
+                loop {
+                    if self.check(TokenType::Eof) {
+                        break;
+                    }
+                    if self.check(TokenType::RightBrace) {
+                        if depth == 0 {
+                            break;
+                        }
+                        depth -= 1;
+                    } else if self.check(TokenType::LeftBrace)
+                        || self.check(TokenType::HashLeftBrace)
+                    {
+                        depth += 1;
+                    }
                     self.advance();
                 }
                 break;
@@ -531,11 +611,19 @@ impl Parser {
     /// expressions, whose surrounding context decides what may follow.
     fn parse_block_body(&mut self) -> Option<Vec<Stmt>> {
         let mut statements = Vec::new();
+        let block_depth = self.nesting_depth;
         self.skip_new_lines();
 
         while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            let start_offset = self.current_token.offset;
             if let Some(stmt) = self.declaration() {
                 statements.push(stmt);
+            }
+            if self.panic_mode {
+                if self.current_token.offset == start_offset {
+                    self.advance();
+                }
+                self.synchronize(Some(block_depth));
             }
         }
 
@@ -735,9 +823,46 @@ impl Parser {
         self.parse_precedence(Precedence::Assignment, skip_new_lines)
     }
 
+    /// Whether the current token can only start a new statement (`Eof`,
+    /// `}`, or a statement keyword), never continue the expression in
+    /// progress.
+    fn is_statement_boundary(&self) -> bool {
+        matches!(
+            self.current_token.token_type,
+            TokenType::Eof
+                | TokenType::RightBrace
+                | TokenType::Val
+                | TokenType::Var
+                | TokenType::Struct
+                | TokenType::Impl
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Return
+                | TokenType::Break
+                | TokenType::Continue
+        )
+    }
+
+    fn operand(&mut self, precedence: Precedence) -> Option<Expr> {
+        let operator_location = self.current_location();
+        let had_newline = self.check(TokenType::NewLine);
+        self.skip_new_lines();
+        if had_newline && self.is_statement_boundary() {
+            self.report_error(operator_location, "Expect expression".to_string());
+            return None;
+        }
+        self.parse_precedence(precedence, false)
+    }
+
     fn parse_precedence(&mut self, precedence: Precedence, skip_new_lines: bool) -> Option<Expr> {
         if skip_new_lines {
             self.skip_new_lines();
+        }
+
+        if self.is_statement_boundary() {
+            self.report_error_at_current("Expect expression".to_string());
+            return None;
         }
 
         self.advance();
@@ -1037,8 +1162,7 @@ impl Parser {
         let location = self.current_location();
 
         if can_assign && self.match_token(TokenType::Equal) {
-            self.skip_new_lines();
-            let value = Box::new(self.expression(false)?);
+            let value = Box::new(self.operand(Precedence::Assignment)?);
             Some(Expr::Assign {
                 name,
                 value,
@@ -1067,8 +1191,7 @@ impl Parser {
         } else {
             self.get_precedence(&operator_type).next()
         };
-        self.skip_new_lines();
-        let right = Box::new(self.parse_precedence(precedence, false)?);
+        let right = Box::new(self.operand(precedence)?);
 
         let operator = match operator_type {
             TokenType::Plus => BinaryOp::Add,
@@ -1127,8 +1250,7 @@ impl Parser {
 
         let inclusive = operator_type == TokenType::DotDotEqual;
         let precedence = self.get_precedence(&operator_type).next();
-        self.skip_new_lines();
-        let end = Box::new(self.parse_precedence(precedence, false)?);
+        let end = Box::new(self.operand(precedence)?);
 
         Some(Expr::Range {
             start: Box::new(start),
@@ -1141,8 +1263,7 @@ impl Parser {
     fn ternary(&mut self, condition: Expr) -> Option<Expr> {
         let location = self.current_location();
 
-        self.skip_new_lines();
-        let then_expr = Box::new(self.expression(false)?);
+        let then_expr = Box::new(self.operand(Precedence::Assignment)?);
 
         if !self.consume(
             TokenType::Colon,
@@ -1151,8 +1272,7 @@ impl Parser {
             return None;
         }
 
-        self.skip_new_lines();
-        let else_expr = Box::new(self.expression(false)?);
+        let else_expr = Box::new(self.operand(Precedence::Assignment)?);
 
         Some(Expr::Conditional {
             condition: Box::new(condition),
