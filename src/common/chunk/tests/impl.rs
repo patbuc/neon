@@ -27,18 +27,19 @@ fn can_write_more_then_256_constants_chunk() {
         chunk.write_constant(number!(i as f64), i, 42);
     }
 
-    assert_eq!(2 * 256 + 6, chunk.instructions.len());
+    assert_eq!(258 * 3, chunk.instructions.len());
     assert_eq!(
-        Some(OpCode::Constant2),
-        OpCode::from_u8(chunk.instructions[2 * 256])
+        Some(OpCode::Constant),
+        OpCode::from_u8(chunk.instructions[256 * 3])
     );
 
-    assert_eq!(256, chunk.read_u16(2 * 256 + 1));
+    let constant_index = chunk.read_u16(256 * 3 + 1) as usize;
+    assert_eq!(256, constant_index);
     assert_eq!(
-        Some(OpCode::Constant2),
-        OpCode::from_u8(chunk.instructions[2 * 256 + 3])
+        Some(OpCode::Constant),
+        OpCode::from_u8(chunk.instructions[257 * 3])
     );
-    let constant_index = chunk.read_u16(2 * 256 + 4) as usize;
+    let constant_index = chunk.read_u16(257 * 3 + 1) as usize;
     assert_eq!(257, constant_index);
     assert_eq!(
         257f64,
@@ -94,14 +95,17 @@ fn can_read_line_information_chunk() {
 
     assert_eq!(2, chunk.get_line_info(0).unwrap().line);
     assert_eq!(2, chunk.get_line_info(1).unwrap().line);
-    assert_eq!(3, chunk.get_line_info(2).unwrap().line);
-    assert_eq!(4, chunk.get_line_info(3).unwrap().line);
+    assert_eq!(2, chunk.get_line_info(2).unwrap().line);
+    assert_eq!(3, chunk.get_line_info(3).unwrap().line);
     assert_eq!(4, chunk.get_line_info(4).unwrap().line);
     assert_eq!(4, chunk.get_line_info(5).unwrap().line);
-    assert_eq!(5, chunk.get_line_info(6).unwrap().line);
-    assert_eq!(5, chunk.get_line_info(7).unwrap().line);
-    assert_eq!(6, chunk.get_line_info(8).unwrap().line);
-    assert_eq!(8, chunk.get_line_info(9).unwrap().line);
+    assert_eq!(4, chunk.get_line_info(6).unwrap().line);
+    assert_eq!(4, chunk.get_line_info(7).unwrap().line);
+    assert_eq!(5, chunk.get_line_info(8).unwrap().line);
+    assert_eq!(5, chunk.get_line_info(9).unwrap().line);
+    assert_eq!(5, chunk.get_line_info(10).unwrap().line);
+    assert_eq!(6, chunk.get_line_info(11).unwrap().line);
+    assert_eq!(8, chunk.get_line_info(12).unwrap().line);
 
-    assert!(chunk.get_line_info(10).is_none());
+    assert!(chunk.get_line_info(13).is_none());
 }

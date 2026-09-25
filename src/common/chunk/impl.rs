@@ -23,37 +23,6 @@ impl Chunk {
         self.instructions.push(op_code as u8)
     }
 
-    pub(crate) fn write_op_code_variant(
-        &mut self,
-        op_code: OpCode,
-        index: u32,
-        line: u32,
-        column: u32,
-    ) {
-        let offset = if index <= 0xFF {
-            0
-        } else if index <= 0xFFFF {
-            1
-        } else {
-            2
-        };
-
-        // SAFETY: Only use this if the variants are consecutive and valid
-        let op_code_variant =
-            unsafe { std::mem::transmute::<u8, OpCode>((op_code as u8) + offset) };
-
-        if offset == 0 {
-            self.write_op_code(op_code_variant, line, column);
-            self.write_u8(index as u8);
-        } else if offset == 1 {
-            self.write_op_code(op_code_variant, line, column);
-            self.write_u16(index as u16);
-        } else {
-            self.write_op_code(op_code_variant, line, column);
-            self.write_u32(index);
-        }
-    }
-
     pub(crate) fn add_constant(&mut self, value: Value) -> u32 {
         self.constants.write_value(value)
     }
@@ -62,15 +31,27 @@ impl Chunk {
         self.strings.write_value(value)
     }
 
+    /// Writes `op_code` followed by its u16 index operand. Test-only: real
+    /// codegen routes every index through `CodeGenerator::emit_index_op`,
+    /// which reports a compile error instead of letting an oversized index
+    /// panic or truncate.
+    #[cfg(test)]
+    pub(crate) fn write_indexed(&mut self, op_code: OpCode, index: u32, line: u32, column: u32) {
+        self.write_op_code(op_code, line, column);
+        self.write_u16(u16::try_from(index).expect("index fits in u16"));
+    }
+
+    #[cfg(test)]
     pub(crate) fn write_constant(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let constant_index = self.add_constant(value);
-        self.write_op_code_variant(OpCode::Constant, constant_index, line, column);
+        self.write_indexed(OpCode::Constant, constant_index, line, column);
         constant_index
     }
 
+    #[cfg(test)]
     pub(crate) fn write_string(&mut self, value: Value, line: u32, column: u32) -> u32 {
         let string_index = self.add_string(value);
-        self.write_op_code_variant(OpCode::String, string_index, line, column);
+        self.write_indexed(OpCode::String, string_index, line, column);
         string_index
     }
 

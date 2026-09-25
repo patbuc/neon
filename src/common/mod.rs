@@ -70,23 +70,6 @@ pub struct LineInfo {
     pub column: u32,
 }
 
-#[repr(u8)]
-pub enum BitsSize {
-    Eight,
-    Sixteen,
-    ThirtyTwo,
-}
-
-impl BitsSize {
-    pub fn as_bytes(&self) -> usize {
-        match self {
-            BitsSize::Eight => 1,
-            BitsSize::Sixteen => 2,
-            BitsSize::ThirtyTwo => 4,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub enum Object {
     String(ObjString),

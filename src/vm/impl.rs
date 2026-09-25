@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{BitsSize, CallFrame, ObjClosure, ObjFunction, Value};
+use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::Comparison;
 use crate::vm::{Result, VirtualMachine};
@@ -121,8 +121,6 @@ impl VirtualMachine {
                     continue;
                 }
                 OpCode::Constant => self.fn_constant(),
-                OpCode::Constant2 => self.fn_constant2(),
-                OpCode::Constant4 => self.fn_constant4(),
                 OpCode::Negate => {
                     if let Some(value) = self.fn_negate() {
                         return value;
@@ -184,81 +182,29 @@ impl VirtualMachine {
                 }
                 OpCode::Not => self.fn_not(),
                 OpCode::String => self.fn_string(),
-                OpCode::String2 => self.fn_string2(),
-                OpCode::String4 => self.fn_string4(),
                 OpCode::Pop => _ = self.pop(),
                 OpCode::GetLocal => {
-                    if let Some(result) = self.fn_get_local(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::GetLocal2 => {
-                    if let Some(result) = self.fn_get_local(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::GetLocal4 => {
-                    if let Some(result) = self.fn_get_local(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_get_local() {
                         return result;
                     }
                 }
                 OpCode::SetLocal => {
-                    if let Some(result) = self.fn_set_local(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::SetLocal2 => {
-                    if let Some(result) = self.fn_set_local(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::SetLocal4 => {
-                    if let Some(result) = self.fn_set_local(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_set_local() {
                         return result;
                     }
                 }
                 OpCode::GetBuiltin => {
-                    if let Some(result) = self.fn_get_builtin(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::GetBuiltin2 => {
-                    if let Some(result) = self.fn_get_builtin(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::GetBuiltin4 => {
-                    if let Some(result) = self.fn_get_builtin(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_get_builtin() {
                         return result;
                     }
                 }
                 OpCode::GetGlobal => {
-                    if let Some(result) = self.fn_get_global(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::GetGlobal2 => {
-                    if let Some(result) = self.fn_get_global(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::GetGlobal4 => {
-                    if let Some(result) = self.fn_get_global(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_get_global() {
                         return result;
                     }
                 }
                 OpCode::SetGlobal => {
-                    if let Some(result) = self.fn_set_global(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::SetGlobal2 => {
-                    if let Some(result) = self.fn_set_global(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::SetGlobal4 => {
-                    if let Some(result) = self.fn_set_global(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_set_global() {
                         return result;
                     }
                 }
@@ -272,32 +218,12 @@ impl VirtualMachine {
                     continue;
                 }
                 OpCode::GetField => {
-                    if let Some(result) = self.fn_get_field(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::GetField2 => {
-                    if let Some(result) = self.fn_get_field(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::GetField4 => {
-                    if let Some(result) = self.fn_get_field(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_get_field() {
                         return result;
                     }
                 }
                 OpCode::SetField => {
-                    if let Some(result) = self.fn_set_field(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::SetField2 => {
-                    if let Some(result) = self.fn_set_field(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::SetField4 => {
-                    if let Some(result) = self.fn_set_field(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_set_field() {
                         return result;
                     }
                 }
@@ -382,47 +308,17 @@ impl VirtualMachine {
                     }
                 }
                 OpCode::Closure => {
-                    if let Some(result) = self.fn_closure(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::Closure2 => {
-                    if let Some(result) = self.fn_closure(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::Closure4 => {
-                    if let Some(result) = self.fn_closure(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_closure() {
                         return result;
                     }
                 }
                 OpCode::GetUpvalue => {
-                    if let Some(result) = self.fn_get_upvalue(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::GetUpvalue2 => {
-                    if let Some(result) = self.fn_get_upvalue(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::GetUpvalue4 => {
-                    if let Some(result) = self.fn_get_upvalue(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_get_upvalue() {
                         return result;
                     }
                 }
                 OpCode::SetUpvalue => {
-                    if let Some(result) = self.fn_set_upvalue(BitsSize::Eight) {
-                        return result;
-                    }
-                }
-                OpCode::SetUpvalue2 => {
-                    if let Some(result) = self.fn_set_upvalue(BitsSize::Sixteen) {
-                        return result;
-                    }
-                }
-                OpCode::SetUpvalue4 => {
-                    if let Some(result) = self.fn_set_upvalue(BitsSize::ThirtyTwo) {
+                    if let Some(result) = self.fn_set_upvalue() {
                         return result;
                     }
                 }

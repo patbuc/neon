@@ -111,7 +111,7 @@ fn nothing_after_a_runtime_error_executes() {
 fn get_local_out_of_range_slot_halts() {
     // Stack is empty, so slot 0 is exactly one past the last valid slot.
     let mut chunk = Chunk::new("get_local_oob");
-    chunk.write_op_code_variant(OpCode::GetLocal, 0, 0, 0);
+    chunk.write_indexed(OpCode::GetLocal, 0, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
@@ -123,7 +123,7 @@ fn set_local_out_of_range_slot_halts() {
     // One value on the stack, so slot 1 is exactly one past the last valid slot.
     let mut chunk = Chunk::new("set_local_oob");
     chunk.write_constant(number!(42.0), 0, 0);
-    chunk.write_op_code_variant(OpCode::SetLocal, 1, 0, 0);
+    chunk.write_indexed(OpCode::SetLocal, 1, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
@@ -134,7 +134,7 @@ fn set_local_out_of_range_slot_halts() {
 fn get_global_unknown_slot_halts() {
     // Stack is empty, so slot 0 is exactly one past the last valid slot.
     let mut chunk = Chunk::new("get_global_unknown");
-    chunk.write_op_code_variant(OpCode::GetGlobal, 0, 0, 0);
+    chunk.write_indexed(OpCode::GetGlobal, 0, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
@@ -146,7 +146,7 @@ fn set_global_out_of_range_slot_halts() {
     // One value on the stack, so slot 1 is exactly one past the last valid slot.
     let mut chunk = Chunk::new("set_global_oob");
     chunk.write_constant(number!(42.0), 0, 0);
-    chunk.write_op_code_variant(OpCode::SetGlobal, 1, 0, 0);
+    chunk.write_indexed(OpCode::SetGlobal, 1, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
@@ -156,7 +156,7 @@ fn set_global_out_of_range_slot_halts() {
 #[test]
 fn get_builtin_unknown_index_halts() {
     let mut chunk = Chunk::new("get_builtin_unknown");
-    chunk.write_op_code_variant(OpCode::GetBuiltin, 9999, 0, 0);
+    chunk.write_indexed(OpCode::GetBuiltin, 9999, 0, 0);
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
@@ -750,7 +750,7 @@ outer()
 fn get_global_uninitialized_slot_halts() {
     let mut chunk = Chunk::new("get_global_uninitialized");
     chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
-    chunk.write_op_code_variant(OpCode::GetGlobal, 0, 2, 5);
+    chunk.write_indexed(OpCode::GetGlobal, 0, 2, 5);
     chunk.write_op_code(OpCode::Return, 3, 1);
 
     let mut vm = VirtualMachine::new();
@@ -770,7 +770,7 @@ fn set_global_uninitialized_slot_halts() {
     let mut chunk = Chunk::new("set_global_uninitialized");
     chunk.write_constant(Value::Uninitialized(Rc::from("x")), 1, 1);
     chunk.write_constant(number!(1.0), 1, 1);
-    chunk.write_op_code_variant(OpCode::SetGlobal, 0, 2, 5);
+    chunk.write_indexed(OpCode::SetGlobal, 0, 2, 5);
     chunk.write_op_code(OpCode::Return, 3, 1);
 
     let mut vm = VirtualMachine::new();

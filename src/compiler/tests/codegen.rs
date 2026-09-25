@@ -210,32 +210,12 @@ fn test_else_if_bytecode_simple() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::Constant2
-            | OpCode::SetLocal2
-            | OpCode::GetLocal2
-            | OpCode::GetGlobal2
-            | OpCode::SetGlobal2
-            | OpCode::GetField2
-            | OpCode::SetField2 => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::String => {
-                offset += 2; // OpCode (1 byte) + 1-byte string index
+            | OpCode::SetField
+            | OpCode::String => {
+                offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            OpCode::Constant4
-            | OpCode::SetLocal4
-            | OpCode::GetLocal4
-            | OpCode::GetGlobal4
-            | OpCode::SetGlobal4
-            | OpCode::GetField4
-            | OpCode::SetField4 => {
-                offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
                 offset += 1; // Simple instructions
@@ -298,32 +278,12 @@ fn test_else_if_bytecode_multiple_branches() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::Constant2
-            | OpCode::SetLocal2
-            | OpCode::GetLocal2
-            | OpCode::GetGlobal2
-            | OpCode::SetGlobal2
-            | OpCode::GetField2
-            | OpCode::SetField2 => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::String => {
-                offset += 2; // OpCode (1 byte) + 1-byte string index
+            | OpCode::SetField
+            | OpCode::String => {
+                offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            OpCode::Constant4
-            | OpCode::SetLocal4
-            | OpCode::GetLocal4
-            | OpCode::GetGlobal4
-            | OpCode::SetGlobal4
-            | OpCode::GetField4
-            | OpCode::SetField4 => {
-                offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
                 offset += 1; // Simple instructions
@@ -380,32 +340,12 @@ fn test_else_if_bytecode_without_final_else() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::Constant2
-            | OpCode::SetLocal2
-            | OpCode::GetLocal2
-            | OpCode::GetGlobal2
-            | OpCode::SetGlobal2
-            | OpCode::GetField2
-            | OpCode::SetField2 => {
-                offset += 2; // OpCode (1 byte) + 1-byte operand
-            }
-            OpCode::String => {
-                offset += 2; // OpCode (1 byte) + 1-byte string index
+            | OpCode::SetField
+            | OpCode::String => {
+                offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
                 offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            OpCode::Constant4
-            | OpCode::SetLocal4
-            | OpCode::GetLocal4
-            | OpCode::GetGlobal4
-            | OpCode::SetGlobal4
-            | OpCode::GetField4
-            | OpCode::SetField4 => {
-                offset += 5; // OpCode (1 byte) + 4-byte operand
             }
             _ => {
                 offset += 1; // Simple instructions
@@ -1017,17 +957,24 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::Less
             | OpCode::CloseUpvalue
             | OpCode::CloseUpvalueInPlace => 0,
+            OpCode::Call => 1,
             OpCode::Constant
+            | OpCode::String
             | OpCode::SetLocal
             | OpCode::GetLocal
+            | OpCode::GetGlobal
+            | OpCode::SetGlobal
             | OpCode::GetBuiltin
-            | OpCode::Call => 1,
+            | OpCode::GetField
+            | OpCode::SetField
+            | OpCode::GetUpvalue
+            | OpCode::SetUpvalue => 2,
             OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 4,
             OpCode::Closure => {
-                // 1-byte constant index, then a 1-byte upvalue count and
+                // 2-byte constant index, then a 1-byte upvalue count and
                 // that many (is_local, index) pairs (1 + 2 bytes each).
-                let upvalue_count = chunk.read_u8(offset + 2) as usize;
-                2 + upvalue_count * 3
+                let upvalue_count = chunk.read_u8(offset + 3) as usize;
+                3 + upvalue_count * 3
             }
             _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
         };
