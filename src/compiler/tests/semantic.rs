@@ -3657,3 +3657,103 @@ fn test_assign_to_builtin_at_top_level() {
         .iter()
         .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment));
 }
+
+// ===== Issue #170: pin native method return-type inference =====
+
+#[test]
+fn test_native_method_return_types_are_inferred() {
+    // Each snippet calls a native method whose return type the registry
+    // tracks, then chains an unknown method onto the result - the error
+    // must name the inferred type.
+    let cases: &[(&str, &str)] = &[
+        (r#"val m = {"a": 1}\nm.keys().bogus()"#, "Array"),
+        (r#"val m = {"a": 1}\nm.values().bogus()"#, "Array"),
+        (r#"val s = #{1}\ns.toArray().bogus()"#, "Array"),
+        (r#""a,b".split(",").bogus()"#, "Array"),
+        (r#""ab".charAt(0).bogus()"#, "String"),
+        (r#""ab".toUpperCase().bogus()"#, "String"),
+        (r#""AB".toLowerCase().bogus()"#, "String"),
+        (r#""  ab  ".trim().bogus()"#, "String"),
+        (r#""5".toInt().bogus()"#, "Number"),
+        (r#""5.5".toFloat().bogus()"#, "Number"),
+        (r#"(5).toString().bogus()"#, "String"),
+        (r#"[1, 2].join(",").bogus()"#, "String"),
+        (r#"[1].map(fn(x) { return x }).bogus()"#, "Array"),
+        (r#"[1].filter(fn(x) { return x }).bogus()"#, "Array"),
+    ];
+
+    for (source, expected_type) in cases {
+        let source = source.replace("\\n", "\n");
+        let mut parser = Parser::new(&source);
+        let ast = parser
+            .parse()
+            .unwrap_or_else(|_| panic!("parse error in: {}", source));
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&ast);
+
+        let errors = match result {
+            Err(errors) => errors,
+            Ok(_) => panic!(
+                "expected an unknown-method error for: {} (return type {})",
+                source, expected_type
+            ),
+        };
+        let expected = format!("Type '{}' has no method named 'bogus'", expected_type);
+        assert!(
+            errors.iter().any(|e| e.message.contains(&expected)),
+            "expected error containing \"{}\" for `{}`, got: {:?}",
+            expected,
+            source,
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn test_method_with_unknowable_return_type_has_no_error() {
+    // Array.pop() returns whatever element was stored, which can be of any
+    // type - the registry tracks no return type for it, so chaining an
+    // unknown method must not error.
+    let program = r#"[1, "a"].pop().bogus()"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    if let Err(ref errors) = result {
+        for err in errors {
+            assert!(
+                !err.message.contains("has no method named"),
+                "unexpected method validation error: {}",
+                err.message
+            );
+        }
+    }
+}
+
+#[test]
+fn test_self_typed_as_builtin_type_in_impl_validates_methods() {
+    // Pins StaticType::from_name's builtin arms: `self` inside `impl Array`
+    // must be typed as StaticType::Array (not Struct("Array")), so a
+    // ternary returning `self` still validates against Array's methods.
+    let program = r#"
+impl Array {
+    fn f(self) {
+        return (true ? self : [1]).bogus()
+    }
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Type 'Array' has no method named 'bogus'")));
+}

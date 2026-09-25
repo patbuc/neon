@@ -1,3 +1,4 @@
+use crate::common::static_type::StaticType;
 use crate::common::{ObjString, Object, Value};
 use indexmap::IndexMap;
 use std::rc::Rc;
@@ -29,7 +30,7 @@ const ARGS: &str = "args";
 /// carries, so the VM and the semantic analyzer must agree on it. Math and
 /// File are namespaces, not values, and come from the method registry
 /// instead (see `method_registry::namespaces`).
-pub const BUILTIN_VALUES: &[(&str, &str)] = &[(ARGS, "Array")];
+pub const BUILTIN_VALUES: &[(&str, StaticType)] = &[(ARGS, StaticType::Array)];
 
 /// Create stdlib objects for the VM, in `BUILTIN_VALUES` order.
 pub fn create_builtin_objects(args: Vec<String>) -> IndexMap<String, Value> {

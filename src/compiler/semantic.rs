@@ -2,6 +2,7 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 
+use crate::common::static_type::StaticType;
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
@@ -59,7 +60,7 @@ pub struct SemanticAnalyzer {
     // One map per active scope, mirroring the symbol table's scope chain.
     // A present key shadows any outer type for that name; its value is
     // the known static type, or None if the type is unknown.
-    type_env: Vec<HashMap<String, Option<String>>>,
+    type_env: Vec<HashMap<String, Option<StaticType>>>,
     loop_depth: u32,
     // Methods contributed by `impl` blocks, keyed by type name (a struct or
     // a builtin type) then method name.
@@ -96,7 +97,8 @@ impl SemanticAnalyzer {
 
         // Runtime builtin values (args, ...) come from the same list the VM
         // uses to construct them.
-        for (index, (name, type_name)) in crate::common::stdlib::BUILTIN_VALUES.iter().enumerate() {
+        for (index, (name, static_type)) in crate::common::stdlib::BUILTIN_VALUES.iter().enumerate()
+        {
             let decl_id = DeclId(next_decl_id);
             next_decl_id += 1;
             let symbol = Symbol::new(
@@ -111,7 +113,7 @@ impl SemanticAnalyzer {
                 0,
             );
             let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
-            type_env[0].insert(name.to_string(), Some(type_name.to_string()));
+            type_env[0].insert(name.to_string(), Some(static_type.clone()));
         }
 
         SemanticAnalyzer {
@@ -414,7 +416,7 @@ impl SemanticAnalyzer {
 
     /// Define a name's static type (or None if unknown) in the current
     /// scope, shadowing any outer type recorded for the same name.
-    fn define_type(&mut self, name: &str, ty: Option<String>) {
+    fn define_type(&mut self, name: &str, ty: Option<StaticType>) {
         self.type_env
             .last_mut()
             .expect("global scope always present")
@@ -424,7 +426,7 @@ impl SemanticAnalyzer {
     /// Update a name's static type in the scope where it was last
     /// defined, searching outward from the current scope. Falls back to
     /// defining it in the current scope if it isn't tracked yet.
-    fn set_type(&mut self, name: &str, ty: Option<String>) {
+    fn set_type(&mut self, name: &str, ty: Option<StaticType>) {
         for scope in self.type_env.iter_mut().rev() {
             if scope.contains_key(name) {
                 scope.insert(name.to_string(), ty);
@@ -436,7 +438,7 @@ impl SemanticAnalyzer {
 
     /// Look up a name's static type, searching from the innermost scope
     /// outward. A name bound with no known type stops the search there.
-    fn lookup_type(&self, name: &str) -> Option<String> {
+    fn lookup_type(&self, name: &str) -> Option<StaticType> {
         for scope in self.type_env.iter().rev() {
             if let Some(ty) = scope.get(name) {
                 return ty.clone();
@@ -446,17 +448,17 @@ impl SemanticAnalyzer {
     }
 
     /// Infer the type of an expression based on its structure
-    fn infer_expr_type(&self, expr: &Expr) -> Option<String> {
+    fn infer_expr_type(&self, expr: &Expr) -> Option<StaticType> {
         match expr {
             // Literal types
-            Expr::Number { .. } => Some("Number".to_string()),
-            Expr::String { .. } => Some("String".to_string()),
-            Expr::StringInterpolation { .. } => Some("String".to_string()),
-            Expr::Boolean { .. } => Some("Boolean".to_string()),
-            Expr::ArrayLiteral { .. } => Some("Array".to_string()),
-            Expr::MapLiteral { .. } => Some("Map".to_string()),
-            Expr::SetLiteral { .. } => Some("Set".to_string()),
-            Expr::Nil { .. } => Some("Nil".to_string()),
+            Expr::Number { .. } => Some(StaticType::Number),
+            Expr::String { .. } => Some(StaticType::String),
+            Expr::StringInterpolation { .. } => Some(StaticType::String),
+            Expr::Boolean { .. } => Some(StaticType::Boolean),
+            Expr::ArrayLiteral { .. } => Some(StaticType::Array),
+            Expr::MapLiteral { .. } => Some(StaticType::Map),
+            Expr::SetLiteral { .. } => Some(StaticType::Set),
+            Expr::Nil { .. } => Some(StaticType::Nil),
 
             // Variable lookup
             Expr::Variable { name, .. } => self.lookup_type(name),
@@ -470,24 +472,7 @@ impl SemanticAnalyzer {
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // This is a method call obj.method(args)
                     let object_type = self.infer_expr_type(object)?;
-                    match (object_type.as_str(), field.as_str()) {
-                        ("Map", "keys") => Some("Array".to_string()),
-                        ("Map", "values") => Some("Array".to_string()),
-                        ("Set", "toArray") => Some("Array".to_string()),
-                        ("String", "split") => Some("Array".to_string()),
-                        ("String", "charAt") => Some("String".to_string()),
-                        ("String", "toUpperCase") => Some("String".to_string()),
-                        ("String", "toLowerCase") => Some("String".to_string()),
-                        ("String", "trim") => Some("String".to_string()),
-                        ("String", "toString") => Some("String".to_string()),
-                        ("String", "toInt") => Some("Number".to_string()),
-                        ("String", "toFloat") => Some("Number".to_string()),
-                        ("Number", "toString") => Some("String".to_string()),
-                        ("Array", "join") => Some("String".to_string()),
-                        ("Array", "map") => Some("Array".to_string()),
-                        ("Array", "filter") => Some("Array".to_string()),
-                        _ => None,
-                    }
+                    crate::common::method_registry::instance_return_type(object_type.name(), field)
                 } else if let Expr::Variable { name, .. } = callee.as_ref() {
                     // A direct call to a known struct is a constructor;
                     // its result is statically an instance of that struct.
@@ -495,7 +480,7 @@ impl SemanticAnalyzer {
                         Some(Symbol {
                             kind: SymbolKind::Struct { .. },
                             ..
-                        }) => Some(name.clone()),
+                        }) => Some(StaticType::Struct(name.clone())),
                         _ => None,
                     }
                 } else {
@@ -522,14 +507,14 @@ impl SemanticAnalyzer {
                         let left_type = self.infer_expr_type(left);
                         let right_type = self.infer_expr_type(right);
 
-                        if left_type.as_deref() == Some("String")
-                            || right_type.as_deref() == Some("String")
+                        if left_type == Some(StaticType::String)
+                            || right_type == Some(StaticType::String)
                         {
-                            Some("String".to_string())
-                        } else if left_type.as_deref() == Some("Number")
-                            && right_type.as_deref() == Some("Number")
+                            Some(StaticType::String)
+                        } else if left_type == Some(StaticType::Number)
+                            && right_type == Some(StaticType::Number)
                         {
-                            Some("Number".to_string())
+                            Some(StaticType::Number)
                         } else {
                             None
                         }
@@ -540,7 +525,7 @@ impl SemanticAnalyzer {
                     | BinaryOp::Modulo
                     | BinaryOp::Exponent => {
                         // Arithmetic operations return Number
-                        Some("Number".to_string())
+                        Some(StaticType::Number)
                     }
                     BinaryOp::Equal
                     | BinaryOp::NotEqual
@@ -551,7 +536,7 @@ impl SemanticAnalyzer {
                     | BinaryOp::And
                     | BinaryOp::Or => {
                         // Comparison and logical operations return Boolean
-                        Some("Boolean".to_string())
+                        Some(StaticType::Boolean)
                     }
                     BinaryOp::BitwiseAnd
                     | BinaryOp::BitwiseOr
@@ -559,7 +544,7 @@ impl SemanticAnalyzer {
                     | BinaryOp::LeftShift
                     | BinaryOp::RightShift => {
                         // Bitwise operations return Number
-                        Some("Number".to_string())
+                        Some(StaticType::Number)
                     }
                 }
             }
@@ -568,9 +553,9 @@ impl SemanticAnalyzer {
             Expr::Unary { operator, .. } => {
                 use crate::compiler::ast::UnaryOp;
                 match operator {
-                    UnaryOp::Negate => Some("Number".to_string()),
-                    UnaryOp::Not => Some("Boolean".to_string()),
-                    UnaryOp::BitwiseNot => Some("Number".to_string()),
+                    UnaryOp::Negate => Some(StaticType::Number),
+                    UnaryOp::Not => Some(StaticType::Boolean),
+                    UnaryOp::BitwiseNot => Some(StaticType::Number),
                 }
             }
 
@@ -991,7 +976,7 @@ impl SemanticAnalyzer {
         for (i, param) in params.iter().enumerate() {
             let param_location = location; // Use function location for params
             let param_type = if i == 0 && param == "self" {
-                self_type.map(|t| t.to_string())
+                self_type.map(StaticType::from_name)
             } else {
                 None
             };
@@ -1286,7 +1271,7 @@ impl SemanticAnalyzer {
 
         // Instance method call - validate method if we can infer the object's type
         if let Some(object_type) = self.infer_expr_type(object) {
-            self.validate_instance_method(&object_type, method, arguments.len(), location);
+            self.validate_instance_method(object_type.name(), method, arguments.len(), location);
         }
     }
 
@@ -1349,8 +1334,8 @@ impl SemanticAnalyzer {
 
     fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
         self.resolve_expr(object);
-        if let Some(struct_name) = self.infer_expr_type(object) {
-            self.validate_struct_field(&struct_name, field, location);
+        if let Some(object_type) = self.infer_expr_type(object) {
+            self.validate_struct_field(object_type.name(), field, location);
         }
     }
 
@@ -1363,8 +1348,8 @@ impl SemanticAnalyzer {
     ) {
         self.resolve_expr(object);
         self.resolve_expr(value);
-        if let Some(struct_name) = self.infer_expr_type(object) {
-            self.validate_struct_field(&struct_name, field, location);
+        if let Some(object_type) = self.infer_expr_type(object) {
+            self.validate_struct_field(object_type.name(), field, location);
         }
     }
 
