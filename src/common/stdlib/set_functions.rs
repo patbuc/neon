@@ -1,4 +1,4 @@
-use crate::common::{Object, SetKey, Value};
+use crate::common::{SetKey, Value};
 use crate::{extract_arg, extract_receiver};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeSet;
@@ -198,23 +198,17 @@ pub fn native_set_is_subset(args: &[Value]) -> Result<Value, String> {
 /// Helper function to convert a Value to a SetKey
 fn value_to_set_key(value: &Value) -> Option<SetKey> {
     match value {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => Some(SetKey::String(Rc::clone(&s.value))),
-            _ => None,
-        },
+        Value::String(s) => Some(SetKey::String(Rc::clone(s))),
         Value::Number(n) => Some(SetKey::Number(OrderedFloat(*n))),
         Value::Boolean(b) => Some(SetKey::Boolean(*b)),
-        Value::Nil => None,
-        Value::Uninitialized(_) => None,
+        _ => None,
     }
 }
 
 /// Helper function to convert a SetKey back to a Value
 fn set_key_to_value(key: &SetKey) -> Value {
     match key {
-        SetKey::String(s) => Value::Object(Rc::new(Object::String(crate::common::ObjString {
-            value: Rc::clone(s),
-        }))),
+        SetKey::String(s) => Value::String(Rc::clone(s)),
         SetKey::Number(n) => Value::Number(n.0),
         SetKey::Boolean(b) => Value::Boolean(*b),
     }

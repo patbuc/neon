@@ -14,15 +14,10 @@ fn test_array_creation() {
 
     // Test that the array was created
     match arr {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Array(_) => {
-                    // Success - array was created
-                }
-                _ => panic!("Expected Array object"),
-            }
+        Value::Array(_) => {
+            // Success - array was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Array value"),
     }
 }
 
@@ -73,9 +68,7 @@ fn test_map_creation() {
     let mut entries = IndexMap::new();
     entries.insert(
         MapKey::String(Rc::new("name".to_string())),
-        Value::Object(Rc::new(Object::String(ObjString {
-            value: Rc::new("Alice".to_string()),
-        }))),
+        Value::String(Rc::new("Alice".to_string())),
     );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
 
@@ -83,15 +76,10 @@ fn test_map_creation() {
 
     // Test that the map was created
     match map {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Map(_) => {
-                    // Success - map was created
-                }
-                _ => panic!("Expected Map object"),
-            }
+        Value::Map(_) => {
+            // Success - map was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Map value"),
     }
 }
 
@@ -158,9 +146,7 @@ fn test_map_with_different_key_types() {
     let mut entries = IndexMap::new();
     entries.insert(
         MapKey::String(Rc::new("name".to_string())),
-        Value::Object(Rc::new(Object::String(ObjString {
-            value: Rc::new("Alice".to_string()),
-        }))),
+        Value::String(Rc::new("Alice".to_string())),
     );
     entries.insert(MapKey::Number(OrderedFloat(42.0)), Value::Number(100.0));
     entries.insert(MapKey::Boolean(true), Value::Boolean(false));
@@ -207,15 +193,10 @@ fn test_set_creation() {
 
     // Test that the set was created
     match set {
-        Value::Object(obj) => {
-            match obj.as_ref() {
-                Object::Set(_) => {
-                    // Success - set was created
-                }
-                _ => panic!("Expected Set object"),
-            }
+        Value::Set(_) => {
+            // Success - set was created
         }
-        _ => panic!("Expected Object value"),
+        _ => panic!("Expected Set value"),
     }
 }
 
@@ -294,14 +275,10 @@ fn test_set_uniqueness() {
     let set = Value::new_set(elements);
 
     // Verify that the set contains only unique elements
-    if let Value::Object(obj) = &set {
-        if let Object::Set(set_ref) = obj.as_ref() {
-            assert_eq!(set_ref.borrow().len(), 2); // Should only contain 2 unique elements
-        } else {
-            panic!("Expected Set object");
-        }
+    if let Value::Set(set_ref) = &set {
+        assert_eq!(set_ref.borrow().len(), 2); // Should only contain 2 unique elements
     } else {
-        panic!("Expected Object value");
+        panic!("Expected Set value");
     }
 }
 

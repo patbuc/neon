@@ -1,4 +1,4 @@
-use crate::common::{NativeCallError, Object, Value};
+use crate::common::{NativeCallError, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -118,14 +118,11 @@ pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
         (Value::Number(n1), Value::Number(n2)) => {
             n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
         }
-        (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-            (Object::String(s1), Object::String(s2)) => s1.value.cmp(&s2.value),
-            _ => std::cmp::Ordering::Equal,
-        },
+        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
         (Value::Number(_), _) => std::cmp::Ordering::Less,
         (_, Value::Number(_)) => std::cmp::Ordering::Greater,
-        (Value::Object(_), _) => std::cmp::Ordering::Less,
-        (_, Value::Object(_)) => std::cmp::Ordering::Greater,
+        (Value::String(_), _) => std::cmp::Ordering::Less,
+        (_, Value::String(_)) => std::cmp::Ordering::Greater,
         _ => std::cmp::Ordering::Equal,
     });
 
@@ -217,11 +214,7 @@ pub fn native_array_join(args: &[Value]) -> Result<Value, String> {
     let parts: Vec<String> = array.iter().map(|v| format!("{}", v)).collect();
     let result = parts.join(delimiter);
 
-    Ok(Value::Object(std::rc::Rc::new(Object::String(
-        crate::common::ObjString {
-            value: std::rc::Rc::new(result),
-        },
-    ))))
+    Ok(Value::String(std::rc::Rc::new(result)))
 }
 
 /// Native implementation of Array.indexOf(element)
@@ -305,10 +298,7 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_less = match (value, min) {
             (Value::Number(n1), Value::Number(n2)) => n1 < n2,
-            (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-                (Object::String(s1), Object::String(s2)) => s1.value < s2.value,
-                _ => return Err("min() can only compare numbers or strings".to_string()),
-            },
+            (Value::String(s1), Value::String(s2)) => s1 < s2,
             _ => return Err("min() can only compare numbers or strings".to_string()),
         };
 
@@ -345,10 +335,7 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_greater = match (value, max) {
             (Value::Number(n1), Value::Number(n2)) => n1 > n2,
-            (Value::Object(o1), Value::Object(o2)) => match (o1.as_ref(), o2.as_ref()) {
-                (Object::String(s1), Object::String(s2)) => s1.value > s2.value,
-                _ => return Err("max() can only compare numbers or strings".to_string()),
-            },
+            (Value::String(s1), Value::String(s2)) => s1 > s2,
             _ => return Err("max() can only compare numbers or strings".to_string()),
         };
 

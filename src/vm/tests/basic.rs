@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, Object, Value};
+use crate::common::{Chunk, Value};
 use crate::vm::{Result, VirtualMachine};
 use crate::{as_number, number};
 use std::assert_eq;
@@ -3249,13 +3249,11 @@ fn structurally_cyclic_distinct_instances_are_equal() {
 #[test]
 fn debug_format_of_self_referencing_array_terminates() {
     let array = Value::new_array(vec![Value::Number(1.0)]);
-    if let Value::Object(obj) = &array {
-        if let Object::Array(elements) = obj.as_ref() {
-            elements.borrow_mut().push(array.clone());
-        }
+    if let Value::Array(elements) = &array {
+        elements.borrow_mut().push(array.clone());
     }
 
-    assert_eq!("Object([1, [...]])", format!("{:?}", array));
+    assert_eq!("[1, [...]]", format!("{:?}", array));
 }
 
 #[test]

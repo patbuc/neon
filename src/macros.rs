@@ -15,11 +15,7 @@ macro_rules! boolean {
 #[macro_export]
 macro_rules! string {
     ($value: expr) => {
-        $crate::common::Value::Object(std::rc::Rc::from($crate::common::Object::String(
-            $crate::common::ObjString {
-                value: std::rc::Rc::new(String::from($value)),
-            },
-        )))
+        $crate::common::Value::String(std::rc::Rc::new(String::from($value)))
     };
 }
 
@@ -53,17 +49,6 @@ macro_rules! as_bool {
 }
 
 #[macro_export]
-macro_rules! as_object {
-    ($value: expr) => {
-        if let $crate::common::Value::Object(ref value) = $value {
-            value
-        } else {
-            panic!("Expected object, got {:?}", $value);
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! as_nil {
     ($value: expr) => {
         if let $crate::common::Value::Nil = $value {
@@ -77,14 +62,10 @@ macro_rules! as_nil {
 #[macro_export]
 macro_rules! as_string {
     ($value: expr) => {
-        if let $crate::common::Value::Object(ref obj) = $value {
-            if let $crate::common::Object::String(ref obj_string) = **obj {
-                obj_string
-            } else {
-                panic!("Expected Object::String, got {:?}", $value);
-            }
+        if let $crate::common::Value::String(ref value) = $value {
+            value.as_ref()
         } else {
-            panic!("Expected Value::Object, got {:?}", $value);
+            panic!("Expected Value::String, got {:?}", $value);
         }
     };
 }

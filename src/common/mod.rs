@@ -69,20 +69,6 @@ pub struct LineInfo {
     pub column: u32,
 }
 
-#[derive(Clone)]
-pub enum Object {
-    String(ObjString),
-    Function(Rc<ObjFunction>),
-    Closure(Rc<ObjClosure>),
-    NativeFunction(Rc<ObjNativeFunction>),
-    Struct(Rc<ObjStruct>),
-    Instance(Rc<RefCell<ObjInstance>>),
-    Array(Rc<RefCell<Vec<Value>>>),
-    Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
-    Set(Rc<RefCell<BTreeSet<SetKey>>>),
-    File(Rc<String>),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum MapKey {
     String(Rc<String>),
@@ -102,21 +88,25 @@ impl Display for MapKey {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Value {
     Number(f64),
-    Object(Rc<Object>),
     Boolean(bool),
     Nil,
     /// Placeholder held by a hoisted global or block-level function slot
     /// until its declaration runs; GetGlobal, SetGlobal, and CheckInitialized
     /// turn reading it into a runtime error.
     Uninitialized(Rc<String>),
-}
-
-#[derive(Debug, Clone)]
-pub struct ObjString {
-    pub value: Rc<String>,
+    String(Rc<String>),
+    Function(Rc<ObjFunction>),
+    Closure(Rc<ObjClosure>),
+    NativeFunction(Rc<ObjNativeFunction>),
+    Struct(Rc<ObjStruct>),
+    Instance(Rc<RefCell<ObjInstance>>),
+    Array(Rc<RefCell<Vec<Value>>>),
+    Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
+    Set(Rc<RefCell<BTreeSet<SetKey>>>),
+    File(Rc<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -181,7 +171,7 @@ impl ObjStruct {
 
 impl Value {
     pub(crate) fn new_object(instance: ObjInstance) -> Value {
-        Value::Object(Rc::new(Object::Instance(Rc::new(RefCell::new(instance)))))
+        Value::Instance(Rc::new(RefCell::new(instance)))
     }
 
     pub(crate) fn new_struct(name: String, fields: Vec<String>) -> Self {
@@ -190,55 +180,50 @@ impl Value {
             .enumerate()
             .map(|(index, name)| (name.clone(), index))
             .collect();
-        Value::Object(Rc::new(Object::Struct(Rc::new(ObjStruct {
+        Value::Struct(Rc::new(ObjStruct {
             name,
             fields,
             field_indices,
-        }))))
+        }))
     }
 
     pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
-        Value::Object(Rc::new(Object::Function(Rc::new(ObjFunction {
+        Value::Function(Rc::new(ObjFunction {
             name,
             arity,
             chunk: Rc::new(chunk),
-        }))))
+        }))
     }
 
     pub(crate) fn new_closure(
         function: Rc<ObjFunction>,
         upvalues: Vec<Rc<RefCell<Upvalue>>>,
     ) -> Self {
-        Value::Object(Rc::new(Object::Closure(Rc::new(ObjClosure {
-            function,
-            upvalues,
-        }))))
+        Value::Closure(Rc::new(ObjClosure { function, upvalues }))
     }
 
     pub(crate) fn new_native_function(name: String, arity: u8, method_index: u32) -> Self {
-        Value::Object(Rc::new(Object::NativeFunction(Rc::new(
-            ObjNativeFunction {
-                name,
-                arity,
-                method_index,
-            },
-        ))))
+        Value::NativeFunction(Rc::new(ObjNativeFunction {
+            name,
+            arity,
+            method_index,
+        }))
     }
 
     pub(crate) fn new_array(elements: Vec<Value>) -> Self {
-        Value::Object(Rc::new(Object::Array(Rc::new(RefCell::new(elements)))))
+        Value::Array(Rc::new(RefCell::new(elements)))
     }
 
     pub(crate) fn new_map(entries: IndexMap<MapKey, Value>) -> Self {
-        Value::Object(Rc::new(Object::Map(Rc::new(RefCell::new(entries)))))
+        Value::Map(Rc::new(RefCell::new(entries)))
     }
 
     pub(crate) fn new_set(elements: BTreeSet<SetKey>) -> Self {
-        Value::Object(Rc::new(Object::Set(Rc::new(RefCell::new(elements)))))
+        Value::Set(Rc::new(RefCell::new(elements)))
     }
 
     pub(crate) fn new_file(path: String) -> Self {
-        Value::Object(Rc::new(Object::File(Rc::new(path))))
+        Value::File(Rc::new(path))
     }
 
     /// Name of this value's type, for runtime error messages.
@@ -248,18 +233,16 @@ impl Value {
             Value::Boolean(_) => "boolean",
             Value::Nil => "nil",
             Value::Uninitialized(_) => "uninitialized",
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(_) => "string",
-                Object::Function(_) => "function",
-                Object::Closure(_) => "function",
-                Object::NativeFunction(_) => "function",
-                Object::Struct(_) => "struct",
-                Object::Instance(_) => "instance",
-                Object::Array(_) => "array",
-                Object::Map(_) => "map",
-                Object::Set(_) => "set",
-                Object::File(_) => "file",
-            },
+            Value::String(_) => "string",
+            Value::Function(_) => "function",
+            Value::Closure(_) => "function",
+            Value::NativeFunction(_) => "function",
+            Value::Struct(_) => "struct",
+            Value::Instance(_) => "instance",
+            Value::Array(_) => "array",
+            Value::Map(_) => "map",
+            Value::Set(_) => "set",
+            Value::File(_) => "file",
         }
     }
 }
@@ -270,105 +253,6 @@ pub struct CallFrame {
     pub slot_start: isize, // Can be -1 for script frame
     /// iterator_stack depth when this frame was pushed.
     pub iterator_depth: usize,
-}
-
-impl Object {
-    fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
-        match self {
-            Object::String(obj_string) => write!(f, "{}", obj_string.value),
-            Object::Function(obj_function) => write!(f, "<fn {}>", obj_function.name),
-            Object::Closure(obj_closure) => write!(f, "<fn {}>", obj_closure.function.name),
-            Object::NativeFunction(obj_native_function) => {
-                write!(f, "<native fn {}>", obj_native_function.name)
-            }
-            Object::Struct(obj_struct) => write!(f, "<struct {}>", obj_struct.name),
-            Object::Instance(obj_instance) => {
-                let instance = obj_instance;
-                write!(f, "<{} instance>", instance.borrow().r#struct.name)
-            }
-            Object::Array(array) => {
-                let ptr = Rc::as_ptr(array) as *const ();
-                if seen.contains(&ptr) {
-                    return write!(f, "[...]");
-                }
-                seen.push(ptr);
-                write!(f, "[")?;
-                for (i, value) in array.borrow().iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    value.fmt_with_seen(f, seen)?;
-                }
-                write!(f, "]")?;
-                seen.pop();
-                Ok(())
-            }
-            Object::Map(map) => {
-                let ptr = Rc::as_ptr(map) as *const ();
-                if seen.contains(&ptr) {
-                    return write!(f, "{{...}}");
-                }
-                seen.push(ptr);
-                write!(f, "{{")?;
-                let mut first = true;
-                for (key, value) in map.borrow().iter() {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    first = false;
-                    write!(f, "{}: ", key)?;
-                    value.fmt_with_seen(f, seen)?;
-                }
-                write!(f, "}}")?;
-                seen.pop();
-                Ok(())
-            }
-            Object::Set(set) => {
-                let elements = set.borrow();
-                write!(f, "#{{")?;
-                let mut first = true;
-                for element in elements.iter() {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    first = false;
-                    write!(f, "{}", element)?;
-                }
-                write!(f, "}}")
-            }
-            Object::File(path) => write!(f, "<file: {}>", path),
-        }
-    }
-}
-
-impl Display for Object {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.fmt_with_seen(f, &mut Vec::new())
-    }
-}
-
-impl std::fmt::Debug for Object {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self, f)
-    }
-}
-
-impl PartialEq<Rc<String>> for ObjString {
-    fn eq(&self, other: &Rc<String>) -> bool {
-        self.value == *other
-    }
-}
-
-impl PartialEq for ObjString {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
-
-impl PartialEq<&ObjString> for &str {
-    fn eq(&self, other: &&ObjString) -> bool {
-        *self == other.value.as_str()
-    }
 }
 
 impl PartialEq for ObjFunction {
@@ -403,15 +287,88 @@ fn guarded_eq<T>(
     equal
 }
 
-impl Object {
+impl Value {
+    fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
+        match self {
+            Value::Number(val) => write!(f, "{}", val),
+            Value::Boolean(val) => write!(f, "{}", val),
+            Value::Nil => write!(f, "nil"),
+            Value::Uninitialized(_) => write!(f, "<uninitialized>"),
+            Value::String(s) => write!(f, "{}", s),
+            Value::Function(function) => write!(f, "<fn {}>", function.name),
+            Value::Closure(closure) => write!(f, "<fn {}>", closure.function.name),
+            Value::NativeFunction(native_function) => {
+                write!(f, "<native fn {}>", native_function.name)
+            }
+            Value::Struct(r#struct) => write!(f, "<struct {}>", r#struct.name),
+            Value::Instance(instance) => {
+                write!(f, "<{} instance>", instance.borrow().r#struct.name)
+            }
+            Value::Array(array) => {
+                let ptr = Rc::as_ptr(array) as *const ();
+                if seen.contains(&ptr) {
+                    return write!(f, "[...]");
+                }
+                seen.push(ptr);
+                write!(f, "[")?;
+                for (i, value) in array.borrow().iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    value.fmt_with_seen(f, seen)?;
+                }
+                write!(f, "]")?;
+                seen.pop();
+                Ok(())
+            }
+            Value::Map(map) => {
+                let ptr = Rc::as_ptr(map) as *const ();
+                if seen.contains(&ptr) {
+                    return write!(f, "{{...}}");
+                }
+                seen.push(ptr);
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, value) in map.borrow().iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}: ", key)?;
+                    value.fmt_with_seen(f, seen)?;
+                }
+                write!(f, "}}")?;
+                seen.pop();
+                Ok(())
+            }
+            Value::Set(set) => {
+                let elements = set.borrow();
+                write!(f, "#{{")?;
+                let mut first = true;
+                for element in elements.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "{}", element)?;
+                }
+                write!(f, "}}")
+            }
+            Value::File(path) => write!(f, "<file: {}>", path),
+        }
+    }
+
     fn eq_with_seen(&self, other: &Self, seen: &mut Vec<(*const (), *const ())>) -> bool {
         match (self, other) {
-            (Object::String(a), Object::String(b)) => a == b,
-            (Object::Function(a), Object::Function(b)) => a == b,
-            (Object::Closure(a), Object::Closure(b)) => Rc::ptr_eq(a, b),
-            (Object::NativeFunction(a), Object::NativeFunction(b)) => a == b,
-            (Object::Struct(a), Object::Struct(b)) => a == b,
-            (Object::Instance(a), Object::Instance(b)) => guarded_eq(a, b, seen, |seen| {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Nil, Value::Nil) => true,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Function(a), Value::Function(b)) => a == b,
+            (Value::Closure(a), Value::Closure(b)) => Rc::ptr_eq(a, b),
+            (Value::NativeFunction(a), Value::NativeFunction(b)) => a == b,
+            (Value::Struct(a), Value::Struct(b)) => a == b,
+            (Value::Instance(a), Value::Instance(b)) => guarded_eq(a, b, seen, |seen| {
                 let ia = a.borrow();
                 let ib = b.borrow();
                 *ia.r#struct == *ib.r#struct
@@ -421,7 +378,7 @@ impl Object {
                         .zip(ib.fields.iter())
                         .all(|(v, w)| v.eq_with_seen(w, seen))
             }),
-            (Object::Array(a), Object::Array(b)) => guarded_eq(a, b, seen, |seen| {
+            (Value::Array(a), Value::Array(b)) => guarded_eq(a, b, seen, |seen| {
                 let va = a.borrow();
                 let vb = b.borrow();
                 va.len() == vb.len()
@@ -430,7 +387,7 @@ impl Object {
                         .zip(vb.iter())
                         .all(|(x, y)| x.eq_with_seen(y, seen))
             }),
-            (Object::Map(a), Object::Map(b)) => guarded_eq(a, b, seen, |seen| {
+            (Value::Map(a), Value::Map(b)) => guarded_eq(a, b, seen, |seen| {
                 let ma = a.borrow();
                 let mb = b.borrow();
                 ma.len() == mb.len()
@@ -438,36 +395,8 @@ impl Object {
                         .iter()
                         .all(|(k, v)| mb.get(k).is_some_and(|w| v.eq_with_seen(w, seen)))
             }),
-            (Object::Set(a), Object::Set(b)) => a == b,
-            (Object::File(a), Object::File(b)) => a == b,
-            _ => false,
-        }
-    }
-}
-
-impl PartialEq for Object {
-    fn eq(&self, other: &Self) -> bool {
-        self.eq_with_seen(other, &mut Vec::new())
-    }
-}
-
-impl Value {
-    fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
-        match self {
-            Value::Number(val) => write!(f, "{}", val),
-            Value::Boolean(val) => write!(f, "{}", val),
-            Value::Nil => write!(f, "nil"),
-            Value::Uninitialized(_) => write!(f, "<uninitialized>"),
-            Value::Object(val) => val.fmt_with_seen(f, seen),
-        }
-    }
-
-    fn eq_with_seen(&self, other: &Self, seen: &mut Vec<(*const (), *const ())>) -> bool {
-        match (self, other) {
-            (Value::Number(a), Value::Number(b)) => a == b,
-            (Value::Boolean(a), Value::Boolean(b)) => a == b,
-            (Value::Nil, Value::Nil) => true,
-            (Value::Object(a), Value::Object(b)) => a.eq_with_seen(b, seen),
+            (Value::Set(a), Value::Set(b)) => a == b,
+            (Value::File(a), Value::File(b)) => a == b,
             _ => false,
         }
     }
@@ -476,6 +405,12 @@ impl Value {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.fmt_with_seen(f, &mut Vec::new())
+    }
+}
+
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::common::{MapKey, Object, Value};
+use crate::common::{MapKey, Value};
 use crate::extract_receiver;
 use ordered_float::OrderedFloat;
 use std::rc::Rc;
@@ -143,25 +143,16 @@ pub fn native_map_entries(args: &[Value]) -> Result<Value, String> {
 
 fn value_to_map_key(value: &Value) -> Option<MapKey> {
     match value {
-        Value::Object(obj) => match obj.as_ref() {
-            Object::String(s) => Some(MapKey::String(Rc::clone(&s.value))),
-            _ => None,
-        },
+        Value::String(s) => Some(MapKey::String(Rc::clone(s))),
         Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
         Value::Boolean(b) => Some(MapKey::Boolean(*b)),
-        Value::Nil => None,
-        Value::Uninitialized(_) => None,
+        _ => None,
     }
 }
 
 fn map_key_to_value(key: &MapKey) -> Value {
     match key {
-        MapKey::String(s) => {
-            use crate::common::ObjString;
-            Value::Object(Rc::new(Object::String(ObjString {
-                value: Rc::clone(s),
-            })))
-        }
+        MapKey::String(s) => Value::String(Rc::clone(s)),
         MapKey::Number(n) => Value::Number(n.into_inner()),
         MapKey::Boolean(b) => Value::Boolean(*b),
     }
