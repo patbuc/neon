@@ -82,7 +82,7 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 - **Sets** - Unique value collections (e.g., `#{1, 2, 3}`)
 
 **Other Types:**
-- **Ranges** - Inclusive `1..=10` or exclusive `1..10`
+- **Ranges** - Immutable, lazy sequences of integers: exclusive `1..10` or inclusive `1..=10`. Prints as `1..4` / `1..=4`, compares equal by bounds, and indexes like an array (including negative indices) without materializing its elements. Not usable as a map key.
 - **Functions** - First-class values
 - **Structs** - User-defined data structures
 
@@ -622,6 +622,24 @@ print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
 and can call back into other Neon functions (including nested `map`/`filter`/
 `reduce` calls). Callbacks passed to `map`, `filter` or `reduce` can nest at
 most 32 levels deep before reporting a "Stack overflow" error.
+
+### Range Methods
+
+- `.size()` / `.length()` - Number of integers the range covers, computed from its bounds
+- `.contains(value)` - Check if value is an integer within the range, computed from its bounds
+- `.toArray()` - Convert to an array
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)` - Same as the Array methods, applied to the range's elements
+
+Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
+
+**Example:**
+```neon
+val r = 1..4
+print(r.size())            // 3
+print(r.contains(2))       // true
+print(r.toArray())         // [1, 2, 3]
+print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
+```
 
 ### Map Methods
 

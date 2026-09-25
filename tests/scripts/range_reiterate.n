@@ -1,0 +1,11 @@
+// Expected:
+// 1
+// 2
+// 3
+// 1
+// 2
+// 3
+
+val r = 1..4
+for (i in r) { print(i) }
+for (i in r) { print(i) }

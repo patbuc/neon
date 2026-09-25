@@ -1,0 +1,24 @@
+// Expected:
+// [2, 4, 6]
+// [1, 2, 3]
+// []
+// [2, 3]
+// 1,2,3
+// 2
+// 6
+// 1
+// 3
+// [2, 3]
+// 6
+
+print((1..4).map(fn(x) { return x * 2 }))
+print((1..4).toArray())
+print((5..1).toArray())
+print((1..4).slice(1, 3))
+print((1..4).join(","))
+print((1..10).indexOf(3))
+print((1..4).sum())
+print((1..4).min())
+print((1..4).max())
+print((1..4).filter(fn(x) { return x > 1 }))
+print((1..4).reduce(fn(acc, x) { return acc + x }, 0))

@@ -1148,3 +1148,151 @@ fn native_error_inside_builtin_type_user_method_reports_native_message() {
         errors
     );
 }
+
+#[test]
+fn range_index_out_of_bounds_halts() {
+    let program = r#"
+        print((1..10)[9])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Range index out of bounds"), "{}", errors);
+}
+
+#[test]
+fn range_push_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.push(5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_pop_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.pop()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_sort_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.sort()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_reverse_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r.reverse()
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_index_assign_reports_immutable() {
+    let program = r#"
+        val r = 1..4
+        r[0] = 9
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("immutable"), "{}", errors);
+}
+
+#[test]
+fn range_non_integer_start_halts() {
+    let program = r#"
+        print(1.5..4)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("must be an integer"), "{}", errors);
+}
+
+#[test]
+fn range_non_integer_end_halts() {
+    let program = r#"
+        print(1..4.5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("must be an integer"), "{}", errors);
+}
+
+#[test]
+fn range_huge_start_halts() {
+    let program = r#"
+        print((-9000000000000000000..9000000000000000000)[0])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+}
+
+#[test]
+fn range_huge_end_halts() {
+    let program = r#"
+        print((0..=9223372036854775807)[-1])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+}
+
+#[test]
+fn range_longer_than_2_pow_53_halts() {
+    let program = r#"
+        print((0..=9007199254740992).size())
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(Result::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
+}

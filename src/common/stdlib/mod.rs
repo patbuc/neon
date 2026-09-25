@@ -9,6 +9,7 @@ pub(crate) mod file_functions;
 pub(crate) mod map_functions;
 pub(crate) mod math_functions;
 pub(crate) mod number_functions;
+pub(crate) mod range_functions;
 pub(crate) mod set_functions;
 pub(crate) mod string_functions;
 pub(crate) mod system_functions;

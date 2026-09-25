@@ -462,6 +462,7 @@ impl SemanticAnalyzer {
             Expr::MapLiteral { .. } => Some(StaticType::Map),
             Expr::SetLiteral { .. } => Some(StaticType::Set),
             Expr::Nil { .. } => Some(StaticType::Nil),
+            Expr::Range { .. } => Some(StaticType::Range),
 
             // Variable lookup
             Expr::Variable { name, .. } => self.lookup_type(name),
