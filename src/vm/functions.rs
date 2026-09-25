@@ -1,8 +1,6 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{
-    BitsSize, CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
-};
+use crate::common::{CallFrame, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjClosure, Object, Upvalue};
 use crate::vm::Result;
 use crate::vm::VirtualMachine;
@@ -67,35 +65,13 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_string4(&mut self) {
-        let frame = self.current_frame_mut();
-        let string = {
-            let string_index = frame.closure.function.chunk.read_u32(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_string(string_index)
-        };
-        frame.ip += 4;
-        self.push(string);
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_string2(&mut self) {
+    pub(in crate::vm) fn fn_string(&mut self) {
         let frame = self.current_frame_mut();
         let string = {
             let string_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
             frame.closure.function.chunk.read_string(string_index)
         };
         frame.ip += 2;
-        self.push(string);
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_string(&mut self) {
-        let frame = self.current_frame_mut();
-        let string = {
-            let string_index = frame.closure.function.chunk.read_u8(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_string(string_index)
-        };
-        frame.ip += 1;
         self.push(string);
     }
 
@@ -687,18 +663,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant4(&mut self) {
-        let frame = self.current_frame_mut();
-        let constant = {
-            let constant_index = frame.closure.function.chunk.read_u32(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_constant(constant_index)
-        };
-        frame.ip += 4;
-        self.push(constant);
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_constant2(&mut self) {
+    pub(in crate::vm) fn fn_constant(&mut self) {
         let frame = self.current_frame_mut();
         let constant = {
             let constant_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
@@ -709,25 +674,14 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_constant(&mut self) {
-        let frame = self.current_frame_mut();
-        let constant = {
-            let constant_index = frame.closure.function.chunk.read_u8(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_constant(constant_index)
-        };
-        frame.ip += 1;
-        self.push(constant);
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn fn_set_local(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_set_local(&mut self) -> Option<Result> {
+        let index = self.read_index();
         let frame = self.current_frame_mut();
         // For functions: slot_start points to function object, args start at slot_start + 1
         // For script: slot_start = -1, so locals start at 0
         // locals (params) are indexed from 0, so param 0 is at slot_start + 1
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         if absolute_index >= self.stack.len() {
             self.runtime_error(&format!("Invalid local slot {}", index));
             return Some(Result::RuntimeError);
@@ -736,20 +690,16 @@ impl VirtualMachine {
         None
     }
 
-    fn read_bits(&mut self, bits: &BitsSize) -> usize {
+    fn read_index(&self) -> usize {
         let frame = self.current_frame();
-        match bits {
-            BitsSize::Eight => frame.closure.function.chunk.read_u8(frame.ip + 1) as usize,
-            BitsSize::Sixteen => frame.closure.function.chunk.read_u16(frame.ip + 1) as usize,
-            BitsSize::ThirtyTwo => frame.closure.function.chunk.read_u32(frame.ip + 1) as usize,
-        }
+        frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
     }
 
     /// Wraps a function constant in a closure, capturing whatever upvalues
     /// its metadata (following the constant index) describes.
     #[inline(always)]
-    pub(in crate::vm) fn fn_closure(&mut self, bits: BitsSize) -> Option<Result> {
-        let const_index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_closure(&mut self) -> Option<Result> {
+        let const_index = self.read_index();
         let function = {
             let frame = self.current_frame();
             match frame.closure.function.chunk.read_constant(const_index) {
@@ -761,7 +711,7 @@ impl VirtualMachine {
             }
         };
 
-        let mut offset = bits.as_bytes();
+        let mut offset = 2;
         let upvalue_count = {
             let frame = self.current_frame();
             frame.closure.function.chunk.read_u8(frame.ip + 1 + offset) as usize
@@ -802,8 +752,8 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_upvalue(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_get_upvalue(&mut self) -> Option<Result> {
+        let index = self.read_index();
         if index >= self.current_frame().closure.upvalues.len() {
             self.runtime_error(&format!("Invalid upvalue index {}", index));
             return Some(Result::RuntimeError);
@@ -813,14 +763,14 @@ impl VirtualMachine {
             Upvalue::Open(stack_index) => self.stack[*stack_index].clone(),
             Upvalue::Closed(value) => value.clone(),
         };
-        self.current_frame_mut().ip += bits.as_bytes();
+        self.current_frame_mut().ip += 2;
         self.push(value);
         None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_upvalue(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_set_upvalue(&mut self) -> Option<Result> {
+        let index = self.read_index();
         if index >= self.current_frame().closure.upvalues.len() {
             self.runtime_error(&format!("Invalid upvalue index {}", index));
             return Some(Result::RuntimeError);
@@ -835,7 +785,7 @@ impl VirtualMachine {
             Some(stack_index) => self.stack[stack_index] = value,
             None => *upvalue.borrow_mut() = Upvalue::Closed(value),
         }
-        self.current_frame_mut().ip += bits.as_bytes();
+        self.current_frame_mut().ip += 2;
         None
     }
 
@@ -891,11 +841,11 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_local(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_get_local(&mut self) -> Option<Result> {
+        let index = self.read_index();
         let frame = self.current_frame_mut();
         let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         if absolute_index >= self.stack.len() {
             self.runtime_error(&format!("Invalid local slot {}", index));
             return Some(Result::RuntimeError);
@@ -933,8 +883,8 @@ impl VirtualMachine {
         frame.ip -= offset as usize;
     }
 
-    pub(in crate::vm) fn fn_get_builtin(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_get_builtin(&mut self) -> Option<Result> {
+        let index = self.read_index();
         if let Some(entry) = self.builtin.get_index(index) {
             self.push(entry.1.clone());
         } else {
@@ -942,13 +892,13 @@ impl VirtualMachine {
             return Some(Result::RuntimeError);
         }
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_global(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_get_global(&mut self) -> Option<Result> {
+        let index = self.read_index();
 
         // Regular global variables are in the script frame
         // Script frame has slot_start = -1, so globals start at index 0
@@ -973,13 +923,13 @@ impl VirtualMachine {
 
         self.push(value.clone());
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_global(&mut self, bits: BitsSize) -> Option<Result> {
-        let index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_set_global(&mut self) -> Option<Result> {
+        let index = self.read_index();
         // Global variables are always in the script frame (first frame)
         // Script frame has slot_start = -1, so globals start at index 0
         let script_frame = &self.call_frames[0];
@@ -1001,7 +951,7 @@ impl VirtualMachine {
 
         self.stack[absolute_index] = self.peek(0);
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         None
     }
 
@@ -1027,8 +977,8 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_get_field(&mut self, bits: BitsSize) -> Option<Result> {
-        let field_name_index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_get_field(&mut self) -> Option<Result> {
+        let field_name_index = self.read_index();
         let instance_value = self.peek(0);
 
         let field_name = {
@@ -1075,13 +1025,13 @@ impl VirtualMachine {
         }
 
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         None
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn fn_set_field(&mut self, bits: BitsSize) -> Option<Result> {
-        let field_name_index = self.read_bits(&bits);
+    pub(in crate::vm) fn fn_set_field(&mut self) -> Option<Result> {
+        let field_name_index = self.read_index();
         let value = self.peek(0);
         let instance_value = self.peek(1);
 
@@ -1132,7 +1082,7 @@ impl VirtualMachine {
         }
 
         let frame = self.current_frame_mut();
-        frame.ip += bits.as_bytes();
+        frame.ip += 2;
         None
     }
 
@@ -1666,15 +1616,15 @@ impl VirtualMachine {
     pub(in crate::vm) fn fn_define_method(&mut self) {
         let frame = self.current_frame_mut();
         let type_name = {
-            let index = frame.closure.function.chunk.read_u32(frame.ip + 1) as usize;
+            let index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
             frame.closure.function.chunk.read_string(index)
         };
         let method_name = {
-            let index = frame.closure.function.chunk.read_u32(frame.ip + 5) as usize;
+            let index = frame.closure.function.chunk.read_u16(frame.ip + 3) as usize;
             frame.closure.function.chunk.read_string(index)
         };
-        let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 9) != 0;
-        frame.ip += 9;
+        let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 5) != 0;
+        frame.ip += 5;
 
         let closure_value = self.pop();
         let type_name = as_string!(type_name).value.to_string();

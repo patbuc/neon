@@ -9,7 +9,7 @@ use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 struct Local {
@@ -42,6 +42,7 @@ struct FunctionCompiler {
     locals: Vec<Local>,
     scope_depth: u32,
     loop_contexts: Vec<LoopContext>,
+    reported_overflows: HashSet<&'static str>,
 }
 
 impl FunctionCompiler {
@@ -51,6 +52,7 @@ impl FunctionCompiler {
             locals: Vec::new(),
             scope_depth: 0,
             loop_contexts: Vec::new(),
+            reported_overflows: HashSet::new(),
         }
     }
 
@@ -158,7 +160,7 @@ impl<'a> CodeGenerator<'a> {
             {
                 self.generate_closure(*id, name, params, body, *location);
                 let slot = self.decl_slot(self.resolutions.decl(*id));
-                self.emit_op_code_variant(OpCode::SetLocal, slot, *location);
+                self.emit_index_op(OpCode::SetLocal, slot, "locals", *location);
                 self.emit_op_code(OpCode::Pop, *location);
             }
         }
@@ -216,9 +218,48 @@ impl<'a> CodeGenerator<'a> {
             .write_op_code(op_code, location.line, location.column);
     }
 
-    fn emit_op_code_variant(&mut self, op_code: OpCode, index: u32, location: SourceLocation) {
-        self.current_chunk()
-            .write_op_code_variant(op_code, index, location.line, location.column);
+    /// Verifies `index` fits the u16 operand width, reporting at most one
+    /// "too many `kind`" compile error per function instead of one per
+    /// occurrence.
+    fn checked_index(
+        &mut self,
+        index: u32,
+        kind: &'static str,
+        location: SourceLocation,
+    ) -> Option<u16> {
+        let count = index as usize + 1;
+        if count > u16::MAX as usize {
+            if self.current().reported_overflows.insert(kind) {
+                let message = format!(
+                    "too many {} in one function (maximum is {})",
+                    kind,
+                    u16::MAX
+                );
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Codegen,
+                    CompilationErrorKind::Other,
+                    message,
+                    location,
+                ));
+            }
+            None
+        } else {
+            Some(index as u16)
+        }
+    }
+
+    /// Emits `op_code` followed by `index` as a checked u16 operand.
+    fn emit_index_op(
+        &mut self,
+        op_code: OpCode,
+        index: u32,
+        kind: &'static str,
+        location: SourceLocation,
+    ) {
+        if let Some(index) = self.checked_index(index, kind, location) {
+            self.emit_op_code(op_code, location);
+            self.current_chunk().write_u16(index);
+        }
     }
 
     /// Slot of `decl` in the `locals` of the function that owns it.
@@ -245,30 +286,30 @@ impl<'a> CodeGenerator<'a> {
     fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
         self.bind_local(decl);
         let slot = self.decl_slot(decl);
-        self.emit_op_code_variant(OpCode::SetLocal, slot, location);
+        self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
-        let (op_code, index) = match self.resolutions.res(id) {
-            Res::Local(decl) => (OpCode::GetLocal, self.decl_slot(decl)),
-            Res::Global(decl) => (OpCode::GetGlobal, self.decl_slot(decl)),
-            Res::Upvalue(index) => (OpCode::GetUpvalue, index),
-            Res::Builtin(index) => (OpCode::GetBuiltin, index),
+        let (op_code, index, kind) = match self.resolutions.res(id) {
+            Res::Local(decl) => (OpCode::GetLocal, self.decl_slot(decl), "locals"),
+            Res::Global(decl) => (OpCode::GetGlobal, self.decl_slot(decl), "globals"),
+            Res::Upvalue(index) => (OpCode::GetUpvalue, index, "upvalues"),
+            Res::Builtin(index) => (OpCode::GetBuiltin, index, "builtins"),
         };
-        self.emit_op_code_variant(op_code, index, location);
+        self.emit_index_op(op_code, index, kind, location);
         if self.resolutions.is_checked(id) {
             self.emit_op_code(OpCode::CheckInitialized, location);
         }
     }
 
     fn emit_variable_set(&mut self, id: NodeId, location: SourceLocation) {
-        let (op_code, index) = match self.resolutions.res(id) {
-            Res::Local(decl) => (OpCode::SetLocal, self.decl_slot(decl)),
-            Res::Global(decl) => (OpCode::SetGlobal, self.decl_slot(decl)),
-            Res::Upvalue(index) => (OpCode::SetUpvalue, index),
+        let (op_code, index, kind) = match self.resolutions.res(id) {
+            Res::Local(decl) => (OpCode::SetLocal, self.decl_slot(decl), "locals"),
+            Res::Global(decl) => (OpCode::SetGlobal, self.decl_slot(decl), "globals"),
+            Res::Upvalue(index) => (OpCode::SetUpvalue, index, "upvalues"),
             Res::Builtin(_) => unreachable!("the semantic pass rejects assignment to a builtin"),
         };
-        self.emit_op_code_variant(op_code, index, location);
+        self.emit_index_op(op_code, index, kind, location);
     }
 
     fn emit_upvalue_metadata(&mut self, captures: &[Capture], location: SourceLocation) {
@@ -290,19 +331,12 @@ impl<'a> CodeGenerator<'a> {
                 Capture::Local(decl) => (true, self.decl_slot(decl)),
                 Capture::Upvalue(index) => (false, index),
             };
-            let message = format!(
-                "captured variable index too large: {} (maximum is {})",
-                index,
-                u16::MAX
-            );
-            if self
-                .check_count_limit(index as usize, u16::MAX as usize, message, location)
-                .is_none()
-            {
+            let kind = if is_local { "locals" } else { "upvalues" };
+            let Some(index) = self.checked_index(index, kind, location) else {
                 return;
-            }
+            };
             self.current_chunk().write_u8(if is_local { 1 } else { 0 });
-            self.current_chunk().write_u16(index as u16);
+            self.current_chunk().write_u16(index);
         }
     }
 
@@ -330,13 +364,13 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn emit_constant(&mut self, value: Value, location: SourceLocation) {
-        self.current_chunk()
-            .write_constant(value, location.line, location.column);
+        let index = self.current_chunk().add_constant(value);
+        self.emit_index_op(OpCode::Constant, index, "constants", location);
     }
 
     fn emit_string(&mut self, value: Value, location: SourceLocation) {
-        self.current_chunk()
-            .write_string(value, location.line, location.column);
+        let index = self.current_chunk().add_string(value);
+        self.emit_index_op(OpCode::String, index, "strings", location);
     }
 
     fn emit_return(&mut self) {
@@ -382,7 +416,7 @@ impl<'a> CodeGenerator<'a> {
         if self.current().scope_depth == 0 {
             // Top level: store into the slot generate()'s prologue pre-allocated.
             let slot = self.decl_slot(decl);
-            self.emit_op_code_variant(OpCode::SetLocal, slot, location);
+            self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
             self.emit_op_code(OpCode::Pop, location);
         } else {
             self.bind_decl_local(decl, location);
@@ -405,7 +439,7 @@ impl<'a> CodeGenerator<'a> {
         self.generate_closure(id, name, params, body, location);
 
         let slot = self.decl_slot(self.resolutions.decl(id));
-        self.emit_op_code_variant(OpCode::SetLocal, slot, location);
+        self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
         self.emit_op_code(OpCode::Pop, location); // Pop the function value from the stack
     }
 
@@ -465,7 +499,7 @@ impl<'a> CodeGenerator<'a> {
 
         // Wrap the function in a closure.
         let const_index = self.current_chunk().add_constant(function_value);
-        self.emit_op_code_variant(OpCode::Closure, const_index, location);
+        self.emit_index_op(OpCode::Closure, const_index, "constants", location);
 
         self.emit_upvalue_metadata(&resolutions.function(id).upvalues, location);
     }
@@ -1215,7 +1249,7 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(object);
                 let field_string = string!(field.as_str());
                 let field_index = self.current_chunk().add_string(field_string);
-                self.emit_op_code_variant(OpCode::GetField, field_index, *location);
+                self.emit_index_op(OpCode::GetField, field_index, "strings", *location);
             }
             Expr::SetField {
                 object,
@@ -1227,7 +1261,7 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(value);
                 let field_string = string!(field.as_str());
                 let field_index = self.current_chunk().add_string(field_string);
-                self.emit_op_code_variant(OpCode::SetField, field_index, *location);
+                self.emit_index_op(OpCode::SetField, field_index, "strings", *location);
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
@@ -1400,9 +1434,14 @@ impl<'a> CodeGenerator<'a> {
     ) {
         let type_index = self.current_chunk().add_string(string!(type_name));
         let method_index = self.current_chunk().add_string(string!(method_name));
+        let type_index = self.checked_index(type_index, "strings", location);
+        let method_index = self.checked_index(method_index, "strings", location);
+        let (Some(type_index), Some(method_index)) = (type_index, method_index) else {
+            return;
+        };
         self.emit_op_code(OpCode::DefineMethod, location);
-        self.current_chunk().write_u32(type_index);
-        self.current_chunk().write_u32(method_index);
+        self.current_chunk().write_u16(type_index);
+        self.current_chunk().write_u16(method_index);
         self.current_chunk().write_u8(takes_self as u8);
     }
 }
