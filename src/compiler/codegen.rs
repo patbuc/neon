@@ -212,15 +212,9 @@ impl<'a> CodeGenerator<'a> {
     /// Pushes a new local bound to `decl` on top of the current function's
     /// stack. The value it binds must already be on the stack.
     fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
-        self.bind_param(decl);
+        self.bind_local(decl);
         let slot = self.decl_slot(decl);
         self.emit_op_code_variant(OpCode::SetLocal, slot, location);
-    }
-
-    /// Registers a function parameter, already on the stack from the call,
-    /// as a local bound to `decl`.
-    fn bind_param(&mut self, decl: DeclId) {
-        self.bind_local(decl);
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
@@ -399,7 +393,7 @@ impl<'a> CodeGenerator<'a> {
         // Define parameters as local variables in the function scope
         let resolutions = self.resolutions;
         for &decl in &resolutions.function(id).params {
-            self.bind_param(decl);
+            self.bind_local(decl);
         }
 
         // Compile function body
@@ -941,8 +935,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_regular_call_expr(callee, arguments, location);
             return;
         };
-        let label = crate::common::method_registry::native_label(index);
-        self.generate_native_call_expr(label, index, arguments, location);
+        self.generate_native_call_expr(index, arguments, location);
     }
 
     fn generate_regular_call_expr(
@@ -966,11 +959,11 @@ impl<'a> CodeGenerator<'a> {
     /// pushed first (no callee/receiver is loaded), then the arguments.
     fn generate_native_call_expr(
         &mut self,
-        label: String,
         index: usize,
         arguments: &[Expr],
         location: SourceLocation,
     ) {
+        let label = crate::common::method_registry::native_label(index);
         self.push_native_callable_by_index(label, index, arguments.len() as u8, location);
 
         for arg in arguments {
@@ -989,9 +982,7 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         match self.resolutions.native(id) {
-            Some(index) => {
-                self.generate_native_call_expr(method.to_string(), index, arguments, location)
-            }
+            Some(index) => self.generate_native_call_expr(index, arguments, location),
             None => self.generate_instance_method_call_expr(object, method, arguments, location),
         }
     }

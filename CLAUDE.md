@@ -75,14 +75,15 @@ cargo run --features disassemble -- script.n
     - Returns `Resolutions` (`src/compiler/resolutions.rs`): a `Res` per name-use node (keyed by the
       parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
       captures, and which declarations are captured
-    - Owns name-related diagnostics: undefined variable, break/continue outside a loop, postfix operand
+    - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand
 
 4. **Code Generation** (`src/compiler/codegen.rs`)
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Produces Chunk objects containing instructions and constant pool
-    - Compile-time state (locals, scope depth, loop contexts, upvalues) lives in the per-function
-      `FunctionCompiler`, not in the Chunk
+    - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
+      `FunctionCompiler`, not in the Chunk; upvalue captures come from `Resolutions`
+      (`FunctionResolution.upvalues`)
 
 ### Runtime Architecture
 
@@ -122,7 +123,7 @@ cargo run --features disassemble -- script.n
 
 - **CallFrame**: Links function object to instruction pointer and stack slot range
 - **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
-  status for closures; codegen maps each `DeclId` to its slot instead of looking up a name
+  status for closures
 - **Iterator Stack**: Supports nested for-in loops by tracking (index, collection) pairs
 - **Builtin Storage**: Separate from call stack to avoid polluting stack frames
 

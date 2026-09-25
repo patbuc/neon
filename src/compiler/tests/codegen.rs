@@ -1105,8 +1105,6 @@ fn test_top_level_fn_named_print_shadows_native() {
 
     #[cfg(any(test, debug_assertions))]
     {
-        // The user-defined print runs instead of the native, so nothing is
-        // printed.
         assert_eq!(vm.get_output(), "");
     }
 

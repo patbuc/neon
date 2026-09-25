@@ -2669,12 +2669,7 @@ for (s in [[1]]) {
 }
 
 #[test]
-fn test_c_style_for_increment_resolved_after_body_for_type_tracking() {
-    // Type tracking is flow-insensitive: the increment must be resolved
-    // after the body, so an assignment in the body has already widened a
-    // variable's type to unknown before the increment (also textually
-    // reached after the body on every iteration but the last) is checked
-    // against it.
+fn test_for_increment_sees_body_assignments() {
     let program = r#"
 var n = 0
 for (var s = "ab"; n < 1; s.push(1)) {

@@ -1237,13 +1237,8 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
-                self.validate_static_method(name, method, location);
-                if crate::common::method_registry::is_static_method(name, method) {
-                    if let Some(index) =
-                        crate::common::method_registry::get_native_method_index(name, method)
-                    {
-                        self.resolutions.record_native(id, index);
-                    }
+                if let Some(index) = self.validate_static_method(name, method, location) {
+                    self.resolutions.record_native(id, index);
                 }
                 return;
             }
@@ -1452,9 +1447,21 @@ impl SemanticAnalyzer {
 
     // Validation helper methods
 
-    fn validate_static_method(&mut self, namespace: &str, method: &str, location: SourceLocation) {
-        // Static method call - validate against method registry
-        if crate::common::method_registry::get_native_method_index(namespace, method).is_none() {
+    /// Validate a static method call against the method registry, returning
+    /// the registry index when it names an actual static method. A registry
+    /// entry that exists but isn't a static method (e.g. a constructor)
+    /// reports the same "not found" error, so a caller can record the
+    /// native call directly from the returned index without a second,
+    /// possibly-disagreeing lookup.
+    fn validate_static_method(
+        &mut self,
+        namespace: &str,
+        method: &str,
+        location: SourceLocation,
+    ) -> Option<usize> {
+        let index = crate::common::method_registry::get_native_method_index(namespace, method)
+            .filter(|_| crate::common::method_registry::is_static_method(namespace, method));
+        if index.is_none() {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::Other,
@@ -1465,6 +1472,7 @@ impl SemanticAnalyzer {
                 location,
             ));
         }
+        index
     }
 
     /// True when `name` is a declared struct type, as opposed to a builtin
