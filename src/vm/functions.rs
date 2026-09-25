@@ -106,7 +106,7 @@ impl VirtualMachine {
             let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
             let name = frame.closure.function.chunk.read_string(name_index);
             let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
-            (as_string!(name).value.to_string(), arg_count)
+            (name, arg_count)
         };
 
         let frame = self.current_frame_mut();
@@ -114,7 +114,7 @@ impl VirtualMachine {
 
         self.check_frame_limit()?;
 
-        self.dispatch_invoke(&method_name, arg_count)
+        self.dispatch_invoke(&as_string!(method_name).value, arg_count)
     }
 
     /// Errors with "Stack overflow" if the call frame stack is already at
@@ -168,17 +168,27 @@ impl VirtualMachine {
     fn dispatch_invoke(&mut self, method_name: &str, arg_count: usize) -> OpResult {
         let receiver_index = self.stack.len() - arg_count - 1;
         let receiver = self.stack[receiver_index].clone();
-
-        match self.user_method_dispatch(&receiver, receiver_index, method_name, arg_count) {
-            MethodDispatch::Found(closure, arg_count, exclude_self) => {
-                return self.call_closure_with(arg_count, &closure, exclude_self);
-            }
-            MethodDispatch::Mismatch(e) => return Err(e),
-            MethodDispatch::NotFound => {}
-        }
-
         let type_name = self.get_type_name(&receiver);
+
         if let Some(type_name) = &type_name {
+            let is_static_call = matches!(
+                receiver,
+                Value::Object(ref obj) if matches!(obj.as_ref(), Object::Struct(_))
+            );
+            match self.dispatch_method_by_name(
+                type_name.as_str(),
+                is_static_call,
+                receiver_index,
+                arg_count,
+                method_name,
+            ) {
+                MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                    return self.call_closure_with(arg_count, &closure, exclude_self);
+                }
+                MethodDispatch::Mismatch(e) => return Err(e),
+                MethodDispatch::NotFound => {}
+            }
+
             if let Some(native) = crate::common::method_registry::get_native_method_by_name(
                 type_name.as_str(),
                 method_name,
@@ -218,9 +228,18 @@ impl VirtualMachine {
         receiver_index: usize,
         arg_count: usize,
     ) -> std::result::Result<Value, NativeCallError> {
-        let args_start = receiver_index;
-        let args_end = args_start + arg_count + 1;
+        self.run_native_callable(native, receiver_index, receiver_index + arg_count + 1)
+    }
 
+    /// Runs a native callable with the stack range `args_start..args_end`
+    /// as its arguments. Shared by `call_native_method` (by-name dispatch)
+    /// and `call_native_function` (by-index dispatch).
+    fn run_native_callable(
+        &mut self,
+        native: &'static NativeCallable,
+        args_start: usize,
+        args_end: usize,
+    ) -> std::result::Result<Value, NativeCallError> {
         match *native {
             NativeCallable::InstanceMethodWithVm { function, .. } => {
                 let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
@@ -269,38 +288,13 @@ impl VirtualMachine {
         }
     }
 
-    /// Checks the user method table for a by-name call before the native
-    /// registry. A struct instance dispatches under its struct name
-    /// (instance call); the struct value itself (`Point.origin()`)
-    /// dispatches under its own name (static call); a builtin receiver
-    /// dispatches under its static type name (instance call).
-    fn user_method_dispatch(
-        &mut self,
-        receiver: &Value,
-        receiver_index: usize,
-        method_name: &str,
-        arg_count: usize,
-    ) -> MethodDispatch {
-        let is_static_call =
-            matches!(receiver, Value::Object(obj) if matches!(obj.as_ref(), Object::Struct(_)));
-        let Some(type_name) = self.get_type_name(receiver) else {
-            return MethodDispatch::NotFound;
-        };
-
-        self.dispatch_method_by_name(
-            type_name.as_str(),
-            is_static_call,
-            receiver_index,
-            arg_count,
-            method_name,
-        )
-    }
-
     /// Looks up `method_name` in the user method table under `type_name`
     /// and resolves the call form (static vs. instance) against how the
     /// method was defined, arranging the stack for `call_closure_with`: a
-    /// static call drops the receiver in favor of the closure, an instance
-    /// call inserts the closure below the receiver so it becomes `self`.
+    /// static call leaves the receiver slot untouched (nothing reads it,
+    /// `call_closure_with` derives its frame from `closure`), an instance
+    /// call inserts a `Nil` placeholder below the receiver so it lands at
+    /// `self`'s stack slot.
     fn dispatch_method_by_name(
         &mut self,
         type_name: &str,
@@ -327,16 +321,9 @@ impl VirtualMachine {
                 "Method '{}' is static; call it as {}.{}()",
                 method_name, type_name, method_name
             ))),
-            (true, false) => {
-                self.stack[receiver_index] =
-                    Value::Object(Rc::new(Object::Closure(Rc::clone(&closure))));
-                MethodDispatch::Found(closure, arg_count, false)
-            }
+            (true, false) => MethodDispatch::Found(closure, arg_count, false),
             (false, true) => {
-                self.stack.insert(
-                    receiver_index,
-                    Value::Object(Rc::new(Object::Closure(Rc::clone(&closure)))),
-                );
+                self.stack.insert(receiver_index, Value::Nil);
                 MethodDispatch::Found(closure, arg_count + 1, true)
             }
         }
@@ -367,17 +354,7 @@ impl VirtualMachine {
                 }
             }
         }
-        match *native_callable {
-            NativeCallable::InstanceMethodWithVm { function, .. } => {
-                let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
-                function(self, &args)
-            }
-            NativeCallable::StaticMethod { function, .. }
-            | NativeCallable::InstanceMethod { function, .. }
-            | NativeCallable::Constructor { function, .. } => {
-                function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
-            }
-        }
+        self.run_native_callable(native_callable, args_start, args_end)
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> OpResult {

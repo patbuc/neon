@@ -1086,8 +1086,6 @@ impl<'a> CodeGenerator<'a> {
     ) {
         // Instance method call: arr.push(x), str.len(), etc.
         // Type is unknown at compile time, so dispatch by name at runtime.
-        // The parser already caps `arguments` at 255, which Invoke's 8-bit
-        // argc (now that it excludes the receiver) fits without truncation.
         self.generate_expr(callee);
 
         for arg in arguments {
