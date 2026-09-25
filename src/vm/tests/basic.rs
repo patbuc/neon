@@ -3307,17 +3307,15 @@ fn set_literal_with_300_elements_has_size_300() {
 }
 
 #[test]
-fn method_call_with_255_arguments_is_compile_error_naming_the_limit() {
-    let args: Vec<String> = (0..255).map(|i| i.to_string()).collect();
+fn method_call_with_256_arguments_is_compile_error_naming_the_limit() {
+    let args: Vec<String> = (0..256).map(|i| i.to_string()).collect();
     let program = format!("val a = [1, 2, 3]\na.push({})", args.join(", "));
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program);
     assert_eq!(Result::CompileError, result);
     let error = vm.get_compiler_error();
-    assert!(error.contains("method call too large"));
-    assert!(error.contains("255"));
-    assert!(error.contains("254"));
+    assert!(error.contains("Can't have more than 255 arguments"));
 }
 
 #[test]

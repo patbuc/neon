@@ -1085,37 +1085,16 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         // Instance method call: arr.push(x), str.len(), etc.
-        // Type is unknown at compile time, use NativeByName for runtime dispatch
-
-        // The receiver takes one of the u8 argument-count slots alongside arguments
-        const MAX_METHOD_CALL_ARGUMENTS: usize = u8::MAX as usize - 1;
-        let message = format!(
-            "method call too large: {} arguments (maximum is {})",
-            arguments.len(),
-            MAX_METHOD_CALL_ARGUMENTS
-        );
-        if self
-            .check_count_limit(
-                arguments.len(),
-                MAX_METHOD_CALL_ARGUMENTS,
-                message,
-                location,
-            )
-            .is_none()
-        {
-            return;
-        }
-
-        let arity = (arguments.len() + 1) as u8;
-        self.push_native_callable_by_name("".to_string(), method.to_string(), arity, location);
-
+        // Type is unknown at compile time, so dispatch by name at runtime.
+        // The parser already caps `arguments` at 255, which Invoke's 8-bit
+        // argc (now that it excludes the receiver) fits without truncation.
         self.generate_expr(callee);
 
         for arg in arguments {
             self.generate_expr(arg);
         }
 
-        self.emit_call(arity, location);
+        self.emit_invoke(method, arguments.len() as u8, location);
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1399,26 +1378,24 @@ impl<'a> CodeGenerator<'a> {
         arity: u8,
         location: SourceLocation,
     ) {
-        let callable = Value::new_native_function(type_name, arity, index as u32, "".to_string());
-        self.emit_constant(callable, location);
-    }
-
-    /// Pushes the placeholder native callable for a call dispatched by
-    /// method name at runtime (instance methods, whose receiver type isn't
-    /// known at compile time).
-    fn push_native_callable_by_name(
-        &mut self,
-        type_name: String,
-        method_name: String,
-        arity: u8,
-        location: SourceLocation,
-    ) {
-        let callable = Value::new_native_function(type_name, arity, u32::MAX, method_name);
+        let callable = Value::new_native_function(type_name, arity, index as u32);
         self.emit_constant(callable, location);
     }
 
     fn emit_call(&mut self, argc: u8, location: SourceLocation) {
         self.emit_op_code(OpCode::Call, location);
+        self.current_chunk().write_u8(argc);
+    }
+
+    /// Emits `Invoke`: a method call dispatched by name at runtime. The
+    /// stack must already hold `[receiver, args...]`.
+    fn emit_invoke(&mut self, method_name: &str, argc: u8, location: SourceLocation) {
+        let name_index = self.current_chunk().add_string(string!(method_name));
+        let Some(name_index) = self.checked_index(name_index, "strings", location) else {
+            return;
+        };
+        self.emit_op_code(OpCode::Invoke, location);
+        self.current_chunk().write_u16(name_index);
         self.current_chunk().write_u8(argc);
     }
 
