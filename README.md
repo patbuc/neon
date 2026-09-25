@@ -327,6 +327,8 @@ val y = 10
 print("${x} + ${y} = ${x + y}")  // "5 + 10 = 15"
 ```
 
+The expression inside `${...}` may itself contain strings and braces, e.g. `"${m["k"]}"`.
+
 ### Escape Sequences
 
 String literals support `\n`, `\t`, `\r`, `\\`, `\"`, `\$` and `\u{XXXX}` (1 to 6 hex digits).

@@ -3323,7 +3323,7 @@ fn test_interpolation_unclosed_placeholder() {
         "Expect '}' after interpolated expression."
     );
     assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 16);
+    assert_eq!(errors[0].location.column, 13);
 }
 
 #[test]
@@ -3456,6 +3456,19 @@ fn test_interpolation_nested_quotes() {
         },
         _ => panic!("Expected Expression statement"),
     }
+}
+
+#[test]
+fn test_interpolation_error_after_newline_reports_that_line() {
+    let mut parser = Parser::new("print(\"${\n)}\")\n");
+    let result = parser.parse();
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].location.column, 1);
 }
 
 #[test]

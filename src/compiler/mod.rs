@@ -33,7 +33,9 @@ pub(crate) struct Scanner {
     start_line: u32,
     start_column: u32,
     previous_token_type: TokenType,
-    offset_base: usize,
+    /// Stack of interpolations currently open around the token being
+    /// scanned, innermost last.
+    interpolations: Vec<scanner::Interpolation>,
 }
 
 #[derive(Debug, Default)]
