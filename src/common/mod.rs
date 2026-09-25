@@ -126,8 +126,9 @@ pub enum Value {
     Object(Rc<Object>),
     Boolean(bool),
     Nil,
-    /// Placeholder held by a hoisted top-level slot until its declaration
-    /// runs; reading or assigning it is a runtime error.
+    /// Placeholder held by a hoisted global or block-level function slot
+    /// until its declaration runs; GetGlobal, SetGlobal, and CheckInitialized
+    /// turn reading it into a runtime error.
     Uninitialized(Rc<str>),
 }
 
