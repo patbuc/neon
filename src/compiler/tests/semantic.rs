@@ -3107,7 +3107,7 @@ val x = add(1)
 }
 
 #[test]
-fn test_too_many_arguments_still_uses_arity_exceeded_kind() {
+fn test_too_many_arguments_uses_distinct_error_kind() {
     let program = r#"
 fn add(a, b) {
     return a + b
@@ -3124,7 +3124,7 @@ val x = add(1, 2, 3)
     let errors = result.unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.kind == CompilationErrorKind::ArityExceeded));
+        .any(|e| e.kind == CompilationErrorKind::TooManyArguments));
 }
 
 // ===== Issue #147: impl blocks add methods to structs =====

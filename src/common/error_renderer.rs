@@ -45,8 +45,7 @@ impl ErrorRenderer {
     fn render_error(&self, error: &CompilationError, source: &str, filename: &str) -> String {
         let mut output = String::new();
 
-        // Error header: error: <message>
-        let error_label = self.colorize("error", "red", true);
+        let error_label = self.colorize(&format!("error[{}]", error.kind.code()), "red", true);
         let message = format!(": {}", self.lowercase_first(&error.message));
         output.push_str(&format!("{}{}\n", error_label, message));
 
@@ -190,4 +189,33 @@ struct SourceLine {
     line_number: u32,
     content: String,
     is_error_line: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::errors::{CompilationErrorKind, CompilationPhase};
+
+    #[test]
+    fn render_error_includes_kind_code_in_header() {
+        let renderer = ErrorRenderer::new(false);
+        let error = CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::UndefinedVariable,
+            "Undefined variable 'x'",
+            SourceLocation {
+                offset: 0,
+                line: 1,
+                column: 1,
+            },
+        );
+
+        let output = renderer.render_errors(&[error], "x\n", "test.n");
+
+        assert!(
+            output.starts_with("error[E0013]: undefined variable 'x'"),
+            "{}",
+            output
+        );
+    }
 }

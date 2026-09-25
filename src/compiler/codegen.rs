@@ -237,7 +237,7 @@ impl<'a> CodeGenerator<'a> {
                 );
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Codegen,
-                    CompilationErrorKind::Other,
+                    CompilationErrorKind::LimitExceeded,
                     message,
                     location,
                 ));
@@ -353,7 +353,7 @@ impl<'a> CodeGenerator<'a> {
         if count > max {
             self.errors.push(CompilationError::new(
                 CompilationPhase::Codegen,
-                CompilationErrorKind::Other,
+                CompilationErrorKind::LimitExceeded,
                 message.into(),
                 location,
             ));
