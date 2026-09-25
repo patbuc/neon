@@ -51,9 +51,8 @@ enum MethodDispatch {
     NotFound,
     /// The call used the wrong form for the method (static vs. instance).
     Mismatch(RuntimeError),
-    /// The closure to call, its effective argument count (the receiver
-    /// slot is dropped for a static call), and whether to exclude `self`
-    /// from an arity-mismatch message.
+    /// The closure to call, its effective argument count, and whether to
+    /// exclude `self` from an arity-mismatch message.
     Found(Rc<ObjClosure>, usize, bool),
 }
 
@@ -193,7 +192,11 @@ impl VirtualMachine {
                 type_name.as_str(),
                 method_name,
             ) {
-                let result = match self.call_native_method(native, receiver_index, arg_count) {
+                let result = match self.run_native_callable(
+                    native,
+                    receiver_index,
+                    receiver_index + arg_count + 1,
+                ) {
                     Ok(value) => value,
                     Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
                     Err(NativeCallError::Runtime(e)) => return Err(e),
@@ -220,20 +223,8 @@ impl VirtualMachine {
         }))
     }
 
-    /// Runs a native method already looked up by (type, name), given the
-    /// stack holds `[receiver, args...]` at `receiver_index`.
-    fn call_native_method(
-        &mut self,
-        native: &'static NativeCallable,
-        receiver_index: usize,
-        arg_count: usize,
-    ) -> std::result::Result<Value, NativeCallError> {
-        self.run_native_callable(native, receiver_index, receiver_index + arg_count + 1)
-    }
-
     /// Runs a native callable with the stack range `args_start..args_end`
-    /// as its arguments. Shared by `call_native_method` (by-name dispatch)
-    /// and `call_native_function` (by-index dispatch).
+    /// as its arguments.
     fn run_native_callable(
         &mut self,
         native: &'static NativeCallable,
@@ -289,12 +280,9 @@ impl VirtualMachine {
     }
 
     /// Looks up `method_name` in the user method table under `type_name`
-    /// and resolves the call form (static vs. instance) against how the
-    /// method was defined, arranging the stack for `call_closure_with`: a
-    /// static call leaves the receiver slot untouched (nothing reads it,
-    /// `call_closure_with` derives its frame from `closure`), an instance
-    /// call inserts a `Nil` placeholder below the receiver so it lands at
-    /// `self`'s stack slot.
+    /// and checks the call form (static vs. instance) against the method's
+    /// definition. For an instance call, inserts a `Nil` callee slot below
+    /// the receiver so the receiver becomes `self`.
     fn dispatch_method_by_name(
         &mut self,
         type_name: &str,

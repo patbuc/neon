@@ -1157,7 +1157,7 @@ fn test_native_call_labels() {
 }
 
 #[test]
-fn method_call_loads_receiver_then_invoke() {
+fn test_method_call_loads_receiver_then_invoke() {
     let program = "val a = [1]\na.size()\n";
     let chunk = compile_program(program).unwrap();
 
