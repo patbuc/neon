@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Array.push() - Success Cases
@@ -15,7 +15,7 @@ fn test_array_push() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, 2, 3]\n[1, 2, 3, 4]", vm.get_output());
 }
 
@@ -28,7 +28,7 @@ fn test_array_push_to_empty() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[42]", vm.get_output());
 }
 
@@ -43,7 +43,7 @@ fn test_array_push_different_types() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, hello, true, nil]", vm.get_output());
 }
 
@@ -62,7 +62,7 @@ fn test_array_pop() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\n[1, 2]\n2\n[1]", vm.get_output());
 }
 
@@ -80,7 +80,7 @@ fn test_array_length() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\n0\n2", vm.get_output());
 }
 
@@ -93,7 +93,7 @@ fn test_array_size() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\n0", vm.get_output());
 }
 
@@ -113,7 +113,7 @@ fn test_array_contains() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse\ntrue\nfalse\nfalse", vm.get_output());
 }
 
@@ -134,7 +134,7 @@ fn test_array_sort() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!(
         "[1, 1, 2, 3, 4, 5, 6, 9]\n[apple, banana, mango, zebra]",
         vm.get_output()
@@ -154,7 +154,7 @@ fn test_array_sort_mixed_types() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[[1], nil, true]\n[[1], a]", vm.get_output());
 }
 
@@ -179,7 +179,7 @@ fn test_array_reverse() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[5, 4, 3, 2, 1]\n[42]\n[]", vm.get_output());
 }
 
@@ -197,7 +197,7 @@ fn test_array_slice() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[2, 3]\n[1, 2]\n[3, 4, 5]", vm.get_output());
 }
 
@@ -210,7 +210,7 @@ fn test_array_slice_negative_indices() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[3, 4]\n[4, 5]", vm.get_output());
 }
 
@@ -233,7 +233,7 @@ fn test_array_join() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!(
         "hello, world, test\nhelloworldtest\nhello - world - test\n1, 2, 3",
         vm.get_output()
@@ -255,7 +255,7 @@ fn test_array_index_of() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("1\n3\n-1\n-1", vm.get_output());
 }
 
@@ -278,7 +278,7 @@ fn test_array_sum() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("15\n7\n0\n42", vm.get_output());
 }
 
@@ -299,7 +299,7 @@ fn test_array_min() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("1\n-10\n42", vm.get_output());
 }
 
@@ -320,7 +320,7 @@ fn test_array_max() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("9\n-2\n42", vm.get_output());
 }
 
@@ -332,7 +332,7 @@ fn test_array_max_strings() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("zebra", vm.get_output());
 }
 
@@ -354,7 +354,7 @@ fn test_array_operations_sequence() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3\ntrue\n[3, 2, 1]", vm.get_output());
 }
 
@@ -370,7 +370,10 @@ fn test_array_push_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -381,7 +384,10 @@ fn test_array_push_on_non_array() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -392,7 +398,10 @@ fn test_array_pop_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -403,7 +412,10 @@ fn test_array_pop_on_non_array() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -414,7 +426,10 @@ fn test_array_length_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -425,7 +440,10 @@ fn test_array_length_on_non_array() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -436,7 +454,10 @@ fn test_array_contains_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -447,7 +468,10 @@ fn test_array_contains_wrong_type() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -458,7 +482,10 @@ fn test_array_sum_non_numeric() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -469,7 +496,10 @@ fn test_array_min_empty() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -480,7 +510,10 @@ fn test_array_max_empty() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 // ============================================================================
@@ -497,7 +530,7 @@ fn test_array_map_does_not_mutate_receiver() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, 2, 3]\n[2, 4, 6]", vm.get_output());
 }
 
@@ -509,7 +542,10 @@ fn test_array_map_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -520,7 +556,10 @@ fn test_array_map_non_callable() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -530,7 +569,7 @@ fn test_array_filter_keeps_truthy_non_boolean_results() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, 2, 3]", vm.get_output());
 }
 
@@ -542,7 +581,10 @@ fn test_array_filter_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -554,7 +596,7 @@ fn test_array_reduce_with_closure() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("60", vm.get_output());
 }
 
@@ -567,5 +609,8 @@ fn test_array_reduce_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }

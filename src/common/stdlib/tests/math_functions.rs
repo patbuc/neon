@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // Math.abs() - Success Cases
@@ -14,7 +14,7 @@ fn test_math_abs() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n5\n0\n3.15", vm.get_output());
 }
 
@@ -31,7 +31,7 @@ fn test_math_floor() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n-6\n5", vm.get_output());
 }
 
@@ -48,7 +48,7 @@ fn test_math_ceil() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("6\n-5\n5", vm.get_output());
 }
 
@@ -64,7 +64,7 @@ fn test_math_sqrt() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("4\n0", vm.get_output());
 }
 
@@ -79,7 +79,7 @@ fn test_math_sqrt_perfect_squares() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("1\n2\n3\n5\n10", vm.get_output());
 }
 
@@ -97,7 +97,7 @@ fn test_math_min() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n1\n-8\n-10", vm.get_output());
 }
 
@@ -115,7 +115,7 @@ fn test_math_max() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n8\n-2\n8", vm.get_output());
 }
 
@@ -133,7 +133,7 @@ fn test_math_min_max_combined() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n5\n3\n7", vm.get_output());
 }
 
@@ -153,6 +153,6 @@ fn test_math_floor_ceil_edge_cases() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("0\n1\n-1\n-0\n0\n1", vm.get_output());
 }

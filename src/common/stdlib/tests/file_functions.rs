@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 use std::fs;
 
 // ============================================================================
@@ -13,7 +13,7 @@ fn test_file_constructor() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("File created", vm.get_output());
 }
 
@@ -25,7 +25,7 @@ fn test_file_constructor_relative_path() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("File created", vm.get_output());
 }
 
@@ -37,7 +37,7 @@ fn test_file_constructor_absolute_path() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("File created", vm.get_output());
 }
 
@@ -62,7 +62,7 @@ fn test_file_read() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("Hello, World!", vm.get_output());
 
     // Cleanup
@@ -86,7 +86,7 @@ fn test_file_read_empty() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("", vm.get_output());
 
     // Cleanup
@@ -110,7 +110,7 @@ fn test_file_read_multiline() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("Line 1\nLine 2\nLine 3", vm.get_output());
 
     // Cleanup
@@ -141,7 +141,7 @@ fn test_file_read_lines() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("3\nLine 1\nLine 2\nLine 3", vm.get_output());
 
     // Cleanup
@@ -165,7 +165,7 @@ fn test_file_read_lines_empty() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("0", vm.get_output());
 
     // Cleanup
@@ -190,7 +190,7 @@ fn test_file_read_lines_single() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("1\nOnly one line", vm.get_output());
 
     // Cleanup
@@ -217,7 +217,7 @@ fn test_file_write() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
 
     // Verify the file was written correctly
     let content = fs::read_to_string(test_path).unwrap();
@@ -244,7 +244,7 @@ fn test_file_write_overwrite() {
     );
 
     let mut vm1 = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm1.interpret(program1));
+    assert_eq!(InterpretResult::Ok, vm1.interpret(program1));
 
     // Verify first write
     let content1 = fs::read_to_string(test_path).unwrap();
@@ -263,7 +263,7 @@ fn test_file_write_overwrite() {
     );
 
     let mut vm2 = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm2.interpret(program2));
+    assert_eq!(InterpretResult::Ok, vm2.interpret(program2));
 
     // Verify the file was written with new content
     let content2 = fs::read_to_string(test_path).unwrap();
@@ -289,7 +289,7 @@ fn test_file_write_empty() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
 
     // Verify the file was created and is empty
     let content = fs::read_to_string(test_path).unwrap();
@@ -315,7 +315,7 @@ fn test_file_write_multiline() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
 
     let content = fs::read_to_string(test_path).unwrap();
     assert_eq!("Line 1\nLine 2\nLine 3", content);
@@ -346,7 +346,7 @@ fn test_file_write_then_read() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program));
     assert_eq!("Integration test", vm.get_output());
 
     // Cleanup
@@ -364,7 +364,10 @@ fn test_file_constructor_wrong_arg_count_zero() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -374,7 +377,10 @@ fn test_file_constructor_wrong_arg_count_two() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::CompileError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -384,7 +390,10 @@ fn test_file_constructor_invalid_type_number() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -394,7 +403,10 @@ fn test_file_constructor_invalid_type_boolean() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -404,7 +416,10 @@ fn test_file_constructor_invalid_type_nil() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -415,7 +430,10 @@ fn test_file_read_nonexistent() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -426,7 +444,10 @@ fn test_file_read_lines_nonexistent() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -437,7 +458,10 @@ fn test_file_write_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -456,7 +480,7 @@ fn test_file_read_wrong_arg_count() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program));
+    assert_eq!(InterpretResult::RuntimeError, vm.interpret(program));
 
     // Cleanup
     fs::remove_file(test_path).ok();
@@ -476,7 +500,7 @@ fn test_impl_on_file_user_method() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("a file", vm.get_output());
 }
 
@@ -496,7 +520,7 @@ fn test_file_read_lines_wrong_arg_count() {
     );
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program));
+    assert_eq!(InterpretResult::RuntimeError, vm.interpret(program));
 
     // Cleanup
     fs::remove_file(test_path).ok();

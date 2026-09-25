@@ -2,7 +2,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
-use crate::vm::{Result, RuntimeError, TraceFrame, VirtualMachine};
+use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
@@ -37,7 +37,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    pub fn interpret(&mut self, source: String) -> Result {
+    pub fn interpret(&mut self, source: String) -> InterpretResult {
         self.reset();
 
         self.source = source.clone();
@@ -56,7 +56,7 @@ impl VirtualMachine {
         if chunk.is_none() {
             self.compilation_errors = compiler.get_compilation_errors();
             self.structured_errors = compiler.get_structured_errors();
-            return Result::CompileError;
+            return InterpretResult::CompileError;
         }
 
         let chunk = chunk.unwrap();
@@ -89,13 +89,13 @@ impl VirtualMachine {
     }
 
     /// Runs until `target_depth`, converting a runtime error into the VM's
-    /// stored error and the public `Result` enum.
-    pub(in crate::vm) fn run_script(&mut self, target_depth: usize) -> Result {
+    /// stored error and the public `InterpretResult` enum.
+    pub(in crate::vm) fn run_script(&mut self, target_depth: usize) -> InterpretResult {
         match self.run_until(target_depth) {
-            Ok(()) => Result::Ok,
+            Ok(()) => InterpretResult::Ok,
             Err(e) => {
                 self.runtime_error = Some(e);
-                Result::RuntimeError
+                InterpretResult::RuntimeError
             }
         }
     }

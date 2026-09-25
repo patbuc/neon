@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
 // String.len() - Success Cases
@@ -14,7 +14,7 @@ fn test_string_len() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n7\n0\n5", vm.get_output());
 }
 
@@ -32,7 +32,7 @@ fn test_string_substring() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("hello\nworld\n\nhello", vm.get_output());
 }
 
@@ -43,7 +43,7 @@ fn test_string_substring_negative() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("worl", vm.get_output());
 }
 
@@ -60,7 +60,7 @@ fn test_string_replace() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("hello rust\nbaz bar baz\nhello", vm.get_output());
 }
 
@@ -82,7 +82,7 @@ fn test_string_split() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[hello, world, test]\n[a, b, c]\n[hello]", vm.get_output());
 }
 
@@ -99,7 +99,7 @@ fn test_string_to_int() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("42\n-123\n0", vm.get_output());
 }
 
@@ -112,7 +112,7 @@ fn test_string_to_float() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("3.14\n-2.5\n42", vm.get_output());
 }
 
@@ -124,7 +124,7 @@ fn test_string_to_bool() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse", vm.get_output());
 }
 
@@ -141,7 +141,7 @@ fn test_string_trim() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("hello\nhello", vm.get_output());
 }
 
@@ -159,7 +159,7 @@ fn test_string_starts_with() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse\ntrue\nfalse", vm.get_output());
 }
 
@@ -173,7 +173,7 @@ fn test_string_ends_with() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("true\nfalse\ntrue\nfalse", vm.get_output());
 }
 
@@ -191,7 +191,7 @@ fn test_string_index_of() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("6\n4\n-1\n0", vm.get_output());
 }
 
@@ -208,7 +208,7 @@ fn test_string_char_at() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("h\no\no", vm.get_output());
 }
 
@@ -225,7 +225,7 @@ fn test_string_to_upper_case() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("HELLO\nWORLD\nHELLO WORLD", vm.get_output());
 }
 
@@ -238,7 +238,7 @@ fn test_string_to_lower_case() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("hello\nworld\nhello world", vm.get_output());
 }
 
@@ -253,7 +253,10 @@ fn test_string_to_int_invalid() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -263,7 +266,10 @@ fn test_string_to_float_invalid() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -273,7 +279,10 @@ fn test_string_to_bool_invalid() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -283,7 +292,10 @@ fn test_string_char_at_out_of_bounds() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -293,7 +305,10 @@ fn test_string_substring_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -303,7 +318,10 @@ fn test_string_replace_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -313,7 +331,10 @@ fn test_string_split_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -323,7 +344,10 @@ fn test_string_starts_with_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -333,7 +357,10 @@ fn test_string_ends_with_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -343,7 +370,10 @@ fn test_string_index_of_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }
 
 #[test]
@@ -353,5 +383,8 @@ fn test_string_char_at_wrong_arg_count() {
     "#;
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(program.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
 }

@@ -13,7 +13,7 @@ mod tests;
 pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]
-pub enum Result {
+pub enum InterpretResult {
     Ok,
     CompileError,
     RuntimeError,
@@ -50,7 +50,7 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> Result {
+    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
 

@@ -191,7 +191,7 @@ cargo run --features disassemble -- script.n
 
 - Compilation errors use `src/common/error_renderer.rs` for formatted output
 - Runtime errors should include context about what operation failed
-- VM returns `Result` enum: Ok, CompileError, RuntimeError
+- VM returns `InterpretResult` enum: Ok, CompileError, RuntimeError
 
 ## Project Philosophy
 

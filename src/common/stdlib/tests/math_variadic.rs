@@ -1,4 +1,4 @@
-use crate::vm::{Result, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 
 #[test]
 fn test_math_min_variadic() {
@@ -10,7 +10,7 @@ fn test_math_min_variadic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n3\n42", vm.get_output());
 }
 
@@ -24,7 +24,7 @@ fn test_math_max_variadic() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("8\n7\n42", vm.get_output());
 }
 
@@ -37,7 +37,7 @@ fn test_math_min_max_negative() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("-8\n-2", vm.get_output());
 }
 
@@ -50,6 +50,6 @@ fn test_math_min_max_mixed() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("-10\n10", vm.get_output());
 }

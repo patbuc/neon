@@ -1,6 +1,6 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Value};
-use crate::vm::{Result, TraceFrame, VirtualMachine};
+use crate::vm::{InterpretResult, TraceFrame, VirtualMachine};
 use crate::{as_number, number};
 use std::rc::Rc;
 
@@ -12,7 +12,7 @@ fn array_index_read_out_of_bounds_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn array_index_read_out_of_bounds_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert_eq!("", vm.get_output());
 }
@@ -37,7 +37,7 @@ fn array_index_write_out_of_bounds_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn get_field_missing_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn set_field_missing_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn create_map_invalid_key_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert_eq!("", vm.get_output());
 }
@@ -87,7 +87,7 @@ fn create_set_invalid_element_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert_eq!("", vm.get_output());
 }
@@ -103,7 +103,7 @@ fn nothing_after_a_runtime_error_executes() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(!vm.get_output().contains("after"));
 }
 
@@ -115,7 +115,7 @@ fn get_local_out_of_range_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn set_local_out_of_range_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn get_global_unknown_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn set_global_out_of_range_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -160,7 +160,7 @@ fn get_builtin_unknown_index_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn iterator_done_without_iterator_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn iterator_done_with_only_the_array_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn invalid_opcode_byte_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn subtract_with_non_number_operand_reports_operator_location() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(vm.get_runtime_errors().starts_with("[3:19]"));
 }
 
@@ -333,7 +333,7 @@ fn bad_operand_type_errors() {
         let mut vm = VirtualMachine::new();
         let result = vm.interpret(program.to_string());
         assert_eq!(
-            Result::RuntimeError,
+            InterpretResult::RuntimeError,
             result,
             "expected runtime error for: {}",
             program
@@ -355,7 +355,7 @@ fn unbounded_recursion_reports_stack_overflow_at_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("Stack overflow"), "{}", errors);
     assert!(errors.contains("[1:19]"), "{}", errors);
@@ -370,7 +370,7 @@ fn native_callback_runtime_error_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert_eq!("", vm.get_output());
 }
@@ -384,7 +384,7 @@ fn native_callback_wrong_arity_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert!(
         vm.get_runtime_errors().contains("Expected 2 arguments"),
@@ -402,7 +402,7 @@ fn native_callback_stack_overflow_reports_exactly_one_error() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert_eq!(1, vm.get_runtime_errors().lines().count());
     assert!(
         vm.get_runtime_errors().contains("Stack overflow"),
@@ -417,7 +417,7 @@ fn native_callback_error_reports_a_single_location_prefix() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
@@ -430,7 +430,7 @@ fn nested_native_callback_error_reports_a_single_location_prefix() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
@@ -448,7 +448,7 @@ fn recursive_callback_through_map_reports_stack_overflow_once() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
@@ -463,7 +463,7 @@ fn unconditional_callback_recursion_through_map_reports_stack_overflow_once() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
@@ -479,7 +479,7 @@ fn map_over_a_large_array_produces_correct_output() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("100000", vm.get_output());
 }
 
@@ -488,7 +488,10 @@ fn vm_is_usable_after_a_callback_error() {
     let failing = "fn boom(x) { return x + true }\n[1, 2].map(boom)";
 
     let mut vm = VirtualMachine::new();
-    assert_eq!(Result::RuntimeError, vm.interpret(failing.to_string()));
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(failing.to_string())
+    );
 
     let program = r#"
         fn add(a, b) { return a + b }
@@ -500,11 +503,11 @@ fn vm_is_usable_after_a_callback_error() {
         "#;
 
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!("10", vm.get_output());
 
     let mut fresh_vm = VirtualMachine::new();
-    assert_eq!(Result::Ok, fresh_vm.interpret(program.to_string()));
+    assert_eq!(InterpretResult::Ok, fresh_vm.interpret(program.to_string()));
     assert_eq!("10", fresh_vm.get_output());
 
     assert_eq!(fresh_vm.stack.len(), vm.stack.len());
@@ -523,7 +526,7 @@ fn method_arity_error_excludes_self() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("Expected 1 arguments but got 0"),
@@ -546,7 +549,7 @@ fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     assert!(
         vm.get_runtime_errors().contains("lne"),
         "{}",
@@ -567,7 +570,7 @@ fn instance_call_on_static_method_halts_at_runtime() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("origin"), "{}", errors);
     assert!(errors.contains("static"), "{}", errors);
@@ -586,7 +589,7 @@ fn static_call_on_instance_method_halts_at_runtime() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("len"), "{}", errors);
     assert!(errors.contains("instance"), "{}", errors);
@@ -605,7 +608,7 @@ fn method_named_this_is_static_on_untyped_receiver_halts_at_runtime() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("len"), "{}", errors);
     assert!(errors.contains("static"), "{}", errors);
@@ -621,7 +624,7 @@ fn call_field_holding_number_is_not_callable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("not callable"), "{}", errors);
 }
@@ -636,7 +639,7 @@ fn call_name_that_is_neither_method_nor_field_is_unknown_method() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("Unknown method 'g' for type S"),
@@ -657,7 +660,7 @@ val y = 2
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'y' used before initialization"),
@@ -679,7 +682,7 @@ var x = 3
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'x' used before initialization"),
@@ -701,7 +704,7 @@ outer()
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'g' used before initialization"),
@@ -724,7 +727,7 @@ outer()
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'f' used before initialization"),
@@ -747,7 +750,7 @@ outer()
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'b' used before initialization"),
@@ -766,7 +769,7 @@ fn get_global_uninitialized_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'x' used before initialization"),
@@ -786,7 +789,7 @@ fn set_global_uninitialized_slot_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'x' used before initialization"),
@@ -805,7 +808,7 @@ fn check_initialized_on_uninitialized_value_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("variable 'x' used before initialization"),
@@ -824,7 +827,7 @@ fn check_initialized_on_normal_value_passes_through() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
     assert_eq!(42.0, as_number!(vm.pop()));
 }
 
@@ -834,7 +837,7 @@ fn nested_call_error_reports_frames_innermost_first() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
     assert_eq!(
         vec![
@@ -868,7 +871,7 @@ fn native_callback_error_trace_has_no_native_frame() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
     assert_eq!(
         vec![
@@ -891,7 +894,7 @@ fn unbounded_recursion_trace_is_capped() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(10_000, error.frames.len());
@@ -921,7 +924,7 @@ fn trace_at_exactly_twenty_one_frames_is_not_collapsed() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(21, error.frames.len());
@@ -948,7 +951,7 @@ fn trace_at_twenty_two_frames_is_collapsed() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(22, error.frames.len());
@@ -964,7 +967,7 @@ fn caller_frame_line_is_the_call_site_not_the_next_statement() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(
@@ -992,7 +995,7 @@ fn arity_mismatch_through_a_stored_function_reports_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(Some((4, 4)), error.location);
@@ -1017,7 +1020,7 @@ fn native_message_error_through_a_nested_call_reports_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(2, error.location.unwrap().0);
@@ -1042,7 +1045,7 @@ fn not_callable_error_through_a_nested_call_reports_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(3, error.location.unwrap().0);
@@ -1069,7 +1072,7 @@ fn struct_field_count_error_through_a_nested_call_reports_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(4, error.location.unwrap().0);
@@ -1094,7 +1097,7 @@ fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(6, error.location.unwrap().0);
@@ -1119,7 +1122,7 @@ fn native_method_arity_error_reports_native_message() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("push() expects 1 argument (value), got 0"),
@@ -1140,7 +1143,7 @@ fn native_error_inside_builtin_type_user_method_reports_native_message() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("push() expects 1 argument (value), got 0"),
@@ -1157,7 +1160,7 @@ fn range_index_out_of_bounds_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("Range index out of bounds"), "{}", errors);
 }
@@ -1171,7 +1174,7 @@ fn range_push_reports_immutable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("immutable"), "{}", errors);
 }
@@ -1185,7 +1188,7 @@ fn range_pop_reports_immutable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("immutable"), "{}", errors);
 }
@@ -1199,7 +1202,7 @@ fn range_sort_reports_immutable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("immutable"), "{}", errors);
 }
@@ -1213,7 +1216,7 @@ fn range_reverse_reports_immutable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("immutable"), "{}", errors);
 }
@@ -1227,7 +1230,7 @@ fn range_index_assign_reports_immutable() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("immutable"), "{}", errors);
 }
@@ -1240,7 +1243,7 @@ fn range_non_integer_start_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("must be an integer"), "{}", errors);
 }
@@ -1253,7 +1256,7 @@ fn range_non_integer_end_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("must be an integer"), "{}", errors);
 }
@@ -1266,7 +1269,7 @@ fn range_huge_start_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
 }
@@ -1279,7 +1282,7 @@ fn range_huge_end_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
 }
@@ -1292,7 +1295,7 @@ fn range_longer_than_2_pow_53_halts() {
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }

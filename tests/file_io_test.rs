@@ -1,4 +1,4 @@
-use neon::vm::{Result, VirtualMachine};
+use neon::vm::{InterpretResult, VirtualMachine};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -33,7 +33,7 @@ fn test_file_constructor_from_neon() {
     "#;
 
     let result = vm.interpret(source.to_string());
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     // The output should contain file representation
     let output = vm.get_output();
@@ -60,7 +60,7 @@ fn test_file_read_basic() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result, "VM interpretation failed");
+    assert_eq!(InterpretResult::Ok, result, "VM interpretation failed");
 
     let output = vm.get_output();
     assert_eq!("Hello, World!", output.trim(), "File content mismatch");
@@ -85,7 +85,7 @@ fn test_file_read_multiline() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert_eq!(test_content, output.trim());
@@ -111,7 +111,7 @@ fn test_file_read_empty_file() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("start"));
@@ -137,7 +137,7 @@ fn test_file_read_unicode() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert_eq!(test_content, output.trim());
@@ -156,7 +156,7 @@ fn test_file_read_not_found() {
 
     let result = vm.interpret(source.to_string());
     // Should result in a runtime error
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_file_read_lines_basic() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     let output_lines: Vec<&str> = output.trim().split('\n').collect();
@@ -210,7 +210,7 @@ fn test_file_read_lines_with_empty_lines() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(
@@ -243,7 +243,7 @@ fn test_file_read_lines_crlf() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     let output_lines: Vec<&str> = output.trim().split('\n').collect();
@@ -271,7 +271,7 @@ fn test_file_read_lines_empty_file() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("0"), "Empty file should return empty array");
@@ -296,7 +296,7 @@ fn test_file_read_lines_single_line_no_newline() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("1"));
@@ -316,7 +316,7 @@ fn test_file_read_lines_not_found() {
 
     let result = vm.interpret(source.to_string());
     // Should result in a runtime error
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -339,7 +339,7 @@ fn test_file_write_basic() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("Write successful"));
@@ -378,7 +378,7 @@ fn test_file_write_multiline() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     // Verify we read it correctly
     let output = vm.get_output();
@@ -407,7 +407,7 @@ fn test_file_write_empty_content() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     // Verify the file was created and is empty
     let content = fs::read_to_string(&test_file).expect("Failed to read written file");
@@ -433,7 +433,7 @@ fn test_file_write_file_already_exists() {
 
     let result = vm.interpret(source);
     // Should result in a runtime error because file exists
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 
     // Verify the original content was not changed
     let content = fs::read_to_string(&test_file).expect("Failed to read file");
@@ -453,7 +453,7 @@ fn test_file_write_invalid_directory() {
 
     let result = vm.interpret(source.to_string());
     // Should result in a runtime error
-    assert_eq!(Result::RuntimeError, result);
+    assert_eq!(InterpretResult::RuntimeError, result);
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn test_file_end_to_end_write_then_read() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert_eq!("Test content for end-to-end", output.trim());
@@ -515,7 +515,7 @@ fn test_file_end_to_end_write_then_read_lines() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     let output_lines: Vec<&str> = output.trim().split('\n').collect();
@@ -546,7 +546,7 @@ fn test_file_multiple_operations_same_file_object() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("Line 1"));
@@ -572,7 +572,7 @@ fn test_file_constructor_with_variable_path() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert_eq!("Content", output.trim());
@@ -600,7 +600,7 @@ fn test_file_in_function() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert_eq!("Function test", output.trim());
@@ -630,7 +630,7 @@ fn test_file_read_lines_in_function() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("A"));
@@ -664,7 +664,7 @@ fn test_file_write_in_function() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     // Verify the file content
     let content = fs::read_to_string(&test_file).expect("Failed to read written file");
@@ -699,7 +699,7 @@ fn test_file_practical_example_process_lines() {
     );
 
     let result = vm.interpret(source);
-    assert_eq!(Result::Ok, result);
+    assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
     assert!(output.contains("banana"));

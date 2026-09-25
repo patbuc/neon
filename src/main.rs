@@ -5,7 +5,7 @@ use std::process::exit;
 use std::fs::File;
 use std::{env, io};
 
-use neon::vm::{Result, VirtualMachine};
+use neon::vm::{InterpretResult, VirtualMachine};
 
 fn main() {
     setup_logging();
@@ -67,12 +67,12 @@ fn run_repl() {
         }
         let result = vm.interpret(line);
         match result {
-            Result::Ok => {}
-            Result::CompileError => {
+            InterpretResult::Ok => {}
+            InterpretResult::CompileError => {
                 let formatted_errors = vm.get_formatted_errors("<repl>");
                 eprintln!("{}", formatted_errors);
             }
-            Result::RuntimeError => {
+            InterpretResult::RuntimeError => {
                 if let Some(error) = vm.get_runtime_error() {
                     eprintln!("{}", error.report());
                 }
@@ -100,16 +100,16 @@ fn run_file(path: &str, args: Vec<String>) {
     let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
 
-    let result: Result = vm.interpret(source);
+    let result: InterpretResult = vm.interpret(source);
     match result {
-        Result::Ok => (),
-        Result::CompileError => {
+        InterpretResult::Ok => (),
+        InterpretResult::CompileError => {
             // Print formatted compilation errors
             let formatted_errors = vm.get_formatted_errors(path);
             eprintln!("{}", formatted_errors);
             exit(65);
         }
-        Result::RuntimeError => {
+        InterpretResult::RuntimeError => {
             if let Some(error) = vm.get_runtime_error() {
                 eprintln!("{}", error.report());
             }

@@ -1,4 +1,4 @@
-use neon::vm::{Result, VirtualMachine};
+use neon::vm::{InterpretResult, VirtualMachine};
 use std::fs;
 use std::path::Path;
 
@@ -64,7 +64,7 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
     let result = vm.interpret(script.to_string());
 
     assert_eq!(
-        Result::Ok,
+        InterpretResult::Ok,
         result,
         "VM interpretation failed for {}",
         path.display()

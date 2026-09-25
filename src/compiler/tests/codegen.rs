@@ -116,7 +116,7 @@ fn test_end_to_end_execution() {
         assert_eq!(vm.get_output(), "30");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_end_to_end_function() {
         assert_eq!(vm.get_output(), "42");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn test_end_to_end_forward_reference() {
         assert_eq!(vm.get_output(), "99");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -450,7 +450,7 @@ fn test_else_if_end_to_end_execution() {
         assert_eq!(vm.get_output(), "20");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -915,7 +915,7 @@ fn test_postfix_increment_end_to_end() {
         assert_eq!(vm.get_output(), "5\n6");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -938,7 +938,7 @@ fn test_postfix_decrement_end_to_end() {
         assert_eq!(vm.get_output(), "10\n9");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -962,7 +962,7 @@ fn test_postfix_increment_multiple_times() {
         assert_eq!(vm.get_output(), "3");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -991,7 +991,7 @@ fn test_postfix_operations_in_function() {
         assert_eq!(vm.get_output(), "5");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 /// Walks a chunk's bytecode, stepping over each instruction's operand bytes,
@@ -1137,7 +1137,7 @@ fn test_top_level_fn_named_print_shadows_native() {
         assert_eq!(vm.get_output(), "");
     }
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
 #[test]
@@ -1241,7 +1241,7 @@ fn test_while_break_continue_bytecode() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
     #[cfg(any(test, debug_assertions))]
     {
         assert_eq!(vm.get_output(), "1\n3\n4");
@@ -1299,7 +1299,7 @@ fn test_c_style_for_bytecode() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
     #[cfg(any(test, debug_assertions))]
     {
         assert_eq!(vm.get_output(), "0\n2");
@@ -1347,7 +1347,7 @@ fn test_for_in_bytecode() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
     #[cfg(any(test, debug_assertions))]
     {
         assert_eq!(vm.get_output(), "10\n20\n30");
@@ -1434,7 +1434,7 @@ fn test_closure_capturing_loop_variable_bytecode() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
     #[cfg(any(test, debug_assertions))]
     {
         assert_eq!(vm.get_output(), "0\n1\n2");
@@ -1515,7 +1515,7 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
 
-    assert_eq!(result, crate::vm::Result::Ok);
+    assert_eq!(result, crate::vm::InterpretResult::Ok);
     #[cfg(any(test, debug_assertions))]
     {
         assert_eq!(vm.get_output(), "10");
