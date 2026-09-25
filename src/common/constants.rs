@@ -11,3 +11,6 @@ pub const MAX_NATIVE_CALL_DEPTH: usize = 32;
 /// Arity marker for variadic functions (functions that accept any number of arguments)
 /// Using u8::MAX (255) as a special marker to indicate variadic functions
 pub const VARIADIC_ARITY: u8 = u8::MAX;
+
+/// Bounds how deeply the parser may recurse into nested syntax.
+pub const MAX_PARSER_RECURSION_DEPTH: usize = 600;
