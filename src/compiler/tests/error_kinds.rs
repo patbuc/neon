@@ -31,6 +31,16 @@ fn source_too_many_symbols() -> String {
     format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
 }
 
+/// Like `source_too_many_symbols`, but overflows by 100 names instead of 1,
+/// so a test can check the error is reported once, not once per name.
+fn source_many_too_many_symbols() -> String {
+    let mut methods = String::new();
+    for i in 0..65627 {
+        methods.push_str(&format!("fn m{}(self) {{}}\n", i));
+    }
+    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+}
+
 /// One input per known error-construction site for `kind`, each paired with
 /// a fragment its message must contain when that fragment distinguishes the
 /// site from the kind's other sites (`None` when every site shares wording).
@@ -253,4 +263,18 @@ fn all_codes_are_unique_and_well_formed() {
             code
         );
     }
+}
+
+#[test]
+fn too_many_symbols_reported_once_per_compile() {
+    let errors = compile_to_errors(&source_many_too_many_symbols());
+    let count = errors
+        .iter()
+        .filter(|e| e.kind == CompilationErrorKind::TooManySymbols)
+        .count();
+    assert_eq!(
+        count, 1,
+        "expected exactly one TooManySymbols error, got {:#?}",
+        errors
+    );
 }

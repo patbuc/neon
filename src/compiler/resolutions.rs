@@ -118,9 +118,7 @@ impl Resolutions {
         self.checked.insert(id);
     }
 
-    /// Interns a field, method, or type name into the shared symbol table,
-    /// returning its id. Returns `None` if the table already holds 65,536
-    /// distinct names and `name` isn't among them.
+    /// See `Symbols::intern`.
     pub(crate) fn intern_symbol(&mut self, name: &str) -> Option<u16> {
         self.symbols.intern(name)
     }

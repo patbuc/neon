@@ -1,12 +1,11 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Chunk;
+use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
+use std::rc::Rc;
 
 fn disassemble_program(chunk: &Chunk) -> String {
-    use crate::common::Value;
-
     let mut out = chunk.disassemble();
     for constant in &chunk.constants.values {
         if let Value::Function(function) = constant {
@@ -1908,4 +1907,20 @@ fn test_if_nested_exit_emits_jump() {
 "#;
 
     assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn nested_function_chunk_shares_symbol_table_with_script() {
+    let chunk = compile_program("fn f() { return 1 }\nf()\n").unwrap();
+    let function_chunk = chunk
+        .constants
+        .values
+        .iter()
+        .find_map(|v| match v {
+            Value::Function(function) => Some(function.chunk.clone()),
+            _ => None,
+        })
+        .expect("expected f's Function constant");
+
+    assert!(Rc::ptr_eq(&chunk.symbols, &function_chunk.symbols));
 }

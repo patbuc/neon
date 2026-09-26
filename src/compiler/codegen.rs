@@ -109,6 +109,9 @@ pub struct CodeGenerator<'a> {
     decl_slots: HashMap<DeclId, u32>,
     /// Closing-brace location of each `fn`/lambda body, by `NodeId`.
     end_locations: &'a HashMap<NodeId, SourceLocation>,
+    /// Built once from `resolutions` and `Rc::clone`d into every chunk, so
+    /// every chunk of this compile shares one allocation.
+    symbols: Rc<[Rc<str>]>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -116,12 +119,14 @@ impl<'a> CodeGenerator<'a> {
         resolutions: &'a Resolutions,
         end_locations: &'a HashMap<NodeId, SourceLocation>,
     ) -> Self {
+        let symbols = resolutions.symbol_names();
         CodeGenerator {
-            functions: vec![FunctionCompiler::new("main", resolutions.symbol_names())],
+            functions: vec![FunctionCompiler::new("main", symbols.clone())],
             end_locations,
             errors: Vec::new(),
             resolutions,
             decl_slots: HashMap::new(),
+            symbols,
         }
     }
 
@@ -513,7 +518,7 @@ impl<'a> CodeGenerator<'a> {
     ) {
         self.functions.push(FunctionCompiler::new(
             &format!("function_{}", name),
-            self.resolutions.symbol_names(),
+            self.symbols.clone(),
         ));
 
         // Enter function scope

@@ -82,6 +82,9 @@ pub struct SemanticAnalyzer {
     // these can run before that `fn`'s slot is bound, so it needs a
     // runtime initialization check.
     pending_block_fns: HashSet<DeclId>,
+    // Whether `TooManySymbols` has already been reported, so one program
+    // with many overflowing names doesn't produce one error per name.
+    too_many_symbols_reported: bool,
 }
 
 impl SemanticAnalyzer {
@@ -141,6 +144,7 @@ impl SemanticAnalyzer {
             not_initialized_top_level: HashSet::new(),
             currently_initializing: None,
             pending_block_fns: HashSet::new(),
+            too_many_symbols_reported: false,
         }
     }
 
@@ -260,7 +264,8 @@ impl SemanticAnalyzer {
     /// Interns a field, method, or type name, flagging the symbol table
     /// overflowing 65,536 distinct names as a compile error.
     fn intern_name(&mut self, name: &str, location: SourceLocation) {
-        if self.resolutions.intern_symbol(name).is_none() {
+        if self.resolutions.intern_symbol(name).is_none() && !self.too_many_symbols_reported {
+            self.too_many_symbols_reported = true;
             self.errors.push(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::TooManySymbols,

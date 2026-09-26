@@ -20,7 +20,6 @@ fn interning_an_existing_name_returns_its_id() {
     let second = resolutions.intern_symbol("Point").unwrap();
     assert_eq!(first, second);
 
-    // A builtin re-interned keeps the id it was seeded with.
     let array_id = resolutions.intern_symbol("Array").unwrap();
     assert_eq!(array_id, 0);
 }
@@ -39,10 +38,8 @@ fn interning_beyond_65536_names_fails_but_existing_names_still_succeed() {
         );
     }
 
-    // The table now holds exactly 65536 names; one more distinct name fails.
     assert!(resolutions.intern_symbol("one_too_many").is_none());
 
-    // An already-interned name still resolves.
     assert!(resolutions.intern_symbol("sym0").is_some());
     assert!(resolutions.intern_symbol("Array").is_some());
 }
