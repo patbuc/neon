@@ -1,0 +1,23 @@
+// runtime_error_method_is_static.n - Calling a static method on an instance, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Method 'm' is static; call it as P.m()
+
+struct P {
+    x
+}
+
+impl P {
+    fn m() {
+        return 1
+    }
+}
+
+fn callInstance(p) {
+    return p.m()
+}
+
+print("before")
+callInstance(P(1))

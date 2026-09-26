@@ -1,0 +1,17 @@
+// runtime_error_undefined_field_set.n - Setting a field the struct doesn't have, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'y'.
+
+struct P {
+    x
+}
+
+fn setY(p) {
+    p.y = 2
+}
+
+print("before")
+setY(P(1))

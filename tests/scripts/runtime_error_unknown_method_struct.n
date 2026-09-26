@@ -1,0 +1,17 @@
+// runtime_error_unknown_method_struct.n - Calling an undefined method on a struct instance, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type P
+
+struct P {
+    x
+}
+
+fn callFoo(p) {
+    return p.foo()
+}
+
+print("before")
+callFoo(P(1))

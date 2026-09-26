@@ -1,0 +1,13 @@
+// runtime_error_unknown_method_builtin.n - Calling an undefined method on a builtin value, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Array
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo([1, 2, 3])

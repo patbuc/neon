@@ -2,6 +2,16 @@ use neon::vm::{InterpretResult, VirtualMachine};
 use std::fs;
 use std::path::Path;
 
+/// Extracts an expected runtime error message from a `// Expected runtime
+/// error: <message>` line in the script's leading comments, if present.
+fn extract_expected_runtime_error(script: &str) -> Option<String> {
+    script.lines().find_map(|line| {
+        line.trim()
+            .strip_prefix("// Expected runtime error:")
+            .map(|rest| rest.trim().to_string())
+    })
+}
+
 /// Extracts expected output from inline comments in the script.
 /// Looks for lines starting with "// Expected:" followed by the expected output lines.
 /// Each subsequent comment line (starting with "//") is treated as a line of expected output.
@@ -60,15 +70,39 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
         )
     })?;
 
+    let expected_runtime_error = extract_expected_runtime_error(&script);
+
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(script.to_string());
 
-    assert_eq!(
-        InterpretResult::Ok,
-        result,
-        "VM interpretation failed for {}",
-        path.display()
-    );
+    match expected_runtime_error {
+        Some(expected_message) => {
+            assert_eq!(
+                InterpretResult::RuntimeError,
+                result,
+                "Expected a runtime error for {}",
+                path.display()
+            );
+            let actual_message = vm
+                .get_runtime_error()
+                .map(|e| e.message.clone())
+                .unwrap_or_default();
+            assert_eq!(
+                expected_message,
+                actual_message,
+                "Runtime error message mismatch for {}",
+                path.display()
+            );
+        }
+        None => {
+            assert_eq!(
+                InterpretResult::Ok,
+                result,
+                "VM interpretation failed for {}",
+                path.display()
+            );
+        }
+    }
     assert_eq!(
         expected_result,
         vm.get_output(),

@@ -1,0 +1,23 @@
+// runtime_error_method_needs_instance.n - Calling an instance method on the struct type itself, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Method 'm' needs an instance; call it on a P value
+
+struct P {
+    x
+}
+
+impl P {
+    fn m(self) {
+        return self.x
+    }
+}
+
+fn callStatic(s) {
+    return s.m()
+}
+
+print("before")
+callStatic(P)

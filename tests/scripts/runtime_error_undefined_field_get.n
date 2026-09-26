@@ -1,0 +1,17 @@
+// runtime_error_undefined_field_get.n - Reading a field the struct doesn't have, through a parameter of unknown static type
+
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'y'.
+
+struct P {
+    x
+}
+
+fn getY(p) {
+    return p.y
+}
+
+print("before")
+getY(P(1))
