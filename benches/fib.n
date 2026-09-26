@@ -1,5 +1,3 @@
-// Naive recursive fibonacci, measuring plain recursive call overhead.
-
 // Expected:
 // 610
 
