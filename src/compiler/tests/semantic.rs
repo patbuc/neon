@@ -3554,6 +3554,25 @@ struct Array {
     assert!(errors.iter().any(|e| e.message.contains("Array")));
 }
 
+#[test]
+fn test_duplicate_field_on_reserved_struct_name_reports_both() {
+    let program = "struct Array { x x }\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::DuplicateField));
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::ReservedStructName));
+}
+
 // ===== Issue #149: impl blocks on builtin types =====
 
 #[test]
