@@ -1,0 +1,30 @@
+// Expected:
+// 725637
+
+struct Counter {
+    value
+}
+
+impl Counter {
+    fn bump(self, step) {
+        self.value = self.value + step
+        return self.value
+    }
+}
+
+val n = args.length() > 0 ? args[0].toInt() : 2000
+
+var total = 0
+var i = 0
+while (i < n) {
+    val c = Counter(i % 17)
+    var j = 0
+    while (j < 10) {
+        total = (total + c.bump(j + 1)) % 1000000007
+        j = j + 1
+    }
+    total = (total + c.value) % 1000000007
+    i = i + 1
+}
+
+print(total)
