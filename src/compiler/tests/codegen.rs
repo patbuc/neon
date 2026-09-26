@@ -1714,7 +1714,19 @@ fn test_if_return_skips_jump() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    let expected_function = r#"=== <function_f>  ===
+    let expected = r#"=== <main>  ===
+0000      2 Nil
+0001      | SetLocal 00
+0004      | Closure 00 '<fn f>'
+0008      | SetLocal 00
+000b      | Pop
+000c      6 GetLocal 00
+000f      | Call (args: 0)
+0011      5 Pop
+0012      7 Nil
+0013      | Return
+=== </main> ===
+=== <function_f>  ===
 0000      3 True
 0001      | JumpIfFalse 0001 -> 000b
 0006      | Pop
@@ -1730,7 +1742,7 @@ fn test_if_return_skips_jump() {
 === </function_f> ===
 "#;
 
-    assert!(disassemble_program(&chunk).contains(expected_function));
+    assert_eq!(disassemble_program(&chunk), expected);
 }
 
 #[test]
@@ -1787,6 +1799,111 @@ fn test_if_else_fallthrough_emits_jump() {
 001e      4 Pop
 001f      7 Nil
 0020      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_block_ending_in_break_skips_jump() {
+    let program = r#"
+    while (true) {
+        if (true) {
+            print(1)
+            break
+        }
+        print(2)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 002b
+0006      | Pop
+0007      3 True
+0008      | JumpIfFalse 0008 -> 001c
+000d      | Pop
+000e      4 Constant 00 '<native fn print>'
+0011      | Constant 01 '1'
+0014      | Call (args: 1)
+0016      3 Pop
+0017      5 Jump 0017 -> 002c
+001c      3 Pop
+001d      7 Constant 02 '<native fn print>'
+0020      | Constant 03 '2'
+0023      | Call (args: 1)
+0025      6 Pop
+0026      2 Loop 0026 -> 0000
+002b      | Pop
+002c      9 Nil
+002d      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_break_with_else_skips_jump() {
+    let program = r#"
+    while (true) {
+        if (true) { break } else { print(2) }
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0022
+0006      | Pop
+0007      3 True
+0008      | JumpIfFalse 0008 -> 0013
+000d      | Pop
+000e      | Jump 000e -> 0023
+0013      | Pop
+0014      | Constant 00 '<native fn print>'
+0017      | Constant 01 '2'
+001a      | Call (args: 1)
+001c      | Pop
+001d      2 Loop 001d -> 0000
+0022      | Pop
+0023      5 Nil
+0024      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_nested_exit_emits_jump() {
+    let program = r#"
+    while (true) {
+        if (true) { if (true) { break } }
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0026
+0006      | Pop
+0007      3 True
+0008      | JumpIfFalse 0008 -> 0020
+000d      | Pop
+000e      | True
+000f      | JumpIfFalse 000f -> 001a
+0014      | Pop
+0015      | Jump 0015 -> 0027
+001a      | Pop
+001b      | Jump 001b -> 0021
+0020      | Pop
+0021      2 Loop 0021 -> 0000
+0026      | Pop
+0027      5 Nil
+0028      | Return
 === </main> ===
 "#;
 
