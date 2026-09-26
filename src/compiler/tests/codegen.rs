@@ -1296,7 +1296,7 @@ fn test_while_break_continue_bytecode() {
 000d      3 GetLocal 00
 0010      | Constant 02 '10'
 0013      | Less
-0014      | JumpIfFalse 0014 -> 0063
+0014      | JumpIfFalse 0014 -> 0059
 0019      | Pop
 001a      4 GetLocal 00
 001d      | Constant 03 '1'
@@ -1306,27 +1306,25 @@ fn test_while_break_continue_bytecode() {
 0025      5 GetLocal 00
 0028      | Constant 04 '2'
 002b      | Equal
-002c      | JumpIfFalse 002c -> 003c
+002c      | JumpIfFalse 002c -> 0037
 0031      | Pop
-0032      | Jump 0032 -> 005e
-0037      | Jump 0037 -> 003d
-003c      | Pop
-003d      6 GetLocal 00
-0040      | Constant 05 '5'
-0043      | Equal
-0044      | JumpIfFalse 0044 -> 0054
-0049      | Pop
-004a      | Jump 004a -> 0064
-004f      | Jump 004f -> 0055
-0054      | Pop
-0055      7 Constant 06 '<native fn print>'
-0058      | GetLocal 00
-005b      | Call (args: 1)
-005d      6 Pop
-005e      3 Loop 005e -> 000d
-0063      | Pop
-0064      9 Nil
-0065      | Return
+0032      | Jump 0032 -> 0054
+0037      | Pop
+0038      6 GetLocal 00
+003b      | Constant 05 '5'
+003e      | Equal
+003f      | JumpIfFalse 003f -> 004a
+0044      | Pop
+0045      | Jump 0045 -> 005a
+004a      | Pop
+004b      7 Constant 06 '<native fn print>'
+004e      | GetLocal 00
+0051      | Call (args: 1)
+0053      6 Pop
+0054      3 Loop 0054 -> 000d
+0059      | Pop
+005a      9 Nil
+005b      | Return
 === </main> ===
 "#;
 
@@ -1366,25 +1364,24 @@ fn test_c_style_for_bytecode() {
 0016      | GetLocal 00
 0019      | Constant 02 '3'
 001c      | Less
-001d      | JumpIfFalse 001d -> 0049
+001d      | JumpIfFalse 001d -> 0044
 0022      | Pop
 0023      3 GetLocal 00
 0026      | Constant 01 '1'
 0029      | Equal
-002a      | JumpIfFalse 002a -> 003a
+002a      | JumpIfFalse 002a -> 0035
 002f      | Pop
-0030      | Jump 0030 -> 0044
-0035      | Jump 0035 -> 003b
-003a      | Pop
-003b      4 Constant 03 '<native fn print>'
-003e      | GetLocal 00
-0041      | Call (args: 1)
-0043      3 Pop
-0044      2 Loop 0044 -> 000b
-0049      | Pop
-004a      | Pop
-004b      6 Nil
-004c      | Return
+0030      | Jump 0030 -> 003f
+0035      | Pop
+0036      4 Constant 03 '<native fn print>'
+0039      | GetLocal 00
+003c      | Call (args: 1)
+003e      3 Pop
+003f      2 Loop 003f -> 000b
+0044      | Pop
+0045      | Pop
+0046      6 Nil
+0047      | Return
 === </main> ===
 "#;
 
@@ -1638,4 +1635,160 @@ fn implicit_return_uses_closing_brace_line() {
     let line = function_chunk.get_line_info(return_offset).unwrap().line;
 
     assert_eq!(line, 3);
+}
+
+#[test]
+fn test_if_break_skips_jump() {
+    let program = r#"
+    while (true) {
+        if (true) { break }
+        print(1)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0022
+0006      | Pop
+0007      3 True
+0008      | JumpIfFalse 0008 -> 0013
+000d      | Pop
+000e      | Jump 000e -> 0023
+0013      | Pop
+0014      4 Constant 00 '<native fn print>'
+0017      | Constant 01 '1'
+001a      | Call (args: 1)
+001c      3 Pop
+001d      2 Loop 001d -> 0000
+0022      | Pop
+0023      6 Nil
+0024      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_continue_skips_jump() {
+    let program = r#"
+    while (true) {
+        if (true) { continue }
+        print(1)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0022
+0006      | Pop
+0007      3 True
+0008      | JumpIfFalse 0008 -> 0013
+000d      | Pop
+000e      | Jump 000e -> 001d
+0013      | Pop
+0014      4 Constant 00 '<native fn print>'
+0017      | Constant 01 '1'
+001a      | Call (args: 1)
+001c      3 Pop
+001d      2 Loop 001d -> 0000
+0022      | Pop
+0023      6 Nil
+0024      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_return_skips_jump() {
+    let program = r#"
+    fn f() {
+        if (true) { return 1 }
+        print(1)
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected_function = r#"=== <function_f>  ===
+0000      3 True
+0001      | JumpIfFalse 0001 -> 000b
+0006      | Pop
+0007      | Constant 00 '1'
+000a      | Return
+000b      | Pop
+000c      4 Constant 01 '<native fn print>'
+000f      | Constant 00 '1'
+0012      | Call (args: 1)
+0014      3 Pop
+0015      5 Nil
+0016      | Return
+=== </function_f> ===
+"#;
+
+    assert!(disassemble_program(&chunk).contains(expected_function));
+}
+
+#[test]
+fn test_if_fallthrough_emits_jump() {
+    let program = r#"
+    if (true) {
+        print(1)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0015
+0006      | Pop
+0007      3 Constant 00 '<native fn print>'
+000a      | Constant 01 '1'
+000d      | Call (args: 1)
+000f      2 Pop
+0010      | Jump 0010 -> 0016
+0015      | Pop
+0016      5 Nil
+0017      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_if_else_fallthrough_emits_jump() {
+    let program = r#"
+    if (true) {
+        print(1)
+    } else {
+        print(2)
+    }
+    "#;
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      2 True
+0001      | JumpIfFalse 0001 -> 0015
+0006      | Pop
+0007      3 Constant 00 '<native fn print>'
+000a      | Constant 01 '1'
+000d      | Call (args: 1)
+000f      2 Pop
+0010      | Jump 0010 -> 001f
+0015      | Pop
+0016      5 Constant 02 '<native fn print>'
+0019      | Constant 03 '2'
+001c      | Call (args: 1)
+001e      4 Pop
+001f      7 Nil
+0020      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
 }
