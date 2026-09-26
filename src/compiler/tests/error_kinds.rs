@@ -21,6 +21,16 @@ fn source_array_literal_too_large() -> String {
     format!("val arr = [{}]\n", elements.join(", "))
 }
 
+/// Builtin types (8), struct `S`, and field `x` already claim 10 symbol ids,
+/// leaving 65,526 free; one more method than that overflows the table.
+fn source_too_many_symbols() -> String {
+    let mut methods = String::new();
+    for i in 0..65527 {
+        methods.push_str(&format!("fn m{}(self) {{}}\n", i));
+    }
+    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+}
+
 /// One input per known error-construction site for `kind`, each paired with
 /// a fragment its message must contain when that fragment distinguishes the
 /// site from the kind's other sites (`None` when every site shares wording).
@@ -198,6 +208,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 Some("array literal too large"),
             ),
         ],
+        CompilationErrorKind::TooManySymbols => {
+            vec![(source_too_many_symbols(), Some("limit 65536"))]
+        }
     }
 }
 

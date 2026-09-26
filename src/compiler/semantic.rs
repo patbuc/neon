@@ -201,6 +201,10 @@ impl SemanticAnalyzer {
                     ..
                 } => {
                     self.check_duplicate_fields(name, fields);
+                    self.intern_name(name, *location);
+                    for field in fields {
+                        self.intern_name(&field.name, field.location);
+                    }
                     if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
@@ -253,6 +257,19 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Interns a field, method, or type name, flagging the symbol table
+    /// overflowing 65,536 distinct names as a compile error.
+    fn intern_name(&mut self, name: &str, location: SourceLocation) {
+        if self.resolutions.intern_symbol(name).is_none() {
+            self.errors.push(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::TooManySymbols,
+                "Too many distinct field, method and type names (limit 65536)".to_string(),
+                location,
+            ));
+        }
+    }
+
     fn check_duplicate_fields(&mut self, struct_name: &str, fields: &[StructField]) {
         let mut seen = HashSet::new();
         for field in fields {
@@ -275,6 +292,7 @@ impl SemanticAnalyzer {
     /// already defined for this type, one shadowing a field name, or one
     /// shadowing a native method (builtin types only).
     fn collect_impl_block(&mut self, type_name: &str, methods: &[Stmt], location: SourceLocation) {
+        self.intern_name(type_name, location);
         let is_builtin_type =
             crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&type_name);
         let field_names = if is_builtin_type {
@@ -307,6 +325,7 @@ impl SemanticAnalyzer {
             else {
                 continue;
             };
+            self.intern_name(name, *method_location);
 
             if crate::common::method_registry::is_valid_method(type_name, name) {
                 self.errors.push(CompilationError::new(
@@ -1337,6 +1356,7 @@ impl SemanticAnalyzer {
         arguments: &[Expr],
         location: SourceLocation,
     ) {
+        self.intern_name(method, location);
         if let Expr::Variable { name, .. } = object {
             let is_namespace = matches!(
                 self.symbol_table.resolve(name),
@@ -1460,6 +1480,7 @@ impl SemanticAnalyzer {
     }
 
     fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
+        self.intern_name(field, location);
         self.resolve_expr(object);
         if let Some(object_type) = self.infer_expr_type(object) {
             self.validate_struct_field(object_type.name(), field, location);
@@ -1473,6 +1494,7 @@ impl SemanticAnalyzer {
         value: &Expr,
         location: SourceLocation,
     ) {
+        self.intern_name(field, location);
         self.resolve_expr(object);
         self.resolve_expr(value);
         if let Some(object_type) = self.infer_expr_type(object) {

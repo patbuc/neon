@@ -56,9 +56,11 @@ struct FunctionCompiler {
 }
 
 impl FunctionCompiler {
-    fn new(name: &str) -> Self {
+    fn new(name: &str, symbols: Rc<[Rc<str>]>) -> Self {
+        let mut chunk = Chunk::new(name);
+        chunk.symbols = symbols;
         FunctionCompiler {
-            chunk: Chunk::new(name),
+            chunk,
             locals: Vec::new(),
             scope_depth: 0,
             loop_contexts: Vec::new(),
@@ -115,7 +117,7 @@ impl<'a> CodeGenerator<'a> {
         end_locations: &'a HashMap<NodeId, SourceLocation>,
     ) -> Self {
         CodeGenerator {
-            functions: vec![FunctionCompiler::new("main")],
+            functions: vec![FunctionCompiler::new("main", resolutions.symbol_names())],
             end_locations,
             errors: Vec::new(),
             resolutions,
@@ -509,8 +511,10 @@ impl<'a> CodeGenerator<'a> {
         body: &[Stmt],
         location: SourceLocation,
     ) {
-        self.functions
-            .push(FunctionCompiler::new(&format!("function_{}", name)));
+        self.functions.push(FunctionCompiler::new(
+            &format!("function_{}", name),
+            self.resolutions.symbol_names(),
+        ));
 
         // Enter function scope
         self.current().scope_depth += 1;

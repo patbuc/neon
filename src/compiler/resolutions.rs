@@ -1,5 +1,6 @@
 use crate::compiler::ast::NodeId;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 /// Identity of a declaration (a `val`/`var`/`fn`/`struct`/loop variable/parameter).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,6 +33,51 @@ pub struct FunctionResolution {
     pub upvalues: Vec<Capture>,
 }
 
+/// Interns field, method, and type names into dense `u16` ids shared by
+/// every chunk of one compile. Seeded with `BUILTIN_TYPE_NAMES` so builtin
+/// type `BUILTIN_TYPE_NAMES[i]` always has symbol id `i` - the VM relies on
+/// that to recognize builtin types by id.
+#[derive(Debug)]
+struct Symbols {
+    ids: HashMap<Rc<str>, u16>,
+    names: Vec<Rc<str>>,
+}
+
+impl Default for Symbols {
+    fn default() -> Self {
+        let mut symbols = Symbols {
+            ids: HashMap::new(),
+            names: Vec::new(),
+        };
+        for name in crate::common::method_registry::BUILTIN_TYPE_NAMES {
+            symbols
+                .intern(name)
+                .expect("BUILTIN_TYPE_NAMES is far smaller than the u16 id space");
+        }
+        symbols
+    }
+}
+
+impl Symbols {
+    /// Interns `name`, returning its id. An already-interned name returns
+    /// its existing id; a new name once 65,536 names are interned returns
+    /// `None`.
+    fn intern(&mut self, name: &str) -> Option<u16> {
+        if let Some(&id) = self.ids.get(name) {
+            return Some(id);
+        }
+        let id = u16::try_from(self.names.len()).ok()?;
+        let name: Rc<str> = Rc::from(name);
+        self.names.push(name.clone());
+        self.ids.insert(name, id);
+        Some(id)
+    }
+
+    fn names(&self) -> Rc<[Rc<str>]> {
+        Rc::from(self.names.as_slice())
+    }
+}
+
 /// Every name resolution the semantic pass made, keyed by AST node id.
 #[derive(Debug, Default)]
 pub struct Resolutions {
@@ -41,6 +87,7 @@ pub struct Resolutions {
     functions: HashMap<NodeId, FunctionResolution>,
     captured: HashSet<DeclId>,
     checked: HashSet<NodeId>,
+    symbols: Symbols,
 }
 
 impl Resolutions {
@@ -69,6 +116,19 @@ impl Resolutions {
     /// initialization check for it.
     pub(crate) fn mark_checked(&mut self, id: NodeId) {
         self.checked.insert(id);
+    }
+
+    /// Interns a field, method, or type name into the shared symbol table,
+    /// returning its id. Returns `None` if the table already holds 65,536
+    /// distinct names and `name` isn't among them.
+    pub(crate) fn intern_symbol(&mut self, name: &str) -> Option<u16> {
+        self.symbols.intern(name)
+    }
+
+    /// Every interned field, method, and type name, indexed by symbol id,
+    /// for embedding into a compiled chunk.
+    pub fn symbol_names(&self) -> Rc<[Rc<str>]> {
+        self.symbols.names()
     }
 
     /// The resolution of an `Expr::Variable` or `Expr::Assign` node.

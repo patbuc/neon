@@ -41,6 +41,9 @@ pub struct Chunk {
     pub constants: Constants,
     pub instructions: Vec<u8>,
     pub line_infos: Vec<LineInfo>,
+    /// Field, method, and type names interned during semantic analysis,
+    /// indexed by symbol id. Shared by every chunk of one compile.
+    pub symbols: Rc<[Rc<str>]>,
 }
 
 #[derive(Debug, PartialEq)]

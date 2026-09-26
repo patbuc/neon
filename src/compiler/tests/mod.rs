@@ -2,6 +2,7 @@ mod ast;
 mod codegen;
 mod error_kinds;
 mod parser;
+mod resolutions;
 mod scanner;
 mod semantic;
 mod symbol_table;

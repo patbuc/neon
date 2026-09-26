@@ -3913,3 +3913,50 @@ var x = 1
         .iter()
         .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
 }
+
+#[test]
+fn struct_fields_and_methods_get_symbol_ids() {
+    // `obj` is an untyped parameter, so `mystery_field`/`other_field`/
+    // `mystery_method` are never validated against a struct declaration -
+    // their only route to a symbol id is the GetField/SetField/method-call
+    // interning itself, isolating those sites from struct/impl interning.
+    let program = r#"
+struct Point {
+    x
+    y
+}
+impl Point {
+    fn len(self) {
+        return self.x
+    }
+}
+fn use_obj(obj) {
+    val g = obj.mystery_field
+    obj.other_field = 1
+    return obj.mystery_method()
+}
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let resolutions = analyzer.analyze(&ast).expect("semantic error");
+
+    let names = resolutions.symbol_names();
+    for expected in [
+        "Point",
+        "x",
+        "y",
+        "len",
+        "mystery_field",
+        "other_field",
+        "mystery_method",
+    ] {
+        assert!(
+            names.iter().any(|n| n.as_ref() == expected),
+            "expected '{}' to have a symbol id, got {:?}",
+            expected,
+            names
+        );
+    }
+}
