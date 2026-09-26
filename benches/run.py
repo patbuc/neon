@@ -51,11 +51,6 @@ def run_once(cmd):
 
 
 def time_command(cmd, runs):
-    """Run cmd once as warm-up plus `runs` timed runs.
-
-    Returns (durations_ms, last_checksum, all_checksums) so callers can also
-    verify every run of a command agreed on its output.
-    """
     _, warmup_checksum = run_once(cmd)
     checksums = [warmup_checksum]
     durations = []
@@ -63,7 +58,7 @@ def time_command(cmd, runs):
         elapsed, output = run_once(cmd)
         durations.append(elapsed * 1000)
         checksums.append(output)
-    return durations, checksums[-1], checksums
+    return durations, checksums
 
 
 def stats(durations):
@@ -116,12 +111,12 @@ def main():
         neon_script = os.path.join(REPO_ROOT, "benches", f"{name}.n")
         python_script = os.path.join(REPO_ROOT, "benches", f"{name}.py")
 
-        neon_durations, neon_checksum, neon_checksums = time_command(
-            [NEON_BIN, neon_script, str(size)], args.runs
-        )
-        python_durations, python_checksum, python_checksums = time_command(
+        neon_durations, neon_checksums = time_command([NEON_BIN, neon_script, str(size)], args.runs)
+        neon_checksum = neon_checksums[-1]
+        python_durations, python_checksums = time_command(
             [sys.executable, python_script, str(size)], args.runs
         )
+        python_checksum = python_checksums[-1]
 
         if len(set(neon_checksums)) > 1:
             failures.append(f"inconsistent neon checksums for {name}: {sorted(set(neon_checksums))!r}")
@@ -161,7 +156,7 @@ def main():
             print(failure, file=sys.stderr)
         if summary_path:
             with open(summary_path, "a") as f:
-                f.write("\n" + "\n".join(failures) + "\n")
+                f.write("\n" + "\n".join(f"- {failure}" for failure in failures) + "\n")
         sys.exit(1)
 
     with open(args.json, "w") as f:
