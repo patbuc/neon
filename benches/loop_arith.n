@@ -1,0 +1,17 @@
+// Expected:
+// 831925308
+
+val n = args.length() > 0 ? args[0].toInt() : 2000
+
+var total = 0
+var i = 0
+while (i < n) {
+    total = (total + i * 3 - i % 7) % 1000000007
+    i = i + 1
+}
+
+for (j in 0..n) {
+    total = (total * 31 + j) % 1000000007
+}
+
+print(total)

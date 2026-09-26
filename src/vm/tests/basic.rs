@@ -548,10 +548,7 @@ fn can_calculate_fibonacci() {
         "#;
 
     let mut vm = VirtualMachine::new();
-    let start = std::time::Instant::now();
     let result = vm.interpret(program.to_string());
-    let elapsed = start.elapsed();
-    println!("Fibonacci test (fib 0-30) took: {:?}", elapsed);
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("55", vm.get_output());
 }

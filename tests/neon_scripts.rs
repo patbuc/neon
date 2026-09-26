@@ -81,4 +81,5 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
 
 datatest_stable::harness! {
     { test = run_neon_script, root = "tests/scripts", pattern = r"^.*\.n$" },
+    { test = run_neon_script, root = "benches", pattern = r"^.*\.n$" },
 }
