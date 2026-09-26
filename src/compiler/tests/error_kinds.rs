@@ -51,6 +51,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 "1.5__0\n".to_string(),
                 Some("Invalid underscore placement in number literal"),
             ),
+            (
+                "1e\n".to_string(),
+                Some("Missing digits in number exponent"),
+            ),
         ],
         CompilationErrorKind::ExpectedToken => vec![
             ("val 5 = 1\n".to_string(), Some("variable name")),

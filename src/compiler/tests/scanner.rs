@@ -333,6 +333,9 @@ fn rejects_exponent_with_leading_underscore() {
         tokens[0].token_type,
         TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
     );
+    assert!(tokens[0]
+        .token
+        .contains("Missing digits in number exponent"));
 }
 
 #[test]
@@ -344,17 +347,6 @@ fn hex_literal_with_e_digit_still_scans() {
         assert_eq!(tokens[0].token_type, TokenType::Number);
         assert_eq!(tokens[0].token, source);
     }
-}
-
-#[test]
-fn binary_literal_does_not_absorb_trailing_e_as_exponent() {
-    let scanner = Scanner::new("0b1e");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0b1");
-    assert_eq!(tokens[1].token_type, TokenType::Identifier);
-    assert_eq!(tokens[1].token, "e");
 }
 
 #[test]

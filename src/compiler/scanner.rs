@@ -496,8 +496,6 @@ impl Scanner {
         self.make_token(TokenType::Number)
     }
 
-    // Consumes a run of digits, allowing '_' between two digits. Returns an
-    // error token if an underscore is misplaced.
     fn consume_digit_run(&mut self) -> Option<Token> {
         loop {
             let c = self.peek();
