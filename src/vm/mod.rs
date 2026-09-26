@@ -43,8 +43,7 @@ pub struct VirtualMachine {
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
     /// User-defined methods from `impl` blocks, indexed by type symbol.
-    /// Each entry is a small Vec of (method symbol, closure, takes `self`),
-    /// searched linearly - impl blocks contribute few methods per type.
+    /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
 }
 

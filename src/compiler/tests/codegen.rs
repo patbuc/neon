@@ -797,9 +797,6 @@ fn test_repeated_string_literal_dedups() {
     assert_eq!(count_strings(&chunk, "hi"), 1);
 }
 
-/// Field, method, and type names are looked up by symbol id, not by string
-/// constant, so `count_strings` should find none in this chunk or any
-/// nested function's.
 fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
     assert_eq!(
         count_strings(chunk, s),
@@ -834,29 +831,6 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
     assert_no_string_constant_anywhere(&chunk, "value");
     assert_no_string_constant_anywhere(&chunk, "m");
     assert_no_string_constant_anywhere(&chunk, "P");
-}
-
-#[test]
-fn test_repeated_method_name_does_not_add_a_string_constant() {
-    let program = r#"
-    struct P { }
-    impl P {
-        fn m(self) { return 1 }
-    }
-    val p = P()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert_eq!(count_strings(&chunk, "m"), 0);
 }
 
 #[test]
