@@ -15,6 +15,7 @@ BENCHMARKS = {
     "closures": 80000,
     "structs": 80000,
     "nbody": 15000,
+    "binary_trees": 13,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

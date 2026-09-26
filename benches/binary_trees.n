@@ -1,0 +1,59 @@
+// Expected:
+// 25774
+
+struct TreeNode {
+    left
+    right
+}
+
+fn make_tree(depth) {
+    if (depth <= 0) {
+        return TreeNode(nil, nil)
+    }
+    return TreeNode(make_tree(depth - 1), make_tree(depth - 1))
+}
+
+fn check_tree(node) {
+    if (node.left == nil) {
+        return 1
+    }
+    return check_tree(node.left) + check_tree(node.right) + 1
+}
+
+fn pow2(k) {
+    var result = 1
+    var i = 0
+    while (i < k) {
+        result = result * 2
+        i = i + 1
+    }
+    return result
+}
+
+val n = args.length() > 0 ? args[0].toInt() : 8
+
+val min_depth = 4
+val max_depth = n > min_depth + 2 ? n : min_depth + 2
+
+val stretch_depth = max_depth + 1
+val stretch_tree = make_tree(stretch_depth)
+var checksum = check_tree(stretch_tree) % 1000000007
+
+val long_lived_tree = make_tree(max_depth)
+
+var depth = min_depth
+while (depth <= max_depth) {
+    val iterations = pow2(max_depth - depth + min_depth)
+    var check = 0
+    var i = 0
+    while (i < iterations) {
+        check = check + check_tree(make_tree(depth))
+        i = i + 1
+    }
+    checksum = (checksum + check) % 1000000007
+    depth = depth + 2
+}
+
+checksum = (checksum + check_tree(long_lived_tree)) % 1000000007
+
+print(checksum)
