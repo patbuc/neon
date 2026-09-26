@@ -581,6 +581,14 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
+    fn always_exits(stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::Break { .. } | Stmt::Continue { .. } | Stmt::Return { .. } => true,
+            Stmt::Block { statements, .. } => statements.last().is_some_and(Self::always_exits),
+            _ => false,
+        }
+    }
+
     fn generate_if_stmt(
         &mut self,
         condition: &Expr,
@@ -593,14 +601,20 @@ impl<'a> CodeGenerator<'a> {
         let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
         self.emit_op_code(OpCode::Pop, location); // Pop condition if true (not jumping)
         self.generate_stmt(then_branch);
-        let else_jump = self.emit_jump(OpCode::Jump, location);
+        let else_jump = if Self::always_exits(then_branch) {
+            None
+        } else {
+            Some(self.emit_jump(OpCode::Jump, location))
+        };
         self.patch_jump(then_jump);
         self.emit_op_code(OpCode::Pop, location); // Pop condition if false (jumped here)
 
         if let Some(else_stmt) = else_branch {
             self.generate_stmt(else_stmt);
         }
-        self.patch_jump(else_jump);
+        if let Some(else_jump) = else_jump {
+            self.patch_jump(else_jump);
+        }
     }
 
     fn generate_while_stmt(&mut self, condition: &Expr, body: &Stmt, location: SourceLocation) {
