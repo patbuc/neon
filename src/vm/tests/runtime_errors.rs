@@ -1299,3 +1299,16 @@ fn range_longer_than_2_pow_53_halts() {
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }
+
+#[test]
+fn negate_non_number_halts_with_message_and_line() {
+    let program = r#"print(-"a")"#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Operand must be a number"), "{}", errors);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("  at <script> (line 1)", error.trace());
+}
