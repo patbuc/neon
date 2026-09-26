@@ -1,0 +1,25 @@
+// unary_negate_and_not.n - Unary negate and not
+
+// Expected:
+// -5
+// 5
+// -5
+// -3
+// 3
+// false
+// true
+// false
+// true
+
+print(-5)
+print(- -5)
+print(-(2 + 3))
+
+val x = 3
+print(-x)
+print(x)
+
+print(!true)
+print(!nil)
+print(!0)
+print(!!1)

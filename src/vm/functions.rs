@@ -67,8 +67,9 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_not(&mut self) {
-        let value = self.pop();
-        self.push(boolean!(is_false_like!(value)));
+        // [.., operand] -> [.., result]
+        let slot = self.stack.last_mut().expect("stack underflow");
+        *slot = boolean!(is_false_like!(*slot));
     }
 
     #[inline(always)]
@@ -576,9 +577,10 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
-        if let Value::Number(..) = self.peek(0) {
-            let value = self.pop();
-            self.push(number!(-as_number!(value)));
+        // [.., operand] -> [.., result]
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(n) = *slot {
+            *slot = number!(-n);
             return Ok(());
         }
         Err(self.runtime_error("Operand must be a number"))
