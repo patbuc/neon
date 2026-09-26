@@ -797,8 +797,9 @@ fn test_repeated_string_literal_dedups() {
     assert_eq!(count_strings(&chunk, "hi"), 1);
 }
 
-/// Field names are looked up by symbol id, not by string constant, so
-/// `count_strings` should find none in this chunk or any nested function's.
+/// Field, method, and type names are looked up by symbol id, not by string
+/// constant, so `count_strings` should find none in this chunk or any
+/// nested function's.
 fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
     assert_eq!(
         count_strings(chunk, s),
@@ -815,22 +816,28 @@ fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
 }
 
 #[test]
-fn test_field_read_and_write_do_not_use_the_constant_pool() {
+fn test_field_and_method_access_do_not_use_the_constant_pool() {
     let program = r#"
     struct P { value }
+    impl P {
+        fn m(self) { return self.value }
+    }
     fn make() {
         val p = P(1)
         p.value = 2
+        p.m()
         return p.value
     }
     make()
     "#;
     let chunk = compile_program(program).unwrap();
     assert_no_string_constant_anywhere(&chunk, "value");
+    assert_no_string_constant_anywhere(&chunk, "m");
+    assert_no_string_constant_anywhere(&chunk, "P");
 }
 
 #[test]
-fn test_repeated_method_name_dedups() {
+fn test_repeated_method_name_does_not_add_a_string_constant() {
     let program = r#"
     struct P { }
     impl P {
@@ -849,7 +856,7 @@ fn test_repeated_method_name_dedups() {
     p.m()
     "#;
     let chunk = compile_program(program).unwrap();
-    assert_eq!(count_strings(&chunk, "m"), 1);
+    assert_eq!(count_strings(&chunk, "m"), 0);
 }
 
 #[test]
@@ -1499,23 +1506,23 @@ fn test_closure_capturing_loop_variable_bytecode() {
 0040      | Loop 0040 -> 0018
 0045      | Pop
 0046      | CloseUpvalue
-0047      6 Constant 06 '<native fn print>'
+0047      6 Constant 05 '<native fn print>'
 004a      | GetLocal 00
 004d      | Constant 01 '0'
 0050      | GetIndex
 0051      | Call (args: 0)
 0053      | Call (args: 1)
 0055      5 Pop
-0056      7 Constant 07 '<native fn print>'
+0056      7 Constant 06 '<native fn print>'
 0059      | GetLocal 00
 005c      | Constant 02 '1'
 005f      | GetIndex
 0060      | Call (args: 0)
 0062      | Call (args: 1)
 0064      6 Pop
-0065      8 Constant 08 '<native fn print>'
+0065      8 Constant 07 '<native fn print>'
 0068      | GetLocal 00
-006b      | Constant 09 '2'
+006b      | Constant 08 '2'
 006e      | GetIndex
 006f      | Call (args: 0)
 0071      | Call (args: 1)

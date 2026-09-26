@@ -105,11 +105,11 @@ impl Chunk {
     }
 
     fn define_method_instruction(&self, offset: usize, out: &mut String) -> usize {
-        let type_index = self.read_u16(offset + 1) as usize;
-        let method_index = self.read_u16(offset + 3) as usize;
+        let type_symbol = self.read_u16(offset + 1) as usize;
+        let method_symbol = self.read_u16(offset + 3) as usize;
         let takes_self = self.read_u8(offset + 5) != 0;
-        let type_name = self.read_constant(type_index);
-        let method_name = self.read_constant(method_index);
+        let type_name = &self.symbols[type_symbol];
+        let method_name = &self.symbols[method_symbol];
         let kind = if takes_self { "instance" } else { "static" };
         writeln!(
             out,
@@ -181,8 +181,8 @@ impl Chunk {
     }
 
     fn invoke_instruction(&self, offset: usize, out: &mut String) -> usize {
-        let name_index = self.read_u16(offset + 1) as usize;
-        let name = self.read_constant(name_index);
+        let method_symbol = self.read_u16(offset + 1) as usize;
+        let name = &self.symbols[method_symbol];
         let arg_count = self.read_u8(offset + 3);
         writeln!(out, "Invoke {} (args: {})", name, arg_count).unwrap();
         offset + 4

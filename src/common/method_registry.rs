@@ -852,6 +852,17 @@ pub const BUILTIN_TYPE_NAMES: [&str; 8] = [
     "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range",
 ];
 
+/// The symbol id a builtin type name was seeded with in `Resolutions`
+/// (`Symbols::default` interns `BUILTIN_TYPE_NAMES` in this same order),
+/// so the VM can map a builtin receiver to its type symbol without a
+/// second, independent id assignment to drift out of sync.
+pub fn builtin_type_symbol(type_name: &str) -> u16 {
+    BUILTIN_TYPE_NAMES
+        .iter()
+        .position(|&name| name == type_name)
+        .expect("type_name must be a BUILTIN_TYPE_NAMES entry") as u16
+}
+
 /// Names of registry types that are namespaces rather than instance types:
 /// callable as `Name.method(...)` (has static methods) or constructible as
 /// `Name(...)` (has a constructor). This is the single source of truth the

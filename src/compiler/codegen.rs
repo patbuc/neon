@@ -159,7 +159,9 @@ impl<'a> CodeGenerator<'a> {
                         .iter()
                         .map(|f| self.resolutions.symbol(&f.name))
                         .collect();
-                    let struct_value = Value::new_struct(name.clone(), field_names, field_symbols);
+                    let name_symbol = self.resolutions.symbol(name);
+                    let struct_value =
+                        Value::new_struct(name.clone(), field_names, field_symbols, name_symbol);
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -1482,18 +1484,15 @@ impl<'a> CodeGenerator<'a> {
     /// Emits `Invoke`: a method call dispatched by name at runtime. The
     /// stack must already hold `[receiver, args...]`.
     fn emit_invoke(&mut self, method_name: &str, argc: u8, location: SourceLocation) {
-        let name_index = self.add_constant(string!(method_name));
-        let Some(name_index) = self.checked_index(name_index, "constants", location) else {
-            return;
-        };
+        let symbol = self.resolutions.symbol(method_name);
         self.emit_op_code(OpCode::Invoke, location);
-        self.current_chunk().write_u16(name_index);
+        self.current_chunk().write_u16(symbol);
         self.current_chunk().write_u8(argc);
     }
 
     /// Emits `DefineMethod`, popping the closure left on top of the stack by
     /// a preceding `generate_closure` call and registering it under
-    /// `(type_name, method_name)`, along with whether it takes `self`.
+    /// `(type_symbol, method_symbol)`, along with whether it takes `self`.
     fn emit_define_method(
         &mut self,
         type_name: &str,
@@ -1501,16 +1500,11 @@ impl<'a> CodeGenerator<'a> {
         takes_self: bool,
         location: SourceLocation,
     ) {
-        let type_index = self.add_constant(string!(type_name));
-        let method_index = self.add_constant(string!(method_name));
-        let type_index = self.checked_index(type_index, "constants", location);
-        let method_index = self.checked_index(method_index, "constants", location);
-        let (Some(type_index), Some(method_index)) = (type_index, method_index) else {
-            return;
-        };
+        let type_symbol = self.resolutions.symbol(type_name);
+        let method_symbol = self.resolutions.symbol(method_name);
         self.emit_op_code(OpCode::DefineMethod, location);
-        self.current_chunk().write_u16(type_index);
-        self.current_chunk().write_u16(method_index);
+        self.current_chunk().write_u16(type_symbol);
+        self.current_chunk().write_u16(method_symbol);
         self.current_chunk().write_u8(takes_self as u8);
     }
 }

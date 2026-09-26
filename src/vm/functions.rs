@@ -6,7 +6,7 @@ use crate::common::{
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
-use crate::{as_number, as_string, boolean, is_false_like, number, string};
+use crate::{as_number, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,19 +23,26 @@ pub(in crate::vm) enum Comparison {
 /// Registry index for the print() function (always at index 0)
 const PRINT_METHOD_INDEX: u32 = 0;
 
-/// A receiver's type name for method dispatch: a fixed name for builtin
-/// types, or the struct definition for an instance (cloning the `Rc` is a
-/// refcount bump, not a string allocation).
+/// A receiver's type name for method dispatch: a fixed name and symbol for
+/// builtin types, or the struct definition for an instance (cloning the
+/// `Rc` is a refcount bump, not a string allocation).
 enum TypeName {
-    Static(&'static str),
+    Static(&'static str, u16),
     Struct(Rc<ObjStruct>),
 }
 
 impl TypeName {
     fn as_str(&self) -> &str {
         match self {
-            TypeName::Static(name) => name,
+            TypeName::Static(name, _) => name,
             TypeName::Struct(r#struct) => &r#struct.name,
+        }
+    }
+
+    fn symbol(&self) -> u16 {
+        match self {
+            TypeName::Static(_, symbol) => *symbol,
+            TypeName::Struct(r#struct) => r#struct.name_symbol,
         }
     }
 }
@@ -91,20 +98,19 @@ impl VirtualMachine {
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]
     pub(in crate::vm) fn op_invoke(&mut self) -> OpResult {
-        let (method_name, arg_count) = {
+        let (method_symbol, arg_count) = {
             let frame = self.current_frame();
-            let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            let name = frame.closure.function.chunk.read_constant(name_index);
+            let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
             let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
-            (name, arg_count)
+            (method_symbol, arg_count)
         };
 
         let frame = self.current_frame_mut();
-        frame.ip += 4; // Skip Invoke opcode, name_index and arg_count byte
+        frame.ip += 4; // Skip Invoke opcode, method_symbol and arg_count byte
 
         self.check_frame_limit()?;
 
-        self.dispatch_invoke(as_string!(method_name), arg_count)
+        self.dispatch_invoke(method_symbol, arg_count)
     }
 
     /// Errors with "Stack overflow" if the call frame stack is already at
@@ -146,11 +152,11 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// Dispatches a method call by name: the stack holds
+    /// Dispatches a method call by symbol: the stack holds
     /// `[receiver, args...]`, `arg_count` excluding the receiver. Tries, in
     /// order, a user-defined method, a native method, and a callable
     /// instance field; otherwise reports an unknown method.
-    fn dispatch_invoke(&mut self, method_name: &str, arg_count: usize) -> OpResult {
+    fn dispatch_invoke(&mut self, method_symbol: u16, arg_count: usize) -> OpResult {
         let receiver_index = self.stack.len() - arg_count - 1;
         let receiver = self.stack[receiver_index].clone();
         let type_name = self.get_type_name(&receiver);
@@ -158,11 +164,12 @@ impl VirtualMachine {
         if let Some(type_name) = &type_name {
             let is_static_call = matches!(receiver, Value::Struct(_));
             match self.dispatch_method_by_name(
-                type_name.as_str(),
+                type_name.symbol(),
                 is_static_call,
                 receiver_index,
                 arg_count,
-                method_name,
+                method_symbol,
+                type_name.as_str(),
             ) {
                 MethodDispatch::Found(closure, arg_count, exclude_self) => {
                     return self.call_closure_with(arg_count, &closure, exclude_self);
@@ -171,9 +178,10 @@ impl VirtualMachine {
                 MethodDispatch::NotFound => {}
             }
 
+            let method_name = self.symbol_name(method_symbol);
             if let Some(native) = crate::common::method_registry::get_native_method_by_name(
                 type_name.as_str(),
-                method_name,
+                &method_name,
             ) {
                 let result = match self.run_native_callable(
                     native,
@@ -190,19 +198,8 @@ impl VirtualMachine {
             }
         }
 
-        // Invoke still carries the method name as a string constant, so this
-        // fallback looks the field up by name; the next unit switches Invoke
-        // to a symbol id and this becomes a `field(symbol)` call like
-        // op_get_field's.
         if let Value::Instance(inst) = &receiver {
-            let instance = inst.borrow();
-            let field_value = instance
-                .r#struct
-                .fields
-                .iter()
-                .position(|name| name == method_name)
-                .map(|index| instance.fields[index].clone());
-            drop(instance);
+            let field_value = inst.borrow().field(method_symbol).cloned();
             if let Some(field_value) = field_value {
                 self.stack[receiver_index] = field_value;
                 return self.dispatch_call(arg_count);
@@ -210,7 +207,11 @@ impl VirtualMachine {
         }
 
         Err(self.call_error(match type_name {
-            Some(type_name) => format!("Unknown method '{}' for type {}", method_name, type_name),
+            Some(type_name) => format!(
+                "Unknown method '{}' for type {}",
+                self.symbol_name(method_symbol),
+                type_name
+            ),
             None => "Cannot determine type of receiver for method call".to_string(),
         }))
     }
@@ -271,36 +272,47 @@ impl VirtualMachine {
         }
     }
 
-    /// Looks up `method_name` in the user method table under `type_name`
+    /// Looks up `method_symbol` in the user method table under `type_symbol`
     /// and checks the call form (static vs. instance) against the method's
     /// definition. For an instance call, inserts a `Nil` callee slot below
     /// the receiver so the receiver becomes `self`.
     fn dispatch_method_by_name(
         &mut self,
-        type_name: &str,
+        type_symbol: u16,
         is_static_call: bool,
         receiver_index: usize,
         arg_count: usize,
-        method_name: &str,
+        method_symbol: u16,
+        type_name: &str,
     ) -> MethodDispatch {
-        let Some((closure, takes_self)) = self
+        let Some((_, closure, takes_self)) = self
             .methods
-            .get(type_name)
-            .and_then(|methods| methods.get(method_name))
+            .get(type_symbol as usize)
+            .and_then(|methods| {
+                methods
+                    .iter()
+                    .find(|(symbol, _, _)| *symbol == method_symbol)
+            })
             .cloned()
         else {
             return MethodDispatch::NotFound;
         };
 
         match (is_static_call, takes_self) {
-            (true, true) => MethodDispatch::Mismatch(self.call_error(format!(
-                "Method '{}' needs an instance; call it on a {} value",
-                method_name, type_name
-            ))),
-            (false, false) => MethodDispatch::Mismatch(self.call_error(format!(
-                "Method '{}' is static; call it as {}.{}()",
-                method_name, type_name, method_name
-            ))),
+            (true, true) => {
+                let method_name = self.symbol_name(method_symbol);
+                MethodDispatch::Mismatch(self.call_error(format!(
+                    "Method '{}' needs an instance; call it on a {} value",
+                    method_name, type_name
+                )))
+            }
+            (false, false) => {
+                let method_name = self.symbol_name(method_symbol);
+                MethodDispatch::Mismatch(self.call_error(format!(
+                    "Method '{}' is static; call it as {}.{}()",
+                    method_name, type_name, method_name
+                )))
+            }
             (true, false) => MethodDispatch::Found(closure, arg_count, false),
             (false, true) => {
                 self.stack.insert(receiver_index, Value::Nil);
@@ -1388,19 +1400,25 @@ impl VirtualMachine {
 
     /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<TypeName> {
+        fn builtin(name: &'static str) -> TypeName {
+            TypeName::Static(
+                name,
+                crate::common::method_registry::builtin_type_symbol(name),
+            )
+        }
         match value {
-            Value::Array(_) => Some(TypeName::Static("Array")),
-            Value::String(_) => Some(TypeName::Static("String")),
-            Value::Map(_) => Some(TypeName::Static("Map")),
-            Value::Set(_) => Some(TypeName::Static("Set")),
-            Value::File(_) => Some(TypeName::Static("File")),
-            Value::Range(_) => Some(TypeName::Static("Range")),
+            Value::Array(_) => Some(builtin("Array")),
+            Value::String(_) => Some(builtin("String")),
+            Value::Map(_) => Some(builtin("Map")),
+            Value::Set(_) => Some(builtin("Set")),
+            Value::File(_) => Some(builtin("File")),
+            Value::Range(_) => Some(builtin("Range")),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
             Value::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
-            Value::Number(_) => Some(TypeName::Static("Number")),
-            Value::Boolean(_) => Some(TypeName::Static("Boolean")),
+            Value::Number(_) => Some(builtin("Number")),
+            Value::Boolean(_) => Some(builtin("Boolean")),
             _ => None,
         }
     }
@@ -1427,26 +1445,19 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_define_method(&mut self) {
         let frame = self.current_frame_mut();
-        let type_name = {
-            let index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_constant(index)
-        };
-        let method_name = {
-            let index = frame.closure.function.chunk.read_u16(frame.ip + 3) as usize;
-            frame.closure.function.chunk.read_constant(index)
-        };
+        let type_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
+        let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 3);
         let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 5) != 0;
         frame.ip += 5;
 
         let closure_value = self.pop();
-        let type_name = as_string!(type_name).to_string();
-        let method_name = as_string!(method_name).to_string();
         let Value::Closure(closure) = &closure_value else {
             unreachable!("DefineMethod expects a closure on top of the stack")
         };
-        self.methods
-            .entry(type_name)
-            .or_default()
-            .insert(method_name, (Rc::clone(closure), takes_self));
+        let type_symbol = type_symbol as usize;
+        if type_symbol >= self.methods.len() {
+            self.methods.resize_with(type_symbol + 1, Vec::new);
+        }
+        self.methods[type_symbol].push((method_symbol, Rc::clone(closure), takes_self));
     }
 }

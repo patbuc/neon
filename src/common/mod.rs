@@ -210,6 +210,7 @@ pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
     pub field_symbols: Vec<u16>,
+    pub name_symbol: u16,
 }
 
 impl ObjStruct {
@@ -223,11 +224,17 @@ impl Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
 
-    pub(crate) fn new_struct(name: String, fields: Vec<String>, field_symbols: Vec<u16>) -> Self {
+    pub(crate) fn new_struct(
+        name: String,
+        fields: Vec<String>,
+        field_symbols: Vec<u16>,
+        name_symbol: u16,
+    ) -> Self {
         Value::Struct(Rc::new(ObjStruct {
             name,
             fields,
             field_symbols,
+            name_symbol,
         }))
     }
 
