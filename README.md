@@ -93,7 +93,7 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 ### Data Types
 
 **Primitives:**
-- **Numbers** - 64-bit floating-point (e.g., `42`, `3.14`)
+- **Numbers** - 64-bit floating-point (e.g., `42`, `3.14`), including scientific notation (e.g., `1.5e-3`, `2E+2`)
 - **Booleans** - `true` and `false`
 - **Strings** - Unicode text with escapes (e.g., `"hello"`, `"world\n"`)
 - **Nil** - Null value represented as `nil`
