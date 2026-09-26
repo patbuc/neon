@@ -1,4 +1,4 @@
-// runtime_error_unknown_method_struct.n - Calling an undefined method on a struct instance, through a parameter of unknown static type
+// Calling an undefined method on a struct instance
 
 // Expected:
 // before

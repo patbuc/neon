@@ -1,4 +1,4 @@
-// runtime_error_method_is_static.n - Calling a static method on an instance, through a parameter of unknown static type
+// Calling a static method on an instance
 
 // Expected:
 // before

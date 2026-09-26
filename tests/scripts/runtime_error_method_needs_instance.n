@@ -1,4 +1,4 @@
-// runtime_error_method_needs_instance.n - Calling an instance method on the struct type itself, through a parameter of unknown static type
+// Calling an instance method on the struct type itself
 
 // Expected:
 // before

@@ -1,4 +1,4 @@
-// runtime_error_unknown_method_builtin.n - Calling an undefined method on a builtin value, through a parameter of unknown static type
+// Calling an undefined method on a builtin value
 
 // Expected:
 // before

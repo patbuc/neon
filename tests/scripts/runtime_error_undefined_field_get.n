@@ -1,4 +1,4 @@
-// runtime_error_undefined_field_get.n - Reading a field the struct doesn't have, through a parameter of unknown static type
+// Reading a field the struct doesn't have
 
 // Expected:
 // before

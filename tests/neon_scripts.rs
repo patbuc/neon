@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 /// Extracts an expected runtime error message from a `// Expected runtime
-/// error: <message>` line in the script's leading comments, if present.
+/// error: <message>` line anywhere in the script, if present.
 fn extract_expected_runtime_error(script: &str) -> Option<String> {
     script.lines().find_map(|line| {
         line.trim()
@@ -38,8 +38,8 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
         }
 
         if in_expectation_block {
-            if trimmed.is_empty() {
-                // Empty line ends the expectation block
+            if trimmed.is_empty() || trimmed.starts_with("// Expected runtime error:") {
+                // Empty line, or the runtime-error line, ends the expectation block
                 break;
             } else if trimmed.starts_with("//") {
                 // Remove the comment prefix and trim
@@ -85,8 +85,9 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
             );
             let actual_message = vm
                 .get_runtime_error()
-                .map(|e| e.message.clone())
-                .unwrap_or_default();
+                .expect("InterpretResult::RuntimeError but no RuntimeError recorded")
+                .message
+                .clone();
             assert_eq!(
                 expected_message,
                 actual_message,
