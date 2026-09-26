@@ -181,6 +181,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "fn add(a, b) {\n    return a + b\n}\nadd(1, 2, 3)\n".to_string(),
             Some("but got 3"),
         )],
+        CompilationErrorKind::DuplicateField => {
+            vec![("struct A { x x }\n".to_string(), Some("'A'"))]
+        }
         CompilationErrorKind::LimitExceeded => vec![
             (
                 source_overflowing_a_codegen_limit(),

@@ -7,7 +7,7 @@ use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
-use crate::compiler::ast::{Expr, NodeId, Stmt};
+use crate::compiler::ast::{Expr, NodeId, Stmt, StructField};
 use crate::compiler::resolutions::{Capture, DeclId, FunctionResolution, Res, Resolutions};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
@@ -209,11 +209,12 @@ impl SemanticAnalyzer {
                         ));
                         continue;
                     }
+                    self.check_duplicate_fields(name, fields);
                     self.declare_symbol(
                         *id,
                         name.clone(),
                         SymbolKind::Struct {
-                            fields: fields.clone(),
+                            fields: fields.iter().map(|f| f.name.clone()).collect(),
                         },
                         false,
                         *location,
@@ -248,6 +249,25 @@ impl SemanticAnalyzer {
             } = stmt
             {
                 self.collect_impl_block(type_name, methods, *location);
+            }
+        }
+    }
+
+    /// Reports each field name repeated in a struct declaration, at its
+    /// second (and any later) occurrence.
+    fn check_duplicate_fields(&mut self, struct_name: &str, fields: &[StructField]) {
+        let mut seen = std::collections::HashSet::new();
+        for field in fields {
+            if !seen.insert(field.name.as_str()) {
+                self.errors.push(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateField,
+                    format!(
+                        "Struct '{}' declares field '{}' more than once",
+                        struct_name, field.name
+                    ),
+                    field.location,
+                ));
             }
         }
     }
@@ -756,11 +776,12 @@ impl SemanticAnalyzer {
                         format!("Struct '{}' must be declared at the top level", name),
                         *location,
                     ));
+                    self.check_duplicate_fields(name, fields);
                     self.declare_symbol(
                         *id,
                         name.clone(),
                         SymbolKind::Struct {
-                            fields: fields.clone(),
+                            fields: fields.iter().map(|f| f.name.clone()).collect(),
                         },
                         false,
                         *location,
