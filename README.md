@@ -71,6 +71,11 @@ This prints a table with mean, stddev, min, and median per language plus the Neo
 implementations disagree on the result. Charts tracking these benchmarks over time are published at
 [patbuc.github.io/neon/dev/bench](https://patbuc.github.io/neon/dev/bench/), updated on every push to `main`.
 
+To add a benchmark, write `benches/<name>.n` and `benches/<name>.py` doing the same work, each reading the problem
+size from the first argument with a small default and printing one integer checksum, then register a driver size for
+it in `BENCHMARKS` in `benches/run.py`. The `.n` file's `// Expected:` checksum, at its default size, runs as part of
+`cargo test`.
+
 ## State
 
 Neon is a functional dynamically-typed interpreter with a comprehensive feature set. It's an active learning project and includes:
