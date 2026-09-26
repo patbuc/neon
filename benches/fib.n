@@ -1,0 +1,15 @@
+// Naive recursive fibonacci, measuring plain recursive call overhead.
+
+// Expected:
+// 610
+
+val n = args.length() > 0 ? args[0].toInt() : 15
+
+fn fib(n) {
+    if (n <= 1) {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+print(fib(n))
