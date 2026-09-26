@@ -25,6 +25,7 @@ BENCHMARKS = {
     "binary_trees": 13,
     "sieve": 1000000,
     "collections": 200000,
+    "strings": 18000,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
