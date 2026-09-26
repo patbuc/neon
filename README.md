@@ -1,5 +1,6 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/patbuc/neon/rust.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/patbuc/neon/actions/workflows/rust.yml)
 [![Lint](https://img.shields.io/github/actions/workflow/status/patbuc/neon/lint.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=lint)](https://github.com/patbuc/neon/actions/workflows/lint.yml)
+[![Bench](https://img.shields.io/github/actions/workflow/status/patbuc/neon/bench.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=bench)](https://github.com/patbuc/neon/actions/workflows/bench.yml)
 [![License](https://img.shields.io/github/license/patbuc/neon?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021%20edition-orange?style=flat-square&logo=rust&logoColor=white)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
 [![Last commit](https://img.shields.io/github/last-commit/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon/commits)
@@ -53,6 +54,22 @@ Run it:
 ```bash
 cargo run -- hello.n
 ```
+
+## Benchmarks
+
+`benches/` holds paired `<name>.n` / `<name>.py` benchmarks (fib, closures, structs, collections, sieve, and more)
+that implement the same algorithm in Neon and in plain Python, so the two can be timed head to head.
+
+```bash
+cargo build --release
+python3 benches/run.py               # all benchmarks
+python3 benches/run.py fib strings   # run a subset by name
+python3 benches/run.py --runs 10     # timed runs per benchmark (default 5)
+```
+
+This prints a table with mean, stddev, min, and median per language plus the Neon/Python ratio, and fails if the two
+implementations disagree on the result. Charts tracking these benchmarks over time are published at
+[patbuc.github.io/neon/dev/bench](https://patbuc.github.io/neon/dev/bench/), updated on every push to `main`.
 
 ## State
 

@@ -23,14 +23,40 @@ cargo test              # Run all tests (unit + integration)
 cargo test -p neon      # Run only unit tests
 ```
 
-Integration tests use `datatest-stable` harness and run all `.n` scripts in `tests/scripts/`. Each script must include
-inline expected output:
+Integration tests use `datatest-stable` harness and run all `.n` scripts in `tests/scripts/` and `benches/`. Each
+script must include inline expected output:
 
 ```neon
 // Expected:
 // output line 1
 // output line 2
 ```
+
+### Benchmarks
+
+Neon vs. Python benchmarks live in `benches/` as `<name>.n` / `<name>.py` pairs implementing the same algorithm.
+
+```bash
+cargo build --release
+python3 benches/run.py               # all benchmarks
+python3 benches/run.py fib strings   # name filter
+python3 benches/run.py --runs 10     # timed runs per benchmark (default 5)
+```
+
+Prints a Markdown table (mean, stddev, min, median per language, and the Neon/Python ratio) and writes
+`bench-results.json` in `benchmark-action/github-action-benchmark`'s `customSmallerIsBetter` format. Exits non-zero
+naming the benchmark if the Neon and Python checksums differ.
+
+To add a pair: write `benches/<name>.n` and `benches/<name>.py` implementing the same algorithm like for like (the
+Python side uses plain loops/classes, not numpy), then add `"<name>": SIZE` to `BENCHMARKS` in `benches/run.py`.
+Both scripts read the problem size from the first argument with a small inline default, e.g.
+`args.length() > 0 ? args[0].toInt() : 15` in Neon and `int(sys.argv[1]) if len(sys.argv) > 1 else 15` in Python, and
+each prints one integer checksum line. Pick the default size so a release build of Neon takes roughly 200-1000 ms.
+The `.n` file carries a `// Expected:` block at that default size, checked by `cargo test`.
+
+`.github/workflows/bench.yml` runs the suite on every push to `main` (and via `workflow_dispatch`), publishing charts
+to `https://patbuc.github.io/neon/dev/bench/`. It never fails the build on a regression — shared runners are too
+noisy for thresholds.
 
 ### Running Scripts
 
