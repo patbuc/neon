@@ -496,45 +496,55 @@ impl Scanner {
         self.make_token(TokenType::Number)
     }
 
-    fn make_decimal_number(&mut self) -> Token {
-        // Consume integer part with underscore support
+    // Consumes a run of digits, allowing '_' between two digits. Returns an
+    // error token if an underscore is misplaced.
+    fn consume_digit_run(&mut self) -> Option<Token> {
         loop {
             let c = self.peek();
             if Scanner::is_digit(c) {
                 self.advance();
             } else if c == '_' {
                 if !Scanner::is_digit(self.peek_next()) {
-                    return self.make_error_token(
+                    return Some(self.make_error_token(
                         CompilationErrorKind::InvalidNumberLiteral,
                         "Invalid underscore placement in number literal",
-                    );
+                    ));
                 }
                 self.advance();
             } else {
                 break;
             }
         }
+        None
+    }
+
+    fn make_decimal_number(&mut self) -> Token {
+        if let Some(error) = self.consume_digit_run() {
+            return error;
+        }
 
         // Handle decimal point
         if self.peek() == '.' && Scanner::is_digit(self.peek_next()) {
             self.advance(); // consume '.'
+            if let Some(error) = self.consume_digit_run() {
+                return error;
+            }
+        }
 
-            // Consume fractional part with underscore support
-            loop {
-                let c = self.peek();
-                if Scanner::is_digit(c) {
-                    self.advance();
-                } else if c == '_' {
-                    if !Scanner::is_digit(self.peek_next()) {
-                        return self.make_error_token(
-                            CompilationErrorKind::InvalidNumberLiteral,
-                            "Invalid underscore placement in number literal",
-                        );
-                    }
-                    self.advance();
-                } else {
-                    break;
-                }
+        // Handle exponent
+        if matches!(self.peek(), 'e' | 'E') {
+            self.advance();
+            if matches!(self.peek(), '+' | '-') {
+                self.advance();
+            }
+            if !Scanner::is_digit(self.peek()) {
+                return self.make_error_token(
+                    CompilationErrorKind::InvalidNumberLiteral,
+                    "Missing digits in number exponent",
+                );
+            }
+            if let Some(error) = self.consume_digit_run() {
+                return error;
             }
         }
 
