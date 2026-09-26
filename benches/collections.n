@@ -1,0 +1,43 @@
+// Expected:
+// 3725
+
+val n = args.length() > 0 ? args[0].toInt() : 50
+
+val mod_val = 97
+
+val arr = []
+var i = 0
+while (i < n) {
+    arr.push(i * 2)
+    i = i + 1
+}
+
+val m = {}
+i = 0
+while (i < n) {
+    m["key" + i.toString()] = i
+    i = i + 1
+}
+
+val s = #{}
+i = 0
+while (i < n) {
+    s.add(i % mod_val)
+    i = i + 1
+}
+
+var checksum = 0
+i = 0
+while (i < n) {
+    checksum = (checksum + arr[i]) % 1000000007
+    val key = "key" + i.toString()
+    if (m.has(key)) {
+        checksum = (checksum + m[key]) % 1000000007
+    }
+    if (s.has(i % mod_val)) {
+        checksum = (checksum + 1) % 1000000007
+    }
+    i = i + 1
+}
+
+print(checksum)
