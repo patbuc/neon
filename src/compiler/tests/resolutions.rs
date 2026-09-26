@@ -43,3 +43,17 @@ fn interning_beyond_65536_names_fails_but_existing_names_still_succeed() {
     assert!(resolutions.intern_symbol("sym0").is_some());
     assert!(resolutions.intern_symbol("Array").is_some());
 }
+
+#[test]
+fn symbol_returns_the_id_a_name_was_interned_under() {
+    let mut resolutions = Resolutions::default();
+    let id = resolutions.intern_symbol("Point").unwrap();
+    assert_eq!(resolutions.symbol("Point"), id);
+}
+
+#[test]
+#[should_panic(expected = "no symbol interned for")]
+fn symbol_panics_for_a_name_never_interned() {
+    let resolutions = Resolutions::default();
+    resolutions.symbol("nope");
+}

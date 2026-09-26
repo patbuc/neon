@@ -190,8 +190,19 @@ impl VirtualMachine {
             }
         }
 
+        // Invoke still carries the method name as a string constant, so this
+        // fallback looks the field up by name; the next unit switches Invoke
+        // to a symbol id and this becomes a `field(symbol)` call like
+        // op_get_field's.
         if let Value::Instance(inst) = &receiver {
-            let field_value = inst.borrow().field(method_name).cloned();
+            let instance = inst.borrow();
+            let field_value = instance
+                .r#struct
+                .fields
+                .iter()
+                .position(|name| name == method_name)
+                .map(|index| instance.fields[index].clone());
+            drop(instance);
             if let Some(field_value) = field_value {
                 self.stack[receiver_index] = field_value;
                 return self.dispatch_call(arg_count);
@@ -891,27 +902,19 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
-        let field_name_index = self.read_index();
+        let symbol = self.read_index() as u16;
         let instance_value = self.peek(0);
-
-        let field_name_value = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_constant(field_name_index)
-        };
-        let field_name = match &field_name_value {
-            Value::String(s) => s.as_str(),
-            _ => return Err(self.runtime_error("Field name must be a string.")),
-        };
 
         match &instance_value {
             Value::Instance(instance_ref) => {
                 let instance = instance_ref.borrow();
 
-                if let Some(value) = instance.field(field_name).cloned() {
+                if let Some(value) = instance.field(symbol).cloned() {
                     self.pop();
                     self.push(value);
                 } else {
-                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
@@ -924,24 +927,16 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
-        let field_name_index = self.read_index();
+        let symbol = self.read_index() as u16;
         let value = self.peek(0);
         let instance_value = self.peek(1);
-
-        let field_name_value = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_constant(field_name_index)
-        };
-        let field_name = match &field_name_value {
-            Value::String(s) => s.as_str(),
-            _ => return Err(self.runtime_error("Field name must be a string.")),
-        };
 
         match &instance_value {
             Value::Instance(instance_ref) => {
                 let mut instance = instance_ref.borrow_mut();
-                let Some(index) = instance.r#struct.field_index(field_name) else {
-                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
+                let Some(index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
 
                 instance.fields[index] = value.clone();
@@ -956,6 +951,12 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         frame.ip += 2;
         Ok(())
+    }
+
+    /// Looks up an interned name by symbol id, for use on an error path only.
+    fn symbol_name(&self, symbol: u16) -> Rc<str> {
+        let frame = self.current_frame();
+        frame.closure.function.chunk.symbols[symbol as usize].clone()
     }
 
     #[inline(always)]

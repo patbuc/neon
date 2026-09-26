@@ -129,9 +129,9 @@ impl Chunk {
     }
 
     fn field_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
-        let index = self.read_u16(offset + 1) as usize;
-        let field_name = self.read_constant(index);
-        writeln!(out, "{:?} {:02} '{}'", op_code, index, field_name).unwrap();
+        let symbol = self.read_u16(offset + 1) as usize;
+        let name = &self.symbols[symbol];
+        writeln!(out, "{:?} {:02} '{}'", op_code, symbol, name).unwrap();
         offset + 3
     }
 

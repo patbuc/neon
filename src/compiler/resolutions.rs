@@ -76,6 +76,10 @@ impl Symbols {
     fn names(&self) -> Rc<[Rc<str>]> {
         Rc::from(self.names.as_slice())
     }
+
+    fn id(&self, name: &str) -> Option<u16> {
+        self.ids.get(name).copied()
+    }
 }
 
 /// Every name resolution the semantic pass made, keyed by AST node id.
@@ -127,6 +131,15 @@ impl Resolutions {
     /// for embedding into a compiled chunk.
     pub fn symbol_names(&self) -> Rc<[Rc<str>]> {
         self.symbols.names()
+    }
+
+    /// The id `name` was interned under. Panics if it was never interned -
+    /// every field, method, and type name codegen looks up here must have
+    /// gone through `intern_symbol` during semantic analysis first.
+    pub fn symbol(&self, name: &str) -> u16 {
+        self.symbols
+            .id(name)
+            .unwrap_or_else(|| panic!("no symbol interned for {:?}", name))
     }
 
     /// The resolution of an `Expr::Variable` or `Expr::Assign` node.

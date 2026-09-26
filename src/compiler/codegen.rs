@@ -155,7 +155,11 @@ impl<'a> CodeGenerator<'a> {
                 } => {
                     // Create the struct value
                     let field_names = fields.iter().map(|f| f.name.clone()).collect();
-                    let struct_value = Value::new_struct(name.clone(), field_names);
+                    let field_symbols = fields
+                        .iter()
+                        .map(|f| self.resolutions.symbol(&f.name))
+                        .collect();
+                    let struct_value = Value::new_struct(name.clone(), field_names, field_symbols);
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -1304,9 +1308,8 @@ impl<'a> CodeGenerator<'a> {
                 location,
             } => {
                 self.generate_expr(object);
-                let field_string = string!(field.as_str());
-                let field_index = self.add_constant(field_string);
-                self.emit_index_op(OpCode::GetField, field_index, "constants", *location);
+                let symbol = self.resolutions.symbol(field);
+                self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", *location);
             }
             Expr::SetField {
                 object,
@@ -1316,9 +1319,8 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_expr(object);
                 self.generate_expr(value);
-                let field_string = string!(field.as_str());
-                let field_index = self.add_constant(field_string);
-                self.emit_index_op(OpCode::SetField, field_index, "constants", *location);
+                let symbol = self.resolutions.symbol(field);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
             }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);

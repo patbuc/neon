@@ -797,24 +797,36 @@ fn test_repeated_string_literal_dedups() {
     assert_eq!(count_strings(&chunk, "hi"), 1);
 }
 
+/// Field names are looked up by symbol id, not by string constant, so
+/// `count_strings` should find none in this chunk or any nested function's.
+fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
+    assert_eq!(
+        count_strings(chunk, s),
+        0,
+        "expected no {:?} string constant in {:?}",
+        s,
+        chunk.name
+    );
+    for constant in &chunk.constants.values {
+        if let Value::Function(function) = constant {
+            assert_no_string_constant_anywhere(&function.chunk, s);
+        }
+    }
+}
+
 #[test]
-fn test_repeated_field_name_dedups() {
+fn test_field_read_and_write_do_not_use_the_constant_pool() {
     let program = r#"
-    struct P { x }
-    val p = P(1)
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
+    struct P { value }
+    fn make() {
+        val p = P(1)
+        p.value = 2
+        return p.value
+    }
+    make()
     "#;
     let chunk = compile_program(program).unwrap();
-    assert_eq!(count_strings(&chunk, "x"), 1);
+    assert_no_string_constant_anywhere(&chunk, "value");
 }
 
 #[test]

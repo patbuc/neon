@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -198,9 +198,9 @@ pub struct ObjInstance {
 }
 
 impl ObjInstance {
-    pub(crate) fn field(&self, name: &str) -> Option<&Value> {
+    pub(crate) fn field(&self, symbol: u16) -> Option<&Value> {
         self.r#struct
-            .field_index(name)
+            .field_index(symbol)
             .map(|index| &self.fields[index])
     }
 }
@@ -209,12 +209,12 @@ impl ObjInstance {
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
-    pub field_indices: HashMap<String, usize>,
+    pub field_symbols: Vec<u16>,
 }
 
 impl ObjStruct {
-    pub(crate) fn field_index(&self, name: &str) -> Option<usize> {
-        self.field_indices.get(name).copied()
+    pub(crate) fn field_index(&self, symbol: u16) -> Option<usize> {
+        self.field_symbols.iter().position(|&s| s == symbol)
     }
 }
 
@@ -223,16 +223,11 @@ impl Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
 
-    pub(crate) fn new_struct(name: String, fields: Vec<String>) -> Self {
-        let field_indices = fields
-            .iter()
-            .enumerate()
-            .map(|(index, name)| (name.clone(), index))
-            .collect();
+    pub(crate) fn new_struct(name: String, fields: Vec<String>, field_symbols: Vec<u16>) -> Self {
         Value::Struct(Rc::new(ObjStruct {
             name,
             fields,
-            field_indices,
+            field_symbols,
         }))
     }
 
