@@ -10,7 +10,7 @@ while (i < n) {
     i = i + 1
 }
 
-for (var j = 0; j < n; j = j + 1) {
+for (j in 0..n) {
     total = (total * 31 + j) % 1000000007
 }
 
