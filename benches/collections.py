@@ -2,8 +2,6 @@ import sys
 
 n = int(sys.argv[1]) if len(sys.argv) > 1 else 50
 
-mod_val = 97
-
 arr = []
 i = 0
 while i < n:
@@ -19,7 +17,7 @@ while i < n:
 s = set()
 i = 0
 while i < n:
-    s.add(i % mod_val)
+    s.add(i * 3)
     i = i + 1
 
 checksum = 0
@@ -29,7 +27,7 @@ while i < n:
     key = "key" + str(i)
     if key in m:
         checksum = (checksum + m[key]) % 1000000007
-    if (i % mod_val) in s:
+    if i in s:
         checksum = (checksum + 1) % 1000000007
     i = i + 1
 

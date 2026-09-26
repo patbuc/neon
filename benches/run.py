@@ -24,7 +24,7 @@ BENCHMARKS = {
     "nbody": 15000,
     "binary_trees": 13,
     "sieve": 1000000,
-    "collections": 200000,
+    "collections": 160000,
     "strings": 140000,
 }
 
