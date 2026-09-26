@@ -3327,6 +3327,7 @@ fn test_duplicate_struct_field_is_compile_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateField);
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 5);
     assert!(errors[0].message.contains("'A'"));
     assert!(errors[0].message.contains("'x'"));
 }

@@ -4,8 +4,7 @@ use crate::common::SourceLocation;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
 
-/// A struct field as written in a `struct` declaration, with the location of
-/// its name so semantic analysis can point at a duplicate.
+/// A struct field and the location of its name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,

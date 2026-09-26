@@ -200,6 +200,7 @@ impl SemanticAnalyzer {
                     location,
                     ..
                 } => {
+                    self.check_duplicate_fields(name, fields);
                     if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
                         self.errors.push(CompilationError::new(
                             CompilationPhase::Semantic,
@@ -209,7 +210,6 @@ impl SemanticAnalyzer {
                         ));
                         continue;
                     }
-                    self.check_duplicate_fields(name, fields);
                     self.declare_symbol(
                         *id,
                         name.clone(),
@@ -253,10 +253,8 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Reports each field name repeated in a struct declaration, at its
-    /// second (and any later) occurrence.
     fn check_duplicate_fields(&mut self, struct_name: &str, fields: &[StructField]) {
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         for field in fields {
             if !seen.insert(field.name.as_str()) {
                 self.errors.push(CompilationError::new(
