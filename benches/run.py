@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Benchmark driver: runs paired Neon/Python benchmarks and compares timings."""
 
-import os
 import sys
 
 # benches/collections.py would otherwise shadow the stdlib "collections"
 # module for every import below, since Python puts this script's directory
 # first on sys.path.
-_BENCH_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path = [p for p in sys.path if os.path.abspath(p or os.getcwd()) != _BENCH_DIR]
+if not sys.flags.safe_path:
+    del sys.path[0]
 
 import argparse
 import json
+import os
 import statistics
 import subprocess
 import time
