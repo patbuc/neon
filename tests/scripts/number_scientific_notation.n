@@ -1,0 +1,22 @@
+// Test scientific-notation number literals
+
+// Expected:
+// 1500
+// 1000
+// 200
+// 0.0015
+// true
+// 14
+// 225
+// 2
+
+print(1.5e3)
+print(1e3)
+print(2E+2)
+print(1.5e-3)
+print(1_0e1_0 == 100000000000)
+print(0xE)
+print(0xE1)
+
+val e = 2
+print(e)

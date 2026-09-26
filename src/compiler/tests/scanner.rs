@@ -286,6 +286,70 @@ fn can_scan_float_with_underscores() {
 }
 
 #[test]
+fn can_scan_exponent_literals() {
+    for source in ["1.5e3", "1e3", "2E+2", "1.5e-3", "1_0e1_0"] {
+        let scanner = Scanner::new(source);
+        let tokens = collect_tokens(scanner);
+
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].token, source);
+    }
+}
+
+#[test]
+fn rejects_exponent_with_no_digits() {
+    let scanner = Scanner::new("1e");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
+    assert!(tokens[0]
+        .token
+        .contains("Missing digits in number exponent"));
+}
+
+#[test]
+fn rejects_exponent_with_only_sign() {
+    let scanner = Scanner::new("1e+");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
+    assert!(tokens[0]
+        .token
+        .contains("Missing digits in number exponent"));
+}
+
+#[test]
+fn rejects_exponent_with_leading_underscore() {
+    let scanner = Scanner::new("1e_5");
+    let tokens = collect_tokens(scanner);
+
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
+    );
+    assert!(tokens[0]
+        .token
+        .contains("Missing digits in number exponent"));
+}
+
+#[test]
+fn hex_literal_with_e_digit_still_scans() {
+    for source in ["0xE", "0xE1"] {
+        let scanner = Scanner::new(source);
+        let tokens = collect_tokens(scanner);
+
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].token, source);
+    }
+}
+
+#[test]
 fn rejects_invalid_binary_digit() {
     let scanner = Scanner::new("0b123");
     let tokens = collect_tokens(scanner);
