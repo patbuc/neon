@@ -21,6 +21,13 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NEON_BIN = os.path.join(REPO_ROOT, "target", "release", "neon")
 
 
+def positive_int(value):
+    ivalue = int(value)
+    if ivalue < 1:
+        raise argparse.ArgumentTypeError(f"--runs must be >= 1, got {ivalue}")
+    return ivalue
+
+
 def run_once(cmd):
     start = time.perf_counter()
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -33,14 +40,19 @@ def run_once(cmd):
 
 
 def time_command(cmd, runs):
-    run_once(cmd)  # warm-up
+    """Run cmd once as warm-up plus `runs` timed runs.
+
+    Returns (durations_ms, last_checksum, all_checksums) so callers can also
+    verify every run of a command agreed on its output.
+    """
+    _, warmup_checksum = run_once(cmd)
+    checksums = [warmup_checksum]
     durations = []
-    checksum = None
     for _ in range(runs):
         elapsed, output = run_once(cmd)
         durations.append(elapsed * 1000)
-        checksum = output
-    return durations, checksum
+        checksums.append(output)
+    return durations, checksums[-1], checksums
 
 
 def stats(durations):
@@ -52,19 +64,31 @@ def stats(durations):
     }
 
 
+def stats_cells(s):
+    return f"{s['mean']:.3f} ms | {s['stddev']:.3f} ms | {s['min']:.3f} ms | {s['median']:.3f} ms"
+
+
+def json_entry(name, unit, value, stddev=None):
+    entry = {"name": name, "unit": unit, "value": value}
+    if stddev is not None:
+        entry["range"] = f"± {stddev:.3f}"
+    return entry
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run Neon vs Python benchmarks")
     parser.add_argument("names", nargs="*", help="benchmark names to run (default: all)")
-    parser.add_argument("--runs", type=int, default=5, help="timed runs per benchmark (default: 5)")
+    parser.add_argument("--runs", type=positive_int, default=5, help="timed runs per benchmark (default: 5)")
     parser.add_argument("--json", default="bench-results.json", help="path to write results JSON")
     args = parser.parse_args()
 
     if args.names:
-        unknown = [n for n in args.names if n not in BENCHMARKS]
+        deduped = list(dict.fromkeys(args.names))
+        unknown = [n for n in deduped if n not in BENCHMARKS]
         if unknown:
             print(f"unknown benchmark(s): {', '.join(unknown)}", file=sys.stderr)
             sys.exit(1)
-        selected = args.names
+        selected = deduped
     else:
         selected = list(BENCHMARKS.keys())
 
@@ -72,7 +96,7 @@ def main():
         print(f"missing {NEON_BIN} — run `cargo build --release` first", file=sys.stderr)
         sys.exit(1)
 
-    mismatches = []
+    failures = []
     rows = []
     json_entries = []
 
@@ -81,13 +105,19 @@ def main():
         neon_script = os.path.join(REPO_ROOT, "benches", f"{name}.n")
         python_script = os.path.join(REPO_ROOT, "benches", f"{name}.py")
 
-        neon_durations, neon_checksum = time_command([NEON_BIN, neon_script, str(size)], args.runs)
-        python_durations, python_checksum = time_command(
+        neon_durations, neon_checksum, neon_checksums = time_command(
+            [NEON_BIN, neon_script, str(size)], args.runs
+        )
+        python_durations, python_checksum, python_checksums = time_command(
             [sys.executable, python_script, str(size)], args.runs
         )
 
+        if len(set(neon_checksums)) > 1:
+            failures.append(f"inconsistent neon checksums for {name}: {sorted(set(neon_checksums))!r}")
+        if len(set(python_checksums)) > 1:
+            failures.append(f"inconsistent python checksums for {name}: {sorted(set(python_checksums))!r}")
         if neon_checksum != python_checksum:
-            mismatches.append((name, neon_checksum, python_checksum))
+            failures.append(f"checksum mismatch for {name}: neon={neon_checksum!r} python={python_checksum!r}")
 
         neon_stats = stats(neon_durations)
         python_stats = stats(python_durations)
@@ -95,29 +125,9 @@ def main():
 
         rows.append((name, neon_stats, python_stats, ratio))
 
-        json_entries.append(
-            {
-                "name": f"{name} neon (ms)",
-                "unit": "ms",
-                "value": neon_stats["mean"],
-                "range": f"± {neon_stats['stddev']:.3f}",
-            }
-        )
-        json_entries.append(
-            {
-                "name": f"{name} python (ms)",
-                "unit": "ms",
-                "value": python_stats["mean"],
-                "range": f"± {python_stats['stddev']:.3f}",
-            }
-        )
-        json_entries.append(
-            {
-                "name": f"{name} neon/python",
-                "unit": "ratio",
-                "value": ratio,
-            }
-        )
+        json_entries.append(json_entry(f"{name} neon (ms)", "ms", neon_stats["mean"], neon_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} python (ms)", "ms", python_stats["mean"], python_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} neon/python", "ratio", ratio))
 
     table_lines = [
         "| Benchmark | Neon mean | Neon stddev | Neon min | Neon median | "
@@ -125,21 +135,7 @@ def main():
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, neon_stats, python_stats, ratio in rows:
-        table_lines.append(
-            "| {name} | {nmean:.3f} ms | {nstd:.3f} ms | {nmin:.3f} ms | {nmed:.3f} ms | "
-            "{pmean:.3f} ms | {pstd:.3f} ms | {pmin:.3f} ms | {pmed:.3f} ms | {ratio:.3f} |".format(
-                name=name,
-                nmean=neon_stats["mean"],
-                nstd=neon_stats["stddev"],
-                nmin=neon_stats["min"],
-                nmed=neon_stats["median"],
-                pmean=python_stats["mean"],
-                pstd=python_stats["stddev"],
-                pmin=python_stats["min"],
-                pmed=python_stats["median"],
-                ratio=ratio,
-            )
-        )
+        table_lines.append(f"| {name} | {stats_cells(neon_stats)} | {stats_cells(python_stats)} | {ratio:.3f} |")
     table = "\n".join(table_lines)
 
     print(table)
@@ -149,16 +145,16 @@ def main():
         with open(summary_path, "a") as f:
             f.write(table + "\n")
 
+    if failures:
+        for failure in failures:
+            print(failure, file=sys.stderr)
+        if summary_path:
+            with open(summary_path, "a") as f:
+                f.write("\n" + "\n".join(failures) + "\n")
+        sys.exit(1)
+
     with open(args.json, "w") as f:
         json.dump(json_entries, f, indent=2)
-
-    if mismatches:
-        for name, neon_checksum, python_checksum in mismatches:
-            print(
-                f"checksum mismatch for {name}: neon={neon_checksum!r} python={python_checksum!r}",
-                file=sys.stderr,
-            )
-        sys.exit(1)
 
 
 if __name__ == "__main__":
