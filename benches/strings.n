@@ -1,28 +1,23 @@
 // Expected:
-// 990
+// 2280
 
 val n = args.length() > 0 ? args[0].toInt() : 100
 
-var text = ""
+var checksum = 0
 var i = 0
 while (i < n) {
-    text = text + "ab" + i.toString() + ","
+    val s = "ab" + i.toString() + ",cd,ef"
+    val parts = s.split(",")
+    var j = 0
+    while (j < parts.length()) {
+        checksum = (checksum + parts[j].len()) % 1000000007
+        j = j + 1
+    }
+    val replaced = s.replace("ab", "xyz")
+    checksum = (checksum + replaced.len()) % 1000000007
+    val sub = s.substring(0, 4)
+    checksum = (checksum + sub.len()) % 1000000007
     i = i + 1
 }
-
-val parts = text.split(",")
-
-var checksum = 0
-i = 0
-while (i < parts.length()) {
-    checksum = (checksum + parts[i].len()) % 1000000007
-    i = i + 1
-}
-
-val replaced = text.replace("ab", "xyz")
-checksum = (checksum + replaced.len()) % 1000000007
-
-val sub = text.substring(0, 10)
-checksum = (checksum + sub.len()) % 1000000007
 
 print(checksum)
