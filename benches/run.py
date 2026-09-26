@@ -11,6 +11,7 @@ import time
 
 BENCHMARKS = {
     "fib": 31,
+    "loop_arith": 1500000,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
