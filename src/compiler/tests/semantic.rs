@@ -3314,6 +3314,25 @@ fn test_struct_inside_block_is_compile_error() {
 }
 
 #[test]
+fn test_duplicate_struct_field_is_compile_error() {
+    let program = "struct A {\n    x\n    x\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateField);
+    assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 5);
+    assert!(errors[0].message.contains("'A'"));
+    assert!(errors[0].message.contains("'x'"));
+}
+
+#[test]
 fn test_wrong_argument_count_to_method_names_method() {
     let program = r#"
 struct Point {
@@ -3533,6 +3552,25 @@ struct Array {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert!(errors.iter().any(|e| e.message.contains("Array")));
+}
+
+#[test]
+fn test_duplicate_field_on_reserved_struct_name_reports_both() {
+    let program = "struct Array { x x }\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::DuplicateField));
+    assert!(errors
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::ReservedStructName));
 }
 
 // ===== Issue #149: impl blocks on builtin types =====

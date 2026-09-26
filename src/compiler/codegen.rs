@@ -147,7 +147,8 @@ impl<'a> CodeGenerator<'a> {
                     ..
                 } => {
                     // Create the struct value
-                    let struct_value = Value::new_struct(name.clone(), fields.clone());
+                    let field_names = fields.iter().map(|f| f.name.clone()).collect();
+                    let struct_value = Value::new_struct(name.clone(), field_names);
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);

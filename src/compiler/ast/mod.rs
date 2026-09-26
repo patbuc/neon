@@ -4,6 +4,13 @@ use crate::common::SourceLocation;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
 
+/// A struct field and the location of its name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    pub name: String,
+    pub location: SourceLocation,
+}
+
 /// Binary operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
@@ -187,7 +194,7 @@ pub enum Stmt {
     },
     Struct {
         name: String,
-        fields: Vec<String>,
+        fields: Vec<StructField>,
         id: NodeId,
         location: SourceLocation,
     },

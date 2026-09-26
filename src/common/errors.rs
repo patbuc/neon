@@ -69,6 +69,7 @@ compilation_error_kinds! {
     TooFewArguments => "E0035",
     TooManyArguments => "E0036",
     LimitExceeded => "E0037",
+    DuplicateField => "E0038",
 }
 
 #[derive(Debug, Clone)]

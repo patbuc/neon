@@ -5,7 +5,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, StructField, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 use std::collections::HashMap;
@@ -547,7 +547,10 @@ impl Parser {
                 if !self.consume(TokenType::Identifier, "Expect field name.") {
                     break;
                 }
-                fields.push(self.previous_token.token.clone());
+                fields.push(StructField {
+                    name: self.previous_token.token.clone(),
+                    location: self.current_location(),
+                });
                 self.skip_new_lines();
                 if self.check(TokenType::RightBrace) {
                     break;
