@@ -6,7 +6,7 @@ import sys
 # benches/collections.py would otherwise shadow the stdlib "collections"
 # module for every import below, since Python puts this script's directory
 # first on sys.path.
-if not sys.flags.safe_path:
+if not getattr(sys.flags, "safe_path", False):
     del sys.path[0]
 
 import argparse
