@@ -797,11 +797,15 @@ impl VirtualMachine {
         self.ip += 4 + offset as usize;
     }
 
+    /// Loop: jumps back by the u32 operand, measured from the end of this
+    /// instruction plus one (the slot the dispatch loop's `ip += 1` would
+    /// land on). Sets `ip` to the target directly, so a loop starting at
+    /// instruction 0 doesn't pass through an underflowed intermediate; the
+    /// dispatch loop must not increment `ip` afterwards.
     #[inline(always)]
     pub(in crate::vm) fn op_loop(&mut self) {
         let offset = self.operand_u32(1);
-        self.ip += 4;
-        self.ip -= offset as usize;
+        self.ip = self.ip + 5 - offset as usize;
     }
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {

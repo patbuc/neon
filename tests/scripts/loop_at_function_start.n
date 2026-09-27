@@ -1,0 +1,25 @@
+// loop_at_function_start.n - a loop that is the first instruction of a
+// function jumps back to offset 0 without underflowing the instruction pointer
+
+// Expected:
+// [1]
+// 3
+
+fn shrink(xs) {
+    while (xs.length() > 1) {
+        xs.pop()
+    }
+    return xs
+}
+
+fn count(n) {
+    for (i in 0..n) {
+        if (i == n - 1) {
+            return n
+        }
+    }
+    return 0
+}
+
+print(shrink([1, 2, 3]))
+print(count(3))
