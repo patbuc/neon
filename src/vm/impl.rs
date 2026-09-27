@@ -301,9 +301,7 @@ impl VirtualMachine {
             .unwrap_or_default()
     }
 
-    /// Executed-opcode histogram: name and count, sorted by count descending
-    /// (ties broken by opcode byte ascending), one line per opcode that ran
-    /// at least once.
+    /// Executed-opcode histogram, one `<name> <count>` line per opcode that ran.
     #[cfg(feature = "opcode-stats")]
     pub fn opcode_stats_report(&self) -> String {
         let mut counts: Vec<(u8, u64)> = self
@@ -315,16 +313,15 @@ impl VirtualMachine {
             .collect();
         counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
-        let names: Vec<String> = counts
-            .iter()
-            .map(|(byte, _)| format!("{:?}", OpCode::from_u8(*byte).unwrap()))
+        let named: Vec<(String, u64)> = counts
+            .into_iter()
+            .map(|(byte, count)| (format!("{:?}", OpCode::from_u8(byte).unwrap()), count))
             .collect();
-        let name_width = names.iter().map(String::len).max().unwrap_or(0);
+        let name_width = named.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
 
-        names
+        named
             .iter()
-            .zip(counts.iter())
-            .map(|(name, (_, count))| format!("{:<width$} {}", name, count, width = name_width))
+            .map(|(name, count)| format!("{:<width$} {}", name, count, width = name_width))
             .collect::<Vec<_>>()
             .join("\n")
     }

@@ -33,7 +33,7 @@ fn for_in_loop_runs_loop_opcode_once_per_iteration() {
 }
 
 #[test]
-fn report_is_sorted_by_count_descending() {
+fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
     let vm = run(r#"
         for (i in 0..10) {
             val x = i + 1
@@ -41,11 +41,29 @@ fn report_is_sorted_by_count_descending() {
         "#);
 
     let report = vm.opcode_stats_report();
-    let counts: Vec<u64> = report
+    assert!(!report.is_empty());
+
+    let entries: Vec<(&str, u64)> = report
         .lines()
-        .map(|line| line.split_whitespace().last().unwrap().parse().unwrap())
+        .map(|line| {
+            let mut parts = line.split_whitespace();
+            let name = parts.next().unwrap();
+            let count = parts.next().unwrap().parse().unwrap();
+            (name, count)
+        })
         .collect();
+
+    let counts: Vec<u64> = entries.iter().map(|(_, count)| *count).collect();
     let mut sorted = counts.clone();
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
+
+    // Add, GetLocal, Loop, and IteratorNext all execute 10 times; ties break
+    // by ascending opcode byte, so they appear in this order.
+    let tied: Vec<&str> = entries
+        .iter()
+        .filter(|(_, count)| *count == 10)
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(vec!["Add", "GetLocal", "Loop", "IteratorNext"], tied);
 }
