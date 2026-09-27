@@ -1,3 +1,4 @@
+use crate::common::opcodes::OpCode;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 fn run(program: &str) -> VirtualMachine {
@@ -59,11 +60,19 @@ fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
     assert_eq!(sorted, counts);
 
     // Add, GetLocal, Loop, and IteratorNext all execute 10 times; ties break
-    // by ascending opcode byte, so they appear in this order.
+    // by ascending opcode byte.
+    let mut expected = [
+        OpCode::Add,
+        OpCode::GetLocal,
+        OpCode::Loop,
+        OpCode::IteratorNext,
+    ];
+    expected.sort_by_key(|op| *op as u8);
+    let expected: Vec<String> = expected.iter().map(|op| format!("{:?}", op)).collect();
     let tied: Vec<&str> = entries
         .iter()
         .filter(|(_, count)| *count == 10)
         .map(|(name, _)| *name)
         .collect();
-    assert_eq!(vec!["Add", "GetLocal", "Loop", "IteratorNext"], tied);
+    assert_eq!(expected, tied);
 }
