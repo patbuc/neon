@@ -6,6 +6,9 @@ on:
       - 'editors/vscode/**'
       - 'src/compiler/scanner.rs'
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
