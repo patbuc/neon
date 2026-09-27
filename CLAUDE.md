@@ -32,6 +32,10 @@ script must include inline expected output:
 // output line 2
 ```
 
+A script whose execution ends in a runtime error also needs a `// Expected runtime error: <message>`
+line, matched exactly against the error message; it still needs an `// Expected:` block for any output
+printed before the error.
+
 ### Benchmarks
 
 Neon vs. Python benchmarks live in `benches/` as `<name>.n` / `<name>.py` pairs implementing the same algorithm.
@@ -101,7 +105,8 @@ cargo run --features disassemble -- script.n
       lexical scoping — including which calls dispatch to a native
     - Returns `Resolutions` (`src/compiler/resolutions.rs`): a `Res` per name-use node (keyed by the
       parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
-      captures, and which declarations are captured
+      captures, which declarations are captured, and a `Symbols` table interning every field, method,
+      and type name into a `u16` id (more than 65,536 distinct names is a compile error)
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand
 
 4. **Code Generation** (`src/compiler/codegen.rs`)
@@ -123,7 +128,8 @@ cargo run --features disassemble -- script.n
 
 **Bytecode Format** (`src/common/chunk/`)
 
-- Chunk: name, bytecode instructions, constant pool, and a line table of `LineInfo` entries
+- Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, and the
+  symbol table shared by every chunk of the compile
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting
 
@@ -131,7 +137,8 @@ cargo run --features disassemble -- script.n
 
 - Instruction set definition as `#[repr(u8)]` enum
 - Stack manipulation, arithmetic, control flow, function calls
-- Index operands (constants, locals, globals, upvalues, builtins) are a fixed 16 bits; jump/loop offsets are 32 bits
+- Index operands (constants, locals, globals, upvalues, builtins, and symbol ids for field/method/type
+  names) are a fixed 16 bits; jump/loop offsets are 32 bits
 
 **Value System** (`src/common/mod.rs`)
 

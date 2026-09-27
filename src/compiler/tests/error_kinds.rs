@@ -21,6 +21,26 @@ fn source_array_literal_too_large() -> String {
     format!("val arr = [{}]\n", elements.join(", "))
 }
 
+/// Builtin types (8), struct `S`, and field `x` already claim 10 symbol ids,
+/// leaving 65,526 free; one more method than that overflows the table.
+fn source_too_many_symbols() -> String {
+    let mut methods = String::new();
+    for i in 0..65527 {
+        methods.push_str(&format!("fn m{}(self) {{}}\n", i));
+    }
+    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+}
+
+/// Like `source_too_many_symbols`, but overflows by 100 names instead of 1,
+/// so a test can check the error is reported once, not once per name.
+fn source_many_too_many_symbols() -> String {
+    let mut methods = String::new();
+    for i in 0..65627 {
+        methods.push_str(&format!("fn m{}(self) {{}}\n", i));
+    }
+    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+}
+
 /// One input per known error-construction site for `kind`, each paired with
 /// a fragment its message must contain when that fragment distinguishes the
 /// site from the kind's other sites (`None` when every site shares wording).
@@ -198,6 +218,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 Some("array literal too large"),
             ),
         ],
+        CompilationErrorKind::TooManySymbols => {
+            vec![(source_too_many_symbols(), Some("limit 65536"))]
+        }
     }
 }
 
@@ -240,4 +263,18 @@ fn all_codes_are_unique_and_well_formed() {
             code
         );
     }
+}
+
+#[test]
+fn too_many_symbols_reported_once_per_compile() {
+    let errors = compile_to_errors(&source_many_too_many_symbols());
+    let count = errors
+        .iter()
+        .filter(|e| e.kind == CompilationErrorKind::TooManySymbols)
+        .count();
+    assert_eq!(
+        count, 1,
+        "expected exactly one TooManySymbols error, got {:#?}",
+        errors
+    );
 }

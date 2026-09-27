@@ -1,5 +1,6 @@
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Constants, LineInfo, Value};
+use std::rc::Rc;
 
 impl Chunk {
     pub(crate) fn new(name: &str) -> Self {
@@ -8,6 +9,7 @@ impl Chunk {
             constants: Constants::new(),
             instructions: Vec::new(),
             line_infos: Vec::new(),
+            symbols: Rc::from(Vec::new()),
         }
     }
 }

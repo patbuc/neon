@@ -1,0 +1,17 @@
+// Setting a field the struct doesn't have
+
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'y'.
+
+struct P {
+    x
+}
+
+fn setY(p) {
+    p.y = 2
+}
+
+print("before")
+setY(P(1))

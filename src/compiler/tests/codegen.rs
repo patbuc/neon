@@ -1,12 +1,11 @@
 use crate::common::opcodes::OpCode;
-use crate::common::Chunk;
+use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
+use std::rc::Rc;
 
 fn disassemble_program(chunk: &Chunk) -> String {
-    use crate::common::Value;
-
     let mut out = chunk.disassemble();
     for constant in &chunk.constants.values {
         if let Value::Function(function) = constant {
@@ -798,47 +797,40 @@ fn test_repeated_string_literal_dedups() {
     assert_eq!(count_strings(&chunk, "hi"), 1);
 }
 
-#[test]
-fn test_repeated_field_name_dedups() {
-    let program = r#"
-    struct P { x }
-    val p = P(1)
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    p.x
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert_eq!(count_strings(&chunk, "x"), 1);
+fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
+    assert_eq!(
+        count_strings(chunk, s),
+        0,
+        "expected no {:?} string constant in {:?}",
+        s,
+        chunk.name
+    );
+    for constant in &chunk.constants.values {
+        if let Value::Function(function) = constant {
+            assert_no_string_constant_anywhere(&function.chunk, s);
+        }
+    }
 }
 
 #[test]
-fn test_repeated_method_name_dedups() {
+fn test_field_and_method_access_do_not_use_the_constant_pool() {
     let program = r#"
-    struct P { }
+    struct P { value }
     impl P {
-        fn m(self) { return 1 }
+        fn m(self) { return self.value }
     }
-    val p = P()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
-    p.m()
+    fn make() {
+        val p = P(1)
+        p.value = 2
+        p.m()
+        return p.value
+    }
+    make()
     "#;
     let chunk = compile_program(program).unwrap();
-    assert_eq!(count_strings(&chunk, "m"), 1);
+    assert_no_string_constant_anywhere(&chunk, "value");
+    assert_no_string_constant_anywhere(&chunk, "m");
+    assert_no_string_constant_anywhere(&chunk, "P");
 }
 
 #[test]
@@ -1488,23 +1480,23 @@ fn test_closure_capturing_loop_variable_bytecode() {
 0040      | Loop 0040 -> 0018
 0045      | Pop
 0046      | CloseUpvalue
-0047      6 Constant 06 '<native fn print>'
+0047      6 Constant 05 '<native fn print>'
 004a      | GetLocal 00
 004d      | Constant 01 '0'
 0050      | GetIndex
 0051      | Call (args: 0)
 0053      | Call (args: 1)
 0055      5 Pop
-0056      7 Constant 07 '<native fn print>'
+0056      7 Constant 06 '<native fn print>'
 0059      | GetLocal 00
 005c      | Constant 02 '1'
 005f      | GetIndex
 0060      | Call (args: 0)
 0062      | Call (args: 1)
 0064      6 Pop
-0065      8 Constant 08 '<native fn print>'
+0065      8 Constant 07 '<native fn print>'
 0068      | GetLocal 00
-006b      | Constant 09 '2'
+006b      | Constant 08 '2'
 006e      | GetIndex
 006f      | Call (args: 0)
 0071      | Call (args: 1)
@@ -1908,4 +1900,20 @@ fn test_if_nested_exit_emits_jump() {
 "#;
 
     assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn nested_function_chunk_shares_symbol_table_with_script() {
+    let chunk = compile_program("fn f() { return 1 }\nf()\n").unwrap();
+    let function_chunk = chunk
+        .constants
+        .values
+        .iter()
+        .find_map(|v| match v {
+            Value::Function(function) => Some(function.chunk.clone()),
+            _ => None,
+        })
+        .expect("expected f's Function constant");
+
+    assert!(Rc::ptr_eq(&chunk.symbols, &function_chunk.symbols));
 }

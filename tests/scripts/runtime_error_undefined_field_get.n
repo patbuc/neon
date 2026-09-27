@@ -1,0 +1,17 @@
+// Reading a field the struct doesn't have
+
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'y'.
+
+struct P {
+    x
+}
+
+fn getY(p) {
+    return p.y
+}
+
+print("before")
+getY(P(1))

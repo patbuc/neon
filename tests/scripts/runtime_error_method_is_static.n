@@ -1,0 +1,23 @@
+// Calling a static method on an instance
+
+// Expected:
+// before
+
+// Expected runtime error: Method 'm' is static; call it as P.m()
+
+struct P {
+    x
+}
+
+impl P {
+    fn m() {
+        return 1
+    }
+}
+
+fn callInstance(p) {
+    return p.m()
+}
+
+print("before")
+callInstance(P(1))

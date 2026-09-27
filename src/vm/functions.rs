@@ -6,7 +6,7 @@ use crate::common::{
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
-use crate::{as_number, as_string, boolean, is_false_like, number, string};
+use crate::{as_number, boolean, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,19 +23,40 @@ pub(in crate::vm) enum Comparison {
 /// Registry index for the print() function (always at index 0)
 const PRINT_METHOD_INDEX: u32 = 0;
 
-/// A receiver's type name for method dispatch: a fixed name for builtin
-/// types, or the struct definition for an instance (cloning the `Rc` is a
-/// refcount bump, not a string allocation).
+/// Symbol ids for builtin types, matching `BUILTIN_TYPE_NAMES`'s order
+/// (which is also the order `Resolutions` seeds them in, so these ids
+/// line up with the ones codegen and the symbol table use).
+const ARRAY_SYMBOL: u16 = 0;
+const STRING_SYMBOL: u16 = 1;
+const MAP_SYMBOL: u16 = 2;
+const SET_SYMBOL: u16 = 3;
+const NUMBER_SYMBOL: u16 = 4;
+const BOOLEAN_SYMBOL: u16 = 5;
+const FILE_SYMBOL: u16 = 6;
+const RANGE_SYMBOL: u16 = 7;
+
+/// A receiver's type name for method dispatch: a fixed symbol id for
+/// builtin types, or the struct definition for an instance (cloning the
+/// `Rc` is a refcount bump, not a string allocation).
 enum TypeName {
-    Static(&'static str),
+    Builtin(u16),
     Struct(Rc<ObjStruct>),
 }
 
 impl TypeName {
     fn as_str(&self) -> &str {
         match self {
-            TypeName::Static(name) => name,
+            TypeName::Builtin(symbol) => {
+                crate::common::method_registry::BUILTIN_TYPE_NAMES[*symbol as usize]
+            }
             TypeName::Struct(r#struct) => &r#struct.name,
+        }
+    }
+
+    fn symbol(&self) -> u16 {
+        match self {
+            TypeName::Builtin(symbol) => *symbol,
+            TypeName::Struct(r#struct) => r#struct.name_symbol,
         }
     }
 }
@@ -91,20 +112,19 @@ impl VirtualMachine {
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]
     pub(in crate::vm) fn op_invoke(&mut self) -> OpResult {
-        let (method_name, arg_count) = {
+        let (method_symbol, arg_count) = {
             let frame = self.current_frame();
-            let name_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            let name = frame.closure.function.chunk.read_constant(name_index);
+            let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
             let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
-            (name, arg_count)
+            (method_symbol, arg_count)
         };
 
         let frame = self.current_frame_mut();
-        frame.ip += 4; // Skip Invoke opcode, name_index and arg_count byte
+        frame.ip += 4; // Skip Invoke opcode, method_symbol and arg_count byte
 
         self.check_frame_limit()?;
 
-        self.dispatch_invoke(as_string!(method_name), arg_count)
+        self.dispatch_invoke(method_symbol, arg_count)
     }
 
     /// Errors with "Stack overflow" if the call frame stack is already at
@@ -146,23 +166,23 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// Dispatches a method call by name: the stack holds
+    /// Dispatches a method call by symbol: the stack holds
     /// `[receiver, args...]`, `arg_count` excluding the receiver. Tries, in
     /// order, a user-defined method, a native method, and a callable
     /// instance field; otherwise reports an unknown method.
-    fn dispatch_invoke(&mut self, method_name: &str, arg_count: usize) -> OpResult {
+    fn dispatch_invoke(&mut self, method_symbol: u16, arg_count: usize) -> OpResult {
         let receiver_index = self.stack.len() - arg_count - 1;
         let receiver = self.stack[receiver_index].clone();
         let type_name = self.get_type_name(&receiver);
 
         if let Some(type_name) = &type_name {
             let is_static_call = matches!(receiver, Value::Struct(_));
-            match self.dispatch_method_by_name(
-                type_name.as_str(),
+            match self.dispatch_user_method(
+                type_name,
                 is_static_call,
                 receiver_index,
                 arg_count,
-                method_name,
+                method_symbol,
             ) {
                 MethodDispatch::Found(closure, arg_count, exclude_self) => {
                     return self.call_closure_with(arg_count, &closure, exclude_self);
@@ -171,10 +191,14 @@ impl VirtualMachine {
                 MethodDispatch::NotFound => {}
             }
 
-            if let Some(native) = crate::common::method_registry::get_native_method_by_name(
-                type_name.as_str(),
-                method_name,
-            ) {
+            let native = {
+                let chunk = &self.current_frame().closure.function.chunk;
+                crate::common::method_registry::get_native_method_by_name(
+                    type_name.as_str(),
+                    &chunk.symbols[method_symbol as usize],
+                )
+            };
+            if let Some(native) = native {
                 let result = match self.run_native_callable(
                     native,
                     receiver_index,
@@ -191,7 +215,7 @@ impl VirtualMachine {
         }
 
         if let Value::Instance(inst) = &receiver {
-            let field_value = inst.borrow().field(method_name).cloned();
+            let field_value = inst.borrow().field(method_symbol).cloned();
             if let Some(field_value) = field_value {
                 self.stack[receiver_index] = field_value;
                 return self.dispatch_call(arg_count);
@@ -199,7 +223,11 @@ impl VirtualMachine {
         }
 
         Err(self.call_error(match type_name {
-            Some(type_name) => format!("Unknown method '{}' for type {}", method_name, type_name),
+            Some(type_name) => format!(
+                "Unknown method '{}' for type {}",
+                self.symbol_name(method_symbol),
+                type_name
+            ),
             None => "Cannot determine type of receiver for method call".to_string(),
         }))
     }
@@ -260,22 +288,26 @@ impl VirtualMachine {
         }
     }
 
-    /// Looks up `method_name` in the user method table under `type_name`
-    /// and checks the call form (static vs. instance) against the method's
-    /// definition. For an instance call, inserts a `Nil` callee slot below
-    /// the receiver so the receiver becomes `self`.
-    fn dispatch_method_by_name(
+    /// Looks up `method_symbol` in the user method table under `type_name`'s
+    /// symbol and checks the call form (static vs. instance) against the
+    /// method's definition. For an instance call, inserts a `Nil` callee
+    /// slot below the receiver so the receiver becomes `self`.
+    fn dispatch_user_method(
         &mut self,
-        type_name: &str,
+        type_name: &TypeName,
         is_static_call: bool,
         receiver_index: usize,
         arg_count: usize,
-        method_name: &str,
+        method_symbol: u16,
     ) -> MethodDispatch {
-        let Some((closure, takes_self)) = self
+        let Some((_, closure, takes_self)) = self
             .methods
-            .get(type_name)
-            .and_then(|methods| methods.get(method_name))
+            .get(type_name.symbol() as usize)
+            .and_then(|methods| {
+                methods
+                    .iter()
+                    .find(|(symbol, _, _)| *symbol == method_symbol)
+            })
             .cloned()
         else {
             return MethodDispatch::NotFound;
@@ -284,12 +316,16 @@ impl VirtualMachine {
         match (is_static_call, takes_self) {
             (true, true) => MethodDispatch::Mismatch(self.call_error(format!(
                 "Method '{}' needs an instance; call it on a {} value",
-                method_name, type_name
+                self.symbol_name(method_symbol),
+                type_name
             ))),
-            (false, false) => MethodDispatch::Mismatch(self.call_error(format!(
-                "Method '{}' is static; call it as {}.{}()",
-                method_name, type_name, method_name
-            ))),
+            (false, false) => {
+                let method_name = self.symbol_name(method_symbol);
+                MethodDispatch::Mismatch(self.call_error(format!(
+                    "Method '{}' is static; call it as {}.{}()",
+                    method_name, type_name, method_name
+                )))
+            }
             (true, false) => MethodDispatch::Found(closure, arg_count, false),
             (false, true) => {
                 self.stack.insert(receiver_index, Value::Nil);
@@ -891,27 +927,19 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
-        let field_name_index = self.read_index();
+        let symbol = self.read_index() as u16;
         let instance_value = self.peek(0);
-
-        let field_name_value = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_constant(field_name_index)
-        };
-        let field_name = match &field_name_value {
-            Value::String(s) => s.as_str(),
-            _ => return Err(self.runtime_error("Field name must be a string.")),
-        };
 
         match &instance_value {
             Value::Instance(instance_ref) => {
                 let instance = instance_ref.borrow();
 
-                if let Some(value) = instance.field(field_name).cloned() {
+                if let Some(value) = instance.field(symbol).cloned() {
                     self.pop();
                     self.push(value);
                 } else {
-                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
@@ -924,24 +952,16 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
-        let field_name_index = self.read_index();
+        let symbol = self.read_index() as u16;
         let value = self.peek(0);
         let instance_value = self.peek(1);
-
-        let field_name_value = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_constant(field_name_index)
-        };
-        let field_name = match &field_name_value {
-            Value::String(s) => s.as_str(),
-            _ => return Err(self.runtime_error("Field name must be a string.")),
-        };
 
         match &instance_value {
             Value::Instance(instance_ref) => {
                 let mut instance = instance_ref.borrow_mut();
-                let Some(index) = instance.r#struct.field_index(field_name) else {
-                    return Err(self.runtime_error(format!("Undefined field '{}'.", field_name)));
+                let Some(index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
 
                 instance.fields[index] = value.clone();
@@ -956,6 +976,12 @@ impl VirtualMachine {
         let frame = self.current_frame_mut();
         frame.ip += 2;
         Ok(())
+    }
+
+    /// Looks up an interned name by symbol id, for use on an error path only.
+    fn symbol_name(&self, symbol: u16) -> Rc<str> {
+        let frame = self.current_frame();
+        frame.closure.function.chunk.symbols[symbol as usize].clone()
     }
 
     #[inline(always)]
@@ -1388,18 +1414,18 @@ impl VirtualMachine {
     /// Helper: Extract type name from a value for method dispatch
     fn get_type_name(&self, value: &Value) -> Option<TypeName> {
         match value {
-            Value::Array(_) => Some(TypeName::Static("Array")),
-            Value::String(_) => Some(TypeName::Static("String")),
-            Value::Map(_) => Some(TypeName::Static("Map")),
-            Value::Set(_) => Some(TypeName::Static("Set")),
-            Value::File(_) => Some(TypeName::Static("File")),
-            Value::Range(_) => Some(TypeName::Static("Range")),
+            Value::Array(_) => Some(TypeName::Builtin(ARRAY_SYMBOL)),
+            Value::String(_) => Some(TypeName::Builtin(STRING_SYMBOL)),
+            Value::Map(_) => Some(TypeName::Builtin(MAP_SYMBOL)),
+            Value::Set(_) => Some(TypeName::Builtin(SET_SYMBOL)),
+            Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
+            Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
             Value::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
-            Value::Number(_) => Some(TypeName::Static("Number")),
-            Value::Boolean(_) => Some(TypeName::Static("Boolean")),
+            Value::Number(_) => Some(TypeName::Builtin(NUMBER_SYMBOL)),
+            Value::Boolean(_) => Some(TypeName::Builtin(BOOLEAN_SYMBOL)),
             _ => None,
         }
     }
@@ -1426,26 +1452,37 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_define_method(&mut self) {
         let frame = self.current_frame_mut();
-        let type_name = {
-            let index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_constant(index)
-        };
-        let method_name = {
-            let index = frame.closure.function.chunk.read_u16(frame.ip + 3) as usize;
-            frame.closure.function.chunk.read_constant(index)
-        };
+        let type_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
+        let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 3);
         let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 5) != 0;
         frame.ip += 5;
 
         let closure_value = self.pop();
-        let type_name = as_string!(type_name).to_string();
-        let method_name = as_string!(method_name).to_string();
         let Value::Closure(closure) = &closure_value else {
             unreachable!("DefineMethod expects a closure on top of the stack")
         };
-        self.methods
-            .entry(type_name)
-            .or_default()
-            .insert(method_name, (Rc::clone(closure), takes_self));
+        let type_symbol = type_symbol as usize;
+        if type_symbol >= self.methods.len() {
+            self.methods.resize_with(type_symbol + 1, Vec::new);
+        }
+        self.methods[type_symbol].push((method_symbol, Rc::clone(closure), takes_self));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::method_registry::BUILTIN_TYPE_NAMES;
+
+    #[test]
+    fn builtin_symbol_consts_match_builtin_type_names() {
+        assert_eq!(BUILTIN_TYPE_NAMES[ARRAY_SYMBOL as usize], "Array");
+        assert_eq!(BUILTIN_TYPE_NAMES[STRING_SYMBOL as usize], "String");
+        assert_eq!(BUILTIN_TYPE_NAMES[MAP_SYMBOL as usize], "Map");
+        assert_eq!(BUILTIN_TYPE_NAMES[SET_SYMBOL as usize], "Set");
+        assert_eq!(BUILTIN_TYPE_NAMES[NUMBER_SYMBOL as usize], "Number");
+        assert_eq!(BUILTIN_TYPE_NAMES[BOOLEAN_SYMBOL as usize], "Boolean");
+        assert_eq!(BUILTIN_TYPE_NAMES[FILE_SYMBOL as usize], "File");
+        assert_eq!(BUILTIN_TYPE_NAMES[RANGE_SYMBOL as usize], "Range");
     }
 }

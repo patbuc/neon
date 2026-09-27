@@ -1,0 +1,59 @@
+use crate::common::method_registry::BUILTIN_TYPE_NAMES;
+use crate::compiler::resolutions::Resolutions;
+
+#[test]
+fn builtin_type_names_get_ids_in_registry_order() {
+    let resolutions = Resolutions::default();
+    let names = resolutions.symbol_names();
+
+    let builtin_names: Vec<&str> = names[..BUILTIN_TYPE_NAMES.len()]
+        .iter()
+        .map(|n| n.as_ref())
+        .collect();
+    assert_eq!(builtin_names, BUILTIN_TYPE_NAMES);
+}
+
+#[test]
+fn interning_an_existing_name_returns_its_id() {
+    let mut resolutions = Resolutions::default();
+    let first = resolutions.intern_symbol("Point").unwrap();
+    let second = resolutions.intern_symbol("Point").unwrap();
+    assert_eq!(first, second);
+
+    let array_id = resolutions.intern_symbol("Array").unwrap();
+    assert_eq!(array_id, 0);
+}
+
+#[test]
+fn interning_beyond_65536_names_fails_but_existing_names_still_succeed() {
+    let mut resolutions = Resolutions::default();
+
+    let already = BUILTIN_TYPE_NAMES.len();
+    for i in 0..(u16::MAX as usize + 1 - already) {
+        let name = format!("sym{}", i);
+        assert!(
+            resolutions.intern_symbol(&name).is_some(),
+            "expected symbol {} to fit within the 65536 limit",
+            i
+        );
+    }
+
+    assert!(resolutions.intern_symbol("one_too_many").is_none());
+
+    assert!(resolutions.intern_symbol("sym0").is_some());
+    assert!(resolutions.intern_symbol("Array").is_some());
+}
+
+#[test]
+fn symbol_returns_the_id_a_name_was_interned_under() {
+    let mut resolutions = Resolutions::default();
+    let id = resolutions.intern_symbol("Point").unwrap();
+    assert_eq!(resolutions.symbol("Point"), id);
+}
+
+#[test]
+#[should_panic(expected = "no symbol interned for")]
+fn symbol_panics_for_a_name_never_interned() {
+    let resolutions = Resolutions::default();
+    resolutions.symbol("nope");
+}

@@ -1,0 +1,13 @@
+// Calling an undefined method on a builtin value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Array
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo([1, 2, 3])

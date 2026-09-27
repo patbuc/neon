@@ -27,7 +27,7 @@ impl VirtualMachine {
             source: String::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
-            methods: std::collections::HashMap::new(),
+            methods: Vec::new(),
         }
     }
 
