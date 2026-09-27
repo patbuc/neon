@@ -2,6 +2,18 @@ use std::fs;
 use std::io::Write;
 use std::process::Command;
 
+#[cfg(feature = "opcode-stats")]
+fn assert_has_add_line_after(stderr: &str, expected: &str) {
+    let remainder = &stderr[expected.len()..];
+    assert!(
+        remainder
+            .lines()
+            .any(|line| line.split_whitespace().next() == Some("Add")),
+        "expected an Add line in the opcode report after the error trace:\n{}",
+        remainder
+    );
+}
+
 // The disassemble feature writes chunk traces and log output to stdout by
 // design, so it cannot satisfy this test's "only program output" assertion.
 #[cfg(not(feature = "disassemble"))]
@@ -75,7 +87,10 @@ fn run_file_reports_runtime_error_on_stderr() {
     let expected = "[2:11] Operands must be two numbers or two strings\n  at <script> (line 2)\n";
     let stderr = String::from_utf8_lossy(&output.stderr);
     #[cfg(feature = "opcode-stats")]
-    assert!(stderr.starts_with(expected));
+    {
+        assert!(stderr.starts_with(expected));
+        assert_has_add_line_after(&stderr, expected);
+    }
     #[cfg(not(feature = "opcode-stats"))]
     assert_eq!(expected, stderr);
 }
@@ -102,7 +117,10 @@ fn run_file_reports_call_trace_on_stderr() {
         "[2:12] Operands must be two numbers or two strings\n  at boom (line 2)\n  at <script> (line 4)\n";
     let stderr = String::from_utf8_lossy(&output.stderr);
     #[cfg(feature = "opcode-stats")]
-    assert!(stderr.starts_with(expected));
+    {
+        assert!(stderr.starts_with(expected));
+        assert_has_add_line_after(&stderr, expected);
+    }
     #[cfg(not(feature = "opcode-stats"))]
     assert_eq!(expected, stderr);
 }
