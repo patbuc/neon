@@ -1,7 +1,9 @@
 use crate::common::errors::CompilationErrorKind;
+use crate::compiler::scanner::KEYWORDS;
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
+use std::collections::BTreeSet;
 
 fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
@@ -1003,4 +1005,53 @@ fn interpolation_line_comment_hides_closing_brace() {
     assert_eq!(tokens[2].column, 2);
 
     assert_eq!(tokens[3].token_type, TokenType::Eof);
+}
+
+/// Pulls every `\b(word|word|...)\b` keyword-alternation out of the grammar's raw text.
+fn keywords_in_grammar(grammar: &str) -> BTreeSet<String> {
+    let mut keywords = BTreeSet::new();
+    let mut rest = grammar;
+    while let Some(start) = rest.find(r"\\b(") {
+        let after = &rest[start + r"\\b(".len()..];
+        let Some(close) = after.find(')') else {
+            break;
+        };
+        let words = &after[..close];
+        let is_keyword_list = !words.is_empty()
+            && words.chars().all(|c| c.is_ascii_lowercase() || c == '|')
+            && after[close..].starts_with(r")\\b");
+        if is_keyword_list {
+            keywords.extend(words.split('|').map(str::to_string));
+        }
+        rest = &after[close + 1..];
+    }
+    keywords
+}
+
+#[test]
+fn grammar_keywords_match_scanner() {
+    let grammar_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("editors/vscode/syntaxes/neon.tmLanguage.json");
+    let grammar = std::fs::read_to_string(&grammar_path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", grammar_path.display()));
+
+    let grammar_keywords = keywords_in_grammar(&grammar);
+    assert!(
+        !grammar_keywords.is_empty(),
+        "found no \\b(...)\\b keyword lists in {}",
+        grammar_path.display()
+    );
+
+    let scanner_keywords: BTreeSet<String> = KEYWORDS
+        .iter()
+        .map(|(keyword, _)| keyword.to_string())
+        .collect();
+
+    let missing: Vec<&String> = scanner_keywords.difference(&grammar_keywords).collect();
+    let extra: Vec<&String> = grammar_keywords.difference(&scanner_keywords).collect();
+    assert!(
+        missing.is_empty() && extra.is_empty(),
+        "neon.tmLanguage.json keywords are out of sync with scanner::KEYWORDS - \
+         missing from grammar: {missing:?}, extra in grammar: {extra:?}"
+    );
 }
