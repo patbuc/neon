@@ -148,7 +148,8 @@ fn run_file_prints_opcode_stats_to_stderr_only() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let mut constant_count = None;
-    for line in stderr.lines() {
+    let mut saw_pair_key = false;
+    for line in stderr.lines().filter(|line| !line.is_empty()) {
         let mut parts = line.split_whitespace();
         let name = parts.next().expect("line has an opcode name");
         let count: u64 = parts
@@ -160,6 +161,10 @@ fn run_file_prints_opcode_stats_to_stderr_only() {
         if name == "Constant" {
             constant_count = Some(count);
         }
+        if name.contains("->") {
+            saw_pair_key = true;
+        }
     }
     assert_eq!(Some(2), constant_count);
+    assert!(saw_pair_key, "expected a pair key in report:\n{}", stderr);
 }

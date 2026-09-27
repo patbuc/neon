@@ -48,6 +48,13 @@ pub struct VirtualMachine {
     /// Execution count per opcode byte, for the `opcode-stats` histogram.
     #[cfg(feature = "opcode-stats")]
     opcode_counts: [u64; 256],
+    /// Execution count per consecutive opcode pair, indexed `prev * 256 +
+    /// next`.
+    #[cfg(feature = "opcode-stats")]
+    opcode_pair_counts: Vec<u64>,
+    /// The previously executed opcode byte, for pairing with the next one.
+    #[cfg(feature = "opcode-stats")]
+    last_opcode: Option<u8>,
 }
 
 // Test-only methods

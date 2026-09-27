@@ -30,6 +30,10 @@ impl VirtualMachine {
             methods: Vec::new(),
             #[cfg(feature = "opcode-stats")]
             opcode_counts: [0; 256],
+            #[cfg(feature = "opcode-stats")]
+            opcode_pair_counts: vec![0; 256 * 256],
+            #[cfg(feature = "opcode-stats")]
+            last_opcode: None,
         }
     }
 
@@ -120,6 +124,10 @@ impl VirtualMachine {
             #[cfg(feature = "opcode-stats")]
             {
                 self.opcode_counts[byte as usize] += 1;
+                if let Some(prev) = self.last_opcode {
+                    self.opcode_pair_counts[prev as usize * 256 + byte as usize] += 1;
+                }
+                self.last_opcode = Some(byte);
             }
 
             match op_code {
@@ -301,7 +309,23 @@ impl VirtualMachine {
             .unwrap_or_default()
     }
 
-    /// Executed-opcode histogram, one `<name> <count>` line per opcode that ran.
+    #[cfg(feature = "opcode-stats")]
+    fn pad_and_join(entries: &[(String, u64)]) -> String {
+        let name_width = entries
+            .iter()
+            .map(|(name, _)| name.len())
+            .max()
+            .unwrap_or(0);
+        entries
+            .iter()
+            .map(|(name, count)| format!("{:<width$} {}", name, count, width = name_width))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Executed-opcode histogram, one `<name> <count>` line per opcode that
+    /// ran, followed (after a blank line, when any pair ran) by one
+    /// `Prev->Next <count>` line per executed opcode pair.
     #[cfg(feature = "opcode-stats")]
     pub fn opcode_stats_report(&self) -> String {
         let mut counts: Vec<(u8, u64)> = self
@@ -313,17 +337,35 @@ impl VirtualMachine {
             .collect();
         counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
-        let named: Vec<(String, u64)> = counts
+        let opcode_lines: Vec<(String, u64)> = counts
             .into_iter()
             .map(|(byte, count)| (format!("{:?}", OpCode::from_u8(byte).unwrap()), count))
             .collect();
-        let name_width = named.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
+        let mut report = Self::pad_and_join(&opcode_lines);
 
-        named
+        let mut pairs: Vec<(usize, u64)> = self
+            .opcode_pair_counts
             .iter()
-            .map(|(name, count)| format!("{:<width$} {}", name, count, width = name_width))
-            .collect::<Vec<_>>()
-            .join("\n")
+            .enumerate()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(index, &count)| (index, count))
+            .collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        if !pairs.is_empty() {
+            let pair_lines: Vec<(String, u64)> = pairs
+                .into_iter()
+                .map(|(index, count)| {
+                    let prev = OpCode::from_u8((index / 256) as u8).unwrap();
+                    let next = OpCode::from_u8((index % 256) as u8).unwrap();
+                    (format!("{:?}->{:?}", prev, next), count)
+                })
+                .collect();
+            report.push_str("\n\n");
+            report.push_str(&Self::pad_and_join(&pair_lines));
+        }
+
+        report
     }
 
     fn reset(&mut self) {
@@ -336,6 +378,8 @@ impl VirtualMachine {
         #[cfg(feature = "opcode-stats")]
         {
             self.opcode_counts = [0; 256];
+            self.opcode_pair_counts.fill(0);
+            self.last_opcode = None;
         }
     }
 }
