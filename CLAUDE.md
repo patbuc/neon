@@ -185,7 +185,8 @@ cargo run --features disassemble -- script.n
 6. Implement code generation in `src/compiler/codegen.rs`, reading the resolution recorded in step 5
 7. Write integration test in `tests/scripts/` with expected output
 8. A new keyword also goes in `KEYWORDS` (`src/compiler/scanner.rs`) and in
-   `editors/vscode/syntaxes/neon.tmLanguage.json` — a test enforces they match
+   `editors/vscode/syntaxes/neon.tmLanguage.json` — a test enforces they match — and in
+   `KEYWORD_FAMILY` (`editors/vscode/tests/differential.js`), which `npm test` enforces
 
 ### New Standard Library Function
 

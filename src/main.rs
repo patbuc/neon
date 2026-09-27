@@ -20,6 +20,13 @@ fn main() {
             "help" | "--help" | "-h" => {
                 print_help();
             }
+            "--tokens" => {
+                if args.len() < 3 {
+                    eprintln!("Usage: neon --tokens <file>");
+                    exit(64);
+                }
+                print_tokens(&args[2]);
+            }
             _ => {
                 let file_path = &args[1];
                 let script_args = args[2..].to_vec();
@@ -116,6 +123,11 @@ fn run_file(path: &str, args: Vec<String>) {
             exit(70);
         }
     }
+}
+
+fn print_tokens(path: &str) {
+    let source = read_file(path);
+    println!("{}", neon::compiler::tokens_to_json(&source));
 }
 
 fn read_file(path: &str) -> String {
