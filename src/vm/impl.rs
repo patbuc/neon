@@ -160,7 +160,10 @@ impl VirtualMachine {
                 OpCode::SetGlobal => self.op_set_global()?,
                 OpCode::JumpIfFalse => self.op_jump_if_false(),
                 OpCode::Jump => self.op_jump(),
-                OpCode::Loop => self.op_loop(),
+                OpCode::Loop => {
+                    self.op_loop();
+                    continue;
+                }
                 OpCode::Call => {
                     self.op_call()?;
                     continue;
