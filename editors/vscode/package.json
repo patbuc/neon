@@ -36,5 +36,13 @@
         "path": "./syntaxes/neon.tmLanguage.json"
       }
     ]
+  },
+  "scripts": {
+    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js"
+  },
+  "devDependencies": {
+    "vscode-tmgrammar-test": "^0.1.3",
+    "vscode-textmate": "^7.0.1",
+    "vscode-oniguruma": "^1.5.1"
   }
 }

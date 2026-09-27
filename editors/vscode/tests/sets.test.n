@@ -1,0 +1,5 @@
+// SYNTAX TEST "source.neon" "set literals"
+  var s = #{1, 2}
+//        ^^ punctuation.section.set.begin.neon
+//        ^^ meta.set.neon
+//              ^ punctuation.section.set.end.neon
