@@ -143,10 +143,30 @@ cargo run --features disassemble -- script.n
 **Value System** (`src/common/mod.rs`)
 
 - Scalars (Number, Boolean, Nil) are stored inline
-- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
+- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range, Fiber) holds a single `Rc`; collections, instances, and fibers use `Rc<RefCell<..>>` for interior mutability
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 - Range is an immutable `Rc<ObjRange>` of integer bounds; for-in iterates it without allocating an array
+- `Value::deep_copy` (`src/common/deep_copy.rs`) copies a value for a task boundary, keeping shared and cyclic
+  structure; it refuses fibers and closures that capture variables
+
+**Fibers and Tasks** (`src/common/fiber.rs`, `src/vm/fibers.rs`)
+
+- `Value::Fiber` holds an `ObjFiber`: its own call frames, value stack, and open upvalues. `FiberKind` says
+  whether it is the main script, a `Fiber` (shares the heap), or a `Task` (isolated)
+- Exactly one fiber runs; the VM's `call_frames`/`stack`/`open_upvalues` *are* the running fiber's, and
+  `switch_to` swaps them with the target's saved ones, so the dispatch loop knows nothing about fibers. The main
+  fiber object is created lazily on the first switch
+- `fiber.call`, `Fiber.yield`, and `task.run` are `NativeCallable::Control` registry entries the VM dispatches
+  itself (`control_op`), since they switch fibers instead of returning a value in place. A child fiber's root
+  frame returning (`op_return`) finishes it and switches back to its caller
+- Globals are main-stack slots; while a child fiber runs, `GetGlobal`/`SetGlobal` reach the main fiber's parked
+  stack. `Upvalue::Open` names the stack id of the fiber it points into, so a closure can read a local of a
+  parked fiber; a dropped fiber closes its open upvalues
+- A task (and any fiber it resumes) reads globals through a `TaskSnapshot` of per-global copies and may not
+  assign them; its body may not capture variables, and its argument and result are deep-copied
+- Switching while `native_call_depth > 0` is an error: `call_value` counts frames on the Rust stack, which a
+  switch would invalidate
 
 **Standard Library** (`src/common/stdlib/`)
 
