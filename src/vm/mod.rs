@@ -45,6 +45,9 @@ pub struct VirtualMachine {
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
+    /// Execution count per opcode byte, for the `opcode-stats` histogram.
+    #[cfg(feature = "opcode-stats")]
+    opcode_counts: [u64; 256],
 }
 
 // Test-only methods

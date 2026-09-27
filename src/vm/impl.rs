@@ -28,6 +28,8 @@ impl VirtualMachine {
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: Vec::new(),
+            #[cfg(feature = "opcode-stats")]
+            opcode_counts: [0; 256],
         }
     }
 
@@ -114,6 +116,11 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Unknown opcode {:#04x}", byte)));
                 }
             };
+
+            #[cfg(feature = "opcode-stats")]
+            {
+                self.opcode_counts[byte as usize] += 1;
+            }
 
             match op_code {
                 OpCode::Return => {
@@ -294,6 +301,34 @@ impl VirtualMachine {
             .unwrap_or_default()
     }
 
+    /// Executed-opcode histogram: name and count, sorted by count descending
+    /// (ties broken by opcode byte ascending), one line per opcode that ran
+    /// at least once.
+    #[cfg(feature = "opcode-stats")]
+    pub fn opcode_stats_report(&self) -> String {
+        let mut counts: Vec<(u8, u64)> = self
+            .opcode_counts
+            .iter()
+            .enumerate()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(byte, &count)| (byte as u8, count))
+            .collect();
+        counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        let names: Vec<String> = counts
+            .iter()
+            .map(|(byte, _)| format!("{:?}", OpCode::from_u8(*byte).unwrap()))
+            .collect();
+        let name_width = names.iter().map(String::len).max().unwrap_or(0);
+
+        names
+            .iter()
+            .zip(counts.iter())
+            .map(|(name, (_, count))| format!("{:<width$} {}", name, count, width = name_width))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
@@ -301,5 +336,9 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.methods.clear();
+        #[cfg(feature = "opcode-stats")]
+        {
+            self.opcode_counts = [0; 256];
+        }
     }
 }

@@ -54,6 +54,9 @@ fn run_file_reports_unreadable_file_on_stderr() {
     assert_eq!("", String::from_utf8_lossy(&output.stdout));
 }
 
+// The opcode-stats feature appends a histogram to stderr on every run,
+// which this test's exact-match assertion can't account for.
+#[cfg(not(feature = "opcode-stats"))]
 #[test]
 fn run_file_reports_runtime_error_on_stderr() {
     let temp_dir = std::env::temp_dir();
@@ -78,6 +81,9 @@ fn run_file_reports_runtime_error_on_stderr() {
     );
 }
 
+// The opcode-stats feature appends a histogram to stderr on every run,
+// which this test's exact-match assertion can't account for.
+#[cfg(not(feature = "opcode-stats"))]
 #[test]
 fn run_file_reports_call_trace_on_stderr() {
     let temp_dir = std::env::temp_dir();
@@ -100,4 +106,28 @@ fn run_file_reports_call_trace_on_stderr() {
         "[2:12] Operands must be two numbers or two strings\n  at boom (line 2)\n  at <script> (line 4)\n",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[cfg(feature = "opcode-stats")]
+#[test]
+fn run_file_prints_opcode_stats_to_stderr_only() {
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("neon_cli_test_run_file_prints_opcode_stats.n");
+
+    let mut file = fs::File::create(&script_path).expect("Failed to create test script");
+    file.write_all(b"print(\"hello\")\n")
+        .expect("Failed to write test script");
+    drop(file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_file(&script_path).ok();
+
+    assert!(output.status.success());
+    assert_eq!("hello\n", String::from_utf8_lossy(&output.stdout));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Constant"));
 }

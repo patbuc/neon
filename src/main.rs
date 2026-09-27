@@ -101,20 +101,32 @@ fn run_file(path: &str, args: Vec<String>) {
     let mut vm = VirtualMachine::with_args(args);
 
     let result: InterpretResult = vm.interpret(source);
-    match result {
-        InterpretResult::Ok => (),
+    let exit_code = match result {
+        InterpretResult::Ok => None,
         InterpretResult::CompileError => {
             // Print formatted compilation errors
             let formatted_errors = vm.get_formatted_errors(path);
             eprintln!("{}", formatted_errors);
-            exit(65);
+            Some(65)
         }
         InterpretResult::RuntimeError => {
             if let Some(error) = vm.get_runtime_error() {
                 eprintln!("{}", error.report());
             }
-            exit(70);
+            Some(70)
         }
+    };
+
+    #[cfg(feature = "opcode-stats")]
+    {
+        let report = vm.opcode_stats_report();
+        if !report.is_empty() {
+            eprintln!("{}", report);
+        }
+    }
+
+    if let Some(code) = exit_code {
+        exit(code);
     }
 }
 
