@@ -1,0 +1,54 @@
+// fiber_closure_captures_fiber_local.n - a closure capturing a fiber's local
+// reads and writes it while the fiber is suspended, after it finishes, and
+// after the suspended fiber itself is no longer reachable
+
+// Expected:
+// 1
+// 2
+// 3
+// 10
+// 42
+// kept
+
+var peek = nil
+val f = Fiber(fn() {
+    var local = 1
+    peek = fn() {
+        return local
+    }
+    Fiber.yield()
+    local = 2
+    Fiber.yield()
+    local = 3
+})
+f.call()
+print(peek())
+f.call()
+print(peek())
+f.call()
+print(peek())
+
+var setter = nil
+val g = Fiber(fn() {
+    var x = 10
+    setter = fn(v) {
+        x = v
+    }
+    Fiber.yield(x)
+    return x
+})
+print(g.call())
+setter(42)
+print(g.call())
+
+fn parkedGetter() {
+    val h = Fiber(fn() {
+        var y = "kept"
+        Fiber.yield(fn() {
+            return y
+        })
+    })
+    return h.call()
+}
+val getY = parkedGetter()
+print(getY())

@@ -1,0 +1,15 @@
+// A task body may not capture variables; they would be shared state
+
+// Expected:
+// before
+
+// Expected runtime error: Task body 'anonymous' cannot capture variables; pass them as its argument instead
+
+fn make() {
+    var n = 1
+    return Task(fn() {
+        return n
+    })
+}
+print("before")
+make()

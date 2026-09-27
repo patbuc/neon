@@ -1,0 +1,25 @@
+// fiber_nested.n - a fiber resumes another fiber; each yield returns to
+// whoever resumed that fiber
+
+// Expected:
+// outer saw inner 1
+// outer saw inner 2
+// outer saw inner done
+// outer done
+
+val inner = Fiber(fn() {
+    Fiber.yield("inner 1")
+    Fiber.yield("inner 2")
+    return "inner done"
+})
+
+val outer = Fiber(fn() {
+    while (!inner.isDone()) {
+        Fiber.yield("outer saw " + inner.call())
+    }
+    return "outer done"
+})
+
+while (!outer.isDone()) {
+    print(outer.call())
+}

@@ -1312,3 +1312,49 @@ fn negate_non_number_halts_with_message_and_line() {
     let error = vm.get_runtime_error().unwrap();
     assert_eq!("  at <script> (line 1)", error.trace());
 }
+
+#[test]
+fn fiber_error_trace_continues_through_the_resuming_fibers() {
+    let program = "fn boom() { return 1 + true }\n\
+                   val inner = Fiber(fn() { boom() })\n\
+                   fn drive() { return inner.call() }\n\
+                   val outer = Fiber(fn() { drive() })\n\
+                   outer.call()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    let frame = |function: &str, line| TraceFrame {
+        function: function.to_string(),
+        line: Some(line),
+    };
+    assert_eq!(
+        vec![
+            frame("boom", 1),
+            frame("anonymous", 2),
+            frame("drive", 3),
+            frame("anonymous", 4),
+            frame("<script>", 5),
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn fiber_yielded_values_survive_the_switch_back_to_main() {
+    let program = r#"
+        val f = Fiber(fn() {
+            Fiber.yield([1, 2])
+            return { "done": true }
+        })
+        print(f.call())
+        print(f.call())
+        print(f.isDone())
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::Ok, result);
+    assert_eq!("[1, 2]\n{done: true}\ntrue", vm.get_output());
+}

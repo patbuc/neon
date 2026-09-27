@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
+mod fibers;
 mod functions;
 mod r#impl;
 mod runtime_error;
@@ -45,6 +46,16 @@ pub struct VirtualMachine {
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
+    /// The main and running fibers, once the script has resumed a fiber;
+    /// `None` while only the main script has ever run.
+    fibers: Option<fibers::ActiveFibers>,
+    /// Every fiber that has run, by stack id, so an open upvalue captured
+    /// in one fiber can be read while another runs.
+    fiber_stacks: Vec<std::rc::Weak<RefCell<crate::common::fiber::ObjFiber>>>,
+    /// Stack id of the running fiber (`MAIN_STACK_ID` for the script).
+    current_stack_id: u32,
+    /// The running fiber's task snapshot, if it runs under task isolation.
+    current_snapshot: Option<Rc<RefCell<crate::common::fiber::TaskSnapshot>>>,
 }
 
 // Test-only methods

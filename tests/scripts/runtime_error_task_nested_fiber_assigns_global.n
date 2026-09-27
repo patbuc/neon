@@ -1,0 +1,16 @@
+// A fiber resumed inside a task is isolated like the task itself
+
+// Expected:
+// before
+
+// Expected runtime error: Cannot assign to a global variable from inside a task
+
+var counter = 0
+val t = Task(fn() {
+    val f = Fiber(fn() {
+        counter = 5
+    })
+    f.call()
+})
+print("before")
+t.run()

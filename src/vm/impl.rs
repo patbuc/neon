@@ -28,6 +28,10 @@ impl VirtualMachine {
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: Vec::new(),
+            fibers: None,
+            fiber_stacks: Vec::new(),
+            current_stack_id: crate::common::fiber::MAIN_STACK_ID,
+            current_snapshot: None,
         }
     }
 
@@ -117,7 +121,7 @@ impl VirtualMachine {
 
             match op_code {
                 OpCode::Return => {
-                    self.op_return();
+                    self.op_return()?;
                     if self.call_frames.len() == target_depth {
                         return Ok(());
                     }
@@ -253,6 +257,22 @@ impl VirtualMachine {
             });
         }
 
+        // The fibers waiting on this one, each parked just past the
+        // `call`/`run` that resumed the next.
+        for fiber in self.caller_chain() {
+            for frame in fiber.borrow().frames.iter().rev() {
+                let info = frame
+                    .closure
+                    .function
+                    .chunk
+                    .get_line_info(frame.ip.saturating_sub(1));
+                frames.push(TraceFrame {
+                    function: frame.closure.function.name.clone(),
+                    line: info.map(|i| i.line),
+                });
+            }
+        }
+
         RuntimeError {
             message: message.into(),
             location,
@@ -304,5 +324,9 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.methods.clear();
+        self.fibers = None;
+        self.fiber_stacks.clear();
+        self.current_stack_id = crate::common::fiber::MAIN_STACK_ID;
+        self.current_snapshot = None;
     }
 }

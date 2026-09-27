@@ -1,0 +1,12 @@
+// A task runs once
+
+// Expected:
+// 1
+
+// Expected runtime error: Cannot resume a finished task
+
+val t = Task(fn() {
+    return 1
+})
+print(t.run())
+t.run()

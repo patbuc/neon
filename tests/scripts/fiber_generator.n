@@ -1,0 +1,24 @@
+// fiber_generator.n - a fiber yields values one at a time and returns a final one
+
+// Expected:
+// false
+// 1
+// 2
+// 3
+// done
+// true
+// <fiber>
+
+val gen = Fiber(fn() {
+    for (i in 1..=3) {
+        Fiber.yield(i)
+    }
+    return "done"
+})
+
+print(gen.isDone())
+while (!gen.isDone()) {
+    print(gen.call())
+}
+print(gen.isDone())
+print(gen)

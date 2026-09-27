@@ -1,0 +1,31 @@
+// task_sees_snapshot_of_globals.n - a task reads its own copy of each global,
+// taken on first read: changes it makes are visible to itself and to fibers
+// it runs, but never to the script
+
+// Expected:
+// 100
+// 101
+// {n: 3}
+// true
+
+val config = { "n": 3 }
+
+val t = Task(fn() {
+    config["n"] = 100
+    print(config["n"])
+    val f = Fiber(fn() {
+        config["n"] = config["n"] + 1
+    })
+    f.call()
+    print(config["n"])
+})
+t.run()
+print(config)
+
+val items = [1]
+val holder = { "items": items }
+val u = Task(fn() {
+    items.push(2)
+    return holder["items"].length() == 2
+})
+print(u.run())

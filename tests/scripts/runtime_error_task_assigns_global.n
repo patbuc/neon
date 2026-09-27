@@ -1,0 +1,13 @@
+// A task may not assign a global variable
+
+// Expected:
+// before
+
+// Expected runtime error: Cannot assign to a global variable from inside a task
+
+var counter = 0
+val t = Task(fn() {
+    counter = 1
+})
+print("before")
+t.run()

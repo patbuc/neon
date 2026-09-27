@@ -1,0 +1,12 @@
+// Resuming a fiber whose body already returned
+
+// Expected:
+// 1
+
+// Expected runtime error: Cannot resume a finished fiber
+
+val f = Fiber(fn() {
+    return 1
+})
+print(f.call())
+f.call()

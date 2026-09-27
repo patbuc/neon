@@ -1,0 +1,15 @@
+// A fiber is live state and cannot be copied into a task
+
+// Expected:
+// before
+
+// Expected runtime error: Cannot copy a fiber across a task boundary
+
+val f = Fiber(fn() {
+    return 1
+})
+val t = Task(fn(x) {
+    return x
+})
+print("before")
+t.run(f)

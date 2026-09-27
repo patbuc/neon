@@ -1,0 +1,14 @@
+// Yielding from inside a map() callback, which runs on the Rust stack
+
+// Expected:
+// before
+
+// Expected runtime error: Cannot yield a fiber from inside a native callback
+
+val f = Fiber(fn() {
+    [1, 2].map(fn(x) {
+        Fiber.yield(x)
+    })
+})
+print("before")
+f.call()

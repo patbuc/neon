@@ -1,0 +1,18 @@
+// fiber_error_trace_crosses_fibers.n - a runtime error inside a fiber fails
+// the script, after the output printed before it
+
+// Expected:
+// 1
+
+// Expected runtime error: Operands must be two numbers or two strings
+
+fn boom() {
+    return 1 + "x"
+}
+
+val f = Fiber(fn() {
+    Fiber.yield(1)
+    boom()
+})
+print(f.call())
+f.call()
