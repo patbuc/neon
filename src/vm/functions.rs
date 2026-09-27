@@ -830,12 +830,16 @@ impl VirtualMachine {
         frame.ip += offset as usize;
     }
 
+    /// Loop: jumps back by the u32 operand, measured from the end of this
+    /// instruction plus one (the slot the dispatch loop's `ip += 1` would
+    /// land on). Sets `ip` to the target directly, so a loop starting at
+    /// instruction 0 doesn't pass through an underflowed intermediate; the
+    /// dispatch loop must not increment `ip` afterwards.
     #[inline(always)]
     pub(in crate::vm) fn op_loop(&mut self) {
         let frame = self.current_frame_mut();
         let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
-        frame.ip += 4;
-        frame.ip -= offset as usize;
+        frame.ip = frame.ip + 5 - offset as usize;
     }
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
