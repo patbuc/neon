@@ -63,6 +63,36 @@ default in a debug build, and it must stay fast — and give it a `// Expected:`
 to `https://patbuc.github.io/neon/dev/bench/`. It never fails the build on a regression — shared runners are too
 noisy for thresholds.
 
+### Profiling
+
+Build a release binary with debug symbols first: `CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release`.
+
+```bash
+perf record -g --call-graph dwarf ./target/release/neon benches/fib.n 31
+perf report
+```
+
+`perf record` needs `kernel.perf_event_paranoid` at 1 or below (e.g. `sudo sysctl kernel.perf_event_paranoid=1`).
+Where perf isn't available or a deterministic instruction-count profile is preferred, use callgrind instead (no
+elevated privileges required):
+
+```bash
+valgrind --tool=callgrind ./target/release/neon benches/fib.n 22
+callgrind_annotate --auto=yes callgrind.out.<pid>
+```
+
+Most VM code inlines into `VirtualMachine::run_script`, so read costs per source line in the annotated output
+rather than per function.
+
+For a coarser view, the `opcode-stats` feature counts executed opcodes:
+
+```bash
+cargo run --release --features opcode-stats -- benches/fib.n
+```
+
+Prints one line per executed opcode with its count to stderr after the script finishes, sorted by count
+descending; stdout is unchanged. Its tests run with `cargo test --features opcode-stats`.
+
 ### Running Scripts
 
 ```bash
