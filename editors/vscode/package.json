@@ -1,0 +1,49 @@
+{
+  "name": "neon",
+  "displayName": "Neon",
+  "description": "Syntax highlighting for the Neon language",
+  "version": "0.1.0",
+  "publisher": "patbuc",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/patbuc/neon"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "neon",
+        "aliases": [
+          "Neon",
+          "neon"
+        ],
+        "extensions": [
+          ".n"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "neon",
+        "scopeName": "source.neon",
+        "path": "./syntaxes/neon.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^4.0.0",
+    "vscode-oniguruma": "^1.5.1",
+    "vscode-textmate": "^7.0.1",
+    "vscode-tmgrammar-test": "^0.1.3"
+  }
+}

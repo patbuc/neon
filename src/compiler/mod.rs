@@ -47,3 +47,50 @@ impl Compiler {
         self.structured_errors.clone()
     }
 }
+
+/// `lexeme` is the raw source slice, not the decoded value.
+pub fn tokens_to_json(source: &str) -> String {
+    let mut scanner = Scanner::new(source);
+    let mut out = String::from("[");
+    let mut first = true;
+    loop {
+        let token = scanner.scan_token();
+        if token.token_type == TokenType::Eof {
+            break;
+        }
+        if !first {
+            out.push(',');
+        }
+        first = false;
+        let lexeme: String = scanner.source[scanner.start..scanner.current]
+            .iter()
+            .collect();
+        out.push_str(&format!(
+            "{{\"kind\":\"{:?}\",\"line\":{},\"column\":{},\"lexeme\":{}}}",
+            token.token_type,
+            token.line,
+            token.column,
+            json_string(&lexeme)
+        ));
+    }
+    out.push(']');
+    out
+}
+
+fn json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
