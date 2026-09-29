@@ -1,8 +1,6 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{
-    CallFrame, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
-};
+use crate::common::{MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
@@ -95,13 +93,8 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_call(&mut self) -> OpResult {
-        let arg_count = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u8(frame.ip + 1) as usize
-        };
-
-        let frame = self.current_frame_mut();
-        frame.ip += 2; // Skip CALL opcode and arg_count byte
+        let arg_count = self.operand_u8(1) as usize;
+        self.ip += 2; // Skip CALL opcode and arg_count byte
 
         self.check_frame_limit()?;
 
@@ -112,15 +105,9 @@ impl VirtualMachine {
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]
     pub(in crate::vm) fn op_invoke(&mut self) -> OpResult {
-        let (method_symbol, arg_count) = {
-            let frame = self.current_frame();
-            let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
-            let arg_count = frame.closure.function.chunk.read_u8(frame.ip + 3) as usize;
-            (method_symbol, arg_count)
-        };
-
-        let frame = self.current_frame_mut();
-        frame.ip += 4; // Skip Invoke opcode, method_symbol and arg_count byte
+        let method_symbol = self.operand_u16(1);
+        let arg_count = self.operand_u8(3) as usize;
+        self.ip += 4; // Skip Invoke opcode, method_symbol and arg_count byte
 
         self.check_frame_limit()?;
 
@@ -191,13 +178,10 @@ impl VirtualMachine {
                 MethodDispatch::NotFound => {}
             }
 
-            let native = {
-                let chunk = &self.current_frame().closure.function.chunk;
-                crate::common::method_registry::get_native_method_by_name(
-                    type_name.as_str(),
-                    &chunk.symbols[method_symbol as usize],
-                )
-            };
+            let native = crate::common::method_registry::get_native_method_by_name(
+                type_name.as_str(),
+                &self.chunk.symbols[method_symbol as usize],
+            );
             if let Some(native) = native {
                 let result = match self.run_native_callable(
                     native,
@@ -421,16 +405,7 @@ impl VirtualMachine {
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
-        let new_frame = CallFrame {
-            closure: Rc::clone(closure),
-            ip: 0,
-            slot_start,
-        };
-
-        // NOTE: IP increment is handled by the caller (fn_call_unified)
-        // Don't increment here to avoid double increment
-
-        self.call_frames.push(new_frame);
+        self.push_frame(Rc::clone(closure), slot_start);
         Ok(())
     }
 
@@ -438,7 +413,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_return(&mut self) {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
-        self.call_frames.pop();
+        self.pop_frame();
 
         // A local captured by a closure that outlives this call must keep
         // its value once this frame's stack slots go away.
@@ -624,12 +599,8 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_constant(&mut self) {
-        let frame = self.current_frame_mut();
-        let constant = {
-            let constant_index = frame.closure.function.chunk.read_u16(frame.ip + 1) as usize;
-            frame.closure.function.chunk.read_constant(constant_index)
-        };
-        frame.ip += 2;
+        let constant = self.chunk.read_constant(self.operand_u16(1) as usize);
+        self.ip += 2;
         self.push(constant);
     }
 
@@ -644,8 +615,7 @@ impl VirtualMachine {
     }
 
     fn read_index(&self) -> usize {
-        let frame = self.current_frame();
-        frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
+        self.operand_u16(1) as usize
     }
 
     /// Wraps a function constant in a closure, capturing whatever upvalues
@@ -653,33 +623,19 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_closure(&mut self) -> OpResult {
         let const_index = self.read_index();
-        let function = {
-            let frame = self.current_frame();
-            match frame.closure.function.chunk.read_constant(const_index) {
-                Value::Function(function) => function,
-                _ => unreachable!("Closure operand must reference a function constant"),
-            }
+        let function = match self.chunk.read_constant(const_index) {
+            Value::Function(function) => function,
+            _ => unreachable!("Closure operand must reference a function constant"),
         };
 
         let mut offset = 2;
-        let upvalue_count = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u8(frame.ip + 1 + offset) as usize
-        };
+        let upvalue_count = self.operand_u8(1 + offset) as usize;
         offset += 1;
 
         let mut upvalues = Vec::with_capacity(upvalue_count);
         for _ in 0..upvalue_count {
-            let (is_local, index) = {
-                let frame = self.current_frame();
-                let is_local = frame.closure.function.chunk.read_u8(frame.ip + 1 + offset) != 0;
-                let index = frame
-                    .closure
-                    .function
-                    .chunk
-                    .read_u16(frame.ip + 1 + offset + 1) as usize;
-                (is_local, index)
-            };
+            let is_local = self.operand_u8(1 + offset) != 0;
+            let index = self.operand_u16(1 + offset + 1) as usize;
             offset += 3;
 
             let upvalue = if is_local {
@@ -696,7 +652,7 @@ impl VirtualMachine {
         }
 
         self.push(Value::new_closure(function, upvalues));
-        self.current_frame_mut().ip += offset;
+        self.ip += offset;
         Ok(())
     }
 
@@ -711,7 +667,7 @@ impl VirtualMachine {
             Upvalue::Open(stack_index) => self.stack[*stack_index].clone(),
             Upvalue::Closed(value) => value.clone(),
         };
-        self.current_frame_mut().ip += 2;
+        self.ip += 2;
         self.push(value);
         Ok(())
     }
@@ -732,7 +688,7 @@ impl VirtualMachine {
             Some(stack_index) => self.stack[stack_index] = value,
             None => *upvalue.borrow_mut() = Upvalue::Closed(value),
         }
-        self.current_frame_mut().ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
@@ -773,6 +729,9 @@ impl VirtualMachine {
     /// copying its live stack value out so it survives that slot being
     /// reused or the stack being truncated.
     pub(in crate::vm) fn close_upvalues_above(&mut self, stack_index: usize) {
+        if self.open_upvalues.is_empty() {
+            return;
+        }
         let stack = &self.stack;
         self.open_upvalues.retain(|upvalue| {
             let index = match *upvalue.borrow() {
@@ -793,9 +752,8 @@ impl VirtualMachine {
     #[inline(always)]
     fn read_local_slot(&mut self) -> (usize, usize) {
         let index = self.read_index();
-        let frame = self.current_frame_mut();
-        let absolute_index = (frame.slot_start + 1 + index as isize) as usize;
-        frame.ip += 2;
+        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        self.ip += 2;
         (index, absolute_index)
     }
 
@@ -812,30 +770,26 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_jump_if_false(&mut self) {
         let peeked_value = self.peek(0);
-        let frame = self.current_frame_mut();
-        let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
-        frame.ip += 4;
+        let offset = self.operand_u32(1);
+        self.ip += 4;
         if is_false_like!(peeked_value) {
             // Don't pop! Leave the value on the stack for logical operators
             // The caller is responsible for popping if needed (e.g., in if statements)
-            frame.ip += offset as usize;
+            self.ip += offset as usize;
         }
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_jump(&mut self) {
-        let frame = self.current_frame_mut();
-        let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
-        frame.ip += 4;
-        frame.ip += offset as usize;
+        let offset = self.operand_u32(1);
+        self.ip += 4 + offset as usize;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_loop(&mut self) {
-        let frame = self.current_frame_mut();
-        let offset = frame.closure.function.chunk.read_u32(frame.ip + 1);
-        frame.ip += 4;
-        frame.ip -= offset as usize;
+        let offset = self.operand_u32(1);
+        self.ip += 4;
+        self.ip -= offset as usize;
     }
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
@@ -845,8 +799,7 @@ impl VirtualMachine {
         } else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         }
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
@@ -874,8 +827,7 @@ impl VirtualMachine {
         }
 
         self.push(value.clone());
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
@@ -900,8 +852,7 @@ impl VirtualMachine {
         }
 
         self.stack[absolute_index] = self.peek(0);
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
@@ -945,8 +896,7 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
@@ -973,23 +923,18 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
     /// Looks up an interned name by symbol id, for use on an error path only.
     fn symbol_name(&self, symbol: u16) -> Rc<str> {
-        let frame = self.current_frame();
-        frame.closure.function.chunk.symbols[symbol as usize].clone()
+        self.chunk.symbols[symbol as usize].clone()
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_create_map(&mut self) -> OpResult {
-        let count = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
-        };
+        let count = self.operand_u16(1) as usize;
 
         let stack_len = self.stack.len();
         let pairs_start = stack_len - (count * 2);
@@ -1016,16 +961,12 @@ impl VirtualMachine {
 
         self.push(Value::new_map(map));
 
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
     pub(in crate::vm) fn op_create_array(&mut self) {
-        let count = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
-        };
+        let count = self.operand_u16(1) as usize;
 
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
@@ -1036,16 +977,12 @@ impl VirtualMachine {
 
         self.push(Value::new_array(elements));
 
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_create_set(&mut self) -> OpResult {
-        let count = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u16(frame.ip + 1) as usize
-        };
+        let count = self.operand_u16(1) as usize;
 
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
@@ -1071,16 +1008,12 @@ impl VirtualMachine {
 
         self.push(Value::new_set(set));
 
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
+        self.ip += 2;
         Ok(())
     }
 
     pub(in crate::vm) fn op_create_range(&mut self) -> OpResult {
-        let inclusive = {
-            let frame = self.current_frame();
-            frame.closure.function.chunk.read_u8(frame.ip + 1) != 0
-        };
+        let inclusive = self.operand_u8(1) != 0;
 
         let end_value = self.pop();
         let start_value = self.pop();
@@ -1140,8 +1073,7 @@ impl VirtualMachine {
 
         self.push(range);
 
-        let frame = self.current_frame_mut();
-        frame.ip += 1;
+        self.ip += 1;
 
         Ok(())
     }
@@ -1451,11 +1383,10 @@ impl VirtualMachine {
     /// along with whether the method takes `self`.
     #[inline(always)]
     pub(in crate::vm) fn op_define_method(&mut self) {
-        let frame = self.current_frame_mut();
-        let type_symbol = frame.closure.function.chunk.read_u16(frame.ip + 1);
-        let method_symbol = frame.closure.function.chunk.read_u16(frame.ip + 3);
-        let takes_self = frame.closure.function.chunk.read_u8(frame.ip + 5) != 0;
-        frame.ip += 5;
+        let type_symbol = self.operand_u16(1);
+        let method_symbol = self.operand_u16(3);
+        let takes_self = self.operand_u8(5) != 0;
+        self.ip += 5;
 
         let closure_value = self.pop();
         let Value::Closure(closure) = &closure_value else {
