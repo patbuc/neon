@@ -1,0 +1,28 @@
+name: Features
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  features:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install components
+        run: rustup component add clippy
+      - name: Clippy (opcode-stats)
+        run: cargo clippy --all-targets --features opcode-stats -- -D warnings
+      - name: Test (opcode-stats)
+        run: cargo test --features opcode-stats
+      - name: Clippy (disassemble)
+        run: cargo clippy --all-targets --features disassemble -- -D warnings

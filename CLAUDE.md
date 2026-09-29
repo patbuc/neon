@@ -92,8 +92,9 @@ cargo run --release --features opcode-stats -- benches/fib.n
 
 Prints one line per executed opcode with its count to stderr after the script finishes, sorted by count
 descending; stdout is unchanged. A second section follows after a blank line, one `Prev->Next <count>` line per
-executed opcode pair (consecutive opcodes across calls, returns, and native callbacks), sorted the same way. Its
-tests run with `cargo test --features opcode-stats`.
+executed opcode pair (consecutive opcodes across calls, returns, and native callbacks), sorted the same way. The
+Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every push to `main`
+and on demand.
 
 ### Running Scripts
 
