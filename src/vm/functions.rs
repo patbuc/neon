@@ -433,34 +433,33 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
+        // [.., a, b] -> [.., result]
         let b = self.pop();
-        let a = self.pop();
-        let is_match = match (&a, &b) {
-            (Value::Number(x), Value::Number(y)) => Some(match wanted {
+        let a = self.stack.last_mut().expect("stack underflow");
+        let is_match = match (&*a, &b) {
+            (Value::Number(x), Value::Number(y)) => match wanted {
                 Comparison::Greater => x > y,
                 Comparison::GreaterEqual => x >= y,
                 Comparison::Less => x < y,
                 Comparison::LessEqual => x <= y,
-            }),
-            (Value::String(sa), Value::String(sb)) => Some(match wanted {
+            },
+            (Value::String(sa), Value::String(sb)) => match wanted {
                 Comparison::Greater => sa > sb,
                 Comparison::GreaterEqual => sa >= sb,
                 Comparison::Less => sa < sb,
                 Comparison::LessEqual => sa <= sb,
-            }),
-            _ => None,
-        };
-        match is_match {
-            Some(is_match) => {
-                self.push(boolean!(is_match));
-                Ok(())
+            },
+            _ => {
+                let message = format!(
+                    "Operands of a comparison must be two numbers or two strings, got {} and {}",
+                    a.type_name(),
+                    b.type_name()
+                );
+                return Err(self.runtime_error(message));
             }
-            None => Err(self.runtime_error(format!(
-                "Operands of a comparison must be two numbers or two strings, got {} and {}",
-                a.type_name(),
-                b.type_name()
-            ))),
-        }
+        };
+        *a = boolean!(is_match);
+        Ok(())
     }
 
     #[inline(always)]
@@ -485,21 +484,29 @@ impl VirtualMachine {
         self.binary_number_op("**", |a, b| a.powf(b))
     }
 
+    #[inline(always)]
     fn binary_number_op(&mut self, op: &str, f: impl Fn(f64, f64) -> f64) -> OpResult {
+        // [.., a, b] -> [.., result]
         let b = self.pop();
-        let a = self.pop();
-        match (&a, &b) {
-            (Value::Number(x), Value::Number(y)) => {
-                self.push(Value::Number(f(*x, *y)));
+        match (self.stack.last_mut(), &b) {
+            (Some(Value::Number(a)), Value::Number(y)) => {
+                *a = f(*a, *y);
+                // b is a number, so skip the out-of-line drop of a Value
+                std::mem::forget(b);
                 Ok(())
             }
-            _ => Err(self.runtime_error(format!(
-                "Operands of '{}' must be numbers, got {} and {}",
-                op,
-                a.type_name(),
-                b.type_name()
-            ))),
+            _ => Err(self.binary_number_op_error(op, &b)),
         }
+    }
+
+    #[cold]
+    fn binary_number_op_error(&self, op: &str, b: &Value) -> RuntimeError {
+        self.runtime_error(format!(
+            "Operands of '{}' must be numbers, got {} and {}",
+            op,
+            self.peek(0).type_name(),
+            b.type_name()
+        ))
     }
 
     /// Helper: Convert f64 to i64 for bitwise operations
@@ -572,15 +579,16 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_add(&mut self) -> OpResult {
+        // [.., a, b] -> [.., result]
         let b = self.pop();
-        let a = self.pop();
-        match (a, b) {
-            (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
-            (Value::String(a), Value::String(b)) => {
-                let mut combined = String::with_capacity(a.len() + b.len());
-                combined.push_str(&a);
-                combined.push_str(&b);
-                self.push(string!(combined));
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Number(x), Value::Number(y)) => *x += *y,
+            (Value::String(x), Value::String(y)) => {
+                let mut combined = String::with_capacity(x.len() + y.len());
+                combined.push_str(x);
+                combined.push_str(y);
+                *slot = string!(combined);
             }
             _ => {
                 return Err(self.runtime_error("Operands must be two numbers or two strings"));
