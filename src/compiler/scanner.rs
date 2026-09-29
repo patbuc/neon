@@ -24,6 +24,25 @@ pub(in crate::compiler) struct Interpolation {
     quote: Position,
 }
 
+pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
+    ("break", TokenType::Break),
+    ("continue", TokenType::Continue),
+    ("else", TokenType::Else),
+    ("false", TokenType::False),
+    ("fn", TokenType::Fn),
+    ("for", TokenType::For),
+    ("if", TokenType::If),
+    ("impl", TokenType::Impl),
+    ("in", TokenType::In),
+    ("nil", TokenType::Nil),
+    ("return", TokenType::Return),
+    ("struct", TokenType::Struct),
+    ("true", TokenType::True),
+    ("val", TokenType::Val),
+    ("var", TokenType::Var),
+    ("while", TokenType::While),
+];
+
 /// `chars` starts right after the `\`; the returned consumed count excludes it.
 fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
     match *chars.first()? {
@@ -619,25 +638,11 @@ impl Scanner {
     }
 
     fn make_identifier_type(lexeme: &str) -> TokenType {
-        match lexeme {
-            "break" => TokenType::Break,
-            "continue" => TokenType::Continue,
-            "else" => TokenType::Else,
-            "if" => TokenType::If,
-            "in" => TokenType::In,
-            "impl" => TokenType::Impl,
-            "nil" => TokenType::Nil,
-            "return" => TokenType::Return,
-            "struct" => TokenType::Struct,
-            "val" => TokenType::Val,
-            "var" => TokenType::Var,
-            "while" => TokenType::While,
-            "false" => TokenType::False,
-            "for" => TokenType::For,
-            "fn" => TokenType::Fn,
-            "true" => TokenType::True,
-            _ => TokenType::Identifier,
-        }
+        KEYWORDS
+            .iter()
+            .find(|(keyword, _)| *keyword == lexeme)
+            .map(|(_, token_type)| token_type.clone())
+            .unwrap_or(TokenType::Identifier)
     }
 
     fn make_error_token(&mut self, kind: CompilationErrorKind, message: &str) -> Token {

@@ -1,0 +1,55 @@
+// SYNTAX TEST "source.neon" "operators"
+  var r = a..b
+//      ^ keyword.operator.assignment.neon
+//         ^^ keyword.operator.range.neon
+  var r = a..=b
+//         ^^^ keyword.operator.range.neon
+  var r = a**b
+//         ^^ keyword.operator.exponentiation.neon
+  a++
+// ^^ keyword.operator.increment.neon
+  a--
+// ^^ keyword.operator.decrement.neon
+  var r = a<<b
+//         ^^ keyword.operator.bitwise.neon
+  var r = a>>b
+//         ^^ keyword.operator.bitwise.neon
+  var r = a&&b
+//         ^^ keyword.operator.logical.neon
+  var r = a||b
+//         ^^ keyword.operator.logical.neon
+  var r = a==b
+//         ^^ keyword.operator.comparison.neon
+  var r = a!=b
+//         ^^ keyword.operator.comparison.neon
+  var r = a<=b
+//         ^^ keyword.operator.comparison.neon
+  var r = a>=b
+//         ^^ keyword.operator.comparison.neon
+  var r = a<b
+//         ^ keyword.operator.comparison.neon
+  var r = a>b
+//         ^ keyword.operator.comparison.neon
+  var r = a+b
+//         ^ keyword.operator.arithmetic.neon
+  var r = a-b
+//         ^ keyword.operator.arithmetic.neon
+  var r = a*b
+//         ^ keyword.operator.arithmetic.neon
+  var r = a/b
+//         ^ keyword.operator.arithmetic.neon
+  var r = a%b
+//         ^ keyword.operator.arithmetic.neon
+  var r = !a
+//        ^ keyword.operator.logical.neon
+  var r = a&b
+//         ^ keyword.operator.bitwise.neon
+  var r = a|b
+//         ^ keyword.operator.bitwise.neon
+  var r = a^b
+//         ^ keyword.operator.bitwise.neon
+  var r = ~a
+//        ^ keyword.operator.bitwise.neon
+  var r = a?b:c
+//         ^ keyword.operator.ternary.neon
+//           ^ keyword.operator.colon.neon
