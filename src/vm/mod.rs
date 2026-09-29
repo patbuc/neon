@@ -67,10 +67,11 @@ pub struct VirtualMachine {
 #[cfg(test)]
 impl VirtualMachine {
     pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
+        use crate::common::method_registry::native_method_table;
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
 
-        self.native_methods = crate::common::method_registry::native_method_table(&chunk.symbols);
+        self.native_methods = native_method_table(&chunk.symbols);
 
         // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {
