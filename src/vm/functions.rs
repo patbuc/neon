@@ -488,9 +488,10 @@ impl VirtualMachine {
     fn binary_number_op(&mut self, op: &str, f: impl Fn(f64, f64) -> f64) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        match (self.stack.last_mut(), &b) {
-            (Some(Value::Number(a)), Value::Number(y)) => {
-                *a = f(*a, *y);
+        let a = self.stack.last_mut().expect("stack underflow");
+        match (&mut *a, &b) {
+            (Value::Number(x), Value::Number(y)) => {
+                *x = f(*x, *y);
                 // b is a number, so skip the out-of-line drop of a Value
                 std::mem::forget(b);
                 Ok(())
