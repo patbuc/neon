@@ -1,3 +1,4 @@
+use crate::common::method_registry::NativeMethodTable;
 use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -47,6 +48,9 @@ pub struct VirtualMachine {
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
+    /// Native methods of the builtin types, built from the running
+    /// compile's symbol table.
+    native_methods: NativeMethodTable,
     /// Execution count per opcode byte, for the `opcode-stats` histogram.
     #[cfg(feature = "opcode-stats")]
     opcode_counts: [u64; 256],
@@ -65,6 +69,8 @@ impl VirtualMachine {
     pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
+
+        self.native_methods = crate::common::method_registry::native_method_table(&chunk.symbols);
 
         // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {

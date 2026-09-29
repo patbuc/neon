@@ -178,10 +178,13 @@ impl VirtualMachine {
                 MethodDispatch::NotFound => {}
             }
 
-            let native = crate::common::method_registry::get_native_method_by_name(
-                type_name.as_str(),
-                &self.chunk.symbols[method_symbol as usize],
-            );
+            let native = match type_name {
+                TypeName::Builtin(type_symbol) => self
+                    .native_methods
+                    .get(method_symbol as usize)
+                    .and_then(|natives| natives[*type_symbol as usize]),
+                TypeName::Struct(_) => None,
+            };
             if let Some(native) = native {
                 let result = match self.run_native_callable(
                     native,

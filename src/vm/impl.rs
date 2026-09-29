@@ -1,3 +1,4 @@
+use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
@@ -30,6 +31,7 @@ impl VirtualMachine {
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: Vec::new(),
+            native_methods: Vec::new(),
             #[cfg(feature = "opcode-stats")]
             opcode_counts: [0; 256],
             #[cfg(feature = "opcode-stats")]
@@ -65,6 +67,7 @@ impl VirtualMachine {
         }
 
         let chunk = chunk.unwrap();
+        self.native_methods = native_method_table(&chunk.symbols);
 
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
