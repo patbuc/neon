@@ -1,0 +1,13 @@
+// Calling an undefined method on a set value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Set
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo(#{1, 2})

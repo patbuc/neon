@@ -1,0 +1,13 @@
+// Calling an undefined method on a number value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Number
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo(42)
