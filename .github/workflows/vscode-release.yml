@@ -1,0 +1,48 @@
+name: VS Code release
+
+on:
+  push:
+    tags:
+      - 'vscode-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/vscode
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - name: Check tag matches package.json version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG_VERSION="${REF_NAME#vscode-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $REF_NAME does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "VERSION=$PKG_VERSION" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: npm ci
+      - name: Package extension
+        run: npx vsce package -o "neon-$VERSION.vsix"
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$REF_NAME" "neon-$VERSION.vsix" \
+            --title "Neon for VS Code $VERSION" \
+            --notes "Install with: \`code --install-extension neon-$VERSION.vsix\`. See [editors/vscode/README.md](https://github.com/patbuc/neon/blob/main/editors/vscode/README.md) for details."

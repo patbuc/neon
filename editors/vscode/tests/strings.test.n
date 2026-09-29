@@ -1,0 +1,26 @@
+// SYNTAX TEST "source.neon" "strings, escapes, and interpolation"
+  var s = "plain string"
+//        ^ string.quoted.double.neon
+//        ^ punctuation.definition.string.begin.neon
+//         ^^^^^^^^^^^^ string.quoted.double.neon
+//                     ^ punctuation.definition.string.end.neon
+  var e = "line\nbreak\ttab\\slash\"quote"
+//             ^^ constant.character.escape.neon
+//                    ^^ constant.character.escape.neon
+//                         ^^ constant.character.escape.neon
+//                                ^^ constant.character.escape.neon
+  print("a ${ f("x ${y}") } b")
+//      ^ string.quoted.double.neon
+//         ^^ meta.interpolation.neon
+//         ^^ punctuation.section.interpolation.begin.neon
+//           ^^^ meta.embedded.line.neon
+//                 ^^ meta.interpolation.neon
+//                   ^ meta.embedded.line.neon
+//                    ^ meta.interpolation.neon
+//                    ^ punctuation.section.interpolation.end.neon
+  print("val = ${ { 1 } }")
+//             ^^ meta.interpolation.neon
+//                ^ punctuation.section.block.begin.neon
+//                  ^ constant.numeric.neon
+//                    ^ punctuation.section.block.end.neon
+//                      ^ meta.interpolation.neon
