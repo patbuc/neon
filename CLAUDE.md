@@ -189,6 +189,8 @@ cargo run --features disassemble -- script.n
 - Math namespace with static methods
 - String/Array/Map/Set/Range methods via method registry
 - Method registry (`src/common/method_registry.rs`) maps type+method to function index
+- Runtime `Invoke` dispatch of native methods goes through the per-compile `NativeMethodTable` held on the VM,
+  indexed by method symbol and builtin type symbol, not through name lookups
 
 ### Key Type Interactions
 

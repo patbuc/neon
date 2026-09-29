@@ -1,0 +1,13 @@
+// Calling a String-only method on an Array
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'toUpperCase' for type Array
+
+fn callUpper(a) {
+    return a.toUpperCase()
+}
+
+print("before")
+callUpper([1, 2])

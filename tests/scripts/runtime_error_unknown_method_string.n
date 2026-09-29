@@ -1,0 +1,13 @@
+// Calling an undefined method on a string value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type String
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo("abc")
