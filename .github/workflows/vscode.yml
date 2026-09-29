@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'editors/vscode/**'
+      - 'src/compiler/mod.rs'
       - 'src/compiler/scanner.rs'
       - 'src/compiler/token.rs'
+      - 'src/main.rs'
       - 'tests/scripts/**'
 
 permissions:
