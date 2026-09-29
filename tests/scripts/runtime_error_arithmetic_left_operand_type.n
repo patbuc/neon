@@ -1,0 +1,9 @@
+// Arithmetic operator with a non-number left operand
+
+// Expected:
+// before
+
+// Expected runtime error: Operands of '-' must be numbers, got string and number
+
+print("before")
+print("a" - 1)
