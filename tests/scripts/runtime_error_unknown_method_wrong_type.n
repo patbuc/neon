@@ -1,0 +1,14 @@
+// Calling a method that exists on another builtin type
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'push' for type String
+
+fn callPush(a) {
+    return a.push(1)
+}
+
+print("before")
+callPush([1, 2])
+callPush("abc")
