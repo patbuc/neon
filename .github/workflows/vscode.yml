@@ -5,6 +5,8 @@ on:
     paths:
       - 'editors/vscode/**'
       - 'src/compiler/scanner.rs'
+      - 'src/compiler/token.rs'
+      - 'tests/scripts/**'
 
 permissions:
   contents: read
