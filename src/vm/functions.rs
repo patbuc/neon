@@ -582,12 +582,12 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let slot = self.stack.last_mut().expect("stack underflow");
-        match (&mut *slot, &b) {
-            (Value::Number(x), Value::Number(y)) => *x += *y,
+        match (&mut *slot, b) {
+            (Value::Number(x), Value::Number(y)) => *x += y,
             (Value::String(x), Value::String(y)) => {
                 let mut combined = String::with_capacity(x.len() + y.len());
                 combined.push_str(x);
-                combined.push_str(y);
+                combined.push_str(&y);
                 *slot = string!(combined);
             }
             _ => {
