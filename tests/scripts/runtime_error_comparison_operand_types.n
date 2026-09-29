@@ -1,0 +1,9 @@
+// Comparison of mismatched operand types
+
+// Expected:
+// before
+
+// Expected runtime error: Operands of a comparison must be two numbers or two strings, got number and string
+
+print("before")
+print(1 < "a")

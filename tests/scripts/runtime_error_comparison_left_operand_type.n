@@ -1,0 +1,9 @@
+// Comparison with a non-comparable left operand
+
+// Expected:
+// before
+
+// Expected runtime error: Operands of a comparison must be two numbers or two strings, got nil and number
+
+print("before")
+print(nil < 1)
