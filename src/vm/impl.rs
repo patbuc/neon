@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine};
@@ -18,6 +18,8 @@ impl VirtualMachine {
     pub fn with_args(args: Vec<String>) -> Self {
         VirtualMachine {
             call_frames: Vec::new(),
+            ip: 0,
+            chunk: Rc::new(Chunk::new("")),
             stack: Vec::new(),
             builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
@@ -75,12 +77,7 @@ impl VirtualMachine {
         });
 
         // Use -1 for slot_start since the script has no function object on the stack
-        let frame = CallFrame {
-            closure: script_closure,
-            ip: 0,
-            slot_start: -1,
-        };
-        self.call_frames.push(frame);
+        self.push_frame(script_closure, -1);
 
         let result = self.run_script(0);
 
@@ -110,10 +107,7 @@ impl VirtualMachine {
             frame.closure.function.chunk.disassemble_chunk();
         }
         loop {
-            let byte = {
-                let frame = self.current_frame();
-                frame.closure.function.chunk.read_u8(frame.ip)
-            };
+            let byte = self.chunk.read_u8(self.ip);
             let op_code = match OpCode::from_u8(byte) {
                 Some(op_code) => op_code,
                 None => {
@@ -199,20 +193,52 @@ impl VirtualMachine {
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
             }
-            self.current_frame_mut().ip += 1;
+            self.ip += 1;
         }
+    }
+
+    /// Makes `closure` the running frame. The caller's `ip` is saved on its
+    /// frame, since `self.ip` and `self.chunk` only track the top frame.
+    pub(in crate::vm) fn push_frame(&mut self, closure: Rc<ObjClosure>, slot_start: isize) {
+        if let Some(caller) = self.call_frames.last_mut() {
+            caller.ip = self.ip;
+        }
+        self.ip = 0;
+        self.chunk = Rc::clone(&closure.function.chunk);
+        self.call_frames.push(CallFrame {
+            closure,
+            ip: 0,
+            slot_start,
+        });
+    }
+
+    /// Drops the running frame and resumes its caller, if any.
+    pub(in crate::vm) fn pop_frame(&mut self) {
+        self.call_frames.pop();
+        if let Some(caller) = self.call_frames.last() {
+            self.ip = caller.ip;
+            self.chunk = Rc::clone(&caller.closure.function.chunk);
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u8(&self, offset: usize) -> u8 {
+        self.chunk.read_u8(self.ip + offset)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u16(&self, offset: usize) -> u16 {
+        self.chunk.read_u16(self.ip + offset)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u32(&self, offset: usize) -> u32 {
+        self.chunk.read_u32(self.ip + offset)
     }
 
     #[inline(always)]
     pub(crate) fn current_frame(&self) -> &CallFrame {
         self.call_frames.last().expect("call frame stack is empty")
-    }
-
-    #[inline(always)]
-    pub(crate) fn current_frame_mut(&mut self) -> &mut CallFrame {
-        self.call_frames
-            .last_mut()
-            .expect("call frame stack is empty")
     }
 
     #[inline(always)]
@@ -251,7 +277,7 @@ impl VirtualMachine {
 
         for (depth, frame) in self.call_frames.iter().rev().enumerate() {
             let ip = if depth == 0 {
-                frame.ip.saturating_sub(innermost_offset)
+                self.ip.saturating_sub(innermost_offset)
             } else {
                 frame.ip.saturating_sub(1)
             };

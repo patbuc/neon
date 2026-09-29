@@ -1312,3 +1312,53 @@ fn negate_non_number_halts_with_message_and_line() {
     let error = vm.get_runtime_error().unwrap();
     assert_eq!("  at <script> (line 1)", error.trace());
 }
+
+#[test]
+fn error_after_returning_from_a_call_reports_the_caller_location() {
+    let program =
+        "fn one() { return 1 }\nfn outer() {\n    val a = one()\n    return a + true\n}\nouter()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        "[4:14] Operands must be two numbers or two strings",
+        error.to_string()
+    );
+    assert_eq!("  at outer (line 4)\n  at <script> (line 6)", error.trace());
+}
+
+#[test]
+fn error_after_native_callback_returns_reports_the_caller_location() {
+    let program =
+        "fn id(x) { return x }\nfn run() {\n    val a = [1, 2].map(id)\n    return a + 1\n}\nrun()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        "[4:14] Operands must be two numbers or two strings",
+        error.to_string()
+    );
+    assert_eq!("  at run (line 4)\n  at <script> (line 6)", error.trace());
+}
+
+#[test]
+fn native_callback_error_from_a_nested_function_reports_every_frame() {
+    let program = "fn boom(x) { return x + true }\nfn run() {\n    return [1].map(boom)\n}\nfn start() {\n    return run()\n}\nstart()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        "[1:23] Operands must be two numbers or two strings",
+        error.to_string()
+    );
+    assert_eq!(
+        "  at boom (line 1)\n  at run (line 3)\n  at start (line 6)\n  at <script> (line 8)",
+        error.trace()
+    );
+}

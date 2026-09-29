@@ -1,6 +1,4 @@
-#[cfg(test)]
-use crate::common::Chunk;
-use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -29,6 +27,10 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
+    /// The running (top) frame's instruction pointer and chunk; its
+    /// `CallFrame.ip` is only kept current for the frames below it.
+    ip: usize,
+    chunk: Rc<Chunk>,
     /// Runtime builtin values (e.g. `args`), stored separately from the
     /// call stack. Math and File are namespaces, not values here.
     builtin: Vec<Value>,
@@ -75,13 +77,8 @@ impl VirtualMachine {
             upvalues: Vec::new(),
         });
 
-        // Create the initial call frame
-        let frame = CallFrame {
-            closure: test_closure,
-            ip: 0,
-            slot_start: -1, // Like script frame, no function object on stack
-        };
-        self.call_frames.push(frame);
+        // Like the script frame: no function object on the stack
+        self.push_frame(test_closure, -1);
 
         self.run_script(0)
     }

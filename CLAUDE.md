@@ -157,6 +157,8 @@ cargo run --features disassemble -- script.n
 - Stack-based bytecode interpreter
 - Main execution loop processes opcodes
 - Call frame stack for function calls (`src/vm/functions.rs`)
+- The running frame's `ip` and chunk live in `VirtualMachine.ip`/`chunk`; `CallFrame.ip` is only current for the
+  frames below the top (`push_frame`/`pop_frame` save and restore it)
 - Separate builtin values storage (e.g., Math namespace)
 
 **Bytecode Format** (`src/common/chunk/`)
@@ -190,7 +192,7 @@ cargo run --features disassemble -- script.n
 
 ### Key Type Interactions
 
-- **CallFrame**: Links function object to instruction pointer and stack slot range
+- **CallFrame**: Links function object to a saved instruction pointer and stack slot range
 - **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
   status for closures
 - **For-in State**: Each for-in loop keeps its collection and index in two hidden locals, which
