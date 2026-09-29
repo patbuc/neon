@@ -214,6 +214,9 @@ cargo run --features disassemble -- script.n
    codegen never has to look it up by name
 6. Implement code generation in `src/compiler/codegen.rs`, reading the resolution recorded in step 5
 7. Write integration test in `tests/scripts/` with expected output
+8. A new keyword also goes in `KEYWORDS` (`src/compiler/scanner.rs`) and in
+   `editors/vscode/syntaxes/neon.tmLanguage.json` — a test enforces they match — and in
+   `KEYWORD_FAMILY` (`editors/vscode/tests/differential.js`), which `npm test` enforces
 
 ### New Standard Library Function
 

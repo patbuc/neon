@@ -1,0 +1,35 @@
+// SYNTAX TEST "source.neon" "control/storage keywords, language constants, declaration names"
+  if a { }
+//^^ keyword.control.neon
+  else { }
+//^^^^ keyword.control.neon
+  for x in y { }
+//^^^ keyword.control.neon
+//      ^^ keyword.control.neon
+  while a { }
+//^^^^^ keyword.control.neon
+  break
+//^^^^^ keyword.control.neon
+  continue
+//^^^^^^^^ keyword.control.neon
+  return a
+//^^^^^^ keyword.control.neon
+  fn add(a, b) {
+//^^ storage.type.neon
+//   ^^^ entity.name.function.neon
+  struct Point {
+//^^^^^^ storage.type.neon
+//       ^^^^^ entity.name.type.neon
+  impl Point {
+//^^^^ storage.type.neon
+//     ^^^^^ entity.name.type.neon
+  val x = 1
+//^^^ storage.type.neon
+  var y = 2
+//^^^ storage.type.neon
+  var t = true
+//        ^^^^ constant.language.neon
+  var f = false
+//        ^^^^^ constant.language.neon
+  var n = nil
+//        ^^^ constant.language.neon

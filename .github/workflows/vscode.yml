@@ -1,0 +1,38 @@
+name: VS Code grammar
+
+on:
+  pull_request:
+    paths:
+      - 'editors/vscode/**'
+      - 'src/compiler/mod.rs'
+      - 'src/compiler/scanner.rs'
+      - 'src/compiler/token.rs'
+      - 'src/main.rs'
+      - 'tests/scripts/**'
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - name: Build
+        run: cargo build --verbose
+      - name: Install grammar test dependencies
+        run: npm ci
+        working-directory: editors/vscode
+      - name: Run grammar tests
+        run: npm test
+        working-directory: editors/vscode

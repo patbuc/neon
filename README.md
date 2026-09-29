@@ -55,6 +55,13 @@ Run it:
 cargo run -- hello.n
 ```
 
+### Editor Support
+
+VS Code syntax highlighting for `.n` files ships as a VSIX on the
+[GitHub Releases page](https://github.com/patbuc/neon/releases) — install it with
+`code --install-extension neon-X.Y.Z.vsix`. See
+[editors/vscode/README.md](editors/vscode/README.md) for details.
+
 ## Benchmarks
 
 `benches/` holds paired `<name>.n` / `<name>.py` benchmarks (fib, closures, structs, collections, sieve, and more)
