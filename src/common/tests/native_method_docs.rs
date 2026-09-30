@@ -1,7 +1,6 @@
 use crate::common::method_registry::NATIVE_METHODS;
 use std::collections::BTreeSet;
 
-// Range's push/pop/sort/reverse only raise "immutable" runtime errors and aren't documented.
 const UNDOCUMENTED: &[(&str, &str)] = &[
     ("Range", "push"),
     ("Range", "pop"),
@@ -13,31 +12,6 @@ fn backtick_tokens(text: &str) -> Vec<&str> {
     text.split('`').skip(1).step_by(2).collect()
 }
 
-/// Removes plain-text parenthesized asides that sit outside any backtick
-/// span, so a doc note like "(creates the file; errors if it exists)" can't
-/// smuggle a stray method-looking backtick token past `backtick_tokens`.
-fn strip_parenthetical(text: &str) -> String {
-    let mut result = String::new();
-    let mut in_backtick = false;
-    let mut depth = 0i32;
-    for c in text.chars() {
-        match c {
-            '`' => {
-                in_backtick = !in_backtick;
-                result.push(c);
-            }
-            '(' if !in_backtick => depth += 1,
-            ')' if !in_backtick => depth -= 1,
-            _ if !in_backtick && depth > 0 => {}
-            _ => result.push(c),
-        }
-    }
-    result
-}
-
-/// Recognizes `.method(...)`/bare `method(...)` (current section type),
-/// `Type.method(...)`/`lowercase.method(...)` (explicit or section type),
-/// and `Type(...)` constructors, reported as `Type.new`.
 fn parse_token(token: &str, section_types: &[String]) -> Vec<(String, String)> {
     let token = token.trim();
     let name_part = match token.find('(') {
@@ -72,9 +46,6 @@ fn parse_token(token: &str, section_types: &[String]) -> Vec<(String, String)> {
     vec![]
 }
 
-/// Parses `## Native methods that exist`: one bullet per type, `- **Type:**
-/// \`method\`, ...`, wrapping onto indented continuation lines. `Global`
-/// isn't a registry type and is skipped.
 fn parse_skill_methods(text: &str) -> BTreeSet<(String, String)> {
     let section = section_body(text, "## Native methods that exist");
     let mut methods = BTreeSet::new();
@@ -82,7 +53,7 @@ fn parse_skill_methods(text: &str) -> BTreeSet<(String, String)> {
     let mut in_bullet = false;
 
     for line in section.lines() {
-        let trimmed = strip_parenthetical(line.trim());
+        let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("- **") {
             let (header, body) = rest.split_once("**").expect("bullet missing closing **");
             let header = header.trim_end_matches(':');
@@ -94,7 +65,7 @@ fn parse_skill_methods(text: &str) -> BTreeSet<(String, String)> {
                 }
             }
         } else if in_bullet && !trimmed.is_empty() {
-            for token in backtick_tokens(&trimmed) {
+            for token in backtick_tokens(trimmed) {
                 methods.extend(parse_token(token, &section_types));
             }
         } else if trimmed.is_empty() {
@@ -104,11 +75,8 @@ fn parse_skill_methods(text: &str) -> BTreeSet<(String, String)> {
     methods
 }
 
-/// What a `### `/bold heading in README's Standard Library section documents.
 enum Section {
-    /// No registry type is active (e.g. straight after `### Type Conversions`).
     None,
-    /// `### Global Functions`: out of scope, but only `print` may appear here.
     Global,
     Types(Vec<String>),
 }
@@ -128,91 +96,86 @@ fn heading_section(heading: &str) -> Section {
     }
 }
 
-fn process_bullet(bullet: &str, section: &Section, methods: &mut BTreeSet<(String, String)>) {
-    let tokens_region = match bullet.split_once(" - ") {
-        Some((region, _)) => region,
-        None => bullet,
-    };
-    match section {
-        Section::None => panic!("README.md: method bullet with no current section type: {bullet}"),
-        Section::Global => {
-            for token in backtick_tokens(tokens_region) {
-                let name = token.split('(').next().unwrap_or(token).trim();
-                assert_eq!(
-                    name, "print",
-                    "README.md: unexpected Global Functions entry `{token}`"
-                );
+fn process_bullet(lines: &[String], section: &Section, methods: &mut BTreeSet<(String, String)>) {
+    for line in lines {
+        let tokens_region = match line.split_once(" - ") {
+            Some((region, _)) => region,
+            None => line.as_str(),
+        };
+        match section {
+            Section::None => {
+                panic!("README.md: method bullet with no current section type: {line}")
             }
-        }
-        Section::Types(types) => {
-            for token in backtick_tokens(tokens_region) {
-                methods.extend(parse_token(token, types));
+            Section::Global => {
+                for token in backtick_tokens(tokens_region) {
+                    let name = match token.split_once('(') {
+                        Some((name, _)) => name,
+                        None => token,
+                    }
+                    .trim();
+                    assert_eq!(
+                        name, "print",
+                        "README.md: unexpected Global Functions entry `{token}`"
+                    );
+                }
+            }
+            Section::Types(types) => {
+                for token in backtick_tokens(tokens_region) {
+                    methods.extend(parse_token(token, types));
+                }
             }
         }
     }
 }
 
 fn flush_pending(
-    pending: &mut Option<String>,
+    pending: &mut Option<Vec<String>>,
     section: &Section,
     methods: &mut BTreeSet<(String, String)>,
 ) {
-    if let Some(bullet) = pending.take() {
-        process_bullet(&bullet, section, methods);
+    if let Some(lines) = pending.take() {
+        process_bullet(&lines, section, methods);
     }
 }
 
-/// Parses README's `## Standard Library` section: `### ` headings plus
-/// `**Number Methods:**` / `**Boolean Methods:**` bold sub-headers under
-/// `### Type Conversions`. Method bullets are `- \`...\` - description`;
-/// only the backtick tokens before the ` - ` separator count, and a bullet
-/// may wrap onto indented continuation lines.
 fn parse_readme_methods(text: &str) -> BTreeSet<(String, String)> {
     let section = section_body(text, "## Standard Library");
     let mut methods = BTreeSet::new();
     let mut current = Section::None;
     let mut in_code_block = false;
-    let mut pending: Option<String> = None;
+    let mut pending: Option<Vec<String>> = None;
 
     for line in section.lines() {
         let trimmed = line.trim();
 
-        if in_code_block {
-            if trimmed.starts_with("```") {
-                in_code_block = false;
-            }
-            continue;
-        }
         if trimmed.starts_with("```") {
             flush_pending(&mut pending, &current, &mut methods);
-            in_code_block = true;
+            in_code_block = !in_code_block;
             continue;
         }
-
-        let is_continuation =
-            pending.is_some() && !line.is_empty() && line.starts_with(char::is_whitespace);
-        if is_continuation {
-            let bullet = pending.as_mut().unwrap();
-            bullet.push(' ');
-            bullet.push_str(trimmed);
+        if in_code_block {
             continue;
         }
-
-        flush_pending(&mut pending, &current, &mut methods);
 
         if let Some(heading) = trimmed.strip_prefix("### ") {
+            flush_pending(&mut pending, &current, &mut methods);
             current = heading_section(heading);
         } else if let Some(bold) = trimmed
             .strip_prefix("**")
             .and_then(|s| s.strip_suffix("**"))
         {
+            flush_pending(&mut pending, &current, &mut methods);
             if let Some(t) = bold.strip_suffix(" Methods:") {
                 current = Section::Types(vec![t.to_string()]);
             }
-        } else if trimmed.starts_with("- `") {
-            pending = Some(trimmed.to_string());
+        } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+            flush_pending(&mut pending, &current, &mut methods);
+            pending = Some(vec![trimmed.to_string()]);
+        } else if trimmed.is_empty() {
+            flush_pending(&mut pending, &current, &mut methods);
+        } else if let Some(lines) = pending.as_mut() {
+            lines.push(trimmed.to_string());
         }
-        // else: blank line or prose paragraph, ignored
     }
     flush_pending(&mut pending, &current, &mut methods);
 
@@ -220,12 +183,11 @@ fn parse_readme_methods(text: &str) -> BTreeSet<(String, String)> {
 }
 
 fn section_body<'a>(text: &'a str, start_heading: &str) -> &'a str {
+    let needle = format!("\n{start_heading}\n");
     let start = text
-        .find(start_heading)
+        .find(&needle)
         .unwrap_or_else(|| panic!("missing heading {start_heading:?}"));
-    let rest = &text[start + start_heading.len()..];
-    let after_heading_line = rest.find('\n').map(|i| i + 1).unwrap_or(rest.len());
-    let body = &rest[after_heading_line..];
+    let body = &text[start + needle.len()..];
     match body.find("\n## ") {
         Some(i) => &body[..i],
         None => body,
