@@ -125,6 +125,103 @@ fn run_file_reports_call_trace_on_stderr() {
     assert_eq!(expected, stderr);
 }
 
+#[test]
+fn check_mode_prints_nothing_and_exits_zero_on_success() {
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("neon_cli_test_check_mode_prints_nothing.n");
+
+    let mut file = fs::File::create(&script_path).expect("Failed to create test script");
+    file.write_all(b"print(\"hi\")\n")
+        .expect("Failed to write test script");
+    drop(file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_file(&script_path).ok();
+
+    assert!(output.status.success());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
+fn check_mode_reports_same_compile_error_as_running() {
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("neon_cli_test_check_mode_reports_compile_error.n");
+
+    let mut file = fs::File::create(&script_path).expect("Failed to create test script");
+    file.write_all(b"val x = 1;\n")
+        .expect("Failed to write test script");
+    drop(file);
+
+    let check_output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let run_output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_file(&script_path).ok();
+
+    assert_eq!(65, check_output.status.code().unwrap());
+    assert_eq!("", String::from_utf8_lossy(&check_output.stdout));
+
+    let check_stderr = String::from_utf8_lossy(&check_output.stderr);
+    let run_stderr = String::from_utf8_lossy(&run_output.stderr);
+    assert!(!check_stderr.is_empty());
+    assert_eq!(check_stderr, run_stderr);
+}
+
+#[test]
+fn check_mode_without_file_prints_usage_on_stderr() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(64, output.status.code().unwrap());
+    assert_eq!(
+        "Usage: neon --check <file>\n",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn check_mode_reports_missing_file_on_stderr() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg("/nonexistent_path_neon_cli_test.n")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(66, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("/nonexistent_path_neon_cli_test.n"));
+    assert!(!stderr.contains("panic"));
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn help_lists_check_flag() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--check"));
+}
+
 #[cfg(feature = "opcode-stats")]
 #[test]
 fn run_file_prints_opcode_stats_to_stderr_only() {
