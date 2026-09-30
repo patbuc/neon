@@ -1,0 +1,35 @@
+// A number literal as the right operand of +, -, <, <=, >, >= compiles to a
+// constant-operand opcode (AddConstant, SubtractConstant, ...). Check the
+// results still match the generic form, including a float literal and a
+// negative result.
+
+// Expected:
+// 6
+// -4
+// 4.5
+// true
+// true
+// false
+// false
+// true
+// true
+// false
+// false
+// false
+
+val x = 5
+print(x + 1)
+print(x - 9)
+print(x + 0.5 - 1)
+
+print(x <= 5)
+print(x <= 6)
+print(x <= 4)
+
+print(x >= 6)
+print(x >= 5)
+print(x >= 4)
+
+print(x < 5)
+print(x < 4)
+print(x > 5)

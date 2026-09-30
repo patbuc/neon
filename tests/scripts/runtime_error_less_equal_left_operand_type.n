@@ -1,0 +1,10 @@
+// Comparison with a non-comparable left operand and a number literal
+// right operand, which compiles to the fused LessEqualConstant opcode
+
+// Expected:
+// before
+
+// Expected runtime error: Operands of a comparison must be two numbers or two strings, got nil and number
+
+print("before")
+print(nil <= 1)
