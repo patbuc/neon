@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 54] = [
+        const OPCODES: [OpCode; 55] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -33,6 +33,7 @@ impl OpCode {
             OpCode::SetGlobal,
             OpCode::GetField,
             OpCode::SetField,
+            OpCode::GetLocalField,
             OpCode::CreateMap,
             OpCode::CreateArray,
             OpCode::CreateSet,
@@ -99,6 +100,9 @@ pub(crate) enum OpCode {
     SetGlobal,
     GetField,
     SetField,
+    /// Fused `GetLocal` + `GetField`: a 16-bit local slot, then a 16-bit
+    /// symbol id.
+    GetLocalField,
 
     CreateMap,
     CreateArray,
