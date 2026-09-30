@@ -1,0 +1,20 @@
+// task_copies_argument_and_result.n - the task's argument and result are
+// deep copies, so mutating either side doesn't affect the other
+
+// Expected:
+// [1, 2, 3]
+// [1, 2, 3, 4]
+// [1, 2, 3]
+// [1, 2, 3, 4, 5]
+
+val arg = [1, 2, 3]
+val handle = Task.spawn(fn(x) {
+    x.push(4)
+    return x
+}, arg)
+val result = handle.join()
+print(arg)
+print(result)
+result.push(5)
+print(arg)
+print(result)

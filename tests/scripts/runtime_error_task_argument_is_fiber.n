@@ -1,0 +1,13 @@
+// A fiber is passed as a task's argument
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot copy a fiber across a task boundary
+
+val f = Fiber(fn() {
+    Fiber.yield()
+})
+
+print("start")
+Task.spawn(fn(x) { return x }, f)

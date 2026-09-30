@@ -1,0 +1,18 @@
+// task_copy_keeps_shared_and_cyclic_structure.n - the deep copy across a
+// task boundary preserves sharing between values and copies cycles fine
+
+// Expected:
+// true
+// [1, [...]]
+
+val s = #{1}
+val sharedHandle = Task.spawn(fn(x) {
+    x[0].add(2)
+    return x[1].has(2)
+}, [s, s])
+print(sharedHandle.join())
+
+val a = [1]
+a.push(a)
+val cyclicHandle = Task.spawn(fn(x) { return x }, a)
+print(cyclicHandle.join())

@@ -1,0 +1,20 @@
+// task_runs_fibers_internally.n - a task may create and resume a fiber,
+// which may still yield back to the task
+
+// Expected:
+// 1
+// 2
+// done
+
+fn body() {
+    val f = Fiber(fn() {
+        Fiber.yield(1)
+        Fiber.yield(2)
+        return "done"
+    })
+    print(f.call())
+    print(f.call())
+    return f.call()
+}
+
+print(Task.spawn(body).join())

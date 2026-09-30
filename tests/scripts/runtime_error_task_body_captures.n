@@ -1,0 +1,15 @@
+// A task body captures a variable from its enclosing scope
+
+// Expected:
+// start
+
+// Expected runtime error: Task body 'anonymous' cannot capture variables; pass them as its argument instead
+
+fn make() {
+    var local = 1
+    return fn() { return local }
+}
+
+val captured = make()
+print("start")
+Task.spawn(captured)

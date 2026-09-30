@@ -1,0 +1,13 @@
+// A task body calls Fiber.yield directly
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot yield from a task
+
+fn body() {
+    Fiber.yield()
+}
+
+print("start")
+Task.spawn(body).join()

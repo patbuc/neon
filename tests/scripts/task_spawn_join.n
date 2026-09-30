@@ -1,0 +1,14 @@
+// task_spawn_join.n - Task.spawn runs a body to completion and join returns
+// the same deep-copied result on every call
+
+// Expected:
+// true
+// 42
+// 42
+// true
+
+val handle = Task.spawn(fn(x) { return x * 2 }, 21)
+print(handle.isDone())
+print(handle.join())
+print(handle.join())
+print(handle.isDone())

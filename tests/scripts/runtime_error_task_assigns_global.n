@@ -1,0 +1,15 @@
+// A task body assigns to a global
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot assign to global 'count' inside a task
+
+var count = 0
+
+fn body() {
+    count = 1
+}
+
+print("start")
+Task.spawn(body).join()

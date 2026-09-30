@@ -1,0 +1,43 @@
+// task_reads_immutable_globals.n - a task body may read top-level fns,
+// structs, and val globals holding numbers, strings, booleans, nil, ranges,
+// or non-capturing functions
+
+// Expected:
+// <Point instance>
+// 3
+// hi
+// true
+// nil
+// 1..=3
+// 10
+// 6
+
+struct Point {
+    x
+    y
+}
+
+fn addOne(n) {
+    return n + 1
+}
+
+val num = 3
+val str = "hi"
+val flag = true
+val nothing = nil
+val range = 1..=3
+val double = fn(n) { return n * 2 }
+
+fn body() {
+    val p = Point(1, 2)
+    print(p)
+    print(num)
+    print(str)
+    print(flag)
+    print(nothing)
+    print(range)
+    print(double(5))
+    return addOne(5)
+}
+
+print(Task.spawn(body).join())

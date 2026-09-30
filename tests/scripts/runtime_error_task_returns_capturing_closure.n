@@ -1,0 +1,14 @@
+// A task body returns a closure that captures a variable
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot copy function 'anonymous' across a task boundary: it captures variables
+
+fn body() {
+    var local = 1
+    return fn() { return local }
+}
+
+print("start")
+Task.spawn(body).join()

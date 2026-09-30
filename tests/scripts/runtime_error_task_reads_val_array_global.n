@@ -1,0 +1,15 @@
+// A task body reads a val global holding an array
+
+// Expected:
+// start
+
+// Expected runtime error: Task cannot read global 'arr'; pass it as the task's argument
+
+val arr = [1, 2, 3]
+
+fn body() {
+    return arr
+}
+
+print("start")
+Task.spawn(body).join()

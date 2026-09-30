@@ -1,0 +1,14 @@
+// task_spawns_nested_task.n - a task may spawn another task and join it
+
+// Expected:
+// 84
+
+fn inner(x) {
+    return x * 2
+}
+
+fn outer(x) {
+    return Task.spawn(inner, x).join()
+}
+
+print(Task.spawn(outer, 42).join())
