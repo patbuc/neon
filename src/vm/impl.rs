@@ -215,6 +215,9 @@ impl VirtualMachine {
                 OpCode::CloseUpvalueInPlace => self.op_close_upvalue_in_place(),
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
+                OpCode::StoreLocal => self.op_store_local()?,
+                OpCode::StoreField => self.op_store_field()?,
+                OpCode::StoreLocalField => self.op_store_local_field()?,
             }
             self.ip += 1;
         }
