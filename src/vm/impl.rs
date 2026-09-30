@@ -218,6 +218,14 @@ impl VirtualMachine {
                 OpCode::StoreLocal => self.op_store_local()?,
                 OpCode::StoreField => self.op_store_field()?,
                 OpCode::StoreLocalField => self.op_store_local_field()?,
+                OpCode::AddConstant => self.op_add_constant()?,
+                OpCode::SubtractConstant => self.op_subtract_constant()?,
+                OpCode::GreaterConstant => self.op_compare_constant(Comparison::Greater)?,
+                OpCode::GreaterEqualConstant => {
+                    self.op_compare_constant(Comparison::GreaterEqual)?
+                }
+                OpCode::LessConstant => self.op_compare_constant(Comparison::Less)?,
+                OpCode::LessEqualConstant => self.op_compare_constant(Comparison::LessEqual)?,
             }
             self.ip += 1;
         }

@@ -620,6 +620,63 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// `Add` with a number constant as the right operand. A non-number left
+    /// operand goes through `op_add` so its error stays identical.
+    #[inline(always)]
+    pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = slot {
+            *a += self.chunk.read_number_constant(index);
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_add()?;
+        self.ip += 2;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = slot {
+            *a -= self.chunk.read_number_constant(index);
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_subtract()?;
+        self.ip += 2;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = *slot {
+            let c = self.chunk.read_number_constant(index);
+            let is_match = match wanted {
+                Comparison::Greater => a > c,
+                Comparison::GreaterEqual => a >= c,
+                Comparison::Less => a < c,
+                Comparison::LessEqual => a <= c,
+            };
+            std::mem::replace(slot, boolean!(is_match)).discard();
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_compare(wanted)?;
+        self.ip += 2;
+        Ok(())
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
         // [.., operand] -> [.., result]
