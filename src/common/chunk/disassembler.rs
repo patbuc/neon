@@ -74,7 +74,9 @@ impl Chunk {
             OpCode::Modulo => self.simple_instruction(instruction, offset, out),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset, out),
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset, out),
-            OpCode::GetLocalField => self.local_field_instruction(offset, out),
+            OpCode::GetLocalField => {
+                self.local_field_instruction(OpCode::GetLocalField, offset, out)
+            }
             OpCode::CreateMap => self.create_map_instruction(offset, out),
             OpCode::CreateArray => self.create_array_instruction(offset, out),
             OpCode::CreateSet => self.create_set_instruction(offset, out),
@@ -101,6 +103,11 @@ impl Chunk {
             OpCode::DefineMethod => self.define_method_instruction(offset, out),
             OpCode::CheckInitialized => {
                 self.simple_instruction(OpCode::CheckInitialized, offset, out)
+            }
+            OpCode::StoreLocal => self.variable_instruction(OpCode::StoreLocal, offset, out),
+            OpCode::StoreField => self.field_instruction(OpCode::StoreField, offset, out),
+            OpCode::StoreLocalField => {
+                self.local_field_instruction(OpCode::StoreLocalField, offset, out)
             }
         }
     }
@@ -136,19 +143,11 @@ impl Chunk {
         offset + 3
     }
 
-    fn local_field_instruction(&self, offset: usize, out: &mut String) -> usize {
+    fn local_field_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let slot = self.read_u16(offset + 1);
         let symbol = self.read_u16(offset + 3) as usize;
         let name = &self.symbols[symbol];
-        writeln!(
-            out,
-            "{:?} {:02} {:02} '{}'",
-            OpCode::GetLocalField,
-            slot,
-            symbol,
-            name
-        )
-        .unwrap();
+        writeln!(out, "{:?} {:02} {:02} '{}'", op_code, slot, symbol, name).unwrap();
         offset + 5
     }
 
