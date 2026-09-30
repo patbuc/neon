@@ -863,6 +863,39 @@ fn nested_call_error_reports_frames_innermost_first() {
 }
 
 #[test]
+fn error_after_a_nested_call_returns_reports_every_frame_correctly() {
+    // inner() returns normally before middle()'s error, so this also
+    // covers pop_frame restoring the caller's chunk correctly on return.
+    let program = "fn inner() { return 1 }\nfn middle() {\n    val a = inner()\n    return a + true\n}\nfn outer() { return middle() }\nouter()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        "[4:14] Operands must be two numbers or two strings",
+        error.to_string()
+    );
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "middle".to_string(),
+                line: Some(4),
+            },
+            TraceFrame {
+                function: "outer".to_string(),
+                line: Some(6),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(7),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
 fn native_callback_error_trace_has_no_native_frame() {
     let program = r#"
         fn boom(x) { return x + true }
