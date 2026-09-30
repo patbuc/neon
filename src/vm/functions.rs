@@ -936,19 +936,19 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
-        let instance_ref = match self.peek(0) {
-            Value::Instance(instance_ref) => Rc::clone(instance_ref),
+        let value = match self.peek(0) {
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol).cloned() {
+                Some(value) => value,
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
-        let field = instance_ref.borrow().field(symbol).cloned();
-        if let Some(value) = field {
-            self.pop();
-            self.push(value);
-        } else {
-            let name = self.symbol_name(symbol);
-            return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
-        }
+        self.pop();
+        self.push(value);
 
         self.ip += 2;
         Ok(())
@@ -958,18 +958,17 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
         let value = self.peek(0).clone();
-        let instance_ref = match self.peek(1) {
-            Value::Instance(instance_ref) => Rc::clone(instance_ref),
+        match self.peek(1) {
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                };
+                instance.fields[index] = value.clone();
+            }
             _ => return Err(self.runtime_error("Only instances have fields.")),
-        };
-
-        let mut instance = instance_ref.borrow_mut();
-        let Some(index) = instance.r#struct.field_index(symbol) else {
-            let name = self.symbol_name(symbol);
-            return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
-        };
-
-        instance.fields[index] = value.clone();
+        }
 
         self.pop();
         self.pop();
