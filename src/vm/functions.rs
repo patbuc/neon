@@ -130,8 +130,8 @@ impl VirtualMachine {
     }
 
     /// Dispatches a call: the stack must already hold `[callable, args...]`.
-    /// Shared by the CALL opcode, `call_value`'s re-entrant native-to-Neon
-    /// calls, and `Invoke` falling through to a callable instance field.
+    /// Shared by `call_value`'s re-entrant native-to-Neon calls and
+    /// `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
