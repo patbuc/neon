@@ -222,7 +222,13 @@ fn test_else_if_bytecode_simple() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -289,7 +295,13 @@ fn test_else_if_bytecode_multiple_branches() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -350,7 +362,13 @@ fn test_else_if_bytecode_without_final_else() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -1314,10 +1332,12 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
         let operand_bytes = match op {
             OpCode::Return
             | OpCode::Nil
+            | OpCode::Greater
             | OpCode::GreaterEqual
             | OpCode::LessEqual
             | OpCode::Pop
             | OpCode::Add
+            | OpCode::Subtract
             | OpCode::Less
             | OpCode::CloseUpvalue
             | OpCode::CloseUpvalueInPlace => 0,
@@ -1335,7 +1355,13 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::SetField
             | OpCode::StoreField
             | OpCode::GetUpvalue
-            | OpCode::SetUpvalue => 2,
+            | OpCode::SetUpvalue
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => 2,
             OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 4,
             OpCode::GetLocalField | OpCode::StoreLocalField => 4,
             OpCode::Closure => {
@@ -1386,6 +1412,54 @@ fn test_greater_equal_less_equal_opcodes() {
             OpCode::Return,
         ]
     );
+}
+
+#[test]
+fn test_number_literal_right_operand_fuses_into_constant_opcode() {
+    let program = "val a = 1\nval b = a - 1\nval c = a <= 1\nval d = a >= 1\nval e = a < 1\nval f = a > 1\nval g = a + 1\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    let fused = [
+        OpCode::SubtractConstant,
+        OpCode::LessEqualConstant,
+        OpCode::GreaterEqualConstant,
+        OpCode::LessConstant,
+        OpCode::GreaterConstant,
+        OpCode::AddConstant,
+    ];
+    for op in fused {
+        assert!(ops.contains(&op), "expected {:?} in {:?}", op, ops);
+    }
+    for op in [
+        OpCode::Subtract,
+        OpCode::LessEqual,
+        OpCode::GreaterEqual,
+        OpCode::Less,
+        OpCode::Greater,
+    ] {
+        assert!(!ops.contains(&op), "expected no {:?} in {:?}", op, ops);
+    }
+}
+
+#[test]
+fn test_number_literal_left_operand_keeps_generic_opcode() {
+    let program = "val a = 1\nval b = 1 - a\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    assert!(ops.contains(&OpCode::Subtract));
+    assert!(!ops.contains(&OpCode::SubtractConstant));
+}
+
+#[test]
+fn test_non_number_literal_right_operand_keeps_generic_opcode() {
+    let program = "val a = \"x\"\nval b = a + \"y\"\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    assert!(ops.contains(&OpCode::Add));
+    assert!(!ops.contains(&OpCode::AddConstant));
 }
 
 #[test]
@@ -1507,36 +1581,34 @@ fn test_while_break_continue_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 GetLocal 00
-000d      | Constant 02 '10'
-0010      | Less
-0011      | JumpIfFalse 0011 -> 0055
-0016      | Pop
-0017      4 GetLocal 00
-001a      | Constant 03 '1'
-001d      | Add
-001e      | StoreLocal 00
-0021      5 GetLocal 00
-0024      | Constant 04 '2'
-0027      | Equal
-0028      | JumpIfFalse 0028 -> 0033
-002d      | Pop
-002e      | Jump 002e -> 0050
-0033      | Pop
-0034      6 GetLocal 00
-0037      | Constant 05 '5'
-003a      | Equal
-003b      | JumpIfFalse 003b -> 0046
-0040      | Pop
-0041      | Jump 0041 -> 0056
-0046      | Pop
-0047      7 Constant 06 '<native fn print>'
-004a      | GetLocal 00
-004d      | Call (args: 1)
-004f      6 Pop
-0050      3 Loop 0050 -> 000a
-0055      | Pop
-0056      9 Nil
-0057      | Return
+000d      | LessConstant 02 '10'
+0010      | JumpIfFalse 0010 -> 0053
+0015      | Pop
+0016      4 GetLocal 00
+0019      | AddConstant 03 '1'
+001c      | StoreLocal 00
+001f      5 GetLocal 00
+0022      | Constant 04 '2'
+0025      | Equal
+0026      | JumpIfFalse 0026 -> 0031
+002b      | Pop
+002c      | Jump 002c -> 004e
+0031      | Pop
+0032      6 GetLocal 00
+0035      | Constant 05 '5'
+0038      | Equal
+0039      | JumpIfFalse 0039 -> 0044
+003e      | Pop
+003f      | Jump 003f -> 0054
+0044      | Pop
+0045      7 Constant 06 '<native fn print>'
+0048      | GetLocal 00
+004b      | Call (args: 1)
+004d      6 Pop
+004e      3 Loop 004e -> 000a
+0053      | Pop
+0054      9 Nil
+0055      | Return
 === </main> ===
 "#;
 
@@ -1566,32 +1638,30 @@ fn test_c_style_for_bytecode() {
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '0'
-0003      | Jump 0003 -> 0012
+0003      | Jump 0003 -> 0011
 0008      | GetLocal 00
-000b      | Constant 01 '1'
-000e      | Add
-000f      | StoreLocal 00
-0012      | GetLocal 00
-0015      | Constant 02 '3'
-0018      | Less
-0019      | JumpIfFalse 0019 -> 0040
-001e      | Pop
-001f      3 GetLocal 00
-0022      | Constant 01 '1'
-0025      | Equal
-0026      | JumpIfFalse 0026 -> 0031
-002b      | Pop
-002c      | Jump 002c -> 003b
-0031      | Pop
-0032      4 Constant 03 '<native fn print>'
-0035      | GetLocal 00
-0038      | Call (args: 1)
-003a      3 Pop
-003b      2 Loop 003b -> 0008
-0040      | Pop
-0041      | Pop
-0042      6 Nil
-0043      | Return
+000b      | AddConstant 01 '1'
+000e      | StoreLocal 00
+0011      | GetLocal 00
+0014      | LessConstant 02 '3'
+0017      | JumpIfFalse 0017 -> 003e
+001c      | Pop
+001d      3 GetLocal 00
+0020      | Constant 01 '1'
+0023      | Equal
+0024      | JumpIfFalse 0024 -> 002f
+0029      | Pop
+002a      | Jump 002a -> 0039
+002f      | Pop
+0030      4 Constant 03 '<native fn print>'
+0033      | GetLocal 00
+0036      | Call (args: 1)
+0038      3 Pop
+0039      2 Loop 0039 -> 0008
+003e      | Pop
+003f      | Pop
+0040      6 Nil
+0041      | Return
 === </main> ===
 "#;
 
@@ -1675,48 +1745,46 @@ fn test_closure_capturing_loop_variable_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 Constant 01 '0'
-000d      | Jump 000d -> 001c
+000d      | Jump 000d -> 001b
 0012      | GetLocal 01
-0015      | Constant 02 '1'
-0018      | Add
-0019      | StoreLocal 01
-001c      | GetLocal 01
-001f      | Constant 03 '3'
-0022      | Less
-0023      | JumpIfFalse 0023 -> 003e
-0028      | Pop
-0029      4 GetLocal 00
-002c      | Closure 04 '<fn anonymous>'
+0015      | AddConstant 02 '1'
+0018      | StoreLocal 01
+001b      | GetLocal 01
+001e      | LessConstant 03 '3'
+0021      | JumpIfFalse 0021 -> 003c
+0026      | Pop
+0027      4 GetLocal 00
+002a      | Closure 04 '<fn anonymous>'
       |                     local 01
-0033      | Invoke push (args: 1)
-0037      3 Pop
-0038      | CloseUpvalueInPlace
-0039      | Loop 0039 -> 0012
-003e      | Pop
-003f      | CloseUpvalue
-0040      6 Constant 05 '<native fn print>'
-0043      | GetLocal 00
-0046      | Constant 01 '0'
-0049      | GetIndex
-004a      | Call (args: 0)
-004c      | Call (args: 1)
-004e      5 Pop
-004f      7 Constant 06 '<native fn print>'
-0052      | GetLocal 00
-0055      | Constant 02 '1'
-0058      | GetIndex
-0059      | Call (args: 0)
-005b      | Call (args: 1)
-005d      6 Pop
-005e      8 Constant 07 '<native fn print>'
-0061      | GetLocal 00
-0064      | Constant 08 '2'
-0067      | GetIndex
-0068      | Call (args: 0)
-006a      | Call (args: 1)
-006c      7 Pop
-006d      9 Nil
-006e      | Return
+0031      | Invoke push (args: 1)
+0035      3 Pop
+0036      | CloseUpvalueInPlace
+0037      | Loop 0037 -> 0012
+003c      | Pop
+003d      | CloseUpvalue
+003e      6 Constant 05 '<native fn print>'
+0041      | GetLocal 00
+0044      | Constant 01 '0'
+0047      | GetIndex
+0048      | Call (args: 0)
+004a      | Call (args: 1)
+004c      5 Pop
+004d      7 Constant 06 '<native fn print>'
+0050      | GetLocal 00
+0053      | Constant 02 '1'
+0056      | GetIndex
+0057      | Call (args: 0)
+0059      | Call (args: 1)
+005b      6 Pop
+005c      8 Constant 07 '<native fn print>'
+005f      | GetLocal 00
+0062      | Constant 08 '2'
+0065      | GetIndex
+0066      | Call (args: 0)
+0068      | Call (args: 1)
+006a      7 Pop
+006b      9 Nil
+006c      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      4 GetUpvalue 00
@@ -1767,32 +1835,30 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | Constant 03 '3'
-0018      | Less
-0019      | JumpIfFalse 0019 -> 0046
-001e      | Pop
-001f      5 GetLocal 01
-0022      | Constant 04 '1'
-0025      | Add
-0026      | StoreLocal 01
-0029      7 GetLocal 01
-002c      | Constant 05 '10'
-002f      | Multiply
-0030      8 Closure 06 '<fn anonymous>'
+0015      | LessConstant 03 '3'
+0018      | JumpIfFalse 0018 -> 0044
+001d      | Pop
+001e      5 GetLocal 01
+0021      | AddConstant 04 '1'
+0024      | StoreLocal 01
+0027      7 GetLocal 01
+002a      | Constant 05 '10'
+002d      | Multiply
+002e      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0037      | StoreLocal 00
-003a      9 CloseUpvalue
-003b      | Jump 003b -> 0047
-0040      6 CloseUpvalue
-0041      4 Loop 0041 -> 0012
-0046      | Pop
-0047     12 Constant 07 '<native fn print>'
-004a      | GetLocal 00
-004d      | Call (args: 0)
-004f      | Call (args: 1)
-0051     11 Pop
-0052     13 Nil
-0053      | Return
+0035      | StoreLocal 00
+0038      9 CloseUpvalue
+0039      | Jump 0039 -> 0045
+003e      6 CloseUpvalue
+003f      4 Loop 003f -> 0012
+0044      | Pop
+0045     12 Constant 07 '<native fn print>'
+0048      | GetLocal 00
+004b      | Call (args: 0)
+004d      | Call (args: 1)
+004f     11 Pop
+0050     13 Nil
+0051      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
