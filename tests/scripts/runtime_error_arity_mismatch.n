@@ -1,0 +1,19 @@
+// Calling a function value with the wrong number of arguments. Passed
+// through a parameter so the call is dynamic and the mismatch surfaces at
+// runtime instead of being caught by semantic analysis.
+
+// Expected:
+// before
+
+// Expected runtime error: Expected 2 arguments but got 1 for 'add'.
+
+fn add(a, b) {
+    return a + b
+}
+
+fn apply(f) {
+    return f(1)
+}
+
+print("before")
+apply(add)
