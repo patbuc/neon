@@ -18,7 +18,7 @@ impl Constants {
     }
 
     pub fn read_value(&self, index: usize) -> Value {
-        self.values[index].clone()
+        self.values[index].copy_or_clone()
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
