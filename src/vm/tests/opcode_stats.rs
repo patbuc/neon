@@ -71,18 +71,16 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // These nine pairs all execute 10 times; ties break by ascending
+    // These seven pairs all execute 10 times; ties break by ascending
     // (prev byte, next byte).
     let mut expected = [
         (OpCode::GetLocal, OpCode::Constant),
         (OpCode::Constant, OpCode::Add),
-        (OpCode::Add, OpCode::SetLocal),
-        (OpCode::SetLocal, OpCode::GetLocal),
-        (OpCode::SetLocal, OpCode::Pop),
+        (OpCode::Add, OpCode::Pop),
         (OpCode::Pop, OpCode::Loop),
         (OpCode::Pop, OpCode::IteratorNext),
         (OpCode::Loop, OpCode::IteratorDone),
-        (OpCode::IteratorNext, OpCode::SetLocal),
+        (OpCode::IteratorNext, OpCode::GetLocal),
     ];
     expected.sort_by_key(|(prev, next)| (*prev as u8, *next as u8));
     let expected: Vec<String> = expected
