@@ -57,6 +57,9 @@ pub(crate) enum ControlOp {
     /// `Fiber.yield([value])`: suspend the running fiber, handing `value`
     /// to whoever called it.
     FiberYield,
+    /// `Task.spawn(body, [arg])`: run `body` as an isolated task to
+    /// completion, returning its handle.
+    TaskSpawn,
 }
 
 impl NativeCallable {
@@ -818,6 +821,34 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::Boolean),
         },
     ),
+    // Task static spawn and instance methods
+    (
+        "Task",
+        "spawn",
+        NativeCallable::Control {
+            op: ControlOp::TaskSpawn,
+            arity: VARIADIC_ARITY,
+            is_static: true,
+        },
+    ),
+    (
+        "Task",
+        "join",
+        NativeCallable::InstanceMethod {
+            function: stdlib::fiber_functions::native_task_join,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Task",
+        "isDone",
+        NativeCallable::InstanceMethod {
+            function: stdlib::fiber_functions::native_fiber_is_done,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
@@ -926,8 +957,8 @@ pub fn is_static_namespace(name: &str) -> bool {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
-    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range", "Fiber",
+pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
+    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range", "Fiber", "Task",
 ];
 
 /// Names of registry types that are namespaces rather than instance types:
@@ -941,7 +972,12 @@ pub fn namespaces() -> Vec<&'static str> {
             !type_name.is_empty()
                 && matches!(
                     callable,
-                    NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. }
+                    NativeCallable::StaticMethod { .. }
+                        | NativeCallable::Constructor { .. }
+                        | NativeCallable::Control {
+                            is_static: true,
+                            ..
+                        }
                 )
         })
         .map(|(type_name, _, _)| *type_name)

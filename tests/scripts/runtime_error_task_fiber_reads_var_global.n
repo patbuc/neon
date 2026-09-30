@@ -1,0 +1,19 @@
+// A fiber started inside a task reads a var global: the fiber inherits the
+// task's isolation, so it's rejected exactly like the task itself would be
+
+// Expected:
+// start
+
+// Expected runtime error: Task cannot read global 'count'; pass it as the task's argument
+
+var count = 0
+
+fn body() {
+    val f = Fiber(fn() {
+        return count
+    })
+    return f.call()
+}
+
+print("start")
+Task.spawn(body).join()

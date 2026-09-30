@@ -50,9 +50,13 @@ impl VirtualMachine {
         base_index: usize,
         arg_count: usize,
     ) -> OpResult {
+        if op == ControlOp::TaskSpawn {
+            return self.task_spawn(base_index, arg_count);
+        }
         let name = match op {
             ControlOp::FiberCall => "call",
             ControlOp::FiberYield => "yield",
+            ControlOp::TaskSpawn => unreachable!("handled above"),
         };
         if arg_count > 1 {
             return Err(self.call_error(format!(
@@ -80,7 +84,61 @@ impl VirtualMachine {
                 };
                 self.resume_fiber(base_index, &fiber, arg)
             }
+            ControlOp::TaskSpawn => unreachable!("handled above"),
         }
+    }
+
+    /// `Task.spawn(body, [arg])`: validates `body`, deep-copies `arg`, and
+    /// resumes a fresh task fiber the same way a fresh plain fiber is
+    /// resumed. The task runs to completion inline (it cannot yield), so by
+    /// the time this returns its result is ready.
+    fn task_spawn(&mut self, base_index: usize, arg_count: usize) -> OpResult {
+        if arg_count > 2 {
+            return Err(self.call_error(format!(
+                "Task.spawn() takes at most 2 arguments, got {}",
+                arg_count
+            )));
+        }
+        if self.native_call_depth > 0 {
+            return Err(self.call_error("Cannot spawn a task from inside a native callback"));
+        }
+
+        let body_value = if arg_count >= 1 {
+            self.stack[base_index + 1].clone()
+        } else {
+            Value::Nil
+        };
+        let body = match &body_value {
+            Value::Closure(closure) => Rc::clone(closure),
+            other => {
+                return Err(self.call_error(format!(
+                    "Task.spawn() expects a function, got {}",
+                    other.type_name()
+                )))
+            }
+        };
+        if !body.upvalues.is_empty() {
+            return Err(self.call_error(format!(
+                "Task body '{}' cannot capture variables; pass them as its argument instead",
+                body.function.name
+            )));
+        }
+        if body.function.arity > 1 {
+            return Err(self.call_error(format!(
+                "Task body '{}' must take zero or one parameter, but takes {}",
+                body.function.name, body.function.arity
+            )));
+        }
+
+        let arg = if arg_count == 2 {
+            let raw = self.stack[base_index + 2].clone();
+            Some(raw.deep_copy().map_err(|error| self.call_error(error))?)
+        } else {
+            None
+        };
+
+        let task = Rc::new(RefCell::new(ObjFiber::new(FiberKind::Task, body)));
+        self.resume_fiber(base_index, &task, arg)
     }
 
     /// `fiber.call(arg)`: park the running fiber as the
@@ -93,9 +151,9 @@ impl VirtualMachine {
         fiber: &Rc<RefCell<ObjFiber>>,
         arg: Option<Value>,
     ) -> OpResult {
-        let (state, body) = {
+        let (state, kind, body) = {
             let f = fiber.borrow();
-            (f.state, Rc::clone(&f.body))
+            (f.state, f.kind, Rc::clone(&f.body))
         };
         match state {
             FiberState::Done => {
@@ -108,9 +166,14 @@ impl VirtualMachine {
         }
         let arity = body.function.arity as usize;
         if state == FiberState::Fresh && arity == 0 && arg.is_some() {
+            let kind_name = if kind == FiberKind::Task {
+                "Task"
+            } else {
+                "Fiber"
+            };
             return Err(self.call_error(format!(
-                "Fiber body '{}' takes no parameter, but one argument was passed",
-                body.function.name
+                "{} body '{}' takes no parameter, but one argument was passed",
+                kind_name, body.function.name
             )));
         }
         self.stack.truncate(base_index);
@@ -121,6 +184,9 @@ impl VirtualMachine {
             let mut target = fiber.borrow_mut();
             target.caller = Some(current);
             target.depth = self.fiber_depth + self.call_frames.len();
+            if state == FiberState::Fresh {
+                target.isolated = kind == FiberKind::Task || self.isolated;
+            }
         }
         self.switch_to(fiber);
         fiber.borrow_mut().state = FiberState::Running;
@@ -149,8 +215,10 @@ impl VirtualMachine {
             Some(active) => Rc::clone(&active.current),
             None => return Err(self.call_error("Cannot yield from the main script")),
         };
-        if current.borrow().kind == FiberKind::Main {
-            return Err(self.call_error("Cannot yield from the main script"));
+        match current.borrow().kind {
+            FiberKind::Main => return Err(self.call_error("Cannot yield from the main script")),
+            FiberKind::Task => return Err(self.call_error("Cannot yield from a task")),
+            FiberKind::Fiber => {}
         }
 
         self.stack.truncate(base_index);
@@ -170,6 +238,12 @@ impl VirtualMachine {
 
     /// A fiber's root frame returned with `value`: the fiber is done, and
     /// its caller resumes with the value as the result of its `call`.
+    ///
+    /// For a task, `value` is deep-copied and stored as its `join()`
+    /// result (an error here is reported at the task's own return, before
+    /// its root frame is popped); the caller gets the task's handle back
+    /// instead, since `Task.spawn()`'s result is the handle, not the body's
+    /// return value.
     pub(in crate::vm) fn finish_fiber(&mut self, value: Value) -> OpResult {
         let current = Rc::clone(
             &self
@@ -178,6 +252,10 @@ impl VirtualMachine {
                 .expect("finish_fiber is only called in a child fiber")
                 .current,
         );
+        let is_task = current.borrow().kind == FiberKind::Task;
+        let result = is_task
+            .then(|| value.deep_copy().map_err(|error| self.runtime_error(error)))
+            .transpose()?;
 
         self.call_frames.pop();
         self.close_upvalues_above(0);
@@ -190,9 +268,16 @@ impl VirtualMachine {
                 .take()
                 .expect("a running fiber always has a caller")
         };
+        let push_value = match result {
+            Some(result) => {
+                current.borrow_mut().result = Some(result);
+                Value::Fiber(current)
+            }
+            None => value,
+        };
         self.switch_to(&caller);
         caller.borrow_mut().state = FiberState::Running;
-        self.push(value);
+        self.push(push_value);
         Ok(())
     }
 
@@ -236,6 +321,7 @@ impl VirtualMachine {
             std::mem::swap(&mut next.stack, &mut self.stack);
             std::mem::swap(&mut next.open_upvalues, &mut self.open_upvalues);
             self.fiber_depth = next.depth;
+            self.isolated = next.isolated;
         }
         active.current = Rc::clone(target);
         if let Some(frame) = self.call_frames.last() {

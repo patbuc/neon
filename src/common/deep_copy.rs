@@ -5,14 +5,12 @@ use std::rc::Rc;
 
 /// Heap pointers already copied, so shared and cyclic structure comes out
 /// shared and cyclic in the copy rather than duplicated or recursed forever.
-#[allow(dead_code)]
 type Seen = HashMap<*const (), Value>;
 
 /// Where a value being copied belongs once its copy is ready. The container
 /// itself is pre-sized with placeholders up front, so a slot writes by
 /// position/key rather than by appending — the worklist below is a stack,
 /// so children are not necessarily finished in source order.
-#[allow(dead_code)]
 enum Slot {
     ArrayElement {
         target: Rc<RefCell<Vec<Value>>>,
@@ -38,7 +36,6 @@ impl Value {
     /// Iterative rather than recursive, so an array (or map/instance) nested
     /// arbitrarily deep does not overflow the stack: an explicit worklist
     /// stands in for the call stack a recursive version would use.
-    #[allow(dead_code)]
     pub(crate) fn deep_copy(&self) -> Result<Value, String> {
         let mut seen = Seen::new();
         let mut work: Vec<(Value, Option<Slot>)> = vec![(self.clone(), None)];

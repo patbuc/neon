@@ -11,6 +11,10 @@ pub enum FiberKind {
     /// A cooperative coroutine sharing the heap with its caller
     /// (`Fiber(...)`, `call`, `Fiber.yield`).
     Fiber,
+    /// An isolated unit of work (`Task.spawn`). Runs to completion
+    /// synchronously; cannot yield, and while it (or a fiber it starts)
+    /// runs, globals are read-only and restricted to immutable values.
+    Task,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,6 +51,14 @@ pub struct ObjFiber {
     /// Call frames of the fibers below this one when it was last resumed:
     /// its caller's frames plus the caller's own `depth`.
     pub depth: usize,
+    /// Whether globals are read-only and restricted to immutable values
+    /// while this fiber runs: true for a task, or for a fiber first
+    /// resumed while an isolated fiber was running. Set once, when this
+    /// fiber is first resumed from `Fresh`.
+    pub isolated: bool,
+    /// The task's deep-copied return value, once its root frame has
+    /// returned. `None` for a plain fiber, or a task still running.
+    pub result: Option<Value>,
 }
 
 impl ObjFiber {
@@ -60,6 +72,8 @@ impl ObjFiber {
             open_upvalues: Vec::new(),
             caller: None,
             depth: 0,
+            isolated: false,
+            result: None,
         }
     }
 }

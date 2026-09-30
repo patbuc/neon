@@ -1,4 +1,5 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
+use crate::common::fiber::FiberKind;
 use crate::common::method_registry::NativeCallable;
 use crate::common::{MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
 use crate::common::{ObjClosure, Upvalue};
@@ -33,6 +34,7 @@ const BOOLEAN_SYMBOL: u16 = 5;
 const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
 const FIBER_SYMBOL: u16 = 8;
+const TASK_SYMBOL: u16 = 9;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -844,13 +846,39 @@ impl VirtualMachine {
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
         let index = self.read_index();
-        if let Some(value) = self.builtin.get(index) {
-            self.push(value.clone());
-        } else {
+        let Some(value) = self.builtin.get(index) else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
+        };
+        if self.isolated && !Self::isolated_read_allowed(value) {
+            let name = crate::common::stdlib::BUILTIN_VALUES[index].0;
+            return Err(self.runtime_error(format!(
+                "Task cannot read global '{}'; pass it as the task's argument",
+                name
+            )));
         }
+        self.push(value.clone());
         self.ip += 2;
         Ok(())
+    }
+
+    /// Whether an isolated fiber (a task, or one running inside one) may
+    /// read a global holding `value`: immutable scalars, ranges, struct
+    /// definitions, function templates, and non-capturing closures. Not
+    /// checked when `isolated` is false, so the common path stays a single
+    /// bool read.
+    fn isolated_read_allowed(value: &Value) -> bool {
+        match value {
+            Value::Number(_)
+            | Value::Boolean(_)
+            | Value::Nil
+            | Value::String(_)
+            | Value::Range(_)
+            | Value::Struct(_)
+            | Value::Function(_)
+            | Value::NativeFunction(_) => true,
+            Value::Closure(closure) => closure.upvalues.is_empty(),
+            _ => false,
+        }
     }
 
     #[inline(always)]
@@ -875,15 +903,39 @@ impl VirtualMachine {
         if let Some(message) = Self::uninitialized_error(&value) {
             return Err(self.runtime_error(message));
         }
+        if self.isolated {
+            self.check_isolated_global_read(index, &value)?;
+        }
 
         self.push(value);
         self.ip += 2;
         Ok(())
     }
 
+    /// The "Task cannot read global" check for `op_get_global`, split out
+    /// so the common (non-isolated) path is just the one `if self.isolated`
+    /// bool check above.
+    #[cold]
+    fn check_isolated_global_read(&self, index: usize, value: &Value) -> OpResult {
+        let info = &self.script_chunk.globals[index];
+        if !info.is_var && Self::isolated_read_allowed(value) {
+            return Ok(());
+        }
+        Err(self.runtime_error(format!(
+            "Task cannot read global '{}'; pass it as the task's argument",
+            info.name
+        )))
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_set_global(&mut self) -> OpResult {
         let index = self.read_index();
+        if self.isolated {
+            let name = self.script_chunk.globals[index].name.clone();
+            return Err(
+                self.runtime_error(format!("Cannot assign to global '{}' inside a task", name))
+            );
+        }
         // Globals live in the main script's stack; see `op_get_global`.
         if self.in_child_fiber() {
             let current = self.main_stack_get(index)?;
@@ -1405,7 +1457,13 @@ impl VirtualMachine {
             Value::Set(_) => Some(TypeName::Builtin(SET_SYMBOL)),
             Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
-            Value::Fiber(_) => Some(TypeName::Builtin(FIBER_SYMBOL)),
+            Value::Fiber(fiber) => Some(TypeName::Builtin(
+                if fiber.borrow().kind == FiberKind::Task {
+                    TASK_SYMBOL
+                } else {
+                    FIBER_SYMBOL
+                },
+            )),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
@@ -1470,5 +1528,6 @@ mod tests {
         assert_eq!(BUILTIN_TYPE_NAMES[FILE_SYMBOL as usize], "File");
         assert_eq!(BUILTIN_TYPE_NAMES[RANGE_SYMBOL as usize], "Range");
         assert_eq!(BUILTIN_TYPE_NAMES[FIBER_SYMBOL as usize], "Fiber");
+        assert_eq!(BUILTIN_TYPE_NAMES[TASK_SYMBOL as usize], "Task");
     }
 }
