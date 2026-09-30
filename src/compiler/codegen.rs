@@ -1133,6 +1133,22 @@ impl<'a> CodeGenerator<'a> {
                 self.patch_jump(end_jump);
             }
             _ => {
+                let fused = match operator {
+                    BinaryOp::Add => Some(OpCode::AddConstant),
+                    BinaryOp::Subtract => Some(OpCode::SubtractConstant),
+                    BinaryOp::Greater => Some(OpCode::GreaterConstant),
+                    BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
+                    BinaryOp::Less => Some(OpCode::LessConstant),
+                    BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
+                    _ => None,
+                };
+                if let (Some(op_code), Expr::Number { value, .. }) = (fused, right) {
+                    self.generate_expr(left);
+                    let index = self.add_constant(number!(*value));
+                    self.emit_index_op(op_code, index, "constants", location);
+                    return;
+                }
+
                 // Regular binary operators: evaluate both operands first
                 self.generate_expr(left);
                 self.generate_expr(right);
