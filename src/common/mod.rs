@@ -3,7 +3,7 @@ use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub mod chunk;
 pub mod constants;
@@ -183,11 +183,11 @@ pub struct ObjClosure {
 /// returns or the block that declared it exits.
 #[derive(Debug)]
 pub enum Upvalue {
-    /// `index` into the value stack of the fiber whose `stack_id` is
-    /// `stack`; the VM's own stack while that fiber runs, its saved one
-    /// otherwise.
+    /// `index` into the value stack of `owner`: the VM's own stack while
+    /// that fiber runs, its saved one otherwise. `None` is the main script,
+    /// which has no fiber object until it first resumes a fiber.
     Open {
-        stack: u32,
+        owner: Option<Weak<RefCell<fiber::ObjFiber>>>,
         index: usize,
     },
     Closed(Value),

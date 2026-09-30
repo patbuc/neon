@@ -52,11 +52,6 @@ pub struct VirtualMachine {
     /// The main and running fibers, once the script has resumed a fiber;
     /// `None` while only the main script has ever run.
     fibers: Option<fibers::ActiveFibers>,
-    /// Every fiber that has run, by stack id, so an open upvalue captured
-    /// in one fiber can be read while another runs.
-    fiber_stacks: Vec<std::rc::Weak<RefCell<crate::common::fiber::ObjFiber>>>,
-    /// Stack id of the running fiber (`MAIN_STACK_ID` for the script).
-    current_stack_id: u32,
     /// Native methods of the builtin types, built from the running
     /// compile's symbol table.
     native_methods: NativeMethodTable,

@@ -2,14 +2,6 @@ use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// `ObjFiber::stack_id` before the fiber has run for the first time. The
-/// VM assigns a real id when it first switches to the fiber, so an open
-/// upvalue can name which fiber's stack holds the slot it points at.
-pub const UNASSIGNED_STACK_ID: u32 = u32::MAX;
-
-/// The stack id of the main script, which always runs first.
-pub const MAIN_STACK_ID: u32 = 0;
-
 /// What kind of coroutine an `ObjFiber` is. The main script is one too, so
 /// the VM can save and restore its state like any other fiber.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,8 +44,6 @@ pub struct ObjFiber {
     /// waiting on a fiber it resumed itself. `Fiber.yield` and a root-frame
     /// return switch back to it.
     pub caller: Option<Rc<RefCell<ObjFiber>>>,
-    /// Which stack `Upvalue::Open` entries pointing into this fiber name.
-    pub stack_id: u32,
 }
 
 impl ObjFiber {
@@ -66,7 +56,6 @@ impl ObjFiber {
             stack: Vec::new(),
             open_upvalues: Vec::new(),
             caller: None,
-            stack_id: UNASSIGNED_STACK_ID,
         }
     }
 }

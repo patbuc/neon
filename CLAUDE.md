@@ -195,8 +195,8 @@ cargo run --features disassemble -- script.n
   itself (`control_op`), since they switch fibers instead of returning a value in place. A child fiber's root
   frame returning (`op_return`) finishes it and switches back to its caller
 - Globals are main-stack slots; while a child fiber runs, `GetGlobal`/`SetGlobal` reach the main fiber's parked
-  stack. `Upvalue::Open` names the stack id of the fiber it points into, so a closure can read a local of a
-  parked fiber; a dropped fiber closes its open upvalues
+  stack. `Upvalue::Open` holds a `Weak` to the fiber that owns its slot (`None` for the main script), so a
+  closure can read a local of a parked fiber; a dropped fiber closes its open upvalues
 - Switching while `native_call_depth > 0` is an error: `call_value` counts frames on the Rust stack, which a
   switch would invalidate
 

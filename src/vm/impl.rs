@@ -32,8 +32,6 @@ impl VirtualMachine {
             native_call_depth: 0,
             methods: Vec::new(),
             fibers: None,
-            fiber_stacks: Vec::new(),
-            current_stack_id: crate::common::fiber::MAIN_STACK_ID,
             native_methods: Vec::new(),
             #[cfg(feature = "opcode-stats")]
             opcode_counts: [0; 256],
@@ -427,8 +425,6 @@ impl VirtualMachine {
         self.native_call_depth = 0;
         self.methods.clear();
         self.fibers = None;
-        self.fiber_stacks.clear();
-        self.current_stack_id = crate::common::fiber::MAIN_STACK_ID;
         #[cfg(feature = "opcode-stats")]
         {
             self.opcode_counts = [0; 256];

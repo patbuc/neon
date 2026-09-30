@@ -708,10 +708,8 @@ impl VirtualMachine {
         }
         let upvalue = Rc::clone(&self.current_frame().closure.upvalues[index]);
         let value = match &*upvalue.borrow() {
-            Upvalue::Open { stack, index } if *stack == self.current_stack_id => {
-                self.stack[*index].clone()
-            }
-            Upvalue::Open { stack, index } => self.parked_stack_get(*stack, *index)?,
+            Upvalue::Open { owner, index } if self.is_running(owner) => self.stack[*index].clone(),
+            Upvalue::Open { owner, index } => self.parked_stack_get(owner, *index)?,
             Upvalue::Closed(value) => value.clone(),
         };
         self.ip += 2;
@@ -727,14 +725,11 @@ impl VirtualMachine {
         }
         let value = self.peek(0);
         let upvalue = Rc::clone(&self.current_frame().closure.upvalues[index]);
-        let open_slot = match &*upvalue.borrow() {
-            Upvalue::Open { stack, index } => Some((*stack, *index)),
-            Upvalue::Closed(_) => None,
-        };
-        match open_slot {
-            Some((stack, index)) if stack == self.current_stack_id => self.stack[index] = value,
-            Some((stack, index)) => self.parked_stack_set(stack, index, value)?,
-            None => *upvalue.borrow_mut() = Upvalue::Closed(value),
+        let mut upvalue = upvalue.borrow_mut();
+        match &*upvalue {
+            Upvalue::Open { owner, index } if self.is_running(owner) => self.stack[*index] = value,
+            Upvalue::Open { owner, index } => self.parked_stack_set(owner, *index, value)?,
+            Upvalue::Closed(_) => *upvalue = Upvalue::Closed(value),
         }
         self.ip += 2;
         Ok(())
@@ -769,7 +764,7 @@ impl VirtualMachine {
             }
         }
         let upvalue = Rc::new(RefCell::new(Upvalue::Open {
-            stack: self.current_stack_id,
+            owner: self.running_child_fiber(),
             index: stack_index,
         }));
         self.open_upvalues.push(Rc::clone(&upvalue));

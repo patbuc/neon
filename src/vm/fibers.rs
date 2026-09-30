@@ -12,7 +12,7 @@
 //! and counts frames to know when its callee returned, which a different
 //! fiber's frames would confuse.
 
-use crate::common::fiber::{FiberKind, FiberState, ObjFiber, MAIN_STACK_ID, UNASSIGNED_STACK_ID};
+use crate::common::fiber::{FiberKind, FiberState, ObjFiber};
 use crate::common::method_registry::ControlOp;
 use crate::common::Value;
 use crate::vm::functions::OpResult;
@@ -198,10 +198,7 @@ impl VirtualMachine {
             let script = Rc::clone(&self.call_frames[0].closure);
             let mut main = ObjFiber::new(FiberKind::Main, script);
             main.state = FiberState::Running;
-            main.stack_id = MAIN_STACK_ID;
             let main = Rc::new(RefCell::new(main));
-            debug_assert!(self.fiber_stacks.is_empty());
-            self.fiber_stacks.push(Rc::downgrade(&main));
             self.fibers = Some(ActiveFibers {
                 main: Rc::clone(&main),
                 current: main,
@@ -211,7 +208,7 @@ impl VirtualMachine {
     }
 
     /// Parks the running fiber's state in its object and makes `target`'s
-    /// state live. Assigns `target` a stack id the first time it runs.
+    /// state live.
     /// `ip` and `chunk` only track the running frame, so the outgoing top
     /// frame saves `ip` and the target's top frame (if it has one yet)
     /// restores both.
@@ -231,14 +228,9 @@ impl VirtualMachine {
         }
         {
             let mut next = target.borrow_mut();
-            if next.stack_id == UNASSIGNED_STACK_ID {
-                next.stack_id = self.fiber_stacks.len() as u32;
-                self.fiber_stacks.push(Rc::downgrade(target));
-            }
             std::mem::swap(&mut next.frames, &mut self.call_frames);
             std::mem::swap(&mut next.stack, &mut self.stack);
             std::mem::swap(&mut next.open_upvalues, &mut self.open_upvalues);
-            self.current_stack_id = next.stack_id;
         }
         active.current = Rc::clone(target);
         if let Some(frame) = self.call_frames.last() {
@@ -247,25 +239,39 @@ impl VirtualMachine {
         }
     }
 
-    /// The fiber whose stack id is `stack`, while it is parked (its state is
-    /// in the object, not the VM).
-    fn parked_fiber(&self, stack: u32) -> Result<Rc<RefCell<ObjFiber>>, RuntimeError> {
-        self.fiber_stacks
-            .get(stack as usize)
-            .and_then(Weak::upgrade)
-            .ok_or_else(|| {
-                self.runtime_error("Captured variable belongs to a fiber that no longer exists")
-            })
+    /// The running fiber as an open upvalue's owner: `None` for the main
+    /// script (see `Upvalue::Open`).
+    pub(in crate::vm) fn running_child_fiber(&self) -> Option<Weak<RefCell<ObjFiber>>> {
+        self.fibers
+            .as_ref()
+            .filter(|active| !Rc::ptr_eq(&active.current, &active.main))
+            .map(|active| Rc::downgrade(&active.current))
+    }
+
+    /// Whether `owner`, an open upvalue's owner, is the running fiber, so
+    /// its slot is in the VM's own stack.
+    #[inline(always)]
+    pub(in crate::vm) fn is_running(&self, owner: &Option<Weak<RefCell<ObjFiber>>>) -> bool {
+        match owner {
+            None => !self.in_child_fiber(),
+            Some(owner) => self
+                .fibers
+                .as_ref()
+                .is_some_and(|active| owner.as_ptr() == Rc::as_ptr(&active.current)),
+        }
     }
 
     /// Reads slot `index` of a parked fiber's stack, for an open upvalue
-    /// captured from a fiber other than the running one.
+    /// owned by a fiber other than the running one.
     pub(in crate::vm) fn parked_stack_get(
         &self,
-        stack: u32,
+        owner: &Option<Weak<RefCell<ObjFiber>>>,
         index: usize,
     ) -> Result<Value, RuntimeError> {
-        let fiber = self.parked_fiber(stack)?;
+        let Some(owner) = owner else {
+            return self.main_stack_get(index);
+        };
+        let fiber = self.upgrade_owner(owner)?;
         let value = fiber.borrow().stack.get(index).cloned();
         value.ok_or_else(|| self.runtime_error(format!("Invalid captured stack slot {}", index)))
     }
@@ -273,11 +279,14 @@ impl VirtualMachine {
     /// Writes slot `index` of a parked fiber's stack; see `parked_stack_get`.
     pub(in crate::vm) fn parked_stack_set(
         &mut self,
-        stack: u32,
+        owner: &Option<Weak<RefCell<ObjFiber>>>,
         index: usize,
         value: Value,
     ) -> OpResult {
-        let fiber = self.parked_fiber(stack)?;
+        let Some(owner) = owner else {
+            return self.main_stack_set(index, value);
+        };
+        let fiber = self.upgrade_owner(owner)?;
         let stored = match fiber.borrow_mut().stack.get_mut(index) {
             Some(slot) => {
                 *slot = value;
@@ -290,6 +299,15 @@ impl VirtualMachine {
         } else {
             Err(self.runtime_error(format!("Invalid captured stack slot {}", index)))
         }
+    }
+
+    fn upgrade_owner(
+        &self,
+        owner: &Weak<RefCell<ObjFiber>>,
+    ) -> Result<Rc<RefCell<ObjFiber>>, RuntimeError> {
+        owner.upgrade().ok_or_else(|| {
+            self.runtime_error("Captured variable belongs to a fiber that no longer exists")
+        })
     }
 
     /// The main fiber's stack slot `index` while a child fiber runs: where
