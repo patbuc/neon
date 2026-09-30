@@ -130,7 +130,7 @@ impl VirtualMachine {
     /// calls, and `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Get the callable from the stack
-        let callable_value = self.peek(arg_count);
+        let callable_value = self.peek(arg_count).clone();
 
         let result = match &callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
@@ -468,20 +468,22 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let a = self.stack.last_mut().expect("stack underflow");
-        let is_match = match (&*a, &b) {
+        // Match b by value so the Number/String arms consume it in place,
+        // skipping Value's shared drop glue for a scalar.
+        let is_match = match (&*a, b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
-                Comparison::Greater => x > y,
-                Comparison::GreaterEqual => x >= y,
-                Comparison::Less => x < y,
-                Comparison::LessEqual => x <= y,
+                Comparison::Greater => *x > y,
+                Comparison::GreaterEqual => *x >= y,
+                Comparison::Less => *x < y,
+                Comparison::LessEqual => *x <= y,
             },
             (Value::String(sa), Value::String(sb)) => match wanted {
-                Comparison::Greater => sa > sb,
-                Comparison::GreaterEqual => sa >= sb,
-                Comparison::Less => sa < sb,
-                Comparison::LessEqual => sa <= sb,
+                Comparison::Greater => **sa > *sb,
+                Comparison::GreaterEqual => **sa >= *sb,
+                Comparison::Less => **sa < *sb,
+                Comparison::LessEqual => **sa <= *sb,
             },
-            _ => {
+            (_, b) => {
                 let message = format!(
                     "Operands of a comparison must be two numbers or two strings, got {} and {}",
                     a.type_name(),
@@ -654,7 +656,7 @@ impl VirtualMachine {
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
-        self.stack[absolute_index] = self.peek(0);
+        self.stack[absolute_index] = self.peek(0).clone();
         Ok(())
     }
 
@@ -723,7 +725,7 @@ impl VirtualMachine {
         if index >= self.current_frame().closure.upvalues.len() {
             return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
         }
-        let value = self.peek(0);
+        let value = self.peek(0).clone();
         let upvalue = Rc::clone(&self.current_frame().closure.upvalues[index]);
         let mut upvalue = upvalue.borrow_mut();
         match &*upvalue {
@@ -815,10 +817,10 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_jump_if_false(&mut self) {
-        let peeked_value = self.peek(0);
+        let is_false = is_false_like!(self.peek(0));
         let offset = self.operand_u32(1);
         self.ip += 4;
-        if is_false_like!(peeked_value) {
+        if is_false {
             // Don't pop! Leave the value on the stack for logical operators
             // The caller is responsible for popping if needed (e.g., in if statements)
             self.ip += offset as usize;
@@ -890,7 +892,7 @@ impl VirtualMachine {
             if let Some(message) = Self::uninitialized_error(&current) {
                 return Err(self.runtime_error(message));
             }
-            let value = self.peek(0);
+            let value = self.peek(0).clone();
             self.main_stack_set(index, value)?;
         } else {
             if index >= self.stack.len() {
@@ -903,7 +905,7 @@ impl VirtualMachine {
             if let Some(message) = Self::uninitialized_error(&self.stack[index]) {
                 return Err(self.runtime_error(message));
             }
-            self.stack[index] = self.peek(0);
+            self.stack[index] = self.peek(0).clone();
         }
         self.ip += 2;
         Ok(())
@@ -932,22 +934,19 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
-        let instance_value = self.peek(0);
-
-        match &instance_value {
-            Value::Instance(instance_ref) => {
-                let instance = instance_ref.borrow();
-
-                if let Some(value) = instance.field(symbol).cloned() {
-                    self.pop();
-                    self.push(value);
-                } else {
+        let value = match self.peek(0) {
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol).cloned() {
+                Some(value) => value,
+                None => {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
-            }
+            },
             _ => return Err(self.runtime_error("Only instances have fields.")),
-        }
+        };
+
+        self.pop();
+        self.push(value);
 
         self.ip += 2;
         Ok(())
@@ -956,25 +955,22 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
-        let value = self.peek(0);
-        let instance_value = self.peek(1);
-
-        match &instance_value {
+        let value = self.peek(0).clone();
+        match self.peek(1) {
             Value::Instance(instance_ref) => {
                 let mut instance = instance_ref.borrow_mut();
                 let Some(index) = instance.r#struct.field_index(symbol) else {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
-
                 instance.fields[index] = value.clone();
-
-                self.pop();
-                self.pop();
-                self.push(value);
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
+
+        self.pop();
+        self.pop();
+        self.push(value);
 
         self.ip += 2;
         Ok(())
