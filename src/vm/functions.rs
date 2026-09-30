@@ -929,8 +929,12 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
-        self.pop();
-        self.push(value);
+        // Plain assignment drops the old top while `value` is still live,
+        // which makes the compiler spill a slow unwind copy of it.
+        drop(std::mem::replace(
+            self.stack.last_mut().expect("stack underflow"),
+            value,
+        ));
 
         self.ip += 2;
         Ok(())
@@ -938,23 +942,27 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
+        // [.., instance, value] -> [.., value]
         let symbol = self.read_index() as u16;
-        let value = self.peek(0).clone();
-        match self.peek(1) {
+        let value = self.pop();
+        match self.peek(0) {
             Value::Instance(instance_ref) => {
                 let mut instance = instance_ref.borrow_mut();
                 let Some(index) = instance.r#struct.field_index(symbol) else {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
-                instance.fields[index] = value.clone();
+                instance.fields[index] = value.copy_or_clone();
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        self.pop();
-        self.pop();
-        self.push(value);
+        // Plain assignment drops the old top while `value` is still live,
+        // which makes the compiler spill a slow unwind copy of it.
+        drop(std::mem::replace(
+            self.stack.last_mut().expect("stack underflow"),
+            value,
+        ));
 
         self.ip += 2;
         Ok(())
