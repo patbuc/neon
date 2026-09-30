@@ -13,7 +13,9 @@ if [[ "$FILE_PATH" != *.n ]] || [ ! -f "$FILE_PATH" ]; then
     exit 0
 fi
 
-cd "$CLAUDE_PROJECT_DIR" || exit 1
+PROJECT_DIR=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null) || PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+
+cd "$PROJECT_DIR" || exit 1
 
 OUTPUT=$(cargo run -q -- --check "$FILE_PATH" 2>&1)
 STATUS=$?
