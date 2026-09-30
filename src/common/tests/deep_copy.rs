@@ -1,5 +1,6 @@
 use crate::common::fiber::FiberKind;
 use crate::common::*;
+use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -94,6 +95,103 @@ fn deep_copy_of_an_array_referencing_a_set_twice_shares_the_copy() {
     assert!(!Rc::ptr_eq(original_set, first));
 }
 
+fn instance(r#struct: &Rc<ObjStruct>, fields: Vec<Value>) -> Value {
+    Value::Instance(Rc::new(RefCell::new(ObjInstance {
+        r#struct: Rc::clone(r#struct),
+        fields,
+    })))
+}
+
+fn empty_struct(name: &str) -> Rc<ObjStruct> {
+    Rc::new(ObjStruct {
+        name: name.to_string(),
+        fields: vec!["field".to_string()],
+        field_symbols: vec![0],
+        name_symbol: 0,
+    })
+}
+
+#[test]
+fn deep_copy_of_an_array_referencing_a_map_twice_shares_the_copy() {
+    let mut entries = IndexMap::new();
+    entries.insert(MapKey::Number(1.0.into()), Value::Number(1.0));
+    let map = Value::new_map(entries);
+    let original = Value::new_array(vec![map.clone(), map.clone()]);
+    let copy = original.deep_copy().unwrap();
+
+    let Value::Array(copy) = copy else {
+        panic!("expected an array");
+    };
+    let copy = copy.borrow();
+    let (Value::Map(first), Value::Map(second)) = (&copy[0], &copy[1]) else {
+        panic!("expected maps");
+    };
+    assert!(Rc::ptr_eq(first, second));
+
+    let Value::Map(original_map) = &map else {
+        panic!("expected a map");
+    };
+    assert!(!Rc::ptr_eq(original_map, first));
+}
+
+#[test]
+fn deep_copy_of_a_map_keeps_entry_order_and_copies_container_values() {
+    let mut entries = IndexMap::new();
+    entries.insert(
+        MapKey::String(Rc::new("a".to_string())),
+        Value::new_array(vec![Value::Number(1.0)]),
+    );
+    entries.insert(
+        MapKey::String(Rc::new("b".to_string())),
+        Value::new_array(vec![Value::Number(2.0)]),
+    );
+    entries.insert(
+        MapKey::String(Rc::new("c".to_string())),
+        Value::new_array(vec![Value::Number(3.0)]),
+    );
+    let original = Value::new_map(entries);
+    let copy = original.deep_copy().unwrap();
+
+    let (Value::Map(original), Value::Map(copy)) = (&original, &copy) else {
+        panic!("expected maps");
+    };
+    let original = original.borrow();
+    let copy = copy.borrow();
+    assert_eq!(
+        original.keys().collect::<Vec<_>>(),
+        copy.keys().collect::<Vec<_>>()
+    );
+    for (original_value, copy_value) in original.values().zip(copy.values()) {
+        assert_eq!(original_value, copy_value);
+        let (Value::Array(original_value), Value::Array(copy_value)) = (original_value, copy_value)
+        else {
+            panic!("expected arrays");
+        };
+        assert!(!Rc::ptr_eq(original_value, copy_value));
+    }
+}
+
+#[test]
+fn deep_copy_of_a_cyclic_instance_is_cyclic() {
+    let r#struct = empty_struct("S");
+    let original = instance(&r#struct, vec![Value::Nil]);
+    let Value::Instance(cell) = &original else {
+        unreachable!()
+    };
+    cell.borrow_mut().fields[0] = original.clone();
+
+    let copy = original.deep_copy().unwrap();
+    let Value::Instance(copy_cell) = &copy else {
+        panic!("expected an instance");
+    };
+    let field = copy_cell.borrow().fields[0].clone();
+    let Value::Instance(field) = &field else {
+        panic!("expected an instance field");
+    };
+    assert!(Rc::ptr_eq(copy_cell, field));
+    assert!(!Rc::ptr_eq(copy_cell, cell));
+}
+
 #[test]
 fn deep_copy_of_a_closure_without_captures_shares_it() {
     let value = Value::Closure(closure(vec![]));
@@ -104,8 +202,10 @@ fn deep_copy_of_a_closure_without_captures_shares_it() {
 fn deep_copy_of_a_capturing_closure_is_an_error() {
     let upvalue = Rc::new(RefCell::new(Upvalue::Closed(Value::Nil)));
     let value = Value::Closure(closure(vec![upvalue]));
-    let error = value.deep_copy().unwrap_err();
-    assert!(error.contains("captures variables"), "{}", error);
+    assert_eq!(
+        "Cannot copy function 'f' across a task boundary: it captures variables",
+        value.deep_copy().unwrap_err()
+    );
 }
 
 #[test]
