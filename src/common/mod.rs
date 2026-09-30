@@ -220,6 +220,25 @@ impl ObjStruct {
 }
 
 impl Value {
+    /// Clones the value, copying scalars inline instead of calling `Clone`.
+    #[inline(always)]
+    pub(crate) fn copy_or_clone(&self) -> Value {
+        match self {
+            Value::Number(n) => Value::Number(*n),
+            Value::Boolean(b) => Value::Boolean(*b),
+            Value::Nil => Value::Nil,
+            _ => self.clone(),
+        }
+    }
+
+    /// Drops the value, skipping drop glue for scalars.
+    #[inline(always)]
+    pub(crate) fn discard(self) {
+        if let Value::Number(_) | Value::Boolean(_) | Value::Nil = self {
+            std::mem::forget(self);
+        }
+    }
+
     pub(crate) fn new_instance(instance: ObjInstance) -> Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
