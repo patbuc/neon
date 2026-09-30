@@ -128,15 +128,13 @@ impl VirtualMachine {
     /// Shared by the CALL opcode, `call_value`'s re-entrant native-to-Neon
     /// calls, and `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
-        // Take the callable out of its stack slot: nothing reads that slot
-        // as a value again (locals start above it), so a move avoids a
-        // clone the frame will own anyway.
+        // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
 
         let result = match callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
-            Value::Struct(r#struct) => return self.instantiate_struct(arg_count, &r#struct),
+            Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
             Value::NativeFunction(callable) => {
                 match self.call_native_function(arg_count, &callable) {
                     Ok(value) => value,
@@ -352,7 +350,7 @@ impl VirtualMachine {
         self.run_native_callable(native_callable, args_start, args_end)
     }
 
-    fn instantiate_struct(&mut self, arg_count: usize, r#struct: &Rc<ObjStruct>) -> OpResult {
+    fn instantiate_struct(&mut self, arg_count: usize, r#struct: Rc<ObjStruct>) -> OpResult {
         if arg_count != r#struct.fields.len() {
             return Err(self.call_error(format!(
                 "Expected {} fields but got {}.",
@@ -367,10 +365,7 @@ impl VirtualMachine {
         let stack_slice = &self.stack[stack_len - arg_count..stack_len];
         let fields = stack_slice.to_vec();
 
-        let instance = ObjInstance {
-            r#struct: Rc::clone(r#struct),
-            fields,
-        };
+        let instance = ObjInstance { r#struct, fields };
 
         // Pop arguments and struct object from stack
         let n = arg_count + 1;
