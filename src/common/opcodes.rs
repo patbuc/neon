@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 58] = [
+        const OPCODES: [OpCode; 64] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -60,6 +60,12 @@ impl OpCode {
             OpCode::StoreLocal,
             OpCode::StoreField,
             OpCode::StoreLocalField,
+            OpCode::AddConstant,
+            OpCode::SubtractConstant,
+            OpCode::GreaterConstant,
+            OpCode::GreaterEqualConstant,
+            OpCode::LessConstant,
+            OpCode::LessEqualConstant,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -154,4 +160,13 @@ pub(crate) enum OpCode {
     /// Statement-position fused `GetLocal` + `SetField`: a 16-bit local
     /// slot, then a 16-bit symbol id. Stack `[.., value]` -> `[..]`.
     StoreLocalField,
+
+    /// Binary operators whose right operand is a number literal: a 16-bit
+    /// constant-pool index replaces pushing it.
+    AddConstant,
+    SubtractConstant,
+    GreaterConstant,
+    GreaterEqualConstant,
+    LessConstant,
+    LessEqualConstant,
 }
