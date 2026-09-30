@@ -84,6 +84,7 @@ pub type SetKey = MapKey;
 impl MapKey {
     /// Converts a hashable `Value` into a `MapKey`, or `None` if `value`
     /// can't be used as a map/set key.
+    #[inline]
     pub fn from_value(value: &Value) -> Option<MapKey> {
         match value {
             Value::String(s) => Some(MapKey::String(Rc::clone(s))),
@@ -94,6 +95,7 @@ impl MapKey {
     }
 
     /// Converts a `MapKey` back into the `Value` it was built from.
+    #[inline]
     pub fn to_value(&self) -> Value {
         match self {
             MapKey::String(s) => Value::String(Rc::clone(s)),
