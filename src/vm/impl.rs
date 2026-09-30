@@ -223,6 +223,7 @@ impl VirtualMachine {
 
     /// Makes `closure` the running frame. The caller's `ip` is saved on its
     /// frame, since `self.ip` and `self.chunk` only track the top frame.
+    #[inline(always)]
     pub(in crate::vm) fn push_frame(&mut self, closure: Rc<ObjClosure>, slot_start: isize) {
         if let Some(caller) = self.call_frames.last_mut() {
             caller.ip = self.ip;
