@@ -243,3 +243,54 @@ fn native_method_docs_match_registry() {
         mismatches.join("\n")
     );
 }
+
+#[test]
+fn skill_method_not_in_registry() {
+    let text = "\n## Native methods that exist\n\n- **Array:** `bogus`\n";
+    let methods = parse_skill_methods(text);
+    let mismatches = diff("SKILL.md", &methods, &BTreeSet::new());
+    assert_eq!(mismatches, vec!["SKILL.md: Array.bogus not in registry"]);
+}
+
+#[test]
+fn readme_method_not_in_registry() {
+    let text = "\n## Standard Library\n\n### Array Methods\n\n\
+        * `.bogus()` - x\n- `.wrapped(a)`,\n  `.more(b)` - y\n";
+    let methods = parse_readme_methods(text);
+    let mismatches = diff("README.md", &methods, &BTreeSet::new());
+    assert_eq!(
+        mismatches,
+        vec![
+            "README.md: Array.bogus not in registry",
+            "README.md: Array.more not in registry",
+            "README.md: Array.wrapped not in registry",
+        ]
+    );
+}
+
+#[test]
+fn registry_method_missing_from_doc() {
+    let registry: BTreeSet<_> = [("Array".to_string(), "push".to_string())].into();
+    let mismatches = diff("README.md", &BTreeSet::new(), &registry);
+    assert_eq!(mismatches, vec!["README.md: Array.push missing"]);
+}
+
+#[test]
+fn constructor_missing_reported_as_new() {
+    let text = "\n## Native methods that exist\n\n- **File:** `read`\n";
+    let methods = parse_skill_methods(text);
+    let registry: BTreeSet<_> = [
+        ("File".to_string(), "new".to_string()),
+        ("File".to_string(), "read".to_string()),
+    ]
+    .into();
+    let mismatches = diff("SKILL.md", &methods, &registry);
+    assert_eq!(mismatches, vec!["SKILL.md: File.new missing"]);
+}
+
+#[test]
+#[should_panic]
+fn unknown_readme_heading_panics() {
+    let text = "\n## Standard Library\n\n### Json\n\n- `.parse(s)` - x\n";
+    parse_readme_methods(text);
+}
