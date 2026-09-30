@@ -1,0 +1,13 @@
+// Reading a field off a local that isn't an instance
+
+// Expected:
+// before
+
+// Expected runtime error: Only instances have fields.
+
+fn getY(p) {
+    return p.y
+}
+
+print("before")
+getY(1)
