@@ -52,10 +52,6 @@ pub struct VirtualMachine {
     /// The running fiber's `ObjFiber::isolated`, mirrored here so
     /// GetGlobal/SetGlobal/GetBuiltin can check it with one field read.
     isolated: bool,
-    /// The script's own chunk, for its `globals` table (`GetGlobal`'s
-    /// operand always indexes this chunk, regardless of which function's
-    /// chunk is currently running).
-    script_chunk: Rc<Chunk>,
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
@@ -88,12 +84,10 @@ impl VirtualMachine {
         self.native_methods = native_method_table(&chunk.symbols);
 
         // Create a synthetic function for the test chunk
-        let chunk = Rc::new(chunk);
-        self.script_chunk = Rc::clone(&chunk);
         let test_function = Rc::new(ObjFunction {
             name: "<test>".to_string(),
             arity: 0,
-            chunk,
+            chunk: Rc::new(chunk),
         });
         let test_closure = Rc::new(ObjClosure {
             function: test_function,

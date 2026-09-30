@@ -1,0 +1,16 @@
+// A capturing closure is passed as a task's argument
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot copy function 'anonymous' across a task boundary: it captures variables
+
+fn make() {
+    var local = 1
+    return fn() { return local }
+}
+
+val captured = make()
+
+print("start")
+Task.spawn(fn(x) { return x }, captured)

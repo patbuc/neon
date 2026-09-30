@@ -35,8 +35,7 @@ pub fn native_fiber_is_done(args: &[Value]) -> Result<Value, String> {
 }
 
 /// `task.join()`: the task's deep-copied return value, the same on every
-/// call. `Task.spawn` runs its task to completion before returning the
-/// handle, so the result is always ready by the time `join` can be called.
+/// call.
 pub fn native_task_join(args: &[Value]) -> Result<Value, String> {
     match args.first() {
         Some(Value::Fiber(fiber)) => fiber

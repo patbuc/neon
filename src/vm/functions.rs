@@ -1,7 +1,10 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::fiber::FiberKind;
 use crate::common::method_registry::NativeCallable;
-use crate::common::{MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::stdlib::BUILTIN_VALUES;
+use crate::common::{
+    Chunk, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value,
+};
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
@@ -850,22 +853,25 @@ impl VirtualMachine {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         };
         if self.isolated && !Self::isolated_read_allowed(value) {
-            let name = crate::common::stdlib::BUILTIN_VALUES[index].0;
-            return Err(self.runtime_error(format!(
-                "Task cannot read global '{}'; pass it as the task's argument",
-                name
-            )));
+            return Err(self.isolated_builtin_read_error(index));
         }
         self.push(value.clone());
         self.ip += 2;
         Ok(())
     }
 
+    #[cold]
+    fn isolated_builtin_read_error(&self, index: usize) -> RuntimeError {
+        let name = BUILTIN_VALUES[index].0;
+        self.runtime_error(format!(
+            "Task cannot read global '{}'; pass it as the task's argument",
+            name
+        ))
+    }
+
     /// Whether an isolated fiber (a task, or one running inside one) may
     /// read a global holding `value`: immutable scalars, ranges, struct
-    /// definitions, function templates, and non-capturing closures. Not
-    /// checked when `isolated` is false, so the common path stays a single
-    /// bool read.
+    /// definitions, function templates, and non-capturing closures.
     fn isolated_read_allowed(value: &Value) -> bool {
         match value {
             Value::Number(_)
@@ -912,12 +918,10 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// The "Task cannot read global" check for `op_get_global`, split out
-    /// so the common (non-isolated) path is just the one `if self.isolated`
-    /// bool check above.
     #[cold]
     fn check_isolated_global_read(&self, index: usize, value: &Value) -> OpResult {
-        let info = &self.script_chunk.globals[index];
+        let chunk = self.script_chunk();
+        let info = &chunk.globals[index];
         if !info.is_var && Self::isolated_read_allowed(value) {
             return Ok(());
         }
@@ -927,14 +931,34 @@ impl VirtualMachine {
         )))
     }
 
+    #[cold]
+    fn isolated_set_global_error(&self, index: usize) -> RuntimeError {
+        let name = self.script_chunk().globals[index].name.clone();
+        self.runtime_error(format!("Cannot assign to global '{}' inside a task", name))
+    }
+
+    /// The script chunk, for its `globals` table: whenever `isolated` is
+    /// true a child fiber is running, and the main fiber parked below it
+    /// always runs the script itself.
+    fn script_chunk(&self) -> Rc<Chunk> {
+        Rc::clone(
+            &self
+                .fibers
+                .as_ref()
+                .expect("isolated implies a child fiber is running")
+                .main
+                .borrow()
+                .body
+                .function
+                .chunk,
+        )
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_set_global(&mut self) -> OpResult {
         let index = self.read_index();
         if self.isolated {
-            let name = self.script_chunk.globals[index].name.clone();
-            return Err(
-                self.runtime_error(format!("Cannot assign to global '{}' inside a task", name))
-            );
+            return Err(self.isolated_set_global_error(index));
         }
         // Globals live in the main script's stack; see `op_get_global`.
         if self.in_child_fiber() {

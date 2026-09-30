@@ -32,7 +32,6 @@ impl VirtualMachine {
             native_call_depth: 0,
             fiber_depth: 0,
             isolated: false,
-            script_chunk: Rc::new(Chunk::new("")),
             methods: Vec::new(),
             fibers: None,
             native_methods: Vec::new(),
@@ -78,7 +77,6 @@ impl VirtualMachine {
             arity: 0,
             chunk: Rc::new(chunk),
         });
-        self.script_chunk = Rc::clone(&script_function.chunk);
         let script_closure = Rc::new(ObjClosure {
             function: script_function,
             upvalues: Vec::new(),
@@ -428,6 +426,7 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.fiber_depth = 0;
+        self.isolated = false;
         self.methods.clear();
         self.fibers = None;
         #[cfg(feature = "opcode-stats")]

@@ -50,15 +50,19 @@ impl VirtualMachine {
         base_index: usize,
         arg_count: usize,
     ) -> OpResult {
-        if op == ControlOp::TaskSpawn {
-            return self.task_spawn(base_index, arg_count);
+        match op {
+            ControlOp::TaskSpawn => self.task_spawn(base_index, arg_count),
+            ControlOp::FiberCall | ControlOp::FiberYield => {
+                self.fiber_op(op, base_index, arg_count)
+            }
         }
-        let name = match op {
-            ControlOp::FiberCall => "call",
-            ControlOp::FiberYield => "yield",
-            ControlOp::TaskSpawn => unreachable!("handled above"),
-        };
+    }
+
+    /// `fiber.call([value])` / `Fiber.yield([value])`.
+    fn fiber_op(&mut self, op: ControlOp, base_index: usize, arg_count: usize) -> OpResult {
+        let is_yield = op == ControlOp::FiberYield;
         if arg_count > 1 {
+            let name = if is_yield { "yield" } else { "call" };
             return Err(self.call_error(format!(
                 "{}() takes at most one argument, got {}",
                 name, arg_count
@@ -67,24 +71,18 @@ impl VirtualMachine {
         if self.native_call_depth > 0 {
             return Err(self.call_error(format!(
                 "Cannot {} a fiber from inside a native callback",
-                if op == ControlOp::FiberYield {
-                    "yield"
-                } else {
-                    "resume"
-                }
+                if is_yield { "yield" } else { "resume" }
             )));
         }
         let arg = (arg_count == 1).then(|| self.peek(0));
 
-        match op {
-            ControlOp::FiberYield => self.yield_fiber(base_index, arg.unwrap_or(Value::Nil)),
-            ControlOp::FiberCall => {
-                let Value::Fiber(fiber) = self.stack[base_index].clone() else {
-                    unreachable!("control op dispatched on a non-fiber receiver")
-                };
-                self.resume_fiber(base_index, &fiber, arg)
-            }
-            ControlOp::TaskSpawn => unreachable!("handled above"),
+        if is_yield {
+            self.yield_fiber(base_index, arg.unwrap_or(Value::Nil))
+        } else {
+            let Value::Fiber(fiber) = self.stack[base_index].clone() else {
+                unreachable!("control op dispatched on a non-fiber receiver")
+            };
+            self.resume_fiber(base_index, &fiber, arg)
         }
     }
 
@@ -252,10 +250,14 @@ impl VirtualMachine {
                 .expect("finish_fiber is only called in a child fiber")
                 .current,
         );
-        let is_task = current.borrow().kind == FiberKind::Task;
-        let result = is_task
-            .then(|| value.deep_copy().map_err(|error| self.runtime_error(error)))
-            .transpose()?;
+        let kind = current.borrow().kind;
+        let value = if kind == FiberKind::Task {
+            value
+                .deep_copy()
+                .map_err(|error| self.runtime_error(error))?
+        } else {
+            value
+        };
 
         self.call_frames.pop();
         self.close_upvalues_above(0);
@@ -268,12 +270,11 @@ impl VirtualMachine {
                 .take()
                 .expect("a running fiber always has a caller")
         };
-        let push_value = match result {
-            Some(result) => {
-                current.borrow_mut().result = Some(result);
-                Value::Fiber(current)
-            }
-            None => value,
+        let push_value = if kind == FiberKind::Task {
+            current.borrow_mut().result = Some(value);
+            Value::Fiber(current)
+        } else {
+            value
         };
         self.switch_to(&caller);
         caller.borrow_mut().state = FiberState::Running;

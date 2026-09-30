@@ -45,8 +45,6 @@ fn fiber_name_is_reserved_for_structs() {
     assert_eq!(InterpretResult::CompileError, result);
 }
 
-// `Task` was briefly available for a struct name (#246); it's reserved again
-// now that it names the builtin task type (#259).
 #[test]
 fn task_name_is_reserved_for_structs() {
     let (result, _) = run("struct Task { x }");
@@ -74,6 +72,26 @@ fn task_spawn_rejects_more_than_two_arguments() {
 }
 
 #[test]
+fn task_spawn_rejects_a_two_parameter_body() {
+    let (result, vm) = run("Task.spawn(fn(a, b) { return a })");
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert_eq!(
+        "Task body 'anonymous' must take zero or one parameter, but takes 2",
+        vm.get_runtime_error().unwrap().message
+    );
+}
+
+#[test]
+fn task_spawn_rejects_an_argument_for_a_zero_parameter_body() {
+    let (result, vm) = run("Task.spawn(fn() { return 1 }, 42)");
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert_eq!(
+        "Task body 'anonymous' takes no parameter, but one argument was passed",
+        vm.get_runtime_error().unwrap().message
+    );
+}
+
+#[test]
 fn task_spawn_is_rejected_inside_a_native_callback() {
     let (result, vm) = run("[1].map(fn(x) {\n    Task.spawn(fn() { return 1 })\n    return x\n})");
     assert_eq!(InterpretResult::RuntimeError, result);
@@ -81,4 +99,16 @@ fn task_spawn_is_rejected_inside_a_native_callback() {
         "Cannot spawn a task from inside a native callback",
         vm.get_runtime_error().unwrap().message
     );
+}
+
+// A runtime error raised while isolated must not leave the VM isolated for
+// the next `interpret` call on the same instance (REPL, wasm).
+#[test]
+fn isolation_does_not_leak_into_the_next_interpret_call() {
+    let mut vm = VirtualMachine::new();
+    let first = vm.interpret("Task.spawn(fn() { return args })".to_string());
+    assert_eq!(InterpretResult::RuntimeError, first);
+
+    let second = vm.interpret("print(args)".to_string());
+    assert_eq!(InterpretResult::Ok, second);
 }

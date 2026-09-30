@@ -1,0 +1,13 @@
+// A task body returns a fiber
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot copy a fiber across a task boundary
+
+fn body() {
+    return Fiber(fn() { Fiber.yield() })
+}
+
+print("start")
+Task.spawn(body).join()

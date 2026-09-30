@@ -5,7 +5,7 @@ use crate::common::errors::{
 /// Code generator for the multi-pass compiler
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, SourceLocation, Value};
+use crate::common::{Chunk, GlobalInfo, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{number, string};
@@ -172,21 +172,15 @@ impl<'a> CodeGenerator<'a> {
                 }
                 Stmt::Val {
                     name, id, location, ..
-                } => {
-                    let sentinel = Value::Uninitialized(Rc::new(name.clone()));
-                    self.emit_constant(sentinel, *location);
-                    let decl = self.resolutions.decl(*id);
-                    self.bind_decl_local(decl, *location);
-                    self.push_global_info(decl, name, false);
                 }
-                Stmt::Var {
+                | Stmt::Var {
                     name, id, location, ..
                 } => {
                     let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                     self.emit_constant(sentinel, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
-                    self.push_global_info(decl, name, true);
+                    self.push_global_info(decl, name, matches!(stmt, Stmt::Var { .. }));
                 }
                 _ => {}
             }
@@ -335,9 +329,6 @@ impl<'a> CodeGenerator<'a> {
         self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
     }
 
-    /// Records a top-level declaration's name and mutability on the script
-    /// chunk's `globals` table, in slot order - the VM indexes it by the
-    /// `GetGlobal`/`SetGlobal` operand, so it must line up with `decl`'s slot.
     fn push_global_info(&mut self, decl: DeclId, name: &str, is_var: bool) {
         let slot = self.decl_slot(decl);
         let globals = &mut self.current_chunk().globals;
@@ -346,7 +337,7 @@ impl<'a> CodeGenerator<'a> {
             globals.len(),
             "global slot must equal its position in the globals table"
         );
-        globals.push(crate::common::GlobalInfo {
+        globals.push(GlobalInfo {
             name: Rc::from(name),
             is_var,
         });

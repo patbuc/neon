@@ -1,0 +1,13 @@
+// A task body reads the builtin `args` array
+
+// Expected:
+// start
+
+// Expected runtime error: Task cannot read global 'args'; pass it as the task's argument
+
+fn body() {
+    return args
+}
+
+print("start")
+Task.spawn(body).join()
