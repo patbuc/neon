@@ -97,32 +97,31 @@ fn heading_section(heading: &str) -> Section {
 }
 
 fn process_bullet(lines: &[String], section: &Section, methods: &mut BTreeSet<(String, String)>) {
-    for line in lines {
-        let tokens_region = match line.split_once(" - ") {
-            Some((region, _)) => region,
-            None => line.as_str(),
-        };
-        match section {
-            Section::None => {
-                panic!("README.md: method bullet with no current section type: {line}")
-            }
-            Section::Global => {
-                for token in backtick_tokens(tokens_region) {
-                    let name = match token.split_once('(') {
-                        Some((name, _)) => name,
-                        None => token,
-                    }
-                    .trim();
-                    assert_eq!(
-                        name, "print",
-                        "README.md: unexpected Global Functions entry `{token}`"
-                    );
+    let joined = lines.join(" ");
+    let tokens_region = match joined.split_once(" - ") {
+        Some((region, _)) => region,
+        None => joined.as_str(),
+    };
+    match section {
+        Section::None => {
+            panic!("README.md: method bullet with no current section type: {joined}")
+        }
+        Section::Global => {
+            for token in backtick_tokens(tokens_region) {
+                let name = match token.split_once('(') {
+                    Some((name, _)) => name,
+                    None => token,
                 }
+                .trim();
+                assert_eq!(
+                    name, "print",
+                    "README.md: unexpected Global Functions entry `{token}`"
+                );
             }
-            Section::Types(types) => {
-                for token in backtick_tokens(tokens_region) {
-                    methods.extend(parse_token(token, types));
-                }
+        }
+        Section::Types(types) => {
+            for token in backtick_tokens(tokens_region) {
+                methods.extend(parse_token(token, types));
             }
         }
     }
