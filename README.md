@@ -90,7 +90,7 @@ Neon is a functional dynamically-typed interpreter with a comprehensive feature 
 - Complete lexer, parser, and bytecode compiler
 - Stack-based virtual machine
 - Rich standard library with collection types and methods
-- 177 integration tests validating all features
+- 200+ integration tests validating all features
 - String interpolation and first-class functions
 
 While Neon is functional for many programs, it remains experimental. Expect rough edges, missing features, and occasional crashes as development continues.
@@ -353,6 +353,7 @@ the variable in the body carries over to the increment and the next iteration.
 - `*` Multiplication
 - `/` Division
 - `%` Modulo
+- `**` Exponentiation
 - `-x` Negation (unary)
 
 **Comparison:**
@@ -368,9 +369,18 @@ the variable in the body carries over to the increment and the next iteration.
 - `||` Logical OR (short-circuit)
 - `!` Logical NOT (unary)
 
+**Bitwise:**
+- `&` AND, `|` OR, `^` XOR
+- `~` NOT (unary)
+- `<<` Left shift, `>>` Right shift
+
 **Other:**
 - `..` Range (exclusive)
 - `..=` Range (inclusive)
+- `c ? a : b` Ternary
+- `x++` / `x--` Increment / decrement a variable
+
+There is no compound assignment (`+=`, `-=`, ...); write `x = x + 1`.
 
 **Operator Precedence:** `||` has lower precedence than `&&`, so `a || b && c` is evaluated as `a || (b && c)`.
 
@@ -647,6 +657,10 @@ print(Math.floor(a / b))   // integer division
 - `.toInt()` - Convert to integer
 - `.toFloat()` - Convert to float
 - `.toBool()` - Convert to boolean (case-insensitive)
+- `.trim()` - Remove leading and trailing whitespace
+- `.startsWith(prefix)` / `.endsWith(suffix)` - Check prefix / suffix
+- `.indexOf(substring)` - Position of the first occurrence, or `-1`
+- `.charAt(index)` - Character at `index` (strings can't be indexed with `[]`)
 
 **Example:**
 ```neon
@@ -660,8 +674,14 @@ print("42".toInt() + 8)               // 50
 ### Array Methods
 
 - `.push(value)` - Add element to end
+- `.pop()` - Remove and return the last element (`nil` if empty)
 - `.size()` / `.length()` - Get array length
 - `.contains(value)` - Check if contains value
+- `.indexOf(value)` - Position of the first match, or `-1`
+- `.sort()` / `.reverse()` - Sort / reverse in place
+- `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
+- `.join(delimiter)` - Join the elements into a string
+- `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
 - `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
@@ -704,6 +724,8 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 
 - `.size()` - Number of entries
 - `.has(key)` - Check if key exists
+- `.get(key)` - Value for `key`, or `nil` if absent
+- `.remove(key)` - Remove `key` and return its value
 - `.keys()` - Get array of keys
 - `.values()` - Get array of values
 - `.entries()` - Get array of [key, value] pairs
@@ -741,11 +763,14 @@ val arr = set.toArray()
 print(arr)                // [1, 2] (order may vary)
 ```
 
-### Type Conversions
+### File
 
-**String Conversions:**
-- `String(value)` - Convert value to string
-- `.toString()` - Available on numbers and booleans
+- `File(path)` - Open a file handle for `path`
+- `.read()` - Whole file as a string
+- `.readLines()` - Array of lines
+- `.write(text)` - Create the file with `text`; a runtime error if it already exists
+
+### Type Conversions
 
 **Number Methods:**
 - `.toString()` - Convert to string
