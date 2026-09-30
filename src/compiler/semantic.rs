@@ -984,10 +984,10 @@ impl SemanticAnalyzer {
                 self.resolve_range_expr(start, end);
             }
             Expr::PostfixIncrement { operand, location } => {
-                self.resolve_postfix_increment(operand, *location);
+                self.resolve_postfix(operand, *location, "Increment");
             }
             Expr::PostfixDecrement { operand, location } => {
-                self.resolve_postfix_decrement(operand, *location);
+                self.resolve_postfix(operand, *location, "Decrement");
             }
             Expr::Conditional {
                 condition,
@@ -1548,8 +1548,8 @@ impl SemanticAnalyzer {
         self.resolve_expr(end);
     }
 
-    fn resolve_postfix_increment(&mut self, operand: &Expr, location: SourceLocation) {
-        // Postfix increment can only be applied to simple variables
+    fn resolve_postfix(&mut self, operand: &Expr, location: SourceLocation, operator: &str) {
+        // Postfix operators can only be applied to simple variables
         match operand {
             Expr::Variable { name, id, .. } => {
                 // Check if variable exists and is mutable
@@ -1559,25 +1559,7 @@ impl SemanticAnalyzer {
                 self.errors.push(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::InvalidIncrementTarget,
-                    "Increment operator can only be applied to variables".to_string(),
-                    location,
-                ));
-            }
-        }
-    }
-
-    fn resolve_postfix_decrement(&mut self, operand: &Expr, location: SourceLocation) {
-        // Postfix decrement can only be applied to simple variables
-        match operand {
-            Expr::Variable { name, id, .. } => {
-                // Check if variable exists and is mutable
-                self.check_variable_mutability(*id, name, location);
-            }
-            _ => {
-                self.errors.push(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::InvalidIncrementTarget,
-                    "Decrement operator can only be applied to variables".to_string(),
+                    format!("{operator} operator can only be applied to variables"),
                     location,
                 ));
             }
