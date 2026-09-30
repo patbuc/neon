@@ -10,6 +10,7 @@ impl Chunk {
             instructions: Vec::new(),
             line_infos: Vec::new(),
             symbols: Rc::from(Vec::new()),
+            globals: Vec::new(),
         }
     }
 }

@@ -46,6 +46,18 @@ pub struct Chunk {
     /// Field, method, and type names interned during semantic analysis,
     /// indexed by symbol id. Shared by every chunk of one compile.
     pub symbols: Rc<[Rc<str>]>,
+    /// Name and mutability of each top-level declaration, in global-slot
+    /// order (slot `i` is `globals[i]`). Only the script chunk has these;
+    /// empty for every other chunk. Used to decide which globals an
+    /// isolated fiber (a task, or one running inside one) may read.
+    pub globals: Vec<GlobalInfo>,
+}
+
+/// See `Chunk::globals`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalInfo {
+    pub name: Rc<str>,
+    pub is_var: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -317,7 +329,10 @@ impl Value {
             Value::Set(_) => "set",
             Value::File(_) => "file",
             Value::Range(_) => "range",
-            Value::Fiber(_) => "fiber",
+            Value::Fiber(fiber) => match fiber.borrow().kind {
+                fiber::FiberKind::Task => "task",
+                _ => "fiber",
+            },
         }
     }
 }

@@ -141,10 +141,13 @@ impl<'a> CodeGenerator<'a> {
         // GetGlobal/SetGlobal reject until its statement runs.
         for stmt in statements {
             match stmt {
-                Stmt::Fn { id, location, .. } => {
+                Stmt::Fn {
+                    name, id, location, ..
+                } => {
                     self.emit_op_code(OpCode::Nil, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
+                    self.push_global_info(decl, name, false);
                 }
                 Stmt::Struct {
                     name,
@@ -165,17 +168,25 @@ impl<'a> CodeGenerator<'a> {
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
+                    self.push_global_info(decl, name, false);
                 }
                 Stmt::Val {
-                    name, id, location, ..
-                }
-                | Stmt::Var {
                     name, id, location, ..
                 } => {
                     let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                     self.emit_constant(sentinel, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
+                    self.push_global_info(decl, name, false);
+                }
+                Stmt::Var {
+                    name, id, location, ..
+                } => {
+                    let sentinel = Value::Uninitialized(Rc::new(name.clone()));
+                    self.emit_constant(sentinel, *location);
+                    let decl = self.resolutions.decl(*id);
+                    self.bind_decl_local(decl, *location);
+                    self.push_global_info(decl, name, true);
                 }
                 _ => {}
             }
@@ -322,6 +333,23 @@ impl<'a> CodeGenerator<'a> {
         self.bind_local(decl);
         let slot = self.decl_slot(decl);
         self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
+    }
+
+    /// Records a top-level declaration's name and mutability on the script
+    /// chunk's `globals` table, in slot order - the VM indexes it by the
+    /// `GetGlobal`/`SetGlobal` operand, so it must line up with `decl`'s slot.
+    fn push_global_info(&mut self, decl: DeclId, name: &str, is_var: bool) {
+        let slot = self.decl_slot(decl);
+        let globals = &mut self.current_chunk().globals;
+        debug_assert_eq!(
+            slot as usize,
+            globals.len(),
+            "global slot must equal its position in the globals table"
+        );
+        globals.push(crate::common::GlobalInfo {
+            name: Rc::from(name),
+            is_var,
+        });
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
