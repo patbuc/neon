@@ -258,6 +258,8 @@ cargo run --features disassemble -- script.n
 
 - Unit tests in module files or submodule `tests/` directories
 - Integration tests in `tests/scripts/` use inline expected output format
+- Before writing or editing `.n` files, load the `writing-neon` skill (`.claude/skills/writing-neon/`): where Neon
+  syntax differs from JS/Kotlin and the full list of native methods
 - Test both success and error paths
 - Include edge cases (empty input, stack overflow, division by zero, etc.)
 
