@@ -104,6 +104,7 @@ and on demand.
 ```bash
 cargo run -- script.n           # Interpret a Neon script
 cargo run -- script.n arg1 arg2 # Pass arguments to script
+cargo run -- --check script.n   # Compile without running
 cargo run                       # Start REPL
 ```
 
@@ -263,6 +264,8 @@ cargo run --features disassemble -- script.n
 - Integration tests in `tests/scripts/` use inline expected output format
 - Before writing or editing `.n` files, load the `writing-neon` skill (`.claude/skills/writing-neon/`): where Neon
   syntax differs from JS/Kotlin and the full list of native methods
+- A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
+  written, feeding compile errors back automatically
 - Test both success and error paths
 - Include edge cases (empty input, stack overflow, division by zero, etc.)
 
