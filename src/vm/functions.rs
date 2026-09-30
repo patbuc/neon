@@ -436,23 +436,27 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let a = self.stack.last_mut().expect("stack underflow");
-        let is_match = match (&*a, &b) {
+        // Matching b by value, not by reference, lets the Number and String
+        // arms fully consume it in place instead of leaving it to be dropped
+        // through Value's shared (and comparatively expensive) drop glue
+        // once this match returns.
+        let is_match = match (&*a, b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
-                Comparison::Greater => x > y,
-                Comparison::GreaterEqual => x >= y,
-                Comparison::Less => x < y,
-                Comparison::LessEqual => x <= y,
+                Comparison::Greater => *x > y,
+                Comparison::GreaterEqual => *x >= y,
+                Comparison::Less => *x < y,
+                Comparison::LessEqual => *x <= y,
             },
             (Value::String(sa), Value::String(sb)) => match wanted {
-                Comparison::Greater => sa > sb,
-                Comparison::GreaterEqual => sa >= sb,
-                Comparison::Less => sa < sb,
-                Comparison::LessEqual => sa <= sb,
+                Comparison::Greater => **sa > *sb,
+                Comparison::GreaterEqual => **sa >= *sb,
+                Comparison::Less => **sa < *sb,
+                Comparison::LessEqual => **sa <= *sb,
             },
-            _ => {
+            (a_ref, b) => {
                 let message = format!(
                     "Operands of a comparison must be two numbers or two strings, got {} and {}",
-                    a.type_name(),
+                    a_ref.type_name(),
                     b.type_name()
                 );
                 return Err(self.runtime_error(message));
