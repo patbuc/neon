@@ -99,7 +99,12 @@ impl VirtualMachine {
 
         self.check_frame_limit()?;
 
-        self.dispatch_call(arg_count)
+        let callable_index = self.stack.len() - 1 - arg_count;
+        let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
+        match callable_value {
+            Value::Closure(closure) => self.call_closure(arg_count, closure),
+            other => self.dispatch_call_value(other, callable_index, arg_count),
+        }
     }
 
     /// Invoke: a method call dispatched by name at runtime. Stack before:
@@ -132,7 +137,17 @@ impl VirtualMachine {
         // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
+        self.dispatch_call_value(callable_value, callable_index, arg_count)
+    }
 
+    /// Dispatches an already-extracted callable value (the slot at
+    /// `callable_index` has already been replaced with `Value::Nil`).
+    fn dispatch_call_value(
+        &mut self,
+        callable_value: Value,
+        callable_index: usize,
+        arg_count: usize,
+    ) -> OpResult {
         let result = match callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
             Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
@@ -398,6 +413,7 @@ impl VirtualMachine {
         Ok(())
     }
 
+    #[inline(always)]
     pub(in crate::vm) fn call_closure(
         &mut self,
         arg_count: usize,
@@ -408,6 +424,7 @@ impl VirtualMachine {
 
     /// Calls a closure; `exclude_self` leaves the leading `self` argument
     /// out of an arity-mismatch message.
+    #[inline(always)]
     fn call_closure_with(
         &mut self,
         arg_count: usize,
@@ -416,21 +433,32 @@ impl VirtualMachine {
     ) -> OpResult {
         let arity = closure.function.arity;
         if arg_count != arity as usize {
-            let (expected, got) = if exclude_self {
-                (arity - 1, arg_count - 1)
-            } else {
-                (arity, arg_count)
-            };
-            return Err(self.call_error(format!(
-                "Expected {} arguments but got {} for '{}'.",
-                expected, got, closure.function.name
-            )));
+            return Err(self.arity_error(arg_count, arity, exclude_self, &closure.function.name));
         }
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
         self.push_frame(closure, slot_start);
         Ok(())
+    }
+
+    #[cold]
+    fn arity_error(
+        &self,
+        arg_count: usize,
+        arity: u8,
+        exclude_self: bool,
+        function_name: &str,
+    ) -> RuntimeError {
+        let (expected, got) = if exclude_self {
+            (arity - 1, arg_count - 1)
+        } else {
+            (arity, arg_count)
+        };
+        self.call_error(format!(
+            "Expected {} arguments but got {} for '{}'.",
+            expected, got, function_name
+        ))
     }
 
     #[inline(always)]
