@@ -317,11 +317,11 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Pushes a new local bound to `decl` on top of the current function's
-    /// stack. The value it binds must already be on the stack.
+    /// stack. The value it binds must already be on the stack at this slot.
     fn bind_decl_local(&mut self, decl: DeclId, location: SourceLocation) {
         self.bind_local(decl);
         let slot = self.decl_slot(decl);
-        self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
+        self.checked_index(slot, "locals", location);
     }
 
     fn emit_variable_get(&mut self, id: NodeId, location: SourceLocation) {
