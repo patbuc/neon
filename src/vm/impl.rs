@@ -45,7 +45,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    pub fn interpret(&mut self, source: String) -> InterpretResult {
+    fn compile(&mut self, source: String) -> Option<Chunk> {
         self.reset();
 
         self.source = source.clone();
@@ -59,10 +59,26 @@ impl VirtualMachine {
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
+        if chunk.is_none() {
+            self.structured_errors = compiler.get_structured_errors();
+        }
+
+        chunk
+    }
+
+    pub fn check(&mut self, source: String) -> InterpretResult {
+        match self.compile(source) {
+            Some(_) => InterpretResult::Ok,
+            None => InterpretResult::CompileError,
+        }
+    }
+
+    pub fn interpret(&mut self, source: String) -> InterpretResult {
+        let chunk = self.compile(source);
+
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
         if chunk.is_none() {
-            self.structured_errors = compiler.get_structured_errors();
             return InterpretResult::CompileError;
         }
 
@@ -152,7 +168,7 @@ impl VirtualMachine {
                 OpCode::Less => self.op_compare(Comparison::Less)?,
                 OpCode::LessEqual => self.op_compare(Comparison::LessEqual)?,
                 OpCode::Not => self.op_not(),
-                OpCode::Pop => _ = self.pop(),
+                OpCode::Pop => self.pop().discard(),
                 OpCode::GetLocal => self.op_get_local()?,
                 OpCode::SetLocal => self.op_set_local()?,
                 OpCode::GetBuiltin => self.op_get_builtin()?,
@@ -174,6 +190,7 @@ impl VirtualMachine {
                 }
                 OpCode::GetField => self.op_get_field()?,
                 OpCode::SetField => self.op_set_field()?,
+                OpCode::GetLocalField => self.op_get_local_field()?,
 
                 OpCode::CreateMap => self.op_create_map()?,
                 OpCode::CreateArray => self.op_create_array(),
@@ -198,6 +215,17 @@ impl VirtualMachine {
                 OpCode::CloseUpvalueInPlace => self.op_close_upvalue_in_place(),
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
+                OpCode::StoreLocal => self.op_store_local()?,
+                OpCode::StoreField => self.op_store_field()?,
+                OpCode::StoreLocalField => self.op_store_local_field()?,
+                OpCode::AddConstant => self.op_add_constant()?,
+                OpCode::SubtractConstant => self.op_subtract_constant()?,
+                OpCode::GreaterConstant => self.op_compare_constant(Comparison::Greater)?,
+                OpCode::GreaterEqualConstant => {
+                    self.op_compare_constant(Comparison::GreaterEqual)?
+                }
+                OpCode::LessConstant => self.op_compare_constant(Comparison::Less)?,
+                OpCode::LessEqualConstant => self.op_compare_constant(Comparison::LessEqual)?,
             }
             self.ip += 1;
         }
@@ -205,6 +233,7 @@ impl VirtualMachine {
 
     /// Makes `closure` the running frame. The caller's `ip` is saved on its
     /// frame, since `self.ip` and `self.chunk` only track the top frame.
+    #[inline(always)]
     pub(in crate::vm) fn push_frame(&mut self, closure: Rc<ObjClosure>, slot_start: isize) {
         if let Some(caller) = self.call_frames.last_mut() {
             caller.ip = self.ip;

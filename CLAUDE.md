@@ -65,7 +65,9 @@ noisy for thresholds.
 
 ### Profiling
 
-Build a release binary with debug symbols first: `CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release`.
+Build a release binary with line tables first: `CARGO_PROFILE_RELEASE_DEBUG=line-tables-only cargo build --release`.
+It compiles to the same code as a plain release build. Full debug info (`=true`) changes code generation — fib runs
+~6% more instructions and ~20% slower — so its profile describes a different program than the benchmarks run.
 
 ```bash
 perf record -g --call-graph dwarf ./target/release/neon benches/fib.n 31
@@ -82,7 +84,8 @@ callgrind_annotate --auto=yes callgrind.out.<pid>
 ```
 
 Most VM code inlines into `VirtualMachine::run_script`, so read costs per source line in the annotated output
-rather than per function.
+rather than per function. For per-instruction costs, add `--dump-instr=yes`; that works on a plain release build
+too.
 
 For a coarser view, the `opcode-stats` feature counts executed opcodes:
 
@@ -93,14 +96,15 @@ cargo run --release --features opcode-stats -- benches/fib.n
 Prints one line per executed opcode with its count to stderr after the script finishes, sorted by count
 descending; stdout is unchanged. A second section follows after a blank line, one `Prev->Next <count>` line per
 executed opcode pair (consecutive opcodes across calls, returns, and native callbacks), sorted the same way. The
-Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every push to `main`
-and on demand.
+Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every pull request,
+every push to `main`, and on demand.
 
 ### Running Scripts
 
 ```bash
 cargo run -- script.n           # Interpret a Neon script
 cargo run -- script.n arg1 arg2 # Pass arguments to script
+cargo run -- --check script.n   # Compile without running
 cargo run                       # Start REPL
 ```
 
@@ -258,6 +262,10 @@ cargo run --features disassemble -- script.n
 
 - Unit tests in module files or submodule `tests/` directories
 - Integration tests in `tests/scripts/` use inline expected output format
+- Before writing or editing `.n` files, load the `writing-neon` skill (`.claude/skills/writing-neon/`): where Neon
+  syntax differs from JS/Kotlin and the full list of native methods
+- A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
+  written, feeding compile errors back automatically
 - Test both success and error paths
 - Include edge cases (empty input, stack overflow, division by zero, etc.)
 

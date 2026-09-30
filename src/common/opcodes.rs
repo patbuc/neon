@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 54] = [
+        const OPCODES: [OpCode; 64] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -33,6 +33,7 @@ impl OpCode {
             OpCode::SetGlobal,
             OpCode::GetField,
             OpCode::SetField,
+            OpCode::GetLocalField,
             OpCode::CreateMap,
             OpCode::CreateArray,
             OpCode::CreateSet,
@@ -56,6 +57,15 @@ impl OpCode {
             OpCode::CloseUpvalueInPlace,
             OpCode::DefineMethod,
             OpCode::CheckInitialized,
+            OpCode::StoreLocal,
+            OpCode::StoreField,
+            OpCode::StoreLocalField,
+            OpCode::AddConstant,
+            OpCode::SubtractConstant,
+            OpCode::GreaterConstant,
+            OpCode::GreaterEqualConstant,
+            OpCode::LessConstant,
+            OpCode::LessEqualConstant,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -99,6 +109,9 @@ pub(crate) enum OpCode {
     SetGlobal,
     GetField,
     SetField,
+    /// Fused `GetLocal` + `GetField`: a 16-bit local slot, then a 16-bit
+    /// symbol id.
+    GetLocalField,
 
     CreateMap,
     CreateArray,
@@ -136,4 +149,24 @@ pub(crate) enum OpCode {
     /// Peeks the top of the stack and errors if it holds a hoisted
     /// declaration's uninitialized sentinel; otherwise a no-op.
     CheckInitialized,
+
+    /// Statement-position `SetLocal`: moves the top of stack into a 16-bit
+    /// local slot without pushing it back.
+    StoreLocal,
+    /// Statement-position `SetField`: a 16-bit symbol id. Stack
+    /// `[.., instance, value]` -> `[..]`, moving `value` into the field
+    /// instead of pushing it back.
+    StoreField,
+    /// Statement-position fused `GetLocal` + `SetField`: a 16-bit local
+    /// slot, then a 16-bit symbol id. Stack `[.., value]` -> `[..]`.
+    StoreLocalField,
+
+    /// Binary operators whose right operand is a number literal: a 16-bit
+    /// constant-pool index replaces pushing it.
+    AddConstant,
+    SubtractConstant,
+    GreaterConstant,
+    GreaterEqualConstant,
+    LessConstant,
+    LessEqualConstant,
 }

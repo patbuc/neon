@@ -222,7 +222,13 @@ fn test_else_if_bytecode_simple() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -289,7 +295,13 @@ fn test_else_if_bytecode_multiple_branches() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -350,7 +362,13 @@ fn test_else_if_bytecode_without_final_else() {
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetField
-            | OpCode::SetField => {
+            | OpCode::SetField
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => {
                 offset += 3; // OpCode (1 byte) + u16 operand
             }
             OpCode::Call => {
@@ -766,6 +784,33 @@ fn test_nested_functions_each_report_their_own_constant_overflow() {
     assert_eq!(err.matches("too many constants").count(), 2, "{}", err);
 }
 
+#[test]
+fn test_function_too_many_locals() {
+    // 65,536 distinct val declarations in one function overflow the u16
+    // local-slot index.
+    let mut body = String::new();
+    for i in 0..65536 {
+        body.push_str(&format!("val v{i} = 0\n"));
+    }
+    let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
+
+    let err = compile_program(&program).unwrap_err();
+    assert!(err.contains("too many locals"));
+    assert!(err.contains("65535"));
+}
+
+#[test]
+fn test_function_locals_at_limit_compiles() {
+    // 65,535 distinct locals is exactly the u16 slot limit.
+    let mut body = String::new();
+    for i in 0..65535 {
+        body.push_str(&format!("val v{i} = 0\n"));
+    }
+    let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
+
+    assert!(compile_program(&program).is_ok());
+}
+
 // =============================================================================
 // Constant pool deduplication tests
 // =============================================================================
@@ -831,6 +876,200 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
     assert_no_string_constant_anywhere(&chunk, "value");
     assert_no_string_constant_anywhere(&chunk, "m");
     assert_no_string_constant_anywhere(&chunk, "P");
+}
+
+#[test]
+fn test_local_field_read_emits_get_local_field() {
+    let program = r#"
+    struct P { value }
+    fn get(p) {
+        return p.value
+    }
+    get(P(1))
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetLocalField"));
+    assert!(!disassembly.contains("GetField"));
+}
+
+#[test]
+fn test_global_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    val p = P(1)
+    fn get() {
+        return p.value
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_upvalue_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    fn make() {
+        val p = P(1)
+        return fn() { return p.value }
+    }
+    make()()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_non_local_object_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    fn make() { return P(1) }
+    fn get() {
+        return make().value
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_checked_local_field_read_still_emits_get_field() {
+    // `a` is read before its declaration runs, so it needs CheckInitialized.
+    let program = r#"
+    fn get() {
+        print(a.value)
+        fn a() { return 1 }
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("CheckInitialized"));
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_local_assignment_statement_emits_store_local() {
+    let program = r#"
+    fn f() {
+        var x = 1
+        x = 2
+        return x
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("StoreLocal"));
+}
+
+#[test]
+fn test_local_assignment_expression_still_emits_set_local() {
+    let program = r#"
+    fn f() {
+        var x = 1
+        print(x = 2)
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("SetLocal"));
+    assert!(!disassembly.contains("StoreLocal"));
+}
+
+#[test]
+fn test_global_assignment_statement_still_emits_set_global_and_pop() {
+    let program = r#"
+    var x = 1
+    fn set() {
+        x = 2
+    }
+    set()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("SetGlobal"));
+    assert!(!disassembly.contains("StoreLocal"));
+}
+
+#[test]
+fn test_val_local_field_store_emits_store_local_field() {
+    let program = r#"
+    struct P { value }
+    fn set() {
+        val p = P(1)
+        p.value = 2
+        return p.value
+    }
+    set()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("StoreLocalField"));
+    assert!(!disassembly.contains("StoreField"));
+}
+
+#[test]
+fn test_var_local_field_store_still_emits_store_field() {
+    let program = r#"
+    struct P { value }
+    fn set() {
+        var p = P(1)
+        p.value = 2
+        return p.value
+    }
+    set()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("StoreField"));
+    assert!(!disassembly.contains("StoreLocalField"));
+}
+
+#[test]
+fn test_checked_local_field_store_still_emits_store_field() {
+    // `a` is written before its declaration runs, so it needs CheckInitialized
+    // and can't be fused into StoreLocalField.
+    let program = r#"
+    fn get() {
+        a.value = 1
+        fn a() { return 1 }
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("CheckInitialized"));
+    assert!(disassembly.contains("StoreField"));
+    assert!(!disassembly.contains("StoreLocalField"));
+}
+
+#[test]
+fn test_field_assignment_expression_still_emits_set_field() {
+    let program = r#"
+    struct P { value }
+    fn set() {
+        val p = P(1)
+        print(p.value = 2)
+    }
+    set()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("SetField"));
+    assert!(!disassembly.contains("StoreField"));
+    assert!(!disassembly.contains("StoreLocalField"));
 }
 
 #[test]
@@ -1093,10 +1332,12 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
         let operand_bytes = match op {
             OpCode::Return
             | OpCode::Nil
+            | OpCode::Greater
             | OpCode::GreaterEqual
             | OpCode::LessEqual
             | OpCode::Pop
             | OpCode::Add
+            | OpCode::Subtract
             | OpCode::Less
             | OpCode::CloseUpvalue
             | OpCode::CloseUpvalueInPlace => 0,
@@ -1105,15 +1346,24 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             OpCode::CreateArray => 2,
             OpCode::Constant
             | OpCode::SetLocal
+            | OpCode::StoreLocal
             | OpCode::GetLocal
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetBuiltin
             | OpCode::GetField
             | OpCode::SetField
+            | OpCode::StoreField
             | OpCode::GetUpvalue
-            | OpCode::SetUpvalue => 2,
+            | OpCode::SetUpvalue
+            | OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => 2,
             OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 4,
+            OpCode::GetLocalField | OpCode::StoreLocalField => 4,
             OpCode::Closure => {
                 // 2-byte constant index, then a 1-byte upvalue count and
                 // that many (is_local, index) pairs (1 + 2 bytes each).
@@ -1139,9 +1389,7 @@ fn test_greater_equal_less_equal_opcodes() {
         ops,
         vec![
             OpCode::Constant,
-            OpCode::SetLocal,
             OpCode::Constant,
-            OpCode::SetLocal,
             OpCode::Constant,
             OpCode::SetLocal,
             OpCode::Pop,
@@ -1164,6 +1412,54 @@ fn test_greater_equal_less_equal_opcodes() {
             OpCode::Return,
         ]
     );
+}
+
+#[test]
+fn test_number_literal_right_operand_fuses_into_constant_opcode() {
+    let program = "val a = 1\nval b = a - 1\nval c = a <= 1\nval d = a >= 1\nval e = a < 1\nval f = a > 1\nval g = a + 1\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    let fused = [
+        OpCode::SubtractConstant,
+        OpCode::LessEqualConstant,
+        OpCode::GreaterEqualConstant,
+        OpCode::LessConstant,
+        OpCode::GreaterConstant,
+        OpCode::AddConstant,
+    ];
+    for op in fused {
+        assert!(ops.contains(&op), "expected {:?} in {:?}", op, ops);
+    }
+    for op in [
+        OpCode::Subtract,
+        OpCode::LessEqual,
+        OpCode::GreaterEqual,
+        OpCode::Less,
+        OpCode::Greater,
+    ] {
+        assert!(!ops.contains(&op), "expected no {:?} in {:?}", op, ops);
+    }
+}
+
+#[test]
+fn test_number_literal_left_operand_keeps_generic_opcode() {
+    let program = "val a = 1\nval b = 1 - a\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    assert!(ops.contains(&OpCode::Subtract));
+    assert!(!ops.contains(&OpCode::SubtractConstant));
+}
+
+#[test]
+fn test_non_number_literal_right_operand_keeps_generic_opcode() {
+    let program = "val a = \"x\"\nval b = a + \"y\"\n";
+    let chunk = compile_program(program).unwrap();
+
+    let ops = op_codes(&chunk);
+    assert!(ops.contains(&OpCode::Add));
+    assert!(!ops.contains(&OpCode::AddConstant));
 }
 
 #[test]
@@ -1281,42 +1577,38 @@ fn test_while_break_continue_bytecode() {
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '<uninitialized>'
-0003      | SetLocal 00
-0006      | Constant 01 '0'
-0009      | SetLocal 00
-000c      | Pop
-000d      3 GetLocal 00
-0010      | Constant 02 '10'
-0013      | Less
-0014      | JumpIfFalse 0014 -> 0059
-0019      | Pop
-001a      4 GetLocal 00
-001d      | Constant 03 '1'
-0020      | Add
-0021      | SetLocal 00
-0024      3 Pop
-0025      5 GetLocal 00
-0028      | Constant 04 '2'
-002b      | Equal
-002c      | JumpIfFalse 002c -> 0037
+0003      | Constant 01 '0'
+0006      | SetLocal 00
+0009      | Pop
+000a      3 GetLocal 00
+000d      | LessConstant 02 '10'
+0010      | JumpIfFalse 0010 -> 0053
+0015      | Pop
+0016      4 GetLocal 00
+0019      | AddConstant 03 '1'
+001c      | StoreLocal 00
+001f      5 GetLocal 00
+0022      | Constant 04 '2'
+0025      | Equal
+0026      | JumpIfFalse 0026 -> 0031
+002b      | Pop
+002c      | Jump 002c -> 004e
 0031      | Pop
-0032      | Jump 0032 -> 0054
-0037      | Pop
-0038      6 GetLocal 00
-003b      | Constant 05 '5'
-003e      | Equal
-003f      | JumpIfFalse 003f -> 004a
+0032      6 GetLocal 00
+0035      | Constant 05 '5'
+0038      | Equal
+0039      | JumpIfFalse 0039 -> 0044
+003e      | Pop
+003f      | Jump 003f -> 0054
 0044      | Pop
-0045      | Jump 0045 -> 005a
-004a      | Pop
-004b      7 Constant 06 '<native fn print>'
-004e      | GetLocal 00
-0051      | Call (args: 1)
-0053      6 Pop
-0054      3 Loop 0054 -> 000d
-0059      | Pop
-005a      9 Nil
-005b      | Return
+0045      7 Constant 06 '<native fn print>'
+0048      | GetLocal 00
+004b      | Call (args: 1)
+004d      6 Pop
+004e      3 Loop 004e -> 000a
+0053      | Pop
+0054      9 Nil
+0055      | Return
 === </main> ===
 "#;
 
@@ -1346,34 +1638,30 @@ fn test_c_style_for_bytecode() {
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '0'
-0003      | SetLocal 00
-0006      | Jump 0006 -> 0016
-000b      | GetLocal 00
-000e      | Constant 01 '1'
-0011      | Add
-0012      | SetLocal 00
-0015      | Pop
-0016      | GetLocal 00
-0019      | Constant 02 '3'
-001c      | Less
-001d      | JumpIfFalse 001d -> 0044
-0022      | Pop
-0023      3 GetLocal 00
-0026      | Constant 01 '1'
-0029      | Equal
-002a      | JumpIfFalse 002a -> 0035
+0003      | Jump 0003 -> 0011
+0008      | GetLocal 00
+000b      | AddConstant 01 '1'
+000e      | StoreLocal 00
+0011      | GetLocal 00
+0014      | LessConstant 02 '3'
+0017      | JumpIfFalse 0017 -> 003e
+001c      | Pop
+001d      3 GetLocal 00
+0020      | Constant 01 '1'
+0023      | Equal
+0024      | JumpIfFalse 0024 -> 002f
+0029      | Pop
+002a      | Jump 002a -> 0039
 002f      | Pop
-0030      | Jump 0030 -> 003f
-0035      | Pop
-0036      4 Constant 03 '<native fn print>'
-0039      | GetLocal 00
-003c      | Call (args: 1)
-003e      3 Pop
-003f      2 Loop 003f -> 000b
-0044      | Pop
-0045      | Pop
-0046      6 Nil
-0047      | Return
+0030      4 Constant 03 '<native fn print>'
+0033      | GetLocal 00
+0036      | Call (args: 1)
+0038      3 Pop
+0039      2 Loop 0039 -> 0008
+003e      | Pop
+003f      | Pop
+0040      6 Nil
+0041      | Return
 === </main> ===
 "#;
 
@@ -1407,21 +1695,20 @@ fn test_for_in_bytecode() {
 0009      | CreateArray (elements: 3)
 000c      | GetIterator
 000d      | IteratorDone 00
-0010      | JumpIfFalse 0010 -> 002b
+0010      | JumpIfFalse 0010 -> 0028
 0015      | Pop
 0016      | IteratorNext 00
-0019      | SetLocal 02
-001c      3 Constant 03 '<native fn print>'
-001f      | GetLocal 02
-0022      | Call (args: 1)
-0024      2 Pop
-0025      | Pop
-0026      | Loop 0026 -> 000d
-002b      | Pop
-002c      | Pop
-002d      | Pop
-002e      5 Nil
-002f      | Return
+0019      3 Constant 03 '<native fn print>'
+001c      | GetLocal 02
+001f      | Call (args: 1)
+0021      2 Pop
+0022      | Pop
+0023      | Loop 0023 -> 000d
+0028      | Pop
+0029      | Pop
+002a      | Pop
+002b      5 Nil
+002c      | Return
 === </main> ===
 "#;
 
@@ -1454,55 +1741,50 @@ fn test_closure_capturing_loop_variable_bytecode() {
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '<uninitialized>'
-0003      | SetLocal 00
-0006      | CreateArray (elements: 0)
-0009      | SetLocal 00
-000c      | Pop
-000d      3 Constant 01 '0'
-0010      | SetLocal 01
-0013      | Jump 0013 -> 0023
-0018      | GetLocal 01
-001b      | Constant 02 '1'
-001e      | Add
-001f      | SetLocal 01
-0022      | Pop
-0023      | GetLocal 01
-0026      | Constant 03 '3'
-0029      | Less
-002a      | JumpIfFalse 002a -> 0045
-002f      | Pop
-0030      4 GetLocal 00
-0033      | Closure 04 '<fn anonymous>'
+0003      | CreateArray (elements: 0)
+0006      | SetLocal 00
+0009      | Pop
+000a      3 Constant 01 '0'
+000d      | Jump 000d -> 001b
+0012      | GetLocal 01
+0015      | AddConstant 02 '1'
+0018      | StoreLocal 01
+001b      | GetLocal 01
+001e      | LessConstant 03 '3'
+0021      | JumpIfFalse 0021 -> 003c
+0026      | Pop
+0027      4 GetLocal 00
+002a      | Closure 04 '<fn anonymous>'
       |                     local 01
-003a      | Invoke push (args: 1)
-003e      3 Pop
-003f      | CloseUpvalueInPlace
-0040      | Loop 0040 -> 0018
-0045      | Pop
-0046      | CloseUpvalue
-0047      6 Constant 05 '<native fn print>'
-004a      | GetLocal 00
-004d      | Constant 01 '0'
-0050      | GetIndex
-0051      | Call (args: 0)
-0053      | Call (args: 1)
-0055      5 Pop
-0056      7 Constant 06 '<native fn print>'
-0059      | GetLocal 00
-005c      | Constant 02 '1'
-005f      | GetIndex
-0060      | Call (args: 0)
-0062      | Call (args: 1)
-0064      6 Pop
-0065      8 Constant 07 '<native fn print>'
-0068      | GetLocal 00
-006b      | Constant 08 '2'
-006e      | GetIndex
-006f      | Call (args: 0)
-0071      | Call (args: 1)
-0073      7 Pop
-0074      9 Nil
-0075      | Return
+0031      | Invoke push (args: 1)
+0035      3 Pop
+0036      | CloseUpvalueInPlace
+0037      | Loop 0037 -> 0012
+003c      | Pop
+003d      | CloseUpvalue
+003e      6 Constant 05 '<native fn print>'
+0041      | GetLocal 00
+0044      | Constant 01 '0'
+0047      | GetIndex
+0048      | Call (args: 0)
+004a      | Call (args: 1)
+004c      5 Pop
+004d      7 Constant 06 '<native fn print>'
+0050      | GetLocal 00
+0053      | Constant 02 '1'
+0056      | GetIndex
+0057      | Call (args: 0)
+0059      | Call (args: 1)
+005b      6 Pop
+005c      8 Constant 07 '<native fn print>'
+005f      | GetLocal 00
+0062      | Constant 08 '2'
+0065      | GetIndex
+0066      | Call (args: 0)
+0068      | Call (args: 1)
+006a      7 Pop
+006b      9 Nil
+006c      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      4 GetUpvalue 00
@@ -1545,45 +1827,38 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '<uninitialized>'
-0003      | SetLocal 00
-0006      3 Constant 01 '<uninitialized>'
-0009      | SetLocal 01
-000c      2 Nil
-000d      | SetLocal 00
-0010      | Pop
-0011      3 Constant 02 '0'
-0014      | SetLocal 01
-0017      | Pop
-0018      4 GetLocal 01
-001b      | Constant 03 '3'
-001e      | Less
-001f      | JumpIfFalse 001f -> 0051
-0024      | Pop
-0025      5 GetLocal 01
-0028      | Constant 04 '1'
-002b      | Add
-002c      | SetLocal 01
-002f      4 Pop
-0030      7 GetLocal 01
-0033      | Constant 05 '10'
-0036      | Multiply
-0037      | SetLocal 02
-003a      8 Closure 06 '<fn anonymous>'
+0003      3 Constant 01 '<uninitialized>'
+0006      2 Nil
+0007      | SetLocal 00
+000a      | Pop
+000b      3 Constant 02 '0'
+000e      | SetLocal 01
+0011      | Pop
+0012      4 GetLocal 01
+0015      | LessConstant 03 '3'
+0018      | JumpIfFalse 0018 -> 0044
+001d      | Pop
+001e      5 GetLocal 01
+0021      | AddConstant 04 '1'
+0024      | StoreLocal 01
+0027      7 GetLocal 01
+002a      | Constant 05 '10'
+002d      | Multiply
+002e      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0041      | SetLocal 00
-0044      7 Pop
-0045      9 CloseUpvalue
-0046      | Jump 0046 -> 0052
-004b      6 CloseUpvalue
-004c      4 Loop 004c -> 0018
-0051      | Pop
-0052     12 Constant 07 '<native fn print>'
-0055      | GetLocal 00
-0058      | Call (args: 0)
-005a      | Call (args: 1)
-005c     11 Pop
-005d     13 Nil
-005e      | Return
+0035      | StoreLocal 00
+0038      9 CloseUpvalue
+0039      | Jump 0039 -> 0045
+003e      6 CloseUpvalue
+003f      4 Loop 003f -> 0012
+0044      | Pop
+0045     12 Constant 07 '<native fn print>'
+0048      | GetLocal 00
+004b      | Call (args: 0)
+004d      | Call (args: 1)
+004f     11 Pop
+0050     13 Nil
+0051      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
@@ -1708,15 +1983,14 @@ fn test_if_return_skips_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 Nil
-0001      | SetLocal 00
-0004      | Closure 00 '<fn f>'
-0008      | SetLocal 00
-000b      | Pop
-000c      6 GetLocal 00
-000f      | Call (args: 0)
-0011      5 Pop
-0012      7 Nil
-0013      | Return
+0001      | Closure 00 '<fn f>'
+0005      | SetLocal 00
+0008      | Pop
+0009      6 GetLocal 00
+000c      | Call (args: 0)
+000e      5 Pop
+000f      7 Nil
+0010      | Return
 === </main> ===
 === <function_f>  ===
 0000      3 True
@@ -1916,4 +2190,35 @@ fn nested_function_chunk_shares_symbol_table_with_script() {
         .expect("expected f's Function constant");
 
     assert!(Rc::ptr_eq(&chunk.symbols, &function_chunk.symbols));
+}
+
+#[test]
+fn test_val_and_var_locals_skip_self_copy_setlocal() {
+    let program = "fn f() {\n    val a = 1\n    var b = 2\n    return a + b\n}\nf()\n";
+    let chunk = compile_program(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      1 Nil
+0001      | Closure 00 '<fn f>'
+0005      | SetLocal 00
+0008      | Pop
+0009      6 GetLocal 00
+000c      | Call (args: 0)
+000e      5 Pop
+000f      7 Nil
+0010      | Return
+=== </main> ===
+=== <function_f>  ===
+0000      2 Constant 00 '1'
+0003      3 Constant 01 '2'
+0006      4 GetLocal 00
+0009      | GetLocal 01
+000c      | Add
+000d      | Return
+000e      5 Nil
+000f      | Return
+=== </function_f> ===
+"#;
+
+    assert_eq!(disassemble_program(&chunk), expected);
 }

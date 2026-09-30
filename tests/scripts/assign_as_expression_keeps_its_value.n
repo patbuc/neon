@@ -1,0 +1,11 @@
+// Expected:
+// 1
+// 1
+// 1
+
+var a = 0
+var b = 0
+a = b = 1
+print(a)
+print(b)
+print(a = 1)
