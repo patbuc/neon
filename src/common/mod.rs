@@ -7,6 +7,7 @@ use std::rc::{Rc, Weak};
 
 pub mod chunk;
 pub mod constants;
+mod deep_copy;
 pub mod error_renderer;
 pub mod errors;
 pub mod fiber;
