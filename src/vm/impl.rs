@@ -47,6 +47,24 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
+    /// Compiles `source` without executing it. Reports the same compile
+    /// errors as `interpret`, but never runs the script.
+    pub fn check(&mut self, source: String) -> InterpretResult {
+        self.reset();
+
+        self.source = source.clone();
+
+        let mut compiler = Compiler::new();
+        let chunk = compiler.compile(&source);
+
+        if chunk.is_none() {
+            self.structured_errors = compiler.get_structured_errors();
+            return InterpretResult::CompileError;
+        }
+
+        InterpretResult::Ok
+    }
+
     pub fn interpret(&mut self, source: String) -> InterpretResult {
         self.reset();
 
