@@ -63,6 +63,39 @@ default in a debug build, and it must stay fast — and give it a `// Expected:`
 to `https://patbuc.github.io/neon/dev/bench/`. It never fails the build on a regression — shared runners are too
 noisy for thresholds.
 
+### Profiling
+
+Build a release binary with debug symbols first: `CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release`.
+
+```bash
+perf record -g --call-graph dwarf ./target/release/neon benches/fib.n 31
+perf report
+```
+
+`perf record` needs `kernel.perf_event_paranoid` at 1 or below (e.g. `sudo sysctl kernel.perf_event_paranoid=1`).
+Where perf isn't available or a deterministic instruction-count profile is preferred, use callgrind instead (no
+elevated privileges required):
+
+```bash
+valgrind --tool=callgrind ./target/release/neon benches/fib.n 22
+callgrind_annotate --auto=yes callgrind.out.<pid>
+```
+
+Most VM code inlines into `VirtualMachine::run_script`, so read costs per source line in the annotated output
+rather than per function.
+
+For a coarser view, the `opcode-stats` feature counts executed opcodes:
+
+```bash
+cargo run --release --features opcode-stats -- benches/fib.n
+```
+
+Prints one line per executed opcode with its count to stderr after the script finishes, sorted by count
+descending; stdout is unchanged. A second section follows after a blank line, one `Prev->Next <count>` line per
+executed opcode pair (consecutive opcodes across calls, returns, and native callbacks), sorted the same way. The
+Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every push to `main`
+and on demand.
+
 ### Running Scripts
 
 ```bash
@@ -124,6 +157,8 @@ cargo run --features disassemble -- script.n
 - Stack-based bytecode interpreter
 - Main execution loop processes opcodes
 - Call frame stack for function calls (`src/vm/functions.rs`)
+- The running frame's `ip` and chunk live in `VirtualMachine.ip`/`chunk`; `CallFrame.ip` is only current for the
+  frames below the top (`push_frame`/`pop_frame` save and restore it)
 - Separate builtin values storage (e.g., Math namespace)
 
 **Bytecode Format** (`src/common/chunk/`)
@@ -153,8 +188,9 @@ cargo run --features disassemble -- script.n
 - `Value::Fiber` holds an `ObjFiber`: its own call frames, value stack, and open upvalues. `FiberKind` says
   whether it is the main script or a `Fiber`
 - Exactly one fiber runs; the VM's `call_frames`/`stack`/`open_upvalues` *are* the running fiber's, and
-  `switch_to` swaps them with the target's saved ones, so the dispatch loop knows nothing about fibers. The main
-  fiber object is created lazily on the first switch
+  `switch_to` swaps them with the target's saved ones, so the dispatch loop knows nothing about fibers. It saves
+  `ip` into the outgoing fiber's top frame and loads `ip`/`chunk` from the target's. The main fiber object is
+  created lazily on the first switch
 - `fiber.call` and `Fiber.yield` are `NativeCallable::Control` registry entries the VM dispatches
   itself (`control_op`), since they switch fibers instead of returning a value in place. A child fiber's root
   frame returning (`op_return`) finishes it and switches back to its caller
@@ -170,10 +206,12 @@ cargo run --features disassemble -- script.n
 - Math namespace with static methods
 - String/Array/Map/Set/Range methods via method registry
 - Method registry (`src/common/method_registry.rs`) maps type+method to function index
+- Runtime `Invoke` dispatch of native methods goes through the per-compile `NativeMethodTable` held on the VM,
+  indexed by method symbol and builtin type symbol, not through name lookups
 
 ### Key Type Interactions
 
-- **CallFrame**: Links function object to instruction pointer and stack slot range
+- **CallFrame**: Links function object to a saved instruction pointer and stack slot range
 - **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
   status for closures
 - **For-in State**: Each for-in loop keeps its collection and index in two hidden locals, which

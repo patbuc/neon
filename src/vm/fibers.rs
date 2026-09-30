@@ -212,7 +212,13 @@ impl VirtualMachine {
 
     /// Parks the running fiber's state in its object and makes `target`'s
     /// state live. Assigns `target` a stack id the first time it runs.
+    /// `ip` and `chunk` only track the running frame, so the outgoing top
+    /// frame saves `ip` and the target's top frame (if it has one yet)
+    /// restores both.
     fn switch_to(&mut self, target: &Rc<RefCell<ObjFiber>>) {
+        if let Some(frame) = self.call_frames.last_mut() {
+            frame.ip = self.ip;
+        }
         let active = self
             .fibers
             .as_mut()
@@ -235,6 +241,10 @@ impl VirtualMachine {
             self.current_stack_id = next.stack_id;
         }
         active.current = Rc::clone(target);
+        if let Some(frame) = self.call_frames.last() {
+            self.ip = frame.ip;
+            self.chunk = Rc::clone(&frame.closure.function.chunk);
+        }
     }
 
     /// The fiber whose stack id is `stack`, while it is parked (its state is

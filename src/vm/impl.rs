@@ -1,5 +1,6 @@
+use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
-use crate::common::{CallFrame, ObjClosure, ObjFunction, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine};
@@ -18,6 +19,8 @@ impl VirtualMachine {
     pub fn with_args(args: Vec<String>) -> Self {
         VirtualMachine {
             call_frames: Vec::new(),
+            ip: 0,
+            chunk: Rc::new(Chunk::new("")),
             stack: Vec::new(),
             builtin: common::stdlib::create_builtin_objects(args),
             #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
@@ -31,6 +34,13 @@ impl VirtualMachine {
             fibers: None,
             fiber_stacks: Vec::new(),
             current_stack_id: crate::common::fiber::MAIN_STACK_ID,
+            native_methods: Vec::new(),
+            #[cfg(feature = "opcode-stats")]
+            opcode_counts: [0; 256],
+            #[cfg(feature = "opcode-stats")]
+            opcode_pair_counts: vec![0; 256 * 256],
+            #[cfg(feature = "opcode-stats")]
+            last_opcode: None,
         }
     }
 
@@ -60,6 +70,7 @@ impl VirtualMachine {
         }
 
         let chunk = chunk.unwrap();
+        self.native_methods = native_method_table(&chunk.symbols);
 
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
@@ -72,12 +83,7 @@ impl VirtualMachine {
         });
 
         // Use -1 for slot_start since the script has no function object on the stack
-        let frame = CallFrame {
-            closure: script_closure,
-            ip: 0,
-            slot_start: -1,
-        };
-        self.call_frames.push(frame);
+        self.push_frame(script_closure, -1);
 
         let result = self.run_script(0);
 
@@ -107,16 +113,22 @@ impl VirtualMachine {
             frame.closure.function.chunk.disassemble_chunk();
         }
         loop {
-            let byte = {
-                let frame = self.current_frame();
-                frame.closure.function.chunk.read_u8(frame.ip)
-            };
+            let byte = self.chunk.read_u8(self.ip);
             let op_code = match OpCode::from_u8(byte) {
                 Some(op_code) => op_code,
                 None => {
                     return Err(self.runtime_error(format!("Unknown opcode {:#04x}", byte)));
                 }
             };
+
+            #[cfg(feature = "opcode-stats")]
+            {
+                self.opcode_counts[byte as usize] += 1;
+                if let Some(prev) = self.last_opcode {
+                    self.opcode_pair_counts[prev as usize * 256 + byte as usize] += 1;
+                }
+                self.last_opcode = Some(byte);
+            }
 
             match op_code {
                 OpCode::Return => {
@@ -190,20 +202,52 @@ impl VirtualMachine {
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
             }
-            self.current_frame_mut().ip += 1;
+            self.ip += 1;
         }
+    }
+
+    /// Makes `closure` the running frame. The caller's `ip` is saved on its
+    /// frame, since `self.ip` and `self.chunk` only track the top frame.
+    pub(in crate::vm) fn push_frame(&mut self, closure: Rc<ObjClosure>, slot_start: isize) {
+        if let Some(caller) = self.call_frames.last_mut() {
+            caller.ip = self.ip;
+        }
+        self.ip = 0;
+        self.chunk = Rc::clone(&closure.function.chunk);
+        self.call_frames.push(CallFrame {
+            closure,
+            ip: 0,
+            slot_start,
+        });
+    }
+
+    /// Drops the running frame and resumes its caller, if any.
+    pub(in crate::vm) fn pop_frame(&mut self) {
+        self.call_frames.pop();
+        if let Some(caller) = self.call_frames.last() {
+            self.ip = caller.ip;
+            self.chunk = Rc::clone(&caller.closure.function.chunk);
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u8(&self, offset: usize) -> u8 {
+        self.chunk.read_u8(self.ip + offset)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u16(&self, offset: usize) -> u16 {
+        self.chunk.read_u16(self.ip + offset)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn operand_u32(&self, offset: usize) -> u32 {
+        self.chunk.read_u32(self.ip + offset)
     }
 
     #[inline(always)]
     pub(crate) fn current_frame(&self) -> &CallFrame {
         self.call_frames.last().expect("call frame stack is empty")
-    }
-
-    #[inline(always)]
-    pub(crate) fn current_frame_mut(&mut self) -> &mut CallFrame {
-        self.call_frames
-            .last_mut()
-            .expect("call frame stack is empty")
     }
 
     #[inline(always)]
@@ -242,7 +286,7 @@ impl VirtualMachine {
 
         for (depth, frame) in self.call_frames.iter().rev().enumerate() {
             let ip = if depth == 0 {
-                frame.ip.saturating_sub(innermost_offset)
+                self.ip.saturating_sub(innermost_offset)
             } else {
                 frame.ip.saturating_sub(1)
             };
@@ -257,7 +301,7 @@ impl VirtualMachine {
         }
 
         // The fibers waiting on this one, each parked just past the
-        // `call`/`run` that resumed the next.
+        // `call` that resumed the next.
         for fiber in self.caller_chain() {
             for frame in fiber.borrow().frames.iter().rev() {
                 let info = frame
@@ -316,6 +360,65 @@ impl VirtualMachine {
             .unwrap_or_default()
     }
 
+    #[cfg(feature = "opcode-stats")]
+    fn pad_and_join(entries: &[(String, u64)]) -> String {
+        let name_width = entries
+            .iter()
+            .map(|(name, _)| name.len())
+            .max()
+            .unwrap_or(0);
+        entries
+            .iter()
+            .map(|(name, count)| format!("{:<width$} {}", name, count, width = name_width))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Executed-opcode histogram, one `<name> <count>` line per opcode that
+    /// ran, followed (after a blank line, when any pair ran) by one
+    /// `Prev->Next <count>` line per executed opcode pair.
+    #[cfg(feature = "opcode-stats")]
+    pub fn opcode_stats_report(&self) -> String {
+        let mut counts: Vec<(u8, u64)> = self
+            .opcode_counts
+            .iter()
+            .enumerate()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(byte, &count)| (byte as u8, count))
+            .collect();
+        counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        let opcode_lines: Vec<(String, u64)> = counts
+            .into_iter()
+            .map(|(byte, count)| (format!("{:?}", OpCode::from_u8(byte).unwrap()), count))
+            .collect();
+        let mut report = Self::pad_and_join(&opcode_lines);
+
+        let mut pairs: Vec<(usize, u64)> = self
+            .opcode_pair_counts
+            .iter()
+            .enumerate()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(index, &count)| (index, count))
+            .collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        if !pairs.is_empty() {
+            let pair_lines: Vec<(String, u64)> = pairs
+                .into_iter()
+                .map(|(index, count)| {
+                    let prev = OpCode::from_u8((index / 256) as u8).unwrap();
+                    let next = OpCode::from_u8((index % 256) as u8).unwrap();
+                    (format!("{:?}->{:?}", prev, next), count)
+                })
+                .collect();
+            report.push_str("\n\n");
+            report.push_str(&Self::pad_and_join(&pair_lines));
+        }
+
+        report
+    }
+
     fn reset(&mut self) {
         self.call_frames.clear();
         self.stack.clear();
@@ -326,5 +429,11 @@ impl VirtualMachine {
         self.fibers = None;
         self.fiber_stacks.clear();
         self.current_stack_id = crate::common::fiber::MAIN_STACK_ID;
+        #[cfg(feature = "opcode-stats")]
+        {
+            self.opcode_counts = [0; 256];
+            self.opcode_pair_counts.fill(0);
+            self.last_opcode = None;
+        }
     }
 }

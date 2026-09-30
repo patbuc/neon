@@ -4,6 +4,7 @@ use crate::common::stdlib;
 use crate::common::string_similarity::find_closest_match;
 use crate::common::{NativeFn, NativeFnWithVm};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::OnceLock;
 
 /// Classifies native callable functions by their calling convention.
@@ -840,6 +841,21 @@ pub(crate) fn get_native_method_by_name(
         .get_or_init(init_method_map)
         .get(&(type_name, method_name))
         .copied()
+}
+
+/// Native methods indexed by method symbol, then by builtin type symbol.
+pub(crate) type NativeMethodTable =
+    Vec<[Option<&'static NativeCallable>; BUILTIN_TYPE_NAMES.len()]>;
+
+/// Resolves every interned name against every builtin type once, so runtime
+/// dispatch can index by symbol ids instead of hashing names.
+pub(crate) fn native_method_table(symbols: &[Rc<str>]) -> NativeMethodTable {
+    symbols
+        .iter()
+        .map(|method_name| {
+            BUILTIN_TYPE_NAMES.map(|type_name| get_native_method_by_name(type_name, method_name))
+        })
+        .collect()
 }
 
 /// Get the registry index for a native method (O(n) - but called at compile time)

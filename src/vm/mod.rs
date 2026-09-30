@@ -1,6 +1,5 @@
-#[cfg(test)]
-use crate::common::Chunk;
-use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
+use crate::common::method_registry::NativeMethodTable;
+use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -30,6 +29,10 @@ pub struct VirtualMachine {
     pub(crate) stack: Vec<Value>,
     #[cfg(not(test))]
     stack: Vec<Value>,
+    /// The running (top) frame's instruction pointer and chunk; its
+    /// `CallFrame.ip` is only kept current for the frames below it.
+    ip: usize,
+    chunk: Rc<Chunk>,
     /// Runtime builtin values (e.g. `args`), stored separately from the
     /// call stack. Math and File are namespaces, not values here.
     builtin: Vec<Value>,
@@ -54,14 +57,30 @@ pub struct VirtualMachine {
     fiber_stacks: Vec<std::rc::Weak<RefCell<crate::common::fiber::ObjFiber>>>,
     /// Stack id of the running fiber (`MAIN_STACK_ID` for the script).
     current_stack_id: u32,
+    /// Native methods of the builtin types, built from the running
+    /// compile's symbol table.
+    native_methods: NativeMethodTable,
+    /// Execution count per opcode byte, for the `opcode-stats` histogram.
+    #[cfg(feature = "opcode-stats")]
+    opcode_counts: [u64; 256],
+    /// Execution count per consecutive opcode pair, indexed `prev * 256 +
+    /// next`.
+    #[cfg(feature = "opcode-stats")]
+    opcode_pair_counts: Vec<u64>,
+    /// The previously executed opcode byte, for pairing with the next one.
+    #[cfg(feature = "opcode-stats")]
+    last_opcode: Option<u8>,
 }
 
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
     pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
+        use crate::common::method_registry::native_method_table;
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
+
+        self.native_methods = native_method_table(&chunk.symbols);
 
         // Create a synthetic function for the test chunk
         let test_function = Rc::new(ObjFunction {
@@ -74,13 +93,8 @@ impl VirtualMachine {
             upvalues: Vec::new(),
         });
 
-        // Create the initial call frame
-        let frame = CallFrame {
-            closure: test_closure,
-            ip: 0,
-            slot_start: -1, // Like script frame, no function object on stack
-        };
-        self.call_frames.push(frame);
+        // Like the script frame: no function object on the stack
+        self.push_frame(test_closure, -1);
 
         self.run_script(0)
     }

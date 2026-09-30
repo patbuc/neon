@@ -1,0 +1,9 @@
+// Arithmetic operator on mismatched operand types
+
+// Expected:
+// before
+
+// Expected runtime error: Operands of '-' must be numbers, got number and string
+
+print("before")
+print(1 - "a")

@@ -1,0 +1,13 @@
+// Calling an undefined method on a boolean value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Boolean
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo(true)

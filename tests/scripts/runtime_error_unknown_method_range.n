@@ -1,0 +1,13 @@
+// Calling an undefined method on a range value
+
+// Expected:
+// before
+
+// Expected runtime error: Unknown method 'foo' for type Range
+
+fn callFoo(a) {
+    return a.foo()
+}
+
+print("before")
+callFoo(1..4)
