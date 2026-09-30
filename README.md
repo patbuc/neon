@@ -416,7 +416,7 @@ print(pt.x)  // 15
 ```
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
-`Set`, `Number`, `Boolean`, `File`, `Range`, `Fiber`).
+`Set`, `Number`, `Boolean`, `File`, `Range`, `Fiber`, `Task`).
 
 #### Methods
 
@@ -448,7 +448,7 @@ print(Point.origin().x)   // 0
   functions, structs, builtins, and top-level variables.
 
 A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`,
-`Range`, `Fiber`) can have an `impl` block too, adding an instance method callable on any value
+`Range`, `Fiber`, `Task`) can have an `impl` block too, adding an instance method callable on any value
 of that type. A method can't share a name with a native method of the type -
 that's a compile error, since a native method can never be redefined. Unlike
 a struct, a builtin type only supports instance methods; every method must
@@ -518,6 +518,50 @@ inside a callback passed to a native method such as `map`, `filter`, or
 A runtime error inside a fiber ends the program, like one anywhere else. Its
 trace runs through the fiber's own calls and then through every fiber that
 resumed it, down to the main script.
+
+### Tasks
+
+A task is an isolated unit of work. Unlike a fiber, it shares nothing with
+the code that spawns it: the argument goes in as a deep copy and the result
+comes out as one.
+
+```neon
+fn square(x) {
+    return x * x
+}
+
+val input = [1, 2, 3]
+val work = Task.spawn(fn(data) {
+    data.push(4)  // changes the task's copy only
+    return data.map(square)
+}, input)
+
+print(work.join())  // [1, 4, 9, 16]
+print(input)         // [1, 2, 3]
+```
+
+- `Task.spawn(body, arg?)` runs `body` to completion and returns a handle.
+  `body` takes zero or one parameter and may not capture variables; pass what
+  it needs as `arg` instead. Today `spawn` runs the task on the calling
+  thread before returning; the order of output between a task and its
+  spawner is unspecified, so later versions can run tasks in parallel
+  without changing what a program means.
+- `handle.join()` evaluates to a deep copy of what `body` returned. It can be
+  called more than once and always returns the same value.
+- `handle.isDone()` is true once the task has finished (it always is, since
+  `spawn` doesn't return until the task is done).
+- Inside a task, and any fiber it creates, only top-level `fn`s, `struct`s,
+  and `val` globals holding numbers, strings, booleans, nil, ranges, or
+  non-capturing functions are readable. Reading anything else - a `var`
+  global, a `val` holding an array, map, set, instance, capturing closure, or
+  fiber, or the `args` builtin - is a runtime error; pass it as the
+  argument instead.
+- Assigning a global and calling `Fiber.yield` are runtime errors inside a
+  task. A task can still create and resume its own fibers, and spawn nested
+  tasks.
+- The argument and result are deep copies that preserve sharing and cycles
+  between arrays, maps, sets, and instances. Fibers, tasks, and capturing
+  closures can't be copied, so they can't cross a task boundary.
 
 ## Code Examples
 
@@ -741,12 +785,14 @@ print(r.toArray())         // [1, 2, 3]
 print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 ```
 
-### Fiber Methods
+### Fiber and Task Methods
 
 - `Fiber(body)` - Create a fiber running `body`
 - `fiber.call(value?)` - Resume a fiber; returns what it yields or returns
 - `Fiber.yield(value?)` - Pause the running fiber, handing `value` to its caller
-- `.isDone()` - Whether the body has returned
+- `Task.spawn(body, value?)` - Run `body` to completion with a deep copy of `value`; returns a handle
+- `task.join()` - Return a deep copy of what `body` returned
+- `.isDone()` - Whether the body has returned (both fibers and tasks)
 
 ### Map Methods
 

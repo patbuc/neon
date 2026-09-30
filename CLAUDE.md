@@ -182,16 +182,18 @@ cargo run --features disassemble -- script.n
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 - Range is an immutable `Rc<ObjRange>` of integer bounds; for-in iterates it without allocating an array
+- `Chunk::globals` (script chunk only) records each global's name and `var`-ness, in slot order, so an
+  isolated fiber can decide what it may read
 
-**Fibers** (`src/common/fiber.rs`, `src/vm/fibers.rs`)
+**Fibers and Tasks** (`src/common/fiber.rs`, `src/vm/fibers.rs`)
 
 - `Value::Fiber` holds an `ObjFiber`: its own call frames, value stack, and open upvalues. `FiberKind` says
-  whether it is the main script or a `Fiber`
+  whether it is the main script, a `Fiber`, or a `Task`
 - Exactly one fiber runs; the VM's `call_frames`/`stack`/`open_upvalues` *are* the running fiber's, and
   `switch_to` swaps them with the target's saved ones, so the dispatch loop knows nothing about fibers. It saves
   `ip` into the outgoing fiber's top frame and loads `ip`/`chunk` from the target's. The main fiber object is
   created lazily on the first switch
-- `fiber.call` and `Fiber.yield` are `NativeCallable::Control` registry entries the VM dispatches
+- `fiber.call`, `Fiber.yield`, and `Task.spawn` are `NativeCallable::Control` registry entries the VM dispatches
   itself (`control_op`), since they switch fibers instead of returning a value in place. A child fiber's root
   frame returning (`op_return`) finishes it and switches back to its caller
 - Globals are main-stack slots; while a child fiber runs, `GetGlobal`/`SetGlobal` reach the main fiber's parked
@@ -199,6 +201,13 @@ cargo run --features disassemble -- script.n
   closure can read a local of a parked fiber; a dropped fiber closes its open upvalues
 - Switching while `native_call_depth > 0` is an error: `call_value` counts frames on the Rust stack, which a
   switch would invalidate
+- `ObjFiber.isolated` (mirrored on the VM by `switch_to` as `self.isolated`) is set once, when a fresh fiber is
+  first resumed: true for a task, or for a fiber first resumed while an isolated fiber was running. While set,
+  `GetGlobal`/`SetGlobal`/`GetBuiltin` check it against the script chunk's `globals` table and reject a `var`,
+  a mutable value, or any assignment
+- `Value::deep_copy` (`src/common/deep_copy.rs`) is an iterative deep copy that keeps sharing and cycles between
+  arrays, maps, sets, and instances; it copies a task's argument in and its result out, the latter stored on
+  `ObjFiber.result` for `join`
 
 **Standard Library** (`src/common/stdlib/`)
 
