@@ -54,8 +54,6 @@ pub struct VirtualMachine {
     fiber_stacks: Vec<std::rc::Weak<RefCell<crate::common::fiber::ObjFiber>>>,
     /// Stack id of the running fiber (`MAIN_STACK_ID` for the script).
     current_stack_id: u32,
-    /// The running fiber's task snapshot, if it runs under task isolation.
-    current_snapshot: Option<Rc<RefCell<crate::common::fiber::TaskSnapshot>>>,
 }
 
 // Test-only methods

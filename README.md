@@ -416,7 +416,7 @@ print(pt.x)  // 15
 ```
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
-`Set`, `Number`, `Boolean`, `File`, `Range`, `Fiber`, `Task`).
+`Set`, `Number`, `Boolean`, `File`, `Range`, `Fiber`).
 
 #### Methods
 
@@ -448,7 +448,7 @@ print(Point.origin().x)   // 0
   functions, structs, builtins, and top-level variables.
 
 A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`,
-`Range`, `Fiber`, `Task`) can have an `impl` block too, adding an instance method callable on any value
+`Range`, `Fiber`) can have an `impl` block too, adding an instance method callable on any value
 of that type. A method can't share a name with a native method of the type -
 that's a compile error, since a native method can never be redefined. Unlike
 a struct, a builtin type only supports instance methods; every method must
@@ -511,42 +511,6 @@ resumed that fiber. These are runtime errors: yielding from the main script,
 resuming a finished or already running fiber, and yielding or resuming from
 inside a callback passed to a native method such as `map`, `filter`, or
 `reduce`.
-
-### Tasks
-
-A task is an isolated unit of work. Unlike a fiber, it shares nothing with
-the code that runs it: data goes in as a copy and comes out as a copy.
-
-```neon
-fn square(x) {
-    return x * x
-}
-
-val work = Task(fn(data) {
-    data.push(4)  // changes the task's copy only
-    return data.map(square)
-})
-
-val input = [1, 2, 3]
-print(work.run(input))  // [1, 4, 9, 16]
-print(input)            // [1, 2, 3]
-```
-
-- `Task(body)` creates a task. `body` takes zero or one parameter and may not
-  capture variables; pass what it needs as its argument instead.
-- `task.run(value)` runs the task to completion with a deep copy of `value`
-  and evaluates to a deep copy of what it returns. A task runs once.
-- `task.isDone()` is true once the task has run.
-- A task can call functions, create structs, and read globals. The first time
-  it reads a global it gets its own copy, and every later read in the same
-  task sees that copy. Assigning a global from a task is a runtime error.
-- A task can create and run its own fibers, which are isolated the same way.
-  A task can't yield, and fibers or closures that capture variables can't be
-  copied into or out of it.
-
-Tasks run one at a time on the calling thread for now. Because they never
-share memory, they can later run in parallel without changing what a program
-means.
 
 ## Code Examples
 
@@ -770,12 +734,11 @@ print(r.toArray())         // [1, 2, 3]
 print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 ```
 
-### Fiber and Task Methods
+### Fiber Methods
 
-- `Fiber(body)` / `Task(body)` - Create a fiber or task running `body`
+- `Fiber(body)` - Create a fiber running `body`
 - `fiber.call(value?)` - Resume a fiber; returns what it yields or returns
 - `Fiber.yield(value?)` - Pause the running fiber, handing `value` to its caller
-- `task.run(value?)` - Run a task on a copy of `value`; returns a copy of its result
 - `.isDone()` - Whether the body has returned
 
 ### Map Methods

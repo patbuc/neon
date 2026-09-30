@@ -1,4 +1,4 @@
-//! Fiber and task switching.
+//! Fiber switching.
 //!
 //! A fiber owns a value stack, call frames, and open upvalues. Exactly one
 //! fiber runs at a time: its three vectors are the VM's own `stack`,
@@ -12,9 +12,7 @@
 //! and counts frames to know when its callee returned, which a different
 //! fiber's frames would confuse.
 
-use crate::common::fiber::{
-    FiberKind, FiberState, ObjFiber, TaskSnapshot, MAIN_STACK_ID, UNASSIGNED_STACK_ID,
-};
+use crate::common::fiber::{FiberKind, FiberState, ObjFiber, MAIN_STACK_ID, UNASSIGNED_STACK_ID};
 use crate::common::method_registry::ControlOp;
 use crate::common::Value;
 use crate::vm::functions::OpResult;
@@ -41,66 +39,8 @@ impl VirtualMachine {
             .is_some_and(|active| !Rc::ptr_eq(&active.current, &active.main))
     }
 
-    /// Whether the running fiber is under task isolation (a task, or a
-    /// fiber a task resumed): it reads globals from its snapshot and may
-    /// not assign them.
-    #[inline(always)]
-    pub(in crate::vm) fn in_task(&self) -> bool {
-        self.current_snapshot.is_some()
-    }
-
-    /// Global `index` as the running task sees it: its snapshot's copy,
-    /// taking that copy from `shared` on the first read.
-    pub(in crate::vm) fn task_global(
-        &self,
-        index: usize,
-        shared: Value,
-    ) -> Result<Value, RuntimeError> {
-        self.snapshot_read(index, shared, false)
-    }
-
-    /// Builtin `index` as the running task sees it; see `task_global`.
-    pub(in crate::vm) fn task_builtin(
-        &self,
-        index: usize,
-        shared: Value,
-    ) -> Result<Value, RuntimeError> {
-        self.snapshot_read(index, shared, true)
-    }
-
-    fn snapshot_read(
-        &self,
-        index: usize,
-        shared: Value,
-        builtin: bool,
-    ) -> Result<Value, RuntimeError> {
-        let snapshot = self
-            .current_snapshot
-            .as_ref()
-            .expect("snapshot_read is only called inside a task");
-        let mut snapshot = snapshot.borrow_mut();
-        let TaskSnapshot {
-            globals,
-            builtins,
-            seen,
-        } = &mut *snapshot;
-        let copies = if builtin { builtins } else { globals };
-        if let Some(copy) = copies.get(&index) {
-            return Ok(copy.clone());
-        }
-        // A global read before its declaration ran stays uninitialized in
-        // the snapshot too, so the caller's check reports it.
-        let copy = shared
-            .deep_copy_with(seen)
-            .map_err(|e| self.runtime_error(e))?;
-        if !matches!(copy, Value::Uninitialized(_)) {
-            copies.insert(index, copy.clone());
-        }
-        Ok(copy)
-    }
-
     /// Executes a control operation. The stack holds `[base, args...]`
-    /// where `base` is the receiver (`fiber.call`, `task.run`) or the
+    /// where `base` is the receiver (`fiber.call`) or the
     /// static callable (`Fiber.yield`); all of it is removed before the
     /// switch, and the operation's result is pushed by whichever fiber
     /// switches back.
@@ -113,7 +53,6 @@ impl VirtualMachine {
         let name = match op {
             ControlOp::FiberCall => "call",
             ControlOp::FiberYield => "yield",
-            ControlOp::TaskRun => "run",
         };
         if arg_count > 1 {
             return Err(self.call_error(format!(
@@ -135,7 +74,7 @@ impl VirtualMachine {
 
         match op {
             ControlOp::FiberYield => self.yield_fiber(base_index, arg.unwrap_or(Value::Nil)),
-            ControlOp::FiberCall | ControlOp::TaskRun => {
+            ControlOp::FiberCall => {
                 let Value::Fiber(fiber) = self.stack[base_index].clone() else {
                     unreachable!("control op dispatched on a non-fiber receiver")
                 };
@@ -144,7 +83,7 @@ impl VirtualMachine {
         }
     }
 
-    /// `fiber.call(arg)` / `task.run(arg)`: park the running fiber as the
+    /// `fiber.call(arg)`: park the running fiber as the
     /// callee's caller and make the callee current. A fresh fiber gets its
     /// body called with `arg` (if the body takes a parameter); a suspended
     /// one gets `arg` as the value of the `Fiber.yield` it is parked on.
@@ -154,63 +93,31 @@ impl VirtualMachine {
         fiber: &Rc<RefCell<ObjFiber>>,
         arg: Option<Value>,
     ) -> OpResult {
-        let (state, kind, body) = {
+        let (state, body) = {
             let f = fiber.borrow();
-            (f.state, f.kind, Rc::clone(&f.body))
-        };
-        let noun = if kind == FiberKind::Task {
-            "task"
-        } else {
-            "fiber"
+            (f.state, Rc::clone(&f.body))
         };
         match state {
             FiberState::Done => {
-                return Err(self.call_error(format!("Cannot resume a finished {}", noun)));
+                return Err(self.call_error("Cannot resume a finished fiber"));
             }
             FiberState::Running | FiberState::Waiting => {
-                return Err(self.call_error(format!("The {} is already running", noun)));
+                return Err(self.call_error("The fiber is already running"));
             }
             FiberState::Fresh | FiberState::Suspended => {}
         }
         let arity = body.function.arity as usize;
         if state == FiberState::Fresh && arity == 0 && arg.is_some() {
             return Err(self.call_error(format!(
-                "{} body '{}' takes no parameter, but one argument was passed",
-                capitalize(noun),
+                "Fiber body '{}' takes no parameter, but one argument was passed",
                 body.function.name
             )));
         }
-        // Which snapshot the fiber runs with (see `TaskSnapshot`). A task
-        // starts a fresh one, seeded with the copy of its argument; tasks
-        // never yield, so they are only ever resumed fresh. A fiber starts
-        // with the isolation of whoever first resumes it (one resumed inside
-        // a task can only have been created there, since no fiber can cross
-        // a task boundary) and keeps it for its whole life.
-        let (snapshot, arg) = match (kind, state) {
-            (FiberKind::Task, _) => {
-                let mut snapshot = TaskSnapshot::default();
-                let arg = match arg {
-                    Some(arg) => Some(
-                        arg.deep_copy_with(&mut snapshot.seen)
-                            .map_err(|e| self.call_error(e))?,
-                    ),
-                    None => None,
-                };
-                (Some(Rc::new(RefCell::new(snapshot))), arg)
-            }
-            (_, FiberState::Fresh) => (self.current_snapshot.clone(), arg),
-            _ => (fiber.borrow().snapshot.clone(), arg),
-        };
-
         self.stack.truncate(base_index);
 
         let current = self.ensure_active();
         current.borrow_mut().state = FiberState::Waiting;
-        {
-            let mut target = fiber.borrow_mut();
-            target.snapshot = snapshot;
-            target.caller = Some(current);
-        }
+        fiber.borrow_mut().caller = Some(current);
         self.switch_to(fiber);
         fiber.borrow_mut().state = FiberState::Running;
 
@@ -238,10 +145,8 @@ impl VirtualMachine {
             Some(active) => Rc::clone(&active.current),
             None => return Err(self.call_error("Cannot yield from the main script")),
         };
-        match current.borrow().kind {
-            FiberKind::Main => return Err(self.call_error("Cannot yield from the main script")),
-            FiberKind::Task => return Err(self.call_error("Cannot yield from a task")),
-            FiberKind::Fiber => {}
+        if current.borrow().kind == FiberKind::Main {
+            return Err(self.call_error("Cannot yield from the main script"));
         }
 
         self.stack.truncate(base_index);
@@ -259,11 +164,9 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// A fiber's root frame returned with `return_value`: the fiber is done,
-    /// and its caller resumes with the value (copied out for a task) as the
-    /// result of its `call`/`run`. The root frame is still on the stack so
-    /// a copy error reports the fiber's own location.
-    pub(in crate::vm) fn finish_fiber(&mut self, return_value: Value) -> OpResult {
+    /// A fiber's root frame returned with `value`: the fiber is done, and
+    /// its caller resumes with the value as the result of its `call`.
+    pub(in crate::vm) fn finish_fiber(&mut self, value: Value) -> OpResult {
         let current = Rc::clone(
             &self
                 .fibers
@@ -271,14 +174,6 @@ impl VirtualMachine {
                 .expect("finish_fiber is only called in a child fiber")
                 .current,
         );
-        let kind = current.borrow().kind;
-        let value = if kind == FiberKind::Task {
-            return_value
-                .deep_copy()
-                .map_err(|e| self.runtime_error(e))?
-        } else {
-            return_value
-        };
 
         self.call_frames.pop();
         self.close_upvalues_above(0);
@@ -338,7 +233,6 @@ impl VirtualMachine {
             std::mem::swap(&mut next.stack, &mut self.stack);
             std::mem::swap(&mut next.open_upvalues, &mut self.open_upvalues);
             self.current_stack_id = next.stack_id;
-            self.current_snapshot = next.snapshot.clone();
         }
         active.current = Rc::clone(target);
     }
@@ -434,13 +328,5 @@ impl VirtualMachine {
             chain.push(fiber);
         }
         chain
-    }
-}
-
-fn capitalize(word: &str) -> String {
-    let mut chars = word.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        None => String::new(),
     }
 }

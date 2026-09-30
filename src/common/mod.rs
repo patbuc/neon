@@ -7,7 +7,6 @@ use std::rc::Rc;
 
 pub mod chunk;
 pub mod constants;
-mod deep_copy;
 pub mod error_renderer;
 pub mod errors;
 pub mod fiber;
@@ -134,7 +133,7 @@ pub enum Value {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<String>),
     Range(Rc<ObjRange>),
-    /// A fiber or task (see `fiber::FiberKind`); both share this variant.
+    /// A fiber (see `fiber::ObjFiber`).
     Fiber(Rc<RefCell<fiber::ObjFiber>>),
 }
 
@@ -317,10 +316,7 @@ impl Value {
             Value::Set(_) => "set",
             Value::File(_) => "file",
             Value::Range(_) => "range",
-            Value::Fiber(fiber) => match fiber.borrow().kind {
-                fiber::FiberKind::Task => "task",
-                _ => "fiber",
-            },
+            Value::Fiber(_) => "fiber",
         }
     }
 }

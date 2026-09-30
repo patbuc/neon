@@ -36,8 +36,7 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
-    /// A fiber or task control operation (`fiber.call`, `Fiber.yield`,
-    /// `task.run`). It switches the running fiber instead of returning a
+    /// A fiber control operation (`fiber.call`, `Fiber.yield`). It switches the running fiber instead of returning a
     /// value in place, so the VM dispatches it itself (`src/vm/fibers.rs`)
     /// rather than through a native function.
     Control {
@@ -57,8 +56,6 @@ pub(crate) enum ControlOp {
     /// `Fiber.yield([value])`: suspend the running fiber, handing `value`
     /// to whoever called it.
     FiberYield,
-    /// `task.run([arg])`: run a task to completion with a copy of `arg`.
-    TaskRun,
 }
 
 impl NativeCallable {
@@ -820,33 +817,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::Boolean),
         },
     ),
-    // Task constructor and methods
-    (
-        "Task",
-        "new",
-        NativeCallable::Constructor {
-            function: stdlib::fiber_functions::native_task_constructor,
-            arity: 1,
-        },
-    ),
-    (
-        "Task",
-        "run",
-        NativeCallable::Control {
-            op: ControlOp::TaskRun,
-            arity: VARIADIC_ARITY,
-            is_static: false,
-        },
-    ),
-    (
-        "Task",
-        "isDone",
-        NativeCallable::InstanceMethod {
-            function: stdlib::fiber_functions::native_fiber_is_done,
-            arity: 0,
-            returns: Some(StaticType::Boolean),
-        },
-    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
@@ -940,8 +910,8 @@ pub fn is_static_namespace(name: &str) -> bool {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
-    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range", "Fiber", "Task",
+pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
+    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range", "Fiber",
 ];
 
 /// Names of registry types that are namespaces rather than instance types:

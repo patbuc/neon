@@ -1,7 +1,5 @@
-use crate::common::deep_copy::Seen;
 use crate::common::{CallFrame, ObjClosure, Upvalue, Value};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 /// `ObjFiber::stack_id` before the fiber has run for the first time. The
@@ -21,10 +19,6 @@ pub enum FiberKind {
     /// A cooperative coroutine sharing the heap with its caller
     /// (`Fiber(...)`, `call`, `Fiber.yield`).
     Fiber,
-    /// An isolated unit of work (`Task(...)`, `run`): its body may not
-    /// capture variables, values crossing its boundary are deep-copied,
-    /// and it may not assign globals or yield.
-    Task,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,7 +43,7 @@ pub struct ObjFiber {
     pub kind: FiberKind,
     pub state: FiberState,
     /// The closure the fiber runs; its arity (0 or 1) decides whether the
-    /// first `call`/`run` argument is passed to it.
+    /// first `call` argument is passed to it.
     pub body: Rc<ObjClosure>,
     pub frames: Vec<CallFrame>,
     pub stack: Vec<Value>,
@@ -60,22 +54,6 @@ pub struct ObjFiber {
     pub caller: Option<Rc<RefCell<ObjFiber>>>,
     /// Which stack `Upvalue::Open` entries pointing into this fiber name.
     pub stack_id: u32,
-    /// The private copies of shared state a task works on, while this
-    /// fiber runs under task isolation: it is a task, or a fiber resumed
-    /// from inside one (which shares the task's snapshot). `None` for a
-    /// fiber sharing the heap with the script.
-    pub snapshot: Option<Rc<RefCell<TaskSnapshot>>>,
-}
-
-/// A task's view of state outside it: each global or builtin is deep-copied
-/// the first time the task reads it, and every later read in the same task
-/// sees that same copy. The copies share one `Seen` map with the task's
-/// argument, so data reachable from several of them stays shared.
-#[derive(Default)]
-pub struct TaskSnapshot {
-    pub globals: HashMap<usize, Value>,
-    pub builtins: HashMap<usize, Value>,
-    pub seen: Seen,
 }
 
 impl ObjFiber {
@@ -89,7 +67,6 @@ impl ObjFiber {
             open_upvalues: Vec::new(),
             caller: None,
             stack_id: UNASSIGNED_STACK_ID,
-            snapshot: None,
         }
     }
 }

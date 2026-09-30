@@ -31,7 +31,6 @@ impl VirtualMachine {
             fibers: None,
             fiber_stacks: Vec::new(),
             current_stack_id: crate::common::fiber::MAIN_STACK_ID,
-            current_snapshot: None,
         }
     }
 
@@ -327,6 +326,5 @@ impl VirtualMachine {
         self.fibers = None;
         self.fiber_stacks.clear();
         self.current_stack_id = crate::common::fiber::MAIN_STACK_ID;
-        self.current_snapshot = None;
     }
 }

@@ -35,7 +35,6 @@ const BOOLEAN_SYMBOL: u16 = 5;
 const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
 const FIBER_SYMBOL: u16 = 8;
-const TASK_SYMBOL: u16 = 9;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -885,12 +884,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
         let index = self.read_index();
         if let Some(value) = self.builtin.get(index) {
-            let value = if self.in_task() {
-                self.task_builtin(index, value.clone())?
-            } else {
-                value.clone()
-            };
-            self.push(value);
+            self.push(value.clone());
         } else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         }
@@ -907,13 +901,7 @@ impl VirtualMachine {
         // so global `index` is main stack slot `index`. While a child fiber
         // runs, that stack is parked in the main fiber object.
         let value = if self.in_child_fiber() {
-            let value = self.main_stack_get(index)?;
-            if self.in_task() {
-                // A task never shares mutable state with the script.
-                self.task_global(index, value)?
-            } else {
-                value
-            }
+            self.main_stack_get(index)?
         } else {
             if index >= self.stack.len() {
                 return Err(self.runtime_error(format!(
@@ -939,11 +927,6 @@ impl VirtualMachine {
         let index = self.read_index();
         // Globals live in the main script's stack; see `op_get_global`.
         if self.in_child_fiber() {
-            if self.in_task() {
-                return Err(
-                    self.runtime_error("Cannot assign to a global variable from inside a task")
-                );
-            }
             let current = self.main_stack_get(index)?;
             if let Some(message) = Self::uninitialized_error(&current) {
                 return Err(self.runtime_error(message));
@@ -1483,13 +1466,7 @@ impl VirtualMachine {
             Value::Set(_) => Some(TypeName::Builtin(SET_SYMBOL)),
             Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
-            Value::Fiber(fiber) => Some(TypeName::Builtin(
-                if fiber.borrow().kind == crate::common::fiber::FiberKind::Task {
-                    TASK_SYMBOL
-                } else {
-                    FIBER_SYMBOL
-                },
-            )),
+            Value::Fiber(_) => Some(TypeName::Builtin(FIBER_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
@@ -1555,6 +1532,5 @@ mod tests {
         assert_eq!(BUILTIN_TYPE_NAMES[FILE_SYMBOL as usize], "File");
         assert_eq!(BUILTIN_TYPE_NAMES[RANGE_SYMBOL as usize], "Range");
         assert_eq!(BUILTIN_TYPE_NAMES[FIBER_SYMBOL as usize], "Fiber");
-        assert_eq!(BUILTIN_TYPE_NAMES[TASK_SYMBOL as usize], "Task");
     }
 }
