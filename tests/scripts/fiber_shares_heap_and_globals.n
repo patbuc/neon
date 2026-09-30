@@ -1,0 +1,26 @@
+// fiber_shares_heap_and_globals.n - fibers see and change the same globals
+// and collections as the script that resumes them
+
+// Expected:
+// 1
+// [a]
+// 2
+// [a, b]
+
+var count = 0
+val log = []
+
+val f = Fiber(fn() {
+    count = count + 1
+    log.push("a")
+    Fiber.yield()
+    count = count + 1
+    log.push("b")
+})
+
+f.call()
+print(count)
+print(log)
+f.call()
+print(count)
+print(log)

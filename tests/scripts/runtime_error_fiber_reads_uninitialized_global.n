@@ -1,0 +1,13 @@
+// A fiber reads a global whose declaration hasn't run yet
+
+// Expected:
+// start
+
+// Expected runtime error: variable 'later' used before initialization
+
+val f = Fiber(fn() {
+    return later
+})
+print("start")
+print(f.call())
+val later = 1

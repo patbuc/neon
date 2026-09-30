@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
+mod fibers;
 mod functions;
 mod r#impl;
 mod runtime_error;
@@ -45,9 +46,15 @@ pub struct VirtualMachine {
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
+    /// The running fiber's `ObjFiber::depth` (0 for the main script), so the
+    /// frame limit counts the frames of every fiber waiting below it.
+    fiber_depth: usize,
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
+    /// The main and running fibers, once the script has resumed a fiber;
+    /// `None` while only the main script has ever run.
+    fibers: Option<fibers::ActiveFibers>,
     /// Native methods of the builtin types, built from the running
     /// compile's symbol table.
     native_methods: NativeMethodTable,

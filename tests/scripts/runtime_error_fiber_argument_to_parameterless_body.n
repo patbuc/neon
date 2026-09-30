@@ -1,0 +1,12 @@
+// Passing a first-call argument to a body that takes no parameter
+
+// Expected:
+// before
+
+// Expected runtime error: Fiber body 'anonymous' takes no parameter, but one argument was passed
+
+val f = Fiber(fn() {
+    return 1
+})
+print("before")
+f.call(5)

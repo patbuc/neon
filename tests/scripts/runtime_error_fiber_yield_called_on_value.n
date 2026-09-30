@@ -1,0 +1,15 @@
+// Fiber.yield is static; calling it on a fiber value is an error
+
+// Expected:
+// before
+
+// Expected runtime error: Method 'yield' is static; call it as Fiber.yield()
+
+fn poke(f) {
+    return f.yield(1)
+}
+val f = Fiber(fn() {
+    return 1
+})
+print("before")
+poke(f)

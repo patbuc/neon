@@ -1,0 +1,18 @@
+// Yielding inside a for-in over an array while the resumer runs its own for-in
+
+// Expected:
+// a1
+// b2
+// c3
+// end
+
+val letters = Fiber(fn() {
+    for (letter in ["a", "b", "c"]) {
+        Fiber.yield(letter)
+    }
+    return "end"
+})
+for (n in [1, 2, 3]) {
+    print(letters.call() + n.toString())
+}
+print(letters.call())

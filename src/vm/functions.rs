@@ -32,6 +32,7 @@ const NUMBER_SYMBOL: u16 = 4;
 const BOOLEAN_SYMBOL: u16 = 5;
 const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
+const FIBER_SYMBOL: u16 = 8;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -114,10 +115,10 @@ impl VirtualMachine {
         self.dispatch_invoke(method_symbol, arg_count)
     }
 
-    /// Errors with "Stack overflow" if the call frame stack is already at
-    /// its limit.
+    /// Errors with "Stack overflow" if the call frames of the running fiber
+    /// and the fibers waiting below it are already at their limit.
     fn check_frame_limit(&self) -> OpResult {
-        if self.call_frames.len() >= MAX_FRAMES {
+        if self.fiber_depth + self.call_frames.len() >= MAX_FRAMES {
             Err(self.call_error("Stack overflow"))
         } else {
             Ok(())
@@ -135,7 +136,14 @@ impl VirtualMachine {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
             Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
             Value::NativeFunction(callable) => {
-                match self.call_native_function(arg_count, callable) {
+                let native = self
+                    .lookup_native_method_by_index(callable)
+                    .map_err(|error| self.call_error(error))?;
+                if let NativeCallable::Control { op, .. } = native {
+                    let base_index = self.stack.len() - arg_count - 1;
+                    return self.control_op(*op, base_index, arg_count);
+                }
+                match self.call_native_function(arg_count, callable, native) {
                     Ok(value) => value,
                     Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
                     Err(NativeCallError::Runtime(e)) => return Err(e),
@@ -186,6 +194,16 @@ impl VirtualMachine {
                 TypeName::Struct(_) => None,
             };
             if let Some(native) = native {
+                if let NativeCallable::Control { op, is_static, .. } = native {
+                    if *is_static {
+                        let method_name = self.symbol_name(method_symbol);
+                        return Err(self.call_error(format!(
+                            "Method '{}' is static; call it as {}.{}()",
+                            method_name, type_name, method_name
+                        )));
+                    }
+                    return self.control_op(*op, receiver_index, arg_count);
+                }
                 let result = match self.run_native_callable(
                     native,
                     receiver_index,
@@ -236,6 +254,9 @@ impl VirtualMachine {
             | NativeCallable::InstanceMethod { function, .. }
             | NativeCallable::Constructor { function, .. } => {
                 function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
+            }
+            NativeCallable::Control { .. } => {
+                unreachable!("control operations are dispatched before reaching a native call")
             }
         }
     }
@@ -321,15 +342,14 @@ impl VirtualMachine {
         }
     }
 
+    /// Runs `native_callable` (the registry entry `callable` names) on the
+    /// top `arg_count` stack values.
     fn call_native_function(
         &mut self,
         arg_count: usize,
         callable: &Rc<ObjNativeFunction>,
+        native_callable: &'static NativeCallable,
     ) -> std::result::Result<Value, NativeCallError> {
-        let native_callable = self
-            .lookup_native_method_by_index(callable)
-            .map_err(NativeCallError::Message)?;
-
         let stack_len = self.stack.len();
         let args_start = stack_len - arg_count;
         let args_end = stack_len;
@@ -381,7 +401,11 @@ impl VirtualMachine {
         Ok(())
     }
 
-    fn call_closure(&mut self, arg_count: usize, closure: &Rc<ObjClosure>) -> OpResult {
+    pub(in crate::vm) fn call_closure(
+        &mut self,
+        arg_count: usize,
+        closure: &Rc<ObjClosure>,
+    ) -> OpResult {
         self.call_closure_with(arg_count, closure, false)
     }
 
@@ -413,9 +437,16 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_return(&mut self) {
+    pub(in crate::vm) fn op_return(&mut self) -> OpResult {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
+
+        // A child fiber's root frame returning ends the fiber and switches
+        // back to whoever resumed it.
+        if self.call_frames.len() == 1 && self.in_child_fiber() {
+            return self.finish_fiber(return_value);
+        }
+
         self.pop_frame();
 
         // A local captured by a closure that outlives this call must keep
@@ -424,11 +455,12 @@ impl VirtualMachine {
 
         if self.call_frames.is_empty() {
             self.push(return_value);
-            return;
+            return Ok(());
         }
 
         self.stack.truncate(slot_start as usize);
         self.push(return_value);
+        Ok(())
     }
 
     #[inline(always)]
@@ -676,7 +708,8 @@ impl VirtualMachine {
         }
         let upvalue = Rc::clone(&self.current_frame().closure.upvalues[index]);
         let value = match &*upvalue.borrow() {
-            Upvalue::Open(stack_index) => self.stack[*stack_index].clone(),
+            Upvalue::Open { owner, index } if self.is_running(owner) => self.stack[*index].clone(),
+            Upvalue::Open { owner, index } => self.parked_stack_get(owner, *index)?,
             Upvalue::Closed(value) => value.clone(),
         };
         self.ip += 2;
@@ -692,13 +725,11 @@ impl VirtualMachine {
         }
         let value = self.peek(0);
         let upvalue = Rc::clone(&self.current_frame().closure.upvalues[index]);
-        let stack_index = match &*upvalue.borrow() {
-            Upvalue::Open(stack_index) => Some(*stack_index),
-            Upvalue::Closed(_) => None,
-        };
-        match stack_index {
-            Some(stack_index) => self.stack[stack_index] = value,
-            None => *upvalue.borrow_mut() = Upvalue::Closed(value),
+        let mut upvalue = upvalue.borrow_mut();
+        match &*upvalue {
+            Upvalue::Open { owner, index } if self.is_running(owner) => self.stack[*index] = value,
+            Upvalue::Open { owner, index } => self.parked_stack_set(owner, *index, value)?,
+            Upvalue::Closed(_) => *upvalue = Upvalue::Closed(value),
         }
         self.ip += 2;
         Ok(())
@@ -726,13 +757,16 @@ impl VirtualMachine {
     /// share writes to it.
     fn capture_upvalue(&mut self, stack_index: usize) -> Rc<RefCell<Upvalue>> {
         for existing in &self.open_upvalues {
-            if let Upvalue::Open(index) = *existing.borrow() {
+            if let Upvalue::Open { index, .. } = *existing.borrow() {
                 if index == stack_index {
                     return Rc::clone(existing);
                 }
             }
         }
-        let upvalue = Rc::new(RefCell::new(Upvalue::Open(stack_index)));
+        let upvalue = Rc::new(RefCell::new(Upvalue::Open {
+            owner: self.running_child_fiber(),
+            index: stack_index,
+        }));
         self.open_upvalues.push(Rc::clone(&upvalue));
         upvalue
     }
@@ -747,7 +781,7 @@ impl VirtualMachine {
         let stack = &self.stack;
         self.open_upvalues.retain(|upvalue| {
             let index = match *upvalue.borrow() {
-                Upvalue::Open(index) => index,
+                Upvalue::Open { index, .. } => index,
                 Upvalue::Closed(_) => return false,
             };
             if index < stack_index {
@@ -797,11 +831,15 @@ impl VirtualMachine {
         self.ip += 4 + offset as usize;
     }
 
+    /// Loop: jumps back by the u32 operand, measured from the end of this
+    /// instruction plus one (the slot the dispatch loop's `ip += 1` would
+    /// land on). Sets `ip` to the target directly, so a loop starting at
+    /// instruction 0 doesn't pass through an underflowed intermediate; the
+    /// dispatch loop must not increment `ip` afterwards.
     #[inline(always)]
     pub(in crate::vm) fn op_loop(&mut self) {
         let offset = self.operand_u32(1);
-        self.ip += 4;
-        self.ip -= offset as usize;
+        self.ip = self.ip + 5 - offset as usize;
     }
 
     pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
@@ -819,26 +857,26 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_get_global(&mut self) -> OpResult {
         let index = self.read_index();
 
-        // Regular global variables are in the script frame
-        // Script frame has slot_start = -1, so globals start at index 0
-        let script_frame = &self.call_frames[0];
-        let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
-
-        // Make sure we don't go out of bounds
-        if absolute_index >= self.stack.len() {
-            return Err(self.runtime_error(format!(
-                "Global variable index {} out of bounds (stack size: {})",
-                absolute_index,
-                self.stack.len()
-            )));
-        }
-
-        let value = &self.stack[absolute_index];
-        if let Some(message) = Self::uninitialized_error(value) {
+        // Globals are the main script frame's locals: it has slot_start -1,
+        // so global `index` is main stack slot `index`. While a child fiber
+        // runs, that stack is parked in the main fiber object.
+        let value = if self.in_child_fiber() {
+            self.main_stack_get(index)?
+        } else {
+            if index >= self.stack.len() {
+                return Err(self.runtime_error(format!(
+                    "Global variable index {} out of bounds (stack size: {})",
+                    index,
+                    self.stack.len()
+                )));
+            }
+            self.stack[index].clone()
+        };
+        if let Some(message) = Self::uninitialized_error(&value) {
             return Err(self.runtime_error(message));
         }
 
-        self.push(value.clone());
+        self.push(value);
         self.ip += 2;
         Ok(())
     }
@@ -846,24 +884,27 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_set_global(&mut self) -> OpResult {
         let index = self.read_index();
-        // Global variables are always in the script frame (first frame)
-        // Script frame has slot_start = -1, so globals start at index 0
-        let script_frame = &self.call_frames[0];
-        let absolute_index = (script_frame.slot_start + 1 + index as isize) as usize;
-
-        if absolute_index >= self.stack.len() {
-            return Err(self.runtime_error(format!(
-                "Global variable index {} out of bounds (stack size: {})",
-                absolute_index,
-                self.stack.len()
-            )));
+        // Globals live in the main script's stack; see `op_get_global`.
+        if self.in_child_fiber() {
+            let current = self.main_stack_get(index)?;
+            if let Some(message) = Self::uninitialized_error(&current) {
+                return Err(self.runtime_error(message));
+            }
+            let value = self.peek(0);
+            self.main_stack_set(index, value)?;
+        } else {
+            if index >= self.stack.len() {
+                return Err(self.runtime_error(format!(
+                    "Global variable index {} out of bounds (stack size: {})",
+                    index,
+                    self.stack.len()
+                )));
+            }
+            if let Some(message) = Self::uninitialized_error(&self.stack[index]) {
+                return Err(self.runtime_error(message));
+            }
+            self.stack[index] = self.peek(0);
         }
-
-        if let Some(message) = Self::uninitialized_error(&self.stack[absolute_index]) {
-            return Err(self.runtime_error(message));
-        }
-
-        self.stack[absolute_index] = self.peek(0);
         self.ip += 2;
         Ok(())
     }
@@ -1364,6 +1405,7 @@ impl VirtualMachine {
             Value::Set(_) => Some(TypeName::Builtin(SET_SYMBOL)),
             Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
+            Value::Fiber(_) => Some(TypeName::Builtin(FIBER_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
@@ -1427,5 +1469,6 @@ mod tests {
         assert_eq!(BUILTIN_TYPE_NAMES[BOOLEAN_SYMBOL as usize], "Boolean");
         assert_eq!(BUILTIN_TYPE_NAMES[FILE_SYMBOL as usize], "File");
         assert_eq!(BUILTIN_TYPE_NAMES[RANGE_SYMBOL as usize], "Range");
+        assert_eq!(BUILTIN_TYPE_NAMES[FIBER_SYMBOL as usize], "Fiber");
     }
 }

@@ -1,0 +1,16 @@
+// A fiber resuming itself, which is already running
+
+// Expected:
+// before
+
+// Expected runtime error: The fiber is already running
+
+val fibers = []
+fn resumeFirst(list) {
+    return list[0].call()
+}
+fibers.push(Fiber(fn() {
+    resumeFirst(fibers)
+}))
+print("before")
+resumeFirst(fibers)

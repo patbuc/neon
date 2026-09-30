@@ -1,0 +1,9 @@
+// Yielding from the main script, which has no caller to return to
+
+// Expected:
+// before
+
+// Expected runtime error: Cannot yield from the main script
+
+print("before")
+Fiber.yield(1)

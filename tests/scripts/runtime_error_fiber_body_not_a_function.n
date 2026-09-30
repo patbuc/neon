@@ -1,0 +1,9 @@
+// Creating a fiber from something that is not a function
+
+// Expected:
+// before
+
+// Expected runtime error: Fiber() expects a function, got number
+
+print("before")
+Fiber(42)

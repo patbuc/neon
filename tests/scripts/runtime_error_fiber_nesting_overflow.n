@@ -1,0 +1,18 @@
+// Recursion that resumes a new fiber per level overflows like plain recursion
+
+// Expected:
+// start
+
+// Expected runtime error: Stack overflow
+
+fn nest(n) {
+    if (n == 0) {
+        return 0
+    }
+    val f = Fiber(fn() {
+        return nest(n - 1) + 1
+    })
+    return f.call()
+}
+print("start")
+print(nest(1000000))

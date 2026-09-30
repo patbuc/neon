@@ -416,7 +416,7 @@ print(pt.x)  // 15
 ```
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
-`Set`, `Number`, `Boolean`, `File`).
+`Set`, `Number`, `Boolean`, `File`, `Range`, `Fiber`).
 
 #### Methods
 
@@ -447,8 +447,8 @@ print(Point.origin().x)   // 0
   code that appears before their `impl` block. A method body can see
   functions, structs, builtins, and top-level variables.
 
-A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`)
-can have an `impl` block too, adding an instance method callable on any value
+A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`,
+`Range`, `Fiber`) can have an `impl` block too, adding an instance method callable on any value
 of that type. A method can't share a name with a native method of the type -
 that's a compile error, since a native method can never be redefined. Unlike
 a struct, a builtin type only supports instance methods; every method must
@@ -477,6 +477,47 @@ struct Adder {
 val a = Adder(fn(x, y) { return x + y })
 print(a.add(2, 3))  // 5
 ```
+
+### Fibers
+
+A fiber is a function that can pause itself and be resumed later. It shares
+variables and data with the code that resumes it, and only one fiber runs at a
+time, so there are no data races.
+
+```neon
+val numbers = Fiber(fn() {
+    for (i in 1..=3) {
+        Fiber.yield(i)
+    }
+})
+
+var n = numbers.call()
+while (!numbers.isDone()) {
+    print(n)  // 1, 2, 3
+    n = numbers.call()
+}
+```
+
+- `Fiber(body)` creates a paused fiber. `body` takes zero or one parameter.
+- `fiber.call(value)` runs the fiber until it yields or returns, and evaluates
+  to the value it yielded or returned. On the first call, `value` is passed to
+  `body`. On later calls, it becomes the result of the `Fiber.yield` the fiber
+  is paused on. `value` is optional and defaults to `nil`. The `call` that
+  finishes the fiber evaluates to what `body` returns, or `nil` if it has no
+  `return`.
+- `Fiber.yield(value)` pauses the running fiber and hands `value` back to
+  whoever called it.
+- `fiber.isDone()` is true once `body` has returned.
+
+A fiber can resume other fibers; each `Fiber.yield` returns to whoever
+resumed that fiber. These are runtime errors: yielding from the main script,
+resuming a finished or already running fiber, and yielding or resuming from
+inside a callback passed to a native method such as `map`, `filter`, or
+`reduce`.
+
+A runtime error inside a fiber ends the program, like one anywhere else. Its
+trace runs through the fiber's own calls and then through every fiber that
+resumed it, down to the main script.
 
 ## Code Examples
 
@@ -699,6 +740,13 @@ print(r.contains(2))       // true
 print(r.toArray())         // [1, 2, 3]
 print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 ```
+
+### Fiber Methods
+
+- `Fiber(body)` - Create a fiber running `body`
+- `fiber.call(value?)` - Resume a fiber; returns what it yields or returns
+- `Fiber.yield(value?)` - Pause the running fiber, handing `value` to its caller
+- `.isDone()` - Whether the body has returned
 
 ### Map Methods
 

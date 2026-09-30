@@ -37,6 +37,26 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
+    /// A fiber control operation (`fiber.call`, `Fiber.yield`). It switches the running fiber instead of returning a
+    /// value in place, so the VM dispatches it itself (`src/vm/fibers.rs`)
+    /// rather than through a native function.
+    Control {
+        op: ControlOp,
+        #[allow(dead_code)]
+        arity: u8,
+        /// Called as `Fiber.op(...)` rather than on a fiber value.
+        is_static: bool,
+    },
+}
+
+/// The control operations `NativeCallable::Control` can name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ControlOp {
+    /// `fiber.call([value])`: resume a fiber, passing it `value`.
+    FiberCall,
+    /// `Fiber.yield([value])`: suspend the running fiber, handing `value`
+    /// to whoever called it.
+    FiberYield,
 }
 
 impl NativeCallable {
@@ -47,6 +67,7 @@ impl NativeCallable {
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::Constructor { arity, .. } => *arity,
+            NativeCallable::Control { arity, .. } => *arity,
         }
     }
 
@@ -54,7 +75,9 @@ impl NativeCallable {
         match self {
             NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
             NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
-            NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. } => None,
+            NativeCallable::StaticMethod { .. }
+            | NativeCallable::Constructor { .. }
+            | NativeCallable::Control { .. } => None,
         }
     }
 }
@@ -759,6 +782,42 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    // Fiber constructor, methods and static control operations
+    (
+        "Fiber",
+        "new",
+        NativeCallable::Constructor {
+            function: stdlib::fiber_functions::native_fiber_constructor,
+            arity: 1,
+        },
+    ),
+    (
+        "Fiber",
+        "call",
+        NativeCallable::Control {
+            op: ControlOp::FiberCall,
+            arity: VARIADIC_ARITY,
+            is_static: false,
+        },
+    ),
+    (
+        "Fiber",
+        "yield",
+        NativeCallable::Control {
+            op: ControlOp::FiberYield,
+            arity: VARIADIC_ARITY,
+            is_static: true,
+        },
+    ),
+    (
+        "Fiber",
+        "isDone",
+        NativeCallable::InstanceMethod {
+            function: stdlib::fiber_functions::native_fiber_is_done,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
@@ -846,7 +905,10 @@ pub fn get_static_methods_for_type(type_name: &str) -> Vec<&'static str> {
         .filter_map(|(t, m, callable)| {
             if *t == type_name {
                 match callable {
-                    NativeCallable::StaticMethod { .. } => Some(*m),
+                    NativeCallable::StaticMethod { .. }
+                    | NativeCallable::Control {
+                        is_static: true, ..
+                    } => Some(*m),
                     _ => None,
                 }
             } else {
@@ -864,8 +926,8 @@ pub fn is_static_namespace(name: &str) -> bool {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 8] = [
-    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range",
+pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
+    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range", "Fiber",
 ];
 
 /// Names of registry types that are namespaces rather than instance types:
@@ -901,6 +963,10 @@ pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
     matches!(
         get_native_method_by_name(type_name, method_name),
         Some(NativeCallable::StaticMethod { .. })
+            | Some(NativeCallable::Control {
+                is_static: true,
+                ..
+            })
     )
 }
 

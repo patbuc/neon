@@ -178,10 +178,27 @@ cargo run --features disassemble -- script.n
 **Value System** (`src/common/mod.rs`)
 
 - Scalars (Number, Boolean, Nil) are stored inline
-- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
+- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range, Fiber) holds a single `Rc`; collections, instances, and fibers use `Rc<RefCell<..>>` for interior mutability
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 - Range is an immutable `Rc<ObjRange>` of integer bounds; for-in iterates it without allocating an array
+
+**Fibers** (`src/common/fiber.rs`, `src/vm/fibers.rs`)
+
+- `Value::Fiber` holds an `ObjFiber`: its own call frames, value stack, and open upvalues. `FiberKind` says
+  whether it is the main script or a `Fiber`
+- Exactly one fiber runs; the VM's `call_frames`/`stack`/`open_upvalues` *are* the running fiber's, and
+  `switch_to` swaps them with the target's saved ones, so the dispatch loop knows nothing about fibers. It saves
+  `ip` into the outgoing fiber's top frame and loads `ip`/`chunk` from the target's. The main fiber object is
+  created lazily on the first switch
+- `fiber.call` and `Fiber.yield` are `NativeCallable::Control` registry entries the VM dispatches
+  itself (`control_op`), since they switch fibers instead of returning a value in place. A child fiber's root
+  frame returning (`op_return`) finishes it and switches back to its caller
+- Globals are main-stack slots; while a child fiber runs, `GetGlobal`/`SetGlobal` reach the main fiber's parked
+  stack. `Upvalue::Open` holds a `Weak` to the fiber that owns its slot (`None` for the main script), so a
+  closure can read a local of a parked fiber; a dropped fiber closes its open upvalues
+- Switching while `native_call_depth > 0` is an error: `call_value` counts frames on the Rust stack, which a
+  switch would invalidate
 
 **Standard Library** (`src/common/stdlib/`)
 

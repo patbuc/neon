@@ -1,0 +1,19 @@
+// An inner fiber writes a local of its waiting parent fiber before and after a yield
+
+// Expected:
+// 11
+// 111
+
+val outer = Fiber(fn() {
+    var total = 1
+    val inner = Fiber(fn() {
+        total = total + 10
+        Fiber.yield()
+        total = total + 100
+    })
+    inner.call()
+    print(total)
+    inner.call()
+    print(total)
+})
+outer.call()

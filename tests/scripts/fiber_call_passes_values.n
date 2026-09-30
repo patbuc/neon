@@ -1,0 +1,24 @@
+// fiber_call_passes_values.n - the first call's argument is the body's
+// parameter, later calls' arguments become the result of Fiber.yield
+
+// Expected:
+// 10
+// 15
+// 22
+// nil
+
+val acc = Fiber(fn(start) {
+    var total = start
+    while (true) {
+        total = total + Fiber.yield(total)
+    }
+})
+
+print(acc.call(10))
+print(acc.call(5))
+print(acc.call(7))
+
+val noValue = Fiber(fn() {
+    Fiber.yield()
+})
+print(noValue.call())

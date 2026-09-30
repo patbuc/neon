@@ -3,12 +3,13 @@ use ordered_float::OrderedFloat;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub mod chunk;
 pub mod constants;
 pub mod error_renderer;
 pub mod errors;
+pub mod fiber;
 pub mod method_registry;
 pub(crate) mod opcodes;
 pub mod static_type;
@@ -132,6 +133,8 @@ pub enum Value {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<String>),
     Range(Rc<ObjRange>),
+    /// A fiber (see `fiber::ObjFiber`).
+    Fiber(Rc<RefCell<fiber::ObjFiber>>),
 }
 
 /// An immutable range of integers.
@@ -180,7 +183,13 @@ pub struct ObjClosure {
 /// returns or the block that declared it exits.
 #[derive(Debug)]
 pub enum Upvalue {
-    Open(usize),
+    /// `index` into the value stack of `owner`: the VM's own stack while
+    /// that fiber runs, its saved one otherwise. `None` is the main script,
+    /// which has no fiber object until it first resumes a fiber.
+    Open {
+        owner: Option<Weak<RefCell<fiber::ObjFiber>>>,
+        index: usize,
+    },
     Closed(Value),
 }
 
@@ -277,6 +286,10 @@ impl Value {
         Value::File(Rc::new(path))
     }
 
+    pub(crate) fn new_fiber(kind: fiber::FiberKind, body: Rc<ObjClosure>) -> Self {
+        Value::Fiber(Rc::new(RefCell::new(fiber::ObjFiber::new(kind, body))))
+    }
+
     pub(crate) fn new_range(start: i64, end: i64, inclusive: bool) -> Self {
         Value::Range(Rc::new(ObjRange {
             start,
@@ -303,6 +316,7 @@ impl Value {
             Value::Set(_) => "set",
             Value::File(_) => "file",
             Value::Range(_) => "range",
+            Value::Fiber(_) => "fiber",
         }
     }
 }
@@ -420,6 +434,7 @@ impl Value {
                     write!(f, "{}..{}", range.start, range.end)
                 }
             }
+            Value::Fiber(_) => write!(f, "<{}>", self.type_name()),
         }
     }
 
@@ -463,6 +478,7 @@ impl Value {
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::File(a), Value::File(b)) => a == b,
             (Value::Range(a), Value::Range(b)) => a == b,
+            (Value::Fiber(a), Value::Fiber(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }

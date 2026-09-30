@@ -1,0 +1,23 @@
+// A fiber yields back to whichever fiber resumed it last
+
+// Expected:
+// a got 1
+// b got 2
+// a got 3
+
+val shared = Fiber(fn() {
+    Fiber.yield(1)
+    Fiber.yield(2)
+    return 3
+})
+val a = Fiber(fn() {
+    print("a got " + shared.call().toString())
+    Fiber.yield()
+    print("a got " + shared.call().toString())
+})
+val b = Fiber(fn() {
+    print("b got " + shared.call().toString())
+})
+a.call()
+b.call()
+a.call()
