@@ -1,0 +1,10 @@
+// Addition with a non-number left operand and a number literal right
+// operand, which compiles to the fused AddConstant opcode
+
+// Expected:
+// before
+
+// Expected runtime error: Operands must be two numbers or two strings
+
+print("before")
+print("a" + 1)

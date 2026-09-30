@@ -44,7 +44,7 @@ impl Chunk {
         };
         match instruction {
             OpCode::Return => self.simple_instruction(OpCode::Return, offset, out),
-            OpCode::Constant => self.constant_instruction(offset, out),
+            OpCode::Constant => self.constant_instruction(OpCode::Constant, offset, out),
             OpCode::Negate => self.simple_instruction(OpCode::Negate, offset, out),
             OpCode::Add => self.simple_instruction(OpCode::Add, offset, out),
             OpCode::Subtract => self.simple_instruction(OpCode::Subtract, offset, out),
@@ -109,6 +109,20 @@ impl Chunk {
             OpCode::StoreLocalField => {
                 self.local_field_instruction(OpCode::StoreLocalField, offset, out)
             }
+            OpCode::AddConstant => self.constant_instruction(OpCode::AddConstant, offset, out),
+            OpCode::SubtractConstant => {
+                self.constant_instruction(OpCode::SubtractConstant, offset, out)
+            }
+            OpCode::GreaterConstant => {
+                self.constant_instruction(OpCode::GreaterConstant, offset, out)
+            }
+            OpCode::GreaterEqualConstant => {
+                self.constant_instruction(OpCode::GreaterEqualConstant, offset, out)
+            }
+            OpCode::LessConstant => self.constant_instruction(OpCode::LessConstant, offset, out),
+            OpCode::LessEqualConstant => {
+                self.constant_instruction(OpCode::LessEqualConstant, offset, out)
+            }
         }
     }
 
@@ -151,10 +165,10 @@ impl Chunk {
         offset + 5
     }
 
-    fn constant_instruction(&self, offset: usize, out: &mut String) -> usize {
+    fn constant_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let index = self.read_u16(offset + 1) as usize;
         let constant = self.read_constant(index);
-        writeln!(out, "{:?} {:02} '{}'", OpCode::Constant, index, constant).unwrap();
+        writeln!(out, "{:?} {:02} '{}'", op_code, index, constant).unwrap();
         offset + 3
     }
 
