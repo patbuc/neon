@@ -20,7 +20,9 @@ you're unsure of:
 grep -rl "Fiber.yield" tests/scripts/
 ```
 
-Then run what you wrote: `cargo run -q -- file.n`.
+Then run what you wrote: `cargo run -q -- file.n`. `cargo run -q -- --check file.n` compiles without
+running, and a PostToolUse hook runs it automatically after an edit, feeding compile errors back — it
+won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the script.
 
 ## Where guesses go wrong
 

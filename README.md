@@ -39,6 +39,9 @@ cargo run -- script.n
 
 # Or use the compiled binary
 ./target/release/neon script.n
+
+# Compile without running, to check for errors
+cargo run -- --check script.n
 ```
 
 ### Hello World
