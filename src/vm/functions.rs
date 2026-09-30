@@ -982,6 +982,31 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn op_get_local_field(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let symbol = self.operand_u16(3);
+        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+
+        let value = match &self.stack[absolute_index] {
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        };
+
+        self.ip += 4;
+        self.push(value);
+        Ok(())
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         // [.., instance, value] -> [.., value]
         let symbol = self.read_index() as u16;

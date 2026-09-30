@@ -192,6 +192,7 @@ impl VirtualMachine {
                 }
                 OpCode::GetField => self.op_get_field()?,
                 OpCode::SetField => self.op_set_field()?,
+                OpCode::GetLocalField => self.op_get_local_field()?,
 
                 OpCode::CreateMap => self.op_create_map()?,
                 OpCode::CreateArray => self.op_create_array(),
