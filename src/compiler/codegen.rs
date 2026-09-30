@@ -309,6 +309,18 @@ impl<'a> CodeGenerator<'a> {
         self.current_chunk().write_u16(symbol);
     }
 
+    fn emit_store_local_field(&mut self, slot: u32, symbol: u32, location: SourceLocation) {
+        let Some(slot) = self.checked_index(slot, "locals", location) else {
+            return;
+        };
+        let Some(symbol) = self.checked_index(symbol, "symbols", location) else {
+            return;
+        };
+        self.emit_op_code(OpCode::StoreLocalField, location);
+        self.current_chunk().write_u16(slot);
+        self.current_chunk().write_u16(symbol);
+    }
+
     /// Slot of `decl` in the `locals` of the function that owns it.
     fn decl_slot(&self, decl: DeclId) -> u32 {
         *self
@@ -572,8 +584,54 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
-        self.generate_expr(expr);
-        self.emit_op_code(OpCode::Pop, location);
+        match expr {
+            Expr::Assign {
+                value,
+                id,
+                location,
+                ..
+            } => {
+                self.generate_expr(value);
+                match self.resolutions.res(*id) {
+                    Res::Local(decl) => {
+                        let slot = self.decl_slot(decl);
+                        self.emit_index_op(OpCode::StoreLocal, slot, "locals", *location);
+                    }
+                    _ => {
+                        self.emit_variable_set(*id, *location);
+                        self.emit_op_code(OpCode::Pop, *location);
+                    }
+                }
+            }
+            Expr::SetField {
+                object,
+                field,
+                value,
+                location,
+            } => {
+                let symbol = self.resolutions.symbol(field);
+                if let Expr::Variable { id, .. } = object.as_ref() {
+                    if let Res::Local(decl) = self.resolutions.res(*id) {
+                        // StoreLocalField reads the local after evaluating the value, so the
+                        // value must not be able to reassign it.
+                        if !self.resolutions.is_checked(*id) && self.resolutions.is_immutable(decl)
+                        {
+                            let slot = self.decl_slot(decl);
+                            self.generate_expr(value);
+                            self.emit_store_local_field(slot, symbol as u32, *location);
+                            return;
+                        }
+                    }
+                }
+                self.generate_expr(object);
+                self.generate_expr(value);
+                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+            }
+            _ => {
+                self.generate_expr(expr);
+                self.emit_op_code(OpCode::Pop, location);
+            }
+        }
     }
 
     fn generate_block_stmt(&mut self, statements: &[Stmt], location: SourceLocation) {

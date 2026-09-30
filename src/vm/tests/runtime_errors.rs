@@ -1421,3 +1421,55 @@ fn get_local_field_non_instance_location() {
     assert_eq!("Only instances have fields.", error.message);
     assert_eq!(Some((2, 11)), error.location);
 }
+
+#[test]
+fn store_local_field_unknown_field_location() {
+    let program = "struct P { x }\nfn set(p) {\n  p.z = 1\n}\nset(P(1))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!("Undefined field 'z'.", error.message);
+    assert_eq!(Some((3, 4)), error.location);
+}
+
+#[test]
+fn store_local_field_non_instance_location() {
+    let program = "fn set(p) {\n  p.z = 1\n}\nset(1)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!("Only instances have fields.", error.message);
+    assert_eq!(Some((2, 4)), error.location);
+}
+
+#[test]
+fn store_field_unknown_field_location() {
+    let program = "struct P { x }\nfn set(q) {\n  var p = q\n  p.z = 1\n}\nset(P(1))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!("Undefined field 'z'.", error.message);
+    assert_eq!(Some((4, 4)), error.location);
+}
+
+#[test]
+fn store_field_non_instance_location() {
+    let program = "fn set(q) {\n  var p = q\n  p.z = 1\n}\nset(1)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!("Only instances have fields.", error.message);
+    assert_eq!(Some((3, 4)), error.location);
+}
