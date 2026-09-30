@@ -133,7 +133,7 @@ impl VirtualMachine {
                 if arity == 1 {
                     self.push(arg.unwrap_or(Value::Nil));
                 }
-                self.call_closure(arity, &body)
+                self.call_closure(arity, body)
             }
             _ => {
                 self.push(arg.unwrap_or(Value::Nil));

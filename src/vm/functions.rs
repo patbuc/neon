@@ -129,21 +129,24 @@ impl VirtualMachine {
     /// Shared by the CALL opcode, `call_value`'s re-entrant native-to-Neon
     /// calls, and `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
-        // Get the callable from the stack
-        let callable_value = self.peek(arg_count).clone();
+        // Take the callable out of its stack slot: nothing reads that slot
+        // as a value again (locals start above it), so a move avoids a
+        // clone the frame will own anyway.
+        let callable_index = self.stack.len() - 1 - arg_count;
+        let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
 
-        let result = match &callable_value {
+        let result = match callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
-            Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
+            Value::Struct(r#struct) => return self.instantiate_struct(arg_count, &r#struct),
             Value::NativeFunction(callable) => {
                 let native = self
-                    .lookup_native_method_by_index(callable)
+                    .lookup_native_method_by_index(&callable)
                     .map_err(|error| self.call_error(error))?;
                 if let NativeCallable::Control { op, .. } = native {
                     let base_index = self.stack.len() - arg_count - 1;
                     return self.control_op(*op, base_index, arg_count);
                 }
-                match self.call_native_function(arg_count, callable, native) {
+                match self.call_native_function(arg_count, &callable, native) {
                     Ok(value) => value,
                     Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
                     Err(NativeCallError::Runtime(e)) => return Err(e),
@@ -180,7 +183,7 @@ impl VirtualMachine {
                 method_symbol,
             ) {
                 MethodDispatch::Found(closure, arg_count, exclude_self) => {
-                    return self.call_closure_with(arg_count, &closure, exclude_self);
+                    return self.call_closure_with(arg_count, closure, exclude_self);
                 }
                 MethodDispatch::Mismatch(e) => return Err(e),
                 MethodDispatch::NotFound => {}
@@ -404,7 +407,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn call_closure(
         &mut self,
         arg_count: usize,
-        closure: &Rc<ObjClosure>,
+        closure: Rc<ObjClosure>,
     ) -> OpResult {
         self.call_closure_with(arg_count, closure, false)
     }
@@ -414,25 +417,25 @@ impl VirtualMachine {
     fn call_closure_with(
         &mut self,
         arg_count: usize,
-        closure: &Rc<ObjClosure>,
+        closure: Rc<ObjClosure>,
         exclude_self: bool,
     ) -> OpResult {
-        let func = &closure.function;
-        if arg_count != func.arity as usize {
+        let arity = closure.function.arity;
+        if arg_count != arity as usize {
             let (expected, got) = if exclude_self {
-                (func.arity - 1, arg_count - 1)
+                (arity - 1, arg_count - 1)
             } else {
-                (func.arity, arg_count)
+                (arity, arg_count)
             };
             return Err(self.call_error(format!(
                 "Expected {} arguments but got {} for '{}'.",
-                expected, got, func.name
+                expected, got, closure.function.name
             )));
         }
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
-        self.push_frame(Rc::clone(closure), slot_start);
+        self.push_frame(closure, slot_start);
         Ok(())
     }
 
