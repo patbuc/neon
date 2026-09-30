@@ -70,7 +70,7 @@ impl VirtualMachine {
                 }
             )));
         }
-        let arg = (arg_count == 1).then(|| self.peek(0));
+        let arg = (arg_count == 1).then(|| self.peek(0).clone());
 
         match op {
             ControlOp::FiberYield => self.yield_fiber(base_index, arg.unwrap_or(Value::Nil)),
