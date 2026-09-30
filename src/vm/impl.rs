@@ -258,8 +258,8 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn peek(&self, distance: usize) -> Value {
-        self.stack[self.stack.len() - 1 - distance].clone()
+    pub(in crate::vm) fn peek(&self, distance: usize) -> &Value {
+        &self.stack[self.stack.len() - 1 - distance]
     }
 
     pub(in crate::vm) fn runtime_error(&self, message: impl Into<String>) -> RuntimeError {
