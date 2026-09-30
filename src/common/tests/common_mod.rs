@@ -373,3 +373,22 @@ fn discard_drops_array_value() {
     value.discard();
     assert_eq!(Rc::strong_count(&rc), 1);
 }
+
+#[test]
+fn struct_field_index_resolves_non_contiguous_symbols() {
+    let field_symbols = vec![7, 2, 9];
+    let value = Value::new_struct(
+        "Sparse".to_string(),
+        vec!["a".to_string(), "b".to_string(), "c".to_string()],
+        field_symbols,
+        0,
+    );
+    let Value::Struct(s) = value else {
+        panic!("expected a struct value");
+    };
+
+    assert_eq!(s.field_index(7), Some(0));
+    assert_eq!(s.field_index(2), Some(1));
+    assert_eq!(s.field_index(9), Some(2));
+    assert_eq!(s.field_index(3), None);
+}
