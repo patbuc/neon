@@ -27,6 +27,13 @@ fn main() {
                 }
                 print_tokens(&args[2]);
             }
+            "--check" => {
+                if args.len() < 3 {
+                    eprintln!("Usage: neon --check <file>");
+                    exit(64);
+                }
+                check_file(&args[2]);
+            }
             _ => {
                 let file_path = &args[1];
                 let script_args = args[2..].to_vec();
@@ -142,6 +149,17 @@ fn print_tokens(path: &str) {
     println!("{}", neon::compiler::tokens_to_json(&source));
 }
 
+fn check_file(path: &str) {
+    let source = read_file(path);
+    let mut vm = VirtualMachine::new();
+
+    if vm.check(source) == InterpretResult::CompileError {
+        let formatted_errors = vm.get_formatted_errors(path);
+        eprintln!("{}", formatted_errors);
+        exit(65);
+    }
+}
+
 fn read_file(path: &str) -> String {
     let mut file = File::open(path).unwrap_or_else(|err| {
         eprintln!("Failed to open the file {}: {}", path, err);
@@ -166,6 +184,7 @@ fn print_help() {
     println!("Usage:");
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
+    println!("  neon --check <file.n>    Compile without executing");
     println!("  neon help                Show this help message");
     println!();
     println!("Examples:");

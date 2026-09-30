@@ -49,7 +49,7 @@ fn for_in_loop_runs_loop_opcode_once_per_iteration() {
 
     let report = vm.opcode_stats_report();
     assert_eq!(10, count_for(&report, "Loop"));
-    assert_eq!(10, count_for(&report, "Add"));
+    assert_eq!(10, count_for(&report, "AddConstant"));
 }
 
 #[test]
@@ -62,8 +62,8 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
 
     let report = vm.opcode_stats_report();
     let section = pair_section(&report);
-    assert_eq!(10, count_for(section, "GetLocal->Constant"));
-    assert_eq!(10, count_for(section, "Constant->Add"));
+    assert_eq!(10, count_for(section, "GetLocal->AddConstant"));
+    assert_eq!(10, count_for(section, "AddConstant->Pop"));
 
     let entries = parse_entries(section);
     let counts: Vec<u64> = entries.iter().map(|(_, count)| *count).collect();
@@ -71,18 +71,15 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // These nine pairs all execute 10 times; ties break by ascending
+    // These six pairs all execute 10 times; ties break by ascending
     // (prev byte, next byte).
     let mut expected = [
-        (OpCode::GetLocal, OpCode::Constant),
-        (OpCode::Constant, OpCode::Add),
-        (OpCode::Add, OpCode::SetLocal),
-        (OpCode::SetLocal, OpCode::GetLocal),
-        (OpCode::SetLocal, OpCode::Pop),
+        (OpCode::GetLocal, OpCode::AddConstant),
+        (OpCode::AddConstant, OpCode::Pop),
         (OpCode::Pop, OpCode::Loop),
         (OpCode::Pop, OpCode::IteratorNext),
         (OpCode::Loop, OpCode::IteratorDone),
-        (OpCode::IteratorNext, OpCode::SetLocal),
+        (OpCode::IteratorNext, OpCode::GetLocal),
     ];
     expected.sort_by_key(|(prev, next)| (*prev as u8, *next as u8));
     let expected: Vec<String> = expected
@@ -131,10 +128,10 @@ fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // Add, GetLocal, Loop, and IteratorNext all execute 10 times; ties break
-    // by ascending opcode byte.
+    // AddConstant, GetLocal, Loop, and IteratorNext all execute 10 times;
+    // ties break by ascending opcode byte.
     let mut expected = [
-        OpCode::Add,
+        OpCode::AddConstant,
         OpCode::GetLocal,
         OpCode::Loop,
         OpCode::IteratorNext,

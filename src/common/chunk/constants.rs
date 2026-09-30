@@ -18,7 +18,15 @@ impl Constants {
     }
 
     pub fn read_value(&self, index: usize) -> Value {
-        self.values[index].clone()
+        self.values[index].copy_or_clone()
+    }
+
+    #[inline(always)]
+    pub fn read_number(&self, index: usize) -> f64 {
+        match self.values[index] {
+            Value::Number(n) => n,
+            ref other => panic!("Expected number constant, got {:?}", other),
+        }
     }
 
     #[cfg_attr(not(test), allow(dead_code))]

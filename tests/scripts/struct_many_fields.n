@@ -1,0 +1,28 @@
+// Expected:
+// 1
+// 8
+// 1
+// 80
+// 90
+
+struct Eight {
+    a
+    b
+    c
+    d
+    e
+    f
+    g
+    h
+}
+
+val e = Eight(1, 2, 3, 4, 5, 6, 7, 8)
+print(e.a)
+print(e.h)
+
+e.h = 80
+print(e.a)
+print(e.h)
+
+e.a = 90
+print(e.a)
