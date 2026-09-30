@@ -30,6 +30,7 @@ impl VirtualMachine {
             source: String::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
+            fiber_depth: 0,
             methods: Vec::new(),
             fibers: None,
             native_methods: Vec::new(),
@@ -423,6 +424,7 @@ impl VirtualMachine {
         self.runtime_error = None;
         self.open_upvalues.clear();
         self.native_call_depth = 0;
+        self.fiber_depth = 0;
         self.methods.clear();
         self.fibers = None;
         #[cfg(feature = "opcode-stats")]

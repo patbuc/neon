@@ -117,7 +117,11 @@ impl VirtualMachine {
 
         let current = self.ensure_active();
         current.borrow_mut().state = FiberState::Waiting;
-        fiber.borrow_mut().caller = Some(current);
+        {
+            let mut target = fiber.borrow_mut();
+            target.caller = Some(current);
+            target.depth = self.fiber_depth + self.call_frames.len();
+        }
         self.switch_to(fiber);
         fiber.borrow_mut().state = FiberState::Running;
 
@@ -231,6 +235,7 @@ impl VirtualMachine {
             std::mem::swap(&mut next.frames, &mut self.call_frames);
             std::mem::swap(&mut next.stack, &mut self.stack);
             std::mem::swap(&mut next.open_upvalues, &mut self.open_upvalues);
+            self.fiber_depth = next.depth;
         }
         active.current = Rc::clone(target);
         if let Some(frame) = self.call_frames.last() {

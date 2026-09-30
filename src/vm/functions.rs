@@ -115,10 +115,10 @@ impl VirtualMachine {
         self.dispatch_invoke(method_symbol, arg_count)
     }
 
-    /// Errors with "Stack overflow" if the call frame stack is already at
-    /// its limit.
+    /// Errors with "Stack overflow" if the call frames of the running fiber
+    /// and the fibers waiting below it are already at their limit.
     fn check_frame_limit(&self) -> OpResult {
-        if self.call_frames.len() >= MAX_FRAMES {
+        if self.fiber_depth + self.call_frames.len() >= MAX_FRAMES {
             Err(self.call_error("Stack overflow"))
         } else {
             Ok(())

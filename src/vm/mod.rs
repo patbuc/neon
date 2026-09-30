@@ -46,6 +46,9 @@ pub struct VirtualMachine {
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
+    /// The running fiber's `ObjFiber::depth` (0 for the main script), so the
+    /// frame limit counts the frames of every fiber waiting below it.
+    fiber_depth: usize,
     /// User-defined methods from `impl` blocks, indexed by type symbol.
     /// Each entry is a Vec of (method symbol, closure, takes `self`).
     methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,

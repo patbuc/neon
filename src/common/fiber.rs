@@ -44,6 +44,9 @@ pub struct ObjFiber {
     /// waiting on a fiber it resumed itself. `Fiber.yield` and a root-frame
     /// return switch back to it.
     pub caller: Option<Rc<RefCell<ObjFiber>>>,
+    /// Call frames of the fibers below this one when it was last resumed:
+    /// its caller's frames plus the caller's own `depth`.
+    pub depth: usize,
 }
 
 impl ObjFiber {
@@ -56,6 +59,7 @@ impl ObjFiber {
             stack: Vec::new(),
             open_upvalues: Vec::new(),
             caller: None,
+            depth: 0,
         }
     }
 }
