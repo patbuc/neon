@@ -465,31 +465,30 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let a = self.stack.last_mut().expect("stack underflow");
-        // Match b by value so the Number/String arms consume it in place,
-        // skipping Value's shared drop glue for a scalar.
-        let is_match = match (&*a, b) {
+        let is_match = match (&*a, &b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
-                Comparison::Greater => *x > y,
-                Comparison::GreaterEqual => *x >= y,
-                Comparison::Less => *x < y,
-                Comparison::LessEqual => *x <= y,
+                Comparison::Greater => *x > *y,
+                Comparison::GreaterEqual => *x >= *y,
+                Comparison::Less => *x < *y,
+                Comparison::LessEqual => *x <= *y,
             },
             (Value::String(sa), Value::String(sb)) => match wanted {
-                Comparison::Greater => **sa > *sb,
-                Comparison::GreaterEqual => **sa >= *sb,
-                Comparison::Less => **sa < *sb,
-                Comparison::LessEqual => **sa <= *sb,
+                Comparison::Greater => **sa > **sb,
+                Comparison::GreaterEqual => **sa >= **sb,
+                Comparison::Less => **sa < **sb,
+                Comparison::LessEqual => **sa <= **sb,
             },
-            (_, b) => {
+            (_, other) => {
                 let message = format!(
                     "Operands of a comparison must be two numbers or two strings, got {} and {}",
                     a.type_name(),
-                    b.type_name()
+                    other.type_name()
                 );
                 return Err(self.runtime_error(message));
             }
         };
-        *a = boolean!(is_match);
+        b.discard();
+        std::mem::replace(a, boolean!(is_match)).discard();
         Ok(())
     }
 
@@ -653,7 +652,8 @@ impl VirtualMachine {
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
-        self.stack[absolute_index] = self.peek(0).clone();
+        let value = self.peek(0).copy_or_clone();
+        std::mem::replace(&mut self.stack[absolute_index], value).discard();
         Ok(())
     }
 
@@ -808,7 +808,7 @@ impl VirtualMachine {
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
-        self.push(self.stack[absolute_index].clone());
+        self.push(self.stack[absolute_index].copy_or_clone());
         Ok(())
     }
 
@@ -932,8 +932,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
         let value = match self.peek(0) {
-            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol).cloned() {
-                Some(value) => value,
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
                 None => {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
