@@ -427,6 +427,9 @@ impl SemanticAnalyzer {
                 location,
             ));
         }
+        if !is_mutable {
+            self.resolutions.mark_immutable(decl_id);
+        }
         decl_id
     }
 
