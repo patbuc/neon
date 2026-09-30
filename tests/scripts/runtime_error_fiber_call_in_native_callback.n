@@ -1,0 +1,12 @@
+// Resuming a fiber inside a callback passed to a native method
+
+// Expected:
+// start
+
+// Expected runtime error: Cannot resume a fiber from inside a native callback
+
+val f = Fiber(fn() {
+    return 1
+})
+print("start")
+print([1, 2].map(fn(x) { return f.call() }))

@@ -1,0 +1,12 @@
+// Passing more than one argument to call
+
+// Expected:
+// start
+
+// Expected runtime error: call() takes at most one argument, got 2
+
+val f = Fiber(fn(x) {
+    return x
+})
+print("start")
+f.call(1, 2)

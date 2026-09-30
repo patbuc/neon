@@ -1,0 +1,20 @@
+// A user method on Fiber can resume the receiver
+
+// Expected:
+// 1
+// 2
+// true
+
+impl Fiber {
+    fn next(self) {
+        return self.call()
+    }
+}
+
+val f = Fiber(fn() {
+    Fiber.yield(1)
+    return 2
+})
+print(f.next())
+print(f.next())
+print(f.isDone())
