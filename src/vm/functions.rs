@@ -436,10 +436,8 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let a = self.stack.last_mut().expect("stack underflow");
-        // Matching b by value, not by reference, lets the Number and String
-        // arms fully consume it in place instead of leaving it to be dropped
-        // through Value's shared (and comparatively expensive) drop glue
-        // once this match returns.
+        // Match b by value so the Number/String arms consume it in place,
+        // skipping Value's shared drop glue for a scalar.
         let is_match = match (&*a, b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
                 Comparison::Greater => *x > y,
@@ -453,10 +451,10 @@ impl VirtualMachine {
                 Comparison::Less => **sa < *sb,
                 Comparison::LessEqual => **sa <= *sb,
             },
-            (a_ref, b) => {
+            (_, b) => {
                 let message = format!(
                     "Operands of a comparison must be two numbers or two strings, got {} and {}",
-                    a_ref.type_name(),
+                    a.type_name(),
                     b.type_name()
                 );
                 return Err(self.runtime_error(message));
