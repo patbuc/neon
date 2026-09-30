@@ -861,6 +861,86 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
 }
 
 #[test]
+fn test_local_field_read_emits_get_local_field() {
+    let program = r#"
+    struct P { value }
+    fn get(p) {
+        return p.value
+    }
+    get(P(1))
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetLocalField"));
+    assert!(!disassembly.contains("GetField"));
+}
+
+#[test]
+fn test_global_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    val p = P(1)
+    fn get() {
+        return p.value
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_upvalue_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    fn make() {
+        val p = P(1)
+        return fn() { return p.value }
+    }
+    make()()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_non_local_object_field_read_still_emits_get_field() {
+    let program = r#"
+    struct P { value }
+    fn make() { return P(1) }
+    fn get() {
+        return make().value
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
+fn test_checked_local_field_read_still_emits_get_field() {
+    // `a` is read before its declaration runs, so it needs CheckInitialized.
+    let program = r#"
+    fn get() {
+        print(a.value)
+        fn a() { return 1 }
+    }
+    get()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("CheckInitialized"));
+    assert!(disassembly.contains("GetField"));
+    assert!(!disassembly.contains("GetLocalField"));
+}
+
+#[test]
 fn test_repeated_number_literal_dedups() {
     let program = "1\n".repeat(10);
     let chunk = compile_program(&program).unwrap();
