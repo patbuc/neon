@@ -65,7 +65,9 @@ noisy for thresholds.
 
 ### Profiling
 
-Build a release binary with debug symbols first: `CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release`.
+Build a release binary with line tables first: `CARGO_PROFILE_RELEASE_DEBUG=line-tables-only cargo build --release`.
+It compiles to the same code as a plain release build. Full debug info (`=true`) changes code generation — fib runs
+~6% more instructions and ~20% slower — so its profile describes a different program than the benchmarks run.
 
 ```bash
 perf record -g --call-graph dwarf ./target/release/neon benches/fib.n 31
@@ -82,7 +84,8 @@ callgrind_annotate --auto=yes callgrind.out.<pid>
 ```
 
 Most VM code inlines into `VirtualMachine::run_script`, so read costs per source line in the annotated output
-rather than per function.
+rather than per function. For per-instruction costs, add `--dump-instr=yes`; that works on a plain release build
+too.
 
 For a coarser view, the `opcode-stats` feature counts executed opcodes:
 
