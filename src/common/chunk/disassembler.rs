@@ -74,6 +74,7 @@ impl Chunk {
             OpCode::Modulo => self.simple_instruction(instruction, offset, out),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset, out),
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset, out),
+            OpCode::GetLocalField => self.local_field_instruction(offset, out),
             OpCode::CreateMap => self.create_map_instruction(offset, out),
             OpCode::CreateArray => self.create_array_instruction(offset, out),
             OpCode::CreateSet => self.create_set_instruction(offset, out),
@@ -133,6 +134,22 @@ impl Chunk {
         let name = &self.symbols[symbol];
         writeln!(out, "{:?} {:02} '{}'", op_code, symbol, name).unwrap();
         offset + 3
+    }
+
+    fn local_field_instruction(&self, offset: usize, out: &mut String) -> usize {
+        let slot = self.read_u16(offset + 1);
+        let symbol = self.read_u16(offset + 3) as usize;
+        let name = &self.symbols[symbol];
+        writeln!(
+            out,
+            "{:?} {:02} {:02} '{}'",
+            OpCode::GetLocalField,
+            slot,
+            symbol,
+            name
+        )
+        .unwrap();
+        offset + 5
     }
 
     fn constant_instruction(&self, offset: usize, out: &mut String) -> usize {

@@ -43,6 +43,21 @@ fn get_field_instruction_prints_the_symbol_name() {
 }
 
 #[test]
+fn get_local_field_instruction_prints_the_slot_and_symbol_name() {
+    let mut chunk = Chunk::new("origin");
+    chunk.symbols = Rc::from(vec![Rc::from("x"), Rc::from("value")]);
+    chunk.write_op_code(OpCode::GetLocalField, 1, 1);
+    chunk.write_u16(0);
+    chunk.write_u16(1);
+
+    let mut out = String::new();
+    let next_offset = chunk.disassemble_instruction(0, &mut out);
+
+    assert_eq!(out, "0000      1 GetLocalField 00 01 'value'\n");
+    assert_eq!(5, next_offset);
+}
+
+#[test]
 fn set_field_instruction_prints_the_symbol_name() {
     let mut chunk = Chunk::new("origin");
     chunk.symbols = Rc::from(vec![Rc::from("x"), Rc::from("value")]);
