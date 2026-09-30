@@ -685,6 +685,19 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Statement-position `SetLocal`: moves the top of stack into the slot
+    /// instead of copying it there and leaving it pushed.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_local(&mut self) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot();
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+        let value = self.pop();
+        std::mem::replace(&mut self.stack[absolute_index], value).discard();
+        Ok(())
+    }
+
     fn read_index(&self) -> usize {
         self.operand_u16(1) as usize
     }
@@ -1006,6 +1019,33 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Stack: `[.., value]` -> `[..]`.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_local_field(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let symbol = self.operand_u16(3);
+        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+
+        let value = self.pop();
+        match &self.stack[absolute_index] {
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(field_index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                };
+                drop(std::mem::replace(&mut instance.fields[field_index], value));
+            }
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        }
+
+        self.ip += 4;
+        Ok(())
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         // [.., instance, value] -> [.., value]
@@ -1029,6 +1069,30 @@ impl VirtualMachine {
             self.stack.last_mut().expect("stack underflow"),
             value,
         ));
+
+        self.ip += 2;
+        Ok(())
+    }
+
+    /// Statement-position `SetField`: unlike `op_set_field`, fully
+    /// consumes the instance and value instead of leaving the value
+    /// pushed. Stack: `[.., instance, value]` -> `[..]`.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_field(&mut self) -> OpResult {
+        let symbol = self.read_index() as u16;
+        let value = self.pop();
+        let instance = self.pop();
+        match instance {
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                };
+                drop(std::mem::replace(&mut instance.fields[index], value));
+            }
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        }
 
         self.ip += 2;
         Ok(())
