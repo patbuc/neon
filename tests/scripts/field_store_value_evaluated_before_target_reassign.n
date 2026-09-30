@@ -1,0 +1,30 @@
+// Reassigning `p` while computing the value of `p.x = ...` must not change
+// which instance the assignment lands on.
+
+// Expected:
+// 15
+// 5
+// 15
+// 5
+
+struct P {
+    x
+}
+
+fn run() {
+    var p = P(1)
+    val orig = p
+    val q = P(5)
+    p.x = (p = q).x + 10
+    print(orig.x)
+    print(q.x)
+}
+
+run()
+
+var p = P(1)
+val orig = p
+val q = P(5)
+p.x = (p = q).x + 10
+print(orig.x)
+print(q.x)

@@ -1,0 +1,16 @@
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'y'.
+
+struct P {
+    x
+}
+
+fn setY(q) {
+    var p = q
+    p.y = 2
+}
+
+print("before")
+setY(P(1))

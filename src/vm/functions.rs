@@ -98,7 +98,12 @@ impl VirtualMachine {
 
         self.check_frame_limit()?;
 
-        self.dispatch_call(arg_count)
+        let callable_index = self.stack.len() - 1 - arg_count;
+        let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
+        match callable_value {
+            Value::Closure(closure) => self.call_closure(arg_count, closure),
+            other => self.dispatch_call_value(other, arg_count),
+        }
     }
 
     /// Invoke: a method call dispatched by name at runtime. Stack before:
@@ -125,13 +130,18 @@ impl VirtualMachine {
     }
 
     /// Dispatches a call: the stack must already hold `[callable, args...]`.
-    /// Shared by the CALL opcode, `call_value`'s re-entrant native-to-Neon
-    /// calls, and `Invoke` falling through to a callable instance field.
+    /// Shared by `call_value`'s re-entrant native-to-Neon calls and
+    /// `Invoke` falling through to a callable instance field.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
+        self.dispatch_call_value(callable_value, arg_count)
+    }
 
+    /// Dispatches an already-extracted callable value (its stack slot has
+    /// already been replaced with `Value::Nil`).
+    fn dispatch_call_value(&mut self, callable_value: Value, arg_count: usize) -> OpResult {
         let result = match callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
             Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
@@ -379,12 +389,14 @@ impl VirtualMachine {
         Ok(())
     }
 
+    #[inline(always)]
     fn call_closure(&mut self, arg_count: usize, closure: Rc<ObjClosure>) -> OpResult {
         self.call_closure_with(arg_count, closure, false)
     }
 
     /// Calls a closure; `exclude_self` leaves the leading `self` argument
     /// out of an arity-mismatch message.
+    #[inline(always)]
     fn call_closure_with(
         &mut self,
         arg_count: usize,
@@ -393,21 +405,32 @@ impl VirtualMachine {
     ) -> OpResult {
         let arity = closure.function.arity;
         if arg_count != arity as usize {
-            let (expected, got) = if exclude_self {
-                (arity - 1, arg_count - 1)
-            } else {
-                (arity, arg_count)
-            };
-            return Err(self.call_error(format!(
-                "Expected {} arguments but got {} for '{}'.",
-                expected, got, closure.function.name
-            )));
+            return Err(self.arity_error(arg_count, arity, exclude_self, &closure.function.name));
         }
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
         self.push_frame(closure, slot_start);
         Ok(())
+    }
+
+    #[cold]
+    fn arity_error(
+        &self,
+        arg_count: usize,
+        arity: u8,
+        exclude_self: bool,
+        function_name: &str,
+    ) -> RuntimeError {
+        let (expected, got) = if exclude_self {
+            (arity - 1, arg_count - 1)
+        } else {
+            (arity, arg_count)
+        };
+        self.call_error(format!(
+            "Expected {} arguments but got {} for '{}'.",
+            expected, got, function_name
+        ))
     }
 
     #[inline(always)]
@@ -434,31 +457,30 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let a = self.stack.last_mut().expect("stack underflow");
-        // Match b by value so the Number/String arms consume it in place,
-        // skipping Value's shared drop glue for a scalar.
-        let is_match = match (&*a, b) {
+        let is_match = match (&*a, &b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
-                Comparison::Greater => *x > y,
-                Comparison::GreaterEqual => *x >= y,
-                Comparison::Less => *x < y,
-                Comparison::LessEqual => *x <= y,
+                Comparison::Greater => *x > *y,
+                Comparison::GreaterEqual => *x >= *y,
+                Comparison::Less => *x < *y,
+                Comparison::LessEqual => *x <= *y,
             },
             (Value::String(sa), Value::String(sb)) => match wanted {
-                Comparison::Greater => **sa > *sb,
-                Comparison::GreaterEqual => **sa >= *sb,
-                Comparison::Less => **sa < *sb,
-                Comparison::LessEqual => **sa <= *sb,
+                Comparison::Greater => **sa > **sb,
+                Comparison::GreaterEqual => **sa >= **sb,
+                Comparison::Less => **sa < **sb,
+                Comparison::LessEqual => **sa <= **sb,
             },
-            (_, b) => {
+            (_, other) => {
                 let message = format!(
                     "Operands of a comparison must be two numbers or two strings, got {} and {}",
                     a.type_name(),
-                    b.type_name()
+                    other.type_name()
                 );
                 return Err(self.runtime_error(message));
             }
         };
-        *a = boolean!(is_match);
+        b.discard();
+        std::mem::replace(a, boolean!(is_match)).discard();
         Ok(())
     }
 
@@ -598,6 +620,63 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// `Add` with a number constant as the right operand. A non-number left
+    /// operand goes through `op_add` so its error stays identical.
+    #[inline(always)]
+    pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = slot {
+            *a += self.chunk.read_number_constant(index);
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_add()?;
+        self.ip += 2;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = slot {
+            *a -= self.chunk.read_number_constant(index);
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_subtract()?;
+        self.ip += 2;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let slot = self.stack.last_mut().expect("stack underflow");
+        if let Value::Number(a) = *slot {
+            let c = self.chunk.read_number_constant(index);
+            let is_match = match wanted {
+                Comparison::Greater => a > c,
+                Comparison::GreaterEqual => a >= c,
+                Comparison::Less => a < c,
+                Comparison::LessEqual => a <= c,
+            };
+            std::mem::replace(slot, boolean!(is_match)).discard();
+            self.ip += 2;
+            return Ok(());
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_compare(wanted)?;
+        self.ip += 2;
+        Ok(())
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
         // [.., operand] -> [.., result]
@@ -622,7 +701,21 @@ impl VirtualMachine {
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
-        self.stack[absolute_index] = self.peek(0).clone();
+        let value = self.peek(0).copy_or_clone();
+        std::mem::replace(&mut self.stack[absolute_index], value).discard();
+        Ok(())
+    }
+
+    /// Statement-position `SetLocal`: moves the top of stack into the slot
+    /// instead of copying it there and leaving it pushed.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_local(&mut self) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot();
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+        let value = self.pop();
+        std::mem::replace(&mut self.stack[absolute_index], value).discard();
         Ok(())
     }
 
@@ -775,7 +868,7 @@ impl VirtualMachine {
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
-        self.push(self.stack[absolute_index].clone());
+        self.push(self.stack[absolute_index].copy_or_clone());
         Ok(())
     }
 
@@ -896,8 +989,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
         let value = match self.peek(0) {
-            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol).cloned() {
-                Some(value) => value,
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
                 None => {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
@@ -906,32 +999,116 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
-        self.pop();
-        self.push(value);
+        // Plain assignment drops the old top while `value` is still live,
+        // which makes the compiler spill a slow unwind copy of it.
+        drop(std::mem::replace(
+            self.stack.last_mut().expect("stack underflow"),
+            value,
+        ));
 
         self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn op_get_local_field(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let symbol = self.operand_u16(3);
+        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+
+        let value = match &self.stack[absolute_index] {
+            Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        };
+
+        self.ip += 4;
+        self.push(value);
+        Ok(())
+    }
+
+    /// Stack: `[.., value]` -> `[..]`.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_local_field(&mut self) -> OpResult {
+        let index = self.operand_u16(1) as usize;
+        let symbol = self.operand_u16(3);
+        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        if absolute_index >= self.stack.len() {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        }
+
+        let value = self.pop();
+        match &self.stack[absolute_index] {
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(field_index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                };
+                drop(std::mem::replace(&mut instance.fields[field_index], value));
+            }
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        }
+
+        self.ip += 4;
+        Ok(())
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
+        // [.., instance, value] -> [.., value]
         let symbol = self.read_index() as u16;
-        let value = self.peek(0).clone();
-        match self.peek(1) {
+        let value = self.pop();
+        match self.peek(0) {
             Value::Instance(instance_ref) => {
                 let mut instance = instance_ref.borrow_mut();
                 let Some(index) = instance.r#struct.field_index(symbol) else {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
-                instance.fields[index] = value.clone();
+                instance.fields[index] = value.copy_or_clone();
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        self.pop();
-        self.pop();
-        self.push(value);
+        // Plain assignment drops the old top while `value` is still live,
+        // which makes the compiler spill a slow unwind copy of it.
+        drop(std::mem::replace(
+            self.stack.last_mut().expect("stack underflow"),
+            value,
+        ));
+
+        self.ip += 2;
+        Ok(())
+    }
+
+    /// Statement-position `SetField`: unlike `op_set_field`, fully
+    /// consumes the instance and value instead of leaving the value
+    /// pushed. Stack: `[.., instance, value]` -> `[..]`.
+    #[inline(always)]
+    pub(in crate::vm) fn op_store_field(&mut self) -> OpResult {
+        let symbol = self.read_index() as u16;
+        let value = self.pop();
+        let instance = self.pop();
+        match instance {
+            Value::Instance(instance_ref) => {
+                let mut instance = instance_ref.borrow_mut();
+                let Some(index) = instance.r#struct.field_index(symbol) else {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                };
+                drop(std::mem::replace(&mut instance.fields[index], value));
+            }
+            _ => return Err(self.runtime_error("Only instances have fields.")),
+        }
 
         self.ip += 2;
         Ok(())

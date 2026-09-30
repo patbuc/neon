@@ -211,17 +211,49 @@ impl ObjInstance {
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
-    pub field_symbols: Vec<u16>,
+    field_table: Vec<Option<u16>>,
     pub name_symbol: u16,
 }
 
 impl ObjStruct {
+    fn build_field_table(field_symbols: &[u16]) -> Vec<Option<u16>> {
+        let max_symbol = field_symbols.iter().copied().max().unwrap_or(0);
+        let mut table = vec![None; max_symbol as usize + 1];
+        for (index, &symbol) in field_symbols.iter().enumerate() {
+            table[symbol as usize] = Some(index as u16);
+        }
+        table
+    }
+
     pub(crate) fn field_index(&self, symbol: u16) -> Option<usize> {
-        self.field_symbols.iter().position(|&s| s == symbol)
+        self.field_table
+            .get(symbol as usize)
+            .copied()
+            .flatten()
+            .map(|index| index as usize)
     }
 }
 
 impl Value {
+    /// Clones the value, copying scalars inline instead of calling `Clone`.
+    #[inline(always)]
+    pub(crate) fn copy_or_clone(&self) -> Value {
+        match self {
+            Value::Number(n) => Value::Number(*n),
+            Value::Boolean(b) => Value::Boolean(*b),
+            Value::Nil => Value::Nil,
+            _ => self.clone(),
+        }
+    }
+
+    /// Drops the value, skipping drop glue for scalars.
+    #[inline(always)]
+    pub(crate) fn discard(self) {
+        if let Value::Number(_) | Value::Boolean(_) | Value::Nil = self {
+            std::mem::forget(self);
+        }
+    }
+
     pub(crate) fn new_instance(instance: ObjInstance) -> Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
@@ -232,10 +264,11 @@ impl Value {
         field_symbols: Vec<u16>,
         name_symbol: u16,
     ) -> Self {
+        let field_table = ObjStruct::build_field_table(&field_symbols);
         Value::Struct(Rc::new(ObjStruct {
             name,
             fields,
-            field_symbols,
+            field_table,
             name_symbol,
         }))
     }

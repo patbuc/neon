@@ -1,6 +1,7 @@
 use crate::common::*;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
@@ -330,4 +331,64 @@ fn test_range_len() {
         panic!("Expected Range value");
     };
     assert_eq!(empty.len(), 0);
+}
+
+#[test]
+fn copy_or_clone_scalars() {
+    assert_eq!(Value::Number(1.0).copy_or_clone(), Value::Number(1.0));
+    assert_eq!(Value::Boolean(true).copy_or_clone(), Value::Boolean(true));
+    assert_eq!(Value::Nil.copy_or_clone(), Value::Nil);
+}
+
+#[test]
+fn copy_or_clone_increments_refcount_for_rc_backed_value() {
+    let rc = Rc::new("hello".to_string());
+    let value = Value::String(rc.clone());
+    assert_eq!(Rc::strong_count(&rc), 2);
+
+    let copy = value.copy_or_clone();
+    assert_eq!(Rc::strong_count(&rc), 3);
+
+    drop(value);
+    drop(copy);
+    assert_eq!(Rc::strong_count(&rc), 1);
+}
+
+#[test]
+fn discard_drops_rc_backed_value() {
+    let rc = Rc::new("hello".to_string());
+    let value = Value::String(rc.clone());
+    assert_eq!(Rc::strong_count(&rc), 2);
+
+    value.discard();
+    assert_eq!(Rc::strong_count(&rc), 1);
+}
+
+#[test]
+fn discard_drops_array_value() {
+    let rc = Rc::new(RefCell::new(vec![Value::Number(1.0)]));
+    let value = Value::Array(rc.clone());
+    assert_eq!(Rc::strong_count(&rc), 2);
+
+    value.discard();
+    assert_eq!(Rc::strong_count(&rc), 1);
+}
+
+#[test]
+fn struct_field_index_resolves_non_contiguous_symbols() {
+    let field_symbols = vec![7, 2, 9];
+    let value = Value::new_struct(
+        "Sparse".to_string(),
+        vec!["a".to_string(), "b".to_string(), "c".to_string()],
+        field_symbols,
+        0,
+    );
+    let Value::Struct(s) = value else {
+        panic!("expected a struct value");
+    };
+
+    assert_eq!(s.field_index(7), Some(0));
+    assert_eq!(s.field_index(2), Some(1));
+    assert_eq!(s.field_index(9), Some(2));
+    assert_eq!(s.field_index(3), None);
 }

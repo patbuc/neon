@@ -91,6 +91,7 @@ pub struct Resolutions {
     functions: HashMap<NodeId, FunctionResolution>,
     captured: HashSet<DeclId>,
     checked: HashSet<NodeId>,
+    immutable: HashSet<DeclId>,
     symbols: Symbols,
 }
 
@@ -113,6 +114,11 @@ impl Resolutions {
 
     pub(crate) fn mark_captured(&mut self, decl: DeclId) {
         self.captured.insert(decl);
+    }
+
+    /// Marks a declaration that can't be reassigned.
+    pub(crate) fn mark_immutable(&mut self, decl: DeclId) {
+        self.immutable.insert(decl);
     }
 
     /// Marks a name use as one that can run before the hoisted `fn` it
@@ -178,5 +184,10 @@ impl Resolutions {
     /// Whether this name use needs a runtime initialization check.
     pub fn is_checked(&self, id: NodeId) -> bool {
         self.checked.contains(&id)
+    }
+
+    /// Whether this declaration can't be reassigned.
+    pub fn is_immutable(&self, decl: DeclId) -> bool {
+        self.immutable.contains(&decl)
     }
 }
