@@ -45,7 +45,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    pub fn interpret(&mut self, source: String) -> InterpretResult {
+    fn compile(&mut self, source: String) -> Option<Chunk> {
         self.reset();
 
         self.source = source.clone();
@@ -59,10 +59,26 @@ impl VirtualMachine {
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
+        if chunk.is_none() {
+            self.structured_errors = compiler.get_structured_errors();
+        }
+
+        chunk
+    }
+
+    pub fn check(&mut self, source: String) -> InterpretResult {
+        match self.compile(source) {
+            Some(_) => InterpretResult::Ok,
+            None => InterpretResult::CompileError,
+        }
+    }
+
+    pub fn interpret(&mut self, source: String) -> InterpretResult {
+        let chunk = self.compile(source);
+
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
         if chunk.is_none() {
-            self.structured_errors = compiler.get_structured_errors();
             return InterpretResult::CompileError;
         }
 
