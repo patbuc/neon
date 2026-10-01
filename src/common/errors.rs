@@ -73,7 +73,7 @@ compilation_error_kinds! {
     TooManySymbols => "E0039",
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompilationError {
     pub phase: CompilationPhase,
     pub kind: CompilationErrorKind,
