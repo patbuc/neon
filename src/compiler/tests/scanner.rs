@@ -169,7 +169,7 @@ fn can_scan_minusminus_operator() {
 
 #[test]
 fn can_scan_compound_assignment_operators() {
-    let script = "x += y -= z *= w /= v %= u";
+    let script = "x += y -= z *= w /= v %= u **= t";
 
     let scanner = Scanner::new(script);
     let x: Vec<Token> = collect_tokens(scanner);
@@ -187,6 +187,7 @@ fn can_scan_compound_assignment_operators() {
             &TokenType::StarEqual,
             &TokenType::SlashEqual,
             &TokenType::PercentEqual,
+            &TokenType::StarStarEqual,
             &TokenType::Eof,
         ]
     );
