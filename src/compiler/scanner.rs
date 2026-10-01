@@ -162,6 +162,8 @@ impl Scanner {
             '-' => {
                 if self.matches('-') {
                     self.make_token(TokenType::MinusMinus)
+                } else if self.matches('=') {
+                    self.make_token(TokenType::MinusEqual)
                 } else {
                     self.make_token(TokenType::Minus)
                 }
@@ -169,17 +171,27 @@ impl Scanner {
             '+' => {
                 if self.matches('+') {
                     self.make_token(TokenType::PlusPlus)
+                } else if self.matches('=') {
+                    self.make_token(TokenType::PlusEqual)
                 } else {
                     self.make_token(TokenType::Plus)
                 }
             }
-            '%' => self.make_token(TokenType::Percent),
+            '%' => {
+                if self.matches('=') {
+                    self.make_token(TokenType::PercentEqual)
+                } else {
+                    self.make_token(TokenType::Percent)
+                }
+            }
             ';' => self.make_token(TokenType::Semicolon),
             ':' => self.make_token(TokenType::Colon),
             '?' => self.make_token(TokenType::Question),
             '*' => {
                 if self.matches('*') {
                     self.make_token(TokenType::StarStar)
+                } else if self.matches('=') {
+                    self.make_token(TokenType::StarEqual)
                 } else {
                     self.make_token(TokenType::Star)
                 }
@@ -232,7 +244,13 @@ impl Scanner {
             }
             '^' => self.make_token(TokenType::Caret),
             '~' => self.make_token(TokenType::Tilde),
-            '/' => self.make_token(TokenType::Slash),
+            '/' => {
+                if self.matches('=') {
+                    self.make_token(TokenType::SlashEqual)
+                } else {
+                    self.make_token(TokenType::Slash)
+                }
+            }
             '\n' => {
                 let new_line = self.make_token(TokenType::NewLine);
                 self.line += 1;

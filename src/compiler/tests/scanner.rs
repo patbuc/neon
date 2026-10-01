@@ -168,6 +168,31 @@ fn can_scan_minusminus_operator() {
 }
 
 #[test]
+fn can_scan_compound_assignment_operators() {
+    let script = "x += y -= z *= w /= v %= u";
+
+    let scanner = Scanner::new(script);
+    let x: Vec<Token> = collect_tokens(scanner);
+
+    let operators: Vec<&TokenType> = x
+        .iter()
+        .map(|t| &t.token_type)
+        .filter(|t| **t != TokenType::Identifier)
+        .collect();
+    assert_eq!(
+        operators,
+        vec![
+            &TokenType::PlusEqual,
+            &TokenType::MinusEqual,
+            &TokenType::StarEqual,
+            &TokenType::SlashEqual,
+            &TokenType::PercentEqual,
+            &TokenType::Eof,
+        ]
+    );
+}
+
+#[test]
 fn can_scan_hexadecimal_lowercase() {
     let scanner = Scanner::new("0xff");
     let tokens = collect_tokens(scanner);

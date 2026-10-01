@@ -382,8 +382,9 @@ the variable in the body carries over to the increment and the next iteration.
 - `..=` Range (inclusive)
 - `c ? a : b` Ternary
 - `x++` / `x--` Increment / decrement a variable
+- `x += e`, `-=`, `*=`, `/=`, `%=` Compound assignment on a variable
 
-There is no compound assignment (`+=`, `-=`, ...); write `x = x + 1`.
+Compound assignment works on variables only, not fields or indexes; write `o.n = o.n + 1`.
 
 **Operator Precedence:** `||` has lower precedence than `&&`, so `a || b && c` is evaluated as `a || (b && c)`.
 

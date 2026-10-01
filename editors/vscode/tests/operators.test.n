@@ -40,6 +40,16 @@
 //         ^ keyword.operator.arithmetic.neon
   var r = a%b
 //         ^ keyword.operator.arithmetic.neon
+  a+=b
+// ^^ keyword.operator.assignment.neon
+  a-=b
+// ^^ keyword.operator.assignment.neon
+  a*=b
+// ^^ keyword.operator.assignment.neon
+  a/=b
+// ^^ keyword.operator.assignment.neon
+  a%=b
+// ^^ keyword.operator.assignment.neon
   var r = !a
 //        ^ keyword.operator.logical.neon
   var r = a&b

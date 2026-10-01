@@ -54,8 +54,10 @@ won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the scri
 - No `switch`/`match`, `do`/`while`, `try`/`catch`, or `throw`.
 
 **Operators**
-- No compound assignment: `x += 1` doesn't exist. Write `x = x + 1`. `i++`
-  and `i--` exist as statements; prefix `++i` does not.
+- Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`) works on variables only
+  (local, global, captured); `o.n += 1` and `a[0] += 1` are compile errors,
+  write `o.n = o.n + 1`. No `**=` or bitwise compound operators. `i++` and
+  `i--` exist as statements; prefix `++i` does not.
 - `/` is float division (`7 / 2` is `3.5`). Integer division is
   `Math.floor(a / b)`.
 - `**` is power. `& | ^ ~ << >>` are bitwise. `c ? a : b` works.
