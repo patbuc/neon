@@ -776,6 +776,94 @@ fn test_assign_to_immutable() {
 }
 
 #[test]
+fn test_compound_assign_to_immutable() {
+    let program = "val x = 1\nx += 1\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .contains("Cannot assign to immutable variable 'x'")));
+}
+
+#[test]
+fn test_compound_assign_to_undefined_variable() {
+    let program = "y += 1\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Undefined variable 'y'"));
+}
+
+#[test]
+fn test_compound_assign_before_declaration() {
+    let program = "g += 1\nvar g = 0\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0]
+        .message
+        .contains("Cannot use 'g' before its declaration"));
+}
+
+#[test]
+fn test_compound_assign_both_sides_undefined() {
+    let program = "y += z\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 2);
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Undefined variable 'y'")));
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Undefined variable 'z'")));
+}
+
+#[test]
+fn test_compound_assign_self_reference_before_declaration() {
+    let program = "g += g\nvar g = 0\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    // The two uses of 'g' are at different columns, so both are distinct
+    // diagnostics - only an identical (same message and location) repeat
+    // is deduplicated.
+    assert_eq!(errors.len(), 2);
+    assert!(errors
+        .iter()
+        .all(|e| e.message.contains("Cannot use 'g' before its declaration")));
+}
+
+#[test]
 fn test_assign_to_mutable() {
     let program = "var x = 5\nx = 10\n";
     let mut parser = Parser::new(program);

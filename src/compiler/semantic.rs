@@ -210,7 +210,7 @@ impl SemanticAnalyzer {
                         self.intern_name(&field.name, field.location);
                     }
                     if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str()) {
-                        self.errors.push(CompilationError::new(
+                        self.push_error(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::ReservedStructName,
                             format!("Struct name '{}' is reserved for a builtin type", name),
@@ -266,7 +266,7 @@ impl SemanticAnalyzer {
     fn intern_name(&mut self, name: &str, location: SourceLocation) {
         if self.resolutions.intern_symbol(name).is_none() && !self.too_many_symbols_reported {
             self.too_many_symbols_reported = true;
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::TooManySymbols,
                 "Too many distinct field, method and type names (limit 65536)".to_string(),
@@ -279,7 +279,7 @@ impl SemanticAnalyzer {
         let mut seen = HashSet::new();
         for field in fields {
             if !seen.insert(field.name.as_str()) {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::DuplicateField,
                     format!(
@@ -309,7 +309,7 @@ impl SemanticAnalyzer {
                     ..
                 }) => fields.clone(),
                 _ => {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::UndefinedType,
                         format!("Cannot implement undefined type '{}'", type_name),
@@ -333,7 +333,7 @@ impl SemanticAnalyzer {
             self.intern_name(name, *method_location);
 
             if crate::common::method_registry::is_valid_method(type_name, name) {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::NativeMethodConflict,
                     format!(
@@ -347,7 +347,7 @@ impl SemanticAnalyzer {
 
             let takes_self = params.first().map(String::as_str) == Some("self");
             if is_builtin_type && !takes_self {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::StaticMethodOnBuiltinType,
                     format!(
@@ -360,7 +360,7 @@ impl SemanticAnalyzer {
             }
 
             if field_names.iter().any(|f| f == name) {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::MethodFieldConflict,
                     format!(
@@ -377,7 +377,7 @@ impl SemanticAnalyzer {
                 .entry(type_name.to_string())
                 .or_default();
             if entry.contains_key(name) {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::DuplicateMethod,
                     format!(
@@ -420,7 +420,7 @@ impl SemanticAnalyzer {
         );
 
         if let Err(err) = self.symbol_table.define(symbol) {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::DuplicateSymbol,
                 err,
@@ -676,6 +676,12 @@ impl SemanticAnalyzer {
         (upvalues.len() - 1) as u32
     }
 
+    fn push_error(&mut self, error: CompilationError) {
+        if !self.errors.contains(&error) {
+            self.errors.push(error);
+        }
+    }
+
     /// Resolves a symbol use into a `Res` and records it under `id`.
     fn record_symbol_use(&mut self, id: NodeId, use_: SymbolUse) {
         let res = self.compute_res(use_);
@@ -686,7 +692,7 @@ impl SemanticAnalyzer {
     /// its resolution under `id` either way.
     fn check_variable_mutability(&mut self, id: NodeId, name: &str, location: SourceLocation) {
         let Some(symbol) = self.symbol_table.resolve(name) else {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
@@ -698,7 +704,7 @@ impl SemanticAnalyzer {
         self.check_top_level_forward_use(use_, name, location);
 
         if !use_.is_mutable {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ImmutableAssignment,
                 format!("Cannot modify immutable variable '{}'", name),
@@ -724,14 +730,14 @@ impl SemanticAnalyzer {
         }
         let decl_id = use_.decl_id;
         if self.currently_initializing == Some(decl_id) {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ReadInOwnInitializer,
                 format!("Cannot read '{}' in its own initializer", name),
                 location,
             ));
         } else if self.not_initialized_top_level.contains(&decl_id) {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UseBeforeDeclaration,
                 format!("Cannot use '{}' before its declaration", name),
@@ -795,7 +801,7 @@ impl SemanticAnalyzer {
             } => {
                 // A top-level struct was already resolved in collect_declarations.
                 if self.symbol_table.current_depth() != 0 {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::StructNotTopLevel,
                         format!("Struct '{}' must be declared at the top level", name),
@@ -821,7 +827,7 @@ impl SemanticAnalyzer {
                 // Resolve method bodies here, at the impl's textual position,
                 // so they see top-level val/var like other script-level code.
                 if self.symbol_table.current_depth() != 0 {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::ImplNotTopLevel,
                         "'impl' blocks are only allowed at the top level".to_string(),
@@ -1235,7 +1241,7 @@ impl SemanticAnalyzer {
 
     fn validate_loop_control_statement(&mut self, keyword: &str, location: SourceLocation) {
         if self.loop_depth == 0 {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::LoopControlOutsideLoop,
                 format!("Cannot use '{}' outside of a loop", keyword),
@@ -1258,7 +1264,7 @@ impl SemanticAnalyzer {
 
     fn resolve_variable(&mut self, id: NodeId, name: &str, location: SourceLocation) {
         let Some(symbol) = self.symbol_table.resolve(name) else {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
@@ -1268,7 +1274,7 @@ impl SemanticAnalyzer {
         };
 
         if symbol.kind == SymbolKind::Namespace {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::NamespaceAsValue,
                 format!("'{}' is a namespace, not a value", name),
@@ -1296,7 +1302,7 @@ impl SemanticAnalyzer {
         self.resolve_expr(value);
 
         let Some(symbol) = self.symbol_table.resolve(name) else {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UndefinedVariable,
                 format!("Undefined variable '{}'", name),
@@ -1309,7 +1315,7 @@ impl SemanticAnalyzer {
         self.check_top_level_forward_use(use_, name, location);
 
         if !use_.is_mutable {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ImmutableAssignment,
                 format!("Cannot assign to immutable variable '{}'", name),
@@ -1409,7 +1415,7 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::StaticCallOnBuiltinType,
                     "Static methods are only supported on structs".to_string(),
@@ -1559,7 +1565,7 @@ impl SemanticAnalyzer {
                 self.check_variable_mutability(*id, name, location);
             }
             _ => {
-                self.errors.push(CompilationError::new(
+                self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::InvalidIncrementTarget,
                     format!("{operator} operator can only be applied to variables"),
@@ -1586,7 +1592,7 @@ impl SemanticAnalyzer {
         let index = crate::common::method_registry::get_native_method_index(namespace, method)
             .filter(|_| crate::common::method_registry::is_static_method(namespace, method));
         if index.is_none() {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownNamespaceMethod,
                 format!(
@@ -1631,7 +1637,7 @@ impl SemanticAnalyzer {
         if let Some(signature) = signature {
             match (call_kind, signature.takes_self) {
                 (MethodCallKind::Static, true) => {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::MethodNeedsInstance,
                         format!(
@@ -1642,7 +1648,7 @@ impl SemanticAnalyzer {
                     ));
                 }
                 (MethodCallKind::Instance, false) => {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::MethodIsStatic,
                         format!(
@@ -1690,7 +1696,7 @@ impl SemanticAnalyzer {
 
         let error_message = unknown_method_error(struct_name, method, &candidate_refs);
 
-        self.errors.push(CompilationError::new(
+        self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
             CompilationErrorKind::UnknownMethod,
             error_message,
@@ -1748,7 +1754,7 @@ impl SemanticAnalyzer {
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
         let error_message = unknown_method_error(object_type, method, &candidate_refs);
 
-        self.errors.push(CompilationError::new(
+        self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
             CompilationErrorKind::UnknownMethod,
             error_message,
@@ -1783,7 +1789,7 @@ impl SemanticAnalyzer {
         }
 
         if !self.struct_has_field(struct_name, field) {
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownField,
                 format!("Struct '{}' has no field named '{}'", struct_name, field),
@@ -1828,7 +1834,7 @@ impl SemanticAnalyzer {
                     // with how many arguments, is only known at runtime.
                 }
                 SymbolKind::Namespace => {
-                    self.errors.push(CompilationError::new(
+                    self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::NotCallable,
                         format!("'{}' is not a function", function_name),
@@ -1853,7 +1859,7 @@ impl SemanticAnalyzer {
             } else {
                 CompilationErrorKind::TooManyArguments
             };
-            self.errors.push(CompilationError::new(
+            self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 kind,
                 format!(
