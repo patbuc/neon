@@ -1,6 +1,3 @@
-// Compound assignment on a type mismatch reports the same error as the
-// desugared `x = x + "s"`.
-
 // Expected:
 // before
 

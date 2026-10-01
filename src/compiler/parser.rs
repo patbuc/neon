@@ -1160,8 +1160,7 @@ impl Parser {
                 id: self.next_id(),
                 location,
             })
-        } else if can_assign && self.compound_assign_op().is_some() {
-            let operator = self.compound_assign_op().expect("checked above");
+        } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
             self.advance();
             let left = Box::new(Expr::Variable {
                 name: name.clone(),
@@ -1190,7 +1189,6 @@ impl Parser {
         }
     }
 
-    /// The compound-assignment operator the current token would desugar to, if any.
     fn compound_assign_op(&self) -> Option<BinaryOp> {
         match self.current_token.token_type {
             TokenType::PlusEqual => Some(BinaryOp::Add),

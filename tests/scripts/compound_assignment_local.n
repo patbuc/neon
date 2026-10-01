@@ -1,5 +1,6 @@
 // Expected:
 // 12
+// 17
 
 fn addFive() {
     var n = 7
@@ -7,4 +8,10 @@ fn addFive() {
     return n
 }
 
+fn addFiveExpr() {
+    var n = 12
+    return n += 5
+}
+
 print(addFive())
+print(addFiveExpr())
