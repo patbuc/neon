@@ -1720,9 +1720,7 @@ fn test_parse_compound_assignment_to_field_is_invalid_target() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(errors[0].message.contains("Invalid assignment target"));
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 5);
 }
@@ -1733,9 +1731,7 @@ fn test_parse_compound_assignment_to_index_is_invalid_target() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(errors[0].message.contains("Invalid assignment target"));
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 6);
 }
@@ -1746,9 +1742,7 @@ fn test_parse_compound_assignment_to_grouping_is_invalid_target() {
     let result = parser.parse();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(errors[0].message.contains("Invalid assignment target"));
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 5);
 }

@@ -676,12 +676,8 @@ impl SemanticAnalyzer {
         (upvalues.len() - 1) as u32
     }
 
-    /// Records a diagnostic, skipping it if it is identical to the one just
-    /// recorded. A compound assignment like `x += 1` resolves `x` twice (once
-    /// as the read inside the desugared `x + 1`, once as the write) at the
-    /// same location, so a bad `x` would otherwise be reported twice.
     fn push_error(&mut self, error: CompilationError) {
-        if self.errors.last() != Some(&error) {
+        if !self.errors.contains(&error) {
             self.errors.push(error);
         }
     }
