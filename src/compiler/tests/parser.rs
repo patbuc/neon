@@ -1737,6 +1737,28 @@ fn test_parse_compound_assignment_to_index_is_invalid_target() {
 }
 
 #[test]
+fn test_parse_compound_assignment_power_to_field_is_invalid_target() {
+    let mut parser = Parser::new("o.n **= 2\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors[0].message.contains("Invalid assignment target"));
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 5);
+}
+
+#[test]
+fn test_parse_compound_assignment_power_to_index_is_invalid_target() {
+    let mut parser = Parser::new("a[0] **= 2\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors[0].message.contains("Invalid assignment target"));
+    assert_eq!(errors[0].location.line, 1);
+    assert_eq!(errors[0].location.column, 6);
+}
+
+#[test]
 fn test_parse_compound_assignment_to_grouping_is_invalid_target() {
     let mut parser = Parser::new("(x) += 1\n");
     let result = parser.parse();

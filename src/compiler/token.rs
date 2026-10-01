@@ -31,6 +31,7 @@ pub(crate) enum TokenType {
     Star,
     StarStar,
     StarEqual,
+    StarStarEqual,
 
     Bang,
     BangEqual,
