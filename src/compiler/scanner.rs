@@ -189,7 +189,11 @@ impl Scanner {
             '?' => self.make_token(TokenType::Question),
             '*' => {
                 if self.matches('*') {
-                    self.make_token(TokenType::StarStar)
+                    if self.matches('=') {
+                        self.make_token(TokenType::StarStarEqual)
+                    } else {
+                        self.make_token(TokenType::StarStar)
+                    }
                 } else if self.matches('=') {
                     self.make_token(TokenType::StarEqual)
                 } else {

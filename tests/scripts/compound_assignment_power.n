@@ -1,0 +1,39 @@
+// Expected:
+// 8
+// 4
+// 49
+// 4
+// 4
+// 16
+
+var x = 2
+x **= 3
+print(x)
+
+var y = 2
+y **= 1 + 1
+print(y)
+
+var total = 7
+total **= 2
+print(total)
+
+fn square() {
+    var n = 2
+    n **= 2
+    return n
+}
+print(square())
+
+fn counter() {
+    var n = 2
+    fn inc() {
+        n **= 2
+        return n
+    }
+    return inc
+}
+
+val c = counter()
+print(c())
+print(c())

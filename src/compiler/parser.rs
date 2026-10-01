@@ -1194,6 +1194,7 @@ impl Parser {
             TokenType::PlusEqual => Some(BinaryOp::Add),
             TokenType::MinusEqual => Some(BinaryOp::Subtract),
             TokenType::StarEqual => Some(BinaryOp::Multiply),
+            TokenType::StarStarEqual => Some(BinaryOp::Exponent),
             TokenType::SlashEqual => Some(BinaryOp::Divide),
             TokenType::PercentEqual => Some(BinaryOp::Modulo),
             _ => None,
