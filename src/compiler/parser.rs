@@ -995,7 +995,8 @@ impl Parser {
             }?;
         }
 
-        if can_assign && self.match_token(TokenType::Equal) {
+        if can_assign && (self.check(TokenType::Equal) || self.compound_assign_op().is_some()) {
+            self.advance();
             self.report_error_at_previous(
                 CompilationErrorKind::InvalidAssignmentTarget,
                 "Invalid assignment target.".to_string(),
@@ -1159,12 +1160,45 @@ impl Parser {
                 id: self.next_id(),
                 location,
             })
+        } else if can_assign && self.compound_assign_op().is_some() {
+            let operator = self.compound_assign_op().expect("checked above");
+            self.advance();
+            let left = Box::new(Expr::Variable {
+                name: name.clone(),
+                id: self.next_id(),
+                location,
+            });
+            let right = Box::new(self.operand(Precedence::Assignment)?);
+            let value = Box::new(Expr::Binary {
+                left,
+                operator,
+                right,
+                location,
+            });
+            Some(Expr::Assign {
+                name,
+                value,
+                id: self.next_id(),
+                location,
+            })
         } else {
             Some(Expr::Variable {
                 name,
                 id: self.next_id(),
                 location,
             })
+        }
+    }
+
+    /// The compound-assignment operator the current token would desugar to, if any.
+    fn compound_assign_op(&self) -> Option<BinaryOp> {
+        match self.current_token.token_type {
+            TokenType::PlusEqual => Some(BinaryOp::Add),
+            TokenType::MinusEqual => Some(BinaryOp::Subtract),
+            TokenType::StarEqual => Some(BinaryOp::Multiply),
+            TokenType::SlashEqual => Some(BinaryOp::Divide),
+            TokenType::PercentEqual => Some(BinaryOp::Modulo),
+            _ => None,
         }
     }
 

@@ -1,0 +1,10 @@
+// Expected:
+// 12
+
+fn addFive() {
+    var n = 7
+    n += 5
+    return n
+}
+
+print(addFive())

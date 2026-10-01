@@ -1,0 +1,11 @@
+// Compound assignment on a type mismatch reports the same error as the
+// desugared `x = x + "s"`.
+
+// Expected:
+// before
+
+// Expected runtime error: Operands must be two numbers or two strings
+
+var x = 1
+print("before")
+x += "s"

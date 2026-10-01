@@ -1715,6 +1715,28 @@ fn test_parse_assignment_to_index_of_expression_is_invalid_target() {
 }
 
 #[test]
+fn test_parse_compound_assignment_to_field_is_invalid_target() {
+    let mut parser = Parser::new("o.n += 1\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
+fn test_parse_compound_assignment_to_index_is_invalid_target() {
+    let mut parser = Parser::new("a[0] += 1\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
 fn test_parse_assignment_to_call_expression_is_invalid_target() {
     let mut parser = Parser::new("f() = 1\n");
     let result = parser.parse();
