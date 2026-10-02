@@ -1,0 +1,24 @@
+// Expected:
+// true
+// false
+// false
+// false
+// false
+// true
+
+enum Color {
+    Red
+    Green
+}
+
+enum Light {
+    Red
+    Green
+}
+
+print(Color.Red == Color.Red)
+print(Color.Red == Color.Green)
+print(Color.Red == 1)
+print(Color.Red == "Red")
+print(Color.Red == Light.Red)
+print(Color.Red != Color.Green)
