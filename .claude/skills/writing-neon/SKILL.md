@@ -45,10 +45,10 @@ won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the scri
   explicit first parameter. A method without `self` is static (`Point.origin()`).
   No classes, inheritance, `this`, or `new`.
 - Enum variants are declared like struct fields, conventionally one per line,
-  no commas: `enum Color {` / `Red` / `Green` / `}`. Top level only. Access is always qualified (`Color.Red`); a
-  bare `Color` is a compile error. `Color.values()` returns a fresh array of
-  every variant in declaration order. No payloads, `impl` blocks, or explicit
-  variant values.
+  no commas: `enum Color {` / `Red` / `Green` / `}`. Top level only. Access is
+  always qualified (`Color.Red`); a bare `Color` is a compile error.
+  `Color.values()` returns a fresh array of every variant in declaration
+  order. No payloads, `impl` blocks, or explicit variant values.
 
 **Control flow**
 - Parentheses around conditions are required: `if (x) {`, `while (x) {`.
