@@ -4082,7 +4082,10 @@ fn test_enum_unknown_variant_is_compile_error() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("'Purple'")));
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 5);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownEnumVariant);
+    assert!(errors[0].message.contains("'Purple'"));
 }
 
 #[test]
@@ -4096,7 +4099,10 @@ fn test_enum_as_value_is_compile_error() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| e.message.contains("'Color'")));
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 4);
+    assert_eq!(errors[0].kind, CompilationErrorKind::EnumAsValue);
+    assert!(errors[0].message.contains("'Color'"));
 }
 
 #[test]
@@ -4144,9 +4150,9 @@ fn test_enum_name_clash_with_struct_is_duplicate_symbol() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
 }
 
 #[test]
@@ -4160,9 +4166,9 @@ fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
 
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
 }
 
 #[test]
