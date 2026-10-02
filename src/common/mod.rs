@@ -129,6 +129,7 @@ pub enum Value {
     NativeFunction(Rc<ObjNativeFunction>),
     Struct(Rc<ObjStruct>),
     Instance(Rc<RefCell<ObjInstance>>),
+    EnumVariant(Rc<ObjEnumVariant>),
     Array(Rc<RefCell<Vec<Value>>>),
     Map(Rc<RefCell<IndexMap<MapKey, Value>>>),
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
@@ -234,6 +235,15 @@ impl ObjStruct {
     }
 }
 
+/// One value of a plain enum: the enum it belongs to, its own name, and its
+/// declaration index among the enum's variants.
+#[derive(Debug, Clone)]
+pub struct ObjEnumVariant {
+    pub enum_name: String,
+    pub variant_name: String,
+    pub ordinal: u16,
+}
+
 impl Value {
     /// Clones the value, copying scalars inline instead of calling `Clone`.
     #[inline(always)]
@@ -270,6 +280,15 @@ impl Value {
             fields,
             field_table,
             name_symbol,
+        }))
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn new_enum_variant(enum_name: String, variant_name: String, ordinal: u16) -> Self {
+        Value::EnumVariant(Rc::new(ObjEnumVariant {
+            enum_name,
+            variant_name,
+            ordinal,
         }))
     }
 
@@ -333,6 +352,7 @@ impl Value {
             Value::NativeFunction(_) => "function",
             Value::Struct(_) => "struct",
             Value::Instance(_) => "instance",
+            Value::EnumVariant(_) => "enum",
             Value::Array(_) => "array",
             Value::Map(_) => "map",
             Value::Set(_) => "set",
@@ -358,6 +378,12 @@ impl PartialEq for ObjFunction {
 impl PartialEq for ObjStruct {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.fields == other.fields
+    }
+}
+
+impl PartialEq for ObjEnumVariant {
+    fn eq(&self, other: &Self) -> bool {
+        self.enum_name == other.enum_name && self.ordinal == other.ordinal
     }
 }
 
@@ -396,6 +422,9 @@ impl Value {
             Value::Struct(r#struct) => write!(f, "<struct {}>", r#struct.name),
             Value::Instance(instance) => {
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
+            }
+            Value::EnumVariant(variant) => {
+                write!(f, "{}.{}", variant.enum_name, variant.variant_name)
             }
             Value::Array(array) => {
                 let ptr = Rc::as_ptr(array) as *const ();
@@ -468,6 +497,7 @@ impl Value {
             (Value::Closure(a), Value::Closure(b)) => Rc::ptr_eq(a, b),
             (Value::NativeFunction(a), Value::NativeFunction(b)) => a == b,
             (Value::Struct(a), Value::Struct(b)) => a == b,
+            (Value::EnumVariant(a), Value::EnumVariant(b)) => a == b,
             (Value::Instance(a), Value::Instance(b)) => guarded_eq(a, b, seen, |seen| {
                 let ia = a.borrow();
                 let ib = b.borrow();

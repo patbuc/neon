@@ -392,3 +392,37 @@ fn struct_field_index_resolves_non_contiguous_symbols() {
     assert_eq!(s.field_index(9), Some(2));
     assert_eq!(s.field_index(3), None);
 }
+
+#[test]
+fn enum_variant_display() {
+    let value = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    assert_eq!(format!("{}", value), "Color.Red");
+}
+
+#[test]
+fn enum_variant_equality_same_enum_and_ordinal() {
+    let a = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    let b = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    assert_eq!(a, b);
+}
+
+#[test]
+fn enum_variant_inequality_different_ordinal() {
+    let a = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    let b = Value::new_enum_variant("Color".to_string(), "Green".to_string(), 1);
+    assert_ne!(a, b);
+}
+
+#[test]
+fn enum_variant_inequality_different_enum_same_name() {
+    let a = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    let b = Value::new_enum_variant("Status".to_string(), "Red".to_string(), 0);
+    assert_ne!(a, b);
+}
+
+#[test]
+fn enum_variant_inequality_other_value_kinds() {
+    let variant = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    assert_ne!(variant, Value::Number(0.0));
+    assert_ne!(variant, Value::String(Rc::new("Color.Red".to_string())));
+}
