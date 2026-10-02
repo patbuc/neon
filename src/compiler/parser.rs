@@ -5,7 +5,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, StructField, UnaryOp};
+use crate::compiler::ast::{BinaryOp, EnumVariant, Expr, NodeId, Stmt, StructField, UnaryOp};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 use std::collections::HashMap;
@@ -379,6 +379,7 @@ impl Parser {
                     // we're still inside it.
                     match self.current_token.token_type {
                         TokenType::Struct
+                        | TokenType::Enum
                         | TokenType::Impl
                         | TokenType::Val
                         | TokenType::Var
@@ -404,6 +405,7 @@ impl Parser {
                 match self.current_token.token_type {
                     TokenType::Fn
                     | TokenType::Struct
+                    | TokenType::Enum
                     | TokenType::Impl
                     | TokenType::Val
                     | TokenType::Var
@@ -436,6 +438,8 @@ impl Parser {
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
             self.struct_declaration()
+        } else if self.match_token(TokenType::Enum) {
+            self.enum_declaration()
         } else if self.match_token(TokenType::Impl) {
             self.impl_declaration()
         } else {
@@ -566,6 +570,49 @@ impl Parser {
         Some(Stmt::Struct {
             name,
             fields,
+            id: self.next_id(),
+            location,
+        })
+    }
+
+    fn enum_declaration(&mut self) -> Option<Stmt> {
+        if !self.consume(TokenType::Identifier, "Expect enum name.") {
+            return None;
+        }
+        let name = self.previous_token.token.clone();
+        let location = self.current_location();
+
+        if !self.consume(TokenType::LeftBrace, "Expect '{' after enum name.") {
+            return None;
+        }
+
+        let mut variants = Vec::new();
+        self.skip_new_lines();
+
+        if !self.check(TokenType::RightBrace) {
+            loop {
+                if !self.consume(TokenType::Identifier, "Expect variant name.") {
+                    break;
+                }
+                variants.push(EnumVariant {
+                    name: self.previous_token.token.clone(),
+                    location: self.current_location(),
+                });
+                self.skip_new_lines();
+                if self.check(TokenType::RightBrace) {
+                    break;
+                }
+            }
+        }
+
+        if !self.consume(TokenType::RightBrace, "Expect '}' after enum variants.") {
+            return None;
+        }
+        self.consume_statement_end("Expecting '\\n' or '\\0' after enum declaration.");
+
+        Some(Stmt::Enum {
+            name,
+            variants,
             id: self.next_id(),
             location,
         })
@@ -890,6 +937,7 @@ impl Parser {
                 | TokenType::Val
                 | TokenType::Var
                 | TokenType::Struct
+                | TokenType::Enum
                 | TokenType::Impl
                 | TokenType::For
                 | TokenType::If

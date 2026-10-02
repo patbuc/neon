@@ -11,6 +11,13 @@ pub struct StructField {
     pub location: SourceLocation,
 }
 
+/// An enum variant and the location of its name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumVariant {
+    pub name: String,
+    pub location: SourceLocation,
+}
+
 /// Binary operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
@@ -195,6 +202,12 @@ pub enum Stmt {
     Struct {
         name: String,
         fields: Vec<StructField>,
+        id: NodeId,
+        location: SourceLocation,
+    },
+    Enum {
+        name: String,
+        variants: Vec<EnumVariant>,
         id: NodeId,
         location: SourceLocation,
     },

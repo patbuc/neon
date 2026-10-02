@@ -23,6 +23,9 @@
   impl Point {
 //^^^^ storage.type.neon
 //     ^^^^^ entity.name.type.neon
+  enum Color {
+//^^^^ storage.type.neon
+//     ^^^^^ entity.name.type.neon
   val x = 1
 //^^^ storage.type.neon
   var y = 2

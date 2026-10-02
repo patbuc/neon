@@ -28,6 +28,7 @@ pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("break", TokenType::Break),
     ("continue", TokenType::Continue),
     ("else", TokenType::Else),
+    ("enum", TokenType::Enum),
     ("false", TokenType::False),
     ("fn", TokenType::Fn),
     ("for", TokenType::For),
