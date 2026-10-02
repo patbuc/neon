@@ -7,10 +7,13 @@ use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
-use crate::compiler::ast::{Expr, NodeId, Stmt, StructField};
-use crate::compiler::resolutions::{Capture, DeclId, FunctionResolution, Res, Resolutions};
+use crate::compiler::ast::{EnumVariant, Expr, NodeId, Stmt, StructField};
+use crate::compiler::resolutions::{
+    Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
+};
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
@@ -228,6 +231,24 @@ impl SemanticAnalyzer {
                         *location,
                     );
                 }
+                Stmt::Enum {
+                    name,
+                    variants,
+                    id,
+                    location,
+                } => {
+                    self.check_duplicate_variants(name, variants);
+                    self.intern_name(name, *location);
+                    self.declare_symbol(
+                        *id,
+                        name.clone(),
+                        SymbolKind::Enum {
+                            variants: variants.iter().map(|v| v.name.clone()).collect(),
+                        },
+                        false,
+                        *location,
+                    );
+                }
                 Stmt::Val {
                     name, id, location, ..
                 }
@@ -292,6 +313,23 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn check_duplicate_variants(&mut self, enum_name: &str, variants: &[EnumVariant]) {
+        let mut seen = HashSet::new();
+        for variant in variants {
+            if !seen.insert(variant.name.as_str()) {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateEnumVariant,
+                    format!(
+                        "Enum '{}' declares variant '{}' more than once",
+                        enum_name, variant.name
+                    ),
+                    variant.location,
+                ));
+            }
+        }
+    }
+
     /// Register the methods an `impl` block contributes to a struct or a
     /// builtin type, flagging an impl for an undefined type, a method
     /// already defined for this type, one shadowing a field name, or one
@@ -308,6 +346,18 @@ impl SemanticAnalyzer {
                     kind: SymbolKind::Struct { fields },
                     ..
                 }) => fields.clone(),
+                Some(Symbol {
+                    kind: SymbolKind::Enum { .. },
+                    ..
+                }) => {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImplOnEnum,
+                        format!("Cannot implement methods on enum '{}'", type_name),
+                        location,
+                    ));
+                    return;
+                }
                 _ => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
@@ -819,6 +869,32 @@ impl SemanticAnalyzer {
                     );
                 }
             }
+            Stmt::Enum {
+                name,
+                variants,
+                id,
+                location,
+            } => {
+                // A top-level enum was already resolved in collect_declarations.
+                if self.symbol_table.current_depth() != 0 {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::EnumNotTopLevel,
+                        format!("Enum '{}' must be declared at the top level", name),
+                        *location,
+                    ));
+                    self.check_duplicate_variants(name, variants);
+                    self.declare_symbol(
+                        *id,
+                        name.clone(),
+                        SymbolKind::Enum {
+                            variants: variants.iter().map(|v| v.name.clone()).collect(),
+                        },
+                        false,
+                        *location,
+                    );
+                }
+            }
             Stmt::Impl {
                 type_name,
                 methods,
@@ -1283,6 +1359,16 @@ impl SemanticAnalyzer {
             return;
         }
 
+        if matches!(symbol.kind, SymbolKind::Enum { .. }) {
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::EnumAsValue,
+                format!("'{}' is an enum, not a value", name),
+                location,
+            ));
+            return;
+        }
+
         let use_ = SymbolUse::from(symbol);
         self.check_top_level_forward_use(use_, name, location);
         if self.pending_block_fns.contains(&use_.decl_id) {
@@ -1385,6 +1471,33 @@ impl SemanticAnalyzer {
                 }
                 if let Some(index) = self.validate_static_method(name, method, location) {
                     self.resolutions.record_native(id, index);
+                }
+                return;
+            }
+
+            // A static call on an enum's own name, e.g. Color.values().
+            if let Some(variants) = self.enum_variants(name) {
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                if method == "values" {
+                    self.validate_arity("Method", "values", 0, arguments.len(), location);
+                    self.resolutions.record_enum_values_access(
+                        id,
+                        EnumValuesAccess {
+                            enum_name: Rc::from(name.as_str()),
+                            variants: variants.iter().map(|v| Rc::from(v.as_str())).collect(),
+                        },
+                    );
+                } else {
+                    let candidates = ["values"];
+                    let error_message = unknown_method_error(name, method, &candidates);
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::UnknownMethod,
+                        error_message,
+                        location,
+                    ));
                 }
                 return;
             }
@@ -1494,11 +1607,47 @@ impl SemanticAnalyzer {
     }
 
     fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
+        if let Expr::Variable { name, id, .. } = object {
+            if let Some(variants) = self.enum_variants(name) {
+                self.resolve_enum_variant_access(*id, name, &variants, field, location);
+                return;
+            }
+        }
+
         self.intern_name(field, location);
         self.resolve_expr(object);
         if let Some(object_type) = self.infer_expr_type(object) {
             self.validate_struct_field(object_type.name(), field, location);
         }
+    }
+
+    /// Resolves `Color.Red`: `id` is the `Expr::Variable` node naming the
+    /// enum.
+    fn resolve_enum_variant_access(
+        &mut self,
+        id: NodeId,
+        enum_name: &str,
+        variants: &[String],
+        variant: &str,
+        location: SourceLocation,
+    ) {
+        let Some(ordinal) = variants.iter().position(|v| v == variant) else {
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::UnknownEnumVariant,
+                format!("Enum '{}' has no variant named '{}'", enum_name, variant),
+                location,
+            ));
+            return;
+        };
+        self.resolutions.record_enum_variant_access(
+            id,
+            EnumVariantAccess {
+                enum_name: Rc::from(enum_name),
+                variant_name: Rc::from(variant),
+                ordinal: ordinal as u16,
+            },
+        );
     }
 
     fn resolve_set_field(
@@ -1508,6 +1657,19 @@ impl SemanticAnalyzer {
         value: &Expr,
         location: SourceLocation,
     ) {
+        if let Expr::Variable { name, .. } = object {
+            if self.enum_variants(name).is_some() {
+                self.resolve_expr(value);
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::ImmutableAssignment,
+                    format!("Cannot assign to enum variant '{}.{}'", name, field),
+                    location,
+                ));
+                return;
+            }
+        }
+
         self.intern_name(field, location);
         self.resolve_expr(object);
         self.resolve_expr(value);
@@ -1615,6 +1777,19 @@ impl SemanticAnalyzer {
                 ..
             })
         )
+    }
+
+    /// The variants of the enum named `name`, in declaration order, when
+    /// `name` resolves (lexically - a local of the same name shadows it) to
+    /// an enum.
+    fn enum_variants(&self, name: &str) -> Option<Vec<String>> {
+        match self.symbol_table.resolve(name) {
+            Some(Symbol {
+                kind: SymbolKind::Enum { variants },
+                ..
+            }) => Some(variants.clone()),
+            _ => None,
+        }
     }
 
     /// Validate a call to a struct's own method, whether the receiver is an
@@ -1833,7 +2008,7 @@ impl SemanticAnalyzer {
                     // Holds an arbitrary value; whether it's callable, and
                     // with how many arguments, is only known at runtime.
                 }
-                SymbolKind::Namespace => {
+                SymbolKind::Namespace | SymbolKind::Enum { .. } => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::NotCallable,

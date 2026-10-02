@@ -24,6 +24,7 @@ const KEYWORD_FAMILY = {
   While: 'keyword.control.neon',
   Fn: 'storage.type.neon',
   Struct: 'storage.type.neon',
+  Enum: 'storage.type.neon',
   Impl: 'storage.type.neon',
   Val: 'storage.type.neon',
   Var: 'storage.type.neon',

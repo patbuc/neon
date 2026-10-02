@@ -1,0 +1,28 @@
+// Expected:
+// [Color.Red, Color.Green, Color.Blue]
+// [Color.Red, Color.Green, Color.Blue]
+// Color.Red
+// Color.Green
+// Color.Blue
+
+enum Color {
+    Red
+    Green
+    Blue
+}
+
+val a = Color.values()
+a.push(Color.Red)
+
+val b = Color.values()
+print(b)
+
+val c = Color.values()
+c[0] = Color.Blue
+
+val d = Color.values()
+print(d)
+
+for (v in Color.values()) {
+    print(v)
+}

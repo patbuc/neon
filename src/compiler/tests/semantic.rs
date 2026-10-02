@@ -58,6 +58,7 @@ mod resolutions {
                 index_stmts(body, idx);
             }
             Stmt::Struct { name, id, .. } => idx.decls.push((name, *id)),
+            Stmt::Enum { name, id, .. } => idx.decls.push((name, *id)),
             Stmt::Impl { methods, .. } => index_stmts(methods, idx),
             Stmt::Expression { expr, .. } => index_expr(expr, idx),
             Stmt::Block { statements, .. } => index_stmts(statements, idx),
@@ -4047,4 +4048,207 @@ fn use_obj(obj) {
             names
         );
     }
+}
+
+// =============================================================================
+// Enum Tests (issue #333)
+// =============================================================================
+
+#[test]
+fn test_enum_duplicate_variant_is_compile_error() {
+    let program = "enum Color {\n    Red\n    Red\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 3);
+    assert!(errors[0].message.contains("'Color'"));
+    assert!(errors[0].message.contains("'Red'"));
+}
+
+#[test]
+fn test_enum_unknown_variant_is_compile_error() {
+    let program = "enum Color {\n    Red\n    Green\n}\nprint(Color.Purple)\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 5);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownEnumVariant);
+    assert!(errors[0].message.contains("'Purple'"));
+}
+
+#[test]
+fn test_enum_as_value_is_compile_error() {
+    let program = "enum Color {\n    Red\n}\nval x = Color\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 4);
+    assert_eq!(errors[0].kind, CompilationErrorKind::EnumAsValue);
+    assert!(errors[0].message.contains("'Color'"));
+}
+
+#[test]
+fn test_enum_inside_fn_is_compile_error() {
+    let program = "fn f() {\n    enum Color {\n        Red\n    }\n    return 1\n}\nf()\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert!(errors[0].message.contains("'Color'"));
+    assert!(errors[0].message.contains("top level"));
+}
+
+#[test]
+fn test_enum_inside_block_is_compile_error() {
+    let program = "if (true) {\n    enum Color {\n        Red\n    }\n    print(Color.Red)\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert!(errors[0].message.contains("'Color'"));
+    assert!(errors[0].message.contains("top level"));
+}
+
+#[test]
+fn test_enum_name_clash_with_struct_is_duplicate_symbol() {
+    let program = "enum Color {\n    Red\n}\nstruct Color {\n    x\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
+}
+
+#[test]
+fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
+    let program = "enum Color {\n    Red\n}\nfn Color() {\n    return 1\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
+}
+
+#[test]
+fn test_enum_name_shadowed_by_local_resolves_as_struct_field() {
+    let program = "enum Color {\n    Red\n}\nstruct Box {\n    Red\n}\nfn f() {\n    val Color = Box(0)\n    print(Color.Red)\n}\nf()\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok(), "expected success, got {:#?}", result.err());
+}
+
+#[test]
+fn test_enum_name_clash_with_val_is_duplicate_symbol() {
+    let program = "enum Color {\n    Red\n}\nval Color = 1\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
+}
+
+#[test]
+fn test_enum_variant_assignment_is_compile_error() {
+    let program = "enum Color {\n    Red\n}\nColor.Red = 1\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ImmutableAssignment);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(errors[0].message.contains("'Color.Red'"));
+}
+
+#[test]
+fn test_enum_unknown_static_method_is_compile_error() {
+    let program = "enum Color {\n    Red\n}\nprint(Color.names())\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(errors[0].message.contains("'Color'"));
+    assert!(errors[0].message.contains("'names'"));
+    assert!(errors[0].message.contains("values"));
+}
+
+#[test]
+fn test_impl_on_enum_is_compile_error() {
+    let program =
+        "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) {\n        return 1\n    }\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ImplOnEnum);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(errors[0].message.contains("'Color'"));
 }

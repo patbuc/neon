@@ -221,6 +221,25 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::TooManySymbols => {
             vec![(source_too_many_symbols(), Some("limit 65536"))]
         }
+        CompilationErrorKind::DuplicateEnumVariant => {
+            vec![("enum Color {\n    Red\n    Red\n}\n".to_string(), Some("'Color'"))]
+        }
+        CompilationErrorKind::UnknownEnumVariant => vec![(
+            "enum Color {\n    Red\n}\nprint(Color.Purple)\n".to_string(),
+            Some("'Purple'"),
+        )],
+        CompilationErrorKind::EnumAsValue => {
+            vec![("enum Color {\n    Red\n}\nval x = Color\n".to_string(), None)]
+        }
+        CompilationErrorKind::EnumNotTopLevel => vec![(
+            "fn f() {\n    enum Color {\n        Red\n    }\n}\nf()\n".to_string(),
+            None,
+        )],
+        CompilationErrorKind::ImplOnEnum => vec![(
+            "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
+                .to_string(),
+            None,
+        )],
     }
 }
 

@@ -1,0 +1,14 @@
+// Expected:
+// Color.Red
+// Color.Green
+// Color.Blue
+
+enum Color {
+    Red
+    Green
+    Blue
+}
+
+print(Color.Red)
+print(Color.Green)
+print(Color.Blue)

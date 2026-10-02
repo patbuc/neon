@@ -71,6 +71,11 @@ compilation_error_kinds! {
     LimitExceeded => "E0037",
     DuplicateField => "E0038",
     TooManySymbols => "E0039",
+    DuplicateEnumVariant => "E0040",
+    UnknownEnumVariant => "E0041",
+    EnumAsValue => "E0042",
+    EnumNotTopLevel => "E0043",
+    ImplOnEnum => "E0044",
 }
 
 #[derive(Debug, Clone, PartialEq)]

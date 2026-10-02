@@ -182,7 +182,7 @@ cargo run --features disassemble -- script.n
 **Value System** (`src/common/mod.rs`)
 
 - Scalars (Number, Boolean, Nil) are stored inline
-- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
+- Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range, EnumVariant) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 - Range is an immutable `Rc<ObjRange>` of integer bounds; for-in iterates it without allocating an array

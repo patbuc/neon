@@ -298,6 +298,47 @@ fn test_parse_struct() {
 }
 
 #[test]
+fn test_parse_enum() {
+    let program = r#"
+        enum Color {
+            Red
+            Green
+            Blue
+        }
+
+        print(Color.Red)
+        "#;
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert!(!stmts.is_empty());
+    match &stmts[0] {
+        Stmt::Enum { name, variants, .. } => {
+            assert_eq!(name, "Color");
+            let names: Vec<&str> = variants.iter().map(|v| v.name.as_str()).collect();
+            assert_eq!(names, vec!["Red", "Green", "Blue"]);
+        }
+        _ => panic!("Expected Enum statement"),
+    }
+}
+
+#[test]
+fn test_parse_enum_duplicate_variant_is_kept_for_semantic_analysis() {
+    let program = "enum Color {\n    Red\n    Red\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Enum { variants, .. } => {
+            assert_eq!(variants.len(), 2);
+        }
+        _ => panic!("Expected Enum statement"),
+    }
+}
+
+#[test]
 fn test_parse_impl_block() {
     let program = r#"
         impl Point {

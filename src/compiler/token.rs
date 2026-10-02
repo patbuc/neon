@@ -60,6 +60,7 @@ pub(crate) enum TokenType {
     Break,
     Continue,
     Else,
+    Enum,
     False,
     For,
     Fn,
