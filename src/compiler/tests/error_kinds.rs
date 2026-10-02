@@ -235,6 +235,11 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "fn f() {\n    enum Color {\n        Red\n    }\n}\nf()\n".to_string(),
             None,
         )],
+        CompilationErrorKind::ImplOnEnum => vec![(
+            "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
+                .to_string(),
+            None,
+        )],
     }
 }
 

@@ -4173,8 +4173,6 @@ fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
 
 #[test]
 fn test_enum_name_shadowed_by_local_resolves_as_struct_field() {
-    // Inside `f`, the local `Color` shadows the top-level enum, so
-    // `Color.Red` is a normal struct field access, not a variant lookup.
     let program = "enum Color {\n    Red\n}\nstruct Box {\n    Red\n}\nfn f() {\n    val Color = Box(0)\n    print(Color.Red)\n}\nf()\n";
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -4199,4 +4197,22 @@ fn test_enum_name_clash_with_val_is_duplicate_symbol() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
     assert_eq!(errors[0].location.line, 4);
+}
+
+#[test]
+fn test_impl_on_enum_is_compile_error() {
+    let program =
+        "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) {\n        return 1\n    }\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ImplOnEnum);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(errors[0].message.contains("'Color'"));
 }

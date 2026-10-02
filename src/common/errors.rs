@@ -75,6 +75,7 @@ compilation_error_kinds! {
     UnknownEnumVariant => "E0041",
     EnumAsValue => "E0042",
     EnumNotTopLevel => "E0043",
+    ImplOnEnum => "E0044",
 }
 
 #[derive(Debug, Clone, PartialEq)]

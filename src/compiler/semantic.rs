@@ -346,6 +346,18 @@ impl SemanticAnalyzer {
                     kind: SymbolKind::Struct { fields },
                     ..
                 }) => fields.clone(),
+                Some(Symbol {
+                    kind: SymbolKind::Enum { .. },
+                    ..
+                }) => {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImplOnEnum,
+                        format!("Cannot implement methods on enum '{}'", type_name),
+                        location,
+                    ));
+                    return;
+                }
                 _ => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
