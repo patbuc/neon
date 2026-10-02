@@ -1622,8 +1622,7 @@ impl SemanticAnalyzer {
     }
 
     /// Resolves `Color.Red`: `id` is the `Expr::Variable` node naming the
-    /// enum. Codegen emits the variant as a constant, so this never records
-    /// a normal symbol use for `id`.
+    /// enum.
     fn resolve_enum_variant_access(
         &mut self,
         id: NodeId,

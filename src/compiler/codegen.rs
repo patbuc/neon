@@ -1013,10 +1013,7 @@ impl<'a> CodeGenerator<'a> {
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
             }
-            Stmt::Enum { .. } => {
-                // An enum can't be used as a value, so it needs no runtime
-                // slot; each variant is loaded as a constant where it's used.
-            }
+            Stmt::Enum { .. } => {}
             Stmt::Impl { .. } => {
                 // Methods were already compiled and registered in generate()'s pre-pass.
             }
