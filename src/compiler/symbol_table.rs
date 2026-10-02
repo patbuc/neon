@@ -13,6 +13,8 @@ pub enum SymbolKind {
     Function { arity: u8 },
     /// Struct with field names
     Struct { fields: Vec<String> },
+    /// Plain enum with variant names, in declaration order
+    Enum { variants: Vec<String> },
     /// Function parameter
     Parameter,
     /// Built-in namespace (e.g. Math, File); usable only as `Name.method(...)`

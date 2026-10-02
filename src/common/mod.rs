@@ -235,8 +235,6 @@ impl ObjStruct {
     }
 }
 
-/// One value of a plain enum: the enum it belongs to, its own name, and its
-/// declaration index among the enum's variants.
 #[derive(Debug, Clone)]
 pub struct ObjEnumVariant {
     pub enum_name: String,
@@ -283,7 +281,6 @@ impl Value {
         }))
     }
 
-    #[allow(dead_code)]
     pub(crate) fn new_enum_variant(enum_name: String, variant_name: String, ordinal: u16) -> Self {
         Value::EnumVariant(Rc::new(ObjEnumVariant {
             enum_name,

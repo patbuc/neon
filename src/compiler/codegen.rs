@@ -452,6 +452,18 @@ impl<'a> CodeGenerator<'a> {
         self.emit_index_op(OpCode::Constant, index, "constants", location);
     }
 
+    fn emit_enum_variant_constant(
+        &mut self,
+        enum_name: &str,
+        variant_name: &str,
+        ordinal: u16,
+        location: SourceLocation,
+    ) {
+        let value =
+            Value::new_enum_variant(enum_name.to_string(), variant_name.to_string(), ordinal);
+        self.emit_constant(value, location);
+    }
+
     fn emit_return(&mut self, location: SourceLocation) {
         self.emit_op_code(OpCode::Nil, location);
         self.emit_op_code(OpCode::Return, location);
@@ -1001,6 +1013,10 @@ impl<'a> CodeGenerator<'a> {
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
             }
+            Stmt::Enum { .. } => {
+                // An enum can't be used as a value, so it needs no runtime
+                // slot; each variant is loaded as a constant where it's used.
+            }
             Stmt::Impl { .. } => {
                 // Methods were already compiled and registered in generate()'s pre-pass.
             }
@@ -1237,6 +1253,19 @@ impl<'a> CodeGenerator<'a> {
         arguments: &[Expr],
         location: SourceLocation,
     ) {
+        if let Some(access) = self.resolutions.enum_values_access(id) {
+            for (ordinal, variant_name) in access.variants.iter().enumerate() {
+                self.emit_enum_variant_constant(
+                    &access.enum_name,
+                    variant_name,
+                    ordinal as u16,
+                    location,
+                );
+            }
+            self.emit_op_code(OpCode::CreateArray, location);
+            self.current_chunk().write_u16(access.variants.len() as u16);
+            return;
+        }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, location),
             None => self.generate_instance_method_call_expr(object, method, arguments, location),
@@ -1395,6 +1424,17 @@ impl<'a> CodeGenerator<'a> {
                 field,
                 location,
             } => {
+                if let Expr::Variable { id, .. } = object.as_ref() {
+                    if let Some(access) = self.resolutions.enum_variant_access(*id) {
+                        self.emit_enum_variant_constant(
+                            &access.enum_name,
+                            &access.variant_name,
+                            access.ordinal,
+                            *location,
+                        );
+                        return;
+                    }
+                }
                 let symbol = self.resolutions.symbol(field);
                 if let Expr::Variable { id, .. } = object.as_ref() {
                     if let Res::Local(decl) = self.resolutions.res(*id) {

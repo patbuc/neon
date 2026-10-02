@@ -492,6 +492,34 @@ val a = Adder(fn(x, y) { return x + y })
 print(a.add(2, 3))  // 5
 ```
 
+### Enums
+
+```neon
+enum Color {
+    Red
+    Green
+    Blue
+}
+
+print(Color.Red)              // Color.Red
+print(Color.Red == Color.Red) // true
+print(Color.Red == Color.Green) // false
+
+for (c in Color.values()) {
+    print(c)
+}
+```
+
+- An enum must be declared at the top level. Access to a variant is always
+  qualified (`Color.Red`); a bare `Color` is a compile error, as is an unknown
+  variant (`Color.Purple`).
+- Two variants are equal when they're the same variant of the same enum. A
+  variant never equals a number, a string, or a same-named variant of a
+  different enum.
+- `Color.values()` returns a fresh array of every variant, in declaration
+  order, each time it's called.
+- Enums don't support payloads, `impl` blocks, or explicit variant values.
+
 ## Code Examples
 
 ### Fibonacci

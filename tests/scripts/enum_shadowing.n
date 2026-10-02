@@ -1,0 +1,18 @@
+// Expected:
+// 10
+
+enum Color {
+    Red
+}
+
+struct Box {
+    Red
+}
+
+fn f() {
+    val Color = Box(0)
+    Color.Red = 10
+    print(Color.Red)
+}
+
+f()

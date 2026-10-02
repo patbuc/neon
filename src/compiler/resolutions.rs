@@ -82,6 +82,23 @@ impl Symbols {
     }
 }
 
+/// A single enum variant constant, as `Color.Red` resolves to: codegen loads
+/// it directly rather than emitting a `GetField`.
+#[derive(Debug, Clone)]
+pub struct EnumVariantAccess {
+    pub enum_name: Rc<str>,
+    pub variant_name: Rc<str>,
+    pub ordinal: u16,
+}
+
+/// A `Color.values()` call: codegen loads each variant constant in
+/// declaration order, then builds an array from them.
+#[derive(Debug, Clone)]
+pub struct EnumValuesAccess {
+    pub enum_name: Rc<str>,
+    pub variants: Rc<[Rc<str>]>,
+}
+
 /// Every name resolution the semantic pass made, keyed by AST node id.
 #[derive(Debug, Default)]
 pub struct Resolutions {
@@ -93,6 +110,10 @@ pub struct Resolutions {
     checked: HashSet<NodeId>,
     immutable: HashSet<DeclId>,
     symbols: Symbols,
+    /// Keyed by the `Expr::Variable` node naming the enum in `Color.Red`.
+    enum_variant_accesses: HashMap<NodeId, EnumVariantAccess>,
+    /// Keyed by the `Expr::Call` node of a `Color.values()` call.
+    enum_values_accesses: HashMap<NodeId, EnumValuesAccess>,
 }
 
 impl Resolutions {
@@ -189,5 +210,24 @@ impl Resolutions {
     /// Whether this declaration can't be reassigned.
     pub fn is_immutable(&self, decl: DeclId) -> bool {
         self.immutable.contains(&decl)
+    }
+
+    pub(crate) fn record_enum_variant_access(&mut self, id: NodeId, access: EnumVariantAccess) {
+        self.enum_variant_accesses.insert(id, access);
+    }
+
+    /// The enum variant `id` (an `Expr::Variable` naming an enum) resolves
+    /// to as the object of a `GetField`, if any.
+    pub fn enum_variant_access(&self, id: NodeId) -> Option<&EnumVariantAccess> {
+        self.enum_variant_accesses.get(&id)
+    }
+
+    pub(crate) fn record_enum_values_access(&mut self, id: NodeId, access: EnumValuesAccess) {
+        self.enum_values_accesses.insert(id, access);
+    }
+
+    /// The enum `id` (an `Expr::Call` node) resolves to as a `values()` call, if any.
+    pub fn enum_values_access(&self, id: NodeId) -> Option<&EnumValuesAccess> {
+        self.enum_values_accesses.get(&id)
     }
 }

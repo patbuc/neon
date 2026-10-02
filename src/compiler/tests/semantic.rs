@@ -58,6 +58,7 @@ mod resolutions {
                 index_stmts(body, idx);
             }
             Stmt::Struct { name, id, .. } => idx.decls.push((name, *id)),
+            Stmt::Enum { name, id, .. } => idx.decls.push((name, *id)),
             Stmt::Impl { methods, .. } => index_stmts(methods, idx),
             Stmt::Expression { expr, .. } => index_expr(expr, idx),
             Stmt::Block { statements, .. } => index_stmts(statements, idx),
@@ -4162,4 +4163,34 @@ fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+}
+
+#[test]
+fn test_enum_name_shadowed_by_local_resolves_as_struct_field() {
+    // Inside `f`, the local `Color` shadows the top-level enum, so
+    // `Color.Red` is a normal struct field access, not a variant lookup.
+    let program = "enum Color {\n    Red\n}\nstruct Box {\n    Red\n}\nfn f() {\n    val Color = Box(0)\n    print(Color.Red)\n}\nf()\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_ok(), "expected success, got {:#?}", result.err());
+}
+
+#[test]
+fn test_enum_name_clash_with_val_is_duplicate_symbol() {
+    let program = "enum Color {\n    Red\n}\nval Color = 1\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
+    assert_eq!(errors[0].location.line, 4);
 }
