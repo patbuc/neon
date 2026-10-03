@@ -1,0 +1,11 @@
+// Expected:
+// 100000
+
+fn count(n) {
+  if (n >= 100000) {
+    return n
+  }
+  return count(n + 1)
+}
+
+print(count(0))

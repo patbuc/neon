@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: Stack overflow
+
+fn recurse(n) {
+  return recurse(n + 1)
+}
+
+print("before")
+recurse(0)

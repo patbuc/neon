@@ -2,7 +2,7 @@ pub const MAX_FUNCTION_PARAMS: usize = 255;
 pub const MAX_CALL_ARGUMENTS: usize = 255;
 
 /// Bounds how many call frames (nested function calls) the VM allows at once.
-pub const MAX_FRAMES: usize = 10_000;
+pub const MAX_FRAMES: usize = 1_000_000;
 
 /// Bounds how deep call_value may re-enter itself, well below MAX_FRAMES
 /// since each level also recurses through the Rust call stack.
