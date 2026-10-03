@@ -728,6 +728,10 @@ print(Math.mod(-7, 3))     // 2
 - `.charAt(index)` - Character at `index` (strings can't be indexed with `[]`)
 - `.charCodeAt(index)` - Unicode code point of the character at `index`
 - `String.fromCharCode(n)` - One-character string for the Unicode code point `n`
+- `.repeat(n)` - Concatenate the string with itself `n` times (`n` a non-negative integer)
+- `.padStart(len, fill)` / `.padEnd(len, fill)` - Pad with `fill` (cycled, non-empty) until `len` chars long
+- `.lastIndexOf(substring)` - Position of the last occurrence, or `-1`
+- `.includes(substring)` - Whether `substring` occurs anywhere in the string
 
 **Example:**
 ```neon
