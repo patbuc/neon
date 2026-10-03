@@ -331,6 +331,30 @@ fn test_continuation_inside_block_does_not_leak_to_next_statement() {
 }
 
 #[test]
+fn test_top_level_continuation_does_not_leak_to_next_statement() {
+    check(
+        "val x = 1 +\n2\nval y = 3\n",
+        "val x = 1 +\n    2\nval y = 3\n",
+    );
+}
+
+#[test]
+fn test_continuation_inside_an_unbroken_call_arg_starts_its_own_scope() {
+    check(
+        "val x = 1 +\nf(a +\nb)\n",
+        "val x = 1 +\n    f(a +\n        b)\n",
+    );
+}
+
+#[test]
+fn test_continuation_inside_an_unbroken_grouping_starts_its_own_scope() {
+    check(
+        "val x = 1 +\n(a +\nb)\n",
+        "val x = 1 +\n    (a +\n        b)\n",
+    );
+}
+
+#[test]
 fn test_compound_assign_continuation() {
     check("x +=\n1\n", "x +=\n    1\n");
 }
@@ -399,10 +423,10 @@ fn test_broken_for_in_collection_continuation_does_not_leak_into_body() {
 }
 
 #[test]
-fn test_lambda_value_continuation_is_unaffected() {
+fn test_val_continuation_into_lambda_body_does_not_leak_to_next_statement() {
     check(
-        "val f = fn(x) {\n    return x\n}\nval q = 2\n",
-        "val f = fn(x) {\n    return x\n}\nval q = 2\n",
+        "val f =\nfn(x) {\nreturn x\n}\nval q = 2\n",
+        "val f =\n    fn(x) {\n        return x\n    }\nval q = 2\n",
     );
 }
 

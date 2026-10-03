@@ -244,8 +244,8 @@ fn test_string_interpolation_last_line_multiline() {
 
 #[test]
 fn test_string_interpolation_last_line_nested_multiline() {
-    // Outer interpolation holds a nested multi-line string as its
-    // expression; the outer closer only appears after that string ends.
+    // line 1: "a ${"b
+    // line 2: c"} d"
     let source = "\"a ${\"b\nc\"} d\"\n";
     let mut parser = Parser::new(source);
     let stmts = parser.parse().expect("should parse");

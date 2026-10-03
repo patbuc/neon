@@ -250,7 +250,7 @@ impl<'a> Printer<'a> {
                     Gap::BetweenItems
                 };
                 printer.line_break(prev, first, gap);
-                printer.nested(0, |printer| print_item(printer, i));
+                print_item(printer, i);
                 prev = last;
             }
             let gap = if spans.is_empty() {
@@ -318,9 +318,6 @@ impl<'a> Printer<'a> {
 
     // --- Statements -----------------------------------------------------
 
-    /// A continuation inside this statement must not leave the indent
-    /// bumped for whatever gets printed after it, so every statement
-    /// prints inside its own `nested` scope.
     fn print_stmt(&mut self, stmt: &Stmt) {
         self.nested(0, |printer| printer.print_stmt_body(stmt));
     }
@@ -706,7 +703,7 @@ impl<'a> Printer<'a> {
                 if broken {
                     self.nested(1, |printer| {
                         printer.line_break(open_line, inner_first, Gap::AfterOpen);
-                        printer.nested(0, |printer| printer.print_expr(inner));
+                        printer.print_expr(inner);
                         printer.line_break(inner_last, close_line, Gap::BeforeClose);
                     });
                 } else {
