@@ -1,6 +1,7 @@
 mod ast;
 mod codegen;
 mod error_kinds;
+mod formatter_source_map;
 mod parser;
 mod resolutions;
 mod scanner;

@@ -3,6 +3,7 @@ use crate::compiler::token::TokenType;
 pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
+mod formatter;
 pub(crate) mod parser;
 pub(crate) mod resolutions;
 mod scanner;
