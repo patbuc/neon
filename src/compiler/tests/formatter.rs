@@ -244,3 +244,107 @@ fn test_corpus_nested_fn_returning_lambda() {
         "fn getF() {\n    print(\"callee\")\n    return fn(a) {\n        return a\n    }\n}\n",
     );
 }
+
+#[test]
+fn test_call_args_broken_after_open_paren() {
+    check("foo(\na, b)\n", "foo(\n    a,\n    b,\n)\n");
+}
+
+#[test]
+fn test_call_args_broken_between_args() {
+    check("foo(a,\nb)\n", "foo(\n    a,\n    b,\n)\n");
+}
+
+#[test]
+fn test_call_args_broken_before_close_paren() {
+    check("foo(a, b\n)\n", "foo(\n    a,\n    b,\n)\n");
+}
+
+#[test]
+fn test_call_args_empty_broken_collapses() {
+    check("foo(\n)\n", "foo()\n");
+}
+
+#[test]
+fn test_lambda_call_arg_already_broken_stays_broken() {
+    check(
+        "g.map(fn(x) {\nreturn x\n})\n",
+        "g.map(fn(x) {\n    return x\n})\n",
+    );
+}
+
+#[test]
+fn test_map_literal_one_entry_per_line_stays() {
+    check(
+        "val m = {\n    \"a\": 1,\n    \"b\": 2,\n}\n",
+        "val m = {\n    \"a\": 1,\n    \"b\": 2,\n}\n",
+    );
+}
+
+#[test]
+fn test_set_literal_broken_with_trailing_comma_stays() {
+    check("val s = #{\n1,\n2,\n}\n", "val s = #{\n    1,\n    2,\n}\n");
+}
+
+#[test]
+fn test_fn_params_broken_across_lines() {
+    check("fn f(a,\nb) {}\n", "fn f(\n    a,\n    b,\n) {}\n");
+}
+
+#[test]
+fn test_grouping_broken_across_lines() {
+    check("val x = (\n1 + 2\n)\n", "val x = (\n    1 + 2\n)\n");
+}
+
+#[test]
+fn test_val_initializer_continuation_reindents_to_one_level() {
+    check("val x = 1 +\n        2\n", "val x = 1 +\n    2\n");
+}
+
+#[test]
+fn test_val_without_space_before_break() {
+    check("val z =\n5\n", "val z =\n    5\n");
+}
+
+#[test]
+fn test_ternary_continuation() {
+    check("val x = c ?\n1 : 2\n", "val x = c ?\n    1 : 2\n");
+}
+
+#[test]
+fn test_map_entry_value_continuation() {
+    check("val m = {\"a\":\n 1}\n", "val m = {\"a\":\n    1}\n");
+}
+
+#[test]
+fn test_binary_chain_continuation_is_flat() {
+    check("val x = a +\nb +\nc\n", "val x = a +\n    b +\n    c\n");
+}
+
+#[test]
+fn test_continuation_inside_block_does_not_leak_to_next_statement() {
+    check(
+        "fn f() {\n    val x = 1 +\n        2\n    val y = 3\n}\n",
+        "fn f() {\n    val x = 1 +\n        2\n    val y = 3\n}\n",
+    );
+}
+
+#[test]
+fn test_compound_assign_continuation() {
+    check("x +=\n1\n", "x +=\n    1\n");
+}
+
+#[test]
+fn test_set_field_continuation() {
+    check("a.b =\n1\n", "a.b =\n    1\n");
+}
+
+#[test]
+fn test_index_assign_continuation() {
+    check("a[0] =\n1\n", "a[0] =\n    1\n");
+}
+
+#[test]
+fn test_nested_broken_lists_indent_one_level_each() {
+    check("foo(bar(\na,\nb\n))\n", "foo(bar(\n    a,\n    b,\n))\n");
+}

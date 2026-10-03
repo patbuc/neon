@@ -196,7 +196,14 @@ impl<'a> Printer<'a> {
 
     // --- Statements -----------------------------------------------------
 
+    /// A continuation inside this statement must not leave the indent
+    /// bumped for whatever gets printed after it, so every statement
+    /// prints inside its own `nested` scope.
     fn print_stmt(&mut self, stmt: &Stmt) {
+        self.nested(0, |printer| printer.print_stmt_body(stmt));
+    }
+
+    fn print_stmt_body(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
                 name,
