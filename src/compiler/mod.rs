@@ -4,6 +4,7 @@ pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
 mod formatter;
+pub use formatter::format;
 pub(crate) mod parser;
 pub(crate) mod resolutions;
 mod scanner;

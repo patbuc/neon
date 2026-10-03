@@ -9,7 +9,6 @@ use crate::compiler::Scanner;
 /// where an AST node starts and ends. Newlines are dropped (the parser
 /// already turned them into statement boundaries); brackets are linked to
 /// their matching close/open so callers can jump from one to the other.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct SourceMap {
     kinds: Vec<TokenType>,
     texts: Vec<String>,
@@ -21,7 +20,6 @@ pub(crate) struct SourceMap {
 
 /// The four token positions that bracket a function's params and body,
 /// shared by named declarations and lambdas.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct FnTokens {
     pub(crate) params_open: usize,
     pub(crate) params_close: usize,
@@ -29,7 +27,6 @@ pub(crate) struct FnTokens {
     pub(crate) body_close: usize,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl SourceMap {
     pub(crate) fn new(source: &str) -> Self {
         let mut scanner = Scanner::new(source);
@@ -105,10 +102,14 @@ impl SourceMap {
         self.end_lines[token]
     }
 
+    // Only the test suite inspects raw token kind/text so far; the printer
+    // works entirely in terms of line numbers and bracket partners.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn kind(&self, token: usize) -> &TokenType {
         &self.kinds[token]
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn text(&self, token: usize) -> &str {
         &self.texts[token]
     }
