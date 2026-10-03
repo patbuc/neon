@@ -120,12 +120,17 @@ pub fn native_math_max(args: &[Value]) -> Result<Value, String> {
     Ok(max_value.into_value())
 }
 
-fn extract_div_operand(args: &[Value], idx: usize, name: &str) -> Result<i64, String> {
+fn extract_int_operand(
+    args: &[Value],
+    idx: usize,
+    name: &str,
+    method: &str,
+) -> Result<i64, String> {
     match args.get(idx) {
         Some(Value::Int(i)) => Ok(*i),
-        Some(Value::Number(_)) => Err("div() expects two integers, got float".to_string()),
-        Some(_) => Err(format!("div() {} must be a number", name)),
-        None => Err(format!("div() missing required argument: {}", name)),
+        Some(Value::Number(_)) => Err(format!("{}() expects two integers, got float", method)),
+        Some(_) => Err(format!("{}() {} must be a number", method, name)),
+        None => Err(format!("{}() missing required argument: {}", method, name)),
     }
 }
 
@@ -136,8 +141,8 @@ pub fn native_math_div(args: &[Value]) -> Result<Value, String> {
         return Err(format!("div() expects 2 arguments, got {}", args.len()));
     }
 
-    let a = extract_div_operand(args, 0, "a")?;
-    let b = extract_div_operand(args, 1, "b")?;
+    let a = extract_int_operand(args, 0, "a", "div")?;
+    let b = extract_int_operand(args, 1, "b", "div")?;
 
     if b == 0 {
         return Err("div() division by zero".to_string());
@@ -154,4 +159,127 @@ pub fn native_math_div(args: &[Value]) -> Result<Value, String> {
     };
 
     Ok(Value::Int(floored))
+}
+
+/// Native implementation of Math.round(x)
+/// Rounds half away from zero, returns an int.
+pub fn native_math_round(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!("round() expects 1 argument, got {}", args.len()));
+    }
+
+    match extract_numeric(args, 0, "x", "round")? {
+        Numeric::Int(n) => Ok(Value::Int(n)),
+        Numeric::Float(n) => integral_to_int(n.round(), "round"),
+    }
+}
+
+/// Native implementation of Math.sign(x)
+/// Returns -1, 0 or 1 as an int; -0.0 is 0.
+pub fn native_math_sign(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!("sign() expects 1 argument, got {}", args.len()));
+    }
+
+    match extract_numeric(args, 0, "x", "sign")? {
+        Numeric::Int(n) => Ok(Value::Int(n.signum())),
+        Numeric::Float(n) => {
+            if n.is_nan() {
+                return Err("sign() argument is NaN".to_string());
+            }
+            let sign = if n > 0.0 {
+                1
+            } else if n < 0.0 {
+                -1
+            } else {
+                0
+            };
+            Ok(Value::Int(sign))
+        }
+    }
+}
+
+fn gcd_u64(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a
+}
+
+/// Native implementation of Math.gcd(a, b)
+/// Greatest common divisor of two ints, always non-negative.
+pub fn native_math_gcd(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!("gcd() expects 2 arguments, got {}", args.len()));
+    }
+
+    let a = extract_int_operand(args, 0, "a", "gcd")?;
+    let b = extract_int_operand(args, 1, "b", "gcd")?;
+
+    let g = gcd_u64(a.unsigned_abs(), b.unsigned_abs());
+    i64::try_from(g)
+        .map(Value::Int)
+        .map_err(|_| "integer overflow in gcd()".to_string())
+}
+
+/// Native implementation of Math.lcm(a, b)
+/// Least common multiple of two ints, always non-negative.
+pub fn native_math_lcm(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!("lcm() expects 2 arguments, got {}", args.len()));
+    }
+
+    let a = extract_int_operand(args, 0, "a", "lcm")?;
+    let b = extract_int_operand(args, 1, "b", "lcm")?;
+
+    if a == 0 || b == 0 {
+        return Ok(Value::Int(0));
+    }
+
+    let (ua, ub) = (a.unsigned_abs(), b.unsigned_abs());
+    let g = gcd_u64(ua, ub);
+    let result = (ua / g)
+        .checked_mul(ub)
+        .ok_or_else(|| "integer overflow in lcm()".to_string())?;
+    i64::try_from(result)
+        .map(Value::Int)
+        .map_err(|_| "integer overflow in lcm()".to_string())
+}
+
+/// Native implementation of Math.mod(a, b)
+/// Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise.
+pub fn native_math_mod(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!("mod() expects 2 arguments, got {}", args.len()));
+    }
+
+    match (
+        extract_numeric(args, 0, "a", "mod")?,
+        extract_numeric(args, 1, "b", "mod")?,
+    ) {
+        (Numeric::Int(a), Numeric::Int(b)) => {
+            if b == 0 {
+                return Err("mod() division by zero".to_string());
+            }
+            Ok(Value::Int(a.wrapping_rem_euclid(b)))
+        }
+        (a, b) => {
+            let (af, bf) = (a.as_f64(), b.as_f64());
+            if bf == 0.0 {
+                return Err("mod() division by zero".to_string());
+            }
+            if !af.is_finite() || !bf.is_finite() {
+                return Err("mod() requires finite numbers".to_string());
+            }
+            let result = af.rem_euclid(bf);
+            // Rounding can push the result to exactly |b|, just outside the
+            // documented [0, |b|) range; clamp it back and normalize -0.0.
+            let result = if result >= bf.abs() {
+                0.0
+            } else {
+                result + 0.0
+            };
+            Ok(Value::Number(result))
+        }
+    }
 }

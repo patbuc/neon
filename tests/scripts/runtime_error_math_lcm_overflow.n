@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in lcm()
+
+print("before")
+print(Math.lcm(2 ** 62, 3))

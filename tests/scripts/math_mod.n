@@ -1,0 +1,8 @@
+// Expected:
+// 2
+// 1
+// 0.5
+
+print(Math.mod(-7, 3))
+print(Math.mod(7, -3))
+print(Math.mod(-7.5, 2))

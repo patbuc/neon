@@ -104,7 +104,8 @@ arrays, `toFixed`, `padStart`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
-- **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`
+- **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
+  `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
 - **String:** `len`, `substring(start, end)`, `replace(old, new)`,
   `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`, `charAt`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`

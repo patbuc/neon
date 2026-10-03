@@ -207,6 +207,13 @@ impl Numeric {
         }
     }
 
+    pub(crate) fn as_f64(self) -> f64 {
+        match self {
+            Numeric::Int(i) => i as f64,
+            Numeric::Float(f) => f,
+        }
+    }
+
     pub(crate) fn into_value(self) -> Value {
         match self {
             Numeric::Int(i) => Value::Int(i),
