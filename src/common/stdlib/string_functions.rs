@@ -1,30 +1,7 @@
-use crate::common::{f64_fits_i64, Value};
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
+use crate::common::Value;
 use crate::string;
 use crate::{extract_arg, extract_receiver, extract_string_value};
-
-fn extract_integer_arg(
-    args: &[Value],
-    idx: usize,
-    arg_name: &str,
-    method: &str,
-) -> Result<i64, String> {
-    match args.get(idx) {
-        Some(Value::Int(i)) => Ok(*i),
-        Some(Value::Number(n)) if n.fract() == 0.0 && f64_fits_i64(*n) => Ok(*n as i64),
-        Some(Value::Number(n)) if n.fract() == 0.0 => {
-            Err(format!("{}() {} out of range: {}", method, arg_name, n))
-        }
-        Some(Value::Number(n)) => Err(format!(
-            "{}() {} must be an integer, got {}",
-            method, arg_name, n
-        )),
-        Some(_) => Err(format!("{}() {} must be an integer", method, arg_name)),
-        None => Err(format!(
-            "{}() missing required argument: {}",
-            method, arg_name
-        )),
-    }
-}
 
 /// Native implementation of String.len()
 /// Returns the number of Unicode characters in the string

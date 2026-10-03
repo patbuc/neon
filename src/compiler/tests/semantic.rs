@@ -3786,12 +3786,12 @@ impl Array {
 #[test]
 fn test_calling_builtin_user_method_in_static_form_is_compile_error() {
     let program = r#"
-impl Array {
+impl Map {
     fn second(self) {
         return self[1]
     }
 }
-val x = Array.second([1, 2])
+val x = Map.second({})
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();

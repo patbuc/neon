@@ -1,0 +1,18 @@
+// Expected:
+// [0, 0, 0]
+// []
+// [0, 1, 4]
+// [[1, 0], [0, 0]]
+// [[1], [1]]
+
+print(Array(3, 0))
+print(Array(0, 1))
+print(Array(3, fn(i) { return i * i }))
+
+val grid = Array(2, fn(y) { return Array(2, 0) })
+grid[0][0] = 1
+print(grid)
+
+val shared = Array(2, [])
+shared[0].push(1)
+print(shared)

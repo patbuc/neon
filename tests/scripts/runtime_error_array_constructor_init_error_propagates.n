@@ -1,0 +1,12 @@
+// Expected:
+// before
+
+// Expected runtime error: div() division by zero
+
+print("before")
+Array(3, fn(i) {
+    if (i == 1) {
+        return Math.div(1, 0)
+    }
+    return i
+})

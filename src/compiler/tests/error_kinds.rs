@@ -166,7 +166,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             None,
         )],
         CompilationErrorKind::StaticCallOnBuiltinType => {
-            vec![("Array.foo()\n".to_string(), None)]
+            vec![("Map.foo()\n".to_string(), None)]
         }
         CompilationErrorKind::LoopControlOutsideLoop => vec![("break\n".to_string(), None)],
         CompilationErrorKind::NamespaceAsValue => vec![("Math\n".to_string(), None)],

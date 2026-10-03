@@ -1,3 +1,4 @@
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
@@ -650,6 +651,52 @@ pub fn native_array_copy(args: &[Value]) -> Result<Value, String> {
 
     let array_ref = extract_receiver!(args, Array, "copy")?;
     let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(Value::new_array(elements))
+}
+
+const MAX_ARRAY_LEN: usize = 100_000_000;
+
+fn is_callable(value: &Value) -> bool {
+    matches!(value, Value::Closure(_) | Value::NativeFunction(_))
+}
+
+/// Native implementation of the Array(n, init) constructor.
+/// Builds an array of n elements. If init is callable (a closure, function,
+/// or native function), it's called with each index 0..n to produce that
+/// element; otherwise init is stored (the same reference) in every element.
+pub fn native_array_constructor(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!("Array() expects 2 arguments (n, init), got {}", args.len()).into());
+    }
+
+    let n = extract_integer_arg(args, 0, "n", "Array")?;
+    if n < 0 {
+        return Err(format!("Array() n must be non-negative, got {}", n).into());
+    }
+    if n > MAX_ARRAY_LEN as i64 {
+        return Err(format!("Array() n exceeds {} elements", MAX_ARRAY_LEN).into());
+    }
+    let n = n as usize;
+
+    let init = &args[1];
+    let mut elements = Vec::new();
+    elements
+        .try_reserve_exact(n)
+        .map_err(|_| format!("Array() n exceeds available memory: {}", n))?;
+
+    if is_callable(init) {
+        for i in 0..n {
+            elements.push(vm.call_value(init.clone(), &[Value::Int(i as i64)])?);
+        }
+    } else {
+        for _ in 0..n {
+            elements.push(init.clone());
+        }
+    }
 
     Ok(Value::new_array(elements))
 }

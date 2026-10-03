@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: Array() n must be non-negative, got -1
+
+print("before")
+Array(-1, 0)
