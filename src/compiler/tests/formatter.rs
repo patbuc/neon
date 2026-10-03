@@ -456,3 +456,63 @@ fn test_block_then_braceless_else() {
         "if (c) {\n    a\n} else b()\n",
     );
 }
+
+#[test]
+fn test_multiple_blank_lines_collapse_to_one() {
+    check("val a = 1\n\n\n\nval b = 2\n", "val a = 1\n\nval b = 2\n");
+}
+
+#[test]
+fn test_leading_blank_lines_are_dropped() {
+    check("\n\n\nval a = 1\n", "val a = 1\n");
+}
+
+#[test]
+fn test_blank_after_open_brace_is_dropped() {
+    check("fn f() {\n\n    a()\n}\n", "fn f() {\n    a()\n}\n");
+}
+
+#[test]
+fn test_blank_before_close_brace_is_dropped() {
+    check("fn f() {\n    a()\n\n}\n", "fn f() {\n    a()\n}\n");
+}
+
+#[test]
+fn test_trailing_blank_at_eof_is_dropped() {
+    check("val a = 1\n\n\n", "val a = 1\n");
+}
+
+#[test]
+fn test_whitespace_only_line_counts_as_blank() {
+    check("val a = 1\n   \nval b = 2\n", "val a = 1\n\nval b = 2\n");
+}
+
+#[test]
+fn test_blank_between_list_items_is_kept() {
+    check(
+        "val a = [\n    1,\n\n    2,\n]\n",
+        "val a = [\n    1,\n\n    2,\n]\n",
+    );
+}
+
+#[test]
+fn test_blank_after_open_bracket_is_dropped() {
+    check(
+        "val a = [\n\n    1,\n    2,\n]\n",
+        "val a = [\n    1,\n    2,\n]\n",
+    );
+}
+
+#[test]
+fn test_blank_in_continuation_is_dropped() {
+    check("val x = 1 +\n\n    2\n", "val x = 1 +\n    2\n");
+}
+
+#[test]
+fn test_no_trailing_whitespace_on_any_line() {
+    let source = "fn f(a, b) {\n    val x = 1 +\n        2\n    return x\n}\n";
+    let formatted = crate::compiler::format(source).unwrap();
+    for line in formatted.lines() {
+        assert!(!line.ends_with(' '), "trailing whitespace in {line:?}");
+    }
+}

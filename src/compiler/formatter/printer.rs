@@ -1,6 +1,7 @@
 use crate::common::SourceLocation;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
+use crate::compiler::Trivia;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Gap {
@@ -9,6 +10,16 @@ pub(crate) enum Gap {
     BeforeClose,
     Empty,
     Continuation,
+}
+
+impl Gap {
+    fn keeps_leading(self) -> bool {
+        matches!(self, Gap::BetweenItems | Gap::BeforeClose)
+    }
+
+    fn keeps_trailing(self) -> bool {
+        matches!(self, Gap::BetweenItems | Gap::AfterOpen)
+    }
 }
 
 struct Brackets {
@@ -24,16 +35,18 @@ pub(crate) struct Printer<'a> {
     indent: usize,
     continued: bool,
     map: &'a SourceMap,
+    blank_lines: &'a [u32],
 }
 
 impl<'a> Printer<'a> {
-    pub(crate) fn new(map: &'a SourceMap) -> Self {
+    pub(crate) fn new(map: &'a SourceMap, trivia: &'a Trivia) -> Self {
         Printer {
             out: String::new(),
             at_line_start: true,
             indent: 0,
             continued: false,
             map,
+            blank_lines: &trivia.blank_lines,
         }
     }
 
@@ -81,8 +94,26 @@ impl<'a> Printer<'a> {
         self.at_line_start = true;
     }
 
-    fn line_break(&mut self, _prev: u32, _next: u32, _gap: Gap) {
+    fn blank(&mut self) {
+        if self.out.is_empty() || self.out.ends_with("\n\n") {
+            return;
+        }
+        self.out.push('\n');
+    }
+
+    fn has_blank_between(&self, a: u32, b: u32) -> bool {
+        self.blank_lines.iter().any(|&line| line > a && line < b)
+    }
+
+    fn line_break(&mut self, prev: u32, next: u32, gap: Gap) {
+        if next <= prev {
+            self.newline();
+            return;
+        }
         self.newline();
+        if self.has_blank_between(prev, next) && gap.keeps_leading() && gap.keeps_trailing() {
+            self.blank();
+        }
     }
 
     fn nested(&mut self, extra: usize, f: impl FnOnce(&mut Self)) {
