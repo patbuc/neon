@@ -14,16 +14,7 @@ pub fn native_set_add(args: &[Value]) -> Result<Value, String> {
 
     let set_ref = extract_receiver!(args, Set, "add")?;
 
-    // Convert element to SetKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "set element")?;
 
     // Add element to set
     let mut set = set_ref.borrow_mut();
@@ -43,16 +34,7 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
 
     let set_ref = extract_receiver!(args, Set, "remove")?;
 
-    // Convert element to SetKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "set element")?;
 
     // Remove element from set
     let mut set = set_ref.borrow_mut();
@@ -72,16 +54,7 @@ pub fn native_set_has(args: &[Value]) -> Result<Value, String> {
 
     let set_ref = extract_receiver!(args, Set, "has")?;
 
-    // Convert element to SetKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "set element")?;
 
     // Check if element exists
     let set = set_ref.borrow();

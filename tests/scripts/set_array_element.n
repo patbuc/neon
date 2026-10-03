@@ -1,0 +1,13 @@
+// Expected:
+// false
+// 1
+// true
+// true
+// 0
+
+val s = #{[0, 0]}
+print(s.add([0, 0]))
+print(s.size())
+print(s.has([0, 0]))
+print(s.remove([0, 0]))
+print(s.size())

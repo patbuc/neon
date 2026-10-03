@@ -1,0 +1,8 @@
+// Expected:
+// before
+
+// Expected runtime error: Invalid map key type: nil. Only strings, numbers, booleans, arrays, and enum variants can be used as map keys.
+
+print("before")
+val m = {}
+m[[nil]] = 1

@@ -1,0 +1,13 @@
+// Expected:
+// 1
+// nil
+
+enum Color {
+    Red
+    Green
+}
+
+val m = {}
+m[Color.Red] = 1
+print(m[Color.Red])
+print(m[Color.Green])

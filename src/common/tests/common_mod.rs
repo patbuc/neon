@@ -521,17 +521,20 @@ fn compare_int_and_float_edges() {
 #[test]
 fn map_key_from_value_normalizes_integral_float_to_int() {
     assert_eq!(
-        MapKey::from_value(&Value::Number(1.0)),
-        Some(MapKey::Int(1))
+        MapKey::from_value(&Value::Number(1.0), "map key"),
+        Ok(MapKey::Int(1))
     );
     assert_eq!(
-        MapKey::from_value(&Value::Number(-0.0)),
-        Some(MapKey::Int(0))
+        MapKey::from_value(&Value::Number(-0.0), "map key"),
+        Ok(MapKey::Int(0))
     );
-    assert_eq!(MapKey::from_value(&Value::Int(1)), Some(MapKey::Int(1)));
     assert_eq!(
-        MapKey::from_value(&Value::Number(1.5)),
-        Some(MapKey::Number(OrderedFloat(1.5)))
+        MapKey::from_value(&Value::Int(1), "map key"),
+        Ok(MapKey::Int(1))
+    );
+    assert_eq!(
+        MapKey::from_value(&Value::Number(1.5), "map key"),
+        Ok(MapKey::Number(OrderedFloat(1.5)))
     );
 }
 
@@ -539,17 +542,17 @@ fn map_key_from_value_normalizes_integral_float_to_int() {
 fn map_key_int_and_float_literal_share_an_entry() {
     let mut map: IndexMap<MapKey, Value> = IndexMap::new();
     map.insert(
-        MapKey::from_value(&Value::Int(1)).unwrap(),
+        MapKey::from_value(&Value::Int(1), "map key").unwrap(),
         Value::String(Rc::new("a".to_string())),
     );
     map.insert(
-        MapKey::from_value(&Value::Number(1.0)).unwrap(),
+        MapKey::from_value(&Value::Number(1.0), "map key").unwrap(),
         Value::String(Rc::new("b".to_string())),
     );
 
     assert_eq!(map.len(), 1);
     assert_eq!(
-        map.get(&MapKey::from_value(&Value::Int(1)).unwrap()),
+        map.get(&MapKey::from_value(&Value::Int(1), "map key").unwrap()),
         Some(&Value::String(Rc::new("b".to_string())))
     );
 }
@@ -573,4 +576,134 @@ fn set_orders_int_and_float_keys_numerically() {
 
     let set = Value::new_set(elements);
     assert_eq!(format!("{}", set), "#{1, 2.5, 3}");
+}
+
+#[test]
+fn map_key_from_value_array_is_frozen_copy() {
+    let array = Value::new_array(vec![Value::Int(1), Value::Int(2)]);
+    let key = MapKey::from_value(&array, "map key").unwrap();
+
+    if let Value::Array(a) = &array {
+        a.borrow_mut().push(Value::Int(9));
+    }
+
+    assert_eq!(
+        key,
+        MapKey::Array(vec![MapKey::Int(1), MapKey::Int(2)].into())
+    );
+}
+
+#[test]
+fn map_key_from_value_nested_array() {
+    let inner = Value::new_array(vec![Value::Int(1), Value::Int(2)]);
+    let outer = Value::new_array(vec![inner, Value::String(Rc::new("a".to_string()))]);
+
+    let key = MapKey::from_value(&outer, "map key").unwrap();
+    assert_eq!(
+        key,
+        MapKey::Array(
+            vec![
+                MapKey::Array(vec![MapKey::Int(1), MapKey::Int(2)].into()),
+                MapKey::String(Rc::new("a".to_string())),
+            ]
+            .into()
+        )
+    );
+}
+
+#[test]
+fn map_key_from_value_rejects_self_referencing_array() {
+    let array = Value::new_array(vec![]);
+    if let Value::Array(a) = &array {
+        a.borrow_mut().push(array.clone());
+    }
+
+    let err = MapKey::from_value(&array, "map key").unwrap_err();
+    assert_eq!(err, "Cannot use a self-referencing array as a map key.");
+}
+
+#[test]
+fn map_key_from_value_rejects_invalid_element_in_array() {
+    let array = Value::new_array(vec![Value::Nil]);
+    let err = MapKey::from_value(&array, "map key").unwrap_err();
+    assert!(err.starts_with("Invalid map key type: nil."));
+}
+
+#[test]
+fn map_key_from_value_rejects_indirect_cycle() {
+    let a = Value::new_array(vec![]);
+    let b = Value::new_array(vec![a.clone()]);
+    if let Value::Array(a_rc) = &a {
+        a_rc.borrow_mut().push(b.clone());
+    }
+
+    let err = MapKey::from_value(&a, "map key").unwrap_err();
+    assert_eq!(err, "Cannot use a self-referencing array as a map key.");
+}
+
+#[test]
+fn map_key_from_value_array_diamond() {
+    let shared = Value::new_array(vec![Value::Int(1)]);
+    let outer = Value::new_array(vec![shared.clone(), shared]);
+
+    let key = MapKey::from_value(&outer, "map key").unwrap();
+    assert_eq!(
+        key,
+        MapKey::Array(
+            vec![
+                MapKey::Array(vec![MapKey::Int(1)].into()),
+                MapKey::Array(vec![MapKey::Int(1)].into()),
+            ]
+            .into()
+        )
+    );
+}
+
+#[test]
+fn map_key_enum_variant_eq() {
+    let red1 = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    let red2 = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+    let green = Value::new_enum_variant("Color".to_string(), "Green".to_string(), 1);
+
+    let key1 = MapKey::from_value(&red1, "map key").unwrap();
+    let key2 = MapKey::from_value(&red2, "map key").unwrap();
+    let key3 = MapKey::from_value(&green, "map key").unwrap();
+
+    assert_eq!(key1, key2);
+    assert_ne!(key1, key3);
+}
+
+#[test]
+fn map_key_array_display_matches_value_array() {
+    let key = MapKey::Array(vec![MapKey::Int(1), MapKey::String(Rc::new("a".to_string()))].into());
+    assert_eq!(format!("{}", key), "[1, a]");
+}
+
+#[test]
+fn map_key_array_ord_lexicographic() {
+    let short = MapKey::Array(vec![MapKey::Int(1)].into());
+    let long = MapKey::Array(vec![MapKey::Int(1), MapKey::Int(0)].into());
+    assert!(short < long);
+
+    let a = MapKey::Array(vec![MapKey::Int(1), MapKey::Int(2)].into());
+    let b = MapKey::Array(vec![MapKey::Int(1), MapKey::Int(3)].into());
+    assert!(a < b);
+}
+
+#[test]
+fn map_key_cross_kind_ord() {
+    let string_key = MapKey::String(Rc::new("a".to_string()));
+    let number_key = MapKey::Int(1);
+    let bool_key = MapKey::Boolean(true);
+    let enum_key = MapKey::EnumVariant(Rc::new(ObjEnumVariant {
+        enum_name: "Color".to_string(),
+        variant_name: "Red".to_string(),
+        ordinal: 0,
+    }));
+    let array_key = MapKey::Array(vec![].into());
+
+    assert!(string_key < number_key);
+    assert!(number_key < bool_key);
+    assert!(bool_key < enum_key);
+    assert!(enum_key < array_key);
 }

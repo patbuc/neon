@@ -69,7 +69,7 @@ fn set_field_missing_halts() {
 #[test]
 fn create_map_invalid_key_reports_exactly_one_error() {
     let program = r#"
-        print({[1]: 2})
+        print({nil: 2})
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -82,7 +82,7 @@ fn create_map_invalid_key_reports_exactly_one_error() {
 #[test]
 fn create_set_invalid_element_reports_exactly_one_error() {
     let program = r#"
-        print(#{[1]})
+        print(#{nil})
         "#;
 
     let mut vm = VirtualMachine::new();

@@ -1353,15 +1353,8 @@ impl VirtualMachine {
             let key_value = &self.stack[pairs_start + 2 * i];
             let value = &self.stack[pairs_start + 2 * i + 1];
 
-            let key = match MapKey::from_value(key_value) {
-                Some(k) => k,
-                None => {
-                    return Err(self.runtime_error(format!(
-                        "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                        key_value
-                    )));
-                }
-            };
+            let key =
+                MapKey::from_value(key_value, "map key").map_err(|m| self.runtime_error(m))?;
 
             map.insert(key, value.clone());
         }
@@ -1400,15 +1393,8 @@ impl VirtualMachine {
         for i in 0..count {
             let element_value = &self.stack[elements_start + i];
 
-            let key = match MapKey::from_value(element_value) {
-                Some(k) => k,
-                None => {
-                    return Err(self.runtime_error(format!(
-                        "Invalid set element type: {}. Only strings, numbers, and booleans can be used as set elements.",
-                        element_value
-                    )));
-                }
-            };
+            let key = MapKey::from_value(element_value, "set element")
+                .map_err(|m| self.runtime_error(m))?;
 
             set.insert(key);
         }
@@ -1478,16 +1464,8 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Map(map_ref) => {
-                // Convert index to MapKey
-                let key = match MapKey::from_value(&index_value) {
-                    Some(k) => k,
-                    None => {
-                        return Err(self.runtime_error(format!(
-                            "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                            index_value
-                        )));
-                    }
-                };
+                let key = MapKey::from_value(&index_value, "map key")
+                    .map_err(|m| self.runtime_error(m))?;
 
                 let map = map_ref.borrow();
                 let result = map.get(&key).cloned().unwrap_or(Value::Nil);
@@ -1562,16 +1540,8 @@ impl VirtualMachine {
 
         match &collection_value {
             Value::Map(map_ref) => {
-                // Convert index to MapKey
-                let key = match MapKey::from_value(&index_value) {
-                    Some(k) => k,
-                    None => {
-                        return Err(self.runtime_error(format!(
-                            "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                            index_value
-                        )));
-                    }
-                };
+                let key = MapKey::from_value(&index_value, "map key")
+                    .map_err(|m| self.runtime_error(m))?;
 
                 let mut map = map_ref.borrow_mut();
                 map.insert(key, value.clone());
