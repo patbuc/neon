@@ -1,8 +1,8 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::{
-    compare_int_and_float, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct,
-    Value,
+    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, ObjInstance, ObjNativeFunction,
+    ObjStruct, Value,
 };
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
@@ -1449,23 +1449,15 @@ impl VirtualMachine {
 
     fn range_bound(&self, value: Value, label: &str) -> std::result::Result<i64, RuntimeError> {
         match value {
-            Value::Int(i) => {
-                if i.unsigned_abs() > Self::MAX_RANGE_BOUND as u64 {
-                    return Err(self.runtime_error(format!(
-                        "Range {} must be between -2^53 and 2^53, got {}",
-                        label, i
-                    )));
-                }
-                Ok(i)
-            }
+            Value::Int(i) => Ok(i),
             Value::Number(n) => {
                 if n.fract() != 0.0 {
                     return Err(self
                         .runtime_error(format!("Range {} must be an integer, got {}", label, n)));
                 }
-                if n.abs() > Self::MAX_RANGE_BOUND as f64 {
+                if !f64_fits_i64(n) {
                     return Err(self.runtime_error(format!(
-                        "Range {} must be between -2^53 and 2^53, got {}",
+                        "Range {} must fit in a 64-bit integer, got {}",
                         label, n
                     )));
                 }
@@ -1656,7 +1648,7 @@ impl VirtualMachine {
         };
 
         self.push(iterator_value);
-        self.push(number!(0.0));
+        self.push(int!(0));
         Ok(())
     }
 
@@ -1680,7 +1672,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_iterator_done(&mut self) -> OpResult {
         let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
-            Value::Number(n) => *n as usize,
+            Value::Int(i) => *i,
             other => {
                 return Err(self.runtime_error(format!(
                     "Invalid iterator index, got {}.",
@@ -1689,8 +1681,8 @@ impl VirtualMachine {
             }
         };
         let has_more = match &self.stack[slot] {
-            Value::Array(array_ref) => index < array_ref.borrow().len(),
-            Value::Range(range) => (index as i64) < range.len(),
+            Value::Array(array_ref) => index < array_ref.borrow().len() as i64,
+            Value::Range(range) => index < range.len(),
             other => {
                 return Err(self.runtime_error(format!(
                     "Invalid iterator collection, got {}.",
@@ -1710,7 +1702,7 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_iterator_next(&mut self) -> OpResult {
         let slot = self.read_iterator_slot()?;
         let index = match &self.stack[slot + 1] {
-            Value::Number(n) => *n as usize,
+            Value::Int(i) => *i,
             other => {
                 return Err(self.runtime_error(format!(
                     "Invalid iterator index, got {}.",
@@ -1721,16 +1713,16 @@ impl VirtualMachine {
         let value = match &self.stack[slot] {
             Value::Array(array_ref) => {
                 let array = array_ref.borrow();
-                if index >= array.len() {
+                if index >= array.len() as i64 {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
-                array[index].clone()
+                array[index as usize].clone()
             }
             Value::Range(range) => {
-                if (index as i64) >= range.len() {
+                if index >= range.len() {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
-                Value::Int(range.get(index as i64))
+                Value::Int(range.get(index))
             }
             other => {
                 return Err(self.runtime_error(format!(
@@ -1740,7 +1732,7 @@ impl VirtualMachine {
             }
         };
 
-        self.stack[slot + 1] = number!((index + 1) as f64);
+        self.stack[slot + 1] = int!(index + 1);
         self.push(value);
         Ok(())
     }

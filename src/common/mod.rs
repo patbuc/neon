@@ -95,7 +95,7 @@ impl MapKey {
             Value::String(s) => Some(MapKey::String(Rc::clone(s))),
             Value::Int(i) => Some(MapKey::Int(*i)),
             Value::Number(n) => {
-                if n.fract() == 0.0 && *n >= -TWO_POW_63 && *n < TWO_POW_63 {
+                if n.fract() == 0.0 && f64_fits_i64(*n) {
                     Some(MapKey::Int(*n as i64))
                 } else {
                     Some(MapKey::Number(OrderedFloat(*n)))
@@ -145,10 +145,6 @@ impl PartialOrd for MapKey {
     }
 }
 
-/// `MapKey::from_value` normalizes every integral float into `MapKey::Int`,
-/// so an `Int` and a `Number` key never hold the same numeric value in
-/// practice; comparing them numerically below can't make `Ord` disagree
-/// with the derived, per-variant `Eq`.
 impl Ord for MapKey {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering;
@@ -169,8 +165,7 @@ impl Ord for MapKey {
 }
 
 /// Compares an `i64` and an `f64` by their exact numeric value (not by
-/// casting the int to a possibly-imprecise float). Returns `None` for NaN,
-/// which `Ord` callers treat as greater than everything (NaN sorts last).
+/// casting the int to a possibly-imprecise float). Returns `None` for NaN.
 pub(crate) fn compare_int_and_float(i: i64, f: f64) -> Option<std::cmp::Ordering> {
     use std::cmp::Ordering;
     if f.is_nan() {
@@ -266,12 +261,15 @@ pub struct ObjRange {
 }
 
 impl ObjRange {
-    /// Number of integers the range covers; empty (e.g. `5..1`) is 0, never negative.
+    /// Number of integers the range covers; empty (e.g. `5..1`) is 0, never
+    /// negative. Saturates instead of overflowing for extreme bounds (e.g.
+    /// `i64::MIN..i64::MAX`), where the true count doesn't fit in an `i64`.
     pub(crate) fn len(&self) -> i64 {
+        let len = self.end.saturating_sub(self.start);
         if self.inclusive {
-            (self.end - self.start + 1).max(0)
+            len.saturating_add(1).max(0)
         } else {
-            (self.end - self.start).max(0)
+            len.max(0)
         }
     }
 
@@ -363,15 +361,6 @@ pub struct ObjEnumVariant {
 }
 
 impl Value {
-    /// True for a variant that owns nothing heap-allocated.
-    #[inline(always)]
-    pub(crate) fn is_scalar(&self) -> bool {
-        matches!(
-            self,
-            Value::Number(_) | Value::Int(_) | Value::Boolean(_) | Value::Nil
-        )
-    }
-
     /// Clones the value, copying scalars inline instead of calling `Clone`.
     #[inline(always)]
     pub(crate) fn copy_or_clone(&self) -> Value {
@@ -387,7 +376,7 @@ impl Value {
     /// Drops the value, skipping drop glue for scalars.
     #[inline(always)]
     pub(crate) fn discard(self) {
-        if self.is_scalar() {
+        if let Value::Number(_) | Value::Int(_) | Value::Boolean(_) | Value::Nil = self {
             std::mem::forget(self);
         }
     }

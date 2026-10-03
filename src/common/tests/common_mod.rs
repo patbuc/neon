@@ -334,6 +334,14 @@ fn test_range_len() {
 }
 
 #[test]
+fn test_range_len_extreme_bounds_saturates() {
+    let Value::Range(full) = Value::new_range(i64::MIN, i64::MAX, true) else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(full.len(), i64::MAX);
+}
+
+#[test]
 fn copy_or_clone_scalars() {
     assert_eq!(Value::Number(1.0).copy_or_clone(), Value::Number(1.0));
     assert_eq!(Value::Boolean(true).copy_or_clone(), Value::Boolean(true));
@@ -463,15 +471,6 @@ fn int_equality() {
 #[test]
 fn copy_or_clone_int() {
     assert!(matches!(Value::Int(42).copy_or_clone(), Value::Int(42)));
-}
-
-#[test]
-fn is_scalar() {
-    assert!(Value::Number(1.0).is_scalar());
-    assert!(Value::Int(1).is_scalar());
-    assert!(Value::Boolean(true).is_scalar());
-    assert!(Value::Nil.is_scalar());
-    assert!(!Value::String(Rc::new("x".to_string())).is_scalar());
 }
 
 #[test]

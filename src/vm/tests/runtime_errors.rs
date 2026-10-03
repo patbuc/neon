@@ -1334,7 +1334,7 @@ fn range_huge_start_halts() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
-    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }
 
 #[test]
@@ -1347,7 +1347,7 @@ fn range_huge_end_halts() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
-    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }
 
 #[test]
@@ -1534,10 +1534,46 @@ fn array_index_write_huge_int() {
 }
 
 #[test]
-fn create_range_int_bound_too_large() {
+fn create_range_above_2_pow_53_indexes_exactly() {
+    let start = 1i64 << 60;
     let mut chunk = Chunk::new("ZeChunk");
-    chunk.write_constant(Value::Int(1), 0, 0);
-    chunk.write_constant(Value::Int((1i64 << 53) + 1), 0, 0);
+    chunk.write_constant(Value::Int(start), 0, 0);
+    chunk.write_constant(Value::Int(start + 3), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_constant(Value::Int(2), 0, 0);
+    chunk.write_op_code(OpCode::GetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::Ok, result);
+    assert_eq!(Value::Int(start + 2), vm.pop());
+}
+
+#[test]
+fn create_range_extreme_bound_size() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(Value::Int(i64::MIN), 0, 0);
+    chunk.write_constant(Value::Int(i64::MIN.wrapping_add(3)), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::Ok, result);
+    let Value::Range(range) = vm.pop() else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(3, range.len());
+}
+
+#[test]
+fn create_range_nan_bound_halts() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(number!(f64::NAN), 0, 0);
+    chunk.write_constant(Value::Int(4), 0, 0);
     chunk.write_op_code(OpCode::CreateRange, 0, 0);
     chunk.write_u8(0);
     chunk.write_op_code(OpCode::Return, 0, 0);
@@ -1547,22 +1583,8 @@ fn create_range_int_bound_too_large() {
     assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
     assert!(
-        error.message.contains("between -2^53 and 2^53"),
+        error.message.contains("must be an integer"),
         "{}",
         error.message
     );
-}
-
-#[test]
-fn create_range_int_bound_at_limit() {
-    let mut chunk = Chunk::new("ZeChunk");
-    chunk.write_constant(Value::Int(1), 0, 0);
-    chunk.write_constant(Value::Int(1i64 << 53), 0, 0);
-    chunk.write_op_code(OpCode::CreateRange, 0, 0);
-    chunk.write_u8(0);
-    chunk.write_op_code(OpCode::Return, 0, 0);
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-    assert_eq!(InterpretResult::Ok, result);
 }
