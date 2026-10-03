@@ -1,0 +1,17 @@
+// nested_fn_shadows_native_sleep.n - a nested user function named `sleep`
+// shadows the native sleep for calls within its enclosing function; the
+// top-level `sleep` remains the native
+
+// Expected:
+// local nested
+// nil
+
+fn f() {
+    fn sleep(x) {
+        return "local " + x
+    }
+    return sleep("nested")
+}
+
+print(f())
+print(sleep(0))

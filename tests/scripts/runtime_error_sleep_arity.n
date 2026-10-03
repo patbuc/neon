@@ -1,0 +1,9 @@
+// sleep() requires exactly 1 argument
+
+// Expected:
+// before
+
+// Expected runtime error: sleep() expects 1 argument, got 0
+
+print("before")
+sleep()

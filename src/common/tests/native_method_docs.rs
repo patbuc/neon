@@ -113,8 +113,10 @@ fn process_bullet(lines: &[String], section: &Section, methods: &mut BTreeSet<(S
                     None => token,
                 }
                 .trim();
-                assert_eq!(
-                    name, "print",
+                assert!(
+                    NATIVE_METHODS
+                        .iter()
+                        .any(|(t, m, _)| t.is_empty() && *m == name),
                     "README.md: unexpected Global Functions entry `{token}`"
                 );
             }

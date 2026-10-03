@@ -1,0 +1,9 @@
+// sleep() rejects a negative duration
+
+// Expected:
+// before
+
+// Expected runtime error: sleep() requires a non-negative number of milliseconds
+
+print("before")
+sleep(-1)

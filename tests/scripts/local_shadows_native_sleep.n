@@ -1,0 +1,12 @@
+// local_shadows_native_sleep.n - a local variable named `sleep` shadows the
+// native sleep function within its lexical scope
+
+// Expected:
+// local call
+
+fn f() {
+    val sleep = fn(x) { return "local " + x }
+    return sleep("call")
+}
+
+print(f())

@@ -98,7 +98,7 @@ This is the full list. Anything not here, like `forEach`, `find`, `keys` on
 arrays, `toFixed`, `padStart`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 
-- **Global:** `print(a, b, ...)`, `args` (array of script arguments, strings)
+- **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
 - **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`
 - **String:** `len`, `substring(start, end)`, `replace(old, new)`,
   `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`, `charAt`,

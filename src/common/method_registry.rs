@@ -72,6 +72,14 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: VARIADIC_ARITY,
         },
     ),
+    (
+        "",
+        "sleep",
+        NativeCallable::StaticMethod {
+            function: stdlib::system_functions::native_system_sleep,
+            arity: 1,
+        },
+    ),
     // Math static methods
     (
         "Math",
