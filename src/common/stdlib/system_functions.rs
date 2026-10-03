@@ -26,9 +26,7 @@ pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Nil)
 }
 
-/// Converts a `sleep()` millisecond argument into a `Duration`, rejecting
-/// anything `Duration::try_from_secs_f64` can't represent with a message
-/// that names the actual problem (negative/NaN vs. too large to fit).
+/// Converts a `sleep()` millisecond argument into a `Duration`.
 #[cfg(not(target_arch = "wasm32"))]
 fn sleep_duration(ms: f64) -> Result<std::time::Duration, String> {
     if ms.is_nan() || ms < 0.0 {
@@ -198,11 +196,10 @@ mod tests {
     }
 
     #[test]
-    fn test_sleep_fractional_argument() {
-        let args = vec![number!(1.5)];
-        let result = native_system_sleep(&args);
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Value::Nil);
+    fn test_sleep_duration_keeps_fractional_milliseconds() {
+        assert_eq!(
+            sleep_duration(1.5),
+            Ok(std::time::Duration::from_micros(1500))
+        );
     }
 }
