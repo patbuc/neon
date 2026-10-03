@@ -669,6 +669,11 @@ val flag = "true".toBool()
 
 ## Standard Library
 
+`Math`, `File` and `String` are namespaces: their static methods (`Math.abs(n)`, `File(path)`,
+`String.fromCharCode(n)`) are only callable through the namespace name, and redefining that name at
+top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of the same name inside a
+function still shadows it, same as any other name.
+
 ### Global Functions
 
 - `print(value, ...)` - Output values to stdout (variadic)
@@ -710,6 +715,7 @@ print(Math.mod(-7, 3))     // 2
 - `.len()` - String length (character count)
 - `.substring(start, end)` - Extract substring (supports negative indices)
 - `.replace(old, new)` - Replace all occurrences
+- `.split()` - Split on runs of Unicode whitespace, dropping leading and trailing empties
 - `.split(separator)` - Split into array
 - `.toUpperCase()` - Convert to uppercase
 - `.toLowerCase()` - Convert to lowercase
@@ -720,6 +726,8 @@ print(Math.mod(-7, 3))     // 2
 - `.startsWith(prefix)` / `.endsWith(suffix)` - Check prefix / suffix
 - `.indexOf(substring)` - Position of the first occurrence, or `-1`
 - `.charAt(index)` - Character at `index` (strings can't be indexed with `[]`)
+- `.charCodeAt(index)` - Unicode code point of the character at `index`
+- `String.fromCharCode(n)` - One-character string for the Unicode code point `n`
 
 **Example:**
 ```neon
