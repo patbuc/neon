@@ -69,43 +69,43 @@ fn test_double_negate_keeps_separating_space() {
 
 #[test]
 fn test_postfix_increment() {
-    check("x++\n", "x++\n");
+    check("x ++\n", "x++\n");
 }
 
 #[test]
 fn test_range_unchanged() {
-    check("1..5\n", "1..5\n");
-    check("1..=5\n", "1..=5\n");
+    check("1 .. 5\n", "1..5\n");
+    check("1 ..= 5\n", "1..=5\n");
 }
 
 #[test]
 fn test_get_field_unchanged() {
-    check("a.b\n", "a.b\n");
+    check("a . b\n", "a.b\n");
 }
 
 #[test]
 fn test_index_unchanged() {
-    check("a[0]\n", "a[0]\n");
+    check("a[ 0 ]\n", "a[0]\n");
 }
 
 #[test]
 fn test_call_args_spacing() {
-    check("f(a,b)\n", "f(a, b)\n");
+    check("f ( a , b )\n", "f(a, b)\n");
 }
 
 #[test]
 fn test_map_entry_spacing() {
-    check("val m = {\"a\":1}\n", "val m = {\"a\": 1}\n");
+    check("val m = { \"a\" : 1 }\n", "val m = {\"a\": 1}\n");
 }
 
 #[test]
 fn test_set_literal_spacing() {
-    check("val s = #{1,2}\n", "val s = #{1, 2}\n");
+    check("val s = #{ 1 , 2 }\n", "val s = #{1, 2}\n");
 }
 
 #[test]
 fn test_array_trailing_comma_dropped_when_inline() {
-    check("val a = [1,2,]\n", "val a = [1, 2]\n");
+    check("val a = [ 1 , 2 , ]\n", "val a = [1, 2]\n");
 }
 
 #[test]
@@ -134,6 +134,7 @@ fn test_interpolation_braces_are_tight() {
 
 #[test]
 fn test_grouping_unchanged() {
+    check("( a )\n", "(a)\n");
     check("((a))\n", "((a))\n");
     check("(a + b) * c\n", "(a + b) * c\n");
 }
@@ -347,4 +348,111 @@ fn test_index_assign_continuation() {
 #[test]
 fn test_nested_broken_lists_indent_one_level_each() {
     check("foo(bar(\na,\nb\n))\n", "foo(bar(\n    a,\n    b,\n))\n");
+}
+
+#[test]
+fn test_broken_call_arg_continuation_does_not_leak_to_next_arg() {
+    check(
+        "f(\na +\nb,\nc\n)\n",
+        "f(\n    a +\n        b,\n    c,\n)\n",
+    );
+}
+
+#[test]
+fn test_broken_if_condition_continuation_does_not_leak_into_block_body() {
+    check(
+        "if (a &&\nb) {\nx()\n}\nval q = 1\n",
+        "if (a &&\n    b) {\n    x()\n}\nval q = 1\n",
+    );
+}
+
+#[test]
+fn test_broken_if_condition_continuation_does_not_leak_into_braceless_else() {
+    check(
+        "if (a &&\nb) x()\nelse y()\n",
+        "if (a &&\n    b) x()\nelse y()\n",
+    );
+}
+
+#[test]
+fn test_broken_while_condition_continuation_does_not_leak_into_body() {
+    check(
+        "while (a &&\nb) {\nx()\n}\n",
+        "while (a &&\n    b) {\n    x()\n}\n",
+    );
+}
+
+#[test]
+fn test_broken_for_condition_continuation_does_not_leak_into_body() {
+    check(
+        "for (var i = 0; i <\n10; i = i + 1) {\nx()\n}\n",
+        "for (var i = 0; i <\n    10; i = i + 1) {\n    x()\n}\n",
+    );
+}
+
+#[test]
+fn test_broken_for_in_collection_continuation_does_not_leak_into_body() {
+    check(
+        "for (x in a +\nb) {\ny()\n}\n",
+        "for (x in a +\n    b) {\n    y()\n}\n",
+    );
+}
+
+#[test]
+fn test_lambda_value_continuation_is_unaffected() {
+    check(
+        "val f = fn(x) {\n    return x\n}\nval q = 2\n",
+        "val f = fn(x) {\n    return x\n}\nval q = 2\n",
+    );
+}
+
+#[test]
+fn test_several_top_level_statements() {
+    check(
+        "val x = 1\nvar y = 2\nprint(x)\nprint(y)\n",
+        "val x = 1\nvar y = 2\nprint(x)\nprint(y)\n",
+    );
+}
+
+#[test]
+fn test_set_field_one_line() {
+    check("a.b = 1\n", "a.b = 1\n");
+}
+
+#[test]
+fn test_index_assign_one_line() {
+    check("a[0] = 1\n", "a[0] = 1\n");
+}
+
+#[test]
+fn test_boolean_and_nil_literals() {
+    check("true\n", "true\n");
+    check("false\n", "false\n");
+    check("nil\n", "nil\n");
+}
+
+#[test]
+fn test_plain_string_literal() {
+    check("\"hello\"\n", "\"hello\"\n");
+}
+
+#[test]
+fn test_braceless_while_body() {
+    check("while (c) x()\n", "while (c) x()\n");
+}
+
+#[test]
+fn test_braceless_for_body() {
+    check(
+        "for (var i = 0; i < 3; i = i + 1) x()\n",
+        "for (var i = 0; i < 3; i = i + 1) x()\n",
+    );
+}
+
+#[test]
+fn test_block_then_braceless_else() {
+    check(
+        "if (c) {\n    a\n} else b()\n",
+        "if (c) {\n    a\n} else b()\n",
+    );
 }

@@ -2,9 +2,6 @@ use crate::common::SourceLocation;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
 
-/// The source-line gap a `line_break` sits in, so blank-line and comment
-/// rules (added once the printer understands them) can tell an edge of a
-/// bracketed list or block from a gap between two of its items.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Gap {
     BetweenItems,
@@ -14,9 +11,6 @@ pub(crate) enum Gap {
     Continuation,
 }
 
-/// The open/close text and source lines of a bracketed construct (call
-/// args, params, array/map/set literals). A small struct instead of four
-/// parameters, to stay under clippy's argument-count limit.
 struct Brackets {
     open: &'static str,
     close: &'static str,
@@ -87,8 +81,6 @@ impl<'a> Printer<'a> {
         self.at_line_start = true;
     }
 
-    /// Comments and blank lines are threaded in here in later units; for
-    /// now every call just starts a new line.
     fn line_break(&mut self, _prev: u32, _next: u32, _gap: Gap) {
         self.newline();
     }
@@ -138,7 +130,7 @@ impl<'a> Printer<'a> {
                     Gap::BetweenItems
                 };
                 printer.line_break(prev, first, gap);
-                print_item(printer, i);
+                printer.nested(0, |printer| print_item(printer, i));
                 prev = last;
             }
             printer.line_break(prev, close_line, Gap::BeforeClose);
@@ -170,7 +162,7 @@ impl<'a> Printer<'a> {
                 if i > 0 {
                     self.write(", ");
                 }
-                print_item(self, i);
+                self.nested(0, |printer| print_item(printer, i));
             }
             self.write(brackets.close);
             return;
@@ -185,7 +177,7 @@ impl<'a> Printer<'a> {
                     Gap::BetweenItems
                 };
                 printer.line_break(prev, first, gap);
-                print_item(printer, i);
+                printer.nested(0, |printer| print_item(printer, i));
                 printer.write(",");
                 prev = last;
             }
@@ -260,7 +252,7 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.write("if (");
-                self.print_expr(condition);
+                self.nested(0, |printer| printer.print_expr(condition));
                 self.write(") ");
                 self.print_stmt(then_branch);
                 if let Some(else_stmt) = else_branch {
@@ -279,7 +271,7 @@ impl<'a> Printer<'a> {
                 condition, body, ..
             } => {
                 self.write("while (");
-                self.print_expr(condition);
+                self.nested(0, |printer| printer.print_expr(condition));
                 self.write(") ");
                 self.print_stmt(body);
             }
@@ -291,11 +283,13 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.write("for (");
-                self.print_stmt(initializer);
-                self.write("; ");
-                self.print_expr(condition);
-                self.write("; ");
-                self.print_expr(increment);
+                self.nested(0, |printer| {
+                    printer.print_stmt(initializer);
+                    printer.write("; ");
+                    printer.print_expr(condition);
+                    printer.write("; ");
+                    printer.print_expr(increment);
+                });
                 self.write(") ");
                 self.print_stmt(body);
             }
@@ -308,7 +302,7 @@ impl<'a> Printer<'a> {
                 self.write("for (");
                 self.write(variable);
                 self.write(" in ");
-                self.print_expr(collection);
+                self.nested(0, |printer| printer.print_expr(collection));
                 self.write(") ");
                 self.print_stmt(body);
             }
@@ -582,11 +576,11 @@ impl<'a> Printer<'a> {
                 if broken {
                     self.nested(1, |printer| {
                         printer.line_break(open_line, inner_first, Gap::AfterOpen);
-                        printer.print_expr(inner);
+                        printer.nested(0, |printer| printer.print_expr(inner));
                         printer.line_break(inner_last, close_line, Gap::BeforeClose);
                     });
                 } else {
-                    self.print_expr(inner);
+                    self.nested(0, |printer| printer.print_expr(inner));
                 }
                 self.write(")");
             }
