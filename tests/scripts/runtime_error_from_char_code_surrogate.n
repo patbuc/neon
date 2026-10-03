@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: fromCharCode() invalid code point: 55296
+
+print("before")
+String.fromCharCode(0xD800)

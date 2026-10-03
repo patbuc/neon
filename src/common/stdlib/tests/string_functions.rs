@@ -1,3 +1,8 @@
+use crate::common::stdlib::string_functions::{
+    native_string_char_code_at, native_string_from_char_code,
+};
+use crate::common::Value;
+use crate::string;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
@@ -84,6 +89,23 @@ fn test_string_split() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[hello, world, test]\n[a, b, c]\n[hello]", vm.get_output());
+}
+
+#[test]
+fn test_string_split_whitespace() {
+    let program = r#"
+        print("  1  2\t3\n".split())
+        print("".split())
+        print("   ".split())
+        print("move 3 from 1 to 2".split())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!(
+        "[1, 2, 3]\n[]\n[]\n[move, 3, from, 1, to, 2]",
+        vm.get_output()
+    );
 }
 
 // ============================================================================
@@ -224,6 +246,60 @@ fn test_string_char_at() {
 }
 
 // ============================================================================
+// String.charCodeAt() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_char_code_at() {
+    let program = r#"
+        print("abc".charCodeAt(0))
+        print("é".charCodeAt(0))
+        print("abc".charCodeAt(-1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("97\n233\n99", vm.get_output());
+}
+
+#[test]
+fn test_string_char_code_at_returns_int() {
+    let result = native_string_char_code_at(&[string!("abc".to_string()), Value::Int(0)]).unwrap();
+    assert!(matches!(result, Value::Int(97)));
+
+    let result = native_string_char_code_at(&[string!("é".to_string()), Value::Int(0)]).unwrap();
+    assert!(matches!(result, Value::Int(233)));
+}
+
+#[test]
+fn test_string_char_code_at_negative_in_range() {
+    let result = native_string_char_code_at(&[string!("abc".to_string()), Value::Int(-1)]).unwrap();
+    assert!(matches!(result, Value::Int(99)));
+}
+
+// ============================================================================
+// String.fromCharCode() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_from_char_code() {
+    let program = r#"
+        print(String.fromCharCode(97))
+        print(String.fromCharCode(233))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("a\né", vm.get_output());
+}
+
+#[test]
+fn test_string_from_char_code_returns_string() {
+    let result = native_string_from_char_code(&[Value::Int(97)]).unwrap();
+    assert!(matches!(result, Value::String(s) if s.as_str() == "a"));
+}
+
+// ============================================================================
 // String.toUpperCase() and String.toLowerCase() - Success Cases
 // ============================================================================
 
@@ -338,7 +414,7 @@ fn test_string_replace_wrong_arg_count() {
 #[test]
 fn test_string_split_wrong_arg_count() {
     let program = r#"
-        "hello".split()
+        "hello".split(",", "extra")
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -391,6 +467,84 @@ fn test_string_index_of_wrong_arg_count() {
 fn test_string_char_at_wrong_arg_count() {
     let program = r#"
         "hello".charAt()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_char_code_at_out_of_bounds() {
+    let program = r#"
+        "hello".charCodeAt(10)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_char_code_at_negative_out_of_bounds() {
+    let program = r#"
+        "abc".charCodeAt(-4)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_char_code_at_non_integer() {
+    let program = r#"
+        "hello".charCodeAt(0.5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_from_char_code_invalid() {
+    let program = r#"
+        String.fromCharCode(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_from_char_code_surrogate() {
+    let program = r#"
+        String.fromCharCode(0xD800)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_from_char_code_non_integer() {
+    let program = r#"
+        String.fromCharCode(1.5)
     "#;
 
     let mut vm = VirtualMachine::new();

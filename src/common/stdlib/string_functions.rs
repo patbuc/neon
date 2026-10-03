@@ -1,4 +1,4 @@
-use crate::common::Value;
+use crate::common::{f64_fits_i64, Value};
 use crate::string;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 
@@ -163,18 +163,24 @@ pub fn native_string_to_bool(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Native implementation of String.split(delimiter)
-/// Returns an array of strings split by the delimiter
+/// Native implementation of String.split() and String.split(delimiter)
+/// With no argument, splits on runs of Unicode whitespace and drops leading
+/// and trailing empties. With a delimiter, splits on exact occurrences of it.
 pub fn native_string_split(args: &[Value]) -> Result<Value, String> {
-    if args.len() != 2 {
+    if args.is_empty() || args.len() > 2 {
         return Err(format!(
-            "split() expects 1 argument (delimiter), got {}",
+            "split() expects 0 or 1 arguments (delimiter), got {}",
             args.len() - 1
         ));
     }
 
     // Extract the string
     let string = extract_receiver!(args, String, "split")?;
+
+    if args.len() == 1 {
+        let parts: Vec<Value> = string.split_whitespace().map(|s| string!(s)).collect();
+        return Ok(Value::new_array(parts));
+    }
 
     // Extract delimiter
     let delimiter = extract_string_value!(args, 1, "delimiter", "split");
@@ -317,6 +323,85 @@ pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
     }
 
     Ok(string!(chars[index].to_string()))
+}
+
+/// Native implementation of String.charCodeAt(index)
+/// Returns the Unicode code point of the character at index, indexed by
+/// `char` exactly like charAt.
+pub fn native_string_char_code_at(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "charCodeAt() expects 1 argument (index), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "charCodeAt")?;
+    let chars: Vec<char> = string.chars().collect();
+
+    let index_arg: i64 = match &args[1] {
+        Value::Int(i) => *i,
+        Value::Number(n) if n.fract() != 0.0 => {
+            return Err(format!("charCodeAt() index must be an integer, got {}", n))
+        }
+        Value::Number(n) if f64_fits_i64(*n) => *n as i64,
+        Value::Number(n) => {
+            return Err(format!(
+                "charCodeAt() index {} out of bounds (string length: {})",
+                n,
+                chars.len()
+            ))
+        }
+        _ => return Err("charCodeAt() index must be a number".to_string()),
+    };
+
+    let str_len = chars.len() as i64;
+    let index = if index_arg < 0 {
+        index_arg + str_len
+    } else {
+        index_arg
+    };
+
+    if index < 0 || index >= str_len {
+        return Err(format!(
+            "charCodeAt() index {} out of bounds (string length: {})",
+            index_arg,
+            chars.len()
+        ));
+    }
+
+    Ok(Value::Int(chars[index as usize] as i64))
+}
+
+/// Native implementation of String.fromCharCode(n)
+/// Returns a one-character string for the given Unicode code point.
+pub fn native_string_from_char_code(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "fromCharCode() expects 1 argument, got {}",
+            args.len()
+        ));
+    }
+
+    let code = match &args[0] {
+        Value::Int(i) => *i,
+        Value::Number(n) if n.fract() != 0.0 => {
+            return Err(format!(
+                "fromCharCode() argument must be an integer, got {}",
+                n
+            ))
+        }
+        Value::Number(n) if f64_fits_i64(*n) => *n as i64,
+        Value::Number(n) => return Err(format!("fromCharCode() invalid code point: {}", n)),
+        _ => return Err("fromCharCode() argument must be a number".to_string()),
+    };
+
+    let code_point = u32::try_from(code)
+        .ok()
+        .and_then(char::from_u32)
+        .ok_or_else(|| format!("fromCharCode() invalid code point: {}", code))?;
+
+    Ok(string!(code_point.to_string()))
 }
 
 /// Native implementation of String.toUpperCase()

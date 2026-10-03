@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: charCodeAt() index must be an integer, got 0.5
+
+print("before")
+"hello".charCodeAt(0.5)

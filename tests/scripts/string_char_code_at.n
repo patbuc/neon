@@ -1,0 +1,12 @@
+// Expected:
+// 97
+// 233
+// 99
+// a
+// é
+
+print("abc".charCodeAt(0))
+print("é".charCodeAt(0))
+print("abc".charCodeAt(-1))
+print(String.fromCharCode(97))
+print(String.fromCharCode(233))
