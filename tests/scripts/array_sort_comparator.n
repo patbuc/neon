@@ -1,0 +1,16 @@
+// Expected:
+// [1, 2, 3]
+// [1, 2, 3, 4]
+// [3, 2, 1]
+// [[1, a], [1, b], [0, c], [1, d]]
+
+val a = [3, 1, 2]
+val b = a.sort()
+print(b)
+b.push(4)
+print(a)
+
+print([3, 1, 2].sort(fn(x, y) { return y - x }))
+
+val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
+print(pairs.sort(fn(x, y) { return 0 }))

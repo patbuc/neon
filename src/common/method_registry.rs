@@ -178,10 +178,10 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     (
         "Array",
         "sort",
-        NativeCallable::InstanceMethod {
+        NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_sort,
-            arity: 0,
-            returns: None,
+            arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (
