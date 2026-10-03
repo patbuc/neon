@@ -242,15 +242,162 @@ impl<'a> Printer<'a> {
                 self.write(" ");
                 self.print_body(location, body);
             }
-            Stmt::Block { .. }
-            | Stmt::If { .. }
-            | Stmt::While { .. }
-            | Stmt::For { .. }
-            | Stmt::ForIn { .. }
-            | Stmt::Struct { .. }
-            | Stmt::Enum { .. }
-            | Stmt::Impl { .. } => unimplemented!("statement kind printed starting in U4"),
+            Stmt::Block {
+                statements,
+                location,
+            } => self.print_block(location, statements),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.write("if (");
+                self.print_expr(condition);
+                self.write(") ");
+                self.print_stmt(then_branch);
+                if let Some(else_stmt) = else_branch {
+                    if matches!(then_branch.as_ref(), Stmt::Block { .. }) {
+                        self.write(" else ");
+                    } else {
+                        let then_last_line = self.map.stmt_last_line(then_branch);
+                        let else_line = self.map.line(self.map.stmt_last_token(then_branch) + 1);
+                        self.line_break(then_last_line, else_line, Gap::Continuation);
+                        self.write("else ");
+                    }
+                    self.print_stmt(else_stmt);
+                }
+            }
+            Stmt::While {
+                condition, body, ..
+            } => {
+                self.write("while (");
+                self.print_expr(condition);
+                self.write(") ");
+                self.print_stmt(body);
+            }
+            Stmt::For {
+                initializer,
+                condition,
+                increment,
+                body,
+                ..
+            } => {
+                self.write("for (");
+                self.print_stmt(initializer);
+                self.write("; ");
+                self.print_expr(condition);
+                self.write("; ");
+                self.print_expr(increment);
+                self.write(") ");
+                self.print_stmt(body);
+            }
+            Stmt::ForIn {
+                variable,
+                collection,
+                body,
+                ..
+            } => {
+                self.write("for (");
+                self.write(variable);
+                self.write(" in ");
+                self.print_expr(collection);
+                self.write(") ");
+                self.print_stmt(body);
+            }
+            Stmt::Struct {
+                name,
+                fields,
+                location,
+                ..
+            } => {
+                self.write("struct ");
+                self.write(name);
+                self.write(" ");
+                let (open, close) = self.map.braces_after(location);
+                let spans: Vec<(u32, u32)> = fields
+                    .iter()
+                    .map(|field| (field.location.line, field.location.line))
+                    .collect();
+                self.braced_lines(
+                    self.map.line(open),
+                    self.map.line(close),
+                    &spans,
+                    |printer, i| {
+                        printer.write(&fields[i].name);
+                    },
+                );
+            }
+            Stmt::Enum {
+                name,
+                variants,
+                location,
+                ..
+            } => {
+                self.write("enum ");
+                self.write(name);
+                self.write(" ");
+                let (open, close) = self.map.braces_after(location);
+                let spans: Vec<(u32, u32)> = variants
+                    .iter()
+                    .map(|variant| (variant.location.line, variant.location.line))
+                    .collect();
+                self.braced_lines(
+                    self.map.line(open),
+                    self.map.line(close),
+                    &spans,
+                    |printer, i| {
+                        printer.write(&variants[i].name);
+                    },
+                );
+            }
+            Stmt::Impl {
+                type_name,
+                methods,
+                location,
+            } => {
+                self.write("impl ");
+                self.write(type_name);
+                self.write(" ");
+                let (open, close) = self.map.braces_after(location);
+                let spans: Vec<(u32, u32)> = methods
+                    .iter()
+                    .map(|method| {
+                        (
+                            self.map.stmt_first_line(method),
+                            self.map.stmt_last_line(method),
+                        )
+                    })
+                    .collect();
+                self.braced_lines(
+                    self.map.line(open),
+                    self.map.line(close),
+                    &spans,
+                    |printer, i| {
+                        printer.print_stmt(&methods[i]);
+                    },
+                );
+            }
         }
+    }
+
+    fn print_block(&mut self, location: &SourceLocation, statements: &[Stmt]) {
+        let open = self.map.at(location);
+        let close = self.map.partner(open);
+        let spans: Vec<(u32, u32)> = statements
+            .iter()
+            .map(|stmt| {
+                (
+                    self.map.stmt_first_line(stmt),
+                    self.map.stmt_last_line(stmt),
+                )
+            })
+            .collect();
+        let open_line = self.map.line(open);
+        let close_line = self.map.line(close);
+        self.braced_lines(open_line, close_line, &spans, |printer, i| {
+            printer.print_stmt(&statements[i])
+        });
     }
 
     fn print_params(&mut self, location: &SourceLocation, params: &[String]) {

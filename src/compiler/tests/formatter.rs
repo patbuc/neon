@@ -155,3 +155,92 @@ fn test_lambda_argument_body_expands() {
 fn test_break_and_continue_in_lambda_body() {
     check("val f = fn() { break }\n", "val f = fn() {\n    break\n}\n");
 }
+
+#[test]
+fn test_if_else_blocks_expand_and_cuddle() {
+    check(
+        "if (c) { a } else { b }\n",
+        "if (c) {\n    a\n} else {\n    b\n}\n",
+    );
+}
+
+#[test]
+fn test_else_on_its_own_line_is_cuddled() {
+    check(
+        "if (c) {\n    a\n}\nelse {\n    b\n}\n",
+        "if (c) {\n    a\n} else {\n    b\n}\n",
+    );
+}
+
+#[test]
+fn test_empty_if_block() {
+    check("if(c){}\n", "if (c) {}\n");
+}
+
+#[test]
+fn test_braceless_if_else_keeps_newline_before_else() {
+    check("if (c) x()\nelse y()\n", "if (c) x()\nelse y()\n");
+}
+
+#[test]
+fn test_else_if_chain() {
+    check(
+        "if (a) { x() } else if (b) { y() } else { z() }\n",
+        "if (a) {\n    x()\n} else if (b) {\n    y()\n} else {\n    z()\n}\n",
+    );
+}
+
+#[test]
+fn test_while_with_block_body() {
+    check("while (c) { x() }\n", "while (c) {\n    x()\n}\n");
+}
+
+#[test]
+fn test_for_loop_header_and_block_body() {
+    check(
+        "for (var i = 0; i < 3; i = i + 1) { print(i) }\n",
+        "for (var i = 0; i < 3; i = i + 1) {\n    print(i)\n}\n",
+    );
+}
+
+#[test]
+fn test_for_in_loop() {
+    check(
+        "for (x in xs) { print(x) }\n",
+        "for (x in xs) {\n    print(x)\n}\n",
+    );
+}
+
+#[test]
+fn test_struct_one_field_per_line() {
+    check("struct P { x y }\n", "struct P {\n    x\n    y\n}\n");
+}
+
+#[test]
+fn test_empty_struct() {
+    check("struct E {}\n", "struct E {}\n");
+}
+
+#[test]
+fn test_enum_one_variant_per_line() {
+    check(
+        "enum Color { Red Green Blue }\n",
+        "enum Color {\n    Red\n    Green\n    Blue\n}\n",
+    );
+}
+
+#[test]
+fn test_impl_with_two_methods() {
+    check(
+        "impl Point {\nfn len(self) { return self.x }\nfn origin() { return Point(0, 0) }\n}\n",
+        "impl Point {\n    fn len(self) {\n        return self.x\n    }\n    fn origin() {\n        return Point(0, 0)\n    }\n}\n",
+    );
+}
+
+#[test]
+fn test_corpus_nested_fn_returning_lambda() {
+    check(
+        "fn getF() { print(\"callee\")\nreturn fn(a) { return a } }\n",
+        "fn getF() {\n    print(\"callee\")\n    return fn(a) {\n        return a\n    }\n}\n",
+    );
+}
