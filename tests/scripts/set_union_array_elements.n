@@ -1,0 +1,4 @@
+// Expected:
+// 2
+
+print(#{[1, 2]}.union(#{[3, 4]}).size())

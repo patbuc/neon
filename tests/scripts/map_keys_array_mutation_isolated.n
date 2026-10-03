@@ -1,0 +1,10 @@
+// Expected:
+// 3
+// [1, 2]
+
+val m = {}
+m[[1, 2]] = 3
+val k = m.keys()[0]
+k.push(9)
+print(m[[1, 2]])
+print(m.entries()[0][0])

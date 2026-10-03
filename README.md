@@ -112,7 +112,8 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 
 **Collections:**
 - **Arrays** - Ordered, mutable, indexed collections (e.g., `[1, 2, 3]`)
-- **Maps** - Key-value dictionaries (e.g., `{"name": "Alice", "age": 30}`)
+- **Maps** - Key-value dictionaries (e.g., `{"name": "Alice", "age": 30}`). A key can be a string,
+  number, boolean, enum variant, or array.
 - **Sets** - Unique value collections (e.g., `#{1, 2, 3}`)
 
 **Other Types:**
@@ -831,6 +832,11 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 - `.values()` - Get array of values
 - `.entries()` - Get array of [key, value] pairs
 - `[key]` - Direct index access to get/set values
+
+A key can be a string, number, boolean, enum variant, or array (same rule for set elements). An
+array key is copied into a frozen value when it's inserted — comparisons go by content, and
+mutating the original array afterwards doesn't change the stored key. Every element of an array
+key must itself be a valid key, and a self-referencing array is a runtime error.
 
 **Example:**
 ```neon

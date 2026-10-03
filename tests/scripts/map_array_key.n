@@ -1,0 +1,10 @@
+// Expected:
+// 3
+// true
+// false
+
+val m = {}
+m[[1, 2]] = 3
+print(m[[1, 2]])
+print(m.has([1, 2]))
+print(m.has([2, 1]))

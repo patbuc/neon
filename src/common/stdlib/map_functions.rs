@@ -12,16 +12,7 @@ pub fn native_map_get(args: &[Value]) -> Result<Value, String> {
     // Extract the map
     let map_ref = extract_receiver!(args, Map, "get")?;
 
-    // Convert key to MapKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "map key")?;
 
     // Get value from map
     let map = map_ref.borrow();
@@ -51,16 +42,7 @@ pub fn native_map_has(args: &[Value]) -> Result<Value, String> {
     // Extract the map
     let map_ref = extract_receiver!(args, Map, "has")?;
 
-    // Convert key to MapKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "map key")?;
 
     // Check if key exists
     let map = map_ref.borrow();
@@ -78,16 +60,7 @@ pub fn native_map_remove(args: &[Value]) -> Result<Value, String> {
     // Extract the map
     let map_ref = extract_receiver!(args, Map, "remove")?;
 
-    // Convert key to MapKey
-    let key = match MapKey::from_value(&args[1]) {
-        Some(k) => k,
-        None => {
-            return Err(format!(
-                "Invalid map key type: {}. Only strings, numbers, and booleans can be used as map keys.",
-                args[1]
-            ));
-        }
-    };
+    let key = MapKey::from_value(&args[1], "map key")?;
 
     // shift_remove, not swap_remove, so the remaining entries keep their order.
     let mut map = map_ref.borrow_mut();

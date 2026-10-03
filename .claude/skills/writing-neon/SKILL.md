@@ -79,7 +79,12 @@ won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the scri
 
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.
-- Map keys can only be strings, numbers, or booleans.
+- Map keys (and set elements) can be strings, numbers, booleans, enum variants, or arrays. An
+  array key is compared by value and frozen at insertion: `m[[1, 2]] = 3` then mutating the
+  original array doesn't change the stored key, and `m.keys()`/`entries()`/for-in/`Set.toArray()`
+  return a fresh array each time. Every element of an array key must itself be a valid key
+  (nested arrays are fine); a cyclic array, or any other type (`nil`, maps, sets, instances,
+  functions, files, ranges, priority queues), is a runtime error.
 - Missing map keys give `nil` (`m["k"]`, `m.get("k")`), not an error.
 - Negative indices work on arrays and ranges (`a[-1]`).
 - Strings cannot be indexed: `s[0]` is a runtime error. Use `s.charAt(0)`.

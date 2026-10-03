@@ -131,6 +131,36 @@ fn test_map_mixed_values() {
     assert_eq!("hello\n42\ntrue", vm.get_output());
 }
 
+#[test]
+fn test_map_set_index_rejects_nil_array_element() {
+    let program = r#"
+        val m = {}
+        m[[nil]] = 1
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_map_set_index_rejects_self_referencing_array() {
+    let program = r#"
+        val m = {}
+        val a = []
+        a.push(a)
+        m[a] = 1
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
 // ============================================================================
 // Map Functions - Error Cases
 // ============================================================================

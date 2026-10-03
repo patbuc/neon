@@ -1,0 +1,10 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot use a self-referencing array as a map key.
+
+print("before")
+val m = {}
+val a = []
+a.push(a)
+m[a] = 1

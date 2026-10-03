@@ -81,33 +81,48 @@ pub enum MapKey {
     Int(i64),
     Number(OrderedFloat<f64>),
     Boolean(bool),
+    /// A frozen copy of an array's elements, taken when the array is used
+    /// as a key. Compared and hashed by content, so two arrays with equal
+    /// elements share an entry even after the original array is mutated.
+    Array(Rc<Vec<MapKey>>),
+    /// Compared by `enum_name` and `ordinal` (see `ObjEnumVariant`'s `Eq`/
+    /// `Hash`), since each use of `Color.Red` builds its own `ObjEnumVariant`.
+    EnumVariant(Rc<ObjEnumVariant>),
 }
 
 pub type SetKey = MapKey;
 
 impl MapKey {
-    /// Converts a hashable `Value` into a `MapKey`, or `None` if `value`
-    /// can't be used as a map/set key. An integral float (including `-0.0`)
-    /// that fits in `i64` normalizes to `MapKey::Int`, so `m[1]` and
-    /// `m[1.0]` hit the same entry.
+    /// Converts a hashable `Value` into a `MapKey`, or an error message if
+    /// `value` can't be used as a `kind` (e.g. `"map key"` or `"set
+    /// element"`). An integral float (including `-0.0`) that fits in `i64`
+    /// normalizes to `MapKey::Int`, so `m[1]` and `m[1.0]` hit the same
+    /// entry. An array is copied recursively, element by element, each of
+    /// which must itself be a valid key; a self-referencing array is
+    /// rejected rather than recursing forever.
     #[inline]
-    pub fn from_value(value: &Value) -> Option<MapKey> {
+    pub fn from_value(value: &Value, kind: &str) -> Result<MapKey, String> {
         match value {
-            Value::String(s) => Some(MapKey::String(Rc::clone(s))),
-            Value::Int(i) => Some(MapKey::Int(*i)),
+            Value::String(s) => Ok(MapKey::String(Rc::clone(s))),
+            Value::Int(i) => Ok(MapKey::Int(*i)),
             Value::Number(n) => {
                 if n.fract() == 0.0 && f64_fits_i64(*n) {
-                    Some(MapKey::Int(*n as i64))
+                    Ok(MapKey::Int(*n as i64))
                 } else {
-                    Some(MapKey::Number(OrderedFloat(*n)))
+                    Ok(MapKey::Number(OrderedFloat(*n)))
                 }
             }
-            Value::Boolean(b) => Some(MapKey::Boolean(*b)),
-            _ => None,
+            Value::Boolean(b) => Ok(MapKey::Boolean(*b)),
+            Value::EnumVariant(variant) => Ok(MapKey::EnumVariant(Rc::clone(variant))),
+            Value::Array(array) => from_value_array(array, kind, &mut Vec::new()),
+            other => Err(invalid_key_message(kind, other)),
         }
     }
 
-    /// Converts a `MapKey` back into the `Value` it was built from.
+    /// Converts a `MapKey` back into the `Value` it was built from. An
+    /// array key is rebuilt into a fresh `Value::Array` every call, so
+    /// mutating the returned array never changes the map or set it came
+    /// from.
     #[inline]
     pub fn to_value(&self) -> Value {
         match self {
@@ -115,8 +130,46 @@ impl MapKey {
             MapKey::Int(i) => Value::Int(*i),
             MapKey::Number(n) => Value::Number(n.into_inner()),
             MapKey::Boolean(b) => Value::Boolean(*b),
+            MapKey::Array(items) => Value::new_array(items.iter().map(MapKey::to_value).collect()),
+            MapKey::EnumVariant(variant) => Value::EnumVariant(Rc::clone(variant)),
         }
     }
+}
+
+fn invalid_key_message(kind: &str, value: &Value) -> String {
+    format!(
+        "Invalid {kind} type: {value}. Only strings, numbers, booleans, arrays, and enum variants \
+         can be used as {kind}s."
+    )
+}
+
+/// Freezes `array` into a `MapKey::Array`, recursing into nested arrays.
+/// `seen` tracks the `Rc` pointers on the current path so a self-referencing
+/// array is rejected instead of recursing forever.
+fn from_value_array(
+    array: &Rc<RefCell<Vec<Value>>>,
+    kind: &str,
+    seen: &mut Vec<*const ()>,
+) -> Result<MapKey, String> {
+    let ptr = Rc::as_ptr(array) as *const ();
+    if seen.contains(&ptr) {
+        return Err(format!(
+            "Cannot use a self-referencing array as a {}.",
+            kind
+        ));
+    }
+    seen.push(ptr);
+    let elements = array.borrow();
+    let mut keys = Vec::with_capacity(elements.len());
+    for element in elements.iter() {
+        let key = match element {
+            Value::Array(inner) => from_value_array(inner, kind, seen)?,
+            other => MapKey::from_value(other, kind)?,
+        };
+        keys.push(key);
+    }
+    seen.pop();
+    Ok(MapKey::Array(Rc::new(keys)))
 }
 
 impl Display for MapKey {
@@ -126,17 +179,33 @@ impl Display for MapKey {
             MapKey::Int(i) => write!(f, "{}", i),
             MapKey::Number(n) => write!(f, "{}", n),
             MapKey::Boolean(b) => write!(f, "{}", b),
+            MapKey::Array(items) => {
+                write!(f, "[")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            }
+            MapKey::EnumVariant(variant) => {
+                write!(f, "{}.{}", variant.enum_name, variant.variant_name)
+            }
         }
     }
 }
 
 /// `MapKey` groups for cross-variant ordering: strings, then numbers
-/// (int and float together), then booleans.
+/// (int and float together), then booleans, then enum variants, then
+/// arrays.
 fn map_key_rank(key: &MapKey) -> u8 {
     match key {
         MapKey::String(_) => 0,
         MapKey::Int(_) | MapKey::Number(_) => 1,
         MapKey::Boolean(_) => 2,
+        MapKey::EnumVariant(_) => 3,
+        MapKey::Array(_) => 4,
     }
 }
 
@@ -160,9 +229,25 @@ impl Ord for MapKey {
                 .map(Ordering::reverse)
                 .unwrap_or(Ordering::Greater),
             (MapKey::Boolean(a), MapKey::Boolean(b)) => a.cmp(b),
+            (MapKey::EnumVariant(a), MapKey::EnumVariant(b)) => cmp_enum_variants(a, b),
+            (MapKey::Array(a), MapKey::Array(b)) => cmp_arrays(a, b),
             _ => map_key_rank(self).cmp(&map_key_rank(other)),
         }
     }
+}
+
+/// Lexicographic by element `Ord`, then by length (`[T]`'s `Ord`).
+#[inline(never)]
+fn cmp_arrays(a: &[MapKey], b: &[MapKey]) -> std::cmp::Ordering {
+    a.cmp(b)
+}
+
+/// Orders enum variants by `enum_name` then `ordinal`.
+#[inline(never)]
+fn cmp_enum_variants(a: &ObjEnumVariant, b: &ObjEnumVariant) -> std::cmp::Ordering {
+    a.enum_name
+        .cmp(&b.enum_name)
+        .then(a.ordinal.cmp(&b.ordinal))
 }
 
 /// Compares an `i64` and an `f64` by their exact numeric value (not by
@@ -588,6 +673,15 @@ impl PartialEq for ObjStruct {
 impl PartialEq for ObjEnumVariant {
     fn eq(&self, other: &Self) -> bool {
         self.enum_name == other.enum_name && self.ordinal == other.ordinal
+    }
+}
+
+impl Eq for ObjEnumVariant {}
+
+impl std::hash::Hash for ObjEnumVariant {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.enum_name.hash(state);
+        self.ordinal.hash(state);
     }
 }
 
