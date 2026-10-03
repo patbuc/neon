@@ -6,12 +6,9 @@ use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 
 /// Every real token of a source, re-scanned so the formatter can look up
-/// where an AST node starts and ends. Newlines are dropped (the parser
-/// already turned them into statement boundaries); brackets are linked to
-/// their matching close/open so callers can jump from one to the other.
+/// where an AST node starts and ends.
 pub(crate) struct SourceMap {
     kinds: Vec<TokenType>,
-    texts: Vec<String>,
     lines: Vec<u32>,
     end_lines: Vec<u32>,
     by_offset: HashMap<usize, usize>,
@@ -31,7 +28,6 @@ impl SourceMap {
     pub(crate) fn new(source: &str) -> Self {
         let mut scanner = Scanner::new(source);
         let mut kinds = Vec::new();
-        let mut texts = Vec::new();
         let mut lines = Vec::new();
         let mut end_lines = Vec::new();
         let mut by_offset = HashMap::new();
@@ -63,21 +59,18 @@ impl SourceMap {
                 | TokenType::RightBracket
                 | TokenType::RightBrace
                 | TokenType::StringEnd => {
-                    if let Some(open) = open_stack.pop() {
-                        partners[open] = Some(index);
-                        partners[index] = Some(open);
-                    }
+                    let open = open_stack.pop().expect("closer without a matching opener");
+                    partners[open] = Some(index);
+                    partners[index] = Some(open);
                 }
                 _ => {}
             }
 
-            texts.push(token.token.clone());
             kinds.push(token.token_type);
         }
 
         SourceMap {
             kinds,
-            texts,
             lines,
             end_lines,
             by_offset,
@@ -85,8 +78,6 @@ impl SourceMap {
         }
     }
 
-    /// The token index starting at `location`. AST locations are always a
-    /// token's start offset, so this never falls through to `None`.
     pub(crate) fn at(&self, location: &SourceLocation) -> usize {
         *self
             .by_offset
@@ -102,16 +93,9 @@ impl SourceMap {
         self.end_lines[token]
     }
 
-    // Only the test suite inspects raw token kind/text so far; the printer
-    // works entirely in terms of line numbers and bracket partners.
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn kind(&self, token: usize) -> &TokenType {
         &self.kinds[token]
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn text(&self, token: usize) -> &str {
-        &self.texts[token]
     }
 
     pub(crate) fn partner(&self, token: usize) -> usize {
@@ -185,9 +169,7 @@ impl SourceMap {
         self.end_line(self.last_token(expr))
     }
 
-    /// Params and body braces of a function, whether `location` is a
-    /// declaration's name token or a lambda's `fn` token: in both cases
-    /// the next token is `(`.
+    /// Params and body braces of a function or lambda.
     pub(crate) fn fn_tokens(&self, location: &SourceLocation) -> FnTokens {
         let params_open = self.at(location) + 1;
         let params_close = self.partner(params_open);
@@ -264,8 +246,6 @@ impl SourceMap {
     }
 }
 
-/// The location of every statement variant except `Expression`, whose
-/// location is the token before it and thus useless for this purpose.
 fn stmt_location(stmt: &Stmt) -> &SourceLocation {
     match stmt {
         Stmt::Val { location, .. }

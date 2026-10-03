@@ -148,6 +148,8 @@ fn test_binary_expression_first_and_last_line() {
 
 #[test]
 fn test_get_field_last_token_is_field_name() {
+    // a  .  b
+    // 0  1  2
     let source = "a.b\n";
     let mut parser = Parser::new(source);
     let stmts = parser.parse().expect("should parse");
@@ -156,9 +158,246 @@ fn test_get_field_last_token_is_field_name() {
     match &stmts[0] {
         Stmt::Expression { expr, .. } => {
             let last = map.last_token(expr);
+            assert_eq!(last, 2);
             assert_eq!(*map.kind(last), TokenType::Identifier);
-            assert_eq!(map.text(last), "b");
         }
         _ => panic!("Expected Expression statement"),
     }
+}
+
+#[test]
+fn test_call_with_method_call_callee_first_token_is_the_object() {
+    // a  .  b  (  )
+    // 0  1  2  3  4
+    let source = "a.b()\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => {
+            assert_eq!(map.first_token(expr), 0);
+            assert_eq!(*map.kind(map.first_token(expr)), TokenType::Identifier);
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_index_last_token_is_closing_bracket() {
+    // a  [  0  ]
+    // 0  1  2  3
+    let source = "a[0]\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => {
+            let last = map.last_token(expr);
+            assert_eq!(last, 3);
+            assert_eq!(*map.kind(last), TokenType::RightBracket);
+        }
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_conditional_last_token_is_in_else_branch() {
+    // c  ?  1  :  2
+    // 0  1  2  3  4
+    let source = "c ? 1 : 2\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.last_token(expr), 4),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_unary_last_token_is_the_operand() {
+    // -  x
+    // 0  1
+    let source = "-x\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.last_token(expr), 1),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_string_interpolation_last_line_multiline() {
+    let source = "val s = \"a ${x}\nb\"\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 2);
+}
+
+#[test]
+fn test_string_interpolation_last_line_nested_multiline() {
+    // Outer interpolation holds a nested multi-line string as its
+    // expression; the outer closer only appears after that string ends.
+    let source = "\"a ${\"b\nc\"} d\"\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.last_line(expr), 2),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_postfix_and_range_first_token() {
+    // x  ++
+    // 0  1
+    let source = "x++\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.first_token(expr), 0),
+        _ => panic!("Expected Expression statement"),
+    }
+
+    // 1  ..  5
+    // 0  1   2
+    let source = "1..5\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.first_token(expr), 0),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_set_field_last_token_is_the_value() {
+    // a  .  b  =  1
+    // 0  1  2  3  4
+    let source = "a.b = 1\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.last_token(expr), 4),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_index_assign_last_token_is_the_value() {
+    // a  [  0  ]  =  1
+    // 0  1  2  3  4  5
+    let source = "a[0] = 1\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => assert_eq!(map.last_token(expr), 5),
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_val_without_initializer_last_token_is_the_name() {
+    // val  x
+    //  0   1
+    let source = "val x\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_token(&stmts[0]), 1);
+    assert_eq!(*map.kind(1), TokenType::Identifier);
+}
+
+#[test]
+fn test_if_without_else_last_line_is_then_branch() {
+    let source = "if (c) {\n    a\n}\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 3);
+}
+
+#[test]
+fn test_return_last_token_is_the_value() {
+    // return  1
+    //   0     1
+    let source = "return 1\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_token(&stmts[0]), 1);
+}
+
+#[test]
+fn test_while_last_line_is_body_close() {
+    let source = "while (c) {\n    a\n}\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 3);
+}
+
+#[test]
+fn test_for_last_line_is_body_close() {
+    let source = "for (var i = 0; i < 3; i = i + 1) {\n    a\n}\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 3);
+}
+
+#[test]
+fn test_for_in_last_line_is_body_close() {
+    let source = "for (x in xs) {\n    a\n}\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 3);
+}
+
+#[test]
+fn test_block_last_line_is_closing_brace() {
+    let source = "fn f() {\n    {\n        a\n    }\n}\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(map.stmt_last_line(&body[0]), 4);
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_crlf_counts_as_one_line_in_multiline_string() {
+    let source = "val s = \"a\r\nb\"\r\n";
+    let mut parser = Parser::new(source);
+    let stmts = parser.parse().expect("should parse");
+    let map = SourceMap::new(source);
+
+    assert_eq!(map.stmt_last_line(&stmts[0]), 2);
 }
