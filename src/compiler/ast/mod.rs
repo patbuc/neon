@@ -57,7 +57,12 @@ pub enum UnaryOp {
 /// Parts of an interpolated string
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpolationPart {
-    Literal(String),
+    /// `value` is decoded text; `raw` is the exact source text of this
+    /// segment, escapes undecoded.
+    Literal {
+        value: String,
+        raw: String,
+    },
     Expression(Box<Expr>),
 }
 
@@ -66,10 +71,14 @@ pub enum InterpolationPart {
 pub enum Expr {
     Number {
         value: f64,
+        /// Exact source spelling (e.g. `0xFF`, `1_000`, `1e3`).
+        raw: String,
         location: SourceLocation,
     },
     String {
         value: String,
+        /// Exact source text between the quotes, escapes undecoded.
+        raw: String,
         location: SourceLocation,
     },
     StringInterpolation {
@@ -92,6 +101,16 @@ pub enum Expr {
         name: String,
         value: Box<Expr>,
         id: NodeId,
+        location: SourceLocation,
+    },
+    /// `read_id` is the resolution of the implicit read of `x`; `write_id`
+    /// is the resolution of the assignment target, matching `Assign::id`.
+    CompoundAssign {
+        name: String,
+        operator: BinaryOp,
+        value: Box<Expr>,
+        read_id: NodeId,
+        write_id: NodeId,
         location: SourceLocation,
     },
     Binary {
@@ -271,6 +290,7 @@ impl Expr {
             | Expr::Nil { location }
             | Expr::Variable { location, .. }
             | Expr::Assign { location, .. }
+            | Expr::CompoundAssign { location, .. }
             | Expr::Binary { location, .. }
             | Expr::Unary { location, .. }
             | Expr::Call { location, .. }

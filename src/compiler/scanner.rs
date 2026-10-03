@@ -325,6 +325,7 @@ impl Scanner {
                 );
             }
             if self.peek() == '"' {
+                let raw: String = self.source[self.start + 1..self.current].iter().collect();
                 self.advance();
                 if let Some(error) = self.invalid_escape_error(invalid_escape) {
                     return error;
@@ -334,7 +335,7 @@ impl Scanner {
                 } else {
                     TokenType::StringEnd
                 };
-                return self.make_token_with_text(token_type, decoded);
+                return self.make_token_with_text_and_raw(token_type, decoded, raw);
             }
             if self.peek() == '\\' {
                 let backslash_line = self.line;
@@ -359,6 +360,7 @@ impl Scanner {
                 continue;
             }
             if self.peek() == '$' && self.peek_next() == '{' {
+                let raw: String = self.source[self.start + 1..self.current].iter().collect();
                 let dollar = Position {
                     line: self.line,
                     column: self.column,
@@ -379,7 +381,7 @@ impl Scanner {
                 } else {
                     TokenType::StringMiddle
                 };
-                return self.make_token_with_text(token_type, decoded);
+                return self.make_token_with_text_and_raw(token_type, decoded, raw);
             }
             let c = self.advance();
             decoded.push(c);
@@ -684,10 +686,20 @@ impl Scanner {
     }
 
     fn make_token_with_text(&mut self, token_type: TokenType, text: String) -> Token {
+        self.make_token_with_text_and_raw(token_type, text, String::new())
+    }
+
+    fn make_token_with_text_and_raw(
+        &mut self,
+        token_type: TokenType,
+        text: String,
+        raw: String,
+    ) -> Token {
         self.previous_token_type = token_type.clone();
         Token::new(
             token_type,
             text,
+            raw,
             self.start_line,
             self.start_column,
             self.start,
@@ -706,6 +718,7 @@ impl Scanner {
         Token::new(
             TokenType::Error(kind),
             String::from(message),
+            String::new(),
             line,
             column,
             offset,
@@ -715,6 +728,7 @@ impl Scanner {
         self.previous_token_type = TokenType::Eof;
         Token::new(
             TokenType::Eof,
+            String::new(),
             String::new(),
             self.start_line,
             self.start_column,

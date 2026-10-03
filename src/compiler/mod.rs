@@ -18,6 +18,9 @@ mod tests;
 pub(crate) struct Token {
     pub token_type: TokenType,
     pub token: String,
+    /// For a string segment, the source text between its delimiters with
+    /// escapes undecoded; empty for every other token.
+    pub raw: String,
     pub column: u32,
     pub line: u32,
     pub offset: usize,

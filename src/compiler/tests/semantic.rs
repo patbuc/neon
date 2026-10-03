@@ -112,6 +112,15 @@ mod resolutions {
         match expr {
             Expr::Variable { name, id, .. } => idx.vars.push((name, *id)),
             Expr::Assign { value, .. } => index_expr(value, idx),
+            Expr::CompoundAssign {
+                name,
+                read_id,
+                value,
+                ..
+            } => {
+                idx.vars.push((name, *read_id));
+                index_expr(value, idx);
+            }
             Expr::Binary { left, right, .. } => {
                 index_expr(left, idx);
                 index_expr(right, idx);

@@ -1089,10 +1089,14 @@ impl Parser {
     // ===== Primary Expressions =====
 
     fn number(&mut self) -> Option<Expr> {
-        let token_str = self.previous_token.token.clone();
-        let value = self.parse_number_literal(&token_str)?;
+        let raw = self.previous_token.token.clone();
+        let value = self.parse_number_literal(&raw)?;
         let location = self.current_location();
-        Some(Expr::Number { value, location })
+        Some(Expr::Number {
+            value,
+            raw,
+            location,
+        })
     }
 
     fn parse_number_literal(&mut self, s: &str) -> Option<f64> {
@@ -1128,8 +1132,13 @@ impl Parser {
 
     fn string(&self) -> Option<Expr> {
         let value = self.previous_token.token.clone();
+        let raw = self.previous_token.raw.clone();
         let location = self.current_location();
-        Some(Expr::String { value, location })
+        Some(Expr::String {
+            value,
+            raw,
+            location,
+        })
     }
 
     fn interpolated_string(&mut self) -> Option<Expr> {
@@ -1139,8 +1148,12 @@ impl Parser {
         let mut parts = Vec::new();
 
         let start_text = self.previous_token.token.clone();
+        let start_raw = self.previous_token.raw.clone();
         if !start_text.is_empty() {
-            parts.push(InterpolationPart::Literal(start_text));
+            parts.push(InterpolationPart::Literal {
+                value: start_text,
+                raw: start_raw,
+            });
         }
 
         loop {
@@ -1149,15 +1162,17 @@ impl Parser {
 
             if self.match_token(TokenType::StringMiddle) {
                 let text = self.previous_token.token.clone();
+                let raw = self.previous_token.raw.clone();
                 if !text.is_empty() {
-                    parts.push(InterpolationPart::Literal(text));
+                    parts.push(InterpolationPart::Literal { value: text, raw });
                 }
                 continue;
             }
             if self.match_token(TokenType::StringEnd) {
                 let text = self.previous_token.token.clone();
+                let raw = self.previous_token.raw.clone();
                 if !text.is_empty() {
-                    parts.push(InterpolationPart::Literal(text));
+                    parts.push(InterpolationPart::Literal { value: text, raw });
                 }
                 break;
             }
@@ -1210,22 +1225,14 @@ impl Parser {
             })
         } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
             self.advance();
-            let left = Box::new(Expr::Variable {
-                name: name.clone(),
-                id: self.next_id(),
-                location,
-            });
-            let right = Box::new(self.operand(Precedence::Assignment)?);
-            let value = Box::new(Expr::Binary {
-                left,
-                operator,
-                right,
-                location,
-            });
-            Some(Expr::Assign {
+            let read_id = self.next_id();
+            let value = Box::new(self.operand(Precedence::Assignment)?);
+            Some(Expr::CompoundAssign {
                 name,
+                operator,
                 value,
-                id: self.next_id(),
+                read_id,
+                write_id: self.next_id(),
                 location,
             })
         } else {

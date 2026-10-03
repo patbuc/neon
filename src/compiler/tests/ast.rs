@@ -13,6 +13,7 @@ fn dummy_location() -> SourceLocation {
 fn test_expr_number() {
     let expr = Expr::Number {
         value: 42.0,
+        raw: "42".to_string(),
         location: dummy_location(),
     };
     assert_eq!(expr.location().line, 1);
@@ -22,10 +23,12 @@ fn test_expr_number() {
 fn test_expr_binary() {
     let left = Box::new(Expr::Number {
         value: 1.0,
+        raw: "1".to_string(),
         location: dummy_location(),
     });
     let right = Box::new(Expr::Number {
         value: 2.0,
+        raw: "2".to_string(),
         location: dummy_location(),
     });
     let expr = Expr::Binary {
@@ -49,6 +52,7 @@ fn test_stmt_val() {
         name: "x".to_string(),
         initializer: Some(Expr::Number {
             value: 5.0,
+            raw: "5".to_string(),
             location: dummy_location(),
         }),
         id: NodeId(0),
