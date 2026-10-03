@@ -784,13 +784,13 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        match (&mut *slot, self.chunk.read_constant(index)) {
-            (Value::Number(a), Value::Number(c)) => {
+        match (&mut *slot, self.chunk.constant(index)) {
+            (Value::Number(a), &Value::Number(c)) => {
                 *a += c;
                 self.ip += 2;
                 return Ok(());
             }
-            (Value::Int(a), Value::Int(c)) => {
+            (Value::Int(a), &Value::Int(c)) => {
                 return match a.checked_add(c) {
                     Some(r) => {
                         *a = r;
@@ -800,7 +800,7 @@ impl VirtualMachine {
                     None => Err(self.overflow_error("+")),
                 };
             }
-            (Value::Number(a), Value::Int(c)) => {
+            (Value::Number(a), &Value::Int(c)) => {
                 *a += c as f64;
                 self.ip += 2;
                 return Ok(());
@@ -818,13 +818,13 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        match (&mut *slot, self.chunk.read_constant(index)) {
-            (Value::Number(a), Value::Number(c)) => {
+        match (&mut *slot, self.chunk.constant(index)) {
+            (Value::Number(a), &Value::Number(c)) => {
                 *a -= c;
                 self.ip += 2;
                 return Ok(());
             }
-            (Value::Int(a), Value::Int(c)) => {
+            (Value::Int(a), &Value::Int(c)) => {
                 return match a.checked_sub(c) {
                     Some(r) => {
                         *a = r;
@@ -834,7 +834,7 @@ impl VirtualMachine {
                     None => Err(self.overflow_error("-")),
                 };
             }
-            (Value::Number(a), Value::Int(c)) => {
+            (Value::Number(a), &Value::Int(c)) => {
                 *a -= c as f64;
                 self.ip += 2;
                 return Ok(());
@@ -852,8 +852,8 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        match (&*slot, self.chunk.read_constant(index)) {
-            (Value::Number(a), Value::Number(c)) => {
+        match (&*slot, self.chunk.constant(index)) {
+            (Value::Number(a), &Value::Number(c)) => {
                 let is_match = match wanted {
                     Comparison::Greater => *a > c,
                     Comparison::GreaterEqual => *a >= c,
@@ -864,13 +864,13 @@ impl VirtualMachine {
                 self.ip += 2;
                 return Ok(());
             }
-            (Value::Int(a), Value::Int(c)) => {
+            (Value::Int(a), &Value::Int(c)) => {
                 let is_match = Self::ordering_matches(Some(a.cmp(&c)), &wanted);
                 std::mem::replace(slot, boolean!(is_match)).discard();
                 self.ip += 2;
                 return Ok(());
             }
-            (Value::Number(a), Value::Int(c)) => {
+            (Value::Number(a), &Value::Int(c)) => {
                 let is_match = Self::ordering_matches(
                     compare_int_and_float(c, *a).map(std::cmp::Ordering::reverse),
                     &wanted,
