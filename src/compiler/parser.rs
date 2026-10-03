@@ -296,6 +296,12 @@ impl Parser {
         &self.end_locations
     }
 
+    /// Comments and blank lines dropped from the token stream, for a
+    /// future formatter (#336). Valid after `parse()` returns.
+    pub(crate) fn trivia(&self) -> &crate::compiler::Trivia {
+        self.scanner.trivia()
+    }
+
     fn current_token_location(&self) -> SourceLocation {
         SourceLocation {
             offset: self.current_token.offset,

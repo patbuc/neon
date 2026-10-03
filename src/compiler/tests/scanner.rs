@@ -1,9 +1,20 @@
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::scanner::KEYWORDS;
 use crate::compiler::token::TokenType;
+use crate::compiler::CommentKind;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
 use std::collections::BTreeSet;
+
+/// Scans `scanner` to `Eof` without collecting tokens, so its trivia is
+/// fully populated and the scanner can still be read afterward.
+fn scan_to_eof(scanner: &mut Scanner) {
+    loop {
+        if scanner.scan_token().token_type == TokenType::Eof {
+            break;
+        }
+    }
+}
 
 fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
@@ -524,6 +535,67 @@ fn can_scan_number_then_comment_for_double_slash() {
     assert_eq!(tokens[0].token_type, TokenType::Number);
     assert_eq!(tokens[0].token, "7");
     assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn trivia_records_comments_and_blank_lines() {
+    let source = "// leading\nvar a = 1 // trailing\n\n    // indented\nvar b = 2\n   \nvar c = 3";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+    let trivia = scanner.trivia();
+
+    assert_eq!(trivia.comments.len(), 3);
+
+    assert_eq!(trivia.comments[0].line, 1);
+    assert_eq!(trivia.comments[0].column, 1);
+    assert_eq!(trivia.comments[0].text, "// leading");
+    assert_eq!(trivia.comments[0].kind, CommentKind::OwnLine);
+
+    assert_eq!(trivia.comments[1].line, 2);
+    assert_eq!(trivia.comments[1].column, 11);
+    assert_eq!(trivia.comments[1].text, "// trailing");
+    assert_eq!(trivia.comments[1].kind, CommentKind::Trailing);
+
+    assert_eq!(trivia.comments[2].line, 4);
+    assert_eq!(trivia.comments[2].column, 5);
+    assert_eq!(trivia.comments[2].text, "// indented");
+    assert_eq!(trivia.comments[2].kind, CommentKind::OwnLine);
+
+    assert_eq!(trivia.blank_lines, vec![3, 6]);
+}
+
+#[test]
+fn trivia_comment_text_excludes_crlf_carriage_return() {
+    let source = "// hi\r\nvar a = 1";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+    let trivia = scanner.trivia();
+
+    assert_eq!(trivia.comments.len(), 1);
+    assert_eq!(trivia.comments[0].text, "// hi");
+}
+
+#[test]
+fn trivia_ignores_double_slash_inside_string_literal() {
+    let source = "var s = \"http://example.com\";";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert!(scanner.trivia().comments.is_empty());
+}
+
+#[test]
+fn trivia_records_comment_inside_interpolation_expression() {
+    // Documents existing behaviour: a `//` inside `${...}` is still treated
+    // as a comment, eating the rest of the source (see
+    // `interpolation_line_comment_hides_closing_brace`).
+    let source = "\"${a // c }\"";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+    let trivia = scanner.trivia();
+
+    assert_eq!(trivia.comments.len(), 1);
+    assert_eq!(trivia.comments[0].text, "// c }\"");
 }
 
 #[test]

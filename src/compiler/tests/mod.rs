@@ -1,5 +1,6 @@
 mod ast;
 mod codegen;
+mod compiler;
 mod error_kinds;
 mod parser;
 mod resolutions;
