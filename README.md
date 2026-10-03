@@ -670,6 +670,7 @@ val flag = "true".toBool()
 - `Math.sqrt(n)` - Square root
 - `Math.min(a, b, ...)` - Minimum value (variadic)
 - `Math.max(a, b, ...)` - Maximum value (variadic)
+- `Math.div(a, b)` - Floor division on two ints
 
 **Example:**
 ```neon

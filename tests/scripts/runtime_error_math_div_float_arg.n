@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: div() expects two integers, got float
+
+print("before")
+print(Math.div(1.5, 1))

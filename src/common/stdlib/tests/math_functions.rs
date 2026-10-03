@@ -164,6 +164,18 @@ fn test_math_floor_ceil_keep_int() {
     assert_eq!("9007199254740993\n9007199254740993", vm.get_output());
 }
 
+#[test]
+fn test_math_floor_ceil_int() {
+    let program = r#"
+        print(Math.div(Math.floor(2.7), 1))
+        print(Math.div(Math.ceil(2.1), 1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("2\n3", vm.get_output());
+}
+
 // ============================================================================
 // Math.min() / Math.max() - Keep the winning variant, compare exactly
 // ============================================================================
@@ -184,6 +196,26 @@ fn test_math_min_max_keep_variant() {
         "9007199254740993\n-9007199254740993\n1\n2.5\n1",
         vm.get_output()
     );
+}
+
+// ============================================================================
+// Math.div() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_math_div() {
+    let program = r#"
+        print(Math.div(7, 2))
+        print(Math.div(-7, 2))
+        print(Math.div(7, -2))
+        print(Math.div(-7, -2))
+        print(Math.div(0, 5))
+        print(Math.div(-1, 5))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n-4\n-4\n3\n0\n-1", vm.get_output());
 }
 
 // ============================================================================

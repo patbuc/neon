@@ -62,11 +62,12 @@ fn test_number_to_int_truncates_float() {
         print((5.7).toInt())
         print((-5.7).toInt())
         print((5).toInt())
+        print(Math.div((5.7).toInt(), 1))
     "#;
 
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("5\n-5\n5", vm.get_output());
+    assert_eq!("5\n-5\n5\n5", vm.get_output());
 }
 
 #[test]
@@ -108,6 +109,20 @@ fn test_number_to_float() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("5\n5.5", vm.get_output());
+}
+
+#[test]
+fn test_number_to_float_returns_float_variant() {
+    let program = r#"
+        print(Math.div((5).toFloat(), 1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("div() expects two integers, got float"));
 }
 
 #[test]

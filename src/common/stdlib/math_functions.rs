@@ -119,3 +119,39 @@ pub fn native_math_max(args: &[Value]) -> Result<Value, String> {
 
     Ok(max_value.into_value())
 }
+
+fn extract_div_operand(args: &[Value], idx: usize, name: &str) -> Result<i64, String> {
+    match args.get(idx) {
+        Some(Value::Int(i)) => Ok(*i),
+        Some(Value::Number(_)) => Err("div() expects two integers, got float".to_string()),
+        Some(_) => Err(format!("div() {} must be a number", name)),
+        None => Err(format!("div() missing required argument: {}", name)),
+    }
+}
+
+/// Native implementation of Math.div(a, b)
+/// Floor division on two ints: rounds the quotient toward negative infinity.
+pub fn native_math_div(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!("div() expects 2 arguments, got {}", args.len()));
+    }
+
+    let a = extract_div_operand(args, 0, "a")?;
+    let b = extract_div_operand(args, 1, "b")?;
+
+    if b == 0 {
+        return Err("div() division by zero".to_string());
+    }
+
+    let quotient = a
+        .checked_div(b)
+        .ok_or_else(|| "integer overflow in div()".to_string())?;
+    let remainder = a % b;
+    let floored = if remainder != 0 && (remainder < 0) != (b < 0) {
+        quotient - 1
+    } else {
+        quotient
+    };
+
+    Ok(Value::Int(floored))
+}
