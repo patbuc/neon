@@ -103,9 +103,9 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 ### Data Types
 
 **Primitives:**
-- **Numbers** - A decimal literal with no `.` and no exponent (`42`, `0xFF`, `0b101`, `0o17`) is a 64-bit
-  int; a literal with a `.` or exponent (`3.14`, `1.5e-3`, `2E+2`) is a 64-bit float. An int literal that
-  doesn't fit in `i64` is a compile error.
+- **Numbers** - An integer literal (decimal, or `0xFF` hex, `0b101` binary, `0o17` octal) with no `.` and
+  no exponent is a 64-bit int; a literal with a `.` or exponent (`3.14`, `1.5e-3`, `2E+2`) is a 64-bit
+  float. An int literal that doesn't fit in `i64` is a compile error.
 - **Booleans** - `true` and `false`
 - **Strings** - Unicode text with escapes (e.g., `"hello"`, `"world\n"`)
 - **Nil** - Null value represented as `nil`
@@ -728,8 +728,9 @@ print("42".toInt() + 8)               // 50
 - `.sort()` / `.sort(cmp)` / `.reverse()` - Sort (returns the same array) / reverse in place
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
-- `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements (an int if every element is an
-  int, a float if any element is a float; an int sum outside `i64` raises an overflow error)
+- `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements. `.sum()` is an int if every
+  element is an int, a float if any element is a float (an int sum outside `i64` raises an overflow
+  error); `.min()`/`.max()` return the chosen element unchanged
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
 - `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`

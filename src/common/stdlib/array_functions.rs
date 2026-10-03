@@ -1,4 +1,4 @@
-use crate::common::{compare_int_and_float, compare_numeric, NativeCallError, Numeric, Value};
+use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -123,19 +123,16 @@ pub fn native_array_sort(
 
     match args.get(1) {
         None => {
-            array_ref.borrow_mut().sort_by(|a, b| match (a, b) {
-                (Value::Number(n1), Value::Number(n2)) => {
-                    n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
+            array_ref.borrow_mut().sort_by(|a, b| {
+                match (Numeric::from_value(a), Numeric::from_value(b)) {
+                    (Some(na), Some(nb)) => {
+                        compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    _ => match (a, b) {
+                        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+                        _ => sort_rank(a).cmp(&sort_rank(b)),
+                    },
                 }
-                (Value::Int(i1), Value::Int(i2)) => i1.cmp(i2),
-                (Value::Int(i), Value::Number(n)) => {
-                    compare_int_and_float(*i, *n).unwrap_or(std::cmp::Ordering::Equal)
-                }
-                (Value::Number(n), Value::Int(i)) => compare_int_and_float(*i, *n)
-                    .map(std::cmp::Ordering::reverse)
-                    .unwrap_or(std::cmp::Ordering::Equal),
-                (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-                _ => sort_rank(a).cmp(&sort_rank(b)),
             });
         }
         Some(comparator) => {
