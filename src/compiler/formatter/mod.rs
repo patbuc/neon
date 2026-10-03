@@ -13,5 +13,5 @@ pub fn format(source: &str) -> Result<String, Vec<CompilationError>> {
     let mut parser = Parser::new(source);
     let stmts = parser.parse()?;
     let map = SourceMap::new(source);
-    Ok(Printer::new(&map, parser.trivia()).program(&stmts))
+    Printer::new(&map, parser.trivia()).program(&stmts)
 }

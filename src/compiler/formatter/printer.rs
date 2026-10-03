@@ -1,7 +1,8 @@
+use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
-use crate::compiler::Trivia;
+use crate::compiler::{Comment, CommentKind, Trivia};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Gap {
@@ -36,6 +37,9 @@ pub(crate) struct Printer<'a> {
     continued: bool,
     map: &'a SourceMap,
     blank_lines: &'a [u32],
+    comments: &'a [Comment],
+    next_comment: usize,
+    error: Option<CompilationError>,
 }
 
 impl<'a> Printer<'a> {
@@ -47,10 +51,13 @@ impl<'a> Printer<'a> {
             continued: false,
             map,
             blank_lines: &trivia.blank_lines,
+            comments: &trivia.comments,
+            next_comment: 0,
+            error: None,
         }
     }
 
-    pub(crate) fn program(mut self, stmts: &[Stmt]) -> String {
+    pub(crate) fn program(mut self, stmts: &[Stmt]) -> Result<String, Vec<CompilationError>> {
         let mut prev = 0;
         for (i, stmt) in stmts.iter().enumerate() {
             let gap = if i == 0 {
@@ -68,7 +75,15 @@ impl<'a> Printer<'a> {
             Gap::BeforeClose
         };
         self.line_break(prev, u32::MAX, gap);
-        self.out
+        while self.next_comment < self.comments.len() {
+            let line = self.comments[self.next_comment].line;
+            self.record_unplaceable(line);
+            self.next_comment += 1;
+        }
+        match self.error {
+            Some(e) => Err(vec![e]),
+            None => Ok(self.out),
+        }
     }
 
     // --- Primitives -------------------------------------------------
@@ -105,15 +120,89 @@ impl<'a> Printer<'a> {
         self.blank_lines.iter().any(|&line| line > a && line < b)
     }
 
+    fn record_unplaceable(&mut self, line: u32) {
+        if self.error.is_none() {
+            self.error = Some(CompilationError::new(
+                CompilationPhase::Format,
+                CompilationErrorKind::UnplaceableComment,
+                format!("Cannot place the comment on line {line}"),
+                SourceLocation {
+                    offset: 0,
+                    line,
+                    column: 0,
+                },
+            ));
+        }
+    }
+
+    /// The only place comments and blank lines are emitted. `prev`/`next`
+    /// are the source lines of the last token printed and the next one to
+    /// print; a synthetic break (`next <= prev`, the printer expanding a
+    /// one-line body) never flushes a pending comment, since nothing in
+    /// the source separates them.
     fn line_break(&mut self, prev: u32, next: u32, gap: Gap) {
+        while self.next_comment < self.comments.len()
+            && self.comments[self.next_comment].line < prev
+        {
+            let line = self.comments[self.next_comment].line;
+            self.record_unplaceable(line);
+            self.next_comment += 1;
+        }
+
         if next <= prev {
             self.newline();
             return;
         }
+
+        if let Some(comment) = self.comments.get(self.next_comment) {
+            if comment.kind == CommentKind::Trailing && comment.line == prev {
+                let text = comment.text.trim_end().to_string();
+                if !self.at_line_start {
+                    self.write(" ");
+                }
+                self.write(&text);
+                self.next_comment += 1;
+            }
+        }
+
         self.newline();
-        if self.has_blank_between(prev, next) && gap.keeps_leading() && gap.keeps_trailing() {
+
+        let mut last = prev;
+        let mut first = true;
+        while let Some(comment) = self.comments.get(self.next_comment) {
+            if comment.line >= next {
+                break;
+            }
+            if comment.kind == CommentKind::Trailing {
+                let line = comment.line;
+                self.record_unplaceable(line);
+                self.next_comment += 1;
+                continue;
+            }
+            let line = comment.line;
+            if self.has_blank_between(last, line) && (!first || gap.keeps_leading()) {
+                self.blank();
+            }
+            let text = comment.text.trim_end().to_string();
+            self.write(&text);
+            self.newline();
+            last = line;
+            first = false;
+            self.next_comment += 1;
+        }
+
+        if self.has_blank_between(last, next)
+            && gap.keeps_trailing()
+            && (!first || gap.keeps_leading())
+        {
             self.blank();
         }
+    }
+
+    fn has_comment_before(&self, line: u32) -> bool {
+        self.comments
+            .get(self.next_comment)
+            .is_some_and(|c| c.line < line)
     }
 
     fn nested(&mut self, extra: usize, f: impl FnOnce(&mut Self)) {
@@ -147,7 +236,7 @@ impl<'a> Printer<'a> {
         spans: &[(u32, u32)],
         mut print_item: impl FnMut(&mut Self, usize),
     ) {
-        if spans.is_empty() {
+        if spans.is_empty() && !self.has_comment_before(close_line) {
             self.write("{}");
             return;
         }
@@ -164,7 +253,12 @@ impl<'a> Printer<'a> {
                 printer.nested(0, |printer| print_item(printer, i));
                 prev = last;
             }
-            printer.line_break(prev, close_line, Gap::BeforeClose);
+            let gap = if spans.is_empty() {
+                Gap::Empty
+            } else {
+                Gap::BeforeClose
+            };
+            printer.line_break(prev, close_line, gap);
         });
         self.write("}");
     }
@@ -180,6 +274,11 @@ impl<'a> Printer<'a> {
     ) {
         self.write(brackets.open);
         if spans.is_empty() {
+            if self.has_comment_before(brackets.close_line) {
+                self.nested(1, |printer| {
+                    printer.line_break(brackets.open_line, brackets.close_line, Gap::Empty);
+                });
+            }
             self.write(brackets.close);
             return;
         }

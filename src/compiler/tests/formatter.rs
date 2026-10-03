@@ -516,3 +516,102 @@ fn test_no_trailing_whitespace_on_any_line() {
         assert!(!line.ends_with(' '), "trailing whitespace in {line:?}");
     }
 }
+
+#[test]
+fn test_expected_header_then_blank_then_code() {
+    check(
+        "// Expected:\n// 1\n\nprint(1)\n",
+        "// Expected:\n// 1\n\nprint(1)\n",
+    );
+}
+
+#[test]
+fn test_trailing_comment_trimmed_and_one_space() {
+    check("print(1)    // x  \n", "print(1) // x\n");
+}
+
+#[test]
+fn test_own_line_comment_at_col_zero_gets_indented() {
+    check(
+        "fn f() {\n// hi\n    a()\n}\n",
+        "fn f() {\n    // hi\n    a()\n}\n",
+    );
+}
+
+#[test]
+fn test_comments_after_open_and_before_close_kept_with_blank_rules() {
+    check(
+        "fn f() {\n    // open\n\n    a()\n\n    // close\n}\n",
+        "fn f() {\n    // open\n\n    a()\n\n    // close\n}\n",
+    );
+}
+
+#[test]
+fn test_trailing_comment_after_open_brace_stays_on_that_line() {
+    check(
+        "if (c) { // why\n    a()\n}\n",
+        "if (c) { // why\n    a()\n}\n",
+    );
+}
+
+#[test]
+fn test_trailing_comment_after_expanded_one_line_block() {
+    check("if (c) { a } // x\n", "if (c) {\n    a\n} // x\n");
+}
+
+#[test]
+fn test_broken_list_with_trailing_and_own_line_comment() {
+    check(
+        "foo(\n    a, // a\n    // b\n    b,\n)\n",
+        "foo(\n    a, // a\n    // b\n    b,\n)\n",
+    );
+}
+
+#[test]
+fn test_own_line_comment_inside_empty_block() {
+    check("fn f() {\n// todo\n}\n", "fn f() {\n    // todo\n}\n");
+}
+
+#[test]
+fn test_own_line_comment_inside_broken_call_with_no_args() {
+    check("foo(\n// c\n)\n", "foo(\n    // c\n)\n");
+}
+
+#[test]
+fn test_trailing_comment_after_binary_operator() {
+    check("1 + // c\n2\n", "1 + // c\n    2\n");
+}
+
+#[test]
+fn test_eof_comment_after_last_statement() {
+    check("print(1)\n// eof\n", "print(1)\n// eof\n");
+}
+
+#[test]
+fn test_comments_only_file() {
+    check("// just a comment\n", "// just a comment\n");
+}
+
+#[test]
+fn test_consecutive_comments_stay_contiguous() {
+    check(
+        "// one\n// two\n// three\nprint(1)\n",
+        "// one\n// two\n// three\nprint(1)\n",
+    );
+}
+
+#[test]
+fn test_unplaceable_comment_between_block_and_else_is_an_error() {
+    let source = "if (a) {\n} // c\nelse {\n}\n";
+    let errors = crate::compiler::format(source).unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("line 2"), "{:?}", errors[0]);
+}
+
+#[test]
+fn test_unplaceable_comment_inside_interpolation_is_an_error() {
+    let source = "print(\"${x // c\n}\")\n";
+    let errors = crate::compiler::format(source).unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("line 1"), "{:?}", errors[0]);
+}
