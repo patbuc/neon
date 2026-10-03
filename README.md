@@ -711,7 +711,7 @@ print("42".toInt() + 8)               // 50
 - `.size()` / `.length()` - Get array length
 - `.contains(value)` - Check if contains value
 - `.indexOf(value)` - Position of the first match, or `-1`
-- `.sort()` / `.reverse()` - Sort / reverse in place
+- `.sort()` / `.sort(cmp)` / `.reverse()` - Sort (returns the same array) / reverse in place
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
 - `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements
@@ -728,12 +728,24 @@ print(arr.contains(2))     // true
 print(arr.map(fn(x) { return x * 2 }))          // [2, 4, 6, 8]
 print(arr.filter(fn(x) { return x % 2 == 0 }))  // [2, 4]
 print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
+
+val nums = [3, 1, 2]
+print(nums.sort())                                      // [1, 2, 3], same array as nums
+print([3, 1, 2].sort(fn(a, b) { return b - a }))         // [3, 2, 1]
 ```
 
-`map`, `filter` and `reduce` accept a named function, a closure, or a lambda,
-and can call back into other Neon functions (including nested `map`/`filter`/
-`reduce` calls). Callbacks passed to `map`, `filter` or `reduce` can nest at
-most 32 levels deep before reporting a "Stack overflow" error.
+`map`, `filter`, `reduce` and `sort` accept a named function, a closure, or a
+lambda, and can call back into other Neon functions (including nested
+`map`/`filter`/`reduce`/`sort` calls). Callbacks passed to `map`, `filter`,
+`reduce` or `sort` can nest at most 32 levels deep before reporting a "Stack
+overflow" error.
+
+With no argument, `sort()` sorts in place in the default order (numbers
+ascending, then strings alphabetically, then other values) and returns the
+same array. With a comparator `sort(fn(a, b) { ... })`, the function is
+called with pairs of elements; a negative result puts `a` first, a positive
+result puts `b` first, and `0` keeps their existing order (the sort is
+stable). The comparator must return a number.
 
 ### Range Methods
 

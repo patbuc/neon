@@ -104,8 +104,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`, `charAt`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number / Boolean:** `toString`
-- **Array:** `push`, `pop`, `size`, `length`, `contains`, `sort`, `reverse`,
-  `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
+- **Array:** `push`, `pop`, `size`, `length`, `contains`, `sort()` / `sort(cmp)`,
+  `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`
 - **Range:** `size`, `length`, `contains`, `toArray`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
@@ -117,6 +117,11 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 
 The source of truth is `src/common/method_registry.rs`; if it disagrees
 with this list, trust the registry.
+
+`sort()` sorts in place and returns the same array (not a copy). With a
+comparator, `sort(fn(a, b) { ... })` calls it for pairs of elements: negative
+puts `a` first, positive puts `b` first, `0` keeps their order (the sort is
+stable). The comparator must return a number.
 
 ## Test script format
 
