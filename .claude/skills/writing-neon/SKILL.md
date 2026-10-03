@@ -63,9 +63,14 @@ won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the scri
   only (local, global, captured); `o.n += 1` and `a[0] += 1` are compile
   errors, write `o.n = o.n + 1`. No bitwise compound operators. `i++` and
   `i--` exist as statements; prefix `++i` does not.
-- `/` is float division (`7 / 2` is `3.5`). Integer division is
-  `Math.floor(a / b)`.
-- `**` is power. `& | ^ ~ << >>` are bitwise. `c ? a : b` works.
+- `/` is always float division (`7 / 2` is `3.5`), even on two ints. Integer floor division is
+  `Math.div(a, b)`, not `Math.floor(a / b)` — that round-trips through `f64` and loses precision
+  past 2^53.
+- A decimal literal with no `.`/exponent (and hex/bin/oct literals) is an int; one with a `.` or
+  exponent is a float. `+ - * %` on two ints give an int and raise `integer overflow in <op>` if the
+  result doesn't fit `i64`; any float operand makes the result a float.
+- `**` is power. `& | ^ ~ << >>` are bitwise and always give an int (float operands truncated).
+  `c ? a : b` works.
 - `+` needs two numbers or two strings: `"n=" + 3` is a runtime error. Use
   interpolation `"n=${n}"` or `n.toString()`.
 - Only `nil` and `false` are falsy; `0` and `""` are truthy. `&&`/`||`

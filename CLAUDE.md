@@ -181,7 +181,7 @@ cargo run --features disassemble -- script.n
 
 **Value System** (`src/common/mod.rs`)
 
-- Scalars (Number, Boolean, Nil) are stored inline
+- Scalars (Number, Int, Boolean, Nil) are stored inline
 - Every heap variant (String, Function, Closure, NativeFunction, Struct, Instance, Array, Map, Set, File, Range, EnumVariant) holds a single `Rc`; collections and instances use `Rc<RefCell<..>>` for interior mutability
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
