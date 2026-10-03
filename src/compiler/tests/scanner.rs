@@ -1,9 +1,18 @@
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::scanner::KEYWORDS;
 use crate::compiler::token::TokenType;
+use crate::compiler::CommentKind;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
 use std::collections::BTreeSet;
+
+fn scan_to_eof(scanner: &mut Scanner) {
+    loop {
+        if scanner.scan_token().token_type == TokenType::Eof {
+            break;
+        }
+    }
+}
 
 fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
@@ -524,6 +533,80 @@ fn can_scan_number_then_comment_for_double_slash() {
     assert_eq!(tokens[0].token_type, TokenType::Number);
     assert_eq!(tokens[0].token, "7");
     assert_eq!(tokens[1].token_type, TokenType::Eof);
+}
+
+#[test]
+fn trivia_records_comments_and_blank_lines() {
+    let source = "// leading\nvar a = 1 // trailing\n\n    // indented\nvar b = 2\n   \nvar c = 3";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+    let trivia = scanner.trivia();
+
+    assert_eq!(trivia.comments.len(), 3);
+
+    assert_eq!(trivia.comments[0].line, 1);
+    assert_eq!(trivia.comments[0].column, 1);
+    assert_eq!(trivia.comments[0].text, "// leading");
+    assert_eq!(trivia.comments[0].kind, CommentKind::OwnLine);
+
+    assert_eq!(trivia.comments[1].line, 2);
+    assert_eq!(trivia.comments[1].column, 11);
+    assert_eq!(trivia.comments[1].text, "// trailing");
+    assert_eq!(trivia.comments[1].kind, CommentKind::Trailing);
+
+    assert_eq!(trivia.comments[2].line, 4);
+    assert_eq!(trivia.comments[2].column, 5);
+    assert_eq!(trivia.comments[2].text, "// indented");
+    assert_eq!(trivia.comments[2].kind, CommentKind::OwnLine);
+
+    assert_eq!(trivia.blank_lines, vec![3, 6]);
+}
+
+#[test]
+fn trivia_comment_text_excludes_crlf_carriage_return() {
+    let source = "// hi\r\nvar a = 1";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+    let trivia = scanner.trivia();
+
+    assert_eq!(trivia.comments.len(), 1);
+    assert_eq!(trivia.comments[0].text, "// hi");
+}
+
+#[test]
+fn trivia_ignores_double_slash_inside_string_literal() {
+    let source = "var s = \"http://example.com\";";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert!(scanner.trivia().comments.is_empty());
+}
+
+#[test]
+fn trivia_does_not_count_a_comment_only_line_before_a_blank_line() {
+    let source = "x\n// c\n\ny";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert_eq!(scanner.trivia().blank_lines, vec![3]);
+}
+
+#[test]
+fn trivia_ignores_blank_line_inside_multiline_string_literal() {
+    let source = "val s = \"a\n\nb\"\nx";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert!(scanner.trivia().blank_lines.is_empty());
+}
+
+#[test]
+fn trivia_records_crlf_blank_line() {
+    let source = "x\r\n\r\ny";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert_eq!(scanner.trivia().blank_lines, vec![2]);
 }
 
 #[test]

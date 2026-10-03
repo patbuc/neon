@@ -38,6 +38,32 @@ pub(crate) struct Scanner {
     previous_token_type: TokenType,
     /// Open `${...}` interpolations, innermost last.
     interpolations: Vec<scanner::Interpolation>,
+    trivia: Trivia,
+}
+
+/// Whether a comment is alone on its line or follows code on the same line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CommentKind {
+    OwnLine,
+    Trailing,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Comment {
+    pub(crate) line: u32,
+    pub(crate) column: u32,
+    /// Verbatim comment text, including the leading `//`, excluding any
+    /// trailing newline or CRLF's `\r`.
+    pub(crate) text: String,
+    pub(crate) kind: CommentKind,
+}
+
+/// Source detail dropped by the token stream: comments and the line
+/// numbers of blank lines.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Trivia {
+    pub(crate) comments: Vec<Comment>,
+    pub(crate) blank_lines: Vec<u32>,
 }
 
 #[derive(Debug, Default)]

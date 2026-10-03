@@ -1,6 +1,6 @@
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::token::TokenType;
-use crate::compiler::{Scanner, Token};
+use crate::compiler::{Comment, CommentKind, Scanner, Token, Trivia};
 
 #[derive(Clone, Copy)]
 struct InvalidDigit {
@@ -88,6 +88,7 @@ impl Scanner {
             start_column: 1,
             previous_token_type: TokenType::NewLine,
             interpolations: Vec::new(),
+            trivia: Trivia::default(),
         }
     }
 
@@ -95,9 +96,35 @@ impl Scanner {
         self.interpolations.len()
     }
 
+    pub(in crate::compiler) fn trivia(&self) -> &Trivia {
+        &self.trivia
+    }
+
+    /// Records the `//` comment just scanned (`self.start..self.current`).
+    /// Trailing means code precedes it on the same line, which is exactly
+    /// when no `NewLine` token has been emitted for this line yet.
+    fn record_comment(&mut self) {
+        let mut text: String = self.source[self.start..self.current].iter().collect();
+        if text.ends_with('\r') {
+            text.pop();
+        }
+        let kind = if self.previous_token_type == TokenType::NewLine {
+            CommentKind::OwnLine
+        } else {
+            CommentKind::Trailing
+        };
+        self.trivia.comments.push(Comment {
+            line: self.start_line,
+            column: self.start_column,
+            text,
+            kind,
+        });
+    }
+
     //noinspection DuplicatedCode
     pub(in crate::compiler) fn scan_token(&mut self) -> Token {
         let mut c;
+        let mut line_has_comment = false;
         loop {
             self.skip_whitespace();
             self.start = self.current;
@@ -116,6 +143,8 @@ impl Scanner {
                 while self.peek() != '\n' && !self.is_at_end() {
                     self.advance();
                 }
+                self.record_comment();
+                line_has_comment = true;
                 continue;
             }
             if !(self.previous_token_type == TokenType::NewLine && c == '\n') {
@@ -125,6 +154,10 @@ impl Scanner {
             // A NewLine token was already emitted and this is another
             // newline right after it: a blank, whitespace-only, or
             // comment-only line. Count it without emitting a second token.
+            if !line_has_comment {
+                self.trivia.blank_lines.push(self.line);
+            }
+            line_has_comment = false;
             self.line += 1;
             self.column = 1;
         }
