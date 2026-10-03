@@ -14,7 +14,7 @@ pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
 
     let string = extract_receiver!(args, String, "len")?;
     let len = string.chars().count();
-    Ok(Value::Number(len as f64))
+    Ok(Value::Int(len as i64))
 }
 
 /// Native implementation of String.substring(start, end)
@@ -270,16 +270,16 @@ pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
     let substring_chars: Vec<char> = substring.chars().collect();
 
     if substring_chars.is_empty() {
-        return Ok(Value::Number(0.0));
+        return Ok(Value::Int(0));
     }
 
     for (i, window) in chars.windows(substring_chars.len()).enumerate() {
         if window == substring_chars.as_slice() {
-            return Ok(Value::Number(i as f64));
+            return Ok(Value::Int(i as i64));
         }
     }
 
-    Ok(Value::Number(-1.0))
+    Ok(Value::Int(-1))
 }
 
 /// Native implementation of String.charAt(index)

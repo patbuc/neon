@@ -97,7 +97,7 @@ pub fn native_set_size(args: &[Value]) -> Result<Value, String> {
 
     let set_ref = extract_receiver!(args, Set, "size")?;
     let set = set_ref.borrow();
-    Ok(Value::Number(set.len() as f64))
+    Ok(Value::Int(set.len() as i64))
 }
 
 /// Native implementation of Set.clear()

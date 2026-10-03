@@ -1,0 +1,10 @@
+// Expected:
+// 1
+// b
+
+// An int key and an integral float key that are equal share one entry.
+val m = {}
+m[1] = "a"
+m[1.0] = "b"
+print(m.size())
+print(m[1])

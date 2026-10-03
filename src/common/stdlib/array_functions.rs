@@ -56,7 +56,7 @@ pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
 
     let array_ref = extract_receiver!(args, Array, "length")?;
     let array = array_ref.borrow();
-    Ok(Value::Number(array.len() as f64))
+    Ok(Value::Int(array.len() as i64))
 }
 
 /// Native implementation of Array.size()
@@ -71,7 +71,7 @@ pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
 
     let array_ref = extract_receiver!(args, Array, "size")?;
     let elements = array_ref.borrow();
-    Ok(Value::Number(elements.len() as f64))
+    Ok(Value::Int(elements.len() as i64))
 }
 
 /// Native implementation of Array.contains(element)
@@ -324,8 +324,8 @@ pub fn native_array_index_of(args: &[Value]) -> Result<Value, String> {
     let index = array.iter().position(|e| e == element);
 
     match index {
-        Some(idx) => Ok(Value::Number(idx as f64)),
-        None => Ok(Value::Number(-1.0)),
+        Some(idx) => Ok(Value::Int(idx as i64)),
+        None => Ok(Value::Int(-1)),
     }
 }
 
