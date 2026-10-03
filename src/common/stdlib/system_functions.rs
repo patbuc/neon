@@ -1,4 +1,5 @@
 use crate::common::Value;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::extract_arg;
 
 /// Joins print() arguments with spaces, the shared formatting used for both
@@ -25,28 +26,37 @@ pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Nil)
 }
 
+/// Converts a `sleep()` millisecond argument into a `Duration`, rejecting
+/// anything `Duration::try_from_secs_f64` can't represent with a message
+/// that names the actual problem (negative/NaN vs. too large to fit).
+#[cfg(not(target_arch = "wasm32"))]
+fn sleep_duration(ms: f64) -> Result<std::time::Duration, String> {
+    if ms.is_nan() || ms < 0.0 {
+        return Err("sleep() requires a non-negative number of milliseconds".to_string());
+    }
+    std::time::Duration::try_from_secs_f64(ms / 1000.0)
+        .map_err(|_| "sleep() ms is too large".to_string())
+}
+
 /// Native implementation of sleep(ms): blocks the current thread for `ms`
 /// milliseconds (fractional values honoured).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn native_system_sleep(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!("sleep() expects 1 argument, got {}", args.len()));
     }
 
     let ms = extract_arg!(args, 0, Number, "ms", "sleep")?;
+    let duration = sleep_duration(ms)?;
+    std::thread::sleep(duration);
+    Ok(Value::Nil)
+}
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = ms;
-        return Err("sleep() is not supported in the browser".to_string());
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let duration = std::time::Duration::try_from_secs_f64(ms / 1000.0)
-            .map_err(|_| "sleep() requires a non-negative number of milliseconds".to_string())?;
-        std::thread::sleep(duration);
-        Ok(Value::Nil)
-    }
+/// Native implementation of sleep(ms) on wasm32: `std::thread::sleep` panics
+/// there, so this always errors instead.
+#[cfg(target_arch = "wasm32")]
+pub fn native_system_sleep(_args: &[Value]) -> Result<Value, String> {
+    Err("sleep() is not supported in the browser".to_string())
 }
 
 #[cfg(test)]
@@ -166,9 +176,33 @@ mod tests {
         let result = native_system_sleep(&args);
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "sleep() requires a non-negative number of milliseconds"
-        );
+        assert_eq!(result.unwrap_err(), "sleep() ms is too large");
+    }
+
+    #[test]
+    fn test_sleep_too_large_argument() {
+        let args = vec![number!(1e300)];
+        let result = native_system_sleep(&args);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "sleep() ms is too large");
+    }
+
+    #[test]
+    fn test_sleep_too_many_arguments() {
+        let args = vec![number!(1.0), number!(2.0)];
+        let result = native_system_sleep(&args);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "sleep() expects 1 argument, got 2");
+    }
+
+    #[test]
+    fn test_sleep_fractional_argument() {
+        let args = vec![number!(1.5)];
+        let result = native_system_sleep(&args);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), Value::Nil);
     }
 }
