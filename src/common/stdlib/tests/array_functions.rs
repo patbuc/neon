@@ -158,6 +158,113 @@ fn test_array_sort_mixed_types() {
     assert_eq!("[[1], nil, true]\n[[1], a]", vm.get_output());
 }
 
+#[test]
+fn test_array_sort_returns_same_array() {
+    let program = r#"
+        val a = [3, 1, 2]
+        val b = a.sort()
+        print(b)
+        b.push(4)
+        print(a)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n[1, 2, 3, 4]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_with_comparator() {
+    let program = r#"
+        print([3, 1, 2].sort(fn(a, b) { return b - a }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[3, 2, 1]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_with_comparator_zero_result_keeps_order() {
+    let program = r#"
+        val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
+        val sorted = pairs.sort(fn(a, b) { return 0 })
+        print(sorted)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, a], [1, b], [0, c], [1, d]]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_with_comparator_is_stable() {
+    let program = r#"
+        val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
+        val sorted = pairs.sort(fn(x, y) { return x[0] - y[0] })
+        print(sorted)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[0, c], [1, a], [1, b], [1, d]]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_comparator_non_number_result() {
+    let program = r#"
+        [1, 2].sort(fn(a, b) { return "nope" })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("sort() comparator must return a number, got string"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_sort_comparator_error_propagates() {
+    let program = r#"
+        fn boom(a, b) {
+            val x = nil
+            return x.missing
+        }
+        [1, 2].sort(boom)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_array_sort_wrong_arg_count() {
+    let program = r#"
+        [1, 2].sort(1, 2)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("sort() expects 0 or 1 arguments, got 2"),
+        "{}",
+        errors
+    );
+}
+
 // ============================================================================
 // Array.reverse() - Success Cases
 // ============================================================================

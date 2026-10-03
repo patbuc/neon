@@ -107,31 +107,100 @@ fn sort_rank(value: &Value) -> u8 {
     }
 }
 
-/// Native implementation of Array.sort()
-/// Sorts array in place (numbers ascending, strings alphabetically)
-pub fn native_array_sort(args: &[Value]) -> Result<Value, String> {
-    if args.len() != 1 {
-        return Err(format!(
-            "sort() expects no arguments, got {}",
-            args.len() - 1
-        ));
+/// Native implementation of Array.sort() / Array.sort(comparator)
+/// Sorts in place (default order, or by calling the comparator on each
+/// pair) and returns the same array.
+pub fn native_array_sort(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 1 && args.len() != 2 {
+        return Err(format!("sort() expects 0 or 1 arguments, got {}", args.len() - 1).into());
     }
 
     // Extract the array
     let array_ref = extract_receiver!(args, Array, "sort")?;
 
-    // Sort the array
-    let mut array = array_ref.borrow_mut();
-
-    array.sort_by(|a, b| match (a, b) {
-        (Value::Number(n1), Value::Number(n2)) => {
-            n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
+    match args.get(1) {
+        None => {
+            array_ref.borrow_mut().sort_by(|a, b| match (a, b) {
+                (Value::Number(n1), Value::Number(n2)) => {
+                    n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+                _ => sort_rank(a).cmp(&sort_rank(b)),
+            });
         }
-        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-        _ => sort_rank(a).cmp(&sort_rank(b)),
-    });
+        Some(comparator) => {
+            let comparator = comparator.clone();
+            // Snapshot so the comparator can mutate the array without us
+            // holding a RefCell borrow across the callback.
+            let elements: Vec<Value> = array_ref.borrow().clone();
+            let sorted = merge_sort_by(vm, elements, &comparator)?;
+            *array_ref.borrow_mut() = sorted;
+        }
+    }
 
-    Ok(Value::Nil)
+    Ok(args[0].clone())
+}
+
+/// Stable merge sort driven by a user comparator.
+fn merge_sort_by(
+    vm: &mut VirtualMachine,
+    mut values: Vec<Value>,
+    comparator: &Value,
+) -> Result<Vec<Value>, NativeCallError> {
+    if values.len() <= 1 {
+        return Ok(values);
+    }
+
+    let right = values.split_off(values.len() / 2);
+    let left = merge_sort_by(vm, values, comparator)?;
+    let right = merge_sort_by(vm, right, comparator)?;
+    merge_by(vm, left, right, comparator)
+}
+
+/// Merges two already-sorted runs, favoring the left run on a tie so the
+/// merge is stable.
+fn merge_by(
+    vm: &mut VirtualMachine,
+    left: Vec<Value>,
+    right: Vec<Value>,
+    comparator: &Value,
+) -> Result<Vec<Value>, NativeCallError> {
+    let mut result = Vec::with_capacity(left.len() + right.len());
+    let mut left = left.into_iter().peekable();
+    let mut right = right.into_iter().peekable();
+
+    while let (Some(a), Some(b)) = (left.peek(), right.peek()) {
+        let order = compare(vm, comparator, a, b)?;
+        if order > 0.0 {
+            result.push(right.next().unwrap());
+        } else {
+            result.push(left.next().unwrap());
+        }
+    }
+    result.extend(left);
+    result.extend(right);
+
+    Ok(result)
+}
+
+/// Calls the comparator with (a, b) and requires a number result.
+fn compare(
+    vm: &mut VirtualMachine,
+    comparator: &Value,
+    a: &Value,
+    b: &Value,
+) -> Result<f64, NativeCallError> {
+    match vm.call_value(comparator.clone(), &[a.clone(), b.clone()])? {
+        Value::Number(n) => Ok(n),
+        other => Err(format!(
+            "sort() comparator must return a number, got {}",
+            other.type_name()
+        )
+        .into()),
+    }
 }
 
 /// Native implementation of Array.reverse()
