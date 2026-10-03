@@ -1,0 +1,34 @@
+// Expected:
+// 2
+// nil
+// false
+// true
+// [1, 2]
+// [1, 2]
+// [1, 2]
+
+print([1, 2, 3].find(fn(x) { return x > 1 }))
+print([1, 2, 3].find(fn(x) { return x > 10 }))
+print([].some(fn(x) { return true }))
+print([].every(fn(x) { return false }))
+
+val someCalls = []
+[1, 2, 3].some(fn(x) {
+    someCalls.push(x)
+    return x >= 2
+})
+print(someCalls)
+
+val everyCalls = []
+[1, 2, 3].every(fn(x) {
+    everyCalls.push(x)
+    return x < 2
+})
+print(everyCalls)
+
+val findCalls = []
+[1, 2, 3].find(fn(x) {
+    findCalls.push(x)
+    return x >= 2
+})
+print(findCalls)

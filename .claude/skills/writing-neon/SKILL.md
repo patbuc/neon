@@ -99,7 +99,7 @@ No property-style `.length`; everything is a method call.
 
 ## Native methods that exist
 
-This is the full list. Anything not here, like `forEach`, `find`, `keys` on
+This is the full list. Anything not here, like `forEach` or `keys` on
 arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 
@@ -115,7 +115,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Boolean:** `toString`
 - **Array:** `push`, `pop`, `size`, `length`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
-  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`
+  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `find(fn)`, `some(fn)`, `every(fn)`,
+  `flat()`, `copy()`
 - **Range:** `size`, `length`, `contains`, `toArray`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
 - **Map:** `get`, `has`, `remove`, `size`, `keys`, `values`, `entries`

@@ -1,0 +1,18 @@
+// Expected:
+// [1, 2, 3, 4, [5]]
+// [1, 2, 3]
+// [1, 2, 3, 4]
+// [[1, 2, 3]]
+
+print([[1, 2], 3, [4, [5]]].flat())
+
+val a = [1, 2, 3]
+val b = a.copy()
+b.push(4)
+print(a)
+print(b)
+
+val nested = [[1, 2]]
+val nestedCopy = nested.copy()
+nestedCopy[0].push(3)
+print(nested)

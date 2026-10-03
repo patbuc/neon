@@ -322,6 +322,51 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    (
+        "Array",
+        "find",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_find,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "some",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_some,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
+        "every",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_every,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
+        "flat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_flat,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "copy",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_copy,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
     // Range instance methods
     (
         "Range",

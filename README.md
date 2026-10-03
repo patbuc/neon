@@ -758,6 +758,12 @@ print("42".toInt() + 8)               // 50
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
 - `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
+- `.find(fn)` - First element for which `fn` is truthy, or `nil`
+- `.some(fn)` / `.every(fn)` - Whether `fn` is truthy for any / all elements; stop calling `fn` after
+  the deciding element. `some` is `false` and `every` is `true` on an empty array
+- `.flat()` - New array with one level of nested arrays spliced in; other elements kept as they are
+- `.copy()` - Shallow copy: a new array with the same elements (heap values like nested arrays are
+  still shared)
 
 **Example:**
 ```neon
