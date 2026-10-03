@@ -1123,8 +1123,8 @@ impl<'a> CodeGenerator<'a> {
         let mut first = true;
         for part in parts {
             match part {
-                InterpolationPart::Literal(s) => {
-                    self.emit_constant(string!(s.as_str()), location);
+                InterpolationPart::Literal { value, .. } => {
+                    self.emit_constant(string!(value.as_str()), location);
                 }
                 InterpolationPart::Expression(expr) => {
                     // Generate the expression
@@ -1392,10 +1392,14 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_expr(&mut self, expr: &Expr) {
         match expr {
-            Expr::Number { value, location } => {
+            Expr::Number {
+                value, location, ..
+            } => {
                 self.emit_constant(number!(*value), *location);
             }
-            Expr::String { value, location } => {
+            Expr::String {
+                value, location, ..
+            } => {
                 self.emit_constant(string!(value.as_str()), *location);
             }
             Expr::StringInterpolation { parts, location } => {

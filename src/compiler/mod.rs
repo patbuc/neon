@@ -18,6 +18,9 @@ mod tests;
 pub(crate) struct Token {
     pub token_type: TokenType,
     pub token: String,
+    /// Exact source text the token spans, before any decoding (e.g. a
+    /// string's escapes are undecoded here but decoded in `token`).
+    pub raw: String,
     pub column: u32,
     pub line: u32,
     pub offset: usize,

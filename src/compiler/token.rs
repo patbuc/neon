@@ -85,6 +85,7 @@ impl Token {
     pub(in crate::compiler) fn new(
         token_type: TokenType,
         token: String,
+        raw: String,
         line: u32,
         column: u32,
         offset: usize,
@@ -92,6 +93,7 @@ impl Token {
         Token {
             token_type,
             token,
+            raw,
             line,
             column,
             offset,
