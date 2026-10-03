@@ -930,12 +930,12 @@ fn unbounded_recursion_trace_is_capped() {
     assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
-    assert_eq!(10_000, error.frames.len());
+    assert_eq!(1_000_000, error.frames.len());
 
     let trace = error.trace();
     let lines: Vec<&str> = trace.lines().collect();
     assert_eq!(21, lines.len());
-    assert_eq!("  ... 9980 frames omitted", lines[10]);
+    assert_eq!("  ... 999980 frames omitted", lines[10]);
     for line in &lines[..10] {
         assert_eq!("  at f (line 1)", *line);
     }
