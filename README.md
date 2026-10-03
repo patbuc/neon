@@ -684,6 +684,14 @@ val flag = "true".toBool()
 - `Math.max(a, b, ...)` - Maximum value (variadic, keeps ints as ints)
 - `Math.div(a, b)` - Floor division on two ints, returns an int; errors on a float argument, division by
   zero, or overflow (`Math.div(i64::MIN, -1)`)
+- `Math.round(n)` - Round half away from zero, returns an int (same error cases as `floor`)
+- `Math.sign(n)` - `-1`, `0` or `1` as an int (`-0.0` is `0`; `NaN` is a runtime error)
+- `Math.gcd(a, b)` - Greatest common divisor of two ints, always non-negative (`gcd(0, 0)` is `0`);
+  errors on a float argument or overflow
+- `Math.lcm(a, b)` - Least common multiple of two ints, always non-negative (`0` if either argument is
+  `0`); errors on a float argument or overflow (`integer overflow in lcm()`)
+- `Math.mod(a, b)` - Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise; errors if
+  `b` is `0` or if either argument is infinite or `NaN`
 
 **Example:**
 ```neon
@@ -691,6 +699,10 @@ print(Math.abs(-5))        // 5
 print(Math.sqrt(16))       // 4
 print(Math.max(3, 7, 2))   // 7
 print(Math.div(7, 2))      // 3, integer division
+print(Math.round(2.5))     // 3
+print(Math.gcd(12, 18))    // 6
+print(Math.lcm(4, 6))      // 12
+print(Math.mod(-7, 3))     // 2
 ```
 
 ### String Methods
