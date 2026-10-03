@@ -1,0 +1,9 @@
+// sleep() rejects a non-number argument
+
+// Expected:
+// before
+
+// Expected runtime error: sleep() ms must be a number
+
+print("before")
+sleep("x")

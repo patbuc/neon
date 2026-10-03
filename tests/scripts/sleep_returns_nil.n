@@ -1,0 +1,8 @@
+// sleep(ms) blocks briefly then returns nil
+
+// Expected:
+// nil
+// after
+
+print(sleep(1))
+print("after")
