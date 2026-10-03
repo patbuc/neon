@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in **
+
+print("before")
+print(2 ** 63)

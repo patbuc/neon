@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in +
+
+print("before")
+print(9223372036854775807 + 1)

@@ -1,4 +1,4 @@
-use crate::common::{NativeCallError, Value};
+use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -56,7 +56,7 @@ pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
 
     let array_ref = extract_receiver!(args, Array, "length")?;
     let array = array_ref.borrow();
-    Ok(Value::Number(array.len() as f64))
+    Ok(Value::Int(array.len() as i64))
 }
 
 /// Native implementation of Array.size()
@@ -71,7 +71,7 @@ pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
 
     let array_ref = extract_receiver!(args, Array, "size")?;
     let elements = array_ref.borrow();
-    Ok(Value::Number(elements.len() as f64))
+    Ok(Value::Int(elements.len() as i64))
 }
 
 /// Native implementation of Array.contains(element)
@@ -101,7 +101,7 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
 /// everything else, then booleans/nil/uninitialized last.
 fn sort_rank(value: &Value) -> u8 {
     match value {
-        Value::Number(_) => 0,
+        Value::Number(_) | Value::Int(_) => 0,
         Value::Boolean(_) | Value::Nil | Value::Uninitialized(_) => 2,
         _ => 1,
     }
@@ -123,12 +123,16 @@ pub fn native_array_sort(
 
     match args.get(1) {
         None => {
-            array_ref.borrow_mut().sort_by(|a, b| match (a, b) {
-                (Value::Number(n1), Value::Number(n2)) => {
-                    n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
+            array_ref.borrow_mut().sort_by(|a, b| {
+                match (Numeric::from_value(a), Numeric::from_value(b)) {
+                    (Some(na), Some(nb)) => {
+                        compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    _ => match (a, b) {
+                        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+                        _ => sort_rank(a).cmp(&sort_rank(b)),
+                    },
                 }
-                (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-                _ => sort_rank(a).cmp(&sort_rank(b)),
             });
         }
         Some(comparator) => {
@@ -186,6 +190,19 @@ fn merge_by(
     Ok(result)
 }
 
+/// Converts a comparator's return value to the signed number `sort()` needs.
+fn comparator_result_to_f64(value: Value) -> Result<f64, NativeCallError> {
+    match value {
+        Value::Number(n) => Ok(n),
+        Value::Int(i) => Ok(i as f64),
+        other => Err(format!(
+            "sort() comparator must return a number, got {}",
+            other.type_name()
+        )
+        .into()),
+    }
+}
+
 /// Calls the comparator with (a, b) and requires a number result.
 fn compare(
     vm: &mut VirtualMachine,
@@ -193,14 +210,7 @@ fn compare(
     a: &Value,
     b: &Value,
 ) -> Result<f64, NativeCallError> {
-    match vm.call_value(comparator.clone(), &[a.clone(), b.clone()])? {
-        Value::Number(n) => Ok(n),
-        other => Err(format!(
-            "sort() comparator must return a number, got {}",
-            other.type_name()
-        )
-        .into()),
-    }
+    comparator_result_to_f64(vm.call_value(comparator.clone(), &[a.clone(), b.clone()])?)
 }
 
 /// Native implementation of Array.reverse()
@@ -311,8 +321,8 @@ pub fn native_array_index_of(args: &[Value]) -> Result<Value, String> {
     let index = array.iter().position(|e| e == element);
 
     match index {
-        Some(idx) => Ok(Value::Number(idx as f64)),
-        None => Ok(Value::Number(-1.0)),
+        Some(idx) => Ok(Value::Int(idx as i64)),
+        None => Ok(Value::Int(-1)),
     }
 }
 
@@ -330,12 +340,12 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
     let array_ref = extract_receiver!(args, Array, "sum")?;
 
     let array = array_ref.borrow();
-    let mut sum = 0.0;
 
+    let mut numbers = Vec::with_capacity(array.len());
     for (i, value) in array.iter().enumerate() {
-        match value {
-            Value::Number(n) => sum += n,
-            _ => {
+        match Numeric::from_value(value) {
+            Some(n) => numbers.push(n),
+            None => {
                 return Err(format!(
                     "sum() requires all elements to be numbers, but element at index {} is not",
                     i
@@ -344,7 +354,28 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
         }
     }
 
-    Ok(Value::Number(sum))
+    // Any float makes the sum a float.
+    if numbers.iter().any(|n| matches!(n, Numeric::Float(_))) {
+        let sum = numbers
+            .iter()
+            .map(|n| match *n {
+                Numeric::Int(i) => i as f64,
+                Numeric::Float(f) => f,
+            })
+            .sum();
+        return Ok(Value::Number(sum));
+    }
+
+    let mut sum: i64 = 0;
+    for n in numbers {
+        if let Numeric::Int(i) = n {
+            sum = sum
+                .checked_add(i)
+                .ok_or_else(|| "integer overflow in sum()".to_string())?;
+        }
+    }
+
+    Ok(Value::Int(sum))
 }
 
 /// Native implementation of Array.min()
@@ -370,10 +401,12 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     let mut min = &array[0];
 
     for value in array.iter().skip(1) {
-        let is_less = match (value, min) {
-            (Value::Number(n1), Value::Number(n2)) => n1 < n2,
-            (Value::String(s1), Value::String(s2)) => s1 < s2,
-            _ => return Err("min() can only compare numbers or strings".to_string()),
+        let is_less = match (Numeric::from_value(value), Numeric::from_value(min)) {
+            (Some(a), Some(b)) => compare_numeric(a, b) == Some(std::cmp::Ordering::Less),
+            _ => match (value, min) {
+                (Value::String(s1), Value::String(s2)) => s1 < s2,
+                _ => return Err("min() can only compare numbers or strings".to_string()),
+            },
         };
 
         if is_less {
@@ -407,10 +440,12 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     let mut max = &array[0];
 
     for value in array.iter().skip(1) {
-        let is_greater = match (value, max) {
-            (Value::Number(n1), Value::Number(n2)) => n1 > n2,
-            (Value::String(s1), Value::String(s2)) => s1 > s2,
-            _ => return Err("max() can only compare numbers or strings".to_string()),
+        let is_greater = match (Numeric::from_value(value), Numeric::from_value(max)) {
+            (Some(a), Some(b)) => compare_numeric(a, b) == Some(std::cmp::Ordering::Greater),
+            _ => match (value, max) {
+                (Value::String(s1), Value::String(s2)) => s1 > s2,
+                _ => return Err("max() can only compare numbers or strings".to_string()),
+            },
         };
 
         if is_greater {

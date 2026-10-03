@@ -103,7 +103,9 @@ While Neon is functional for many programs, it remains experimental. Expect roug
 ### Data Types
 
 **Primitives:**
-- **Numbers** - 64-bit floating-point (e.g., `42`, `3.14`), including scientific notation (e.g., `1.5e-3`, `2E+2`)
+- **Numbers** - An integer literal (decimal, or `0xFF` hex, `0b101` binary, `0o17` octal) with no `.` and
+  no exponent is a 64-bit int; a literal with a `.` or exponent (`3.14`, `1.5e-3`, `2E+2`) is a 64-bit
+  float. An int literal that doesn't fit in `i64` is a compile error.
 - **Booleans** - `true` and `false`
 - **Strings** - Unicode text with escapes (e.g., `"hello"`, `"world\n"`)
 - **Nil** - Null value represented as `nil`
@@ -354,10 +356,15 @@ the variable in the body carries over to the increment and the next iteration.
 - `+` Addition (also string concatenation)
 - `-` Subtraction
 - `*` Multiplication
-- `/` Division
+- `/` Division (always float, even for two ints)
 - `%` Modulo
 - `**` Exponentiation
 - `-x` Negation (unary)
+
+`+ - * %` on two ints give an int; `**` gives an int for a non-negative int exponent, a float for a
+negative one. Any float operand makes the result a float. An int result outside `i64` raises a runtime
+error (`integer overflow in <op>`); `%` by zero raises `modulo by zero`. Use `Math.div(a, b)` for integer
+floor division.
 
 **Comparison:**
 - `==` Equal
@@ -366,6 +373,9 @@ the variable in the body carries over to the increment and the next iteration.
 - `<=` Less than or equal
 - `>` Greater than
 - `>=` Greater than or equal
+
+Ints and floats compare by exact numeric value (`1 == 1.0` is `true`), and an int is the same map key or
+set element as an equal integral float.
 
 **Logical:**
 - `&&` Logical AND (short-circuit)
@@ -376,6 +386,8 @@ the variable in the body carries over to the increment and the next iteration.
 - `&` AND, `|` OR, `^` XOR
 - `~` NOT (unary)
 - `<<` Left shift, `>>` Right shift
+
+Bitwise operators always give an int; a float operand is truncated first.
 
 **Other:**
 - `..` Range (exclusive)
@@ -664,19 +676,21 @@ val flag = "true".toBool()
 
 ### Math (Static Methods)
 
-- `Math.abs(n)` - Absolute value
-- `Math.floor(n)` - Round down to nearest integer
-- `Math.ceil(n)` - Round up to nearest integer
+- `Math.abs(n)` - Absolute value (keeps ints as ints)
+- `Math.floor(n)` - Round down, returns an int (runtime error if the result doesn't fit in `i64` or is NaN)
+- `Math.ceil(n)` - Round up, returns an int (same error cases as `floor`)
 - `Math.sqrt(n)` - Square root
-- `Math.min(a, b, ...)` - Minimum value (variadic)
-- `Math.max(a, b, ...)` - Maximum value (variadic)
+- `Math.min(a, b, ...)` - Minimum value (variadic, keeps ints as ints)
+- `Math.max(a, b, ...)` - Maximum value (variadic, keeps ints as ints)
+- `Math.div(a, b)` - Floor division on two ints, returns an int; errors on a float argument, division by
+  zero, or overflow (`Math.div(i64::MIN, -1)`)
 
 **Example:**
 ```neon
 print(Math.abs(-5))        // 5
 print(Math.sqrt(16))       // 4
 print(Math.max(3, 7, 2))   // 7
-print(Math.floor(a / b))   // integer division
+print(Math.div(7, 2))      // 3, integer division
 ```
 
 ### String Methods
@@ -714,7 +728,9 @@ print("42".toInt() + 8)               // 50
 - `.sort()` / `.sort(cmp)` / `.reverse()` - Sort (returns the same array) / reverse in place
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
-- `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements
+- `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements. `.sum()` is an int if every
+  element is an int, a float if any element is a float (an int sum outside `i64` raises an overflow
+  error); `.min()`/`.max()` return the chosen element unchanged
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
 - `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
@@ -819,6 +835,8 @@ print(arr)                // [1, 2] (order may vary)
 
 **Number Methods:**
 - `.toString()` - Convert to string
+- `.toInt()` - Convert to int (truncates a float)
+- `.toFloat()` - Convert to float
 
 **Boolean Methods:**
 - `.toString()` - Convert to string

@@ -1,0 +1,11 @@
+// Expected:
+// 1152921504606846977
+// 9007199254740993
+// 256
+// 4611686018427387905
+
+// Integers beyond 2^53 stay exact instead of rounding through f64.
+print(2 ** 60 + 1)
+print(9007199254740993)
+print(0xFF + 1)
+print((1 << 62) | 1)

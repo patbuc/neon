@@ -92,6 +92,7 @@ macro_rules! extract_receiver {
     ($args:expr, Number, $method:expr) => {
         match $args.get(0) {
             Some(Value::Number(n)) => Ok(*n),
+            Some(Value::Int(i)) => Ok(*i as f64),
             Some(_) => Err(format!("{}() can only be called on numbers", $method)),
             None => Err(format!("{}() can only be called on numbers", $method)),
         }
@@ -155,6 +156,7 @@ macro_rules! extract_arg {
     ($args:expr, $idx:expr, Number, $arg_name:expr, $method:expr) => {
         match $args.get($idx) {
             Some(Value::Number(n)) => Ok(*n),
+            Some(Value::Int(i)) => Ok(*i as f64),
             Some(_) => Err(format!("{}() {} must be a number", $method, $arg_name)),
             None => Err(format!(
                 "{}() missing required argument: {}",

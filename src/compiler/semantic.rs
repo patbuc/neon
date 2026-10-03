@@ -550,6 +550,7 @@ impl SemanticAnalyzer {
         match expr {
             // Literal types
             Expr::Number { .. } => Some(StaticType::Number),
+            Expr::Int { .. } => Some(StaticType::Number),
             Expr::String { .. } => Some(StaticType::String),
             Expr::StringInterpolation { .. } => Some(StaticType::String),
             Expr::Boolean { .. } => Some(StaticType::Boolean),
@@ -991,7 +992,11 @@ impl SemanticAnalyzer {
 
     fn resolve_expr(&mut self, expr: &Expr) {
         match expr {
-            Expr::Number { .. } | Expr::String { .. } | Expr::Boolean { .. } | Expr::Nil { .. } => {
+            Expr::Number { .. }
+            | Expr::Int { .. }
+            | Expr::String { .. }
+            | Expr::Boolean { .. }
+            | Expr::Nil { .. } => {
                 // Literals need no resolution
             }
             Expr::StringInterpolation { parts, .. } => {

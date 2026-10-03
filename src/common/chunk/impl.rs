@@ -61,8 +61,8 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub(crate) fn read_number_constant(&self, index: usize) -> f64 {
-        self.constants.read_number(index)
+    pub(crate) fn constant(&self, index: usize) -> &Value {
+        &self.constants.values[index]
     }
 
     #[inline(always)]

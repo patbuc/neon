@@ -37,7 +37,7 @@ pub fn native_map_size(args: &[Value]) -> Result<Value, String> {
     let map_ref = extract_receiver!(args, Map, "size")?;
 
     let map = map_ref.borrow();
-    Ok(Value::Number(map.len() as f64))
+    Ok(Value::Int(map.len() as i64))
 }
 
 pub fn native_map_has(args: &[Value]) -> Result<Value, String> {

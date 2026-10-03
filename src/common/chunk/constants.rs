@@ -21,14 +21,6 @@ impl Constants {
         self.values[index].copy_or_clone()
     }
 
-    #[inline(always)]
-    pub fn read_number(&self, index: usize) -> f64 {
-        match self.values[index] {
-            Value::Number(n) => n,
-            ref other => panic!("Expected number constant, got {:?}", other),
-        }
-    }
-
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn len(&self) -> usize {
         self.values.len()

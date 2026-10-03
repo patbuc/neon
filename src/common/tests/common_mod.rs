@@ -334,6 +334,14 @@ fn test_range_len() {
 }
 
 #[test]
+fn test_range_len_extreme_bounds_saturates() {
+    let Value::Range(full) = Value::new_range(i64::MIN, i64::MAX, true) else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(full.len(), i64::MAX);
+}
+
+#[test]
 fn copy_or_clone_scalars() {
     assert_eq!(Value::Number(1.0).copy_or_clone(), Value::Number(1.0));
     assert_eq!(Value::Boolean(true).copy_or_clone(), Value::Boolean(true));
@@ -425,4 +433,144 @@ fn enum_variant_inequality_other_value_kinds() {
     let variant = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
     assert_ne!(variant, Value::Number(0.0));
     assert_ne!(variant, Value::String(Rc::new("Color.Red".to_string())));
+}
+
+#[test]
+fn int_display_prints_plain_digits() {
+    assert_eq!(format!("{}", Value::Int(5)), "5");
+    assert_eq!(format!("{}", Value::Int(-5)), "-5");
+    assert_eq!(
+        format!("{}", Value::Int(9007199254740993)),
+        "9007199254740993"
+    );
+}
+
+#[test]
+fn int_debug_is_tagged() {
+    assert_eq!(format!("{:?}", Value::Int(5)), "Int(5)");
+}
+
+#[test]
+fn int_type_name_is_number() {
+    assert_eq!(Value::Int(5).type_name(), "number");
+}
+
+#[test]
+fn int_equality() {
+    assert_eq!(Value::Int(1), Value::Int(1));
+    assert_ne!(Value::Int(1), Value::Int(2));
+    assert_eq!(Value::Int(1), Value::Number(1.0));
+    assert_eq!(Value::Number(1.0), Value::Int(1));
+    assert_ne!(
+        Value::Int(9007199254740993),
+        Value::Number(9007199254740992.0)
+    );
+    assert_ne!(Value::Int(1), Value::Number(f64::NAN));
+}
+
+#[test]
+fn copy_or_clone_int() {
+    assert!(matches!(Value::Int(42).copy_or_clone(), Value::Int(42)));
+}
+
+#[test]
+fn compare_int_and_float_edges() {
+    use std::cmp::Ordering;
+
+    // 2^53 + 1 (exact as an Int) vs 2^53 (the largest float-exact integer).
+    assert_eq!(
+        compare_int_and_float(9007199254740993, 9007199254740992.0),
+        Some(Ordering::Greater)
+    );
+
+    // i64::MAX vs 2^63 (one past the largest i64).
+    assert_eq!(
+        compare_int_and_float(i64::MAX, 9223372036854775808.0),
+        Some(Ordering::Less)
+    );
+
+    // i64::MIN vs -2^63 (exactly equal).
+    assert_eq!(
+        compare_int_and_float(i64::MIN, -9223372036854775808.0),
+        Some(Ordering::Equal)
+    );
+
+    // Negative fractions truncate toward zero.
+    assert_eq!(compare_int_and_float(-1, -1.5), Some(Ordering::Greater));
+    assert_eq!(compare_int_and_float(-2, -1.5), Some(Ordering::Less));
+
+    // Positive fractions.
+    assert_eq!(compare_int_and_float(1, 1.5), Some(Ordering::Less));
+    assert_eq!(compare_int_and_float(2, 1.5), Some(Ordering::Greater));
+
+    // Signed zero.
+    assert_eq!(compare_int_and_float(0, -0.0), Some(Ordering::Equal));
+
+    // Infinity and NaN.
+    assert_eq!(
+        compare_int_and_float(0, f64::INFINITY),
+        Some(Ordering::Less)
+    );
+    assert_eq!(
+        compare_int_and_float(0, f64::NEG_INFINITY),
+        Some(Ordering::Greater)
+    );
+    assert_eq!(compare_int_and_float(0, f64::NAN), None);
+}
+
+#[test]
+fn map_key_from_value_normalizes_integral_float_to_int() {
+    assert_eq!(
+        MapKey::from_value(&Value::Number(1.0)),
+        Some(MapKey::Int(1))
+    );
+    assert_eq!(
+        MapKey::from_value(&Value::Number(-0.0)),
+        Some(MapKey::Int(0))
+    );
+    assert_eq!(MapKey::from_value(&Value::Int(1)), Some(MapKey::Int(1)));
+    assert_eq!(
+        MapKey::from_value(&Value::Number(1.5)),
+        Some(MapKey::Number(OrderedFloat(1.5)))
+    );
+}
+
+#[test]
+fn map_key_int_and_float_literal_share_an_entry() {
+    let mut map: IndexMap<MapKey, Value> = IndexMap::new();
+    map.insert(
+        MapKey::from_value(&Value::Int(1)).unwrap(),
+        Value::String(Rc::new("a".to_string())),
+    );
+    map.insert(
+        MapKey::from_value(&Value::Number(1.0)).unwrap(),
+        Value::String(Rc::new("b".to_string())),
+    );
+
+    assert_eq!(map.len(), 1);
+    assert_eq!(
+        map.get(&MapKey::from_value(&Value::Int(1)).unwrap()),
+        Some(&Value::String(Rc::new("b".to_string())))
+    );
+}
+
+#[test]
+fn map_key_int_display() {
+    assert_eq!(format!("{}", MapKey::Int(42)), "42");
+}
+
+#[test]
+fn map_key_to_value_int() {
+    assert!(matches!(MapKey::Int(7).to_value(), Value::Int(7)));
+}
+
+#[test]
+fn set_orders_int_and_float_keys_numerically() {
+    let mut elements = BTreeSet::new();
+    elements.insert(SetKey::Number(OrderedFloat(2.5)));
+    elements.insert(SetKey::Int(1));
+    elements.insert(SetKey::Int(3));
+
+    let set = Value::new_set(elements);
+    assert_eq!(format!("{}", set), "#{1, 2.5, 3}");
 }

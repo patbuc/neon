@@ -1,0 +1,14 @@
+// Expected:
+// 3
+// -4
+// -4
+// 3
+// 0
+// -1
+
+print(Math.div(7, 2))
+print(Math.div(-7, 2))
+print(Math.div(7, -2))
+print(Math.div(-7, -2))
+print(Math.div(0, 5))
+print(Math.div(-1, 5))

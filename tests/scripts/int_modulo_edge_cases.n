@@ -1,0 +1,9 @@
+// Expected:
+// 0
+// NaN
+// -1
+
+val min = -9223372036854775807 - 1
+print(min % -1)
+print(1.0 % 0)
+print(-7 % 3)

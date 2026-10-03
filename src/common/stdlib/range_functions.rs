@@ -1,13 +1,11 @@
 use crate::common::stdlib::array_functions;
-use crate::common::{NativeCallError, ObjRange, Value};
+use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
 use crate::extract_receiver;
 use crate::vm::VirtualMachine;
 
-/// The range's elements as `Number` values, in order.
+/// The range's elements as `Int` values, in order.
 fn elements(range: &ObjRange) -> Vec<Value> {
-    (0..range.len())
-        .map(|i| Value::Number(range.get(i) as f64))
-        .collect()
+    (0..range.len()).map(|i| Value::Int(range.get(i))).collect()
 }
 
 /// Rebuilds `args` as `[array, rest...]`, so a materializing method can
@@ -31,7 +29,7 @@ pub fn native_range_size(args: &[Value]) -> Result<Value, String> {
     }
 
     let range = extract_receiver!(args, Range, "size")?;
-    Ok(Value::Number(range.len() as f64))
+    Ok(Value::Int(range.len()))
 }
 
 /// Native implementation of Range.length()
@@ -45,7 +43,7 @@ pub fn native_range_length(args: &[Value]) -> Result<Value, String> {
     }
 
     let range = extract_receiver!(args, Range, "length")?;
-    Ok(Value::Number(range.len() as f64))
+    Ok(Value::Int(range.len()))
 }
 
 /// Native implementation of Range.contains(element)
@@ -60,10 +58,8 @@ pub fn native_range_contains(args: &[Value]) -> Result<Value, String> {
 
     let range = extract_receiver!(args, Range, "contains")?;
     let contains = match args[1] {
-        Value::Number(n) if n.fract() == 0.0 => {
-            let n = n as i64;
-            n >= range.start && n < range.start + range.len()
-        }
+        Value::Int(n) => range.contains(n),
+        Value::Number(n) if n.fract() == 0.0 && f64_fits_i64(n) => range.contains(n as i64),
         _ => false,
     };
 

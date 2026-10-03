@@ -1,0 +1,11 @@
+// Expected:
+// true
+// true
+// false
+// false
+
+val top = 9223372036854775800..=9223372036854775807
+print(top.contains(9223372036854775801))
+print(top.contains(9223372036854775807))
+print((9223372036854775800..9223372036854775807).contains(9223372036854775807))
+print(top.contains(1e300))

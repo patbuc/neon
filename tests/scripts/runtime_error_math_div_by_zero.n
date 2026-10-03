@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: div() division by zero
+
+print("before")
+print(Math.div(1, 0))

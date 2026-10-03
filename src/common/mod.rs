@@ -17,6 +17,9 @@ pub mod string_similarity;
 #[cfg(test)]
 mod tests;
 
+/// 2^63, one past `i64::MAX` and the negation of `i64::MIN`.
+const TWO_POW_63: f64 = 9223372036854775808.0;
+
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 pub(crate) type NativeFnWithVm =
     fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, NativeCallError>;
@@ -71,9 +74,10 @@ pub struct LineInfo {
     pub column: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MapKey {
     String(Rc<String>),
+    Int(i64),
     Number(OrderedFloat<f64>),
     Boolean(bool),
 }
@@ -82,12 +86,21 @@ pub type SetKey = MapKey;
 
 impl MapKey {
     /// Converts a hashable `Value` into a `MapKey`, or `None` if `value`
-    /// can't be used as a map/set key.
+    /// can't be used as a map/set key. An integral float (including `-0.0`)
+    /// that fits in `i64` normalizes to `MapKey::Int`, so `m[1]` and
+    /// `m[1.0]` hit the same entry.
     #[inline]
     pub fn from_value(value: &Value) -> Option<MapKey> {
         match value {
             Value::String(s) => Some(MapKey::String(Rc::clone(s))),
-            Value::Number(n) => Some(MapKey::Number(OrderedFloat(*n))),
+            Value::Int(i) => Some(MapKey::Int(*i)),
+            Value::Number(n) => {
+                if n.fract() == 0.0 && f64_fits_i64(*n) {
+                    Some(MapKey::Int(*n as i64))
+                } else {
+                    Some(MapKey::Number(OrderedFloat(*n)))
+                }
+            }
             Value::Boolean(b) => Some(MapKey::Boolean(*b)),
             _ => None,
         }
@@ -98,6 +111,7 @@ impl MapKey {
     pub fn to_value(&self) -> Value {
         match self {
             MapKey::String(s) => Value::String(Rc::clone(s)),
+            MapKey::Int(i) => Value::Int(*i),
             MapKey::Number(n) => Value::Number(n.into_inner()),
             MapKey::Boolean(b) => Value::Boolean(*b),
         }
@@ -108,8 +122,108 @@ impl Display for MapKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MapKey::String(s) => write!(f, "{}", s),
+            MapKey::Int(i) => write!(f, "{}", i),
             MapKey::Number(n) => write!(f, "{}", n),
             MapKey::Boolean(b) => write!(f, "{}", b),
+        }
+    }
+}
+
+/// `MapKey` groups for cross-variant ordering: strings, then numbers
+/// (int and float together), then booleans.
+fn map_key_rank(key: &MapKey) -> u8 {
+    match key {
+        MapKey::String(_) => 0,
+        MapKey::Int(_) | MapKey::Number(_) => 1,
+        MapKey::Boolean(_) => 2,
+    }
+}
+
+impl PartialOrd for MapKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MapKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match (self, other) {
+            (MapKey::String(a), MapKey::String(b)) => a.cmp(b),
+            (MapKey::Int(a), MapKey::Int(b)) => a.cmp(b),
+            (MapKey::Number(a), MapKey::Number(b)) => a.cmp(b),
+            (MapKey::Int(i), MapKey::Number(n)) => {
+                compare_int_and_float(*i, n.into_inner()).unwrap_or(Ordering::Less)
+            }
+            (MapKey::Number(n), MapKey::Int(i)) => compare_int_and_float(*i, n.into_inner())
+                .map(Ordering::reverse)
+                .unwrap_or(Ordering::Greater),
+            (MapKey::Boolean(a), MapKey::Boolean(b)) => a.cmp(b),
+            _ => map_key_rank(self).cmp(&map_key_rank(other)),
+        }
+    }
+}
+
+/// Compares an `i64` and an `f64` by their exact numeric value (not by
+/// casting the int to a possibly-imprecise float). Returns `None` for NaN.
+pub(crate) fn compare_int_and_float(i: i64, f: f64) -> Option<std::cmp::Ordering> {
+    use std::cmp::Ordering;
+    if f.is_nan() {
+        return None;
+    }
+    if f >= TWO_POW_63 {
+        return Some(Ordering::Less);
+    }
+    if f < -TWO_POW_63 {
+        return Some(Ordering::Greater);
+    }
+    let truncated = f.trunc();
+    match i.cmp(&(truncated as i64)) {
+        Ordering::Equal if f.fract() == 0.0 => Some(Ordering::Equal),
+        Ordering::Equal if f.fract() > 0.0 => Some(Ordering::Less),
+        Ordering::Equal => Some(Ordering::Greater),
+        other => Some(other),
+    }
+}
+
+/// Whether an `f64` holding an integral value fits in `i64`.
+pub(crate) fn f64_fits_i64(f: f64) -> bool {
+    (-TWO_POW_63..TWO_POW_63).contains(&f)
+}
+
+/// The numeric value of an `Int` or `Number`.
+#[derive(Clone, Copy)]
+pub(crate) enum Numeric {
+    Int(i64),
+    Float(f64),
+}
+
+impl Numeric {
+    pub(crate) fn from_value(value: &Value) -> Option<Numeric> {
+        match value {
+            Value::Int(i) => Some(Numeric::Int(*i)),
+            Value::Number(n) => Some(Numeric::Float(*n)),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_value(self) -> Value {
+        match self {
+            Numeric::Int(i) => Value::Int(i),
+            Numeric::Float(f) => Value::Number(f),
+        }
+    }
+}
+
+/// Compares two `Numeric`s by exact value, `None` for an unordered float
+/// pair (NaN involved).
+pub(crate) fn compare_numeric(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
+    match (a, b) {
+        (Numeric::Float(a), Numeric::Float(b)) => a.partial_cmp(&b),
+        (Numeric::Int(a), Numeric::Int(b)) => Some(a.cmp(&b)),
+        (Numeric::Int(i), Numeric::Float(n)) => compare_int_and_float(i, n),
+        (Numeric::Float(n), Numeric::Int(i)) => {
+            compare_int_and_float(i, n).map(std::cmp::Ordering::reverse)
         }
     }
 }
@@ -117,6 +231,7 @@ impl Display for MapKey {
 #[derive(Clone)]
 pub enum Value {
     Number(f64),
+    Int(i64),
     Boolean(bool),
     Nil,
     /// Placeholder held by a hoisted global or block-level function slot
@@ -146,13 +261,25 @@ pub struct ObjRange {
 }
 
 impl ObjRange {
-    /// Number of integers the range covers; empty (e.g. `5..1`) is 0, never negative.
+    /// Number of integers the range covers; empty (e.g. `5..1`) is 0, never
+    /// negative. Saturates instead of overflowing for extreme bounds (e.g.
+    /// `i64::MIN..i64::MAX`), where the true count doesn't fit in an `i64`.
     pub(crate) fn len(&self) -> i64 {
+        let len = self.end.saturating_sub(self.start);
         if self.inclusive {
-            (self.end - self.start + 1).max(0)
+            len.saturating_add(1).max(0)
         } else {
-            (self.end - self.start).max(0)
+            len.max(0)
         }
+    }
+
+    pub(crate) fn contains(&self, n: i64) -> bool {
+        n >= self.start
+            && if self.inclusive {
+                n <= self.end
+            } else {
+                n < self.end
+            }
     }
 
     /// The i-th element (0-based), assuming `0 <= i < self.len()`.
@@ -248,6 +375,7 @@ impl Value {
     pub(crate) fn copy_or_clone(&self) -> Value {
         match self {
             Value::Number(n) => Value::Number(*n),
+            Value::Int(i) => Value::Int(*i),
             Value::Boolean(b) => Value::Boolean(*b),
             Value::Nil => Value::Nil,
             _ => self.clone(),
@@ -257,7 +385,7 @@ impl Value {
     /// Drops the value, skipping drop glue for scalars.
     #[inline(always)]
     pub(crate) fn discard(self) {
-        if let Value::Number(_) | Value::Boolean(_) | Value::Nil = self {
+        if let Value::Number(_) | Value::Int(_) | Value::Boolean(_) | Value::Nil = self {
             std::mem::forget(self);
         }
     }
@@ -339,7 +467,7 @@ impl Value {
     /// Name of this value's type, for runtime error messages.
     pub(crate) fn type_name(&self) -> &'static str {
         match self {
-            Value::Number(_) => "number",
+            Value::Number(_) | Value::Int(_) => "number",
             Value::Boolean(_) => "boolean",
             Value::Nil => "nil",
             Value::Uninitialized(_) => "uninitialized",
@@ -407,6 +535,7 @@ impl Value {
     fn fmt_with_seen(&self, f: &mut Formatter<'_>, seen: &mut Vec<*const ()>) -> std::fmt::Result {
         match self {
             Value::Number(val) => write!(f, "{}", val),
+            Value::Int(val) => write!(f, "{}", val),
             Value::Boolean(val) => write!(f, "{}", val),
             Value::Nil => write!(f, "nil"),
             Value::Uninitialized(_) => write!(f, "<uninitialized>"),
@@ -487,6 +616,10 @@ impl Value {
     fn eq_with_seen(&self, other: &Self, seen: &mut Vec<(*const (), *const ())>) -> bool {
         match (self, other) {
             (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::Int(a), Value::Int(b)) => a == b,
+            (Value::Int(a), Value::Number(b)) | (Value::Number(b), Value::Int(a)) => {
+                compare_int_and_float(*a, *b) == Some(std::cmp::Ordering::Equal)
+            }
             (Value::Boolean(a), Value::Boolean(b)) => a == b,
             (Value::Nil, Value::Nil) => true,
             (Value::String(a), Value::String(b)) => a == b,
@@ -543,6 +676,7 @@ impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Number(n) => f.debug_tuple("Number").field(n).finish(),
+            Value::Int(i) => f.debug_tuple("Int").field(i).finish(),
             Value::Boolean(b) => f.debug_tuple("Boolean").field(b).finish(),
             Value::Nil => write!(f, "Nil"),
             Value::Uninitialized(name) => f.debug_tuple("Uninitialized").field(name).finish(),

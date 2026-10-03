@@ -129,6 +129,14 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: VARIADIC_ARITY,
         },
     ),
+    (
+        "Math",
+        "div",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_div,
+            arity: 2,
+        },
+    ),
     // Array instance methods
     (
         "Array",
@@ -563,6 +571,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::number_functions::native_number_to_string,
             arity: 0,
             returns: Some(StaticType::String),
+        },
+    ),
+    (
+        "Number",
+        "toInt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::number_functions::native_number_to_int,
+            arity: 0,
+            returns: Some(StaticType::Number),
+        },
+    ),
+    (
+        "Number",
+        "toFloat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::number_functions::native_number_to_float,
+            arity: 0,
+            returns: Some(StaticType::Number),
         },
     ),
     // Boolean instance methods

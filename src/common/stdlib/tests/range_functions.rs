@@ -118,6 +118,17 @@ fn test_range_sum() {
     assert_eq!("6", vm.get_output());
 }
 
+#[test]
+fn test_range_sum_keeps_int_variant() {
+    let program = r#"
+        print(Math.div((1..4).sum(), 1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("6", vm.get_output());
+}
+
 // ============================================================================
 // Error Cases
 // ============================================================================

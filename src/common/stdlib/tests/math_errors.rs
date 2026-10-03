@@ -618,3 +618,109 @@ fn test_math_single_arg_functions_valid() {
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("42\n42", vm.get_output());
 }
+
+// =============================================================================
+// Math.abs() / Math.floor() / Math.ceil() - Overflow Cases
+// =============================================================================
+
+#[test]
+fn test_math_abs_overflow() {
+    let program = r#"
+        val min = -9223372036854775807 - 1
+        print(Math.abs(min))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("integer overflow in abs()"));
+}
+
+#[test]
+fn test_math_floor_out_of_range() {
+    let program = r#"
+        print(Math.floor(1e300))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("floor() result is out of range"));
+}
+
+#[test]
+fn test_math_ceil_out_of_range() {
+    let program = r#"
+        print(Math.ceil(-1e300))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("ceil() result is out of range"));
+}
+
+// =============================================================================
+// Math.div() - Error Cases
+// =============================================================================
+
+#[test]
+fn test_math_div_by_zero() {
+    let program = r#"
+        print(Math.div(1, 0))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("div() division by zero"));
+}
+
+#[test]
+fn test_math_div_float_arg() {
+    let program = r#"
+        print(Math.div(1.5, 1))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("div() expects two integers, got float"));
+}
+
+#[test]
+fn test_math_div_integral_float_arg() {
+    let program = r#"
+        print(Math.div(4.0, 1))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("div() expects two integers, got float"));
+}
+
+#[test]
+fn test_math_div_overflow() {
+    let program = r#"
+        val min = -9223372036854775807 - 1
+        print(Math.div(min, -1))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm
+        .get_runtime_errors()
+        .contains("integer overflow in div()"));
+}

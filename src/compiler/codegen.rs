@@ -8,7 +8,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
-use crate::{number, string};
+use crate::{int, number, string};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -44,6 +44,7 @@ enum LoopExit {
 enum ConstantKey {
     String(Rc<String>),
     Number(u64),
+    Int(i64),
 }
 
 struct FunctionCompiler {
@@ -434,6 +435,7 @@ impl<'a> CodeGenerator<'a> {
         let key = match &value {
             Value::String(s) => Some(ConstantKey::String(Rc::clone(s))),
             Value::Number(n) => Some(ConstantKey::Number(n.to_bits())),
+            Value::Int(i) => Some(ConstantKey::Int(*i)),
             _ => None,
         };
         let Some(key) = key else {
@@ -1201,10 +1203,20 @@ impl<'a> CodeGenerator<'a> {
             BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
             _ => None,
         };
-        if let (Some(op_code), Expr::Number { value, .. }) = (fused, right) {
-            let index = self.add_constant(number!(*value));
-            self.emit_index_op(op_code, index, "constants", location);
-            return;
+        if let Some(op_code) = fused {
+            match right {
+                Expr::Number { value, .. } => {
+                    let index = self.add_constant(number!(*value));
+                    self.emit_index_op(op_code, index, "constants", location);
+                    return;
+                }
+                Expr::Int { value, .. } => {
+                    let index = self.add_constant(int!(*value));
+                    self.emit_index_op(op_code, index, "constants", location);
+                    return;
+                }
+                _ => {}
+            }
         }
 
         self.generate_expr(right);
@@ -1374,7 +1386,7 @@ impl<'a> CodeGenerator<'a> {
         self.emit_variable_get(*id, location);
 
         // Push 1 and perform operation (add or subtract)
-        self.emit_constant(number!(1.0), location);
+        self.emit_constant(int!(1), location);
         self.emit_op_code(operation, location);
 
         // Store new value
@@ -1398,6 +1410,11 @@ impl<'a> CodeGenerator<'a> {
                 value, location, ..
             } => {
                 self.emit_constant(number!(*value), *location);
+            }
+            Expr::Int {
+                value, location, ..
+            } => {
+                self.emit_constant(int!(*value), *location);
             }
             Expr::String {
                 value, location, ..

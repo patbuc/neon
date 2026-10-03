@@ -209,6 +209,20 @@ fn subtract_with_non_number_operand_reports_operator_location() {
 }
 
 #[test]
+fn add_int_overflow_with_non_constant_operands() {
+    let program = r#"
+        val a = 9223372036854775807
+        val b = 1
+        print(a + b)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("integer overflow in +"));
+}
+
+#[test]
 fn bad_operand_type_errors() {
     let cases: &[(&str, &str)] = &[
         (
@@ -436,6 +450,23 @@ fn nested_native_callback_error_reports_a_single_location_prefix() {
     assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
 }
 
+/// Runs `program` on a thread with the 8 MB stack the binary's main thread
+/// gets. In a debug build, MAX_NATIVE_CALL_DEPTH levels of the dispatch loop
+/// need more than a test thread's default 2 MB.
+fn interpret_with_main_thread_stack(program: &str) -> (InterpretResult, String) {
+    let program = program.to_string();
+    std::thread::Builder::new()
+        .stack_size(8 * 1024 * 1024)
+        .spawn(move || {
+            let mut vm = VirtualMachine::new();
+            let result = vm.interpret(program);
+            (result, vm.get_runtime_errors())
+        })
+        .unwrap()
+        .join()
+        .unwrap()
+}
+
 #[test]
 fn recursive_callback_through_map_reports_stack_overflow_once() {
     let program = r#"
@@ -446,10 +477,8 @@ fn recursive_callback_through_map_reports_stack_overflow_once() {
         print(r(1000))
         "#;
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
+    let (result, errors) = interpret_with_main_thread_stack(program);
     assert_eq!(InterpretResult::RuntimeError, result);
-    let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
 }
@@ -461,10 +490,8 @@ fn unconditional_callback_recursion_through_map_reports_stack_overflow_once() {
         recurse(0)
         "#;
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
+    let (result, errors) = interpret_with_main_thread_stack(program);
     assert_eq!(InterpretResult::RuntimeError, result);
-    let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
 }
@@ -1307,7 +1334,7 @@ fn range_huge_start_halts() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
-    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }
 
 #[test]
@@ -1320,7 +1347,7 @@ fn range_huge_end_halts() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
-    assert!(errors.contains("between -2^53 and 2^53"), "{}", errors);
+    assert!(errors.contains("at most 2^53 elements"), "{}", errors);
 }
 
 #[test]
@@ -1475,4 +1502,89 @@ fn store_field_non_instance_location() {
 
     assert_eq!("Only instances have fields.", error.message);
     assert_eq!(Some((3, 4)), error.location);
+}
+
+#[test]
+fn array_index_read_huge_int() {
+    let mut chunk = Chunk::new("ZeChunk");
+    let array = Value::new_array(vec![number!(1.0), number!(2.0), number!(3.0)]);
+    chunk.write_constant(array, 0, 0);
+    chunk.write_constant(Value::Int(4_294_967_296), 0, 0);
+    chunk.write_op_code(OpCode::GetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+}
+
+#[test]
+fn array_index_write_huge_int() {
+    let mut chunk = Chunk::new("ZeChunk");
+    let array = Value::new_array(vec![number!(1.0), number!(2.0), number!(3.0)]);
+    chunk.write_constant(array, 0, 0);
+    chunk.write_constant(Value::Int(4_294_967_296), 0, 0);
+    chunk.write_constant(number!(9.0), 0, 0);
+    chunk.write_op_code(OpCode::SetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+}
+
+#[test]
+fn create_range_above_2_pow_53_indexes_exactly() {
+    let start = 1i64 << 60;
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(Value::Int(start), 0, 0);
+    chunk.write_constant(Value::Int(start + 3), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_constant(Value::Int(2), 0, 0);
+    chunk.write_op_code(OpCode::GetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::Ok, result);
+    assert_eq!(Value::Int(start + 2), vm.pop());
+}
+
+#[test]
+fn create_range_extreme_bound_size() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(Value::Int(i64::MIN), 0, 0);
+    chunk.write_constant(Value::Int(i64::MIN.wrapping_add(3)), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::Ok, result);
+    let Value::Range(range) = vm.pop() else {
+        panic!("Expected Range value");
+    };
+    assert_eq!(3, range.len());
+}
+
+#[test]
+fn create_range_nan_bound_halts() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(number!(f64::NAN), 0, 0);
+    chunk.write_constant(Value::Int(4), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert!(
+        error.message.contains("must be an integer"),
+        "{}",
+        error.message
+    );
 }

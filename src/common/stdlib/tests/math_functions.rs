@@ -138,6 +138,87 @@ fn test_math_min_max_combined() {
 }
 
 // ============================================================================
+// Math.abs(), Math.floor(), Math.ceil() - Keep ints exact
+// ============================================================================
+
+#[test]
+fn test_math_abs_keeps_int() {
+    let program = r#"
+        print(Math.abs(-9007199254740993))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("9007199254740993", vm.get_output());
+}
+
+#[test]
+fn test_math_floor_ceil_keep_int() {
+    let program = r#"
+        print(Math.floor(9007199254740993))
+        print(Math.ceil(9007199254740993))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("9007199254740993\n9007199254740993", vm.get_output());
+}
+
+#[test]
+fn test_math_floor_ceil_int() {
+    let program = r#"
+        print(Math.div(Math.floor(2.7), 1))
+        print(Math.div(Math.ceil(2.1), 1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("2\n3", vm.get_output());
+}
+
+// ============================================================================
+// Math.min() / Math.max() - Keep the winning variant, compare exactly
+// ============================================================================
+
+#[test]
+fn test_math_min_max_keep_variant() {
+    let program = r#"
+        print(Math.max(9007199254740993, 1).toString())
+        print(Math.min(-9007199254740993, -1).toString())
+        print(Math.min(9007199254740993, 1).toString())
+        print(Math.max(1, 2.5).toString())
+        print(Math.min(1, 2.5).toString())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!(
+        "9007199254740993\n-9007199254740993\n1\n2.5\n1",
+        vm.get_output()
+    );
+}
+
+// ============================================================================
+// Math.div() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_math_div() {
+    let program = r#"
+        print(Math.div(7, 2))
+        print(Math.div(-7, 2))
+        print(Math.div(7, -2))
+        print(Math.div(-7, -2))
+        print(Math.div(0, 5))
+        print(Math.div(-1, 5))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n-4\n-4\n3\n0\n-1", vm.get_output());
+}
+
+// ============================================================================
 // Math.floor() and Math.ceil() - Edge Cases
 // ============================================================================
 
@@ -154,5 +235,5 @@ fn test_math_floor_ceil_edge_cases() {
 
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("0\n1\n-1\n-0\n0\n1", vm.get_output());
+    assert_eq!("0\n1\n-1\n0\n0\n1", vm.get_output());
 }

@@ -191,6 +191,7 @@ mod resolutions {
                 index_stmts(body, idx);
             }
             Expr::Number { .. }
+            | Expr::Int { .. }
             | Expr::String { .. }
             | Expr::StringInterpolation { .. }
             | Expr::Boolean { .. }

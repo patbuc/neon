@@ -6,6 +6,13 @@ macro_rules! number {
 }
 
 #[macro_export]
+macro_rules! int {
+    ($value: expr) => {
+        $crate::common::Value::Int($value)
+    };
+}
+
+#[macro_export]
 macro_rules! boolean {
     ($value: expr) => {
         $crate::common::Value::Boolean($value)
