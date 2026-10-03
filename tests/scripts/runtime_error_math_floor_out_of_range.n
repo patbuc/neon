@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: floor() result is out of range
+
+print("before")
+print(Math.floor(1e300))

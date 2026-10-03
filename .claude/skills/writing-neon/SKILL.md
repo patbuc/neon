@@ -103,7 +103,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **String:** `len`, `substring(start, end)`, `replace(old, new)`,
   `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`, `charAt`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
-- **Number / Boolean:** `toString`
+- **Number:** `toString`, `toInt`, `toFloat`
+- **Boolean:** `toString`
 - **Array:** `push`, `pop`, `size`, `length`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`

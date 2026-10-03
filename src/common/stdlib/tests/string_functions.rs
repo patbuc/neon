@@ -104,6 +104,17 @@ fn test_string_to_int() {
 }
 
 #[test]
+fn test_string_to_int_exact() {
+    let program = r#"
+        print("9007199254740993".toInt())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("9007199254740993", vm.get_output());
+}
+
+#[test]
 fn test_string_to_float() {
     let program = r#"
         print("3.14".toFloat())

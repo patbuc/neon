@@ -1,4 +1,4 @@
-use crate::common::{compare_int_and_float, NativeCallError, Value};
+use crate::common::{compare_int_and_float, compare_numeric, NativeCallError, Numeric, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -343,13 +343,12 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
     let array_ref = extract_receiver!(args, Array, "sum")?;
 
     let array = array_ref.borrow();
-    let mut sum = 0.0;
 
+    let mut numbers = Vec::with_capacity(array.len());
     for (i, value) in array.iter().enumerate() {
-        match value {
-            Value::Number(n) => sum += n,
-            Value::Int(n) => sum += *n as f64,
-            _ => {
+        match Numeric::from_value(value) {
+            Some(n) => numbers.push(n),
+            None => {
                 return Err(format!(
                     "sum() requires all elements to be numbers, but element at index {} is not",
                     i
@@ -358,7 +357,28 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
         }
     }
 
-    Ok(Value::Number(sum))
+    // Any float makes the sum a float.
+    if numbers.iter().any(|n| matches!(n, Numeric::Float(_))) {
+        let sum = numbers
+            .iter()
+            .map(|n| match *n {
+                Numeric::Int(i) => i as f64,
+                Numeric::Float(f) => f,
+            })
+            .sum();
+        return Ok(Value::Number(sum));
+    }
+
+    let mut sum: i64 = 0;
+    for n in numbers {
+        if let Numeric::Int(i) = n {
+            sum = sum
+                .checked_add(i)
+                .ok_or_else(|| "integer overflow in sum()".to_string())?;
+        }
+    }
+
+    Ok(Value::Int(sum))
 }
 
 /// Native implementation of Array.min()
@@ -384,17 +404,12 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     let mut min = &array[0];
 
     for value in array.iter().skip(1) {
-        let is_less = match (value, min) {
-            (Value::Number(n1), Value::Number(n2)) => n1 < n2,
-            (Value::Int(i1), Value::Int(i2)) => i1 < i2,
-            (Value::Int(i), Value::Number(n)) => {
-                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Less)
-            }
-            (Value::Number(n), Value::Int(i)) => {
-                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Greater)
-            }
-            (Value::String(s1), Value::String(s2)) => s1 < s2,
-            _ => return Err("min() can only compare numbers or strings".to_string()),
+        let is_less = match (Numeric::from_value(value), Numeric::from_value(min)) {
+            (Some(a), Some(b)) => compare_numeric(a, b) == Some(std::cmp::Ordering::Less),
+            _ => match (value, min) {
+                (Value::String(s1), Value::String(s2)) => s1 < s2,
+                _ => return Err("min() can only compare numbers or strings".to_string()),
+            },
         };
 
         if is_less {
@@ -428,17 +443,12 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     let mut max = &array[0];
 
     for value in array.iter().skip(1) {
-        let is_greater = match (value, max) {
-            (Value::Number(n1), Value::Number(n2)) => n1 > n2,
-            (Value::Int(i1), Value::Int(i2)) => i1 > i2,
-            (Value::Int(i), Value::Number(n)) => {
-                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Greater)
-            }
-            (Value::Number(n), Value::Int(i)) => {
-                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Less)
-            }
-            (Value::String(s1), Value::String(s2)) => s1 > s2,
-            _ => return Err("max() can only compare numbers or strings".to_string()),
+        let is_greater = match (Numeric::from_value(value), Numeric::from_value(max)) {
+            (Some(a), Some(b)) => compare_numeric(a, b) == Some(std::cmp::Ordering::Greater),
+            _ => match (value, max) {
+                (Value::String(s1), Value::String(s2)) => s1 > s2,
+                _ => return Err("max() can only compare numbers or strings".to_string()),
+            },
         };
 
         if is_greater {

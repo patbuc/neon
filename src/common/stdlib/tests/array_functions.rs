@@ -421,7 +421,48 @@ fn test_array_sum() {
 fn test_array_sum_ints() {
     let array = Value::new_array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
     let result = native_array_sum(&[array]).unwrap();
-    assert_eq!(result.to_string(), "6");
+    assert!(matches!(result, Value::Int(6)));
+}
+
+#[test]
+fn test_array_sum_exact_large_int() {
+    let array = Value::new_array(vec![Value::Int(9007199254740993), Value::Int(1)]);
+    let result = native_array_sum(&[array]).unwrap();
+    assert!(matches!(result, Value::Int(9007199254740994)));
+}
+
+#[test]
+fn test_array_sum_mixed_int_and_float() {
+    let array = Value::new_array(vec![Value::Int(1), Value::Number(2.5)]);
+    let result = native_array_sum(&[array]).unwrap();
+    assert!(matches!(result, Value::Number(n) if n == 3.5));
+}
+
+#[test]
+fn test_array_sum_overflow_order_independent() {
+    let forward = Value::new_array(vec![
+        Value::Int(i64::MAX),
+        Value::Int(1),
+        Value::Number(0.5),
+    ]);
+    let backward = Value::new_array(vec![
+        Value::Number(0.5),
+        Value::Int(1),
+        Value::Int(i64::MAX),
+    ]);
+
+    let forward_result = native_array_sum(&[forward]).unwrap();
+    let backward_result = native_array_sum(&[backward]).unwrap();
+
+    assert!(matches!(forward_result, Value::Number(_)));
+    assert_eq!(forward_result.to_string(), backward_result.to_string());
+}
+
+#[test]
+fn test_array_sum_int_only_overflow_errors() {
+    let array = Value::new_array(vec![Value::Int(i64::MAX), Value::Int(1)]);
+    let result = native_array_sum(&[array]);
+    assert_eq!(result, Err("integer overflow in sum()".to_string()));
 }
 
 // ============================================================================

@@ -1,0 +1,5 @@
+// Expected:
+// c
+
+val letters = ["a", "b", "c", "d"]
+print(letters[Math.floor(2.7)])

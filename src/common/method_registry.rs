@@ -565,6 +565,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::String),
         },
     ),
+    (
+        "Number",
+        "toInt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::number_functions::native_number_to_int,
+            arity: 0,
+            returns: Some(StaticType::Number),
+        },
+    ),
+    (
+        "Number",
+        "toFloat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::number_functions::native_number_to_float,
+            arity: 0,
+            returns: Some(StaticType::Number),
+        },
+    ),
     // Boolean instance methods
     (
         "Boolean",

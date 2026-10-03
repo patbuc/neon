@@ -103,7 +103,7 @@ pub fn native_string_to_int(args: &[Value]) -> Result<Value, String> {
     // Trim whitespace and parse as i64
     let trimmed = string.trim();
     match trimmed.parse::<i64>() {
-        Ok(num) => Ok(Value::Number(num as f64)),
+        Ok(num) => Ok(Value::Int(num)),
         Err(_) => Err(format!(
             "toInt() failed: '{}' is not a valid integer",
             string

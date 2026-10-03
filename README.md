@@ -819,6 +819,8 @@ print(arr)                // [1, 2] (order may vary)
 
 **Number Methods:**
 - `.toString()` - Convert to string
+- `.toInt()` - Convert to int (truncates a float)
+- `.toFloat()` - Convert to float
 
 **Boolean Methods:**
 - `.toString()` - Convert to string

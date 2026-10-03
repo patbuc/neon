@@ -191,6 +191,48 @@ pub(crate) fn compare_int_and_float(i: i64, f: f64) -> Option<std::cmp::Ordering
     }
 }
 
+/// Whether an `f64` holding an integral value fits in `i64`.
+pub(crate) fn f64_fits_i64(f: f64) -> bool {
+    (-TWO_POW_63..TWO_POW_63).contains(&f)
+}
+
+/// The numeric value of an `Int` or `Number`.
+#[derive(Clone, Copy)]
+pub(crate) enum Numeric {
+    Int(i64),
+    Float(f64),
+}
+
+impl Numeric {
+    pub(crate) fn from_value(value: &Value) -> Option<Numeric> {
+        match value {
+            Value::Int(i) => Some(Numeric::Int(*i)),
+            Value::Number(n) => Some(Numeric::Float(*n)),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_value(self) -> Value {
+        match self {
+            Numeric::Int(i) => Value::Int(i),
+            Numeric::Float(f) => Value::Number(f),
+        }
+    }
+}
+
+/// Compares two `Numeric`s by exact value, `None` for an unordered float
+/// pair (NaN involved).
+pub(crate) fn compare_numeric(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
+    match (a, b) {
+        (Numeric::Float(a), Numeric::Float(b)) => a.partial_cmp(&b),
+        (Numeric::Int(a), Numeric::Int(b)) => Some(a.cmp(&b)),
+        (Numeric::Int(i), Numeric::Float(n)) => compare_int_and_float(i, n),
+        (Numeric::Float(n), Numeric::Int(i)) => {
+            compare_int_and_float(i, n).map(std::cmp::Ordering::reverse)
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Value {
     Number(f64),
