@@ -596,8 +596,7 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Stores the value on top of the stack into `id`'s target without
-    /// leaving it on the stack, used for assignment as a statement. A local
-    /// stores directly; anything else needs a push-then-pop `Set` op.
+    /// leaving it on the stack, used for assignment as a statement.
     fn generate_store_without_push(&mut self, id: NodeId, location: SourceLocation) {
         match self.resolutions.res(id) {
             Res::Local(decl) => {
@@ -611,25 +610,17 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    /// Generates the new value of a compound assignment: reads the
-    /// variable (via `read_id`), then applies `operator` against `value`,
-    /// reusing the ordinary binary-expression codegen (including its
-    /// number-literal operand fusion) so the result is identical to the
-    /// equivalent hand-desugared `x = x <op> value`.
+    /// Generates the new value of a compound assignment: reads `read_id`,
+    /// then applies `operator` against `value`.
     fn generate_compound_assign_value(
         &mut self,
-        name: &str,
         read_id: NodeId,
         operator: &BinaryOp,
         value: &Expr,
         location: SourceLocation,
     ) {
-        let left = Expr::Variable {
-            name: name.to_string(),
-            id: read_id,
-            location,
-        };
-        self.generate_binary_expr(&left, operator, value, location);
+        self.emit_variable_get(read_id, location);
+        self.generate_binary_op_tail(operator, value, location);
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -644,14 +635,14 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_store_without_push(*id, *location);
             }
             Expr::CompoundAssign {
-                name,
+                name: _,
                 operator,
                 value,
                 read_id,
                 write_id,
                 location,
             } => {
-                self.generate_compound_assign_value(name, *read_id, operator, value, *location);
+                self.generate_compound_assign_value(*read_id, operator, value, *location);
                 self.generate_store_without_push(*write_id, *location);
             }
             Expr::SetField {
@@ -1185,50 +1176,61 @@ impl<'a> CodeGenerator<'a> {
                 self.patch_jump(end_jump);
             }
             _ => {
-                let fused = match operator {
-                    BinaryOp::Add => Some(OpCode::AddConstant),
-                    BinaryOp::Subtract => Some(OpCode::SubtractConstant),
-                    BinaryOp::Greater => Some(OpCode::GreaterConstant),
-                    BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
-                    BinaryOp::Less => Some(OpCode::LessConstant),
-                    BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
-                    _ => None,
-                };
-                if let (Some(op_code), Expr::Number { value, .. }) = (fused, right) {
-                    self.generate_expr(left);
-                    let index = self.add_constant(number!(*value));
-                    self.emit_index_op(op_code, index, "constants", location);
-                    return;
-                }
-
-                // Regular binary operators: evaluate both operands first
                 self.generate_expr(left);
-                self.generate_expr(right);
-
-                match operator {
-                    BinaryOp::Add => self.emit_op_code(OpCode::Add, location),
-                    BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, location),
-                    BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, location),
-                    BinaryOp::Divide => self.emit_op_code(OpCode::Divide, location),
-                    BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, location),
-                    BinaryOp::Exponent => self.emit_op_code(OpCode::Exponent, location),
-                    BinaryOp::Equal => self.emit_op_code(OpCode::Equal, location),
-                    BinaryOp::NotEqual => {
-                        self.emit_op_code(OpCode::Equal, location);
-                        self.emit_op_code(OpCode::Not, location);
-                    }
-                    BinaryOp::Greater => self.emit_op_code(OpCode::Greater, location),
-                    BinaryOp::GreaterEqual => self.emit_op_code(OpCode::GreaterEqual, location),
-                    BinaryOp::Less => self.emit_op_code(OpCode::Less, location),
-                    BinaryOp::LessEqual => self.emit_op_code(OpCode::LessEqual, location),
-                    BinaryOp::BitwiseAnd => self.emit_op_code(OpCode::BitwiseAnd, location),
-                    BinaryOp::BitwiseOr => self.emit_op_code(OpCode::BitwiseOr, location),
-                    BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),
-                    BinaryOp::LeftShift => self.emit_op_code(OpCode::LeftShift, location),
-                    BinaryOp::RightShift => self.emit_op_code(OpCode::RightShift, location),
-                    BinaryOp::And | BinaryOp::Or => unreachable!(),
-                }
+                self.generate_binary_op_tail(operator, right, location);
             }
+        }
+    }
+
+    /// Emits `operator` applied to the operand already on top of the stack
+    /// and `right`: a single fused `<op>Constant` instruction when `right`
+    /// is a number literal and the operator supports fusion, otherwise
+    /// `right`'s code followed by the plain binary opcode.
+    fn generate_binary_op_tail(
+        &mut self,
+        operator: &BinaryOp,
+        right: &Expr,
+        location: SourceLocation,
+    ) {
+        let fused = match operator {
+            BinaryOp::Add => Some(OpCode::AddConstant),
+            BinaryOp::Subtract => Some(OpCode::SubtractConstant),
+            BinaryOp::Greater => Some(OpCode::GreaterConstant),
+            BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
+            BinaryOp::Less => Some(OpCode::LessConstant),
+            BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
+            _ => None,
+        };
+        if let (Some(op_code), Expr::Number { value, .. }) = (fused, right) {
+            let index = self.add_constant(number!(*value));
+            self.emit_index_op(op_code, index, "constants", location);
+            return;
+        }
+
+        self.generate_expr(right);
+
+        match operator {
+            BinaryOp::Add => self.emit_op_code(OpCode::Add, location),
+            BinaryOp::Subtract => self.emit_op_code(OpCode::Subtract, location),
+            BinaryOp::Multiply => self.emit_op_code(OpCode::Multiply, location),
+            BinaryOp::Divide => self.emit_op_code(OpCode::Divide, location),
+            BinaryOp::Modulo => self.emit_op_code(OpCode::Modulo, location),
+            BinaryOp::Exponent => self.emit_op_code(OpCode::Exponent, location),
+            BinaryOp::Equal => self.emit_op_code(OpCode::Equal, location),
+            BinaryOp::NotEqual => {
+                self.emit_op_code(OpCode::Equal, location);
+                self.emit_op_code(OpCode::Not, location);
+            }
+            BinaryOp::Greater => self.emit_op_code(OpCode::Greater, location),
+            BinaryOp::GreaterEqual => self.emit_op_code(OpCode::GreaterEqual, location),
+            BinaryOp::Less => self.emit_op_code(OpCode::Less, location),
+            BinaryOp::LessEqual => self.emit_op_code(OpCode::LessEqual, location),
+            BinaryOp::BitwiseAnd => self.emit_op_code(OpCode::BitwiseAnd, location),
+            BinaryOp::BitwiseOr => self.emit_op_code(OpCode::BitwiseOr, location),
+            BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),
+            BinaryOp::LeftShift => self.emit_op_code(OpCode::LeftShift, location),
+            BinaryOp::RightShift => self.emit_op_code(OpCode::RightShift, location),
+            BinaryOp::And | BinaryOp::Or => unreachable!(),
         }
     }
 
@@ -1428,14 +1430,14 @@ impl<'a> CodeGenerator<'a> {
                 self.emit_variable_set(*id, *location);
             }
             Expr::CompoundAssign {
-                name,
+                name: _,
                 operator,
                 value,
                 read_id,
                 write_id,
                 location,
             } => {
-                self.generate_compound_assign_value(name, *read_id, operator, value, *location);
+                self.generate_compound_assign_value(*read_id, operator, value, *location);
                 self.emit_variable_set(*write_id, *location);
             }
             Expr::Binary {

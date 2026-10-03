@@ -989,36 +989,6 @@ fn test_local_assignment_expression_still_emits_set_local() {
 }
 
 #[test]
-fn test_local_compound_assignment_statement_emits_store_local() {
-    let program = r#"
-    fn f() {
-        var x = 1
-        x += 2
-        return x
-    }
-    f()
-    "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
-    assert!(disassembly.contains("StoreLocal"));
-}
-
-#[test]
-fn test_local_compound_assignment_expression_still_emits_set_local() {
-    let program = r#"
-    fn f() {
-        var x = 1
-        print(x += 2)
-    }
-    f()
-    "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
-    assert!(disassembly.contains("SetLocal"));
-    assert!(!disassembly.contains("StoreLocal"));
-}
-
-#[test]
 fn test_global_assignment_statement_still_emits_set_global_and_pop() {
     let program = r#"
     var x = 1
@@ -2285,6 +2255,29 @@ v %= 2
 var u = 10
 u **= 2
 print(x += 2)
+
+fn make_counter() {
+    var n = 0
+    fn increment() {
+        n += 1
+    }
+    increment()
+    increment()
+    return n
+}
+print(make_counter())
+
+var gcount = 0
+fn bump() {
+    gcount += 3
+}
+bump()
+print(gcount)
+
+var p = 10
+var q = 3
+p += q
+print(p)
 "#;
 
     let desugared = r#"
@@ -2317,6 +2310,29 @@ v = v % 2
 var u = 10
 u = u ** 2
 print(x = x + 2)
+
+fn make_counter() {
+    var n = 0
+    fn increment() {
+        n = n + 1
+    }
+    increment()
+    increment()
+    return n
+}
+print(make_counter())
+
+var gcount = 0
+fn bump() {
+    gcount = gcount + 3
+}
+bump()
+print(gcount)
+
+var p = 10
+var q = 3
+p = p + q
+print(p)
 "#;
 
     let compound_chunk = compile_program(compound).unwrap();

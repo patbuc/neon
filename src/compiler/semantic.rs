@@ -1401,8 +1401,6 @@ impl SemanticAnalyzer {
         self.resolve_write(id, name, location);
     }
 
-    /// Resolves the assignment target itself, shared by `Assign` and
-    /// `CompoundAssign` once the value side has already been resolved.
     fn resolve_write(&mut self, id: NodeId, name: &str, location: SourceLocation) {
         let Some(symbol) = self.symbol_table.resolve(name) else {
             self.push_error(CompilationError::new(

@@ -104,11 +104,8 @@ pub enum Expr {
         id: NodeId,
         location: SourceLocation,
     },
-    /// `x += value` and the other compound-assignment operators on a plain
-    /// variable. Kept distinct from `Assign { value: Binary { .. } }` so a
-    /// source formatter can reprint the operator as written. `read_id` is
-    /// the resolution of the implicit read of `x`; `write_id` is the
-    /// resolution of the assignment target, matching `Assign::id`.
+    /// `read_id` is the resolution of the implicit read of `x`; `write_id`
+    /// is the resolution of the assignment target, matching `Assign::id`.
     CompoundAssign {
         name: String,
         operator: BinaryOp,
