@@ -1,0 +1,12 @@
+// local_shadows_array_constructor.n - a local variable named `Array` shadows
+// the native Array constructor within its lexical scope
+
+// Expected:
+// mine 3
+
+fn f() {
+    val Array = fn(n, v) { return "mine " + n.toString() }
+    return Array(3, 0)
+}
+
+print(f())

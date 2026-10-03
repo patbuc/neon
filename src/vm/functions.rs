@@ -242,7 +242,8 @@ impl VirtualMachine {
         args_end: usize,
     ) -> std::result::Result<Value, NativeCallError> {
         match *native {
-            NativeCallable::InstanceMethodWithVm { function, .. } => {
+            NativeCallable::InstanceMethodWithVm { function, .. }
+            | NativeCallable::ConstructorWithVm { function, .. } => {
                 let args: Vec<Value> = self.stack[args_start..args_end].to_vec();
                 function(self, &args)
             }

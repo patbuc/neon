@@ -811,3 +811,358 @@ fn test_array_reduce_wrong_arg_count() {
         vm.interpret(program.to_string())
     );
 }
+
+// ============================================================================
+// Array.find(fn)
+// ============================================================================
+
+#[test]
+fn test_array_find_match() {
+    let program = r#"
+        print([1, 2, 3].find(fn(x) { return x > 1 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("2", vm.get_output());
+}
+
+#[test]
+fn test_array_find_no_match() {
+    let program = r#"
+        print([1, 2, 3].find(fn(x) { return x > 10 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("nil", vm.get_output());
+}
+
+#[test]
+fn test_array_find_stops_at_first_match() {
+    let program = r#"
+        val calls = []
+        [1, 2, 3].find(fn(x) {
+            calls.push(x)
+            return x >= 2
+        })
+        print(calls)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2]", vm.get_output());
+}
+
+#[test]
+fn test_array_find_wrong_arg_count() {
+    let program = r#"
+        [1, 2, 3].find()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+// ============================================================================
+// Array.some(fn) / Array.every(fn)
+// ============================================================================
+
+#[test]
+fn test_array_some_true() {
+    let program = r#"
+        print([1, 2, 3].some(fn(x) { return x > 2 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_array_some_false() {
+    let program = r#"
+        print([1, 2, 3].some(fn(x) { return x > 10 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_array_some_empty_is_false() {
+    let program = r#"
+        print([].some(fn(x) { return true }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_array_some_stops_at_first_match() {
+    let program = r#"
+        val calls = []
+        [1, 2, 3].some(fn(x) {
+            calls.push(x)
+            return x >= 2
+        })
+        print(calls)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2]", vm.get_output());
+}
+
+#[test]
+fn test_array_every_true() {
+    let program = r#"
+        print([1, 2, 3].every(fn(x) { return x > 0 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_array_every_false() {
+    let program = r#"
+        print([1, 2, 3].every(fn(x) { return x > 1 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("false", vm.get_output());
+}
+
+#[test]
+fn test_array_every_empty_is_true() {
+    let program = r#"
+        print([].every(fn(x) { return false }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true", vm.get_output());
+}
+
+#[test]
+fn test_array_every_stops_at_first_failure() {
+    let program = r#"
+        val calls = []
+        [1, 2, 3].every(fn(x) {
+            calls.push(x)
+            return x < 2
+        })
+        print(calls)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2]", vm.get_output());
+}
+
+// ============================================================================
+// Array.flat() / Array.copy()
+// ============================================================================
+
+#[test]
+fn test_array_flat_one_level() {
+    let program = r#"
+        print([[1, 2], 3, [4, [5]]].flat())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3, 4, [5]]", vm.get_output());
+}
+
+#[test]
+fn test_array_flat_wrong_arg_count() {
+    let program = r#"
+        [1, 2].flat(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_array_copy_independent_of_original() {
+    let program = r#"
+        val a = [1, 2, 3]
+        val b = a.copy()
+        b.push(4)
+        print(a)
+        print(b)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n[1, 2, 3, 4]", vm.get_output());
+}
+
+#[test]
+fn test_array_copy_shares_inner_arrays() {
+    let program = r#"
+        val a = [[1, 2]]
+        val b = a.copy()
+        b[0].push(3)
+        print(a)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 2, 3]]", vm.get_output());
+}
+
+// ============================================================================
+// Array(n, init) constructor
+// ============================================================================
+
+#[test]
+fn test_array_constructor_fills_with_value() {
+    let program = r#"
+        print(Array(3, 0))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[0, 0, 0]", vm.get_output());
+}
+
+#[test]
+fn test_array_constructor_zero_length() {
+    let program = r#"
+        print(Array(0, 1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[]", vm.get_output());
+}
+
+#[test]
+fn test_array_constructor_negative_length_errors() {
+    let program = r#"
+        Array(-1, 0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Array()"), "{}", errors);
+}
+
+#[test]
+fn test_array_constructor_non_integer_length_errors() {
+    let program = r#"
+        Array(1.5, 0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Array()"), "{}", errors);
+}
+
+#[test]
+fn test_array_constructor_absurd_length_errors() {
+    let program = r#"
+        Array(1e15, 0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Array()"), "{}", errors);
+}
+
+#[test]
+fn test_array_constructor_calls_init_with_index() {
+    let program = r#"
+        print(Array(3, fn(i) { return i * i }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[0, 1, 4]", vm.get_output());
+}
+
+#[test]
+fn test_array_constructor_init_not_shared_across_elements() {
+    let program = r#"
+        val g = Array(2, fn(y) { return Array(2, 0) })
+        g[0][0] = 1
+        print(g)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 0], [0, 0]]", vm.get_output());
+}
+
+#[test]
+fn test_array_constructor_non_function_init_is_shared() {
+    let program = r#"
+        val s = Array(2, [])
+        s[0].push(1)
+        print(s)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1], [1]]", vm.get_output());
+}
+
+#[test]
+fn test_array_constructor_init_error_propagates() {
+    let program = r#"
+        Array(3, fn(i) {
+            if (i == 1) {
+                return Math.div(1, 0)
+            }
+            return i
+        })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_array_constructor_local_shadows_native() {
+    let program = r#"
+        fn f() {
+            val Array = fn(n, v) { return "mine " + n.toString() }
+            return Array(3, 0)
+        }
+        print(f())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("mine 3", vm.get_output());
+}

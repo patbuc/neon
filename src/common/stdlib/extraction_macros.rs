@@ -211,3 +211,30 @@ macro_rules! extract_string_value {
         extract_arg!($args, $idx, String, $arg_name, $method)?.as_str()
     }};
 }
+
+/// Extract an integer argument (an `Int`, or a `Number` with no fractional
+/// part), shared by any native that needs a whole-number argument.
+pub(crate) fn extract_integer_arg(
+    args: &[crate::common::Value],
+    idx: usize,
+    arg_name: &str,
+    method: &str,
+) -> Result<i64, String> {
+    use crate::common::{f64_fits_i64, Value};
+    match args.get(idx) {
+        Some(Value::Int(i)) => Ok(*i),
+        Some(Value::Number(n)) if n.fract() == 0.0 && f64_fits_i64(*n) => Ok(*n as i64),
+        Some(Value::Number(n)) if n.fract() == 0.0 => {
+            Err(format!("{}() {} out of range: {}", method, arg_name, n))
+        }
+        Some(Value::Number(n)) => Err(format!(
+            "{}() {} must be an integer, got {}",
+            method, arg_name, n
+        )),
+        Some(_) => Err(format!("{}() {} must be an integer", method, arg_name)),
+        None => Err(format!(
+            "{}() missing required argument: {}",
+            method, arg_name
+        )),
+    }
+}

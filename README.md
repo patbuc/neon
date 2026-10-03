@@ -669,10 +669,10 @@ val flag = "true".toBool()
 
 ## Standard Library
 
-`Math`, `File` and `String` are namespaces: their static methods (`Math.abs(n)`, `File(path)`,
-`String.fromCharCode(n)`) are only callable through the namespace name, and redefining that name at
-top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of the same name inside a
-function still shadows it, same as any other name.
+`Math`, `File`, `String` and `Array` are namespaces: their static methods (`Math.abs(n)`, `File(path)`,
+`String.fromCharCode(n)`, `Array(n, init)`) are only callable through the namespace name, and
+redefining that name at top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of
+the same name inside a function still shadows it, same as any other name.
 
 ### Global Functions
 
@@ -758,6 +758,15 @@ print("42".toInt() + 8)               // 50
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
 - `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
+- `.find(fn)` - First element for which `fn` is truthy, or `nil`
+- `.some(fn)` / `.every(fn)` - Whether `fn` is truthy for any / all elements; stop calling `fn` after
+  the deciding element. `some` is `false` and `every` is `true` on an empty array
+- `.flat()` - New array with one level of nested arrays spliced in; other elements kept as they are
+- `.copy()` - Shallow copy: a new array with the same elements (heap values like nested arrays are
+  still shared)
+- `Array(n, init)` - New array of `n` elements. If `init` is a closure or function, it's called with
+  each index from `0` to `n - 1` and its result becomes that element; otherwise `init` is stored (the
+  same reference, for a heap value) in every element. `n` must be a non-negative integer
 
 **Example:**
 ```neon
@@ -772,6 +781,12 @@ print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
 val nums = [3, 1, 2]
 print(nums.sort())                              // [1, 2, 3], same array as nums
 print([3, 1, 2].sort(fn(a, b) { return b - a })) // [3, 2, 1]
+
+print(Array(3, 0))                           // [0, 0, 0]
+print(Array(3, fn(i) { return i * i }))      // [0, 1, 4]
+val grid = Array(2, fn(y) { return Array(2, ".") })
+grid[0][0] = "#"
+print(grid)                                  // [["#", "."], [".", "."]]
 ```
 
 `map`, `filter`, `reduce` and `sort` accept a named function, a closure, or a

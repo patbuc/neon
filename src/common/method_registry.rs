@@ -37,6 +37,13 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
+    /// Constructor that calls back into Neon code, so it needs the VM:
+    /// Array(n, init) calling init(i)
+    ConstructorWithVm {
+        function: NativeFnWithVm,
+        #[allow(dead_code)]
+        arity: u8,
+    },
 }
 
 impl NativeCallable {
@@ -47,6 +54,7 @@ impl NativeCallable {
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::Constructor { arity, .. } => *arity,
+            NativeCallable::ConstructorWithVm { arity, .. } => *arity,
         }
     }
 
@@ -54,7 +62,9 @@ impl NativeCallable {
         match self {
             NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
             NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
-            NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. } => None,
+            NativeCallable::StaticMethod { .. }
+            | NativeCallable::Constructor { .. }
+            | NativeCallable::ConstructorWithVm { .. } => None,
         }
     }
 }
@@ -320,6 +330,60 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::array_functions::native_array_reduce,
             arity: 2,
             returns: None,
+        },
+    ),
+    (
+        "Array",
+        "find",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_find,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "some",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_some,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
+        "every",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_every,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
+        "flat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_flat,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "copy",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_copy,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    // Array constructor
+    (
+        "Array",
+        "new",
+        NativeCallable::ConstructorWithVm {
+            function: stdlib::array_functions::native_array_constructor,
+            arity: 2,
         },
     ),
     // Range instance methods
@@ -954,7 +1018,9 @@ pub(crate) fn get_native_method_by_index(index: usize) -> Option<&'static Native
 pub fn native_label(index: usize) -> String {
     let (type_name, method_name, callable) = &NATIVE_METHODS[index];
     match callable {
-        NativeCallable::Constructor { .. } => format!("{}.new", type_name),
+        NativeCallable::Constructor { .. } | NativeCallable::ConstructorWithVm { .. } => {
+            format!("{}.new", type_name)
+        }
         _ => method_name.to_string(),
     }
 }
@@ -1015,7 +1081,9 @@ pub fn namespaces() -> Vec<&'static str> {
             !type_name.is_empty()
                 && matches!(
                     callable,
-                    NativeCallable::StaticMethod { .. } | NativeCallable::Constructor { .. }
+                    NativeCallable::StaticMethod { .. }
+                        | NativeCallable::Constructor { .. }
+                        | NativeCallable::ConstructorWithVm { .. }
                 )
         })
         .map(|(type_name, _, _)| *type_name)
@@ -1029,6 +1097,7 @@ pub fn namespaces() -> Vec<&'static str> {
 pub fn constructor_arity(type_name: &str) -> Option<u8> {
     match get_native_method_by_name(type_name, "new") {
         Some(NativeCallable::Constructor { arity, .. }) => Some(*arity),
+        Some(NativeCallable::ConstructorWithVm { arity, .. }) => Some(*arity),
         _ => None,
     }
 }

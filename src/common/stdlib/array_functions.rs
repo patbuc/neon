@@ -1,3 +1,4 @@
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
@@ -528,4 +529,174 @@ pub fn native_array_reduce(
     }
 
     Ok(accumulator)
+}
+
+/// Calls predicate on each element, stopping as soon as one's truthiness
+/// matches `wanted` and returning it; `None` if none did. Shared by find,
+/// some and every, which only differ in `wanted` and how they read the
+/// result.
+fn find_by_truthiness(
+    vm: &mut VirtualMachine,
+    elements: Vec<Value>,
+    predicate: &Value,
+    wanted: bool,
+) -> Result<Option<Value>, NativeCallError> {
+    for element in elements {
+        let result = vm.call_value(predicate.clone(), std::slice::from_ref(&element))?;
+        let truthy = !is_false_like!(result);
+        if truthy == wanted {
+            return Ok(Some(element));
+        }
+    }
+    Ok(None)
+}
+
+/// Native implementation of Array.find(fn)
+/// Returns the first element for which fn is truthy, or nil.
+pub fn native_array_find(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "find() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "find")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(find_by_truthiness(vm, elements, &args[1], true)?.unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.some(fn)
+/// Returns true if fn is truthy for any element, stopping at the first one.
+/// False on an empty array.
+pub fn native_array_some(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "some() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "some")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let found = find_by_truthiness(vm, elements, &args[1], true)?;
+    Ok(Value::Boolean(found.is_some()))
+}
+
+/// Native implementation of Array.every(fn)
+/// Returns true if fn is truthy for every element, stopping at the first
+/// one that isn't. True on an empty array.
+pub fn native_array_every(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "every() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "every")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let found_falsy = find_by_truthiness(vm, elements, &args[1], false)?;
+    Ok(Value::Boolean(found_falsy.is_none()))
+}
+
+/// Native implementation of Array.flat()
+/// Flattens one level: arrays inside are spliced in, other elements kept.
+pub fn native_array_flat(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "flat() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "flat")?;
+    let array = array_ref.borrow();
+
+    let mut flattened = Vec::new();
+    for element in array.iter() {
+        match element {
+            Value::Array(inner) => flattened.extend(inner.borrow().iter().cloned()),
+            other => flattened.push(other.clone()),
+        }
+    }
+
+    Ok(Value::new_array(flattened))
+}
+
+/// Native implementation of Array.copy()
+/// Makes a shallow copy of the array.
+pub fn native_array_copy(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "copy() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "copy")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(Value::new_array(elements))
+}
+
+const MAX_ARRAY_LEN: usize = 100_000_000;
+
+fn is_callable(value: &Value) -> bool {
+    matches!(value, Value::Closure(_) | Value::NativeFunction(_))
+}
+
+/// Native implementation of the Array(n, init) constructor.
+/// Builds an array of n elements. If init is callable (a closure, function,
+/// or native function), it's called with each index 0..n to produce that
+/// element; otherwise init is stored (the same reference) in every element.
+pub fn native_array_constructor(
+    vm: &mut VirtualMachine,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!("Array() expects 2 arguments (n, init), got {}", args.len()).into());
+    }
+
+    let n = extract_integer_arg(args, 0, "n", "Array")?;
+    if n < 0 {
+        return Err(format!("Array() n must be non-negative, got {}", n).into());
+    }
+    if n > MAX_ARRAY_LEN as i64 {
+        return Err(format!("Array() n exceeds {} elements", MAX_ARRAY_LEN).into());
+    }
+    let n = n as usize;
+
+    let init = &args[1];
+    let mut elements = Vec::new();
+    elements
+        .try_reserve_exact(n)
+        .map_err(|_| format!("Array() n exceeds available memory: {}", n))?;
+
+    if is_callable(init) {
+        for i in 0..n {
+            elements.push(vm.call_value(init.clone(), &[Value::Int(i as i64)])?);
+        }
+    } else {
+        for _ in 0..n {
+            elements.push(init.clone());
+        }
+    }
+
+    Ok(Value::new_array(elements))
 }

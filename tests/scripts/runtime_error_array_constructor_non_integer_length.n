@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: Array() n must be an integer, got 1.5
+
+print("before")
+Array(1.5, 0)
