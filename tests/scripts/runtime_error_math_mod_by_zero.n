@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: mod() division by zero
+
+print("before")
+print(Math.mod(1, 0))

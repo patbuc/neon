@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: gcd() expects two integers, got float
+
+print("before")
+print(Math.gcd(4.0, 6))

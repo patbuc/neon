@@ -1,0 +1,12 @@
+// Expected:
+// 3
+// -3
+// -1
+// 0
+// 1
+
+print(Math.round(2.5))
+print(Math.round(-2.5))
+print(Math.sign(-4))
+print(Math.sign(0))
+print(Math.sign(4))

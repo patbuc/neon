@@ -137,6 +137,46 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: 2,
         },
     ),
+    (
+        "Math",
+        "round",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_round,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "sign",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_sign,
+            arity: 1,
+        },
+    ),
+    (
+        "Math",
+        "gcd",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_gcd,
+            arity: 2,
+        },
+    ),
+    (
+        "Math",
+        "lcm",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_lcm,
+            arity: 2,
+        },
+    ),
+    (
+        "Math",
+        "mod",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_mod,
+            arity: 2,
+        },
+    ),
     // Array instance methods
     (
         "Array",

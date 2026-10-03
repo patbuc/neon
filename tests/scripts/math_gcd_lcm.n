@@ -1,0 +1,14 @@
+// Expected:
+// 6
+// 2
+// 0
+// 12
+// 0
+// 9000000120000000399
+
+print(Math.gcd(12, 18))
+print(Math.gcd(-4, 6))
+print(Math.gcd(0, 0))
+print(Math.lcm(4, 6))
+print(Math.lcm(0, 5))
+print(Math.lcm(3000000019, 3000000021))

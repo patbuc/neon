@@ -356,13 +356,7 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
 
     // Any float makes the sum a float.
     if numbers.iter().any(|n| matches!(n, Numeric::Float(_))) {
-        let sum = numbers
-            .iter()
-            .map(|n| match *n {
-                Numeric::Int(i) => i as f64,
-                Numeric::Float(f) => f,
-            })
-            .sum();
+        let sum = numbers.iter().map(|n| n.as_f64()).sum();
         return Ok(Value::Number(sum));
     }
 
