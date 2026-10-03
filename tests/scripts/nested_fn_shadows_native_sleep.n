@@ -4,6 +4,7 @@
 
 // Expected:
 // local nested
+// nil
 
 fn f() {
     fn sleep(x) {
@@ -13,3 +14,4 @@ fn f() {
 }
 
 print(f())
+print(sleep(0))
