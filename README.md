@@ -660,6 +660,7 @@ val flag = "true".toBool()
 ### Global Functions
 
 - `print(value, ...)` - Output values to stdout (variadic)
+- `sleep(ms)` - Block the current thread for `ms` milliseconds
 
 ### Math (Static Methods)
 
