@@ -169,7 +169,8 @@ impl Resolutions {
             .unwrap_or_else(|| panic!("no symbol interned for {:?}", name))
     }
 
-    /// The resolution of an `Expr::Variable` or `Expr::Assign` node.
+    /// The resolution of an `Expr::Variable` or `Expr::Assign` node, or of
+    /// the `read_id`/`write_id` of an `Expr::CompoundAssign` node.
     pub fn res(&self, id: NodeId) -> Res {
         *self
             .uses

@@ -989,6 +989,36 @@ fn test_local_assignment_expression_still_emits_set_local() {
 }
 
 #[test]
+fn test_local_compound_assignment_statement_emits_store_local() {
+    let program = r#"
+    fn f() {
+        var x = 1
+        x += 2
+        return x
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("StoreLocal"));
+}
+
+#[test]
+fn test_local_compound_assignment_expression_still_emits_set_local() {
+    let program = r#"
+    fn f() {
+        var x = 1
+        print(x += 2)
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("SetLocal"));
+    assert!(!disassembly.contains("StoreLocal"));
+}
+
+#[test]
 fn test_global_assignment_statement_still_emits_set_global_and_pop() {
     let program = r#"
     var x = 1
@@ -2221,4 +2251,79 @@ fn test_val_and_var_locals_skip_self_copy_setlocal() {
 "#;
 
     assert_eq!(disassemble_program(&chunk), expected);
+}
+
+#[test]
+fn test_compound_assignment_matches_hand_desugared_bytecode() {
+    let compound = r#"
+fn f() {
+    var a = 10
+    a += 2
+    var b = 10
+    b -= 2
+    var c = 10
+    c *= 2
+    var d = 10
+    d /= 2
+    var e = 10
+    e %= 2
+    var g = 10
+    g **= 2
+    print(a += 2)
+}
+f()
+var x = 10
+x += 2
+var y = 10
+y -= 2
+var z = 10
+z *= 2
+var w = 10
+w /= 2
+var v = 10
+v %= 2
+var u = 10
+u **= 2
+print(x += 2)
+"#;
+
+    let desugared = r#"
+fn f() {
+    var a = 10
+    a = a + 2
+    var b = 10
+    b = b - 2
+    var c = 10
+    c = c * 2
+    var d = 10
+    d = d / 2
+    var e = 10
+    e = e % 2
+    var g = 10
+    g = g ** 2
+    print(a = a + 2)
+}
+f()
+var x = 10
+x = x + 2
+var y = 10
+y = y - 2
+var z = 10
+z = z * 2
+var w = 10
+w = w / 2
+var v = 10
+v = v % 2
+var u = 10
+u = u ** 2
+print(x = x + 2)
+"#;
+
+    let compound_chunk = compile_program(compound).unwrap();
+    let desugared_chunk = compile_program(desugared).unwrap();
+
+    assert_eq!(
+        disassemble_program(&compound_chunk),
+        disassemble_program(&desugared_chunk)
+    );
 }

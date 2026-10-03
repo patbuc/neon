@@ -4012,3 +4012,42 @@ fn test_ternary_missing_then_branch_after_newline_reports_one_error() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
 }
+
+#[test]
+fn test_parse_compound_assignment_is_own_node() {
+    let mut parser = Parser::new("x += 1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::CompoundAssign { name, operator, .. } => {
+                assert_eq!(name, "x");
+                assert_eq!(*operator, BinaryOp::Add);
+            }
+            _ => panic!("Expected CompoundAssign expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_manual_desugared_assignment_is_assign_binary() {
+    let mut parser = Parser::new("x = x + 1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Assign { name, value, .. } => {
+                assert_eq!(name, "x");
+                match value.as_ref() {
+                    Expr::Binary { operator, .. } => assert_eq!(*operator, BinaryOp::Add),
+                    _ => panic!("Expected Binary value"),
+                }
+            }
+            _ => panic!("Expected Assign expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}

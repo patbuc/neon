@@ -1210,22 +1210,14 @@ impl Parser {
             })
         } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
             self.advance();
-            let left = Box::new(Expr::Variable {
-                name: name.clone(),
-                id: self.next_id(),
-                location,
-            });
-            let right = Box::new(self.operand(Precedence::Assignment)?);
-            let value = Box::new(Expr::Binary {
-                left,
-                operator,
-                right,
-                location,
-            });
-            Some(Expr::Assign {
+            let read_id = self.next_id();
+            let value = Box::new(self.operand(Precedence::Assignment)?);
+            Some(Expr::CompoundAssign {
                 name,
+                operator,
                 value,
-                id: self.next_id(),
+                read_id,
+                write_id: self.next_id(),
                 location,
             })
         } else {

@@ -595,6 +595,43 @@ impl<'a> CodeGenerator<'a> {
         self.emit_upvalue_metadata(&resolutions.function(id).upvalues, location);
     }
 
+    /// Stores the value on top of the stack into `id`'s target without
+    /// leaving it on the stack, used for assignment as a statement. A local
+    /// stores directly; anything else needs a push-then-pop `Set` op.
+    fn generate_store_without_push(&mut self, id: NodeId, location: SourceLocation) {
+        match self.resolutions.res(id) {
+            Res::Local(decl) => {
+                let slot = self.decl_slot(decl);
+                self.emit_index_op(OpCode::StoreLocal, slot, "locals", location);
+            }
+            _ => {
+                self.emit_variable_set(id, location);
+                self.emit_op_code(OpCode::Pop, location);
+            }
+        }
+    }
+
+    /// Generates the new value of a compound assignment: reads the
+    /// variable (via `read_id`), then applies `operator` against `value`,
+    /// reusing the ordinary binary-expression codegen (including its
+    /// number-literal operand fusion) so the result is identical to the
+    /// equivalent hand-desugared `x = x <op> value`.
+    fn generate_compound_assign_value(
+        &mut self,
+        name: &str,
+        read_id: NodeId,
+        operator: &BinaryOp,
+        value: &Expr,
+        location: SourceLocation,
+    ) {
+        let left = Expr::Variable {
+            name: name.to_string(),
+            id: read_id,
+            location,
+        };
+        self.generate_binary_expr(&left, operator, value, location);
+    }
+
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
         match expr {
             Expr::Assign {
@@ -604,16 +641,18 @@ impl<'a> CodeGenerator<'a> {
                 ..
             } => {
                 self.generate_expr(value);
-                match self.resolutions.res(*id) {
-                    Res::Local(decl) => {
-                        let slot = self.decl_slot(decl);
-                        self.emit_index_op(OpCode::StoreLocal, slot, "locals", *location);
-                    }
-                    _ => {
-                        self.emit_variable_set(*id, *location);
-                        self.emit_op_code(OpCode::Pop, *location);
-                    }
-                }
+                self.generate_store_without_push(*id, *location);
+            }
+            Expr::CompoundAssign {
+                name,
+                operator,
+                value,
+                read_id,
+                write_id,
+                location,
+            } => {
+                self.generate_compound_assign_value(name, *read_id, operator, value, *location);
+                self.generate_store_without_push(*write_id, *location);
             }
             Expr::SetField {
                 object,
@@ -1383,6 +1422,17 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_expr(value);
                 self.emit_variable_set(*id, *location);
+            }
+            Expr::CompoundAssign {
+                name,
+                operator,
+                value,
+                read_id,
+                write_id,
+                location,
+            } => {
+                self.generate_compound_assign_value(name, *read_id, operator, value, *location);
+                self.emit_variable_set(*write_id, *location);
             }
             Expr::Binary {
                 left,

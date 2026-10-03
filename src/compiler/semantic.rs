@@ -1008,6 +1008,18 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_assignment(*id, name, value, *location);
             }
+            Expr::CompoundAssign {
+                name,
+                value,
+                read_id,
+                write_id,
+                location,
+                ..
+            } => {
+                self.resolve_variable(*read_id, name, *location);
+                self.resolve_expr(value);
+                self.resolve_write(*write_id, name, *location);
+            }
             Expr::Binary {
                 left,
                 right,
@@ -1386,7 +1398,12 @@ impl SemanticAnalyzer {
     ) {
         // Resolve the value being assigned
         self.resolve_expr(value);
+        self.resolve_write(id, name, location);
+    }
 
+    /// Resolves the assignment target itself, shared by `Assign` and
+    /// `CompoundAssign` once the value side has already been resolved.
+    fn resolve_write(&mut self, id: NodeId, name: &str, location: SourceLocation) {
         let Some(symbol) = self.symbol_table.resolve(name) else {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
