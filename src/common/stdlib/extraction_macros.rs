@@ -115,6 +115,21 @@ macro_rules! extract_receiver {
             None => Err(format!("{}() can only be called on ranges", $method)),
         }
     };
+
+    // PriorityQueue extraction
+    ($args:expr, PriorityQueue, $method:expr) => {
+        match $args.get(0) {
+            Some(Value::PriorityQueue(pq)) => Ok(pq),
+            Some(_) => Err(format!(
+                "{}() can only be called on priority queues",
+                $method
+            )),
+            None => Err(format!(
+                "{}() can only be called on priority queues",
+                $method
+            )),
+        }
+    };
 }
 
 /// Extract a typed argument at a specific index.

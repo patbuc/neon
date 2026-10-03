@@ -7,6 +7,7 @@ mod math_errors;
 mod math_functions;
 mod math_variadic;
 mod number_functions;
+mod priority_queue_functions;
 mod range_functions;
 mod set_functions;
 mod string_functions;

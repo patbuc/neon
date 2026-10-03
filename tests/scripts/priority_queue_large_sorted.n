@@ -1,0 +1,27 @@
+// priority_queue_large_sorted.n - 100,000 entries pushed in pseudo-random
+// order (a linear congruential generator) pop in sorted order; -1 if not
+
+// Expected:
+// 107381461775216
+
+val pq = PriorityQueue()
+var seed = 12345
+val n = 100000
+for (var i = 0; i < n; i = i + 1) {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    pq.push(seed, seed)
+}
+
+var prev = -1
+var sorted = true
+var checksum = 0
+for (var i = 0; i < n; i = i + 1) {
+    val v = pq.pop()
+    if (v < prev) {
+        sorted = false
+    }
+    prev = v
+    checksum = checksum + v
+}
+
+print(sorted ? checksum : -1)

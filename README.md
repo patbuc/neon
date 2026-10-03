@@ -669,9 +669,9 @@ val flag = "true".toBool()
 
 ## Standard Library
 
-`Math`, `File`, `String`, `Array` and `Stdin` are namespaces: their static methods (`Math.abs(n)`,
-`File(path)`, `String.fromCharCode(n)`, `Array(n, init)`, `Stdin.read()`) are only callable through the
-namespace name, and
+`Math`, `File`, `String`, `Array`, `Stdin` and `PriorityQueue` are namespaces: their static methods
+(`Math.abs(n)`, `File(path)`, `String.fromCharCode(n)`, `Array(n, init)`, `Stdin.read()`,
+`PriorityQueue()`) are only callable through the namespace name, and
 redefining that name at top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of
 the same name inside a function still shadows it, same as any other name.
 
@@ -880,6 +880,27 @@ print(arr)                // [1, 2] (order may vary)
 ```neon
 // echo -e "a\nb" | neon script.n
 print(Stdin.readLines())   // [a, b]
+```
+
+### PriorityQueue Methods
+
+- `PriorityQueue()` - New, empty min-priority-queue
+- `.push(priority, value)` - Add `value` with the given `priority` (a number); returns `nil`
+- `.pop()` - Remove and return the value with the smallest priority, or `nil` if empty. Equal
+  priorities pop in insertion order
+- `.peek()` - Same as `.pop()` but leaves the queue unchanged
+- `.size()` - Number of entries
+
+**Example:**
+```neon
+val pq = PriorityQueue()
+pq.push(3, "c")
+pq.push(1, "a")
+pq.push(2, "b")
+print(pq.pop())   // a
+print(pq.pop())   // b
+print(pq.pop())   // c
+print(pq.pop())   // nil
 ```
 
 ### Type Conversions

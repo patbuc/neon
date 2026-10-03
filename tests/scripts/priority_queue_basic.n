@@ -1,0 +1,38 @@
+// priority_queue_basic.n - push/pop ordering, FIFO ties, peek, size, and
+// the print format
+
+// Expected:
+// a
+// b
+// c
+// nil
+// first
+// second
+// PriorityQueue(size=1)
+// x
+// PriorityQueue(size=1)
+// x
+// PriorityQueue(size=0)
+
+val pq = PriorityQueue()
+pq.push(3, "c")
+pq.push(1, "a")
+pq.push(2, "b")
+print(pq.pop())
+print(pq.pop())
+print(pq.pop())
+print(pq.pop())
+
+val ties = PriorityQueue()
+ties.push(5, "first")
+ties.push(5, "second")
+print(ties.pop())
+print(ties.pop())
+
+val peeked = PriorityQueue()
+peeked.push(1, "x")
+print(peeked)
+print(peeked.peek())
+print(peeked)
+print(peeked.pop())
+print(peeked)

@@ -1,7 +1,8 @@
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::cmp::Reverse;
+use std::collections::{BTreeSet, BinaryHeap};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -257,6 +258,72 @@ pub enum Value {
     Set(Rc<RefCell<BTreeSet<SetKey>>>),
     File(Rc<String>),
     Range(Rc<ObjRange>),
+    PriorityQueue(Rc<RefCell<ObjPriorityQueue>>),
+}
+
+/// A min-heap of `(priority, value)` entries, ordered by `priority` then by
+/// insertion order so equal priorities pop first-in-first-out.
+pub struct ObjPriorityQueue {
+    heap: BinaryHeap<Reverse<PriorityQueueEntry>>,
+    next_seq: u64,
+}
+
+struct PriorityQueueEntry {
+    priority: Numeric,
+    seq: u64,
+    value: Value,
+}
+
+impl PartialEq for PriorityQueueEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.seq == other.seq
+    }
+}
+
+impl Eq for PriorityQueueEntry {}
+
+impl PartialOrd for PriorityQueueEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PriorityQueueEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        compare_numeric(self.priority, other.priority)
+            .expect("priority queue entries never hold a NaN priority")
+            .then(self.seq.cmp(&other.seq))
+    }
+}
+
+impl ObjPriorityQueue {
+    pub(crate) fn new() -> Self {
+        ObjPriorityQueue {
+            heap: BinaryHeap::new(),
+            next_seq: 0,
+        }
+    }
+
+    pub(crate) fn push(&mut self, priority: Numeric, value: Value) {
+        self.heap.push(Reverse(PriorityQueueEntry {
+            priority,
+            seq: self.next_seq,
+            value,
+        }));
+        self.next_seq += 1;
+    }
+
+    pub(crate) fn pop(&mut self) -> Option<Value> {
+        self.heap.pop().map(|Reverse(entry)| entry.value)
+    }
+
+    pub(crate) fn peek(&self) -> Option<&Value> {
+        self.heap.peek().map(|Reverse(entry)| &entry.value)
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.heap.len()
+    }
 }
 
 /// An immutable range of integers.
@@ -471,6 +538,10 @@ impl Value {
         }))
     }
 
+    pub(crate) fn new_priority_queue() -> Self {
+        Value::PriorityQueue(Rc::new(RefCell::new(ObjPriorityQueue::new())))
+    }
+
     /// Name of this value's type, for runtime error messages.
     pub(crate) fn type_name(&self) -> &'static str {
         match self {
@@ -490,6 +561,7 @@ impl Value {
             Value::Set(_) => "set",
             Value::File(_) => "file",
             Value::Range(_) => "range",
+            Value::PriorityQueue(_) => "priority queue",
         }
     }
 }
@@ -617,6 +689,7 @@ impl Value {
                     write!(f, "{}..{}", range.start, range.end)
                 }
             }
+            Value::PriorityQueue(pq) => write!(f, "PriorityQueue(size={})", pq.borrow().len()),
         }
     }
 
@@ -665,6 +738,7 @@ impl Value {
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::File(a), Value::File(b)) => a == b,
             (Value::Range(a), Value::Range(b)) => a == b,
+            (Value::PriorityQueue(a), Value::PriorityQueue(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
