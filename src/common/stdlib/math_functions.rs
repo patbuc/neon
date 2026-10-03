@@ -185,7 +185,7 @@ pub fn native_math_sign(args: &[Value]) -> Result<Value, String> {
         Numeric::Int(n) => Ok(Value::Int(n.signum())),
         Numeric::Float(n) => {
             if n.is_nan() {
-                return Err("sign() result is out of range".to_string());
+                return Err("sign() argument is NaN".to_string());
             }
             let sign = if n > 0.0 {
                 1
@@ -261,12 +261,7 @@ pub fn native_math_mod(args: &[Value]) -> Result<Value, String> {
             if b == 0 {
                 return Err("mod() division by zero".to_string());
             }
-            let result = if a == i64::MIN && b == -1 {
-                0
-            } else {
-                a.rem_euclid(b)
-            };
-            Ok(Value::Int(result))
+            Ok(Value::Int(a.wrapping_rem_euclid(b)))
         }
         (a, b) => {
             let (af, bf) = (a.as_f64(), b.as_f64());

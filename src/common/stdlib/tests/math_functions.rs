@@ -315,7 +315,7 @@ fn test_math_sign() {
 #[test]
 fn test_math_sign_nan() {
     let result = native_math_sign(&[Value::Number(f64::NAN)]);
-    assert_eq!(result, Err("sign() result is out of range".to_string()));
+    assert_eq!(result, Err("sign() argument is NaN".to_string()));
 }
 
 // ============================================================================
