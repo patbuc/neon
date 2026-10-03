@@ -436,6 +436,23 @@ fn nested_native_callback_error_reports_a_single_location_prefix() {
     assert_eq!("[1:23] Operands must be two numbers or two strings", errors);
 }
 
+/// Runs `program` on a thread with the 8 MB stack the binary's main thread
+/// gets. In a debug build, MAX_NATIVE_CALL_DEPTH levels of the dispatch loop
+/// need more than a test thread's default 2 MB.
+fn interpret_with_main_thread_stack(program: &str) -> (InterpretResult, String) {
+    let program = program.to_string();
+    std::thread::Builder::new()
+        .stack_size(8 * 1024 * 1024)
+        .spawn(move || {
+            let mut vm = VirtualMachine::new();
+            let result = vm.interpret(program);
+            (result, vm.get_runtime_errors())
+        })
+        .unwrap()
+        .join()
+        .unwrap()
+}
+
 #[test]
 fn recursive_callback_through_map_reports_stack_overflow_once() {
     let program = r#"
@@ -446,10 +463,8 @@ fn recursive_callback_through_map_reports_stack_overflow_once() {
         print(r(1000))
         "#;
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
+    let (result, errors) = interpret_with_main_thread_stack(program);
     assert_eq!(InterpretResult::RuntimeError, result);
-    let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
 }
@@ -461,10 +476,8 @@ fn unconditional_callback_recursion_through_map_reports_stack_overflow_once() {
         recurse(0)
         "#;
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
+    let (result, errors) = interpret_with_main_thread_stack(program);
     assert_eq!(InterpretResult::RuntimeError, result);
-    let errors = vm.get_runtime_errors();
     assert_eq!(1, errors.lines().count());
     assert!(errors.contains("Stack overflow"), "{}", errors);
 }
