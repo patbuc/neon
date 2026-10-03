@@ -21,7 +21,6 @@ impl Compiler {
             Ok(ast) => ast,
             Err(errors) => return self.fail(errors),
         };
-        self.trivia = parser.trivia().clone();
         let eof_location = parser.eof_location();
 
         // Phase 2: Semantic analysis

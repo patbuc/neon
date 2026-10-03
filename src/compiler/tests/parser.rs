@@ -4298,3 +4298,13 @@ fn test_parse_manual_desugared_assignment_is_assign_binary() {
         _ => panic!("Expected Expression statement"),
     }
 }
+
+#[test]
+fn test_trivia_reachable_after_parse() {
+    let mut parser = Parser::new("// hi\nval x = 1\n");
+    assert!(parser.parse().is_ok());
+
+    let trivia = parser.trivia();
+    assert_eq!(trivia.comments.len(), 1);
+    assert_eq!(trivia.comments[0].text, "// hi");
+}

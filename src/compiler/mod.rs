@@ -59,7 +59,7 @@ pub(crate) struct Comment {
 }
 
 /// Source detail dropped by the token stream: comments and the line
-/// numbers of blank lines. Kept for a future formatter (#336).
+/// numbers of blank lines.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Trivia {
     pub(crate) comments: Vec<Comment>,
@@ -69,17 +69,11 @@ pub(crate) struct Trivia {
 #[derive(Debug, Default)]
 pub struct Compiler {
     structured_errors: Vec<crate::common::errors::CompilationError>,
-    trivia: Trivia,
 }
 
 impl Compiler {
     pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn get_trivia(&self) -> &Trivia {
-        &self.trivia
     }
 }
 

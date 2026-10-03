@@ -6,8 +6,6 @@ use crate::compiler::Scanner;
 use crate::compiler::Token;
 use std::collections::BTreeSet;
 
-/// Scans `scanner` to `Eof` without collecting tokens, so its trivia is
-/// fully populated and the scanner can still be read afterward.
 fn scan_to_eof(scanner: &mut Scanner) {
     loop {
         if scanner.scan_token().token_type == TokenType::Eof {
@@ -585,17 +583,30 @@ fn trivia_ignores_double_slash_inside_string_literal() {
 }
 
 #[test]
-fn trivia_records_comment_inside_interpolation_expression() {
-    // Documents existing behaviour: a `//` inside `${...}` is still treated
-    // as a comment, eating the rest of the source (see
-    // `interpolation_line_comment_hides_closing_brace`).
-    let source = "\"${a // c }\"";
+fn trivia_does_not_count_a_comment_only_line_before_a_blank_line() {
+    let source = "x\n// c\n\ny";
     let mut scanner = Scanner::new(source);
     scan_to_eof(&mut scanner);
-    let trivia = scanner.trivia();
 
-    assert_eq!(trivia.comments.len(), 1);
-    assert_eq!(trivia.comments[0].text, "// c }\"");
+    assert_eq!(scanner.trivia().blank_lines, vec![3]);
+}
+
+#[test]
+fn trivia_ignores_blank_line_inside_multiline_string_literal() {
+    let source = "val s = \"a\n\nb\"\nx";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert!(scanner.trivia().blank_lines.is_empty());
+}
+
+#[test]
+fn trivia_records_crlf_blank_line() {
+    let source = "x\r\n\r\ny";
+    let mut scanner = Scanner::new(source);
+    scan_to_eof(&mut scanner);
+
+    assert_eq!(scanner.trivia().blank_lines, vec![2]);
 }
 
 #[test]
