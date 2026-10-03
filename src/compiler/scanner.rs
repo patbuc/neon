@@ -686,13 +686,9 @@ impl Scanner {
     }
 
     fn make_token_with_text(&mut self, token_type: TokenType, text: String) -> Token {
-        let raw = text.clone();
-        self.make_token_with_text_and_raw(token_type, text, raw)
+        self.make_token_with_text_and_raw(token_type, text, String::new())
     }
 
-    /// Like `make_token_with_text`, but for a token whose decoded `text`
-    /// differs from its exact source spelling (e.g. a string segment with
-    /// escapes).
     fn make_token_with_text_and_raw(
         &mut self,
         token_type: TokenType,

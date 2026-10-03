@@ -58,7 +58,7 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpolationPart {
     /// `value` is decoded text; `raw` is the exact source text of this
-    /// segment (escapes undecoded), for a formatter to reprint verbatim.
+    /// segment, escapes undecoded.
     Literal {
         value: String,
         raw: String,
@@ -71,8 +71,7 @@ pub enum InterpolationPart {
 pub enum Expr {
     Number {
         value: f64,
-        /// Exact source spelling (e.g. `0xFF`, `1_000`, `1e3`), for a
-        /// formatter to reprint verbatim.
+        /// Exact source spelling (e.g. `0xFF`, `1_000`, `1e3`).
         raw: String,
         location: SourceLocation,
     },

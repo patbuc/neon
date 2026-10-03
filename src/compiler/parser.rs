@@ -1089,9 +1089,8 @@ impl Parser {
     // ===== Primary Expressions =====
 
     fn number(&mut self) -> Option<Expr> {
-        let token_str = self.previous_token.token.clone();
-        let value = self.parse_number_literal(&token_str)?;
-        let raw = self.previous_token.raw.clone();
+        let raw = self.previous_token.token.clone();
+        let value = self.parse_number_literal(&raw)?;
         let location = self.current_location();
         Some(Expr::Number {
             value,

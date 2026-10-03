@@ -247,6 +247,116 @@ fn test_interpolation_raw_spelling_middle_segment() {
 }
 
 #[test]
+fn test_string_raw_spelling_multiline() {
+    let mut parser = Parser::new("\"a\nb\\tc\"\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::String { value, raw, .. } => {
+                assert_eq!(value, "a\nb\tc");
+                assert_eq!(raw, "a\nb\\tc");
+            }
+            _ => panic!("Expected String expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_interpolation_raw_spelling_end_segment() {
+    let mut parser = Parser::new("\"${x}b\"\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::StringInterpolation { parts, .. } => {
+                assert_eq!(parts.len(), 2);
+                match &parts[0] {
+                    InterpolationPart::Expression(expr) => match expr.as_ref() {
+                        Expr::Variable { name, .. } => assert_eq!(name, "x"),
+                        _ => panic!("Expected Variable expression"),
+                    },
+                    _ => panic!("Expected Expression part"),
+                }
+                assert_eq!(
+                    parts[1],
+                    InterpolationPart::Literal {
+                        value: "b".to_string(),
+                        raw: "b".to_string(),
+                    }
+                );
+            }
+            _ => panic!("Expected StringInterpolation expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_interpolation_raw_spelling_nested() {
+    let mut parser = Parser::new("\"a${\"x${y}\\t\"}b\"\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::StringInterpolation { parts, .. } => {
+                assert_eq!(parts.len(), 3);
+                assert_eq!(
+                    parts[0],
+                    InterpolationPart::Literal {
+                        value: "a".to_string(),
+                        raw: "a".to_string(),
+                    }
+                );
+                match &parts[1] {
+                    InterpolationPart::Expression(expr) => match expr.as_ref() {
+                        Expr::StringInterpolation { parts, .. } => {
+                            assert_eq!(parts.len(), 3);
+                            assert_eq!(
+                                parts[0],
+                                InterpolationPart::Literal {
+                                    value: "x".to_string(),
+                                    raw: "x".to_string(),
+                                }
+                            );
+                            match &parts[1] {
+                                InterpolationPart::Expression(expr) => match expr.as_ref() {
+                                    Expr::Variable { name, .. } => assert_eq!(name, "y"),
+                                    _ => panic!("Expected Variable expression"),
+                                },
+                                _ => panic!("Expected Expression part"),
+                            }
+                            assert_eq!(
+                                parts[2],
+                                InterpolationPart::Literal {
+                                    value: "\t".to_string(),
+                                    raw: "\\t".to_string(),
+                                }
+                            );
+                        }
+                        _ => panic!("Expected nested StringInterpolation expression"),
+                    },
+                    _ => panic!("Expected Expression part"),
+                }
+                assert_eq!(
+                    parts[2],
+                    InterpolationPart::Literal {
+                        value: "b".to_string(),
+                        raw: "b".to_string(),
+                    }
+                );
+            }
+            _ => panic!("Expected StringInterpolation expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
 fn test_parse_function() {
     let mut parser = Parser::new("fn foo(a, b) {\n  print(a)\n}\n");
     let result = parser.parse();
