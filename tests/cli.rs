@@ -1,6 +1,8 @@
 use std::fs;
 use std::io::Write;
 use std::process::Command;
+#[cfg(not(feature = "disassemble"))]
+use std::process::Stdio;
 
 #[cfg(feature = "opcode-stats")]
 fn assert_has_add_line_after(stderr: &str, expected: &str) {
@@ -264,4 +266,80 @@ fn run_file_prints_opcode_stats_to_stderr_only() {
     }
     assert_eq!(Some(2), constant_count);
     assert!(saw_pair_key, "expected a pair key in report:\n{}", stderr);
+}
+
+#[cfg(not(feature = "disassemble"))]
+fn run_script_with_stdin(script: &str, stdin_input: &[u8]) -> std::process::Output {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join(format!(
+        "neon_cli_test_stdin_{}_{}.n",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+
+    let mut file = fs::File::create(&script_path).expect("Failed to create test script");
+    file.write_all(script.as_bytes())
+        .expect("Failed to write test script");
+    drop(file);
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&script_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn neon binary");
+
+    child
+        .stdin
+        .take()
+        .expect("child stdin")
+        .write_all(stdin_input)
+        .expect("Failed to write stdin");
+
+    let output = child.wait_with_output().expect("Failed to run neon binary");
+
+    fs::remove_file(&script_path).ok();
+
+    output
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn stdin_read_lines_splits_like_file() {
+    let output = run_script_with_stdin("print(Stdin.readLines())\n", b"a\nb\n");
+
+    assert!(output.status.success());
+    assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn stdin_read_returns_full_piped_text() {
+    let output = run_script_with_stdin("print(Stdin.read())\n", b"a\nb\n");
+
+    assert!(output.status.success());
+    assert_eq!("a\nb\n\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn stdin_read_on_empty_input_returns_empty_string() {
+    let output = run_script_with_stdin("print(\"[\" + Stdin.read() + \"]\")\n", b"");
+
+    assert!(output.status.success());
+    assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn stdin_second_read_after_eof_returns_empty_string() {
+    let script = "val first = Stdin.read()\nprint(\"[\" + Stdin.read() + \"]\")\n";
+    let output = run_script_with_stdin(script, b"hi");
+
+    assert!(output.status.success());
+    assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
 }

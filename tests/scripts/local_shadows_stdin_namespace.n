@@ -1,0 +1,17 @@
+// local_shadows_stdin_namespace.n - a local variable named `Stdin` shadows
+// the native Stdin namespace within its lexical scope; the top-level
+// `Stdin` remains the native namespace
+
+// Expected:
+// local read
+
+struct StdinLike {
+    read
+}
+
+fn f() {
+    val Stdin = StdinLike(fn() { return "local read" })
+    return Stdin.read()
+}
+
+print(f())
