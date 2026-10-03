@@ -3266,7 +3266,7 @@ fn overflowing_hex_initializer_is_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
-        "[Parse] E0008: Number literal too large at 1:9",
+        "[Parse] E0008: Integer literal is too large at 1:9",
         vm.get_compiler_error()
     );
 }
@@ -3279,7 +3279,7 @@ fn overflowing_literal_in_print_is_compile_error() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::CompileError, result);
     assert_eq!(
-        "[Parse] E0008: Number literal too large at 1:7",
+        "[Parse] E0008: Integer literal is too large at 1:7",
         vm.get_compiler_error()
     );
 }

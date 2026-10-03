@@ -1,10 +1,13 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
-use crate::common::{MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct, Value};
+use crate::common::{
+    compare_int_and_float, MapKey, NativeCallError, ObjInstance, ObjNativeFunction, ObjStruct,
+    Value,
+};
 use crate::common::{ObjClosure, Upvalue};
 use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
-use crate::{as_number, boolean, is_false_like, number, string};
+use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -452,6 +455,23 @@ impl VirtualMachine {
         self.push(return_value);
     }
 
+    /// Applies `wanted` to an already-computed ordering of `a <=> b`. `None`
+    /// (NaN) never matches, per IEEE comparison semantics.
+    #[inline(always)]
+    fn ordering_matches(ordering: Option<std::cmp::Ordering>, wanted: &Comparison) -> bool {
+        use std::cmp::Ordering;
+        match ordering {
+            None => false,
+            Some(Ordering::Greater) => {
+                matches!(wanted, Comparison::Greater | Comparison::GreaterEqual)
+            }
+            Some(Ordering::Less) => matches!(wanted, Comparison::Less | Comparison::LessEqual),
+            Some(Ordering::Equal) => {
+                matches!(wanted, Comparison::GreaterEqual | Comparison::LessEqual)
+            }
+        }
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
         // [.., a, b] -> [.., result]
@@ -464,6 +484,14 @@ impl VirtualMachine {
                 Comparison::Less => *x < *y,
                 Comparison::LessEqual => *x <= *y,
             },
+            (Value::Int(x), Value::Int(y)) => Self::ordering_matches(Some(x.cmp(y)), &wanted),
+            (Value::Int(i), Value::Number(n)) => {
+                Self::ordering_matches(compare_int_and_float(*i, *n), &wanted)
+            }
+            (Value::Number(n), Value::Int(i)) => Self::ordering_matches(
+                compare_int_and_float(*i, *n).map(std::cmp::Ordering::reverse),
+                &wanted,
+            ),
             (Value::String(sa), Value::String(sb)) => match wanted {
                 Comparison::Greater => **sa > **sb,
                 Comparison::GreaterEqual => **sa >= **sb,
@@ -493,36 +521,85 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_divide(&mut self) -> OpResult {
-        self.binary_number_op("/", |a, b| a / b)
+        // [.., a, b] -> [.., result]; division is always float, even for
+        // two ints.
+        let b = self.pop();
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Number(x), Value::Number(y)) => *x /= *y,
+            (Value::Int(x), Value::Number(y)) => *slot = number!(*x as f64 / *y),
+            (Value::Number(x), Value::Int(y)) => *x /= *y as f64,
+            (Value::Int(x), Value::Int(y)) => *slot = number!(*x as f64 / *y as f64),
+            _ => return Err(self.binary_number_op_error("/", &b)),
+        }
+        std::mem::forget(b);
+        Ok(())
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_modulo(&mut self) -> OpResult {
-        self.binary_number_op("%", |a, b| a % b)
+        // [.., a, b] -> [.., result]
+        let b = self.pop();
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Int(x), Value::Int(y)) => {
+                if *y == 0 {
+                    return Err(self.modulo_by_zero_error());
+                }
+                // i64::MIN % -1 would overflow via the hardware instruction;
+                // the true remainder is always 0 when dividing by -1.
+                *x = if *y == -1 { 0 } else { *x % *y };
+            }
+            (Value::Number(x), Value::Int(y)) => *x %= *y as f64,
+            (Value::Int(x), Value::Number(y)) => *slot = number!(*x as f64 % *y),
+            (Value::Number(x), Value::Number(y)) => *x %= *y,
+            _ => return Err(self.binary_number_op_error("%", &b)),
+        }
+        std::mem::forget(b);
+        Ok(())
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_exponent(&mut self) -> OpResult {
-        self.binary_number_op("**", |a, b| a.powf(b))
-    }
-
-    #[inline(always)]
-    fn binary_number_op(&mut self, op: &str, f: impl Fn(f64, f64) -> f64) -> OpResult {
-        // [.., a, b] -> [.., result]
+        // [.., base, exponent] -> [.., result]
         let b = self.pop();
-        let a = self.stack.last_mut().expect("stack underflow");
-        match (&mut *a, &b) {
-            (Value::Number(x), Value::Number(y)) => {
-                *x = f(*x, *y);
-                // b is a number, so skip the out-of-line drop of a Value
-                std::mem::forget(b);
-                Ok(())
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Int(base), Value::Int(exp)) => {
+                if *exp >= 0 {
+                    let result = match u32::try_from(*exp) {
+                        Ok(e) => base.checked_pow(e),
+                        // The exponent itself overflows u32; only bases whose
+                        // magnitude never changes under repeated
+                        // multiplication can be answered without computing it.
+                        Err(_) => match *base {
+                            0 => Some(0),
+                            1 => Some(1),
+                            -1 => Some(if exp % 2 == 0 { 1 } else { -1 }),
+                            _ => None,
+                        },
+                    };
+                    match result {
+                        Some(r) => *slot = int!(r),
+                        None => return Err(self.overflow_error("**")),
+                    }
+                } else {
+                    *slot = number!((*base as f64).powf(*exp as f64));
+                }
             }
-            _ => Err(self.binary_number_op_error(op, &b)),
+            (Value::Number(base), Value::Number(exp)) => *base = base.powf(*exp),
+            (Value::Int(base), Value::Number(exp)) => {
+                *slot = number!((*base as f64).powf(*exp));
+            }
+            (Value::Number(base), Value::Int(exp)) => *base = base.powf(*exp as f64),
+            _ => return Err(self.binary_number_op_error("**", &b)),
         }
+        std::mem::forget(b);
+        Ok(())
     }
 
     #[cold]
+    #[inline(never)]
     fn binary_number_op_error(&self, op: &str, b: &Value) -> RuntimeError {
         self.runtime_error(format!(
             "Operands of '{}' must be numbers, got {} and {}",
@@ -530,6 +607,18 @@ impl VirtualMachine {
             self.peek(0).type_name(),
             b.type_name()
         ))
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn overflow_error(&self, op: &str) -> RuntimeError {
+        self.runtime_error(format!("integer overflow in {}", op))
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn modulo_by_zero_error(&self) -> RuntimeError {
+        self.runtime_error("modulo by zero")
     }
 
     /// Helper: Convert f64 to i64 for bitwise operations
@@ -542,33 +631,55 @@ impl VirtualMachine {
         }
     }
 
+    /// Helper: the operand of a bitwise op as an `i64` (`Int` directly,
+    /// `Number` truncated), or `None` if it's neither.
+    #[inline(always)]
+    fn as_bitwise_operand(value: &Value) -> Option<i64> {
+        match value {
+            Value::Int(i) => Some(*i),
+            Value::Number(n) => Some(Self::to_integer(*n)),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    fn binary_bitwise_op(&mut self, op: &str, f: impl Fn(i64, i64) -> i64) -> OpResult {
+        // [.., a, b] -> [.., result]
+        let b = self.pop();
+        let a = match Self::as_bitwise_operand(self.stack.last().expect("stack underflow")) {
+            Some(a) => a,
+            None => return Err(self.binary_number_op_error(op, &b)),
+        };
+        let result = match Self::as_bitwise_operand(&b) {
+            Some(bi) => f(a, bi),
+            None => return Err(self.binary_number_op_error(op, &b)),
+        };
+        std::mem::forget(b);
+        let slot = self.stack.last_mut().expect("stack underflow");
+        *slot = int!(result);
+        Ok(())
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_bitwise_and(&mut self) -> OpResult {
-        self.binary_number_op("&", |a, b| {
-            (Self::to_integer(a) & Self::to_integer(b)) as f64
-        })
+        self.binary_bitwise_op("&", |a, b| a & b)
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_bitwise_or(&mut self) -> OpResult {
-        self.binary_number_op("|", |a, b| {
-            (Self::to_integer(a) | Self::to_integer(b)) as f64
-        })
+        self.binary_bitwise_op("|", |a, b| a | b)
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_bitwise_xor(&mut self) -> OpResult {
-        self.binary_number_op("^", |a, b| {
-            (Self::to_integer(a) ^ Self::to_integer(b)) as f64
-        })
+        self.binary_bitwise_op("^", |a, b| a ^ b)
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_bitwise_not(&mut self) -> OpResult {
-        if let Value::Number(..) = self.peek(0) {
-            let value = self.pop();
-            let int_val = Self::to_integer(as_number!(value));
-            self.push(Value::Number((!int_val) as f64));
+        if let Some(int_val) = Self::as_bitwise_operand(self.peek(0)) {
+            self.pop();
+            self.push(int!(!int_val));
             return Ok(());
         }
         Err(self.runtime_error("Operand must be a number for bitwise NOT"))
@@ -576,28 +687,56 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_left_shift(&mut self) -> OpResult {
-        self.binary_number_op("<<", |a, b| {
-            let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
-            (Self::to_integer(a) << shift_amount) as f64
+        self.binary_bitwise_op("<<", |a, b| {
+            let shift_amount = (b & 0x3F) as u32; // mask to 0-63
+            a << shift_amount
         })
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_right_shift(&mut self) -> OpResult {
-        self.binary_number_op(">>", |a, b| {
-            let shift_amount = (Self::to_integer(b) & 0x3F) as u32; // mask to 0-63
-            (Self::to_integer(a) >> shift_amount) as f64
+        self.binary_bitwise_op(">>", |a, b| {
+            let shift_amount = (b & 0x3F) as u32; // mask to 0-63
+            a >> shift_amount
         })
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_multiply(&mut self) -> OpResult {
-        self.binary_number_op("*", |a, b| a * b)
+        // [.., a, b] -> [.., result]
+        let b = self.pop();
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Number(x), Value::Number(y)) => *x *= *y,
+            (Value::Int(x), Value::Int(y)) => match x.checked_mul(*y) {
+                Some(r) => *x = r,
+                None => return Err(self.overflow_error("*")),
+            },
+            (Value::Int(x), Value::Number(y)) => *slot = number!(*x as f64 * *y),
+            (Value::Number(x), Value::Int(y)) => *x *= *y as f64,
+            _ => return Err(self.binary_number_op_error("*", &b)),
+        }
+        std::mem::forget(b);
+        Ok(())
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_subtract(&mut self) -> OpResult {
-        self.binary_number_op("-", |a, b| a - b)
+        // [.., a, b] -> [.., result]
+        let b = self.pop();
+        let slot = self.stack.last_mut().expect("stack underflow");
+        match (&mut *slot, &b) {
+            (Value::Number(x), Value::Number(y)) => *x -= *y,
+            (Value::Int(x), Value::Int(y)) => match x.checked_sub(*y) {
+                Some(r) => *x = r,
+                None => return Err(self.overflow_error("-")),
+            },
+            (Value::Int(x), Value::Number(y)) => *slot = number!(*x as f64 - *y),
+            (Value::Number(x), Value::Int(y)) => *x -= *y as f64,
+            _ => return Err(self.binary_number_op_error("-", &b)),
+        }
+        std::mem::forget(b);
+        Ok(())
     }
 
     #[inline(always)]
@@ -605,12 +744,30 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]
         let b = self.pop();
         let slot = self.stack.last_mut().expect("stack underflow");
-        match (&mut *slot, b) {
-            (Value::Number(x), Value::Number(y)) => *x += y,
+        match (&mut *slot, &b) {
+            (Value::Number(x), Value::Number(y)) => {
+                *x += *y;
+                std::mem::forget(b);
+            }
+            (Value::Int(x), Value::Int(y)) => match x.checked_add(*y) {
+                Some(r) => {
+                    *x = r;
+                    std::mem::forget(b);
+                }
+                None => return Err(self.overflow_error("+")),
+            },
+            (Value::Int(x), Value::Number(y)) => {
+                *slot = number!(*x as f64 + *y);
+                std::mem::forget(b);
+            }
+            (Value::Number(x), Value::Int(y)) => {
+                *x += *y as f64;
+                std::mem::forget(b);
+            }
             (Value::String(x), Value::String(y)) => {
                 let mut combined = String::with_capacity(x.len() + y.len());
                 combined.push_str(x);
-                combined.push_str(&y);
+                combined.push_str(y);
                 *slot = string!(combined);
             }
             _ => {
@@ -621,15 +778,34 @@ impl VirtualMachine {
     }
 
     /// `Add` with a number constant as the right operand. A non-number left
-    /// operand goes through `op_add` so its error stays identical.
+    /// operand, or a mix the fast path doesn't cover, goes through `op_add`
+    /// so its result and error stay identical.
     #[inline(always)]
     pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        if let Value::Number(a) = slot {
-            *a += self.chunk.read_number_constant(index);
-            self.ip += 2;
-            return Ok(());
+        match (&mut *slot, self.chunk.read_constant(index)) {
+            (Value::Number(a), Value::Number(c)) => {
+                *a += c;
+                self.ip += 2;
+                return Ok(());
+            }
+            (Value::Int(a), Value::Int(c)) => {
+                return match a.checked_add(c) {
+                    Some(r) => {
+                        *a = r;
+                        self.ip += 2;
+                        Ok(())
+                    }
+                    None => Err(self.overflow_error("+")),
+                };
+            }
+            (Value::Number(a), Value::Int(c)) => {
+                *a += c as f64;
+                self.ip += 2;
+                return Ok(());
+            }
+            _ => {}
         }
         let constant = self.chunk.read_constant(index);
         self.push(constant);
@@ -642,10 +818,28 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        if let Value::Number(a) = slot {
-            *a -= self.chunk.read_number_constant(index);
-            self.ip += 2;
-            return Ok(());
+        match (&mut *slot, self.chunk.read_constant(index)) {
+            (Value::Number(a), Value::Number(c)) => {
+                *a -= c;
+                self.ip += 2;
+                return Ok(());
+            }
+            (Value::Int(a), Value::Int(c)) => {
+                return match a.checked_sub(c) {
+                    Some(r) => {
+                        *a = r;
+                        self.ip += 2;
+                        Ok(())
+                    }
+                    None => Err(self.overflow_error("-")),
+                };
+            }
+            (Value::Number(a), Value::Int(c)) => {
+                *a -= c as f64;
+                self.ip += 2;
+                return Ok(());
+            }
+            _ => {}
         }
         let constant = self.chunk.read_constant(index);
         self.push(constant);
@@ -658,17 +852,34 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
-        if let Value::Number(a) = *slot {
-            let c = self.chunk.read_number_constant(index);
-            let is_match = match wanted {
-                Comparison::Greater => a > c,
-                Comparison::GreaterEqual => a >= c,
-                Comparison::Less => a < c,
-                Comparison::LessEqual => a <= c,
-            };
-            std::mem::replace(slot, boolean!(is_match)).discard();
-            self.ip += 2;
-            return Ok(());
+        match (&*slot, self.chunk.read_constant(index)) {
+            (Value::Number(a), Value::Number(c)) => {
+                let is_match = match wanted {
+                    Comparison::Greater => *a > c,
+                    Comparison::GreaterEqual => *a >= c,
+                    Comparison::Less => *a < c,
+                    Comparison::LessEqual => *a <= c,
+                };
+                std::mem::replace(slot, boolean!(is_match)).discard();
+                self.ip += 2;
+                return Ok(());
+            }
+            (Value::Int(a), Value::Int(c)) => {
+                let is_match = Self::ordering_matches(Some(a.cmp(&c)), &wanted);
+                std::mem::replace(slot, boolean!(is_match)).discard();
+                self.ip += 2;
+                return Ok(());
+            }
+            (Value::Number(a), Value::Int(c)) => {
+                let is_match = Self::ordering_matches(
+                    compare_int_and_float(c, *a).map(std::cmp::Ordering::reverse),
+                    &wanted,
+                );
+                std::mem::replace(slot, boolean!(is_match)).discard();
+                self.ip += 2;
+                return Ok(());
+            }
+            _ => {}
         }
         let constant = self.chunk.read_constant(index);
         self.push(constant);
@@ -684,6 +895,15 @@ impl VirtualMachine {
         if let Value::Number(n) = *slot {
             *slot = number!(-n);
             return Ok(());
+        }
+        if let Value::Int(i) = *slot {
+            return match i.checked_neg() {
+                Some(r) => {
+                    *slot = int!(r);
+                    Ok(())
+                }
+                None => Err(self.overflow_error("-")),
+            };
         }
         Err(self.runtime_error("Operand must be a number"))
     }
@@ -1330,7 +1550,7 @@ impl VirtualMachine {
                     )));
                 }
 
-                self.push(Value::Number(range.get(actual_index) as f64));
+                self.push(Value::Int(range.get(actual_index)));
                 Ok(())
             }
             _ => Err(self.runtime_error(format!(
@@ -1510,7 +1730,7 @@ impl VirtualMachine {
                 if (index as i64) >= range.len() {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
-                Value::Number(range.get(index as i64) as f64)
+                Value::Int(range.get(index as i64))
             }
             other => {
                 return Err(self.runtime_error(format!(

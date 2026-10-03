@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: modulo by zero
+
+print("before")
+print(1 % 0)

@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
 use std::collections::HashSet;
@@ -32,6 +33,30 @@ fn test_parse_binary_expression() {
 }
 
 #[test]
+fn test_decimal_literal_past_i64_max_is_compile_error() {
+    let mut parser = Parser::new("9223372036854775808\n");
+    let result = parser.parse();
+    let errors = result.expect_err("expected a compile error");
+    assert_eq!(1, errors.len());
+    assert_eq!(CompilationErrorKind::NumberLiteralTooLarge, errors[0].kind);
+}
+
+#[test]
+fn test_decimal_literal_at_i64_max() {
+    let mut parser = Parser::new("9223372036854775807\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Int { value, .. } => assert_eq!(*value, i64::MAX),
+            _ => panic!("Expected Int expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
 fn test_parse_hex_number() {
     let mut parser = Parser::new("0xFF\n");
     let result = parser.parse();
@@ -40,8 +65,8 @@ fn test_parse_hex_number() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 255.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 255),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
@@ -56,8 +81,8 @@ fn test_parse_binary_number() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 10.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 10),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
@@ -72,8 +97,8 @@ fn test_parse_octal_number() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 493.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 493),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
@@ -88,8 +113,8 @@ fn test_parse_number_with_underscores() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 1_000_000.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 1_000_000),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
@@ -104,8 +129,8 @@ fn test_parse_hex_with_underscores() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 65535.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 65535),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
@@ -120,21 +145,40 @@ fn test_parse_binary_with_underscores() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Expression { expr, .. } => match expr {
-            Expr::Number { value, .. } => assert_eq!(*value, 240.0),
-            _ => panic!("Expected Number expression"),
+            Expr::Int { value, .. } => assert_eq!(*value, 240),
+            _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected Expression statement"),
     }
 }
 
 #[test]
+fn test_int_raw_spelling() {
+    for (source, expected_value, expected_raw) in
+        [("0xFF\n", 255i64, "0xFF"), ("1_000\n", 1000, "1_000")]
+    {
+        let mut parser = Parser::new(source);
+        let result = parser.parse();
+        assert!(result.is_ok());
+        let stmts = result.unwrap();
+        match &stmts[0] {
+            Stmt::Expression { expr, .. } => match expr {
+                Expr::Int { value, raw, .. } => {
+                    assert_eq!(*value, expected_value);
+                    assert_eq!(raw, expected_raw);
+                }
+                _ => panic!("Expected Int expression"),
+            },
+            _ => panic!("Expected Expression statement"),
+        }
+    }
+}
+
+#[test]
 fn test_number_raw_spelling() {
-    for (source, expected_value, expected_raw) in [
-        ("0xFF\n", 255.0, "0xFF"),
-        ("1_000\n", 1000.0, "1_000"),
-        ("1e3\n", 1000.0, "1e3"),
-        ("1.50\n", 1.5, "1.50"),
-    ] {
+    for (source, expected_value, expected_raw) in
+        [("1e3\n", 1000.0, "1e3"), ("1.50\n", 1.5, "1.50")]
+    {
         let mut parser = Parser::new(source);
         let result = parser.parse();
         assert!(result.is_ok());
@@ -1580,12 +1624,12 @@ fn test_parse_method_call_multiple_args() {
                     // Should be Call { callee: GetField { object: Variable("str"), field: "substring" }, arguments: [Number(0), Number(5)]}
                     assert_eq!(arguments.len(), 2);
                     match &arguments[0] {
-                        Expr::Number { value, .. } => assert_eq!(*value, 0.0),
-                        _ => panic!("Expected Number argument"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 0),
+                        _ => panic!("Expected Int argument"),
                     }
                     match &arguments[1] {
-                        Expr::Number { value, .. } => assert_eq!(*value, 5.0),
-                        _ => panic!("Expected Number argument"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 5),
+                        _ => panic!("Expected Int argument"),
                     }
                     match callee.as_ref() {
                         Expr::GetField { object, field, .. } => {
@@ -1835,8 +1879,8 @@ fn test_parse_bitwise_and_binds_tighter_than_equality() {
                 ..
             } => {
                 match right.as_ref() {
-                    Expr::Number { value, .. } => assert_eq!(*value, 0.0),
-                    _ => panic!("Expected Number as right operand of =="),
+                    Expr::Int { value, .. } => assert_eq!(*value, 0),
+                    _ => panic!("Expected Int as right operand of =="),
                 }
                 match left.as_ref() {
                     Expr::Binary {
@@ -1850,8 +1894,8 @@ fn test_parse_bitwise_and_binds_tighter_than_equality() {
                             _ => panic!("Expected Variable as left operand of &"),
                         }
                         match right.as_ref() {
-                            Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                            _ => panic!("Expected Number as right operand of &"),
+                            Expr::Int { value, .. } => assert_eq!(*value, 1),
+                            _ => panic!("Expected Int as right operand of &"),
                         }
                     }
                     _ => panic!("Expected (x & 1) as left operand of =="),
@@ -2197,8 +2241,8 @@ fn test_parse_map_with_string_keys() {
                         _ => panic!("Expected String key"),
                     }
                     match &entries[1].1 {
-                        Expr::Number { value, .. } => assert_eq!(*value, 30.0),
-                        _ => panic!("Expected Number value"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 30),
+                        _ => panic!("Expected Int value"),
                     }
                 }
                 _ => panic!("Expected MapLiteral expression"),
@@ -2245,8 +2289,8 @@ fn test_parse_map_with_variable_keys() {
                         _ => panic!("Expected Variable key"),
                     }
                     match &entries[0].1 {
-                        Expr::Number { value, .. } => assert_eq!(*value, 10.0),
-                        _ => panic!("Expected Number value"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 10),
+                        _ => panic!("Expected Int value"),
                     }
                 }
                 _ => panic!("Expected MapLiteral expression"),
@@ -2295,8 +2339,8 @@ fn test_parse_nested_map() {
                         } => {
                             assert_eq!(inner_entries.len(), 1);
                             match &inner_entries[0].1 {
-                                Expr::Number { value, .. } => assert_eq!(*value, 42.0),
-                                _ => panic!("Expected Number value"),
+                                Expr::Int { value, .. } => assert_eq!(*value, 42),
+                                _ => panic!("Expected Int value"),
                             }
                         }
                         _ => panic!("Expected nested MapLiteral"),
@@ -2438,12 +2482,12 @@ fn test_parse_set_with_elements() {
                 assert_eq!(elements.len(), 2);
 
                 match &elements[0] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 1),
+                    _ => panic!("Expected Int element"),
                 }
                 match &elements[1] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 2),
+                    _ => panic!("Expected Int element"),
                 }
             }
             _ => panic!("Expected SetLiteral expression"),
@@ -2481,12 +2525,12 @@ fn test_parse_set_with_multiline_trailing_comma() {
                 assert_eq!(elements.len(), 2);
 
                 match &elements[0] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 1),
+                    _ => panic!("Expected Int element"),
                 }
                 match &elements[1] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 2),
+                    _ => panic!("Expected Int element"),
                 }
             }
             _ => panic!("Expected SetLiteral expression"),
@@ -2579,8 +2623,8 @@ fn test_parse_index_assignment() {
                     _ => panic!("Expected String as index"),
                 }
                 match value.as_ref() {
-                    Expr::Number { value, .. } => assert_eq!(*value, 42.0),
-                    _ => panic!("Expected Number as value"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 42),
+                    _ => panic!("Expected Int as value"),
                 }
             }
             _ => panic!("Expected IndexAssign expression"),
@@ -2918,8 +2962,8 @@ fn test_parse_postfix_with_array_index() {
                         _ => panic!("Expected Variable as object"),
                     }
                     match index.as_ref() {
-                        Expr::Number { value, .. } => assert_eq!(*value, 0.0),
-                        _ => panic!("Expected Number as index"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 0),
+                        _ => panic!("Expected Int as index"),
                     }
                 }
                 _ => panic!("Expected Index as operand"),
@@ -2971,8 +3015,8 @@ fn test_parse_postfix_precedence() {
                     }
                     // Right should be 5
                     match right.as_ref() {
-                        Expr::Number { value, .. } => assert_eq!(*value, 5.0),
-                        _ => panic!("Expected Number as right operand"),
+                        Expr::Int { value, .. } => assert_eq!(*value, 5),
+                        _ => panic!("Expected Int as right operand"),
                     }
                 }
                 _ => panic!("Expected Binary expression"),
@@ -3174,16 +3218,16 @@ fn test_parse_array_with_numbers() {
             Expr::ArrayLiteral { elements, .. } => {
                 assert_eq!(elements.len(), 3);
                 match &elements[0] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 1),
+                    _ => panic!("Expected Int element"),
                 }
                 match &elements[1] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 2.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 2),
+                    _ => panic!("Expected Int element"),
                 }
                 match &elements[2] {
-                    Expr::Number { value, .. } => assert_eq!(*value, 3.0),
-                    _ => panic!("Expected Number element"),
+                    Expr::Int { value, .. } => assert_eq!(*value, 3),
+                    _ => panic!("Expected Int element"),
                 }
             }
             _ => panic!("Expected ArrayLiteral expression"),
@@ -3219,7 +3263,7 @@ fn test_parse_array_with_mixed_types() {
         } => match expr {
             Expr::ArrayLiteral { elements, .. } => {
                 assert_eq!(elements.len(), 4);
-                assert!(matches!(elements[0], Expr::Number { .. }));
+                assert!(matches!(elements[0], Expr::Int { .. }));
                 assert!(matches!(elements[1], Expr::String { .. }));
                 assert!(matches!(elements[2], Expr::Boolean { .. }));
                 assert!(matches!(elements[3], Expr::Nil { .. }));
@@ -3299,8 +3343,8 @@ fn test_parse_nested_arrays() {
                         } => {
                             assert_eq!(inner.len(), 2);
                             match &inner[0] {
-                                Expr::Number { value, .. } => assert_eq!(*value, 1.0),
-                                _ => panic!("Expected Number"),
+                                Expr::Int { value, .. } => assert_eq!(*value, 1),
+                                _ => panic!("Expected Int"),
                             }
                         }
                         _ => panic!("Expected nested ArrayLiteral"),
@@ -3312,8 +3356,8 @@ fn test_parse_nested_arrays() {
                         } => {
                             assert_eq!(inner.len(), 2);
                             match &inner[0] {
-                                Expr::Number { value, .. } => assert_eq!(*value, 3.0),
-                                _ => panic!("Expected Number"),
+                                Expr::Int { value, .. } => assert_eq!(*value, 3),
+                                _ => panic!("Expected Int"),
                             }
                         }
                         _ => panic!("Expected nested ArrayLiteral"),
@@ -3508,7 +3552,7 @@ fn test_hex_overflow() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 1);
 }
@@ -3522,7 +3566,7 @@ fn test_binary_overflow() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 1);
 }
@@ -3536,7 +3580,7 @@ fn test_octal_overflow() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 1);
 }
@@ -3549,7 +3593,7 @@ fn test_val_overflow_initializer() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "Number literal too large");
+    assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 9);
 }
@@ -4016,11 +4060,11 @@ fn test_parse_map_value_after_newline() {
                 Some(Expr::MapLiteral { entries, .. }) => {
                     assert_eq!(entries.len(), 1);
                     match &entries[0] {
-                        (Expr::String { value, .. }, Expr::Number { value: num, .. }) => {
+                        (Expr::String { value, .. }, Expr::Int { value: num, .. }) => {
                             assert_eq!(value, "a");
-                            assert_eq!(*num, 1.0);
+                            assert_eq!(*num, 1);
                         }
-                        _ => panic!("Expected String key and Number value"),
+                        _ => panic!("Expected String key and Int value"),
                     }
                 }
                 _ => panic!("Expected MapLiteral expression"),

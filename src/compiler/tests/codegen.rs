@@ -825,13 +825,13 @@ fn count_strings(chunk: &Chunk, s: &str) -> usize {
         .count()
 }
 
-fn count_numbers(chunk: &Chunk, n: f64) -> usize {
+fn count_ints(chunk: &Chunk, n: i64) -> usize {
     use crate::common::Value;
     chunk
         .constants
         .values
         .iter()
-        .filter(|value| matches!(value, Value::Number(v) if *v == n))
+        .filter(|value| matches!(value, Value::Int(v) if *v == n))
         .count()
 }
 
@@ -1076,7 +1076,7 @@ fn test_field_assignment_expression_still_emits_set_field() {
 fn test_repeated_number_literal_dedups() {
     let program = "1\n".repeat(10);
     let chunk = compile_program(&program).unwrap();
-    assert_eq!(count_numbers(&chunk, 1.0), 1);
+    assert_eq!(count_ints(&chunk, 1), 1);
 }
 
 #[test]

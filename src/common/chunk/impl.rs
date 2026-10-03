@@ -61,11 +61,6 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub(crate) fn read_number_constant(&self, index: usize) -> f64 {
-        self.constants.read_number(index)
-    }
-
-    #[inline(always)]
     pub(crate) fn read_u8(&self, offset: usize) -> u8 {
         self.instructions[offset]
     }

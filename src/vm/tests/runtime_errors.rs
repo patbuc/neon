@@ -209,6 +209,20 @@ fn subtract_with_non_number_operand_reports_operator_location() {
 }
 
 #[test]
+fn add_int_overflow_with_non_constant_operands() {
+    let program = r#"
+        val a = 9223372036854775807
+        val b = 1
+        print(a + b)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("integer overflow in +"));
+}
+
+#[test]
 fn bad_operand_type_errors() {
     let cases: &[(&str, &str)] = &[
         (

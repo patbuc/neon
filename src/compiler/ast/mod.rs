@@ -75,6 +75,13 @@ pub enum Expr {
         raw: String,
         location: SourceLocation,
     },
+    /// A literal with no `.` and no exponent: decimal, hex, binary, or octal.
+    Int {
+        value: i64,
+        /// Exact source spelling (e.g. `0xFF`, `1_000`).
+        raw: String,
+        location: SourceLocation,
+    },
     String {
         value: String,
         /// Exact source text between the quotes, escapes undecoded.
@@ -284,6 +291,7 @@ impl Expr {
     pub fn location(&self) -> &SourceLocation {
         match self {
             Expr::Number { location, .. }
+            | Expr::Int { location, .. }
             | Expr::String { location, .. }
             | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }

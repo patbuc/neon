@@ -10,6 +10,14 @@ use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 use std::collections::HashMap;
 
+/// The value of a scanned number literal, decided by its spelling: a
+/// decimal with no `.` and no exponent, or a hex/binary/octal literal, is
+/// an int; anything else is a float.
+enum NumberLiteral {
+    Int(i64),
+    Float(f64),
+}
+
 /// AST Parser that builds an Abstract Syntax Tree
 pub struct Parser {
     scanner: Scanner,
@@ -1099,14 +1107,21 @@ impl Parser {
         let raw = self.previous_token.token.clone();
         let value = self.parse_number_literal(&raw)?;
         let location = self.current_location();
-        Some(Expr::Number {
-            value,
-            raw,
-            location,
+        Some(match value {
+            NumberLiteral::Int(value) => Expr::Int {
+                value,
+                raw,
+                location,
+            },
+            NumberLiteral::Float(value) => Expr::Number {
+                value,
+                raw,
+                location,
+            },
         })
     }
 
-    fn parse_number_literal(&mut self, s: &str) -> Option<f64> {
+    fn parse_number_literal(&mut self, s: &str) -> Option<NumberLiteral> {
         // Remove all underscores for parsing
         let clean: String = s.chars().filter(|c| *c != '_').collect();
 
@@ -1118,14 +1133,17 @@ impl Parser {
                 _ => None,
             };
             if let Some(radix) = radix {
-                return match u64::from_str_radix(&clean[2..], radix) {
-                    Ok(int_value) => Some(int_value as f64),
-                    Err(_) => {
+                return match u64::from_str_radix(&clean[2..], radix)
+                    .ok()
+                    .and_then(|v| i64::try_from(v).ok())
+                {
+                    Some(int_value) => Some(NumberLiteral::Int(int_value)),
+                    None => {
                         let location = self.current_location();
                         self.report_error(
                             CompilationErrorKind::NumberLiteralTooLarge,
                             location,
-                            "Number literal too large".to_string(),
+                            "Integer literal is too large".to_string(),
                         );
                         None
                     }
@@ -1133,8 +1151,23 @@ impl Parser {
             }
         }
 
-        // Parse as decimal (with potential floating point)
-        clean.parse::<f64>().ok()
+        if !clean.contains('.') && !clean.contains('e') && !clean.contains('E') {
+            return match clean.parse::<i64>() {
+                Ok(int_value) => Some(NumberLiteral::Int(int_value)),
+                Err(_) => {
+                    let location = self.current_location();
+                    self.report_error(
+                        CompilationErrorKind::NumberLiteralTooLarge,
+                        location,
+                        "Integer literal is too large".to_string(),
+                    );
+                    None
+                }
+            };
+        }
+
+        // Parse as decimal floating point
+        clean.parse::<f64>().ok().map(NumberLiteral::Float)
     }
 
     fn string(&self) -> Option<Expr> {
