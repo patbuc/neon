@@ -185,7 +185,7 @@ fn test_array_sort_with_comparator() {
 }
 
 #[test]
-fn test_array_sort_with_comparator_is_stable() {
+fn test_array_sort_with_comparator_zero_result_keeps_order() {
     let program = r#"
         val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
         val sorted = pairs.sort(fn(a, b) { return 0 })
@@ -198,6 +198,19 @@ fn test_array_sort_with_comparator_is_stable() {
 }
 
 #[test]
+fn test_array_sort_with_comparator_is_stable() {
+    let program = r#"
+        val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
+        val sorted = pairs.sort(fn(x, y) { return x[0] - y[0] })
+        print(sorted)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[0, c], [1, a], [1, b], [1, d]]", vm.get_output());
+}
+
+#[test]
 fn test_array_sort_comparator_non_number_result() {
     let program = r#"
         [1, 2].sort(fn(a, b) { return "nope" })
@@ -207,6 +220,12 @@ fn test_array_sort_comparator_non_number_result() {
     assert_eq!(
         InterpretResult::RuntimeError,
         vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("sort() comparator must return a number, got string"),
+        "{}",
+        errors
     );
 }
 
@@ -237,6 +256,12 @@ fn test_array_sort_wrong_arg_count() {
     assert_eq!(
         InterpretResult::RuntimeError,
         vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("sort() expects 0 or 1 arguments, got 2"),
+        "{}",
+        errors
     );
 }
 

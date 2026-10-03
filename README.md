@@ -730,8 +730,8 @@ print(arr.filter(fn(x) { return x % 2 == 0 }))  // [2, 4]
 print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
 
 val nums = [3, 1, 2]
-print(nums.sort())                                      // [1, 2, 3], same array as nums
-print([3, 1, 2].sort(fn(a, b) { return b - a }))         // [3, 2, 1]
+print(nums.sort())                              // [1, 2, 3], same array as nums
+print([3, 1, 2].sort(fn(a, b) { return b - a })) // [3, 2, 1]
 ```
 
 `map`, `filter`, `reduce` and `sort` accept a named function, a closure, or a
@@ -740,12 +740,12 @@ lambda, and can call back into other Neon functions (including nested
 `reduce` or `sort` can nest at most 32 levels deep before reporting a "Stack
 overflow" error.
 
-With no argument, `sort()` sorts in place in the default order (numbers
-ascending, then strings alphabetically, then other values) and returns the
-same array. With a comparator `sort(fn(a, b) { ... })`, the function is
-called with pairs of elements; a negative result puts `a` first, a positive
-result puts `b` first, and `0` keeps their existing order (the sort is
-stable). The comparator must return a number.
+With no argument, `sort()` sorts in place (numbers ascending among
+themselves, strings alphabetically among themselves) and returns the same
+array. With a comparator `sort(fn(a, b) { ... })`, the function is called
+with pairs of elements; a negative result puts `a` first, a positive result
+puts `b` first, and `0` keeps their existing order (the sort is stable). The
+comparator must return a number.
 
 ### Range Methods
 

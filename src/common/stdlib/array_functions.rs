@@ -108,10 +108,8 @@ fn sort_rank(value: &Value) -> u8 {
 }
 
 /// Native implementation of Array.sort() / Array.sort(comparator)
-/// Sorts array in place (default: numbers ascending, strings alphabetically;
-/// with a comparator: calls it with each pair, negative puts the first
-/// element first, positive puts the second first, zero keeps their order)
-/// and returns the same array.
+/// Sorts in place (default order, or by calling the comparator on each
+/// pair) and returns the same array.
 pub fn native_array_sort(
     vm: &mut VirtualMachine,
     args: &[Value],
@@ -146,9 +144,7 @@ pub fn native_array_sort(
     Ok(args[0].clone())
 }
 
-/// Stable merge sort driven by a user comparator. Unlike `slice::sort_by`,
-/// this never panics on an inconsistent comparator and lets `?` propagate an
-/// error raised while calling it.
+/// Stable merge sort driven by a user comparator.
 fn merge_sort_by(
     vm: &mut VirtualMachine,
     mut values: Vec<Value>,
