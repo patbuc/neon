@@ -3,7 +3,7 @@ use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
-use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine};
+use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine, TRACE_EDGE_FRAMES};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
@@ -307,10 +307,28 @@ impl VirtualMachine {
         message: impl Into<String>,
         innermost_offset: usize,
     ) -> RuntimeError {
-        let mut frames = Vec::with_capacity(self.call_frames.len());
+        let total = self.call_frames.len();
+        let omitted_frames = if total > TRACE_EDGE_FRAMES * 2 + 1 {
+            total - TRACE_EDGE_FRAMES * 2
+        } else {
+            0
+        };
+
+        let innermost_kept = if omitted_frames == 0 {
+            total
+        } else {
+            TRACE_EDGE_FRAMES
+        };
+        let walk = self.call_frames.iter().rev().enumerate();
+        let kept = walk
+            .clone()
+            .take(innermost_kept)
+            .chain(walk.skip(innermost_kept + omitted_frames));
+
+        let mut frames = Vec::with_capacity(total - omitted_frames);
         let mut location = None;
 
-        for (depth, frame) in self.call_frames.iter().rev().enumerate() {
+        for (depth, frame) in kept {
             let ip = if depth == 0 {
                 self.ip.saturating_sub(innermost_offset)
             } else {
@@ -330,6 +348,7 @@ impl VirtualMachine {
             message: message.into(),
             location,
             frames,
+            omitted_frames,
         }
     }
 

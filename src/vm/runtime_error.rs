@@ -6,16 +6,19 @@ pub struct TraceFrame {
     pub line: Option<u32>,
 }
 
-const TRACE_EDGE_FRAMES: usize = 10;
+pub(crate) const TRACE_EDGE_FRAMES: usize = 10;
 
 /// A runtime error produced by the VM: a message, the source line/column
 /// where it occurred (when known), and the call chain that led there,
-/// innermost frame first.
+/// innermost frame first. Past `TRACE_EDGE_FRAMES * 2 + 1` frames, only
+/// the innermost and outermost `TRACE_EDGE_FRAMES` are kept in `frames`, and
+/// `omitted_frames` records how many were left out.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeError {
     pub message: String,
     pub location: Option<(u32, u32)>,
     pub frames: Vec<TraceFrame>,
+    pub omitted_frames: usize,
 }
 
 impl Display for RuntimeError {
@@ -29,28 +32,22 @@ impl Display for RuntimeError {
 
 impl RuntimeError {
     /// Renders the call trace as one `  at <function> (line <n>)` line per
-    /// frame. Past 21 frames, only the innermost and outermost 10 are
-    /// shown, with an "N frames omitted" line between them.
+    /// frame. When `omitted_frames` is non-zero, `frames` holds only the
+    /// innermost and outermost `TRACE_EDGE_FRAMES`, with an "N frames
+    /// omitted" line rendered between them.
     pub fn trace(&self) -> String {
         let render = |frame: &TraceFrame| match frame.line {
             Some(line) => format!("  at {} (line {})", frame.function, line),
             None => format!("  at {} (line ?)", frame.function),
         };
 
-        if self.frames.len() > TRACE_EDGE_FRAMES * 2 + 1 {
+        if self.omitted_frames > 0 {
             let mut lines: Vec<String> = self.frames[..TRACE_EDGE_FRAMES]
                 .iter()
                 .map(render)
                 .collect();
-            lines.push(format!(
-                "  ... {} frames omitted",
-                self.frames.len() - TRACE_EDGE_FRAMES * 2
-            ));
-            lines.extend(
-                self.frames[self.frames.len() - TRACE_EDGE_FRAMES..]
-                    .iter()
-                    .map(render),
-            );
+            lines.push(format!("  ... {} frames omitted", self.omitted_frames));
+            lines.extend(self.frames[TRACE_EDGE_FRAMES..].iter().map(render));
             lines.join("\n")
         } else {
             self.frames

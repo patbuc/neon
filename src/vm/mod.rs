@@ -10,6 +10,7 @@ mod runtime_error;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use runtime_error::TRACE_EDGE_FRAMES;
 pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]

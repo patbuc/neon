@@ -930,7 +930,8 @@ fn unbounded_recursion_trace_is_capped() {
     assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
-    assert_eq!(1_000_000, error.frames.len());
+    assert_eq!(20, error.frames.len());
+    assert_eq!(999_980, error.omitted_frames);
 
     let trace = error.trace();
     let lines: Vec<&str> = trace.lines().collect();
@@ -961,6 +962,7 @@ fn trace_at_exactly_twenty_one_frames_is_not_collapsed() {
     let error = vm.get_runtime_error().unwrap();
 
     assert_eq!(21, error.frames.len());
+    assert_eq!(0, error.omitted_frames);
     let trace = error.trace();
     let lines: Vec<&str> = trace.lines().collect();
     assert_eq!(21, lines.len());
@@ -987,7 +989,8 @@ fn trace_at_twenty_two_frames_is_collapsed() {
     assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
-    assert_eq!(22, error.frames.len());
+    assert_eq!(20, error.frames.len());
+    assert_eq!(2, error.omitted_frames);
     let trace = error.trace();
     let lines: Vec<&str> = trace.lines().collect();
     assert_eq!(21, lines.len());
