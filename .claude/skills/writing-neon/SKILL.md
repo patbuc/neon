@@ -100,7 +100,7 @@ No property-style `.length`; everything is a method call.
 ## Native methods that exist
 
 This is the full list. Anything not here, like `forEach`, `find`, `keys` on
-arrays, `toFixed`, `padStart`, or `String(x)`, doesn't exist. Add a
+arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
@@ -108,7 +108,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
 - **String:** `len`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
-  `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
+  `lastIndexOf`, `includes`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
+  `repeat(n)`, `padStart(len, fill)`, `padEnd(len, fill)`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`

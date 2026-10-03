@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: repeat() count must be non-negative, got -1
+
+print("before")
+"ab".repeat(-1)

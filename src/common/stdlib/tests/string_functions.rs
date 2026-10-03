@@ -1,5 +1,6 @@
 use crate::common::stdlib::string_functions::{
-    native_string_char_code_at, native_string_from_char_code,
+    native_string_char_code_at, native_string_from_char_code, native_string_last_index_of,
+    native_string_pad_start, native_string_repeat,
 };
 use crate::common::Value;
 use crate::string;
@@ -545,6 +546,306 @@ fn test_string_from_char_code_surrogate() {
 fn test_string_from_char_code_non_integer() {
     let program = r#"
         String.fromCharCode(1.5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+// ============================================================================
+// String.repeat() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_repeat() {
+    let program = r#"
+        print("ab".repeat(3))
+        print("ab".repeat(0))
+        print("x".repeat(1))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("ababab\n\nx", vm.get_output());
+}
+
+#[test]
+fn test_string_repeat_negative() {
+    let program = r#"
+        "ab".repeat(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_repeat_non_integer() {
+    let program = r#"
+        "ab".repeat(1.5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_repeat_too_large() {
+    let program = r#"
+        "x".repeat(999999999999)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_repeat_cap_message() {
+    let err =
+        native_string_repeat(&[string!("x".to_string()), Value::Int(200_000_000)]).unwrap_err();
+    assert_eq!("repeat() result exceeds 100000000 chars", err);
+}
+
+#[test]
+fn test_string_repeat_empty_string_huge_count() {
+    let program = r#"
+        print("".repeat(999999999999))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("", vm.get_output());
+}
+
+#[test]
+fn test_string_repeat_huge_float_out_of_range() {
+    let err = native_string_repeat(&[string!("x".to_string()), Value::Number(1e300)]).unwrap_err();
+    assert!(err.contains("out of range"), "got: {}", err);
+}
+
+#[test]
+fn test_string_repeat_wrong_arg_count() {
+    let program = r#"
+        "ab".repeat()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+// ============================================================================
+// String.padStart() / String.padEnd() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_pad_start() {
+    let program = r#"
+        print("101".padStart(6, "0"))
+        print("abc".padStart(2, "0"))
+        print("1".padStart(5, "ab"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("000101\nabc\nabab1", vm.get_output());
+}
+
+#[test]
+fn test_string_pad_end() {
+    let program = r#"
+        print("7".padEnd(3, "."))
+        print("abc".padEnd(2, "0"))
+        print("1".padEnd(5, "ab"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("7..\nabc\n1abab", vm.get_output());
+}
+
+#[test]
+fn test_string_pad_start_negative_length() {
+    let program = r#"
+        print("ab".padStart(-5, "0"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("ab", vm.get_output());
+}
+
+#[test]
+fn test_string_pad_start_empty_fill() {
+    let program = r#"
+        "ab".padStart(5, "")
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_pad_end_empty_fill() {
+    let program = r#"
+        "ab".padEnd(5, "")
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_string_pad_start_multibyte_fill() {
+    let program = r#"
+        print("é".padStart(4, "äö"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("äöäé", vm.get_output());
+}
+
+#[test]
+fn test_string_pad_end_multibyte_fill() {
+    let program = r#"
+        print("é".padEnd(4, "äö"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("éäöä", vm.get_output());
+}
+
+#[test]
+fn test_string_pad_start_cap_message() {
+    let err = native_string_pad_start(&[
+        string!("x".to_string()),
+        Value::Int(200_000_000),
+        string!("0".to_string()),
+    ])
+    .unwrap_err();
+    assert_eq!("padStart() result exceeds 100000000 chars", err);
+}
+
+#[test]
+fn test_string_pad_start_wrong_arg_count() {
+    let program = r#"
+        "ab".padStart(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+// ============================================================================
+// String.lastIndexOf() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_last_index_of() {
+    let program = r#"
+        print("a-b-c".lastIndexOf("-"))
+        print("hello".lastIndexOf("x"))
+        print("hello".lastIndexOf("l"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("3\n-1\n3", vm.get_output());
+}
+
+#[test]
+fn test_string_last_index_of_multibyte_prefix() {
+    let result =
+        native_string_last_index_of(&[string!("é-a-b".to_string()), string!("a".to_string())])
+            .unwrap();
+    assert!(matches!(result, Value::Int(2)));
+}
+
+#[test]
+fn test_string_last_index_of_overlapping_match() {
+    let result =
+        native_string_last_index_of(&[string!("aaa".to_string()), string!("aa".to_string())])
+            .unwrap();
+    assert!(matches!(result, Value::Int(1)));
+}
+
+#[test]
+fn test_string_last_index_of_multibyte_substring() {
+    let result =
+        native_string_last_index_of(&[string!("xéé-éé".to_string()), string!("éé".to_string())])
+            .unwrap();
+    assert!(matches!(result, Value::Int(4)));
+}
+
+#[test]
+fn test_string_last_index_of_empty_substring() {
+    let program = r#"
+        print("hello".lastIndexOf(""))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5", vm.get_output());
+}
+
+#[test]
+fn test_string_last_index_of_wrong_arg_count() {
+    let program = r#"
+        "hello".lastIndexOf()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+// ============================================================================
+// String.includes() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_includes() {
+    let program = r#"
+        print("hello".includes("ell"))
+        print("hello".includes("x"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn test_string_includes_wrong_arg_count() {
+    let program = r#"
+        "hello".includes()
     "#;
 
     let mut vm = VirtualMachine::new();

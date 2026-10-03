@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: padEnd() fill must not be empty
+
+print("before")
+"ab".padEnd(5, "")
