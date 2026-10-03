@@ -44,6 +44,7 @@ enum LoopExit {
 enum ConstantKey {
     String(Rc<String>),
     Number(u64),
+    Int(i64),
 }
 
 struct FunctionCompiler {
@@ -434,6 +435,7 @@ impl<'a> CodeGenerator<'a> {
         let key = match &value {
             Value::String(s) => Some(ConstantKey::String(Rc::clone(s))),
             Value::Number(n) => Some(ConstantKey::Number(n.to_bits())),
+            Value::Int(i) => Some(ConstantKey::Int(*i)),
             _ => None,
         };
         let Some(key) = key else {

@@ -1,4 +1,4 @@
-use crate::common::{NativeCallError, Value};
+use crate::common::{compare_int_and_float, NativeCallError, Value};
 use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
@@ -101,7 +101,7 @@ pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {
 /// everything else, then booleans/nil/uninitialized last.
 fn sort_rank(value: &Value) -> u8 {
     match value {
-        Value::Number(_) => 0,
+        Value::Number(_) | Value::Int(_) => 0,
         Value::Boolean(_) | Value::Nil | Value::Uninitialized(_) => 2,
         _ => 1,
     }
@@ -127,6 +127,13 @@ pub fn native_array_sort(
                 (Value::Number(n1), Value::Number(n2)) => {
                     n1.partial_cmp(n2).unwrap_or(std::cmp::Ordering::Equal)
                 }
+                (Value::Int(i1), Value::Int(i2)) => i1.cmp(i2),
+                (Value::Int(i), Value::Number(n)) => {
+                    compare_int_and_float(*i, *n).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                (Value::Number(n), Value::Int(i)) => compare_int_and_float(*i, *n)
+                    .map(std::cmp::Ordering::reverse)
+                    .unwrap_or(std::cmp::Ordering::Equal),
                 (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
                 _ => sort_rank(a).cmp(&sort_rank(b)),
             });
@@ -186,6 +193,19 @@ fn merge_by(
     Ok(result)
 }
 
+/// Converts a comparator's return value to the signed number `sort()` needs.
+fn comparator_result_to_f64(value: Value) -> Result<f64, NativeCallError> {
+    match value {
+        Value::Number(n) => Ok(n),
+        Value::Int(i) => Ok(i as f64),
+        other => Err(format!(
+            "sort() comparator must return a number, got {}",
+            other.type_name()
+        )
+        .into()),
+    }
+}
+
 /// Calls the comparator with (a, b) and requires a number result.
 fn compare(
     vm: &mut VirtualMachine,
@@ -193,14 +213,7 @@ fn compare(
     a: &Value,
     b: &Value,
 ) -> Result<f64, NativeCallError> {
-    match vm.call_value(comparator.clone(), &[a.clone(), b.clone()])? {
-        Value::Number(n) => Ok(n),
-        other => Err(format!(
-            "sort() comparator must return a number, got {}",
-            other.type_name()
-        )
-        .into()),
-    }
+    comparator_result_to_f64(vm.call_value(comparator.clone(), &[a.clone(), b.clone()])?)
 }
 
 /// Native implementation of Array.reverse()
@@ -335,6 +348,7 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
     for (i, value) in array.iter().enumerate() {
         match value {
             Value::Number(n) => sum += n,
+            Value::Int(n) => sum += *n as f64,
             _ => {
                 return Err(format!(
                     "sum() requires all elements to be numbers, but element at index {} is not",
@@ -372,6 +386,13 @@ pub fn native_array_min(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_less = match (value, min) {
             (Value::Number(n1), Value::Number(n2)) => n1 < n2,
+            (Value::Int(i1), Value::Int(i2)) => i1 < i2,
+            (Value::Int(i), Value::Number(n)) => {
+                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Less)
+            }
+            (Value::Number(n), Value::Int(i)) => {
+                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Greater)
+            }
             (Value::String(s1), Value::String(s2)) => s1 < s2,
             _ => return Err("min() can only compare numbers or strings".to_string()),
         };
@@ -409,6 +430,13 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
     for value in array.iter().skip(1) {
         let is_greater = match (value, max) {
             (Value::Number(n1), Value::Number(n2)) => n1 > n2,
+            (Value::Int(i1), Value::Int(i2)) => i1 > i2,
+            (Value::Int(i), Value::Number(n)) => {
+                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Greater)
+            }
+            (Value::Number(n), Value::Int(i)) => {
+                compare_int_and_float(*i, *n) == Some(std::cmp::Ordering::Less)
+            }
             (Value::String(s1), Value::String(s2)) => s1 > s2,
             _ => return Err("max() can only compare numbers or strings".to_string()),
         };

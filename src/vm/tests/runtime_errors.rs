@@ -1476,3 +1476,66 @@ fn store_field_non_instance_location() {
     assert_eq!("Only instances have fields.", error.message);
     assert_eq!(Some((3, 4)), error.location);
 }
+
+#[test]
+fn array_index_read_huge_int() {
+    let mut chunk = Chunk::new("ZeChunk");
+    let array = Value::new_array(vec![number!(1.0), number!(2.0), number!(3.0)]);
+    chunk.write_constant(array, 0, 0);
+    chunk.write_constant(Value::Int(4_294_967_296), 0, 0);
+    chunk.write_op_code(OpCode::GetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+}
+
+#[test]
+fn array_index_write_huge_int() {
+    let mut chunk = Chunk::new("ZeChunk");
+    let array = Value::new_array(vec![number!(1.0), number!(2.0), number!(3.0)]);
+    chunk.write_constant(array, 0, 0);
+    chunk.write_constant(Value::Int(4_294_967_296), 0, 0);
+    chunk.write_constant(number!(9.0), 0, 0);
+    chunk.write_op_code(OpCode::SetIndex, 0, 0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+}
+
+#[test]
+fn create_range_int_bound_too_large() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(Value::Int(1), 0, 0);
+    chunk.write_constant(Value::Int((1i64 << 53) + 1), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert!(
+        error.message.contains("between -2^53 and 2^53"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn create_range_int_bound_at_limit() {
+    let mut chunk = Chunk::new("ZeChunk");
+    chunk.write_constant(Value::Int(1), 0, 0);
+    chunk.write_constant(Value::Int(1i64 << 53), 0, 0);
+    chunk.write_op_code(OpCode::CreateRange, 0, 0);
+    chunk.write_u8(0);
+    chunk.write_op_code(OpCode::Return, 0, 0);
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.run_chunk(chunk);
+    assert_eq!(InterpretResult::Ok, result);
+}

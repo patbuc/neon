@@ -1205,52 +1205,12 @@ impl VirtualMachine {
         let end_value = self.pop();
         let start_value = self.pop();
 
-        let start = match start_value {
-            Value::Number(n) => n,
-            _ => {
-                return Err(self
-                    .runtime_error(format!("Range start must be a number, got {}", start_value)));
-            }
-        };
+        let start = self.range_bound(start_value, "start")?;
+        let end = self.range_bound(end_value, "end")?;
 
-        let end = match end_value {
-            Value::Number(n) => n,
-            _ => {
-                return Err(
-                    self.runtime_error(format!("Range end must be a number, got {}", end_value))
-                );
-            }
-        };
-
-        if start.fract() != 0.0 {
-            return Err(
-                self.runtime_error(format!("Range start must be an integer, got {}", start))
-            );
-        }
-
-        if end.fract() != 0.0 {
-            return Err(self.runtime_error(format!("Range end must be an integer, got {}", end)));
-        }
-
-        const MAX_RANGE_BOUND: f64 = 9007199254740992.0; // 2^53, the largest integer an f64 represents exactly
-
-        if start.abs() > MAX_RANGE_BOUND {
-            return Err(self.runtime_error(format!(
-                "Range start must be between -2^53 and 2^53, got {}",
-                start
-            )));
-        }
-
-        if end.abs() > MAX_RANGE_BOUND {
-            return Err(self.runtime_error(format!(
-                "Range end must be between -2^53 and 2^53, got {}",
-                end
-            )));
-        }
-
-        let range = Value::new_range(start as i64, end as i64, inclusive);
+        let range = Value::new_range(start, end, inclusive);
         if let Value::Range(r) = &range {
-            if r.len() > MAX_RANGE_BOUND as i64 {
+            if r.len() > Self::MAX_RANGE_BOUND {
                 return Err(self.runtime_error(format!(
                     "Range must have at most 2^53 elements, got {}",
                     range
@@ -1263,6 +1223,38 @@ impl VirtualMachine {
         self.ip += 1;
 
         Ok(())
+    }
+
+    const MAX_RANGE_BOUND: i64 = 1 << 53;
+
+    fn range_bound(&self, value: Value, label: &str) -> std::result::Result<i64, RuntimeError> {
+        match value {
+            Value::Int(i) => {
+                if i.unsigned_abs() > Self::MAX_RANGE_BOUND as u64 {
+                    return Err(self.runtime_error(format!(
+                        "Range {} must be between -2^53 and 2^53, got {}",
+                        label, i
+                    )));
+                }
+                Ok(i)
+            }
+            Value::Number(n) => {
+                if n.fract() != 0.0 {
+                    return Err(self
+                        .runtime_error(format!("Range {} must be an integer, got {}", label, n)));
+                }
+                if n.abs() > Self::MAX_RANGE_BOUND as f64 {
+                    return Err(self.runtime_error(format!(
+                        "Range {} must be between -2^53 and 2^53, got {}",
+                        label, n
+                    )));
+                }
+                Ok(n as i64)
+            }
+            _ => {
+                Err(self.runtime_error(format!("Range {} must be a number, got {}", label, value)))
+            }
+        }
     }
 
     #[inline(always)]
@@ -1290,7 +1282,8 @@ impl VirtualMachine {
             }
             Value::Array(array_ref) => {
                 let index = match index_value {
-                    Value::Number(n) => n as i32,
+                    Value::Number(n) => n as i64,
+                    Value::Int(i) => i,
                     _ => {
                         return Err(self.runtime_error(format!(
                             "Array index must be a number, got {}.",
@@ -1300,7 +1293,7 @@ impl VirtualMachine {
                 };
 
                 let array = array_ref.borrow();
-                let len = array.len() as i32;
+                let len = array.len() as i64;
 
                 let actual_index = if index < 0 { len + index } else { index };
 
@@ -1318,6 +1311,7 @@ impl VirtualMachine {
             Value::Range(range) => {
                 let index = match index_value {
                     Value::Number(n) => n as i64,
+                    Value::Int(i) => i,
                     _ => {
                         return Err(self.runtime_error(format!(
                             "Range index must be a number, got {}.",
@@ -1373,7 +1367,8 @@ impl VirtualMachine {
             }
             Value::Array(array_ref) => {
                 let index = match index_value {
-                    Value::Number(n) => n as i32,
+                    Value::Number(n) => n as i64,
+                    Value::Int(i) => i,
                     _ => {
                         return Err(self.runtime_error(format!(
                             "Array index must be a number, got {}.",
@@ -1383,7 +1378,7 @@ impl VirtualMachine {
                 };
 
                 let mut array = array_ref.borrow_mut();
-                let len = array.len() as i32;
+                let len = array.len() as i64;
 
                 let actual_index = if index < 0 { len + index } else { index };
 
@@ -1544,6 +1539,7 @@ impl VirtualMachine {
             // dispatches static methods under the struct's own name.
             Value::Struct(r#struct) => Some(TypeName::Struct(Rc::clone(r#struct))),
             Value::Number(_) => Some(TypeName::Builtin(NUMBER_SYMBOL)),
+            Value::Int(_) => Some(TypeName::Builtin(NUMBER_SYMBOL)),
             Value::Boolean(_) => Some(TypeName::Builtin(BOOLEAN_SYMBOL)),
             _ => None,
         }

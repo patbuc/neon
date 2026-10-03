@@ -1,3 +1,7 @@
+use crate::common::stdlib::array_functions::{
+    native_array_max, native_array_min, native_array_sort, native_array_sum,
+};
+use crate::common::Value;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
@@ -265,6 +269,30 @@ fn test_array_sort_wrong_arg_count() {
     );
 }
 
+#[test]
+fn test_array_sort_ints() {
+    let array = Value::new_array(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
+    let mut vm = VirtualMachine::new();
+    let result = native_array_sort(&mut vm, &[array]).unwrap();
+    let Value::Array(sorted) = result else {
+        panic!("expected an array");
+    };
+    let order: Vec<String> = sorted.borrow().iter().map(|v| v.to_string()).collect();
+    assert_eq!(order, vec!["1", "2", "3"]);
+}
+
+#[test]
+fn test_array_sort_mixed_int_and_number() {
+    let array = Value::new_array(vec![Value::Number(2.5), Value::Int(3), Value::Int(1)]);
+    let mut vm = VirtualMachine::new();
+    let result = native_array_sort(&mut vm, &[array]).unwrap();
+    let Value::Array(sorted) = result else {
+        panic!("expected an array");
+    };
+    let order: Vec<String> = sorted.borrow().iter().map(|v| v.to_string()).collect();
+    assert_eq!(order, vec!["1", "2.5", "3"]);
+}
+
 // ============================================================================
 // Array.reverse() - Success Cases
 // ============================================================================
@@ -389,6 +417,13 @@ fn test_array_sum() {
     assert_eq!("15\n7\n0\n42", vm.get_output());
 }
 
+#[test]
+fn test_array_sum_ints() {
+    let array = Value::new_array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+    let result = native_array_sum(&[array]).unwrap();
+    assert_eq!(result.to_string(), "6");
+}
+
 // ============================================================================
 // Array.min() - Success Cases
 // ============================================================================
@@ -410,6 +445,13 @@ fn test_array_min() {
     assert_eq!("1\n-10\n42", vm.get_output());
 }
 
+#[test]
+fn test_array_min_mixed_int_and_number() {
+    let array = Value::new_array(vec![Value::Number(2.5), Value::Int(1)]);
+    let result = native_array_min(&[array]).unwrap();
+    assert_eq!(result.to_string(), "1");
+}
+
 // ============================================================================
 // Array.max() - Success Cases
 // ============================================================================
@@ -429,6 +471,13 @@ fn test_array_max() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("9\n-2\n42", vm.get_output());
+}
+
+#[test]
+fn test_array_max_mixed_int_and_number() {
+    let array = Value::new_array(vec![Value::Number(2.5), Value::Int(3)]);
+    let result = native_array_max(&[array]).unwrap();
+    assert_eq!(result.to_string(), "3");
 }
 
 #[test]

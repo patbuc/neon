@@ -60,6 +60,7 @@ pub fn native_range_contains(args: &[Value]) -> Result<Value, String> {
 
     let range = extract_receiver!(args, Range, "contains")?;
     let contains = match args[1] {
+        Value::Int(n) => n >= range.start && n < range.start + range.len(),
         Value::Number(n) if n.fract() == 0.0 => {
             let n = n as i64;
             n >= range.start && n < range.start + range.len()
