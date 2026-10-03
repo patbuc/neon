@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: repeat() count must be an integer, got 1.5
+
+print("before")
+"ab".repeat(1.5)

@@ -1,0 +1,22 @@
+// Expected:
+// ababab
+//
+// 000101
+// 7..
+// abc
+// abab1
+// 3
+// -1
+// true
+// false
+
+print("ab".repeat(3))
+print("ab".repeat(0))
+print("101".padStart(6, "0"))
+print("7".padEnd(3, "."))
+print("abc".padStart(2, "0"))
+print("1".padStart(5, "ab"))
+print("a-b-c".lastIndexOf("-"))
+print("hello".lastIndexOf("x"))
+print("hello".includes("ell"))
+print("hello".includes("x"))

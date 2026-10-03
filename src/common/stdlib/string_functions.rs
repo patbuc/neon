@@ -2,6 +2,30 @@ use crate::common::{f64_fits_i64, Value};
 use crate::string;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 
+fn extract_integer_arg(
+    args: &[Value],
+    idx: usize,
+    arg_name: &str,
+    method: &str,
+) -> Result<i64, String> {
+    match args.get(idx) {
+        Some(Value::Int(i)) => Ok(*i),
+        Some(Value::Number(n)) if n.fract() == 0.0 && f64_fits_i64(*n) => Ok(*n as i64),
+        Some(Value::Number(n)) if n.fract() == 0.0 => {
+            Err(format!("{}() {} out of range: {}", method, arg_name, n))
+        }
+        Some(Value::Number(n)) => Err(format!(
+            "{}() {} must be an integer, got {}",
+            method, arg_name, n
+        )),
+        Some(_) => Err(format!("{}() {} must be an integer", method, arg_name)),
+        None => Err(format!(
+            "{}() missing required argument: {}",
+            method, arg_name
+        )),
+    }
+}
+
 /// Native implementation of String.len()
 /// Returns the number of Unicode characters in the string
 pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
@@ -339,21 +363,7 @@ pub fn native_string_char_code_at(args: &[Value]) -> Result<Value, String> {
     let string = extract_receiver!(args, String, "charCodeAt")?;
     let chars: Vec<char> = string.chars().collect();
 
-    let index_arg: i64 = match &args[1] {
-        Value::Int(i) => *i,
-        Value::Number(n) if n.fract() != 0.0 => {
-            return Err(format!("charCodeAt() index must be an integer, got {}", n))
-        }
-        Value::Number(n) if f64_fits_i64(*n) => *n as i64,
-        Value::Number(n) => {
-            return Err(format!(
-                "charCodeAt() index {} out of bounds (string length: {})",
-                n,
-                chars.len()
-            ))
-        }
-        _ => return Err("charCodeAt() index must be a number".to_string()),
-    };
+    let index_arg = extract_integer_arg(args, 1, "index", "charCodeAt")?;
 
     let str_len = chars.len() as i64;
     let index = if index_arg < 0 {
@@ -383,18 +393,7 @@ pub fn native_string_from_char_code(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    let code = match &args[0] {
-        Value::Int(i) => *i,
-        Value::Number(n) if n.fract() != 0.0 => {
-            return Err(format!(
-                "fromCharCode() argument must be an integer, got {}",
-                n
-            ))
-        }
-        Value::Number(n) if f64_fits_i64(*n) => *n as i64,
-        Value::Number(n) => return Err(format!("fromCharCode() invalid code point: {}", n)),
-        _ => return Err("fromCharCode() argument must be a number".to_string()),
-    };
+    let code = extract_integer_arg(args, 0, "argument", "fromCharCode")?;
 
     let code_point = u32::try_from(code)
         .ok()
@@ -436,4 +435,151 @@ pub fn native_string_to_lower_case(args: &[Value]) -> Result<Value, String> {
 
     let lowercase = string.to_lowercase();
     Ok(string!(lowercase))
+}
+
+const MAX_RESULT_CHARS: usize = 100_000_000;
+
+/// Native implementation of String.repeat(n)
+/// Returns the string concatenated with itself n times. n must be a
+/// non-negative integer.
+pub fn native_string_repeat(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "repeat() expects 1 argument (count), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "repeat")?;
+    let count = extract_integer_arg(args, 1, "count", "repeat")?;
+
+    if count < 0 {
+        return Err(format!(
+            "repeat() count must be non-negative, got {}",
+            count
+        ));
+    }
+
+    let len = string.chars().count();
+    let total = len as u128 * count as u128;
+    if total > MAX_RESULT_CHARS as u128 {
+        return Err(format!(
+            "repeat() result exceeds {} chars",
+            MAX_RESULT_CHARS
+        ));
+    }
+
+    Ok(string!(string.repeat(count as usize)))
+}
+
+/// Build a fill string of `pad_count` chars by cycling `fill`'s chars,
+/// cutting off the cycle when the target length is reached.
+fn cycled_fill(fill: &str, pad_count: usize) -> String {
+    let fill_chars: Vec<char> = fill.chars().collect();
+    (0..pad_count)
+        .map(|i| fill_chars[i % fill_chars.len()])
+        .collect()
+}
+
+/// Shared implementation of String.padStart(len, fill) / padEnd(len, fill).
+/// Pads with `fill` (cycled) until the string is `len` chars long, at the
+/// start or end depending on `at_start`. Returns the string unchanged if
+/// it is already that long, or if `len` is negative.
+fn pad(args: &[Value], method: &str, at_start: bool) -> Result<Value, String> {
+    if args.len() != 3 {
+        return Err(format!(
+            "{}() expects 2 arguments (length, fill), got {}",
+            method,
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, method)?;
+    let target_len = extract_integer_arg(args, 1, "length", method)?;
+    let fill = extract_string_value!(args, 2, "fill", method);
+
+    if fill.is_empty() {
+        return Err(format!("{}() fill must not be empty", method));
+    }
+    if target_len < 0 {
+        return Ok(args[0].clone());
+    }
+    if target_len as u128 > MAX_RESULT_CHARS as u128 {
+        return Err(format!(
+            "{}() result exceeds {} chars",
+            method, MAX_RESULT_CHARS
+        ));
+    }
+    let target_len = target_len as usize;
+
+    let chars: Vec<char> = string.chars().collect();
+    if chars.len() >= target_len {
+        return Ok(args[0].clone());
+    }
+
+    let fill_str = cycled_fill(fill, target_len - chars.len());
+    Ok(if at_start {
+        string!(format!("{}{}", fill_str, string))
+    } else {
+        string!(format!("{}{}", string, fill_str))
+    })
+}
+
+/// Native implementation of String.padStart(len, fill)
+pub fn native_string_pad_start(args: &[Value]) -> Result<Value, String> {
+    pad(args, "padStart", true)
+}
+
+/// Native implementation of String.padEnd(len, fill)
+pub fn native_string_pad_end(args: &[Value]) -> Result<Value, String> {
+    pad(args, "padEnd", false)
+}
+
+/// Native implementation of String.lastIndexOf(substring)
+/// Returns the char index of the last occurrence of substring, or -1 if
+/// not found. An empty substring matches at the string's length.
+pub fn native_string_last_index_of(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "lastIndexOf() expects 1 argument (substring), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "lastIndexOf")?;
+    let substring = extract_string_value!(args, 1, "substring", "lastIndexOf");
+
+    let chars: Vec<char> = string.chars().collect();
+    let sub_chars: Vec<char> = substring.chars().collect();
+
+    if sub_chars.is_empty() {
+        return Ok(Value::Int(chars.len() as i64));
+    }
+    if sub_chars.len() > chars.len() {
+        return Ok(Value::Int(-1));
+    }
+
+    for start in (0..=chars.len() - sub_chars.len()).rev() {
+        if chars[start..start + sub_chars.len()] == sub_chars[..] {
+            return Ok(Value::Int(start as i64));
+        }
+    }
+
+    Ok(Value::Int(-1))
+}
+
+/// Native implementation of String.includes(substring)
+/// Returns true if substring occurs anywhere in the string.
+pub fn native_string_includes(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "includes() expects 1 argument (substring), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "includes")?;
+    let substring = extract_string_value!(args, 1, "substring", "includes");
+
+    Ok(Value::Boolean(string.contains(substring)))
 }

@@ -620,6 +620,51 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::String),
         },
     ),
+    (
+        "String",
+        "repeat",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_repeat,
+            arity: 1,
+            returns: Some(StaticType::String),
+        },
+    ),
+    (
+        "String",
+        "padStart",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_pad_start,
+            arity: 2,
+            returns: Some(StaticType::String),
+        },
+    ),
+    (
+        "String",
+        "padEnd",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_pad_end,
+            arity: 2,
+            returns: Some(StaticType::String),
+        },
+    ),
+    (
+        "String",
+        "lastIndexOf",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_last_index_of,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "String",
+        "includes",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_includes,
+            arity: 1,
+            returns: None,
+        },
+    ),
     // Number instance methods
     (
         "Number",
