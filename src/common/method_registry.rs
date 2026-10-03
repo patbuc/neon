@@ -959,6 +959,52 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    // PriorityQueue constructor
+    (
+        "PriorityQueue",
+        "new",
+        NativeCallable::Constructor {
+            function: stdlib::priority_queue_functions::native_priority_queue_constructor,
+            arity: 0,
+        },
+    ),
+    // PriorityQueue instance methods
+    (
+        "PriorityQueue",
+        "push",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_push,
+            arity: 2,
+            returns: None,
+        },
+    ),
+    (
+        "PriorityQueue",
+        "pop",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_pop,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "PriorityQueue",
+        "peek",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_peek,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "PriorityQueue",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_size,
+            arity: 0,
+            returns: None,
+        },
+    ),
     // Stdin static methods
     (
         "Stdin",
@@ -1083,8 +1129,16 @@ pub fn is_static_namespace(name: &str) -> bool {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 8] = [
-    "Array", "String", "Map", "Set", "Number", "Boolean", "File", "Range",
+pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
+    "Array",
+    "String",
+    "Map",
+    "Set",
+    "Number",
+    "Boolean",
+    "File",
+    "Range",
+    "PriorityQueue",
 ];
 
 /// Names of registry types that are namespaces rather than instance types:

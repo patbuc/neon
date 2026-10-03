@@ -35,6 +35,7 @@ const NUMBER_SYMBOL: u16 = 4;
 const BOOLEAN_SYMBOL: u16 = 5;
 const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
+const PRIORITY_QUEUE_SYMBOL: u16 = 8;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -1747,6 +1748,7 @@ impl VirtualMachine {
             Value::Set(_) => Some(TypeName::Builtin(SET_SYMBOL)),
             Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
+            Value::PriorityQueue(_) => Some(TypeName::Builtin(PRIORITY_QUEUE_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
@@ -1811,5 +1813,9 @@ mod tests {
         assert_eq!(BUILTIN_TYPE_NAMES[BOOLEAN_SYMBOL as usize], "Boolean");
         assert_eq!(BUILTIN_TYPE_NAMES[FILE_SYMBOL as usize], "File");
         assert_eq!(BUILTIN_TYPE_NAMES[RANGE_SYMBOL as usize], "Range");
+        assert_eq!(
+            BUILTIN_TYPE_NAMES[PRIORITY_QUEUE_SYMBOL as usize],
+            "PriorityQueue"
+        );
     }
 }

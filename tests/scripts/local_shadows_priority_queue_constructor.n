@@ -1,0 +1,13 @@
+// local_shadows_priority_queue_constructor.n - a local variable named
+// `PriorityQueue` shadows the native PriorityQueue constructor within its
+// lexical scope
+
+// Expected:
+// mine
+
+fn f() {
+    val PriorityQueue = fn() { return "mine" }
+    return PriorityQueue()
+}
+
+print(f())
