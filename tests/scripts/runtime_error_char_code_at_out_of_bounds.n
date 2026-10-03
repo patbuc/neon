@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: charCodeAt() index 10 out of bounds (string length: 5)
+
+print("before")
+"hello".charCodeAt(10)

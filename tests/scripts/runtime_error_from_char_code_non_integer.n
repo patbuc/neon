@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: fromCharCode() argument must be an integer, got 1.5
+
+print("before")
+String.fromCharCode(1.5)

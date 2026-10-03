@@ -587,6 +587,23 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "String",
+        "charCodeAt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_char_code_at,
+            arity: 1,
+            returns: Some(StaticType::Number),
+        },
+    ),
+    (
+        "String",
+        "fromCharCode",
+        NativeCallable::StaticMethod {
+            function: stdlib::string_functions::native_string_from_char_code,
+            arity: 1,
+        },
+    ),
+    (
+        "String",
         "toUpperCase",
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_upper_case,

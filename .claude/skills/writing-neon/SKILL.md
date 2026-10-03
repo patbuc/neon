@@ -107,7 +107,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
   `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
 - **String:** `len`, `substring(start, end)`, `replace(old, new)`,
-  `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`, `charAt`,
+  `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
+  `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`

@@ -1,0 +1,12 @@
+// Expected:
+// [1, 2, 3]
+// []
+// []
+// [move, 3, from, 1, to, 2]
+// [a, b]
+
+print("  1  2\t3\n".split())
+print("".split())
+print("   ".split())
+print("move 3 from 1 to 2".split())
+print("a,b".split(","))
