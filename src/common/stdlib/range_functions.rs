@@ -1,5 +1,5 @@
 use crate::common::stdlib::array_functions;
-use crate::common::{NativeCallError, ObjRange, Value};
+use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
 use crate::extract_receiver;
 use crate::vm::VirtualMachine;
 
@@ -58,11 +58,8 @@ pub fn native_range_contains(args: &[Value]) -> Result<Value, String> {
 
     let range = extract_receiver!(args, Range, "contains")?;
     let contains = match args[1] {
-        Value::Int(n) => n >= range.start && n < range.start + range.len(),
-        Value::Number(n) if n.fract() == 0.0 => {
-            let n = n as i64;
-            n >= range.start && n < range.start + range.len()
-        }
+        Value::Int(n) => range.contains(n),
+        Value::Number(n) if n.fract() == 0.0 && f64_fits_i64(n) => range.contains(n as i64),
         _ => false,
     };
 

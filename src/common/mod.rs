@@ -273,6 +273,15 @@ impl ObjRange {
         }
     }
 
+    pub(crate) fn contains(&self, n: i64) -> bool {
+        n >= self.start
+            && if self.inclusive {
+                n <= self.end
+            } else {
+                n < self.end
+            }
+    }
+
     /// The i-th element (0-based), assuming `0 <= i < self.len()`.
     pub(crate) fn get(&self, i: i64) -> i64 {
         self.start + i
