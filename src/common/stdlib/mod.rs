@@ -10,6 +10,7 @@ pub(crate) mod math_functions;
 pub(crate) mod number_functions;
 pub(crate) mod range_functions;
 pub(crate) mod set_functions;
+pub(crate) mod stdin_functions;
 pub(crate) mod string_functions;
 pub(crate) mod system_functions;
 

@@ -124,6 +124,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `intersection`, `difference`, `isSubset`, `toArray`
 - **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;
   errors if it exists)
+- **Stdin:** `Stdin.read()`, `Stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
 
 The source of truth is `src/common/method_registry.rs`; if it disagrees
 with this list, trust the registry.

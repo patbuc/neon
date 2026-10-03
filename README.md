@@ -669,8 +669,9 @@ val flag = "true".toBool()
 
 ## Standard Library
 
-`Math`, `File`, `String` and `Array` are namespaces: their static methods (`Math.abs(n)`, `File(path)`,
-`String.fromCharCode(n)`, `Array(n, init)`) are only callable through the namespace name, and
+`Math`, `File`, `String`, `Array` and `Stdin` are namespaces: their static methods (`Math.abs(n)`,
+`File(path)`, `String.fromCharCode(n)`, `Array(n, init)`, `Stdin.read()`) are only callable through the
+namespace name, and
 redefining that name at top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of
 the same name inside a function still shadows it, same as any other name.
 
@@ -869,6 +870,17 @@ print(arr)                // [1, 2] (order may vary)
 - `.read()` - Whole file as a string
 - `.readLines()` - Array of lines
 - `.write(text)` - Create the file with `text`; a runtime error if it already exists
+
+### Stdin Methods
+
+- `Stdin.read()` - All remaining standard input as a string, read to EOF (`""` once EOF is reached)
+- `Stdin.readLines()` - Array of lines from standard input, split the same way as `File.readLines()`
+
+**Example:**
+```neon
+// echo -e "a\nb" | neon script.n
+print(Stdin.readLines())   // [a, b]
+```
 
 ### Type Conversions
 

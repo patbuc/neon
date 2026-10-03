@@ -959,6 +959,23 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    // Stdin static methods
+    (
+        "Stdin",
+        "read",
+        NativeCallable::StaticMethod {
+            function: stdlib::stdin_functions::native_stdin_read,
+            arity: 0,
+        },
+    ),
+    (
+        "Stdin",
+        "readLines",
+        NativeCallable::StaticMethod {
+            function: stdlib::stdin_functions::native_stdin_read_lines,
+            arity: 0,
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
