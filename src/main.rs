@@ -107,10 +107,13 @@ fn read_line() -> Option<String> {
     }
 }
 
-#[allow(clippy::print_stdout)]
+#[allow(clippy::print_stdout, clippy::print_stderr)]
 fn print_prompt() {
     print!(">> ");
-    io::stdout().flush().unwrap();
+    if let Err(err) = io::stdout().flush() {
+        eprintln!("Failed to flush stdout: {}", err);
+        exit(74);
+    }
 }
 
 #[allow(clippy::print_stderr)]

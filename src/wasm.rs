@@ -16,6 +16,7 @@ impl NeonVM {
         }
     }
 
+    #[allow(clippy::expect_used)]
     pub fn interpret(&mut self, source: String) -> JsValue {
         let result = self.vm.interpret(source);
 
@@ -28,7 +29,7 @@ impl NeonVM {
                     output: Some(output),
                     error: None,
                 })
-                .unwrap()
+                .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
             }
             InterpretResult::CompileError => {
                 let errors = self.vm.get_formatted_errors("<input>");
@@ -37,7 +38,7 @@ impl NeonVM {
                     output: None,
                     error: Some(errors),
                 })
-                .unwrap()
+                .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
             }
             InterpretResult::RuntimeError => {
                 let errors = self
@@ -50,7 +51,7 @@ impl NeonVM {
                     output: None,
                     error: Some(errors),
                 })
-                .unwrap()
+                .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
             }
         }
     }
@@ -64,6 +65,7 @@ struct WasmResult {
 }
 
 #[wasm_bindgen]
+#[allow(clippy::expect_used)]
 pub fn format_source(source: String) -> JsValue {
     console_error_panic_hook::set_once();
     match crate::compiler::format(&source) {
@@ -72,7 +74,7 @@ pub fn format_source(source: String) -> JsValue {
             output: Some(formatted),
             error: None,
         })
-        .unwrap(),
+        .expect("WasmResult holds only bool/Option<String> fields, which always serialize"),
         Err(errors) => {
             let rendered = crate::common::error_renderer::ErrorRenderer::default()
                 .render_errors(&errors, &source, "<input>");
@@ -81,12 +83,13 @@ pub fn format_source(source: String) -> JsValue {
                 output: None,
                 error: Some(rendered),
             })
-            .unwrap()
+            .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
         }
     }
 }
 
 #[wasm_bindgen]
+#[allow(clippy::expect_used)]
 pub fn interpret_once(source: String) -> JsValue {
     console_error_panic_hook::set_once();
     let mut vm = VirtualMachine::new();
@@ -100,7 +103,7 @@ pub fn interpret_once(source: String) -> JsValue {
                 output: Some(output),
                 error: None,
             })
-            .unwrap()
+            .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
         }
         InterpretResult::CompileError => {
             let errors = vm.get_formatted_errors("<input>");
@@ -109,7 +112,7 @@ pub fn interpret_once(source: String) -> JsValue {
                 output: None,
                 error: Some(errors),
             })
-            .unwrap()
+            .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
         }
         InterpretResult::RuntimeError => {
             let errors = vm
@@ -121,7 +124,7 @@ pub fn interpret_once(source: String) -> JsValue {
                 output: None,
                 error: Some(errors),
             })
-            .unwrap()
+            .expect("WasmResult holds only bool/Option<String> fields, which always serialize")
         }
     }
 }

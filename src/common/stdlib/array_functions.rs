@@ -167,6 +167,7 @@ fn merge_sort_by(
 
 /// Merges two already-sorted runs, favoring the left run on a tie so the
 /// merge is stable.
+#[allow(clippy::expect_used)]
 fn merge_by(
     vm: &mut dyn NativeContext,
     left: Vec<Value>,
@@ -180,9 +181,9 @@ fn merge_by(
     while let (Some(a), Some(b)) = (left.peek(), right.peek()) {
         let order = compare(vm, comparator, a, b)?;
         if order > 0.0 {
-            result.push(right.next().unwrap());
+            result.push(right.next().expect("peek just confirmed Some"));
         } else {
-            result.push(left.next().unwrap());
+            result.push(left.next().expect("peek just confirmed Some"));
         }
     }
     result.extend(left);
