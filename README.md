@@ -44,6 +44,29 @@ cargo run -- script.n
 cargo run -- --check script.n
 ```
 
+### REPL
+
+```bash
+cargo run
+```
+
+Run with no arguments to start an interactive REPL. It reads one physical line per entry, so a
+`struct`, `enum`, or `impl` body must fit on that line (e.g. `struct P { x }` or
+`impl P { fn f(self) { return 1 } }`) — it can't be split across multiple lines the way a file can.
+Multiple statements can still share a line wherever the syntax allows it. It keeps state between
+entries:
+
+- A `val`, `var`, `fn`, `struct`, `enum`, or `impl` from an earlier line is visible to later
+  ones.
+- A line that fails to compile leaves earlier definitions untouched and defines nothing of
+  its own.
+- A line that fails at runtime keeps any assignments it made to earlier globals, but drops
+  the names it tried to introduce; re-entering the line works.
+- A later line may redeclare an earlier `val`, `var`, or `fn` — a function defined between
+  the two still sees the value it closed over. Structs and enums can't be redeclared, and
+  an existing method can't be redefined, though `impl` blocks accumulate.
+- Type `exit` or press Ctrl+D (EOF) to quit.
+
 ### Hello World
 
 Create a file `hello.n`:

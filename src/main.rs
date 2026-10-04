@@ -72,7 +72,7 @@ fn print_tagline() {
 }
 
 fn run_repl() {
-    println!("Type 'exit' or Ctrl+C to quit");
+    println!("Type 'exit' or Ctrl+D to quit");
 
     // REPL has no command-line arguments
     let mut vm = VirtualMachine::new();
