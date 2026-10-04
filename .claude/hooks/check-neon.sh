@@ -28,6 +28,11 @@ elif [ "$STATUS" -ne 0 ]; then
     exit 1
 fi
 
+case "$(realpath --relative-to="$PROJECT_DIR" "$FILE_PATH")" in
+    tests/scripts/* | benches/*) ;;
+    *) exit 0 ;;
+esac
+
 OUTPUT=$(cargo run -q -- fmt --check "$FILE_PATH" 2>&1)
 STATUS=$?
 
