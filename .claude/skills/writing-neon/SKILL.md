@@ -24,6 +24,10 @@ Then run what you wrote: `cargo run -q -- file.n`. `cargo run -q -- --check file
 running, and a PostToolUse hook runs it automatically after an edit, feeding compile errors back — it
 won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the script.
 
+New or edited scripts under `tests/scripts/` and `benches/` must also pass `cargo run -- fmt --check
+file.n`; the same hook runs it after the compile check and blocks on an unformatted file, so just run
+`cargo run -- fmt file.n` to fix it.
+
 ## Where guesses go wrong
 
 **Statements and lines**
