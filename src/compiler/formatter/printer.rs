@@ -535,7 +535,7 @@ impl<'a> Printer<'a> {
 
     // --- Expressions ------------------------------------------------
 
-    /// Strips one layer of `(expr)` grouping around an if/while condition
+    /// Strips every layer of `(expr)` grouping around an if/while condition
     /// or for-in collection.
     fn print_condition(&mut self, expr: &Expr) {
         match expr {
@@ -547,7 +547,7 @@ impl<'a> Printer<'a> {
                 if self.has_comment_before(close_line) {
                     self.print_expr(expr);
                 } else {
-                    self.print_expr(inner);
+                    self.print_condition(inner);
                 }
             }
             _ => self.print_expr(expr),

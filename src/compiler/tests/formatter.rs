@@ -220,6 +220,15 @@ fn test_while_missing_space_before_paren_is_added() {
 }
 
 #[test]
+fn test_nested_condition_parens_are_removed() {
+    check(
+        "if ((x > 0)) {\n    print(x)\n}\n",
+        "if x > 0 {\n    print(x)\n}\n",
+    );
+    check("while ((c)) { x() }\n", "while c {\n    x()\n}\n");
+}
+
+#[test]
 fn test_for_in_loop() {
     check(
         "for x in xs {\n    print(x)\n}\n",
