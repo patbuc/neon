@@ -171,6 +171,17 @@ val x = 1 +
 print(x)  // 3
 ```
 
+A line that begins with `.` (but not `..`/`..=`) is the exception: it
+continues the previous statement as a method chain. A blank line or a
+comment line in between still ends the statement.
+
+```neon
+val r = [1, 2, 3, 4]
+    .slice(0, 2)
+    .join(",")
+print(r)  // 1,2
+```
+
 ### Functions
 
 ```neon
