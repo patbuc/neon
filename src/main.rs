@@ -34,6 +34,9 @@ fn main() {
                 }
                 check_file(&args[2]);
             }
+            "fmt" => {
+                fmt_command(&args[2..]);
+            }
             _ => {
                 let file_path = &args[1];
                 let script_args = args[2..].to_vec();
@@ -160,6 +163,112 @@ fn check_file(path: &str) {
     }
 }
 
+fn fmt_command(args: &[String]) {
+    let check_mode = args.first().map(|arg| arg == "--check").unwrap_or(false);
+    let paths = if check_mode { &args[1..] } else { args };
+
+    if paths.is_empty() {
+        eprintln!("Usage: neon fmt [--check] <paths...>");
+        exit(64);
+    }
+
+    for path in paths {
+        if path != "-" && !std::path::Path::new(path).exists() {
+            eprintln!("Path not found: {}", path);
+            exit(66);
+        }
+    }
+
+    let mut files = Vec::new();
+    for path in paths {
+        if path == "-" {
+            files.push(path.clone());
+        } else if std::path::Path::new(path).is_dir() {
+            collect_n_files(std::path::Path::new(path), &mut files);
+        } else {
+            files.push(path.clone());
+        }
+    }
+
+    let mut had_error = false;
+    let mut would_change = false;
+
+    for file in &files {
+        let source = if file == "-" {
+            let mut source = String::new();
+            io::stdin()
+                .read_to_string(&mut source)
+                .unwrap_or_else(|err| {
+                    eprintln!("Failed to read stdin: {}", err);
+                    exit(74);
+                });
+            source
+        } else {
+            read_file(file)
+        };
+
+        match neon::compiler::format(&source) {
+            Ok(formatted) => {
+                let changed = formatted != source;
+                would_change |= changed;
+                if file == "-" {
+                    if check_mode {
+                        if changed {
+                            println!("-");
+                        }
+                    } else {
+                        print!("{}", formatted);
+                    }
+                } else if changed {
+                    if check_mode {
+                        println!("{}", file);
+                    } else {
+                        std::fs::write(file, &formatted).unwrap_or_else(|err| {
+                            eprintln!("Failed to write the file {}: {}", file, err);
+                            exit(74);
+                        });
+                    }
+                }
+            }
+            Err(errors) => {
+                had_error = true;
+                let rendered = neon::common::error_renderer::ErrorRenderer::default()
+                    .render_errors(&errors, &source, file);
+                eprintln!("{}", rendered);
+            }
+        }
+    }
+
+    if had_error {
+        exit(65);
+    }
+    if check_mode && would_change {
+        exit(1);
+    }
+}
+
+/// Recursively collects `.n` files under `dir`, sorted within each directory
+/// for deterministic ordering.
+fn collect_n_files(dir: &std::path::Path, out: &mut Vec<String>) {
+    let mut entries: Vec<_> = std::fs::read_dir(dir)
+        .unwrap_or_else(|err| {
+            eprintln!("Failed to read directory {}: {}", dir.display(), err);
+            exit(74);
+        })
+        .filter_map(|entry| entry.ok())
+        .collect();
+    entries.sort_by_key(|entry| entry.file_name());
+
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_n_files(&path, out);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("n") {
+            out.push(path.to_string_lossy().into_owned());
+        }
+    }
+}
+
 fn read_file(path: &str) -> String {
     let mut file = File::open(path).unwrap_or_else(|err| {
         eprintln!("Failed to open the file {}: {}", path, err);
@@ -185,9 +294,12 @@ fn print_help() {
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
+    println!("  neon fmt [--check] <paths...>  Format .n files in place");
     println!("  neon help                Show this help message");
     println!();
     println!("Examples:");
     println!("  neon script.n            # Interpret script.n");
     println!("  neon script.n arg1 arg2  # Interpret script.n with arguments");
+    println!("  neon fmt src/            # Format every .n file under src/");
+    println!("  neon fmt --check src/    # Print files that would change, exit 1 if any");
 }
