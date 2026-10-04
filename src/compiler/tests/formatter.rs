@@ -394,6 +394,14 @@ fn test_continuation_inside_an_unbroken_grouping_starts_its_own_scope() {
 }
 
 #[test]
+fn test_fmt_keeps_a_break_before_dot_and_indents_the_continuation_one_level() {
+    check(
+        "val r = [1, 2, 3, 4]\n.reverse()\n        .slice(0, 2)\nprint(r)\n",
+        "val r = [1, 2, 3, 4]\n    .reverse()\n    .slice(0, 2)\nprint(r)\n",
+    );
+}
+
+#[test]
 fn test_compound_assign_continuation() {
     check("x +=\n1\n", "x +=\n    1\n");
 }
