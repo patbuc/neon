@@ -135,6 +135,13 @@ cargo run --features disassemble -- script.n
 
 ## Architecture
 
+### Layers
+
+`src/`'s top-level modules are layers with one-way allowed edges: `compiler → common`, `vm → common`,
+`vm → compiler`. `main.rs`, `lib.rs`, `wasm.rs`, and `macros.rs` sit outside the layers and are
+unrestricted; `tests/` directories and `#[cfg(test)]` items are exempt. `tests/architecture.rs`
+enforces these edges in `cargo test`.
+
 ### Compilation Pipeline
 
 1. **Scanner** (`src/compiler/scanner.rs`)
