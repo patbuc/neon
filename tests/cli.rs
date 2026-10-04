@@ -699,6 +699,50 @@ fn fmt_write_failure_is_skipped_rest_still_format_and_exits_74() {
     assert!(stderr.contains(&readonly.display().to_string()));
 }
 
+#[cfg(unix)]
+#[test]
+fn fmt_unreadable_directory_is_skipped_rest_still_format_and_exits_74() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = unique_temp_dir("unreadable_dir");
+    let a = dir.join("a.n");
+    let locked = dir.join("locked");
+    fs::write(&a, "val x = 1").expect("Failed to write test script");
+    fs::create_dir(&locked).expect("Failed to create locked dir");
+
+    let mut perms = fs::metadata(&locked).unwrap().permissions();
+    perms.set_mode(0o000);
+    fs::set_permissions(&locked, perms).expect("Failed to set permissions");
+
+    // Root ignores directory permissions, which would turn this into a false negative.
+    if fs::read_dir(&locked).is_ok() {
+        let mut perms = fs::metadata(&locked).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&locked, perms).ok();
+        fs::remove_dir_all(&dir).ok();
+        eprintln!("skipping: running as a user that bypasses directory permissions");
+        return;
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&dir)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let mut perms = fs::metadata(&locked).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&locked, perms).ok();
+
+    let a_contents = fs::read_to_string(&a).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(74, output.status.code().unwrap());
+    assert_eq!("val x = 1\n", a_contents);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&locked.display().to_string()));
+}
+
 #[test]
 fn fmt_without_paths_prints_usage_and_exits_64() {
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))

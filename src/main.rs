@@ -180,19 +180,19 @@ fn fmt_command(args: &[String]) {
         }
     }
 
+    let mut had_io_error = false;
     let mut files = Vec::new();
     for path in paths {
         if path == "-" {
             files.push(path.clone());
         } else if Path::new(path).is_dir() {
-            collect_n_files(Path::new(path), &mut files);
+            collect_n_files(Path::new(path), &mut files, &mut had_io_error);
         } else {
             files.push(path.clone());
         }
     }
 
     let mut had_syntax_error = false;
-    let mut had_io_error = false;
     let mut would_change = false;
 
     for file in &files {
@@ -272,41 +272,52 @@ fn read_file_for_fmt(path: &str) -> Option<String> {
     }
 }
 
-fn collect_n_files(dir: &Path, out: &mut Vec<String>) {
-    let mut entries: Vec<_> = fs::read_dir(dir)
-        .unwrap_or_else(|err| {
+fn collect_n_files(dir: &Path, out: &mut Vec<String>, had_io_error: &mut bool) {
+    let read_dir = match fs::read_dir(dir) {
+        Ok(read_dir) => read_dir,
+        Err(err) => {
             eprintln!("Failed to read directory {}: {}", dir.display(), err);
-            exit(74);
-        })
-        .map(|entry| {
-            entry.unwrap_or_else(|err| {
+            *had_io_error = true;
+            return;
+        }
+    };
+
+    let mut entries = Vec::new();
+    for entry in read_dir {
+        match entry {
+            Ok(entry) => entries.push(entry),
+            Err(err) => {
                 eprintln!(
                     "Failed to read entry in directory {}: {}",
                     dir.display(),
                     err
                 );
-                exit(74);
-            })
-        })
-        .collect();
+                *had_io_error = true;
+            }
+        }
+    }
     entries.sort_by_key(|entry| entry.file_name());
 
     for entry in entries {
-        let file_type = entry.file_type().unwrap_or_else(|err| {
-            eprintln!(
-                "Failed to read file type of {}: {}",
-                entry.path().display(),
-                err
-            );
-            exit(74);
-        });
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(err) => {
+                eprintln!(
+                    "Failed to read file type of {}: {}",
+                    entry.path().display(),
+                    err
+                );
+                *had_io_error = true;
+                continue;
+            }
+        };
         if file_type.is_symlink() {
             continue;
         }
 
         let path = entry.path();
         if file_type.is_dir() {
-            collect_n_files(&path, out);
+            collect_n_files(&path, out, had_io_error);
         } else if path.extension().and_then(|ext| ext.to_str()) == Some("n") {
             out.push(path.to_string_lossy().into_owned());
         }
