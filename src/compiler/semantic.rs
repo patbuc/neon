@@ -174,6 +174,7 @@ impl SemanticAnalyzer {
     /// line's final global scope, with `decl_slots` narrowed to the
     /// declarations that actually got a global. `previous_slot_count`
     /// keeps `slot_count` from shrinking below the seed env's.
+    #[allow(clippy::expect_used)]
     pub(crate) fn snapshot_env(
         self,
         resolutions: Resolutions,
@@ -206,7 +207,11 @@ impl SemanticAnalyzer {
 
         GlobalEnv {
             globals,
-            types: self.type_env.into_iter().next().unwrap(),
+            types: self
+                .type_env
+                .into_iter()
+                .next()
+                .expect("type_env always starts with the global scope"),
             struct_methods: self.struct_methods,
             symbols,
             next_decl_id: self.next_decl_id,
@@ -579,6 +584,7 @@ impl SemanticAnalyzer {
 
     /// Define a name's static type (or None if unknown) in the current
     /// scope, shadowing any outer type recorded for the same name.
+    #[allow(clippy::expect_used)]
     fn define_type(&mut self, name: &str, ty: Option<StaticType>) {
         self.type_env
             .last_mut()
@@ -1263,6 +1269,7 @@ impl SemanticAnalyzer {
     /// `id`. Shared by named function declarations, lambda expressions, and
     /// impl methods. `self_type` names the struct a leading `self`
     /// parameter is typed as; it's `None` outside of an impl method.
+    #[allow(clippy::expect_used)]
     fn resolve_function_body(
         &mut self,
         id: NodeId,

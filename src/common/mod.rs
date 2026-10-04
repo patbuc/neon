@@ -381,6 +381,7 @@ impl PartialOrd for PriorityQueueEntry {
 }
 
 impl Ord for PriorityQueueEntry {
+    #[allow(clippy::expect_used)]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         compare_numeric(self.priority, other.priority)
             .expect("priority queue entries never hold a NaN priority")

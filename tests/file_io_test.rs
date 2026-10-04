@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// Helper function to create a temporary test file with content
+#[allow(clippy::expect_used)]
 fn create_test_file(name: &str, content: &str) -> PathBuf {
     let temp_dir = std::env::temp_dir();
     let file_path = temp_dir.join(format!("neon_test_{}", name));

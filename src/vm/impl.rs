@@ -81,11 +81,11 @@ impl VirtualMachine {
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
-        if chunk.is_none() {
+        let Some(chunk) = chunk else {
             return InterpretResult::CompileError;
-        }
+        };
 
-        let result = self.run_script_chunk(chunk.unwrap());
+        let result = self.run_script_chunk(chunk);
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -180,10 +180,14 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn run_until(&mut self, target_depth: usize) -> OpResult {
         #[cfg(feature = "disassemble")]
         if target_depth == 0 {
-            let frame = self.call_frames.last().unwrap();
+            let frame = self
+                .call_frames
+                .last()
+                .expect("run_until(0) runs the script frame, which is always on the stack");
             frame.closure.function.chunk.disassemble_chunk();
         }
         loop {
@@ -333,8 +337,11 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(crate) fn current_frame(&self) -> &CallFrame {
-        self.call_frames.last().expect("call frame stack is empty")
+        self.call_frames
+            .last()
+            .expect("current_frame is only called while a call frame is running")
     }
 
     #[inline(always)]
@@ -343,8 +350,11 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn pop(&mut self) -> Value {
-        self.stack.pop().unwrap()
+        self.stack
+            .pop()
+            .expect("pop is only called when the compiler has proven a value is on the stack")
     }
 
     #[inline(always)]
@@ -468,6 +478,7 @@ impl VirtualMachine {
     /// ran, followed (after a blank line, when any pair ran) by one
     /// `Prev->Next <count>` line per executed opcode pair.
     #[cfg(feature = "opcode-stats")]
+    #[allow(clippy::expect_used)]
     pub fn opcode_stats_report(&self) -> String {
         let mut counts: Vec<(u8, u64)> = self
             .opcode_counts
@@ -480,7 +491,11 @@ impl VirtualMachine {
 
         let opcode_lines: Vec<(String, u64)> = counts
             .into_iter()
-            .map(|(byte, count)| (format!("{:?}", OpCode::from_u8(byte).unwrap()), count))
+            .map(|(byte, count)| {
+                let op_code = OpCode::from_u8(byte)
+                    .expect("byte came from a count recorded for an executed opcode");
+                (format!("{:?}", op_code), count)
+            })
             .collect();
         let mut report = Self::pad_and_join(&opcode_lines);
 
@@ -497,8 +512,10 @@ impl VirtualMachine {
             let pair_lines: Vec<(String, u64)> = pairs
                 .into_iter()
                 .map(|(index, count)| {
-                    let prev = OpCode::from_u8((index / 256) as u8).unwrap();
-                    let next = OpCode::from_u8((index % 256) as u8).unwrap();
+                    let prev = OpCode::from_u8((index / 256) as u8)
+                        .expect("index came from a count recorded for an executed opcode pair");
+                    let next = OpCode::from_u8((index % 256) as u8)
+                        .expect("index came from a count recorded for an executed opcode pair");
                     (format!("{:?}->{:?}", prev, next), count)
                 })
                 .collect();

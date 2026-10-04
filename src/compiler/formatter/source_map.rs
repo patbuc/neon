@@ -25,6 +25,7 @@ pub(crate) struct FnTokens {
 }
 
 impl SourceMap {
+    #[allow(clippy::expect_used)]
     pub(crate) fn new(source: &str) -> Self {
         let mut scanner = Scanner::new(source);
         let mut kinds = Vec::new();
@@ -78,6 +79,7 @@ impl SourceMap {
         }
     }
 
+    #[allow(clippy::expect_used)]
     pub(crate) fn at(&self, location: &SourceLocation) -> usize {
         *self
             .by_offset
@@ -93,6 +95,7 @@ impl SourceMap {
         self.end_lines[token]
     }
 
+    #[allow(clippy::expect_used)]
     pub(crate) fn partner(&self, token: usize) -> usize {
         self.partners[token].expect("token has a matching bracket")
     }

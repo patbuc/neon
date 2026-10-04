@@ -15,31 +15,40 @@ impl Chunk {
 impl Chunk {
     pub(crate) fn disassemble(&self) -> String {
         let mut out = String::new();
-        writeln!(out, "=== <{}>  ===", self.name).unwrap();
+        let _ = writeln!(out, "=== <{}>  ===", self.name);
 
         let mut offset: usize = 0;
         while offset < self.instructions.len() {
             offset = self.disassemble_instruction(offset, &mut out);
         }
 
-        writeln!(out, "=== </{}> ===", self.name).unwrap();
+        let _ = writeln!(out, "=== </{}> ===", self.name);
         out
     }
 
+    #[allow(clippy::expect_used)]
     pub(crate) fn disassemble_instruction(&self, offset: usize, out: &mut String) -> usize {
-        write!(out, "{:04x} ", offset).unwrap();
+        let _ = write!(out, "{:04x} ", offset);
 
-        let line = self.get_line_info(offset).unwrap();
-        if offset > 0 && line.line == self.get_line_info(offset - 1).unwrap().line {
-            write!(out, "     | ").unwrap();
+        let line = self
+            .get_line_info(offset)
+            .expect("offset is the start of an instruction, so the chunk's line table covers it");
+        if offset > 0
+            && line.line
+                == self
+                    .get_line_info(offset - 1)
+                    .expect("a preceding offset is covered by the line table too")
+                    .line
+        {
+            let _ = write!(out, "     | ");
         } else {
-            write!(out, "{:6} ", line.line).unwrap();
+            let _ = write!(out, "{:6} ", line.line);
         }
 
         let instruction = match OpCode::from_u8(self.instructions[offset]) {
             Some(instruction) => instruction,
             None => {
-                writeln!(out, "Unknown opcode {:#04x}", self.instructions[offset]).unwrap();
+                let _ = writeln!(out, "Unknown opcode {:#04x}", self.instructions[offset]);
                 return offset + 1;
             }
         };
@@ -134,27 +143,26 @@ impl Chunk {
         let type_name = &self.symbols[type_symbol];
         let method_name = &self.symbols[method_symbol];
         let kind = if takes_self { "instance" } else { "static" };
-        writeln!(
+        let _ = writeln!(
             out,
             "{:?} {}.{} ({})",
             OpCode::DefineMethod,
             type_name,
             method_name,
             kind
-        )
-        .unwrap();
+        );
         offset + 6
     }
 
     fn simple_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
-        writeln!(out, "{:?}", op_code).unwrap();
+        let _ = writeln!(out, "{:?}", op_code);
         offset + 1
     }
 
     fn field_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let symbol = self.read_u16(offset + 1) as usize;
         let name = &self.symbols[symbol];
-        writeln!(out, "{:?} {:02} '{}'", op_code, symbol, name).unwrap();
+        let _ = writeln!(out, "{:?} {:02} '{}'", op_code, symbol, name);
         offset + 3
     }
 
@@ -162,52 +170,50 @@ impl Chunk {
         let slot = self.read_u16(offset + 1);
         let symbol = self.read_u16(offset + 3) as usize;
         let name = &self.symbols[symbol];
-        writeln!(out, "{:?} {:02} {:02} '{}'", op_code, slot, symbol, name).unwrap();
+        let _ = writeln!(out, "{:?} {:02} {:02} '{}'", op_code, slot, symbol, name);
         offset + 5
     }
 
     fn constant_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let index = self.read_u16(offset + 1) as usize;
         let constant = self.read_constant(index);
-        writeln!(out, "{:?} {:02} '{}'", op_code, index, constant).unwrap();
+        let _ = writeln!(out, "{:?} {:02} '{}'", op_code, index, constant);
         offset + 3
     }
 
     fn variable_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let index = self.read_u16(offset + 1);
-        writeln!(out, "{:?} {:02}", op_code, index).unwrap();
+        let _ = writeln!(out, "{:?} {:02}", op_code, index);
         offset + 3
     }
 
     fn jump_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let jump = self.read_u32(offset + 1);
-        writeln!(
+        let _ = writeln!(
             out,
             "{:?} {:04x} -> {:04x}",
             op_code,
             offset,
             offset + 5 + jump as usize
-        )
-        .unwrap();
+        );
         offset + 5
     }
 
     fn loop_instruction(&self, offset: usize, out: &mut String) -> usize {
         let jump = self.read_u32(offset + 1);
-        writeln!(
+        let _ = writeln!(
             out,
             "{:?} {:04x} -> {:04x}",
             OpCode::Loop,
             offset,
             offset + 5 - jump as usize
-        )
-        .unwrap();
+        );
         offset + 5
     }
 
     fn call_instruction(&self, offset: usize, out: &mut String) -> usize {
         let arg_count = self.read_u8(offset + 1);
-        writeln!(out, "Call (args: {})", arg_count).unwrap();
+        let _ = writeln!(out, "Call (args: {})", arg_count);
         offset + 2
     }
 
@@ -215,32 +221,32 @@ impl Chunk {
         let method_symbol = self.read_u16(offset + 1) as usize;
         let name = &self.symbols[method_symbol];
         let arg_count = self.read_u8(offset + 3);
-        writeln!(out, "Invoke {} (args: {})", name, arg_count).unwrap();
+        let _ = writeln!(out, "Invoke {} (args: {})", name, arg_count);
         offset + 4
     }
 
     fn create_map_instruction(&self, offset: usize, out: &mut String) -> usize {
         let entry_count = self.read_u16(offset + 1);
-        writeln!(out, "CreateMap (entries: {})", entry_count).unwrap();
+        let _ = writeln!(out, "CreateMap (entries: {})", entry_count);
         offset + 3
     }
 
     fn create_array_instruction(&self, offset: usize, out: &mut String) -> usize {
         let element_count = self.read_u16(offset + 1);
-        writeln!(out, "CreateArray (elements: {})", element_count).unwrap();
+        let _ = writeln!(out, "CreateArray (elements: {})", element_count);
         offset + 3
     }
 
     fn create_set_instruction(&self, offset: usize, out: &mut String) -> usize {
         let element_count = self.read_u16(offset + 1);
-        writeln!(out, "CreateSet (elements: {})", element_count).unwrap();
+        let _ = writeln!(out, "CreateSet (elements: {})", element_count);
         offset + 3
     }
 
     fn closure_instruction(&self, offset: usize, out: &mut String) -> usize {
         let index = self.read_u16(offset + 1) as usize;
         let function = self.read_constant(index);
-        writeln!(out, "{:?} {:02} '{}'", OpCode::Closure, index, function).unwrap();
+        let _ = writeln!(out, "{:?} {:02} '{}'", OpCode::Closure, index, function);
 
         let mut cursor = offset + 1 + 2;
         let upvalue_count = self.read_u8(cursor) as usize;
@@ -248,13 +254,12 @@ impl Chunk {
         for _ in 0..upvalue_count {
             let is_local = self.read_u8(cursor) != 0;
             let upvalue_index = self.read_u16(cursor + 1);
-            writeln!(
+            let _ = writeln!(
                 out,
                 "      |                     {} {:02}",
                 if is_local { "local" } else { "upvalue" },
                 upvalue_index
-            )
-            .unwrap();
+            );
             cursor += 3;
         }
         cursor
@@ -262,7 +267,7 @@ impl Chunk {
 
     fn create_range_instruction(&self, offset: usize, out: &mut String) -> usize {
         let inclusive = self.read_u8(offset + 1);
-        writeln!(out, "CreateRange (inclusive: {})", inclusive != 0).unwrap();
+        let _ = writeln!(out, "CreateRange (inclusive: {})", inclusive != 0);
         offset + 2
     }
 }

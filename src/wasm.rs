@@ -23,21 +23,19 @@ impl NeonVM {
             InterpretResult::Ok => {
                 let output = self.vm.get_output();
                 self.vm.clear_output();
-                serde_wasm_bindgen::to_value(&WasmResult {
+                to_js(WasmResult {
                     success: true,
                     output: Some(output),
                     error: None,
                 })
-                .unwrap()
             }
             InterpretResult::CompileError => {
                 let errors = self.vm.get_formatted_errors("<input>");
-                serde_wasm_bindgen::to_value(&WasmResult {
+                to_js(WasmResult {
                     success: false,
                     output: None,
                     error: Some(errors),
                 })
-                .unwrap()
             }
             InterpretResult::RuntimeError => {
                 let errors = self
@@ -45,12 +43,11 @@ impl NeonVM {
                     .get_runtime_error()
                     .map(|e| e.report())
                     .unwrap_or_default();
-                serde_wasm_bindgen::to_value(&WasmResult {
+                to_js(WasmResult {
                     success: false,
                     output: None,
                     error: Some(errors),
                 })
-                .unwrap()
             }
         }
     }
@@ -63,25 +60,30 @@ struct WasmResult {
     error: Option<String>,
 }
 
+/// `WasmResult` holds only `bool`/`Option<String>` fields, which always
+/// serialize, so the only failure mode here is unreachable.
+#[allow(clippy::expect_used)]
+fn to_js(result: WasmResult) -> JsValue {
+    serde_wasm_bindgen::to_value(&result).expect("WasmResult always serializes")
+}
+
 #[wasm_bindgen]
 pub fn format_source(source: String) -> JsValue {
     console_error_panic_hook::set_once();
     match crate::compiler::format(&source) {
-        Ok(formatted) => serde_wasm_bindgen::to_value(&WasmResult {
+        Ok(formatted) => to_js(WasmResult {
             success: true,
             output: Some(formatted),
             error: None,
-        })
-        .unwrap(),
+        }),
         Err(errors) => {
             let rendered = crate::common::error_renderer::ErrorRenderer::default()
                 .render_errors(&errors, &source, "<input>");
-            serde_wasm_bindgen::to_value(&WasmResult {
+            to_js(WasmResult {
                 success: false,
                 output: None,
                 error: Some(rendered),
             })
-            .unwrap()
         }
     }
 }
@@ -95,33 +97,30 @@ pub fn interpret_once(source: String) -> JsValue {
     match result {
         InterpretResult::Ok => {
             let output = vm.get_output();
-            serde_wasm_bindgen::to_value(&WasmResult {
+            to_js(WasmResult {
                 success: true,
                 output: Some(output),
                 error: None,
             })
-            .unwrap()
         }
         InterpretResult::CompileError => {
             let errors = vm.get_formatted_errors("<input>");
-            serde_wasm_bindgen::to_value(&WasmResult {
+            to_js(WasmResult {
                 success: false,
                 output: None,
                 error: Some(errors),
             })
-            .unwrap()
         }
         InterpretResult::RuntimeError => {
             let errors = vm
                 .get_runtime_error()
                 .map(|e| e.report())
                 .unwrap_or_default();
-            serde_wasm_bindgen::to_value(&WasmResult {
+            to_js(WasmResult {
                 success: false,
                 output: None,
                 error: Some(errors),
             })
-            .unwrap()
         }
     }
 }

@@ -44,6 +44,7 @@ pub(crate) struct Symbols {
 }
 
 impl Default for Symbols {
+    #[allow(clippy::expect_used)]
     fn default() -> Self {
         let mut symbols = Symbols {
             ids: HashMap::new(),
