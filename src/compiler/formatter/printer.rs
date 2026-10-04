@@ -383,14 +383,7 @@ impl<'a> Printer<'a> {
                 self.write(" ");
                 self.print_stmt(then_branch);
                 if let Some(else_stmt) = else_branch {
-                    if matches!(then_branch.as_ref(), Stmt::Block { .. }) {
-                        self.write(" else ");
-                    } else {
-                        let then_last_line = self.map.stmt_last_line(then_branch);
-                        let else_line = self.map.line(self.map.stmt_last_token(then_branch) + 1);
-                        self.line_break(then_last_line, else_line, Gap::Continuation);
-                        self.write("else ");
-                    }
+                    self.write(" else ");
                     self.print_stmt(else_stmt);
                 }
             }
