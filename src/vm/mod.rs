@@ -1,4 +1,5 @@
 use crate::common::method_registry::NativeMethodTable;
+use crate::common::runtime_error::RuntimeError;
 use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
 use crate::compiler::global_env::GlobalEnv;
 use std::cell::RefCell;
@@ -7,12 +8,8 @@ use std::rc::Rc;
 
 mod functions;
 mod r#impl;
-mod runtime_error;
 #[cfg(test)]
 mod tests;
-
-pub(crate) use runtime_error::TRACE_EDGE_FRAMES;
-pub use runtime_error::{RuntimeError, TraceFrame};
 
 #[derive(Debug, PartialEq)]
 pub enum InterpretResult {

@@ -1,6 +1,7 @@
 use crate::common::opcodes::OpCode;
+use crate::common::runtime_error::TraceFrame;
 use crate::common::{Chunk, Value};
-use crate::vm::{InterpretResult, TraceFrame, VirtualMachine};
+use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{as_number, number};
 use std::rc::Rc;
 

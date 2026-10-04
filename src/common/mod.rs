@@ -12,6 +12,7 @@ pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
+pub mod runtime_error;
 pub mod static_type;
 pub mod stdlib;
 pub mod string_similarity;
@@ -29,7 +30,7 @@ pub(crate) type NativeFnWithVm =
 #[derive(Debug)]
 pub(crate) enum NativeCallError {
     Message(String),
-    Runtime(crate::vm::RuntimeError),
+    Runtime(crate::common::runtime_error::RuntimeError),
 }
 
 impl From<String> for NativeCallError {

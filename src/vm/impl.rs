@@ -1,10 +1,11 @@
 use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
+use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
-use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine, TRACE_EDGE_FRAMES};
+use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
