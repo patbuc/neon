@@ -262,7 +262,7 @@ pub enum Stmt {
         location: SourceLocation,
     },
     Return {
-        value: Expr,
+        value: Option<Expr>,
         location: SourceLocation,
     },
     ForIn {

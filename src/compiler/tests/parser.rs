@@ -417,6 +417,33 @@ fn test_parse_function() {
 }
 
 #[test]
+fn test_parse_expression_bodied_fn_with_body_on_next_line() {
+    let mut parser = Parser::new("fn f() =\n    1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Fn { name, body, .. } => {
+            assert_eq!(name, "f");
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Expression { .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_bare_return_at_eof_no_newline() {
+    let mut parser = Parser::new("return");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    assert!(matches!(stmts[0], Stmt::Return { value: None, .. }));
+}
+
+#[test]
 fn test_parse_single_line_function_body() {
     let mut parser = Parser::new("fn foo(n) { return n }\n");
     let result = parser.parse();
@@ -434,6 +461,34 @@ fn test_parse_single_line_function_body() {
 }
 
 #[test]
+fn test_parse_expression_bodied_fn() {
+    let mut parser = Parser::new("fn sq(x) = x * x\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Fn {
+            name, params, body, ..
+        } => {
+            assert_eq!(name, "sq");
+            assert_eq!(params.len(), 1);
+            assert_eq!(body.len(), 1);
+            match &body[0] {
+                Stmt::Expression { expr, .. } => match expr {
+                    Expr::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOp::Multiply);
+                    }
+                    _ => panic!("Expected Binary expression"),
+                },
+                _ => panic!("Expected Expression statement"),
+            }
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
 fn test_parse_nested_single_line_blocks() {
     let mut parser = Parser::new("fn foo(x) { if (x > 0) { return 1 } }\n");
     let result = parser.parse();
@@ -444,6 +499,54 @@ fn test_parse_nested_single_line_blocks() {
             assert_eq!(body.len(), 1);
             assert!(matches!(body[0], Stmt::If { .. }));
         }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_bare_return_before_brace() {
+    let mut parser = Parser::new("fn f() {\n    return\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Return { value: None, .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_bare_return_same_line_as_brace() {
+    let mut parser = Parser::new("fn g() { return }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Return { value: None, .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+
+    let mut parser = Parser::new("fn h(x) { if (x) { return } }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => match &body[0] {
+            Stmt::If { then_branch, .. } => match then_branch.as_ref() {
+                Stmt::Block { statements, .. } => {
+                    assert_eq!(statements.len(), 1);
+                    assert!(matches!(statements[0], Stmt::Return { value: None, .. }));
+                }
+                _ => panic!("Expected Block statement"),
+            },
+            _ => panic!("Expected If statement"),
+        },
         _ => panic!("Expected Fn statement"),
     }
 }
@@ -3847,7 +3950,9 @@ fn collect_stmt_ids(stmt: &Stmt, ids: &mut Vec<u32>) {
                 .iter()
                 .for_each(|stmt| collect_stmt_ids(stmt, ids));
         }
-        Stmt::Return { value, .. } => collect_expr_ids(value, ids),
+        Stmt::Return {
+            value: Some(value), ..
+        } => collect_expr_ids(value, ids),
         _ => {}
     }
 }

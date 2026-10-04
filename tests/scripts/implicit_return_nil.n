@@ -1,0 +1,41 @@
+// Expected:
+// nil
+// nil
+// nil
+// nil
+// nil
+
+fn endsInVal() {
+    val x = 1
+}
+print(endsInVal())
+
+fn endsInIf() {
+    if true {
+        val x = 1
+    }
+}
+print(endsInIf())
+
+fn endsInFor() {
+    for i in 0..3 {
+        val x = i
+    }
+}
+print(endsInFor())
+
+fn endsInWhile() {
+    var i = 0
+    while i < 3 {
+        i = i + 1
+    }
+}
+print(endsInWhile())
+
+fn noop() {
+    val x = 1
+}
+fn endsInCall() {
+    noop()
+}
+print(endsInCall())

@@ -1,0 +1,62 @@
+// Expected:
+// 9
+// 2
+// 5
+// 5
+// 10
+// early
+// 1
+// 2
+
+fn sq(x) {
+    x * x
+}
+print(sq(3))
+
+val f = fn(x) {
+    x + 1
+}
+print(f(1))
+
+struct P {
+    x
+}
+
+impl P {
+    fn len(self) {
+        self.x
+    }
+}
+print(P(5).len())
+
+fn assignTail() {
+    var y = 0
+    y = 5
+}
+print(assignTail())
+
+fn explicitReturn() {
+    return 10
+}
+print(explicitReturn())
+
+fn earlyReturn(flag) {
+    if flag {
+        return "early"
+    }
+    "late"
+}
+print(earlyReturn(true))
+
+fn mk() {
+    var c = 0
+    val inc = fn() {
+        c = c + 1
+        c
+    }
+    inc
+}
+
+val inc = mk()
+print(inc())
+print(inc())

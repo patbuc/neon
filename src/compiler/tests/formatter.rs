@@ -279,6 +279,29 @@ fn test_impl_with_two_methods() {
 }
 
 #[test]
+fn test_expression_bodied_fn_stays_one_line() {
+    check("fn sq(x) = x * x\n", "fn sq(x) = x * x\n");
+}
+
+#[test]
+fn test_expression_bodied_fn_spacing_normalized() {
+    check("fn sq(x)=x*x\n", "fn sq(x) = x * x\n");
+}
+
+#[test]
+fn test_expression_bodied_impl_method_stays_one_line() {
+    check(
+        "impl P {\n    fn len(self) = self.x\n}\n",
+        "impl P {\n    fn len(self) = self.x\n}\n",
+    );
+}
+
+#[test]
+fn test_expression_bodied_fn_long_body_wraps() {
+    check("fn f(a) = a +\n    1\n", "fn f(a) = a +\n    1\n");
+}
+
+#[test]
 fn test_corpus_nested_fn_returning_lambda() {
     check(
         "fn getF() { print(\"callee\")\nreturn fn(a) { return a } }\n",
@@ -644,6 +667,24 @@ fn test_own_line_comment_inside_broken_call_with_no_args() {
 #[test]
 fn test_trailing_comment_after_binary_operator() {
     check("1 + // c\n2\n", "1 + // c\n    2\n");
+}
+
+#[test]
+fn test_trailing_comment_after_multiline_expr_bodied_fn_binary() {
+    check("fn f() = 1 +\n    2 // c\n", "fn f() = 1 +\n    2 // c\n");
+}
+
+#[test]
+fn test_trailing_comment_after_multiline_expr_bodied_fn_array() {
+    check(
+        "fn f(a) = [\n    a,\n] // c\n",
+        "fn f(a) = [\n    a,\n] // c\n",
+    );
+}
+
+#[test]
+fn test_expr_bodied_fn_body_on_next_line_kept_as_is() {
+    check("fn f() =\n    1\n", "fn f() =\n    1\n");
 }
 
 #[test]

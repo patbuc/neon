@@ -1,0 +1,20 @@
+// Expected:
+// 9
+// 5
+// 1
+// nil
+
+fn sq(x) = x * x
+print(sq(3))
+
+struct P {
+    x
+}
+
+impl P {
+    fn len(self) = self.x
+}
+print(P(5).len())
+
+fn f() = print(1)
+print(f())

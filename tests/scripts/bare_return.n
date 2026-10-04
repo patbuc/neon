@@ -1,0 +1,22 @@
+// Expected:
+// nil
+// nil
+// nil
+
+fn f() {
+    return
+}
+print(f())
+
+fn g() {
+    return
+}
+print(g())
+
+fn h(x) {
+    if x {
+        return
+    }
+    return "unreached"
+}
+print(h(true))

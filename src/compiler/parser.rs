@@ -527,6 +527,26 @@ impl Parser {
             return None;
         }
 
+        if self.match_token(TokenType::Equal) {
+            let expr_location = self.current_location();
+            let expr = self.operand(Precedence::Assignment)?;
+            let end_location = self.current_location();
+            self.consume_statement_end("Expecting '\\n' or '\\0' after function body.");
+
+            let id = self.next_id();
+            self.end_locations.insert(id, end_location);
+            return Some(Stmt::Fn {
+                name,
+                params,
+                body: vec![Stmt::Expression {
+                    expr,
+                    location: expr_location,
+                }],
+                id,
+                location,
+            });
+        }
+
         if !self.consume(TokenType::LeftBrace, "Expect '{' before function body.") {
             return None;
         }
@@ -854,9 +874,22 @@ impl Parser {
 
     fn return_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
+        if self.check(TokenType::NewLine)
+            || self.check(TokenType::RightBrace)
+            || self.check(TokenType::Eof)
+        {
+            self.consume_statement_end("Expecting '\\n' or '\\0' at end of statement.");
+            return Some(Stmt::Return {
+                value: None,
+                location,
+            });
+        }
         let value = self.expression(false)?;
         self.consume_statement_end("Expecting '\\n' or '\\0' at end of statement.");
-        Some(Stmt::Return { value, location })
+        Some(Stmt::Return {
+            value: Some(value),
+            location,
+        })
     }
 
     fn break_statement(&mut self) -> Option<Stmt> {

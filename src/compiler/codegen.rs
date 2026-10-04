@@ -602,15 +602,25 @@ impl<'a> CodeGenerator<'a> {
 
         // Compile function body
         self.hoist_block_functions(body);
-        for stmt in body {
-            self.generate_stmt(stmt);
-        }
-
         let end_location = *self
             .end_locations
             .get(&id)
             .unwrap_or_else(|| panic!("no end location recorded for {:?}", id));
-        self.emit_return(end_location);
+        match body.split_last() {
+            Some((last, init)) => {
+                for stmt in init {
+                    self.generate_stmt(stmt);
+                }
+                if let Stmt::Expression { expr, .. } = last {
+                    self.generate_expr(expr);
+                    self.emit_op_code(OpCode::Return, end_location);
+                } else {
+                    self.generate_stmt(last);
+                    self.emit_return(end_location);
+                }
+            }
+            None => self.emit_return(end_location),
+        }
 
         let compiler = self
             .functions
@@ -817,8 +827,11 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_return_stmt(&mut self, value: &Expr, location: SourceLocation) {
-        self.generate_expr(value);
+    fn generate_return_stmt(&mut self, value: &Option<Expr>, location: SourceLocation) {
+        match value {
+            Some(value) => self.generate_expr(value),
+            None => self.emit_op_code(OpCode::Nil, location),
+        }
         self.emit_op_code(OpCode::Return, location);
     }
 
