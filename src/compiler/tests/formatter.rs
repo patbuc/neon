@@ -33,14 +33,29 @@ fn test_crlf_is_normalized_to_lf() {
     assert_eq!(format(input).unwrap(), "val s = \"a\nb\"\n");
 }
 
-#[test]
-fn test_format_propagates_parse_errors() {
-    let source = "val = 1\n";
+/// Asserts `format(source)` fails with exactly the errors `Compiler::compile`
+/// reports for the same source.
+fn check_errors_match_compiler(source: &str) {
     let format_errors = format(source).unwrap_err();
 
     let mut compiler = Compiler::new();
     compiler.compile(source);
     assert_eq!(format_errors, compiler.get_structured_errors());
+}
+
+#[test]
+fn test_format_propagates_parse_errors() {
+    check_errors_match_compiler("val = 1\n");
+}
+
+#[test]
+fn test_format_propagates_multiple_parse_errors() {
+    check_errors_match_compiler("val = 1\nval = 2\n");
+}
+
+#[test]
+fn test_format_propagates_scanner_errors() {
+    check_errors_match_compiler("val s = \"abc\n");
 }
 
 #[test]
@@ -211,6 +226,27 @@ fn test_for_loop_header_and_block_body() {
 fn test_for_in_loop() {
     check(
         "for (x in xs) { print(x) }\n",
+        "for (x in xs) {\n    print(x)\n}\n",
+    );
+}
+
+#[test]
+fn test_while_missing_space_before_paren_is_added() {
+    check("while(c) { x() }\n", "while (c) {\n    x()\n}\n");
+}
+
+#[test]
+fn test_for_missing_space_before_paren_is_added() {
+    check(
+        "for(var i = 0; i < 3; i++) { print(i) }\n",
+        "for (var i = 0; i < 3; i++) {\n    print(i)\n}\n",
+    );
+}
+
+#[test]
+fn test_for_in_missing_space_before_paren_is_added() {
+    check(
+        "for(x in xs) { print(x) }\n",
         "for (x in xs) {\n    print(x)\n}\n",
     );
 }
