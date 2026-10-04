@@ -862,8 +862,7 @@ impl<'a> CodeGenerator<'a> {
         body: &Stmt,
         location: SourceLocation,
     ) {
-        // For-in loop code generation strategy: uses iterator opcodes rather
-        // than the increment/condition structure of a C-style for loop.
+        // For-in loop code generation strategy: uses iterator opcodes.
         // The iterator state lives in two hidden locals (collection, index) below
         // the loop variable.
         //

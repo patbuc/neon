@@ -279,36 +279,3 @@ pub enum Stmt {
         location: SourceLocation,
     },
 }
-
-impl Expr {
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub fn location(&self) -> &SourceLocation {
-        match self {
-            Expr::Number { location, .. }
-            | Expr::Int { location, .. }
-            | Expr::String { location, .. }
-            | Expr::StringInterpolation { location, .. }
-            | Expr::Boolean { location, .. }
-            | Expr::Nil { location }
-            | Expr::Variable { location, .. }
-            | Expr::Assign { location, .. }
-            | Expr::CompoundAssign { location, .. }
-            | Expr::Binary { location, .. }
-            | Expr::Unary { location, .. }
-            | Expr::Call { location, .. }
-            | Expr::GetField { location, .. }
-            | Expr::SetField { location, .. }
-            | Expr::Grouping { location, .. }
-            | Expr::MapLiteral { location, .. }
-            | Expr::ArrayLiteral { location, .. }
-            | Expr::SetLiteral { location, .. }
-            | Expr::Index { location, .. }
-            | Expr::IndexAssign { location, .. }
-            | Expr::Range { location, .. }
-            | Expr::PostfixIncrement { location, .. }
-            | Expr::PostfixDecrement { location, .. }
-            | Expr::Conditional { location, .. }
-            | Expr::Function { location, .. } => location,
-        }
-    }
-}
