@@ -57,11 +57,13 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   order. No payloads, `impl` blocks, or explicit variant values.
 
 **Control flow**
-- Parentheses around conditions are required: `if (x) {`, `while (x) {`.
-- Always use braces. `if (c) print(1) else print(2)` on one line doesn't
-  compile.
-- `for (var i = 0; i < n; i = i + 1) { }` and `for (x in coll) { }`. For-in
-  over a map gives keys. `break`/`continue` exist.
+- Conditions are paren-free: `if x {`, `while x {`. Parentheses around a
+  condition are just grouping, not required.
+- Always use braces. `if c { print(1) } else { print(2) }` on one line
+  doesn't compile without the braces.
+- `for x in coll { }` is the only `for`; no C-style `for`. Count with a range
+  instead: `for i in 0..n { }`. For-in over a map gives keys. `break`/
+  `continue` exist.
 - No `switch`/`match`, `do`/`while`, `try`/`catch`, or `throw`.
 
 **Operators**
