@@ -1,7 +1,6 @@
 use crate::compiler::ast::Stmt;
 use crate::compiler::formatter::SourceMap;
 use crate::compiler::parser::Parser;
-use crate::compiler::token::TokenType;
 
 #[test]
 fn test_partners_of_nested_brackets() {
@@ -10,21 +9,10 @@ fn test_partners_of_nested_brackets() {
     let source = "f(a, [b, {c: d}], #{e})\n";
     let map = SourceMap::new(source);
 
-    assert_eq!(*map.kind(1), TokenType::LeftParen);
     assert_eq!(map.partner(1), 17);
-    assert_eq!(*map.kind(17), TokenType::RightParen);
-
-    assert_eq!(*map.kind(4), TokenType::LeftBracket);
     assert_eq!(map.partner(4), 12);
-    assert_eq!(*map.kind(12), TokenType::RightBracket);
-
-    assert_eq!(*map.kind(7), TokenType::LeftBrace);
     assert_eq!(map.partner(7), 11);
-    assert_eq!(*map.kind(11), TokenType::RightBrace);
-
-    assert_eq!(*map.kind(14), TokenType::HashLeftBrace);
     assert_eq!(map.partner(14), 16);
-    assert_eq!(*map.kind(16), TokenType::RightBrace);
 }
 
 #[test]
@@ -33,11 +21,6 @@ fn test_nested_interpolation_pairs_string_start_and_end() {
     //      0                   1             2       3               4
     let source = "\"a ${\"b ${x}\"} c\"\n";
     let map = SourceMap::new(source);
-
-    assert_eq!(*map.kind(0), TokenType::StringStart);
-    assert_eq!(*map.kind(1), TokenType::StringStart);
-    assert_eq!(*map.kind(3), TokenType::StringEnd);
-    assert_eq!(*map.kind(4), TokenType::StringEnd);
 
     assert_eq!(
         map.partner(1),
@@ -159,7 +142,6 @@ fn test_get_field_last_token_is_field_name() {
         Stmt::Expression { expr, .. } => {
             let last = map.last_token(expr);
             assert_eq!(last, 2);
-            assert_eq!(*map.kind(last), TokenType::Identifier);
         }
         _ => panic!("Expected Expression statement"),
     }
@@ -177,7 +159,6 @@ fn test_call_with_method_call_callee_first_token_is_the_object() {
     match &stmts[0] {
         Stmt::Expression { expr, .. } => {
             assert_eq!(map.first_token(expr), 0);
-            assert_eq!(*map.kind(map.first_token(expr)), TokenType::Identifier);
         }
         _ => panic!("Expected Expression statement"),
     }
@@ -196,7 +177,6 @@ fn test_index_last_token_is_closing_bracket() {
         Stmt::Expression { expr, .. } => {
             let last = map.last_token(expr);
             assert_eq!(last, 3);
-            assert_eq!(*map.kind(last), TokenType::RightBracket);
         }
         _ => panic!("Expected Expression statement"),
     }
@@ -322,7 +302,6 @@ fn test_val_without_initializer_last_token_is_the_name() {
     let map = SourceMap::new(source);
 
     assert_eq!(map.stmt_last_token(&stmts[0]), 1);
-    assert_eq!(*map.kind(1), TokenType::Identifier);
 }
 
 #[test]

@@ -93,11 +93,6 @@ impl SourceMap {
         self.end_lines[token]
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn kind(&self, token: usize) -> &TokenType {
-        &self.kinds[token]
-    }
-
     pub(crate) fn partner(&self, token: usize) -> usize {
         self.partners[token].expect("token has a matching bracket")
     }
