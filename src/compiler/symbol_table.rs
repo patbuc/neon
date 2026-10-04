@@ -180,8 +180,13 @@ impl SymbolTable {
 
     /// Moves out every symbol defined in the global scope, for the
     /// `GlobalEnv` a later REPL line compiles against.
+    #[allow(clippy::expect_used)]
     pub(crate) fn into_global_symbols(self) -> HashMap<String, Symbol> {
-        self.scopes.into_iter().next().unwrap().symbols
+        self.scopes
+            .into_iter()
+            .next()
+            .expect("scopes always starts with the global scope")
+            .symbols
     }
 
     /// Defines symbols carried over from an earlier REPL line directly in

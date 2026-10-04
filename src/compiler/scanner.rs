@@ -325,6 +325,7 @@ impl Scanner {
         self.scan_string_segment(true, quote)
     }
 
+    #[allow(clippy::expect_used)]
     fn make_right_brace_or_string_continuation(&mut self) -> Token {
         match self.interpolations.last_mut() {
             Some(frame) if frame.brace_depth > 0 => {
@@ -332,7 +333,10 @@ impl Scanner {
                 self.make_token(TokenType::RightBrace)
             }
             Some(_) => {
-                let frame = self.interpolations.pop().unwrap();
+                let frame = self
+                    .interpolations
+                    .pop()
+                    .expect("just matched Some on the same stack");
                 self.scan_string_segment(false, frame.quote)
             }
             None => self.make_token(TokenType::RightBrace),
@@ -438,6 +442,7 @@ impl Scanner {
 
     /// Reports the innermost open interpolation as unclosed at EOF and
     /// clears the stack, so scanning resumes in ordinary token mode.
+    #[allow(clippy::expect_used)]
     fn make_interpolation_eof_error(&mut self) -> Token {
         let frame = self.interpolations.last().expect("stack checked non-empty");
         let dollar = frame.dollar;

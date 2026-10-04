@@ -148,6 +148,7 @@ impl<'a> CodeGenerator<'a> {
         self.decl_slots
     }
 
+    #[allow(clippy::expect_used)]
     pub fn generate(
         &mut self,
         statements: &[Stmt],
@@ -250,7 +251,11 @@ impl<'a> CodeGenerator<'a> {
         self.emit_return(eof_location);
 
         if self.errors.is_empty() {
-            Ok(self.functions.pop().unwrap().chunk)
+            Ok(self
+                .functions
+                .pop()
+                .expect("generate pushed the top-level function compiler before compiling")
+                .chunk)
         } else {
             Err(self.errors.clone())
         }
@@ -258,8 +263,11 @@ impl<'a> CodeGenerator<'a> {
 
     // ===== Helper Methods =====
 
+    #[allow(clippy::expect_used)]
     fn current(&mut self) -> &mut FunctionCompiler {
-        self.functions.last_mut().unwrap()
+        self.functions
+            .last_mut()
+            .expect("a function compiler is always on the stack while generating code")
     }
 
     fn current_chunk(&mut self) -> &mut Chunk {
@@ -764,6 +772,7 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
+    #[allow(clippy::expect_used)]
     fn generate_while_stmt(&mut self, condition: &Expr, body: &Stmt, location: SourceLocation) {
         let loop_start = self.current_chunk().instruction_count() as u32;
 
@@ -784,7 +793,11 @@ impl<'a> CodeGenerator<'a> {
         self.generate_stmt(body);
 
         // Pop loop context; continue jumps land here, before the Loop back.
-        let loop_context = self.current().loop_contexts.pop().unwrap();
+        let loop_context = self
+            .current()
+            .loop_contexts
+            .pop()
+            .expect("this function pushed a loop context above");
         for continue_jump in loop_context.continue_jumps {
             self.patch_jump(continue_jump);
         }
@@ -819,6 +832,7 @@ impl<'a> CodeGenerator<'a> {
     ///   exit: Pop                ; the false condition
     ///   break_target:
     ///   <end loop scope: Pop or CloseUpvalue for the loop variable>
+    #[allow(clippy::expect_used)]
     fn generate_for_stmt(
         &mut self,
         initializer: &Stmt,
@@ -850,7 +864,11 @@ impl<'a> CodeGenerator<'a> {
         self.generate_stmt(body);
 
         // Pop loop context; continue jumps land here, before the Loop back.
-        let loop_context = self.current().loop_contexts.pop().unwrap();
+        let loop_context = self
+            .current()
+            .loop_contexts
+            .pop()
+            .expect("this function pushed a loop context above");
         for continue_jump in loop_context.continue_jumps {
             self.patch_jump(continue_jump);
         }
@@ -889,6 +907,7 @@ impl<'a> CodeGenerator<'a> {
         self.emit_scope_exit(&captured, location);
     }
 
+    #[allow(clippy::expect_used)]
     fn generate_loop_exit_stmt(&mut self, exit: LoopExit, location: SourceLocation) {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
@@ -902,7 +921,11 @@ impl<'a> CodeGenerator<'a> {
         self.emit_loop_exit_pops(depth, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
-        let context = self.current().loop_contexts.last_mut().unwrap();
+        let context = self
+            .current()
+            .loop_contexts
+            .last_mut()
+            .expect("semantic pass guarantees a loop context");
         let jumps = match exit {
             LoopExit::Break => &mut context.break_jumps,
             LoopExit::Continue => &mut context.continue_jumps,
@@ -910,6 +933,7 @@ impl<'a> CodeGenerator<'a> {
         jumps.push(jump_index);
     }
 
+    #[allow(clippy::expect_used)]
     fn generate_for_in_stmt(
         &mut self,
         id: NodeId,
@@ -1004,7 +1028,11 @@ impl<'a> CodeGenerator<'a> {
 
         // Patch all continue jumps to point here (just before the Loop)
         // This allows continue to properly skip to the next iteration
-        let loop_context = self.current().loop_contexts.pop().unwrap();
+        let loop_context = self
+            .current()
+            .loop_contexts
+            .pop()
+            .expect("this function pushed a loop context above");
         for continue_jump in loop_context.continue_jumps {
             self.patch_jump(continue_jump);
         }
