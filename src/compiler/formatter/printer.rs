@@ -546,7 +546,17 @@ impl<'a> Printer<'a> {
     /// or for-in collection.
     fn print_condition(&mut self, expr: &Expr) {
         match expr {
-            Expr::Grouping { expr: inner, .. } => self.print_expr(inner),
+            Expr::Grouping {
+                expr: inner,
+                location,
+            } => {
+                let close_line = self.map.line(self.map.at(location));
+                if self.has_comment_before(close_line) {
+                    self.print_expr(expr);
+                } else {
+                    self.print_expr(inner);
+                }
+            }
             _ => self.print_expr(expr),
         }
     }

@@ -236,6 +236,14 @@ fn test_for_in_collection_parens_are_removed() {
 }
 
 #[test]
+fn test_condition_parens_with_comment_are_kept() {
+    check(
+        "if ( // c\n    x > 0) {\n    print(x)\n}\n",
+        "if ( // c\n    x > 0\n) {\n    print(x)\n}\n",
+    );
+}
+
+#[test]
 fn test_struct_one_field_per_line() {
     check("struct P { x y }\n", "struct P {\n    x\n    y\n}\n");
 }
