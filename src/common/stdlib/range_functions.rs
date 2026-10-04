@@ -100,7 +100,7 @@ pub fn native_range_step(args: &[Value]) -> Result<Value, String> {
 
     let len = range.len();
     let values = (0..len)
-        .step_by(k as usize)
+        .step_by(usize::try_from(k).unwrap_or(usize::MAX))
         .map(|i| Value::Int(range.get(i)))
         .collect();
     Ok(Value::new_array(values))
