@@ -577,6 +577,7 @@ impl<'a> CodeGenerator<'a> {
     /// stack. Shared by named function declarations, which then store it
     /// into the variable defined for the name, and lambda expressions,
     /// which leave it as their expression value.
+    #[allow(clippy::expect_used)]
     fn generate_closure(
         &mut self,
         id: NodeId,
@@ -611,7 +612,10 @@ impl<'a> CodeGenerator<'a> {
             .unwrap_or_else(|| panic!("no end location recorded for {:?}", id));
         self.emit_return(end_location);
 
-        let compiler = self.functions.pop().unwrap();
+        let compiler = self
+            .functions
+            .pop()
+            .expect("this function pushed a function compiler above");
         let function_value =
             Value::new_function(name.to_string(), params.len() as u8, compiler.chunk);
 
