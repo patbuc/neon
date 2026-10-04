@@ -64,6 +64,29 @@ struct WasmResult {
 }
 
 #[wasm_bindgen]
+pub fn format_source(source: String) -> JsValue {
+    console_error_panic_hook::set_once();
+    match crate::compiler::format(&source) {
+        Ok(formatted) => serde_wasm_bindgen::to_value(&WasmResult {
+            success: true,
+            output: Some(formatted),
+            error: None,
+        })
+        .unwrap(),
+        Err(errors) => {
+            let rendered = crate::common::error_renderer::ErrorRenderer::default()
+                .render_errors(&errors, &source, "<input>");
+            serde_wasm_bindgen::to_value(&WasmResult {
+                success: false,
+                output: None,
+                error: Some(rendered),
+            })
+            .unwrap()
+        }
+    }
+}
+
+#[wasm_bindgen]
 pub fn interpret_once(source: String) -> JsValue {
     console_error_panic_hook::set_once();
     let mut vm = VirtualMachine::new();

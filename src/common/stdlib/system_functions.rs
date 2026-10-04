@@ -196,6 +196,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_sleep_duration_keeps_fractional_milliseconds() {
         assert_eq!(
             sleep_duration(1.5),

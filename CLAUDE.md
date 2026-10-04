@@ -118,6 +118,10 @@ cargo run                       # Start REPL
 # Output: wasm-pkg/{neon.js, neon_bg.wasm, neon.d.ts}
 ```
 
+Exports `NeonVM`, `interpret_once(source)`, and `format_source(source)`, each returning a `WasmResult`-shaped
+value (`{ success, output, error }`). Test the wasm bindings themselves (`tests/wasm.rs`, gated
+`#![cfg(target_arch = "wasm32")]`) with `wasm-pack test --node`.
+
 ### Debugging
 
 ```bash

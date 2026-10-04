@@ -29,6 +29,10 @@ indexmap = "2.12.1"
 
 [dev-dependencies]
 datatest-stable = "0.3.3"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+
 [[test]]
 name = "neon_scripts"
 harness = false
