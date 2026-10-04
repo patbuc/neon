@@ -1,7 +1,7 @@
 use crate::common::stdlib::array_functions;
+use crate::common::NativeContext;
 use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
 use crate::extract_receiver;
-use crate::vm::VirtualMachine;
 
 /// The range's elements as `Int` values, in order.
 fn elements(range: &ObjRange) -> Vec<Value> {
@@ -111,13 +111,16 @@ pub fn native_range_max(args: &[Value]) -> Result<Value, String> {
 }
 
 /// Native implementation of Range.map(fn)
-pub fn native_range_map(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, NativeCallError> {
+pub fn native_range_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
     array_functions::native_array_map(vm, &materialize(args, "map")?)
 }
 
 /// Native implementation of Range.filter(fn)
 pub fn native_range_filter(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     array_functions::native_array_filter(vm, &materialize(args, "filter")?)
@@ -125,7 +128,7 @@ pub fn native_range_filter(
 
 /// Native implementation of Range.reduce(fn, initial)
 pub fn native_range_reduce(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     array_functions::native_array_reduce(vm, &materialize(args, "reduce")?)

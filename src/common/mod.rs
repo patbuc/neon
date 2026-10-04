@@ -24,7 +24,13 @@ const TWO_POW_63: f64 = 9223372036854775808.0;
 
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 pub(crate) type NativeFnWithVm =
-    fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, NativeCallError>;
+    fn(&mut dyn NativeContext, &[Value]) -> Result<Value, NativeCallError>;
+
+/// Lets a native method call back into Neon code without depending on the
+/// VM's concrete type, implemented by `VirtualMachine`.
+pub(crate) trait NativeContext {
+    fn call_value(&mut self, callee: Value, args: &[Value]) -> Result<Value, NativeCallError>;
+}
 
 /// `Runtime` holds an error a `call_value` callback already built.
 #[derive(Debug)]
