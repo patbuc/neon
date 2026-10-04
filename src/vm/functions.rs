@@ -92,7 +92,7 @@ impl VirtualMachine {
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_not(&mut self) {
         // [.., operand] -> [.., result]
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self.stack.last_mut().expect("operand is on the stack");
         *slot = boolean!(is_false_like!(*slot));
     }
 
@@ -480,7 +480,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let a = self.stack.last_mut().expect("stack underflow");
+        let a = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         let is_match = match (&*a, &b) {
             (Value::Number(x), Value::Number(y)) => match wanted {
                 Comparison::Greater => *x > *y,
@@ -529,7 +532,10 @@ impl VirtualMachine {
         // [.., a, b] -> [.., result]; division is always float, even for
         // two ints.
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Number(x), Value::Number(y)) => *x /= *y,
             (Value::Int(x), Value::Number(y)) => *slot = number!(*x as f64 / *y),
@@ -546,7 +552,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_modulo(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Int(x), Value::Int(y)) => {
                 if *y == 0 {
@@ -570,7 +579,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_exponent(&mut self) -> OpResult {
         // [.., base, exponent] -> [.., result]
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Int(base), Value::Int(exp)) => {
                 if *exp >= 0 {
@@ -654,7 +666,11 @@ impl VirtualMachine {
     fn binary_bitwise_op(&mut self, op: &str, f: impl Fn(i64, i64) -> i64) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let a = match Self::as_bitwise_operand(self.stack.last().expect("stack underflow")) {
+        let a = match Self::as_bitwise_operand(
+            self.stack
+                .last()
+                .expect("binary operand a is on the stack below b"),
+        ) {
             Some(a) => a,
             None => return Err(self.binary_number_op_error(op, &b)),
         };
@@ -663,7 +679,10 @@ impl VirtualMachine {
             None => return Err(self.binary_number_op_error(op, &b)),
         };
         std::mem::forget(b);
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         *slot = int!(result);
         Ok(())
     }
@@ -714,7 +733,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_multiply(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Number(x), Value::Number(y)) => *x *= *y,
             (Value::Int(x), Value::Int(y)) => match x.checked_mul(*y) {
@@ -734,7 +756,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_subtract(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Number(x), Value::Number(y)) => *x -= *y,
             (Value::Int(x), Value::Int(y)) => match x.checked_sub(*y) {
@@ -754,7 +779,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_add(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self
+            .stack
+            .last_mut()
+            .expect("binary operand a is on the stack below b");
         match (&mut *slot, &b) {
             (Value::Number(x), Value::Number(y)) => {
                 *x += *y;
@@ -795,7 +823,7 @@ impl VirtualMachine {
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&mut *slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
                 *a += c;
@@ -830,7 +858,7 @@ impl VirtualMachine {
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&mut *slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
                 *a -= c;
@@ -865,7 +893,7 @@ impl VirtualMachine {
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
         let index = self.operand_u16(1) as usize;
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&*slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
                 let is_match = match wanted {
@@ -906,7 +934,7 @@ impl VirtualMachine {
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
         // [.., operand] -> [.., result]
-        let slot = self.stack.last_mut().expect("stack underflow");
+        let slot = self.stack.last_mut().expect("operand is on the stack");
         if let Value::Number(n) = *slot {
             *slot = number!(-n);
             return Ok(());
@@ -1238,7 +1266,7 @@ impl VirtualMachine {
         // Plain assignment drops the old top while `value` is still live,
         // which makes the compiler spill a slow unwind copy of it.
         drop(std::mem::replace(
-            self.stack.last_mut().expect("stack underflow"),
+            self.stack.last_mut().expect("operand is on the stack"),
             value,
         ));
 
@@ -1319,7 +1347,7 @@ impl VirtualMachine {
         // Plain assignment drops the old top while `value` is still live,
         // which makes the compiler spill a slow unwind copy of it.
         drop(std::mem::replace(
-            self.stack.last_mut().expect("stack underflow"),
+            self.stack.last_mut().expect("operand is on the stack"),
             value,
         ));
 
