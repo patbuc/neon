@@ -383,7 +383,14 @@ fn fmt_leaves_already_formatted_file_mtime_unchanged() {
     let dir = unique_temp_dir("mtime");
     let path = dir.join("a.n");
     fs::write(&path, "val x = 1\n").expect("Failed to write test script");
-    let mtime_before = fs::metadata(&path).unwrap().modified().unwrap();
+
+    let mtime_before = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1);
+    fs::File::options()
+        .write(true)
+        .open(&path)
+        .expect("Failed to open test script")
+        .set_modified(mtime_before)
+        .expect("Failed to set mtime");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("fmt")
@@ -450,6 +457,31 @@ fn fmt_directory_walks_recursively_and_ignores_other_files() {
     assert_eq!("val x = 1\n", top_contents);
     assert_eq!("val y = 2\n", nested_contents);
     assert_eq!("val x = 1", other_contents);
+}
+
+#[test]
+fn fmt_check_directory_lists_files_in_sorted_order() {
+    let dir = unique_temp_dir("walk_order");
+
+    let b = dir.join("b.n");
+    fs::write(&b, "val y = 2").expect("Failed to write test script");
+    let a = dir.join("a.n");
+    fs::write(&a, "val x = 1").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .arg(&dir)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(1, output.status.code().unwrap());
+    assert_eq!(
+        format!("{}\n{}\n", a.display(), b.display()),
+        String::from_utf8_lossy(&output.stdout)
+    );
 }
 
 #[test]
@@ -568,7 +600,8 @@ fn fmt_syntax_error_leaves_file_unchanged_formats_rest_and_exits_65() {
     assert_eq!("val x = 1\n", good_contents);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains(&bad.display().to_string()));
-    assert!(!stderr.is_empty());
+    assert!(stderr.contains("expecting variable name"));
+    assert!(stderr.contains(":1:5"));
 }
 
 #[test]
