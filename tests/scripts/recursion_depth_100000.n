@@ -2,7 +2,7 @@
 // 100000
 
 fn count(n) {
-    if (n >= 100000) {
+    if n >= 100000 {
         return n
     }
     return count(n + 1)

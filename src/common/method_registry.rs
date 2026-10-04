@@ -425,6 +425,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Range",
+        "step",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_step,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
         "slice",
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_slice,

@@ -35,7 +35,7 @@
 
 // Fibonacci using recursion
 fn fibonacci(n) {
-    if (n <= 1) {
+    if n <= 1 {
         return n
     }
     return fibonacci(n - 1) + fibonacci(n - 2)
@@ -43,7 +43,7 @@ fn fibonacci(n) {
 
 // Recursive factorial
 fn factorial(n) {
-    if (n <= 1) {
+    if n <= 1 {
         return 1
     }
     return n * factorial(n - 1)
@@ -51,18 +51,18 @@ fn factorial(n) {
 
 // Check if number is prime
 fn is_prime(n) {
-    if (n <= 1) {
+    if n <= 1 {
         return false
     }
-    if (n == 2) {
+    if n == 2 {
         return true
     }
-    if (n / 2 * 2 == n) {
+    if n / 2 * 2 == n {
         return false
     }
     var i = 3
-    while (i * i <= n) {
-        if (n / i * i == n) {
+    while i * i <= n {
+        if n / i * i == n {
             return false
         }
         i = i + 2
@@ -74,8 +74,8 @@ fn is_prime(n) {
 fn count_primes(limit) {
     var count = 0
     var i = 2
-    while (i <= limit) {
-        if (is_prime(i)) {
+    while i <= limit {
+        if is_prime(i) {
             count = count + 1
         }
         i = i + 1
@@ -87,7 +87,7 @@ fn count_primes(limit) {
 fn sum_of_squares(n) {
     var sum = 0
     var i = 1
-    while (i <= n) {
+    while i <= n {
         sum = sum + i * i
         i = i + 1
     }
@@ -96,10 +96,10 @@ fn sum_of_squares(n) {
 
 // Power function using recursion
 fn power(base, exp) {
-    if (exp == 0) {
+    if exp == 0 {
         return 1
     }
-    if (exp == 1) {
+    if exp == 1 {
         return base
     }
     return base * power(base, exp - 1)
@@ -107,10 +107,10 @@ fn power(base, exp) {
 
 // Ackermann function - highly recursive
 fn ackermann(m, n) {
-    if (m == 0) {
+    if m == 0 {
         return n + 1
     }
-    if (n == 0) {
+    if n == 0 {
         return ackermann(m - 1, 1)
     }
     return ackermann(m - 1, ackermann(m, n - 1))
@@ -120,9 +120,9 @@ fn ackermann(m, n) {
 fn nested_sum(n) {
     var sum = 0
     var i = 1
-    while (i <= n) {
+    while i <= n {
         var j = 1
-        while (j <= n) {
+        while j <= n {
             sum = sum + i * j
             j = j + 1
         }

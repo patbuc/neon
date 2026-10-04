@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 64] = [
+        const OPCODES: [OpCode; 63] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -54,7 +54,6 @@ impl OpCode {
             OpCode::GetUpvalue,
             OpCode::SetUpvalue,
             OpCode::CloseUpvalue,
-            OpCode::CloseUpvalueInPlace,
             OpCode::DefineMethod,
             OpCode::CheckInitialized,
             OpCode::StoreLocal,
@@ -141,8 +140,6 @@ pub(crate) enum OpCode {
     /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
     /// pops it, so a captured local's value survives its scope exiting.
     CloseUpvalue,
-    /// Closes the upvalue on the top-of-stack slot without popping it.
-    CloseUpvalueInPlace,
     /// Pops a closure and registers it as a method under a type name and
     /// method name (both read as fixed 16-bit constant-pool indices).
     DefineMethod,

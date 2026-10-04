@@ -2628,7 +2628,7 @@ fn test_continue_in_two_statement_while_body_targets_condition() {
 #[test]
 fn test_break_in_for_loop() {
     let program = r#"
-        for (var i = 0; i < 10; i = i + 1) {
+        for i in 0..10 {
             if (i == 5) {
                 break
             }
@@ -2646,7 +2646,7 @@ fn test_break_in_for_loop() {
 #[test]
 fn test_continue_in_for_loop() {
     let program = r#"
-        for (var i = 0; i < 5; i = i + 1) {
+        for i in 0..5 {
             if (i == 2) {
                 continue
             }
@@ -2665,7 +2665,7 @@ fn test_continue_in_for_loop() {
 fn test_break_in_for_in_loop() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        for (item in arr) {
+        for item in arr {
             if (item == 3) {
                 break
             }
@@ -2684,7 +2684,7 @@ fn test_break_in_for_in_loop() {
 fn test_continue_in_for_in_loop() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        for (item in arr) {
+        for item in arr {
             if (item == 3) {
                 continue
             }
@@ -2755,7 +2755,7 @@ fn test_break_with_accumulator() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         var sum = 0
-        for (item in arr) {
+        for item in arr {
             if (sum > 10) {
                 break
             }
@@ -2775,7 +2775,7 @@ fn test_continue_with_accumulator() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
         var sum = 0
-        for (item in arr) {
+        for item in arr {
             if (item == 3) {
                 continue
             }
@@ -2887,7 +2887,7 @@ fn test_for_in_break_does_not_grow_stack() {
             r#"
             var outer = 0
             while (outer < {iterations}) {{
-                for (x in [1, 2, 3]) {{
+                for x in [1, 2, 3] {{
                     val temp = x * 2
                     if (temp == 4) {{
                         break
@@ -2912,7 +2912,7 @@ fn test_for_in_continue_does_not_grow_stack() {
     fn stack_len_after_loop(count: i64) -> usize {
         let program = format!(
             r#"
-            for (i in 0..{count}) {{
+            for i in 0..{count} {{
                 val temp = i * 2
                 continue
             }}
@@ -2929,33 +2929,12 @@ fn test_for_in_continue_does_not_grow_stack() {
 }
 
 #[test]
-fn test_c_style_for_continue_with_block_local_does_not_grow_stack() {
-    fn stack_len_after_loop(iterations: i64) -> usize {
-        let program = format!(
-            r#"
-            for (var i = 0; i < {iterations}; i = i + 1) {{
-                val temp = i * 2
-                continue
-            }}
-            "#
-        );
-
-        let mut vm = VirtualMachine::new();
-        let result = vm.interpret(program);
-        assert_eq!(InterpretResult::Ok, result);
-        vm.stack.len()
-    }
-
-    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
-}
-
-#[test]
-fn test_c_style_for_closure_capture_does_not_grow_stack() {
+fn test_for_in_closure_capture_does_not_grow_stack() {
     fn stack_len_after_loop(iterations: i64, body: &str) -> usize {
         let program = format!(
             r#"
             var fns = []
-            for (var i = 0; i < {iterations}; i = i + 1) {{
+            for i in 0..{iterations} {{
                 {body}
             }}
             "#
@@ -3043,7 +3022,7 @@ fn test_reset_recovers_for_in_after_runtime_error() {
     let mut vm = VirtualMachine::new();
 
     let program_with_error = r#"
-        for (x in [1, 2, 3]) {
+        for x in [1, 2, 3] {
             print(x + true)
         }
         "#;
@@ -3052,7 +3031,7 @@ fn test_reset_recovers_for_in_after_runtime_error() {
 
     let result = vm.interpret(
         r#"
-        for (x in [1, 2, 3]) {
+        for x in [1, 2, 3] {
             print(x)
         }
         "#

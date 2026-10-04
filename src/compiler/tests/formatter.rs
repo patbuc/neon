@@ -179,7 +179,7 @@ fn test_break_and_continue_in_lambda_body() {
 fn test_if_else_blocks_expand_and_cuddle() {
     check(
         "if (c) { a } else { b }\n",
-        "if (c) {\n    a\n} else {\n    b\n}\n",
+        "if c {\n    a\n} else {\n    b\n}\n",
     );
 }
 
@@ -187,67 +187,68 @@ fn test_if_else_blocks_expand_and_cuddle() {
 fn test_else_on_its_own_line_is_cuddled() {
     check(
         "if (c) {\n    a\n}\nelse {\n    b\n}\n",
-        "if (c) {\n    a\n} else {\n    b\n}\n",
+        "if c {\n    a\n} else {\n    b\n}\n",
     );
 }
 
 #[test]
 fn test_empty_if_block() {
-    check("if(c){}\n", "if (c) {}\n");
-}
-
-#[test]
-fn test_braceless_if_else_keeps_newline_before_else() {
-    check("if (c) x()\nelse y()\n", "if (c) x()\nelse y()\n");
+    check("if(c){}\n", "if c {}\n");
 }
 
 #[test]
 fn test_else_if_chain() {
     check(
         "if (a) { x() } else if (b) { y() } else { z() }\n",
-        "if (a) {\n    x()\n} else if (b) {\n    y()\n} else {\n    z()\n}\n",
+        "if a {\n    x()\n} else if b {\n    y()\n} else {\n    z()\n}\n",
     );
 }
 
 #[test]
 fn test_while_with_block_body() {
-    check("while (c) { x() }\n", "while (c) {\n    x()\n}\n");
+    check("while (c) { x() }\n", "while c {\n    x()\n}\n");
 }
 
 #[test]
-fn test_for_loop_header_and_block_body() {
+fn test_if_condition_with_operand_parens_is_kept() {
+    check("if (a) && (b) { x() }\n", "if (a) && (b) {\n    x()\n}\n");
+}
+
+#[test]
+fn test_while_missing_space_before_paren_is_added() {
+    check("while(c) { x() }\n", "while c {\n    x()\n}\n");
+}
+
+#[test]
+fn test_nested_condition_parens_are_removed() {
     check(
-        "for (var i = 0; i < 3; i = i + 1) { print(i) }\n",
-        "for (var i = 0; i < 3; i = i + 1) {\n    print(i)\n}\n",
+        "if ((x > 0)) {\n    print(x)\n}\n",
+        "if x > 0 {\n    print(x)\n}\n",
     );
+    check("while ((c)) { x() }\n", "while c {\n    x()\n}\n");
 }
 
 #[test]
 fn test_for_in_loop() {
     check(
-        "for (x in xs) { print(x) }\n",
-        "for (x in xs) {\n    print(x)\n}\n",
+        "for x in xs {\n    print(x)\n}\n",
+        "for x in xs {\n    print(x)\n}\n",
     );
 }
 
 #[test]
-fn test_while_missing_space_before_paren_is_added() {
-    check("while(c) { x() }\n", "while (c) {\n    x()\n}\n");
-}
-
-#[test]
-fn test_for_missing_space_before_paren_is_added() {
+fn test_for_in_collection_parens_are_removed() {
     check(
-        "for(var i = 0; i < 3; i++) { print(i) }\n",
-        "for (var i = 0; i < 3; i++) {\n    print(i)\n}\n",
+        "for x in (xs) {\n    print(x)\n}\n",
+        "for x in xs {\n    print(x)\n}\n",
     );
 }
 
 #[test]
-fn test_for_in_missing_space_before_paren_is_added() {
+fn test_condition_parens_with_comment_are_kept() {
     check(
-        "for(x in xs) { print(x) }\n",
-        "for (x in xs) {\n    print(x)\n}\n",
+        "if ( // c\n    x > 0) {\n    print(x)\n}\n",
+        "if ( // c\n    x > 0\n) {\n    print(x)\n}\n",
     );
 }
 
@@ -454,15 +455,15 @@ fn test_broken_call_arg_continuation_does_not_leak_to_next_arg() {
 fn test_broken_if_condition_continuation_does_not_leak_into_block_body() {
     check(
         "if (a &&\nb) {\nx()\n}\nval q = 1\n",
-        "if (a &&\n    b) {\n    x()\n}\nval q = 1\n",
+        "if a &&\n    b {\n    x()\n}\nval q = 1\n",
     );
 }
 
 #[test]
-fn test_broken_if_condition_continuation_does_not_leak_into_braceless_else() {
+fn test_broken_if_condition_indent_does_not_leak() {
     check(
-        "if (a &&\nb) x()\nelse y()\n",
-        "if (a &&\n    b) x()\nelse y()\n",
+        "if (a &&\nb) {\nx()\n}\nelse {\ny()\n}\n",
+        "if a &&\n    b {\n    x()\n} else {\n    y()\n}\n",
     );
 }
 
@@ -470,23 +471,15 @@ fn test_broken_if_condition_continuation_does_not_leak_into_braceless_else() {
 fn test_broken_while_condition_continuation_does_not_leak_into_body() {
     check(
         "while (a &&\nb) {\nx()\n}\n",
-        "while (a &&\n    b) {\n    x()\n}\n",
-    );
-}
-
-#[test]
-fn test_broken_for_condition_continuation_does_not_leak_into_body() {
-    check(
-        "for (var i = 0; i <\n10; i = i + 1) {\nx()\n}\n",
-        "for (var i = 0; i <\n    10; i = i + 1) {\n    x()\n}\n",
+        "while a &&\n    b {\n    x()\n}\n",
     );
 }
 
 #[test]
 fn test_broken_for_in_collection_continuation_does_not_leak_into_body() {
     check(
-        "for (x in a +\nb) {\ny()\n}\n",
-        "for (x in a +\n    b) {\n    y()\n}\n",
+        "for x in a +\nb {\ny()\n}\n",
+        "for x in a +\n    b {\n    y()\n}\n",
     );
 }
 
@@ -526,27 +519,6 @@ fn test_boolean_and_nil_literals() {
 #[test]
 fn test_plain_string_literal() {
     check("\"hello\"\n", "\"hello\"\n");
-}
-
-#[test]
-fn test_braceless_while_body() {
-    check("while (c) x()\n", "while (c) x()\n");
-}
-
-#[test]
-fn test_braceless_for_body() {
-    check(
-        "for (var i = 0; i < 3; i = i + 1) x()\n",
-        "for (var i = 0; i < 3; i = i + 1) x()\n",
-    );
-}
-
-#[test]
-fn test_block_then_braceless_else() {
-    check(
-        "if (c) {\n    a\n} else b()\n",
-        "if (c) {\n    a\n} else b()\n",
-    );
 }
 
 #[test]
@@ -642,13 +614,13 @@ fn test_comments_after_open_and_before_close_kept_with_blank_rules() {
 fn test_trailing_comment_after_open_brace_stays_on_that_line() {
     check(
         "if (c) { // why\n    a()\n}\n",
-        "if (c) { // why\n    a()\n}\n",
+        "if c { // why\n    a()\n}\n",
     );
 }
 
 #[test]
 fn test_trailing_comment_after_expanded_one_line_block() {
-    check("if (c) { a } // x\n", "if (c) {\n    a\n} // x\n");
+    check("if (c) { a } // x\n", "if c {\n    a\n} // x\n");
 }
 
 #[test]

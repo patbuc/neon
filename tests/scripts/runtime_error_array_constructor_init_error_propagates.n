@@ -5,7 +5,7 @@
 
 print("before")
 Array(3, fn(i) {
-    if (i == 1) {
+    if i == 1 {
         return Math.div(1, 0)
     }
     return i

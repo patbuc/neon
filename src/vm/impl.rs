@@ -277,7 +277,6 @@ impl VirtualMachine {
                 OpCode::GetUpvalue => self.op_get_upvalue()?,
                 OpCode::SetUpvalue => self.op_set_upvalue()?,
                 OpCode::CloseUpvalue => self.op_close_upvalue(),
-                OpCode::CloseUpvalueInPlace => self.op_close_upvalue_in_place(),
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
                 OpCode::StoreLocal => self.op_store_local()?,

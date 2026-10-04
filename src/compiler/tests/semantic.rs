@@ -92,18 +92,6 @@ mod resolutions {
                 index_expr(collection, idx);
                 index_stmt(body, idx);
             }
-            Stmt::For {
-                initializer,
-                condition,
-                increment,
-                body,
-                ..
-            } => {
-                index_stmt(initializer, idx);
-                index_expr(condition, idx);
-                index_expr(increment, idx);
-                index_stmt(body, idx);
-            }
             Stmt::Break { .. } | Stmt::Continue { .. } => {}
         }
     }
@@ -593,7 +581,7 @@ print(Point.origin())
         let (ast, res) = analyze(
             r#"
 val arr = [1, 2, 3]
-for (item in arr) {
+for item in arr {
     print(item)
 }
 "#,
@@ -604,23 +592,6 @@ for (item in arr) {
         let decl = res.decl(find_decl(&idx, "item"));
         let use_id = find_var(&idx, "item", 0);
         assert_eq!(res.res(use_id), Res::Local(decl));
-    }
-
-    #[test]
-    fn c_style_for_initializer_declaration_and_use() {
-        let (ast, res) = analyze(
-            r#"
-for (var i = 0; i < 3; i = i + 1) {
-    print(i)
-}
-"#,
-        );
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let decl = res.decl(find_decl(&idx, "i"));
-        let body_use = find_var(&idx, "i", 2);
-        assert_eq!(res.res(body_use), Res::Local(decl));
     }
 
     #[test]
@@ -1984,7 +1955,7 @@ fn test_continue_in_while_loop_valid() {
 #[test]
 fn test_break_in_for_loop_valid() {
     let program = r#"
-        for (var i = 0; i < 10; i = i + 1) {
+        for i in 0..10 {
             if (i == 5) {
                 break
             }
@@ -2002,7 +1973,7 @@ fn test_break_in_for_loop_valid() {
 #[test]
 fn test_continue_in_for_loop_valid() {
     let program = r#"
-        for (var i = 0; i < 10; i = i + 1) {
+        for i in 0..10 {
             if (i == 5) {
                 continue
             }
@@ -2022,7 +1993,7 @@ fn test_continue_in_for_loop_valid() {
 fn test_break_in_for_in_loop_valid() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        for (item in arr) {
+        for item in arr {
             if (item == 3) {
                 break
             }
@@ -2042,7 +2013,7 @@ fn test_break_in_for_in_loop_valid() {
 fn test_continue_in_for_in_loop_valid() {
     let program = r#"
         val arr = [1, 2, 3, 4, 5]
-        for (item in arr) {
+        for item in arr {
             if (item == 3) {
                 continue
             }
@@ -2819,33 +2790,9 @@ print(h([1]))
 fn test_for_in_variable_shadowing_does_not_inherit_outer_type() {
     let program = r#"
 val s = "abc"
-for (s in [[1]]) {
+for s in [[1]] {
     s.push(2)
 }
-"#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    if let Err(ref errors) = result {
-        for err in errors {
-            eprintln!("Error: {}", err.message);
-        }
-    }
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_for_increment_sees_body_assignments() {
-    let program = r#"
-var n = 0
-for (var s = "ab"; n < 1; s.push(1)) {
-    s = []
-    n = n + 1
-}
-print("ok")
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();

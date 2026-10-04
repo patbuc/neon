@@ -5,14 +5,14 @@
 // 1
 
 var fs = []
-for (i in [1, 2, 3]) {
+for i in [1, 2, 3] {
     fn g() {
         return i
     }
     fs.push(g)
 }
 var pad = 5
-for (h in fs) {
+for h in fs {
     print(h())
 }
 print(fs[0]())

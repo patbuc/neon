@@ -5,9 +5,9 @@
 // 3
 // done
 
-for (i in 0..1000000000) {
+for i in 0..1000000000 {
     print(i)
-    if (i == 3) {
+    if i == 3 {
         break
     }
 }

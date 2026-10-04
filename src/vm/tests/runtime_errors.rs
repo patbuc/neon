@@ -524,7 +524,7 @@ fn vm_is_usable_after_a_callback_error() {
     let program = r#"
         fn add(a, b) { return a + b }
         var total = 0
-        for (i in 0..5) {
+        for i in 0..5 {
             total = add(total, i)
         }
         print(total)

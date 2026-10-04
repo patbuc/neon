@@ -24,28 +24,28 @@ fn one_line_print(n) {
 }
 one_line_print(5)
 
-if (true) {
+if true {
     print("positive")
 }
 
-if (false) {
+if false {
     print("unreachable")
 } else {
     print("negative")
 }
 
 var i = 0
-while (i < 3) {
+while i < 3 {
     i = i + 1
 }
 print(i)
 
-for (var j = 0; j < 3; j = j + 1) {
+for j in 0..3 {
     print(j)
 }
 
 fn nested_one_liner(x) {
-    if (x > 0) {
+    if x > 0 {
         return 1
     } else {
         return -1
@@ -54,14 +54,14 @@ fn nested_one_liner(x) {
 print(nested_one_liner(10))
 
 var n = 0
-while (n < 10) {
+while n < 10 {
     break
 }
 print(n)
 
 var total = 0
-for (var p = 0; p < 5; p = p + 1) {
-    if (p == 2) {
+for p in 0..5 {
+    if p == 2 {
         continue
     }
     total = total + 1
@@ -69,6 +69,6 @@ for (var p = 0; p < 5; p = p + 1) {
 print(total)
 
 val letters = ["a", "b", "c"]
-for (letter in letters) {
+for letter in letters {
     print(letter)
 }

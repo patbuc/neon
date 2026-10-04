@@ -4,7 +4,7 @@
 
 val m = {}
 m[[1, 2]] = 3
-for (k in m) {
+for k in m {
     k.push(9)
 }
 print(m[[1, 2]])

@@ -5,11 +5,11 @@ val n = args.length() > 0 ? args[0].toInt() : 100
 
 var checksum = 0
 var i = 0
-while (i < n) {
+while i < n {
     val s = "ab" + i.toString() + ",cd,ef"
     val parts = s.split(",")
     var j = 0
-    while (j < parts.length()) {
+    while j < parts.length() {
         checksum = (checksum + parts[j].len()) % 1000000007
         j = j + 1
     }

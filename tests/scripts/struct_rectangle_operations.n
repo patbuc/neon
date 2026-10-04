@@ -33,10 +33,10 @@ fn contains(rect, pt) {
     val inside_y = pt.y >= rect.top_left.y
     val inside_y2 = pt.y <= rect.bottom_right.y
 
-    if (inside_x) {
-        if (inside_x2) {
-            if (inside_y) {
-                if (inside_y2) {
+    if inside_x {
+        if inside_x2 {
+            if inside_y {
+                if inside_y2 {
                     return 1
                 }
             }

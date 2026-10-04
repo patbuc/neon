@@ -6,7 +6,7 @@
 fn makeGetters() {
     var closures = []
     var i = 0
-    while (i < 3) {
+    while i < 3 {
         val value = (i + 1) * 10
         fn makeGetter() {
             return value
@@ -17,6 +17,6 @@ fn makeGetters() {
     return closures
 }
 
-for (getter in makeGetters()) {
+for getter in makeGetters() {
     print(getter())
 }

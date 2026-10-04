@@ -199,7 +199,7 @@ fn test_set_to_array_mutation_isolated() {
 fn test_set_for_in_array_element_fresh_copy() {
     let program = r#"
         val s = #{[1, 2]}
-        for (e in s) {
+        for e in s {
             e.push(9)
         }
         print(s.has([1, 2]))

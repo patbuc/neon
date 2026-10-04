@@ -6,15 +6,15 @@
 // 3
 
 fn shrink(xs) {
-    while (xs.length() > 1) {
+    while xs.length() > 1 {
         xs.pop()
     }
     return xs
 }
 
 fn count(n) {
-    for (i in 0..n) {
-        if (i == n - 1) {
+    for i in 0..n {
+        if i == n - 1 {
             return n
         }
     }

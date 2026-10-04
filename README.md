@@ -194,7 +194,7 @@ fn greet(name) {
 }
 
 fn fibonacci(n) {
-    if (n <= 1) {
+    if n <= 1 {
         return n
     }
     return fibonacci(n - 1) + fibonacci(n - 2)
@@ -331,9 +331,9 @@ block variable declared after it.
 **If/Else:**
 
 ```neon
-if (x > 10) {
+if x > 10 {
     print("Greater than 10")
-} else if (x > 5) {
+} else if x > 5 {
     print("Greater than 5")
 } else {
     print("5 or less")
@@ -344,7 +344,7 @@ if (x > 10) {
 
 ```neon
 var i = 0
-while (i < 5) {
+while i < 5 {
     print(i)
     i = i + 1
 }
@@ -353,37 +353,36 @@ while (i < 5) {
 **For Loops:**
 
 ```neon
-// Traditional for loop
-for (var i = 0; i < 10; i = i + 1) {
+// For-in loop over a range
+for i in 0..10 {
     print(i)
 }
 
 // For-in loop over arrays
-for (item in [1, 2, 3, 4, 5]) {
+for item in [1, 2, 3, 4, 5] {
     print(item)
 }
 
 // For-in loop over ranges
-for (i in 1..=10) {
+for i in 1..=10 {
     print(i)
 }
 
 // For-in loop over map keys
 val person = {"name": "Alice", "age": 30}
-for (key in person) {
+for key in person {
     print("${key}: ${person[key]}")
 }
 
 // For-in loop over set
 val numbers = #{1, 2, 3}
-for (num in numbers) {
+for num in numbers {
     print(num)
 }
 ```
 
-Both loop forms give every iteration its own binding of the loop variable, so a closure
-created in the body keeps that iteration's value. In a traditional `for` loop, a write to
-the variable in the body carries over to the increment and the next iteration.
+`for-in` gives every iteration its own binding of the loop variable, so a closure
+created in the body keeps that iteration's value.
 
 ### Operators
 
@@ -552,7 +551,7 @@ print(Color.Red)              // Color.Red
 print(Color.Red == Color.Red) // true
 print(Color.Red == Color.Green) // false
 
-for (c in Color.values()) {
+for c in Color.values() {
     print(c)
 }
 ```
@@ -573,13 +572,13 @@ for (c in Color.values()) {
 
 ```neon
 fn fibonacci(n) {
-    if (n <= 1) {
+    if n <= 1 {
         return n
     }
     return fibonacci(n - 1) + fibonacci(n - 2)
 }
 
-for (var i = 0; i < 10; i = i + 1) {
+for i in 0..10 {
     print(fibonacci(i))
 }
 ```
@@ -596,12 +595,12 @@ numbers.push(3)
 print(numbers[0])
 
 // Check if contains value
-if (numbers.contains(5)) {
+if numbers.contains(5) {
     print("Found 5!")
 }
 
 // Iterate
-for (num in numbers) {
+for num in numbers {
     print(num)
 }
 
@@ -625,12 +624,12 @@ print(person["name"])
 person["email"] = "alice@example.com"
 
 // Iterate over keys
-for (key in person) {
+for key in person {
     print("${key}: ${person[key]}")
 }
 
 // Check if key exists
-if (person.has("age")) {
+if person.has("age") {
     print("Age: ${person["age"]}")
 }
 
@@ -650,7 +649,7 @@ numbers.add(2)  // Duplicate ignored
 print(numbers.size())  // 3
 
 // Check membership
-if (numbers.has(1)) {
+if numbers.has(1) {
     print("Contains 1")
 }
 
@@ -667,13 +666,13 @@ val intersect = setA.intersection(setB) // #{2, 3}
 val diff = setA.difference(setB)        // #{1}
 
 // Check subset
-if (setA.isSubset(setB)) {
+if setA.isSubset(setB) {
     print("A is subset of B")
 }
 
 // Convert to array for iteration control
 val asArray = numbers.toArray()
-for (var i = 0; i < asArray.size(); i = i + 1) {
+for i in 0..asArray.size() {
     print(asArray[i])
 }
 ```
@@ -692,7 +691,7 @@ print(text.replace("World", "Neon"))   // "Hello Neon"
 
 // Split into array
 val words = "one,two,three".split(",")  // ["one", "two", "three"]
-for (word in words) {
+for word in words {
     print(word)
 }
 
@@ -843,6 +842,7 @@ comparator must return a number.
 - `.size()` / `.length()` - Number of integers the range covers, computed from its bounds
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
+- `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
 - `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.

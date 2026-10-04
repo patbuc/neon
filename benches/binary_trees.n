@@ -7,14 +7,14 @@ struct TreeNode {
 }
 
 fn make_tree(depth) {
-    if (depth <= 0) {
+    if depth <= 0 {
         return TreeNode(nil, nil)
     }
     return TreeNode(make_tree(depth - 1), make_tree(depth - 1))
 }
 
 fn check_tree(node) {
-    if (node.left == nil) {
+    if node.left == nil {
         return 1
     }
     return check_tree(node.left) + check_tree(node.right) + 1
@@ -23,7 +23,7 @@ fn check_tree(node) {
 fn pow2(k) {
     var result = 1
     var i = 0
-    while (i < k) {
+    while i < k {
         result = result * 2
         i = i + 1
     }
@@ -42,11 +42,11 @@ var checksum = check_tree(stretch_tree) % 1000000007
 val long_lived_tree = make_tree(max_depth)
 
 var depth = min_depth
-while (depth <= max_depth) {
+while depth <= max_depth {
     val iterations = pow2(max_depth - depth + min_depth)
     var check = 0
     var i = 0
-    while (i < iterations) {
+    while i < iterations {
         check = check + check_tree(make_tree(depth))
         i = i + 1
     }

@@ -78,8 +78,6 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         ],
         CompilationErrorKind::ExpectedToken => vec![
             ("val 5 = 1\n".to_string(), Some("variable name")),
-            ("for (x < 1) {\n}\n".to_string(), Some("for-in loop")),
-            ("for (1; 1; 1) {\n}\n".to_string(), Some("for loop initializer")),
             (
                 "print(\"x${a b c}y\")\n".to_string(),
                 Some("interpolated expression"),

@@ -14,10 +14,10 @@ fn make_counter(start) {
 
 var total = 0
 var i = 0
-while (i < n) {
+while i < n {
     val counter = make_counter(i % 13)
     var j = 0
-    while (j < 20) {
+    while j < 20 {
         total = (total + counter(j + 1)) % 1000000007
         j = j + 1
     }

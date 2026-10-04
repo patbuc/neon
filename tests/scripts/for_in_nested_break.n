@@ -9,10 +9,10 @@
 
 val outer = [1, 2, 3]
 val inner = ["a", "b", "c"]
-for (o in outer) {
+for o in outer {
     print(o)
-    for (i in inner) {
-        if (i == "b") {
+    for i in inner {
+        if i == "b" {
             break
         }
         print(i)

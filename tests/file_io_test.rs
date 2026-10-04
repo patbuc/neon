@@ -171,8 +171,8 @@ fn test_file_read_lines_basic() {
         r#"
         var f = File("{}")
         var lines = f.readLines()
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            print(lines[i])
+        for line in lines {{
+            print(line)
         }}
     "#,
         file_path
@@ -203,8 +203,8 @@ fn test_file_read_lines_with_empty_lines() {
         var f = File("{}")
         var lines = f.readLines()
         print(lines.size())
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            print("[" + lines[i] + "]")
+        for line in lines {{
+            print("[" + line + "]")
         }}
     "#,
         file_path
@@ -236,8 +236,8 @@ fn test_file_read_lines_crlf() {
         r#"
         var f = File("{}")
         var lines = f.readLines()
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            print(lines[i])
+        for line in lines {{
+            print(line)
         }}
     "#,
         file_path
@@ -508,8 +508,8 @@ fn test_file_end_to_end_write_then_read_lines() {
         r#"
         var f = File("{}")
         var lines = f.readLines()
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            print(lines[i])
+        for line in lines {{
+            print(line)
         }}
     "#,
         file_path
@@ -623,8 +623,8 @@ fn test_file_read_lines_in_function() {
         }}
 
         var lines = getLines("{}")
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            print(lines[i])
+        for line in lines {{
+            print(line)
         }}
     "#,
         file_path
@@ -687,9 +687,9 @@ fn test_file_practical_example_process_lines() {
         var lines = f.readLines()
         var count = 0
 
-        for (var i = 0; i < lines.size(); i = i + 1) {{
-            if (lines[i].len() > 5) {{
-                print(lines[i])
+        for line in lines {{
+            if (line.len() > 5) {{
+                print(line)
                 count = count + 1
             }}
         }}

@@ -378,46 +378,21 @@ impl<'a> Printer<'a> {
                 else_branch,
                 ..
             } => {
-                self.write("if (");
-                self.nested(0, |printer| printer.print_expr(condition));
-                self.write(") ");
+                self.write("if ");
+                self.nested(0, |printer| printer.print_condition(condition));
+                self.write(" ");
                 self.print_stmt(then_branch);
                 if let Some(else_stmt) = else_branch {
-                    if matches!(then_branch.as_ref(), Stmt::Block { .. }) {
-                        self.write(" else ");
-                    } else {
-                        let then_last_line = self.map.stmt_last_line(then_branch);
-                        let else_line = self.map.line(self.map.stmt_last_token(then_branch) + 1);
-                        self.line_break(then_last_line, else_line, Gap::Continuation);
-                        self.write("else ");
-                    }
+                    self.write(" else ");
                     self.print_stmt(else_stmt);
                 }
             }
             Stmt::While {
                 condition, body, ..
             } => {
-                self.write("while (");
-                self.nested(0, |printer| printer.print_expr(condition));
-                self.write(") ");
-                self.print_stmt(body);
-            }
-            Stmt::For {
-                initializer,
-                condition,
-                increment,
-                body,
-                ..
-            } => {
-                self.write("for (");
-                self.nested(0, |printer| {
-                    printer.print_stmt(initializer);
-                    printer.write("; ");
-                    printer.print_expr(condition);
-                    printer.write("; ");
-                    printer.print_expr(increment);
-                });
-                self.write(") ");
+                self.write("while ");
+                self.nested(0, |printer| printer.print_condition(condition));
+                self.write(" ");
                 self.print_stmt(body);
             }
             Stmt::ForIn {
@@ -426,11 +401,11 @@ impl<'a> Printer<'a> {
                 body,
                 ..
             } => {
-                self.write("for (");
+                self.write("for ");
                 self.write(variable);
                 self.write(" in ");
-                self.nested(0, |printer| printer.print_expr(collection));
-                self.write(") ");
+                self.nested(0, |printer| printer.print_condition(collection));
+                self.write(" ");
                 self.print_stmt(body);
             }
             Stmt::Struct {
@@ -559,6 +534,25 @@ impl<'a> Printer<'a> {
     }
 
     // --- Expressions ------------------------------------------------
+
+    /// Strips every layer of `(expr)` grouping around an if/while condition
+    /// or for-in collection.
+    fn print_condition(&mut self, expr: &Expr) {
+        match expr {
+            Expr::Grouping {
+                expr: inner,
+                location,
+            } => {
+                let close_line = self.map.line(self.map.at(location));
+                if self.has_comment_before(close_line) {
+                    self.print_expr(expr);
+                } else {
+                    self.print_condition(inner);
+                }
+            }
+            _ => self.print_expr(expr),
+        }
+    }
 
     fn print_expr(&mut self, expr: &Expr) {
         match expr {
