@@ -768,15 +768,7 @@ impl Parser {
     fn if_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'if'.") {
-            return None;
-        }
-
         let condition = self.expression(false)?;
-
-        if !self.consume(TokenType::RightParen, "Expecting ')' after condition.") {
-            return None;
-        }
 
         let then_branch = Box::new(self.statement()?);
         let else_branch = if self.match_token(TokenType::Else) {
@@ -796,15 +788,7 @@ impl Parser {
     fn while_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'while'.") {
-            return None;
-        }
-
         let condition = self.expression(false)?;
-
-        if !self.consume(TokenType::RightParen, "Expecting ')' after condition.") {
-            return None;
-        }
 
         let body = Box::new(self.statement()?);
 
@@ -817,6 +801,32 @@ impl Parser {
 
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
+
+        if !self.check(TokenType::LeftParen) {
+            // Paren-free for-in: for identifier in collection { body }
+            if !self.consume(TokenType::Identifier, "Expecting identifier after 'for'.") {
+                return None;
+            }
+            let identifier = self.previous_token.token.clone();
+
+            if !self.consume(
+                TokenType::In,
+                "Expecting 'in' after identifier in for-in loop.",
+            ) {
+                return None;
+            }
+
+            let collection = self.expression(false)?;
+            let body = Box::new(self.statement()?);
+
+            return Some(Stmt::ForIn {
+                variable: identifier,
+                collection,
+                body,
+                id: self.next_id(),
+                location,
+            });
+        }
 
         if !self.consume(TokenType::LeftParen, "Expecting '(' after 'for'.") {
             return None;

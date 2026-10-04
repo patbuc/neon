@@ -379,7 +379,7 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.write("if (");
-                self.nested(0, |printer| printer.print_expr(condition));
+                self.nested(0, |printer| printer.print_condition(condition));
                 self.write(") ");
                 self.print_stmt(then_branch);
                 if let Some(else_stmt) = else_branch {
@@ -398,7 +398,7 @@ impl<'a> Printer<'a> {
                 condition, body, ..
             } => {
                 self.write("while (");
-                self.nested(0, |printer| printer.print_expr(condition));
+                self.nested(0, |printer| printer.print_condition(condition));
                 self.write(") ");
                 self.print_stmt(body);
             }
@@ -559,6 +559,16 @@ impl<'a> Printer<'a> {
     }
 
     // --- Expressions ------------------------------------------------
+
+    /// Prints an if/while condition, dropping one redundant pair of parens
+    /// when the condition is itself written as `(expr)` — the statement's
+    /// own `( )` already supplies that wrapping.
+    fn print_condition(&mut self, expr: &Expr) {
+        match expr {
+            Expr::Grouping { expr: inner, .. } => self.print_expr(inner),
+            _ => self.print_expr(expr),
+        }
+    }
 
     fn print_expr(&mut self, expr: &Expr) {
         match expr {

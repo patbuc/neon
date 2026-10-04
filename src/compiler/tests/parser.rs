@@ -763,8 +763,8 @@ fn test_while_body_reports_both_bad_statements() {
 }
 
 #[test]
-fn test_missing_if_header_parens_skips_balanced_braces() {
-    let program = "fn f() {\n    if true { val a = ) } else { val b = 2 }\n    val y = 1\n}\n";
+fn test_if_header_error_skips_body() {
+    let program = "fn f() {\n    if ) { val a = ) } else { val b = + }\n    val y = 1\n}\n";
     let mut parser = Parser::new(program);
     let result = parser.parse();
     assert!(result.is_err());
@@ -777,8 +777,8 @@ fn test_missing_if_header_parens_skips_balanced_braces() {
 }
 
 #[test]
-fn test_missing_while_header_parens_skips_balanced_braces() {
-    let program = "fn f() {\n  while true {\n    val x = +\n  }\n  val y = +\n}\n";
+fn test_while_header_error_skips_body() {
+    let program = "fn f() {\n  while ) {\n    val x = +\n  }\n  val y = +\n}\n";
     let mut parser = Parser::new(program);
     let result = parser.parse();
     assert!(result.is_err());
