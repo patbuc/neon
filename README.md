@@ -843,6 +843,7 @@ comparator must return a number.
 - `.size()` / `.length()` - Number of integers the range covers, computed from its bounds
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
+- `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
 - `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.

@@ -1,4 +1,5 @@
 use crate::common::stdlib::array_functions;
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
 use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
 use crate::extract_receiver;
@@ -78,6 +79,31 @@ pub fn native_range_to_array(args: &[Value]) -> Result<Value, String> {
 
     let range = extract_receiver!(args, Range, "toArray")?;
     Ok(Value::new_array(elements(range)))
+}
+
+/// Native implementation of Range.step(k)
+/// Returns an array of the range's values, starting at its start and
+/// advancing by k each time, honoring the inclusive/exclusive end.
+pub fn native_range_step(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "step() expects 1 argument (k), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "step")?;
+    let k = extract_integer_arg(args, 1, "k", "step")?;
+    if k < 1 {
+        return Err(format!("step() k must be >= 1, got {}", k));
+    }
+
+    let len = range.len();
+    let values = (0..len)
+        .step_by(k as usize)
+        .map(|i| Value::Int(range.get(i)))
+        .collect();
+    Ok(Value::new_array(values))
 }
 
 /// Native implementation of Range.slice(start, end)

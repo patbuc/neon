@@ -128,7 +128,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `find(fn)`, `some(fn)`, `every(fn)`,
   `flat()`, `copy()`
-- **Range:** `size`, `length`, `contains`, `toArray`, `slice`, `join`,
+- **Range:** `size`, `length`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
 - **Map:** `get`, `has`, `remove`, `size`, `keys`, `values`, `entries`
 - **Set:** `add`, `remove`, `has`, `size`, `clear`, `union`,

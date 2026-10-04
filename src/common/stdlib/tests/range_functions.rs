@@ -104,6 +104,39 @@ fn test_range_to_array() {
 }
 
 // ============================================================================
+// Range.step()
+// ============================================================================
+
+#[test]
+fn test_range_step() {
+    let program = r#"
+        print((0..10).step(3))
+        print((0..=9).step(3))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[0, 3, 6, 9]\n[0, 3, 6, 9]", vm.get_output());
+}
+
+#[test]
+fn test_range_step_zero_is_runtime_error() {
+    let program = r#"
+        val r = 0..10
+        r.step(0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("step()"), "{}", errors);
+    assert!(errors.contains('0'), "{}", errors);
+}
+
+// ============================================================================
 // Materializing delegates - one representative case
 // ============================================================================
 
