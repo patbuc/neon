@@ -162,7 +162,7 @@ print(arrayForm.size())
 
 // Process array elements and add back to a new set
 val processed = #{}
-for (var i = 0; i < arrayForm.size(); i = i + 1) {
+for i in 0..arrayForm.size() {
     val element = arrayForm[i]
     print(processed.add(element))
 }

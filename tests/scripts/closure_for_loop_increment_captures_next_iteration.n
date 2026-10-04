@@ -14,6 +14,6 @@ for (var i = 0; i < 6; i = remember(fn() {
     i = i + 1
 }
 
-for (f in saved) {
+for f in saved {
     print(f())
 }

@@ -29,22 +29,22 @@ val x = 1
 print(x)
 
 // A local declared in an untaken if-branch must not shift later locals
-if (false) {
+if false {
     val a = 1
 }
 val b = 2
 print(b)
 
 // Two consecutive for-in loops in the same scope
-for (i in 1..5) {
+for i in 1..5 {
     print(i)
 }
-for (i in 1..=5) {
+for i in 1..=5 {
     print(i)
 }
 
 // A for-in body declaring its own local must not shift a later top-level local
-for (n in 1..=3) {
+for n in 1..=3 {
     val doubled = n * 2
     print(doubled)
 }

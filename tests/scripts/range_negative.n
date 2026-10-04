@@ -6,6 +6,6 @@
 // 1
 
 // Test range with negative numbers
-for (i in -3..2) {
+for i in -3..2 {
     print(i)
 }

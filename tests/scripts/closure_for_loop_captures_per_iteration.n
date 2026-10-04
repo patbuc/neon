@@ -9,6 +9,6 @@ for (var i = 0; i < 3; i = i + 1) {
         return i
     })
 }
-for (f in fns) {
+for f in fns {
     print(f())
 }

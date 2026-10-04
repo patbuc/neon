@@ -9,6 +9,6 @@
 // Test range with variables
 val start = 5
 val end = 10
-for (i in start..=end) {
+for i in start..=end {
     print(i)
 }

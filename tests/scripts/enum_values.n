@@ -23,6 +23,6 @@ c[0] = Color.Blue
 val d = Color.values()
 print(d)
 
-for (v in Color.values()) {
+for v in Color.values() {
     print(v)
 }

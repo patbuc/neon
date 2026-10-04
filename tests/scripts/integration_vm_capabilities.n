@@ -24,7 +24,7 @@ val f = "World"
 print(e + " " + f) // Hello World
 
 val g = 42
-if (g == 42) {
+if g == 42 {
     print("g is 42")
 } else {
     print("g is not 42")
@@ -40,13 +40,13 @@ print(j) // nil
 val k = -a
 print(k) // -10
 
-if (a > b) {
+if a > b {
     print("a > b")
 } else {
     print("a <= b")
 }
 
-if (a < b) {
+if a < b {
     print("a < b")
 } else {
     print("a >= b")

@@ -3,8 +3,8 @@
 
 fn find() {
     var i = 0
-    while (i < 5) {
-        if (i == 3) {
+    while i < 5 {
+        if i == 3 {
             val captured = i * 10
             fn getter() {
                 return captured

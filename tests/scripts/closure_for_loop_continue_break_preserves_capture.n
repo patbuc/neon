@@ -15,11 +15,11 @@ for (var i = 0; i < 5; i = i + 1) {
     continueFns.push(fn() {
         return i
     })
-    if (i == 2) {
+    if i == 2 {
         continue
     }
 }
-for (f in continueFns) {
+for f in continueFns {
     print(f())
 }
 
@@ -31,10 +31,10 @@ for (var i = 0; i < 5; i = i + 1) {
     breakFns.push(fn() {
         return i
     })
-    if (i == 2) {
+    if i == 2 {
         break
     }
 }
-for (f in breakFns) {
+for f in breakFns {
     print(f())
 }

@@ -58,7 +58,7 @@ print(m.keys())
 print(m.values())
 print(m.entries())
 
-for (key in m) {
+for key in m {
     print(key)
 }
 

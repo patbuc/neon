@@ -111,7 +111,7 @@ print("a" >= "a")
 print("a" + "b" < "a" + "c")
 var i = 0
 var sum = 0
-while (i < 5) {
+while i < 5 {
     sum = sum + i * 2 - 1
     i = i + 1
 }

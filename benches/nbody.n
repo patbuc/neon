@@ -27,7 +27,7 @@ fn offset_momentum(bodies) {
     var px = 0
     var py = 0
     var pz = 0
-    for (b in bodies) {
+    for b in bodies {
         px = px + b.vx * b.mass
         py = py + b.vy * b.mass
         pz = pz + b.vz * b.mass
@@ -41,10 +41,10 @@ fn offset_momentum(bodies) {
 fn advance(bodies, dt) {
     val count = bodies.length()
     var i = 0
-    while (i < count) {
+    while i < count {
         val bi = bodies[i]
         var j = i + 1
-        while (j < count) {
+        while j < count {
             val bj = bodies[j]
             val dx = bi.x - bj.x
             val dy = bi.y - bj.y
@@ -62,7 +62,7 @@ fn advance(bodies, dt) {
         i = i + 1
     }
     i = 0
-    while (i < count) {
+    while i < count {
         val b = bodies[i]
         b.x = b.x + dt * b.vx
         b.y = b.y + dt * b.vy
@@ -75,11 +75,11 @@ fn energy(bodies) {
     var e = 0
     val count = bodies.length()
     var i = 0
-    while (i < count) {
+    while i < count {
         val bi = bodies[i]
         e = e + 0.5 * bi.mass * (bi.vx * bi.vx + bi.vy * bi.vy + bi.vz * bi.vz)
         var j = i + 1
-        while (j < count) {
+        while j < count {
             val bj = bodies[j]
             val dx = bi.x - bj.x
             val dy = bi.y - bj.y
@@ -99,7 +99,7 @@ val bodies = make_bodies()
 offset_momentum(bodies)
 
 var step = 0
-while (step < n) {
+while step < n {
     advance(bodies, 0.01)
     step = step + 1
 }

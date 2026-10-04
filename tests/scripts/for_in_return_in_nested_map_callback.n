@@ -6,11 +6,11 @@
 // done
 
 val groups = [[1, 2], [3, 4]]
-for (g in groups) {
+for g in groups {
     print(g)
     print(g.map(fn(x) {
-        for (y in [x, x * 10]) {
-            if (y == x) {
+        for y in [x, x * 10] {
+            if y == x {
                 continue
             }
             return y

@@ -16,10 +16,10 @@ val n = args.length() > 0 ? args[0].toInt() : 2000
 
 var total = 0
 var i = 0
-while (i < n) {
+while i < n {
     val c = Counter(i % 17)
     var j = 0
-    while (j < 10) {
+    while j < 10 {
         total = (total + c.bump(j + 1)) % 1000000007
         j = j + 1
     }
