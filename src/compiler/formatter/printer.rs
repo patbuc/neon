@@ -76,8 +76,8 @@ impl<'a> Printer<'a> {
         };
         self.line_break(prev, u32::MAX, gap);
         while self.next_comment < self.comments.len() {
-            let line = self.comments[self.next_comment].line;
-            self.record_unplaceable(line);
+            let comment = self.comments[self.next_comment].clone();
+            self.record_unplaceable(&comment);
             self.next_comment += 1;
         }
         match self.error {
@@ -120,16 +120,16 @@ impl<'a> Printer<'a> {
         self.blank_lines.iter().any(|&line| line > a && line < b)
     }
 
-    fn record_unplaceable(&mut self, line: u32) {
+    fn record_unplaceable(&mut self, comment: &Comment) {
         if self.error.is_none() {
             self.error = Some(CompilationError::new(
                 CompilationPhase::Format,
                 CompilationErrorKind::UnplaceableComment,
-                format!("Cannot place the comment on line {line}"),
+                format!("Cannot place the comment on line {}", comment.line),
                 SourceLocation {
                     offset: 0,
-                    line,
-                    column: 0,
+                    line: comment.line,
+                    column: comment.column,
                 },
             ));
         }
@@ -144,8 +144,8 @@ impl<'a> Printer<'a> {
         while self.next_comment < self.comments.len()
             && self.comments[self.next_comment].line < prev
         {
-            let line = self.comments[self.next_comment].line;
-            self.record_unplaceable(line);
+            let comment = self.comments[self.next_comment].clone();
+            self.record_unplaceable(&comment);
             self.next_comment += 1;
         }
 
@@ -174,8 +174,8 @@ impl<'a> Printer<'a> {
                 break;
             }
             if comment.kind == CommentKind::Trailing {
-                let line = comment.line;
-                self.record_unplaceable(line);
+                let comment = comment.clone();
+                self.record_unplaceable(&comment);
                 self.next_comment += 1;
                 continue;
             }

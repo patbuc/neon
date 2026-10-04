@@ -633,6 +633,8 @@ fn test_unplaceable_comment_between_block_and_else_is_an_error() {
     let errors = crate::compiler::format(source).unwrap_err();
     assert_eq!(errors.len(), 1);
     assert!(errors[0].message.contains("line 2"), "{:?}", errors[0]);
+    assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].location.column, 3);
 }
 
 #[test]
