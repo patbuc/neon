@@ -378,9 +378,9 @@ impl<'a> Printer<'a> {
                 else_branch,
                 ..
             } => {
-                self.write("if (");
+                self.write("if ");
                 self.nested(0, |printer| printer.print_condition(condition));
-                self.write(") ");
+                self.write(" ");
                 self.print_stmt(then_branch);
                 if let Some(else_stmt) = else_branch {
                     if matches!(then_branch.as_ref(), Stmt::Block { .. }) {
@@ -397,9 +397,9 @@ impl<'a> Printer<'a> {
             Stmt::While {
                 condition, body, ..
             } => {
-                self.write("while (");
+                self.write("while ");
                 self.nested(0, |printer| printer.print_condition(condition));
-                self.write(") ");
+                self.write(" ");
                 self.print_stmt(body);
             }
             Stmt::For {
@@ -426,11 +426,11 @@ impl<'a> Printer<'a> {
                 body,
                 ..
             } => {
-                self.write("for (");
+                self.write("for ");
                 self.write(variable);
                 self.write(" in ");
-                self.nested(0, |printer| printer.print_expr(collection));
-                self.write(") ");
+                self.nested(0, |printer| printer.print_condition(collection));
+                self.write(" ");
                 self.print_stmt(body);
             }
             Stmt::Struct {
@@ -560,9 +560,8 @@ impl<'a> Printer<'a> {
 
     // --- Expressions ------------------------------------------------
 
-    /// Prints an if/while condition, dropping one redundant pair of parens
-    /// when the condition is itself written as `(expr)` — the statement's
-    /// own `( )` already supplies that wrapping.
+    /// Strips one layer of `(expr)` grouping around an if/while condition
+    /// or for-in collection.
     fn print_condition(&mut self, expr: &Expr) {
         match expr {
             Expr::Grouping { expr: inner, .. } => self.print_expr(inner),
