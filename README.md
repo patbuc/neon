@@ -186,7 +186,7 @@ print(r)  // 1,2
 
 ```neon
 fn add(a, b) {
-    return a + b
+    a + b
 }
 
 fn greet(name) {
@@ -199,6 +199,24 @@ fn fibonacci(n) {
     }
     return fibonacci(n - 1) + fibonacci(n - 2)
 }
+```
+
+A function's last expression statement is its return value — no `return`
+needed. Any other kind of last statement (like `greet`'s `print`, above)
+returns `nil`, and so does a bare `return`. When the whole body is one
+expression, a named function or method can skip the braces with `= expr`:
+
+```neon
+fn sq(x) = x * x
+print(sq(3))  // 9
+```
+
+Lambdas can't use `= expr`, but their last expression is still their return
+value:
+
+```neon
+val inc = fn(x) { x + 1 }
+print(inc(4))  // 5
 ```
 
 Parameters are immutable inside the function body: assigning to one is a
@@ -215,9 +233,7 @@ Functions are first-class values: they can be stored in variables, passed as
 arguments, and returned from other functions.
 
 ```neon
-fn double(x) {
-    return x * 2
-}
+fn double(x) = x * 2
 
 fn apply(f, value) {
     return f(value)

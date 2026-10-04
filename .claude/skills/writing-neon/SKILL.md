@@ -43,8 +43,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 **Declarations**
 - `val` (immutable) and `var` (mutable). No `let`, `const`.
 - Function parameters are immutable; copy to a `var` to modify.
-- `fn name(a, b) { ... }`. Lambdas are `fn(x) { return x * 2 }`; no `=>`
-  arrows and no implicit return.
+- `fn name(a, b) { ... }`. A function's last expression statement is its
+  return value, with no `return` needed; a bare `return` or any other kind of
+  last statement returns `nil`. Lambdas are `fn(x) { x * 2 }`; no `=>`
+  arrows. A named function or method whose whole body is one expression can
+  skip the braces with `fn name(a, b) = expr` (lambdas can't use `= expr`).
 - Struct fields are listed one per line, no commas or types:
   `struct Point {` / `x` / `y` / `}`. Construct with `Point(1, 2)`.
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
