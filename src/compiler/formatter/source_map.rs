@@ -15,8 +15,17 @@ pub(crate) struct SourceMap {
     partners: Vec<Option<usize>>,
 }
 
-/// The four token positions that bracket a function's params and body,
+/// The two token positions that bracket a function's parameter list,
 /// shared by named declarations and lambdas.
+pub(crate) struct ParamsTokens {
+    pub(crate) open: usize,
+    pub(crate) close: usize,
+}
+
+/// Params and body braces of a function or lambda. For an expression-bodied
+/// `fn name(params) = expr`, `body_open`/`body_close` both point at the `=`
+/// token; callers that need the expression's real extent use `last_token`
+/// on the body expression instead.
 pub(crate) struct FnTokens {
     pub(crate) params_open: usize,
     pub(crate) params_close: usize,
@@ -169,22 +178,24 @@ impl SourceMap {
         self.end_line(self.last_token(expr))
     }
 
-    /// Params and body braces of a function or lambda. For an expression-bodied
-    /// `fn name(params) = expr`, `body_open`/`body_close` both point at the `=`
-    /// token; callers that need the expression's real extent use `last_token`
-    /// on the body expression instead.
+    /// Params of a function or lambda, as a `(` `)` token pair.
+    pub(crate) fn params_tokens(&self, location: &SourceLocation) -> ParamsTokens {
+        let open = self.at(location) + 1;
+        let close = self.partner(open);
+        ParamsTokens { open, close }
+    }
+
     pub(crate) fn fn_tokens(&self, location: &SourceLocation) -> FnTokens {
-        let params_open = self.at(location) + 1;
-        let params_close = self.partner(params_open);
-        let body_open = params_close + 1;
+        let params = self.params_tokens(location);
+        let body_open = params.close + 1;
         let body_close = if self.kinds[body_open] == TokenType::LeftBrace {
             self.partner(body_open)
         } else {
             body_open
         };
         FnTokens {
-            params_open,
-            params_close,
+            params_open: params.open,
+            params_close: params.close,
             body_open,
             body_close,
         }
@@ -192,8 +203,7 @@ impl SourceMap {
 
     /// True for a `fn name(params) = expr` declaration rather than a braced body.
     pub(crate) fn is_expr_bodied_fn(&self, location: &SourceLocation) -> bool {
-        let params_open = self.at(location) + 1;
-        let params_close = self.partner(params_open);
+        let params_close = self.params_tokens(location).close;
         self.kinds[params_close + 1] == TokenType::Equal
     }
 
