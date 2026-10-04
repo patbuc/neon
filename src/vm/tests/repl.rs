@@ -341,3 +341,25 @@ fn failed_redeclaration_keeps_old_value() {
     );
     assert_eq!("1", vm.get_output());
 }
+
+#[test]
+fn failed_line_forgets_an_assigned_global_type() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("var x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret_line("print([x = \"ab\", [1][5]])".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(x)".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(x.len())".to_string())
+    );
+    assert_eq!("ab\n2", vm.get_output());
+}
