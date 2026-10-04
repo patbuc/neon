@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791151039643,
+  "lastUpdate": 1791155271598,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -11327,6 +11327,183 @@ window.BENCHMARK_DATA = {
           {
             "name": "strings neon/python",
             "value": 1.027266262694143,
+            "unit": "ratio"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d23bb020011aa077fad8d227e434f67c6f458f6c",
+          "message": "Merge pull request #430 from patbuc/394-paren-free-conditions\n\n394: Drop parentheses from if/while/for and require braces",
+          "timestamp": "2026-10-05T01:06:35+02:00",
+          "tree_id": "de61b373608ac40ff8589c50fa68f615c9fd7aea",
+          "url": "https://github.com/patbuc/neon/commit/d23bb020011aa077fad8d227e434f67c6f458f6c"
+        },
+        "date": 1791155270552,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 268.353137400004,
+            "range": "± 12.152",
+            "unit": "ms"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 152.8144937999997,
+            "range": "± 0.436",
+            "unit": "ms"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.7560712385777935,
+            "unit": "ratio"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 342.9974208000033,
+            "range": "± 2.741",
+            "unit": "ms"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 503.2905994000032,
+            "range": "± 8.388",
+            "unit": "ms"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.6815096908404547,
+            "unit": "ratio"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 273.6042934000011,
+            "range": "± 0.388",
+            "unit": "ms"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 283.85693080000465,
+            "range": "± 15.954",
+            "unit": "ms"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.9638809685882668,
+            "unit": "ratio"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 148.58193260000405,
+            "range": "± 0.34",
+            "unit": "ms"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 167.27942260000077,
+            "range": "± 12.233",
+            "unit": "ms"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.8882260010861812,
+            "unit": "ratio"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 139.49386500000003,
+            "range": "± 0.913",
+            "unit": "ms"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 88.31344940000463,
+            "range": "± 0.452",
+            "unit": "ms"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 1.5795313844913945,
+            "unit": "ratio"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 291.573474599997,
+            "range": "± 15.859",
+            "unit": "ms"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 378.1655164,
+            "range": "± 5.26",
+            "unit": "ms"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.7710207883988784,
+            "unit": "ratio"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 494.3883987999982,
+            "range": "± 10.21",
+            "unit": "ms"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 380.01751380000144,
+            "range": "± 29.613",
+            "unit": "ms"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 1.3009621421295565,
+            "unit": "ratio"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 213.02822640000443,
+            "range": "± 3.143",
+            "unit": "ms"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 196.01816019999774,
+            "range": "± 2.689",
+            "unit": "ms"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 1.0867780117038712,
+            "unit": "ratio"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 198.7656945999987,
+            "range": "± 12.309",
+            "unit": "ms"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 217.44170300000008,
+            "range": "± 10.018",
+            "unit": "ms"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.9141102735016688,
             "unit": "ratio"
           }
         ]
