@@ -394,7 +394,7 @@ fn test_continuation_inside_an_unbroken_grouping_starts_its_own_scope() {
 }
 
 #[test]
-fn test_fmt_keeps_a_break_before_dot_and_indents_the_continuation_one_level() {
+fn test_fmt_leading_dot_chain() {
     check(
         "val r = [1, 2, 3, 4]\n.reverse()\n        .slice(0, 2)\nprint(r)\n",
         "val r = [1, 2, 3, 4]\n    .reverse()\n    .slice(0, 2)\nprint(r)\n",
@@ -407,7 +407,7 @@ fn test_fmt_leading_dot_assign() {
 }
 
 #[test]
-fn test_fmt_keeps_a_single_line_chain_on_one_line() {
+fn test_fmt_single_line_chain() {
     check(
         "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
         "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
@@ -415,7 +415,7 @@ fn test_fmt_keeps_a_single_line_chain_on_one_line() {
 }
 
 #[test]
-fn test_fmt_keeps_trailing_comment_after_broken_chain_line() {
+fn test_fmt_leading_dot_trailing_comment() {
     check(
         "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
         "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
