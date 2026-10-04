@@ -7,9 +7,13 @@
 
 print(Array(3, 0))
 print(Array(0, 1))
-print(Array(3, fn(i) { return i * i }))
+print(Array(3, fn(i) {
+    return i * i
+}))
 
-val grid = Array(2, fn(y) { return Array(2, 0) })
+val grid = Array(2, fn(y) {
+    return Array(2, 0)
+})
 grid[0][0] = 1
 print(grid)
 

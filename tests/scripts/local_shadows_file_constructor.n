@@ -5,7 +5,9 @@
 // mine x
 
 fn f() {
-    val File = fn(p) { return "mine " + p }
+    val File = fn(p) {
+        return "mine " + p
+    }
     return File("x")
 }
 

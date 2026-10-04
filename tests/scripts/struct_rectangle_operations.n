@@ -32,7 +32,7 @@ fn contains(rect, pt) {
     val inside_x2 = pt.x <= rect.bottom_right.x
     val inside_y = pt.y >= rect.top_left.y
     val inside_y2 = pt.y <= rect.bottom_right.y
-    
+
     if (inside_x) {
         if (inside_x2) {
             if (inside_y) {
@@ -62,7 +62,7 @@ print(contains(rect, p2)) // 1 (inside)
 rect.top_left = Point(5, 5)
 rect.bottom_right = Point(15, 15)
 
-print(rect.top_left.x)     // 5
+print(rect.top_left.x) // 5
 print(rect.bottom_right.x) // 15
 
 // New area after moving

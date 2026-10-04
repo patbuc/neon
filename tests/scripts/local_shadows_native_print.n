@@ -5,7 +5,9 @@
 // local call
 
 fn f() {
-    val print = fn(x) { return "local " + x }
+    val print = fn(x) {
+        return "local " + x
+    }
     return print("call")
 }
 

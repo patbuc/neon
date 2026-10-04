@@ -14,5 +14,5 @@ print(t == f) // false
 print(t != f) // true
 print(t && f) // false
 print(t || f) // true
-print(!t)     // false
-print(!f)     // true
+print(!t) // false
+print(!f) // true

@@ -20,12 +20,12 @@ struct Person {
 // Create a map of people with scores
 val students = {
     "student1": Person("Alice", 30, "NYC"),
-    "student2": Person("Bob", 25, "LA")
+    "student2": Person("Bob", 25, "LA"),
 }
 
 val scores = {
     "student1": 95,
-    "student2": 87
+    "student2": 87,
 }
 
 // Access nested struct properties

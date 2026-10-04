@@ -7,10 +7,18 @@
 // [1, 2]
 // [1, 2]
 
-print([1, 2, 3].find(fn(x) { return x > 1 }))
-print([1, 2, 3].find(fn(x) { return x > 10 }))
-print([].some(fn(x) { return true }))
-print([].every(fn(x) { return false }))
+print([1, 2, 3].find(fn(x) {
+    return x > 1
+}))
+print([1, 2, 3].find(fn(x) {
+    return x > 10
+}))
+print([].some(fn(x) {
+    return true
+}))
+print([].every(fn(x) {
+    return false
+}))
 
 val someCalls = []
 [1, 2, 3].some(fn(x) {

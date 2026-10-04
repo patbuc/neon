@@ -9,11 +9,15 @@
 
 fn classify(n) {
     fn is_even(n) {
-        if (n == 0) { return "even" }
+        if (n == 0) {
+            return "even"
+        }
         return is_odd(n - 1)
     }
     fn is_odd(n) {
-        if (n == 0) { return "odd" }
+        if (n == 0) {
+            return "odd"
+        }
         return is_even(n - 1)
     }
     return is_even(n)
@@ -24,11 +28,15 @@ print(classify(3))
 
 {
     fn is_even2(n) {
-        if (n == 0) { return true }
+        if (n == 0) {
+            return true
+        }
         return is_odd2(n - 1)
     }
     fn is_odd2(n) {
-        if (n == 0) { return false }
+        if (n == 0) {
+            return false
+        }
         return is_even2(n - 1)
     }
     if (is_even2(6)) {
@@ -45,7 +53,9 @@ fn makeGetters() {
             continue
         }
         val value = i * 10
-        var wrapper = fn() { return report() }
+        var wrapper = fn() {
+            return report()
+        }
         fn report() {
             return value
         }

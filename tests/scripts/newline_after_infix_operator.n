@@ -9,11 +9,11 @@
 // 1
 
 val x = 1 +
-        2
+    2
 print(x)
 
 val y = (1 +
-        2)
+    2)
 print(y)
 
 val z =

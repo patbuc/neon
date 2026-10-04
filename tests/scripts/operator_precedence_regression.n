@@ -28,7 +28,9 @@ print(oa || ob & oc)
 
 print(-2 ** -2)
 
-struct Point { z }
+struct Point {
+    z
+}
 val p = Point(3)
 print(-p.z ** 2)
 

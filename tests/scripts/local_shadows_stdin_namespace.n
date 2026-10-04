@@ -10,7 +10,9 @@ struct StdinLike {
 }
 
 fn f() {
-    val Stdin = StdinLike(fn() { return "local read" })
+    val Stdin = StdinLike(fn() {
+        return "local read"
+    })
     return Stdin.read()
 }
 

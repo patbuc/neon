@@ -5,7 +5,9 @@
 // mine 3
 
 fn f() {
-    val Array = fn(n, v) { return "mine " + n.toString() }
+    val Array = fn(n, v) {
+        return "mine " + n.toString()
+    }
     return Array(3, 0)
 }
 
