@@ -394,6 +394,35 @@ fn test_continuation_inside_an_unbroken_grouping_starts_its_own_scope() {
 }
 
 #[test]
+fn test_fmt_leading_dot_chain() {
+    check(
+        "val r = [1, 2, 3, 4]\n.reverse()\n        .slice(0, 2)\nprint(r)\n",
+        "val r = [1, 2, 3, 4]\n    .reverse()\n    .slice(0, 2)\nprint(r)\n",
+    );
+}
+
+#[test]
+fn test_fmt_leading_dot_assign() {
+    check("p\n    .x\n    .y = 2\n", "p\n    .x\n    .y = 2\n");
+}
+
+#[test]
+fn test_fmt_single_line_chain() {
+    check(
+        "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
+        "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
+    );
+}
+
+#[test]
+fn test_fmt_leading_dot_trailing_comment() {
+    check(
+        "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
+        "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
+    );
+}
+
+#[test]
 fn test_compound_assign_continuation() {
     check("x +=\n1\n", "x +=\n    1\n");
 }

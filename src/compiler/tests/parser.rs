@@ -4552,3 +4552,36 @@ fn test_parse_fn_with_expression_then_return_on_next_line() {
         _ => panic!("Expected Fn statement"),
     }
 }
+
+#[test]
+fn test_leading_dot_after_comment_line() {
+    let program = "val r = [1, 2]\n    // note\n    .map(fn(x) { return x })\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
+    assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 5);
+}
+
+#[test]
+fn test_leading_dot_after_blank_line() {
+    let program = "val r = [1, 2]\n\n    .map(fn(x) { return x })\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
+    assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].location.column, 5);
+}
+
+#[test]
+fn test_leading_range_dots() {
+    let mut parser = Parser::new("val a = 1\n    ..5\n");
+    assert!(parser.parse().is_err());
+
+    let mut parser = Parser::new("val a = 1\n    ..=5\n");
+    assert!(parser.parse().is_err());
+}

@@ -662,8 +662,16 @@ impl<'a> Printer<'a> {
                     printer.print_expr(&arguments[i])
                 });
             }
-            Expr::GetField { object, field, .. } => {
+            Expr::GetField {
+                object,
+                field,
+                location,
+            } => {
                 self.print_expr(object);
+                let object_line = self.map.last_line(object);
+                if location.line > object_line {
+                    self.continue_line(object_line, location.line);
+                }
                 self.write(".");
                 self.write(field);
             }
@@ -675,6 +683,10 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.print_expr(object);
+                let object_line = self.map.last_line(object);
+                if location.line > object_line {
+                    self.continue_line(object_line, location.line);
+                }
                 self.write(".");
                 self.write(field);
                 self.write(" =");
