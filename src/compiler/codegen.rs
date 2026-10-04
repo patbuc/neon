@@ -817,89 +817,6 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    /// Compiles a C-style for loop so each iteration gets its own binding of
-    /// the loop variable (JS/Go 1.22 semantics): a closure made in the body
-    /// keeps that iteration's value, one made in the condition or increment
-    /// captures the next iteration's.
-    ///
-    /// Bytecode structure:
-    ///   <initializer>            ; defines the loop variable as a local
-    ///   Jump skip
-    ///   loop_start:
-    ///   <increment>  Pop
-    ///   skip:
-    ///   <condition>  JumpIfFalse exit  Pop
-    ///   <body>                   ; break/continue pop body locals only
-    ///   continue_target:
-    ///   CloseUpvalueInPlace      ; only emitted if the loop variable is captured
-    ///   Loop loop_start
-    ///   exit: Pop                ; the false condition
-    ///   break_target:
-    ///   <end loop scope: Pop or CloseUpvalue for the loop variable>
-    #[allow(clippy::expect_used)]
-    fn generate_for_stmt(
-        &mut self,
-        initializer: &Stmt,
-        condition: &Expr,
-        increment: &Expr,
-        body: &Stmt,
-        location: SourceLocation,
-    ) {
-        self.current().scope_depth += 1;
-        self.generate_stmt(initializer);
-
-        let skip_jump = self.emit_jump(OpCode::Jump, location);
-        let loop_start = self.current_chunk().instruction_count() as u32;
-        self.generate_expression_stmt(increment, *increment.location());
-        self.patch_jump(skip_jump);
-
-        let depth = self.current().scope_depth;
-        self.current().loop_contexts.push(LoopContext {
-            loop_start,
-            break_jumps: Vec::new(),
-            continue_jumps: Vec::new(),
-            depth,
-        });
-
-        self.generate_expr(condition);
-        let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
-        self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the true case
-
-        self.generate_stmt(body);
-
-        // Pop loop context; continue jumps land here, before the Loop back.
-        let loop_context = self
-            .current()
-            .loop_contexts
-            .pop()
-            .expect("this function pushed a loop context above");
-        for continue_jump in loop_context.continue_jumps {
-            self.patch_jump(continue_jump);
-        }
-
-        let loop_variable_captured = self
-            .current()
-            .locals
-            .last()
-            .map(|local| local.is_captured)
-            .unwrap_or(false);
-        if loop_variable_captured {
-            self.emit_op_code(OpCode::CloseUpvalueInPlace, location);
-        }
-
-        self.emit_loop(loop_start, location);
-
-        self.patch_jump(exit_jump);
-        self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the false case (exiting loop)
-
-        // Patch all break jumps
-        for break_jump in loop_context.break_jumps {
-            self.patch_jump(break_jump);
-        }
-
-        self.end_scope(location);
-    }
-
     fn generate_return_stmt(&mut self, value: &Expr, location: SourceLocation) {
         self.generate_expr(value);
         self.emit_op_code(OpCode::Return, location);
@@ -1139,15 +1056,6 @@ impl<'a> CodeGenerator<'a> {
                 ..
             } => {
                 self.generate_for_in_stmt(*id, collection, body, *location);
-            }
-            Stmt::For {
-                initializer,
-                condition,
-                increment,
-                body,
-                location,
-            } => {
-                self.generate_for_stmt(initializer, condition, increment, body, *location);
             }
         }
     }

@@ -800,7 +800,7 @@ impl Parser {
     }
 
     /// Requires the next token to start a `{ ... }` block, as the body of an
-    /// `if`, `while`, or paren-free `for ... in`.
+    /// `if`, `while`, or `for ... in`.
     fn require_block_body(&mut self) -> Option<Stmt> {
         if !self.check(TokenType::LeftBrace) {
             self.report_error_at_current(
@@ -828,122 +828,23 @@ impl Parser {
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        if !self.check(TokenType::LeftParen) {
-            // Paren-free for-in: for identifier in collection { body }
-            if !self.consume(TokenType::Identifier, "Expecting identifier after 'for'.") {
-                return None;
-            }
-            let identifier = self.previous_token.token.clone();
-
-            if !self.consume(
-                TokenType::In,
-                "Expecting 'in' after identifier in for-in loop.",
-            ) {
-                return None;
-            }
-
-            let collection = self.expression(false)?;
-            let body = Box::new(self.require_block_body()?);
-
-            return Some(Stmt::ForIn {
-                variable: identifier,
-                collection,
-                body,
-                id: self.next_id(),
-                location,
-            });
-        }
-
-        if !self.consume(TokenType::LeftParen, "Expecting '(' after 'for'.") {
+        if !self.consume(TokenType::Identifier, "Expecting identifier after 'for'.") {
             return None;
         }
-
-        // Look ahead to determine if this is a for-in loop or C-style for loop
-        // For-in: for (identifier in collection)
-        // C-style: for (val/var identifier = ...)
-
-        // Check if we have an identifier followed by 'in' keyword
-        if self.check(TokenType::Identifier) {
-            // Save the current position in case we need to backtrack
-            let identifier = self.current_token.token.clone();
-            self.advance(); // consume identifier
-
-            // Check for 'in' keyword
-            if self.match_token(TokenType::In) {
-                // This is a for-in loop
-                return self.for_in_loop(identifier, location);
-            } else {
-                // This is not a for-in loop, report error
-                // User wrote: for (identifier ...
-                // Expected either: for (identifier in ...) or for (val/var identifier ...)
-                self.report_error_at_current(
-                    CompilationErrorKind::ExpectedToken,
-                    "Expecting 'in' after identifier in for-in loop, or 'val'/'var' for C-style for loop.".to_string()
-                );
-                return None;
-            }
-        }
-
-        // Not a for-in loop, parse as C-style for loop
-        // Parse init clause - must be val or var declaration
-        let init = if self.match_token(TokenType::Val) {
-            self.parse_variable_declaration(false, false)?
-        } else if self.match_token(TokenType::Var) {
-            self.parse_variable_declaration(true, false)?
-        } else {
-            self.report_error_at_current(
-                CompilationErrorKind::ExpectedToken,
-                "Expecting 'val' or 'var' in for loop initializer.".to_string(),
-            );
-            return None;
-        };
+        let identifier = self.previous_token.token.clone();
 
         if !self.consume(
-            TokenType::Semicolon,
-            "Expecting ';' after loop initializer.",
+            TokenType::In,
+            "Expecting 'in' after identifier in for-in loop.",
         ) {
             return None;
         }
 
-        // Parse condition expression
-        let condition = self.expression(false)?;
-
-        if !self.consume(TokenType::Semicolon, "Expecting ';' after loop condition.") {
-            return None;
-        }
-
-        // Parse increment - any expression is allowed
-        let increment = self.expression(false)?;
-
-        if !self.consume(TokenType::RightParen, "Expecting ')' after for clauses.") {
-            return None;
-        }
-
-        // Parse loop body
-        let body = self.statement()?;
-
-        Some(Stmt::For {
-            initializer: Box::new(init),
-            condition,
-            increment,
-            body: Box::new(body),
-            location,
-        })
-    }
-
-    fn for_in_loop(&mut self, variable: String, location: SourceLocation) -> Option<Stmt> {
-        // Parse collection expression
         let collection = self.expression(false)?;
-
-        if !self.consume(TokenType::RightParen, "Expecting ')' after for-in clauses.") {
-            return None;
-        }
-
-        // Parse loop body
-        let body = Box::new(self.statement()?);
+        let body = Box::new(self.require_block_body()?);
 
         Some(Stmt::ForIn {
-            variable,
+            variable: identifier,
             collection,
             body,
             id: self.next_id(),

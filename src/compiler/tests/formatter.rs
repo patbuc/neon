@@ -224,48 +224,8 @@ fn test_if_condition_with_operand_parens_is_kept() {
 }
 
 #[test]
-fn test_for_loop_header_and_block_body() {
-    check(
-        "for (var i = 0; i < 3; i = i + 1) { print(i) }\n",
-        "for (var i = 0; i < 3; i = i + 1) {\n    print(i)\n}\n",
-    );
-}
-
-#[test]
-fn test_for_in_loop() {
-    check(
-        "for (x in xs) { print(x) }\n",
-        "for x in xs {\n    print(x)\n}\n",
-    );
-}
-
-#[test]
-fn test_for_in_condition_parens_are_removed() {
-    check(
-        "for (x in xs) { print(x) }\n",
-        "for x in xs {\n    print(x)\n}\n",
-    );
-}
-
-#[test]
 fn test_while_missing_space_before_paren_is_added() {
     check("while(c) { x() }\n", "while c {\n    x()\n}\n");
-}
-
-#[test]
-fn test_for_missing_space_before_paren_is_added() {
-    check(
-        "for(var i = 0; i < 3; i++) { print(i) }\n",
-        "for (var i = 0; i < 3; i++) {\n    print(i)\n}\n",
-    );
-}
-
-#[test]
-fn test_for_in_missing_space_before_paren_is_added() {
-    check(
-        "for(x in xs) { print(x) }\n",
-        "for x in xs {\n    print(x)\n}\n",
-    );
 }
 
 #[test]
@@ -492,17 +452,9 @@ fn test_broken_while_condition_continuation_does_not_leak_into_body() {
 }
 
 #[test]
-fn test_broken_for_condition_continuation_does_not_leak_into_body() {
-    check(
-        "for (var i = 0; i <\n10; i = i + 1) {\nx()\n}\n",
-        "for (var i = 0; i <\n    10; i = i + 1) {\n    x()\n}\n",
-    );
-}
-
-#[test]
 fn test_broken_for_in_collection_continuation_does_not_leak_into_body() {
     check(
-        "for (x in a +\nb) {\ny()\n}\n",
+        "for x in a +\nb {\ny()\n}\n",
         "for x in a +\n    b {\n    y()\n}\n",
     );
 }
@@ -543,14 +495,6 @@ fn test_boolean_and_nil_literals() {
 #[test]
 fn test_plain_string_literal() {
     check("\"hello\"\n", "\"hello\"\n");
-}
-
-#[test]
-fn test_braceless_for_body() {
-    check(
-        "for (var i = 0; i < 3; i = i + 1) x()\n",
-        "for (var i = 0; i < 3; i = i + 1) x()\n",
-    );
 }
 
 #[test]

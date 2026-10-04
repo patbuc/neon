@@ -337,18 +337,8 @@ fn test_while_last_line_is_body_close() {
 }
 
 #[test]
-fn test_for_last_line_is_body_close() {
-    let source = "for (var i = 0; i < 3; i = i + 1) {\n    a\n}\n";
-    let mut parser = Parser::new(source);
-    let stmts = parser.parse().expect("should parse");
-    let map = SourceMap::new(source);
-
-    assert_eq!(map.stmt_last_line(&stmts[0]), 3);
-}
-
-#[test]
 fn test_for_in_last_line_is_body_close() {
-    let source = "for (x in xs) {\n    a\n}\n";
+    let source = "for x in xs {\n    a\n}\n";
     let mut parser = Parser::new(source);
     let stmts = parser.parse().expect("should parse");
     let map = SourceMap::new(source);

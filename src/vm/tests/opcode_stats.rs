@@ -42,7 +42,7 @@ fn parse_entries(section: &str) -> Vec<(&str, u64)> {
 #[test]
 fn for_in_loop_runs_loop_opcode_once_per_iteration() {
     let vm = run(r#"
-        for (i in 0..10) {
+        for i in 0..10 {
             val x = i + 1
         }
         "#);
@@ -55,7 +55,7 @@ fn for_in_loop_runs_loop_opcode_once_per_iteration() {
 #[test]
 fn for_in_loop_counts_and_orders_opcode_pairs() {
     let vm = run(r#"
-        for (i in 0..10) {
+        for i in 0..10 {
             val x = i + 1
         }
         "#);
@@ -112,7 +112,7 @@ fn opcode_pairs_span_call_and_return() {
 #[test]
 fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
     let vm = run(r#"
-        for (i in 0..10) {
+        for i in 0..10 {
             val x = i + 1
         }
         "#);

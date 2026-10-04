@@ -1199,290 +1199,6 @@ fn test_parse_nested_if_within_else_if() {
         _ => panic!("Expected If statement"),
     }
 }
-#[test]
-fn test_parse_for_loop() {
-    let program = r#"
-        for (var i = 0; i < 10; i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 1);
-    match &stmts[0] {
-        Stmt::For {
-            initializer,
-            condition,
-            increment,
-            body,
-            ..
-        } => {
-            match initializer.as_ref() {
-                Stmt::Var { name, .. } => {
-                    assert_eq!(name, "i");
-                }
-                _ => panic!("Expected Var declaration as for loop initializer"),
-            }
-            // Verify condition is a binary comparison
-            match condition {
-                Expr::Binary { .. } => {}
-                _ => panic!("Expected Binary expression for condition"),
-            }
-            match body.as_ref() {
-                Stmt::Block {
-                    statements: body_stmts,
-                    ..
-                } => {
-                    assert_eq!(body_stmts.len(), 1, "Body should be the original block");
-                }
-                _ => panic!("Expected Block as for body"),
-            }
-            match increment {
-                Expr::Assign { .. } => {}
-                _ => panic!("Expected Assign expression for increment"),
-            }
-        }
-        _ => panic!("Expected For statement"),
-    }
-}
-
-#[test]
-fn test_parse_for_loop_with_val() {
-    let program = r#"
-        for (val i = 0; i < 10; i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 1);
-    // For loop with val should parse successfully (runtime will catch the error)
-    match &stmts[0] {
-        Stmt::For { initializer, .. } => match initializer.as_ref() {
-            Stmt::Val { name, .. } => {
-                assert_eq!(name, "i");
-            }
-            _ => panic!("Expected Val declaration as for loop initializer"),
-        },
-        _ => panic!("Expected For statement"),
-    }
-}
-
-#[test]
-fn test_parse_for_loop_empty_body() {
-    let program = r#"
-        for (var i = 0; i < 10; i = i + 1) {
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 1);
-    match &stmts[0] {
-        Stmt::For {
-            body, increment, ..
-        } => {
-            match body.as_ref() {
-                Stmt::Block {
-                    statements: empty_stmts,
-                    ..
-                } => {
-                    assert_eq!(empty_stmts.len(), 0, "Body should be empty");
-                }
-                _ => panic!("Expected Block for empty body"),
-            }
-            match increment {
-                Expr::Assign { .. } => {}
-                _ => panic!("Expected Assign expression for increment"),
-            }
-        }
-        _ => panic!("Expected For statement"),
-    }
-}
-
-#[test]
-fn test_parse_nested_for_loops() {
-    let program = r#"
-        for (var i = 0; i < 3; i = i + 1) {
-            for (var j = 0; j < 3; j = j + 1) {
-                print(i)
-                print(j)
-            }
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 1);
-    // Outer for loop
-    match &stmts[0] {
-        Stmt::For {
-            initializer,
-            body,
-            increment,
-            ..
-        } => {
-            // Verify outer var declaration
-            match initializer.as_ref() {
-                Stmt::Var { name, .. } => assert_eq!(name, "i"),
-                _ => panic!("Expected Var declaration for outer loop"),
-            }
-            match body.as_ref() {
-                Stmt::Block {
-                    statements: outer_body_stmts,
-                    ..
-                } => {
-                    assert_eq!(
-                        outer_body_stmts.len(),
-                        1,
-                        "Outer body should contain one statement (the inner for loop)"
-                    );
-                    match &outer_body_stmts[0] {
-                        Stmt::For {
-                            initializer: inner_initializer,
-                            ..
-                        } => match inner_initializer.as_ref() {
-                            Stmt::Var { name, .. } => assert_eq!(name, "j"),
-                            _ => panic!("Expected Var declaration for inner loop"),
-                        },
-                        _ => panic!("Expected For statement for inner loop"),
-                    }
-                }
-                _ => panic!("Expected Block as outer for body"),
-            }
-            match increment {
-                Expr::Assign { .. } => {}
-                _ => panic!("Expected Assign expression for increment"),
-            }
-        }
-        _ => panic!("Expected For statement for outer for loop"),
-    }
-}
-
-#[test]
-fn test_parse_for_loop_missing_semicolon_after_init() {
-    let program = r#"
-        for (var i = 0 i < 10; i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(
-        result.is_err(),
-        "Should fail when missing semicolon after init"
-    );
-    let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
-    assert!(
-        errors[0].message.contains("';'") || errors[0].message.contains("after loop initializer")
-    );
-}
-
-#[test]
-fn test_parse_for_loop_missing_semicolon_after_condition() {
-    let program = r#"
-        for (var i = 0; i < 10 i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(
-        result.is_err(),
-        "Should fail when missing semicolon after condition"
-    );
-    let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
-    assert!(
-        errors[0].message.contains("';'") || errors[0].message.contains("after loop condition")
-    );
-}
-
-#[test]
-fn test_parse_for_loop_missing_left_paren() {
-    let program = r#"
-        for var i = 0; i < 10; i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail when missing left parenthesis");
-    let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("'('") || errors[0].message.contains("after 'for'"));
-}
-
-#[test]
-fn test_parse_for_loop_missing_right_paren() {
-    let program = r#"
-        for (var i = 0; i < 10; i = i + 1 {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(
-        result.is_err(),
-        "Should fail when missing right parenthesis"
-    );
-    let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("')'") || errors[0].message.contains("after for clauses"));
-}
-
-#[test]
-fn test_parse_for_loop_invalid_init_not_declaration() {
-    let program = r#"
-        for (i = 0; i < 10; i = i + 1) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(
-        result.is_err(),
-        "Should fail when init is not a val/var declaration"
-    );
-    let errors = result.unwrap_err();
-    assert!(!errors.is_empty());
-    assert!(
-        errors[0].message.contains("val")
-            || errors[0].message.contains("var")
-            || errors[0].message.contains("initializer"),
-        "Error should mention val/var requirement, got: {}",
-        errors[0].message
-    );
-}
-
-#[test]
-fn test_parse_for_loop_complex_increment() {
-    let program = r#"
-        for (var i = 0; i < 10; i = i + 2) {
-            print(i)
-        }
-        "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    assert_eq!(stmts.len(), 1);
-    // Verify the increment expression is the For node's explicit increment field
-    match &stmts[0] {
-        Stmt::For { increment, .. } => match increment {
-            Expr::Assign { .. } => {}
-            _ => panic!("Expected Assign expression for increment"),
-        },
-        _ => panic!("Expected For statement"),
-    }
-}
 
 #[test]
 fn test_parse_method_call_no_args() {
@@ -4177,7 +3893,7 @@ fn test_node_ids_are_unique() {
                   \tx\n\
                   \ty\n\
                   }\n\
-                  for (z in [1, 2]) {\n\
+                  for z in [1, 2] {\n\
                   \ty = foo(z)\n\
                   }\n\
                   val s = \"${foo(y)}\"\n";
@@ -4445,28 +4161,8 @@ fn test_parse_one_line_while_with_break() {
 }
 
 #[test]
-fn test_parse_one_line_c_style_for() {
-    let mut parser = Parser::new("for (var i = 0; i < 3; i = i + 1) { print(i) }\n");
-    let result = parser.parse();
-    assert!(result.is_ok());
-    let stmts = result.unwrap();
-    match &stmts[0] {
-        Stmt::For {
-            initializer, body, ..
-        } => {
-            assert!(matches!(initializer.as_ref(), Stmt::Var { .. }));
-            match body.as_ref() {
-                Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
-                _ => panic!("Expected Block body"),
-            }
-        }
-        _ => panic!("Expected For statement"),
-    }
-}
-
-#[test]
 fn test_parse_one_line_for_in() {
-    let mut parser = Parser::new("for (x in xs) { print(x) }\n");
+    let mut parser = Parser::new("for x in xs { print(x) }\n");
     let result = parser.parse();
     assert!(result.is_ok());
     let stmts = result.unwrap();
@@ -4654,4 +4350,18 @@ fn test_braceless_else_is_compile_error() {
     assert!(!errors.is_empty());
     assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
     assert_eq!(errors[0].message, "Expect '{' or 'if' after 'else'");
+}
+
+#[test]
+fn test_parenthesized_for_in_is_compile_error() {
+    let mut parser = Parser::new("for (x in xs) {\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err(), "parenthesized for-in should be removed");
+}
+
+#[test]
+fn test_c_style_for_is_compile_error() {
+    let mut parser = Parser::new("for var i = 0; i < 3; i++ {\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err(), "C-style for should be removed");
 }

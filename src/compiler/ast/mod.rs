@@ -272,13 +272,6 @@ pub enum Stmt {
         id: NodeId,
         location: SourceLocation,
     },
-    For {
-        initializer: Box<Stmt>,
-        condition: Expr,
-        increment: Expr,
-        body: Box<Stmt>,
-        location: SourceLocation,
-    },
     Break {
         location: SourceLocation,
     },
@@ -288,6 +281,7 @@ pub enum Stmt {
 }
 
 impl Expr {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn location(&self) -> &SourceLocation {
         match self {
             Expr::Number { location, .. }

@@ -23,7 +23,7 @@ fn for_loop_slots() {
     );
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("for (i in 0..3) {\n    print(i)\n}".to_string())
+        vm.interpret_line("for i in 0..3 {\n    print(i)\n}".to_string())
     );
     assert_eq!("0\n1\n2", vm.get_output());
 }

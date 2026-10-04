@@ -402,24 +402,6 @@ impl<'a> Printer<'a> {
                 self.write(" ");
                 self.print_stmt(body);
             }
-            Stmt::For {
-                initializer,
-                condition,
-                increment,
-                body,
-                ..
-            } => {
-                self.write("for (");
-                self.nested(0, |printer| {
-                    printer.print_stmt(initializer);
-                    printer.write("; ");
-                    printer.print_expr(condition);
-                    printer.write("; ");
-                    printer.print_expr(increment);
-                });
-                self.write(") ");
-                self.print_stmt(body);
-            }
             Stmt::ForIn {
                 variable,
                 collection,
