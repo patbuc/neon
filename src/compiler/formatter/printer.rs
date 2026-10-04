@@ -439,22 +439,11 @@ impl<'a> Printer<'a> {
                 location,
                 ..
             } => {
-                self.write("struct ");
-                self.write(name);
-                self.write(" ");
-                let (open, close) = self.map.braces_after(location);
-                let spans: Vec<(u32, u32)> = fields
+                let names: Vec<(&str, u32)> = fields
                     .iter()
-                    .map(|field| (field.location.line, field.location.line))
+                    .map(|field| (field.name.as_str(), field.location.line))
                     .collect();
-                self.braced_lines(
-                    self.map.line(open),
-                    self.map.line(close),
-                    &spans,
-                    |printer, i| {
-                        printer.write(&fields[i].name);
-                    },
-                );
+                self.print_named_braces("struct ", name, location, &names);
             }
             Stmt::Enum {
                 name,
@@ -462,22 +451,11 @@ impl<'a> Printer<'a> {
                 location,
                 ..
             } => {
-                self.write("enum ");
-                self.write(name);
-                self.write(" ");
-                let (open, close) = self.map.braces_after(location);
-                let spans: Vec<(u32, u32)> = variants
+                let names: Vec<(&str, u32)> = variants
                     .iter()
-                    .map(|variant| (variant.location.line, variant.location.line))
+                    .map(|variant| (variant.name.as_str(), variant.location.line))
                     .collect();
-                self.braced_lines(
-                    self.map.line(open),
-                    self.map.line(close),
-                    &spans,
-                    |printer, i| {
-                        printer.write(&variants[i].name);
-                    },
-                );
+                self.print_named_braces("enum ", name, location, &names);
             }
             Stmt::Impl {
                 type_name,
@@ -512,6 +490,12 @@ impl<'a> Printer<'a> {
     fn print_block(&mut self, location: &SourceLocation, statements: &[Stmt]) {
         let open = self.map.at(location);
         let close = self.map.partner(open);
+        self.print_stmts_braced(open, close, statements);
+    }
+
+    /// A `{ ... }` body of statements between two already-located brace
+    /// tokens: block statements and function bodies.
+    fn print_stmts_braced(&mut self, open: usize, close: usize, statements: &[Stmt]) {
         let spans: Vec<(u32, u32)> = statements
             .iter()
             .map(|stmt| {
@@ -526,6 +510,30 @@ impl<'a> Printer<'a> {
         self.braced_lines(open_line, close_line, &spans, |printer, i| {
             printer.print_stmt(&statements[i])
         });
+    }
+
+    /// A `keyword name { item, item, ... }` declaration: struct fields and
+    /// enum variants, each printed as its bare name.
+    fn print_named_braces(
+        &mut self,
+        keyword: &str,
+        name: &str,
+        location: &SourceLocation,
+        items: &[(&str, u32)],
+    ) {
+        self.write(keyword);
+        self.write(name);
+        self.write(" ");
+        let (open, close) = self.map.braces_after(location);
+        let spans: Vec<(u32, u32)> = items.iter().map(|&(_, line)| (line, line)).collect();
+        self.braced_lines(
+            self.map.line(open),
+            self.map.line(close),
+            &spans,
+            |printer, i| {
+                printer.write(items[i].0);
+            },
+        );
     }
 
     fn print_params(&mut self, location: &SourceLocation, params: &[String]) {
@@ -547,20 +555,7 @@ impl<'a> Printer<'a> {
 
     fn print_body(&mut self, location: &SourceLocation, body: &[Stmt]) {
         let fn_tokens = self.map.fn_tokens(location);
-        let spans: Vec<(u32, u32)> = body
-            .iter()
-            .map(|stmt| {
-                (
-                    self.map.stmt_first_line(stmt),
-                    self.map.stmt_last_line(stmt),
-                )
-            })
-            .collect();
-        let open_line = self.map.line(fn_tokens.body_open);
-        let close_line = self.map.line(fn_tokens.body_close);
-        self.braced_lines(open_line, close_line, &spans, |printer, i| {
-            printer.print_stmt(&body[i])
-        });
+        self.print_stmts_braced(fn_tokens.body_open, fn_tokens.body_close, body);
     }
 
     // --- Expressions ------------------------------------------------
