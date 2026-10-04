@@ -343,3 +343,267 @@ fn stdin_second_read_after_eof_returns_empty_string() {
     assert!(output.status.success());
     assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
 }
+
+fn unique_temp_dir(name: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    let dir = std::env::temp_dir().join(format!(
+        "neon_cli_fmt_test_{}_{}_{}",
+        name,
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(&dir).expect("Failed to create temp dir");
+    dir
+}
+
+#[test]
+fn fmt_rewrites_file_in_place_and_exits_zero() {
+    let dir = unique_temp_dir("rewrite");
+    let path = dir.join("a.n");
+    fs::write(&path, "val x = 1").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let contents = fs::read_to_string(&path).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert_eq!("val x = 1\n", contents);
+}
+
+#[test]
+fn fmt_leaves_already_formatted_file_mtime_unchanged() {
+    let dir = unique_temp_dir("mtime");
+    let path = dir.join("a.n");
+    fs::write(&path, "val x = 1\n").expect("Failed to write test script");
+    let mtime_before = fs::metadata(&path).unwrap().modified().unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let mtime_after = fs::metadata(&path).unwrap().modified().unwrap();
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!(mtime_before, mtime_after);
+}
+
+#[test]
+fn fmt_directory_walks_recursively_and_ignores_other_files() {
+    let dir = unique_temp_dir("walk");
+    let sub = dir.join("sub");
+    fs::create_dir_all(&sub).expect("Failed to create nested dir");
+
+    let top = dir.join("a.n");
+    let nested = sub.join("b.n");
+    let other = dir.join("note.txt");
+    fs::write(&top, "val x = 1").expect("Failed to write test script");
+    fs::write(&nested, "val y = 2").expect("Failed to write test script");
+    fs::write(&other, "val x = 1").expect("Failed to write test file");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&dir)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let top_contents = fs::read_to_string(&top).unwrap_or_default();
+    let nested_contents = fs::read_to_string(&nested).unwrap_or_default();
+    let other_contents = fs::read_to_string(&other).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("val x = 1\n", top_contents);
+    assert_eq!("val y = 2\n", nested_contents);
+    assert_eq!("val x = 1", other_contents);
+}
+
+#[test]
+fn fmt_check_prints_changed_paths_exits_one_and_writes_nothing() {
+    let dir = unique_temp_dir("check_dirty");
+    let path = dir.join("a.n");
+    fs::write(&path, "val x = 1").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .arg(&path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let contents = fs::read_to_string(&path).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(1, output.status.code().unwrap());
+    assert_eq!(
+        format!("{}\n", path.display()),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!("val x = 1", contents);
+}
+
+#[test]
+fn fmt_check_exits_zero_when_clean() {
+    let dir = unique_temp_dir("check_clean");
+    let path = dir.join("a.n");
+    fs::write(&path, "val x = 1\n").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .arg(&path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn fmt_dash_reads_stdin_and_writes_stdout() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn neon binary");
+
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"val x = 1")
+        .expect("Failed to write stdin");
+
+    let output = child.wait_with_output().expect("Failed to wait on child");
+
+    assert!(output.status.success());
+    assert_eq!("val x = 1\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn fmt_check_dash_prints_dash_when_stdin_would_change() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn neon binary");
+
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"val x = 1")
+        .expect("Failed to write stdin");
+
+    let output = child.wait_with_output().expect("Failed to wait on child");
+
+    assert_eq!(1, output.status.code().unwrap());
+    assert_eq!("-\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn fmt_syntax_error_leaves_file_unchanged_formats_rest_and_exits_65() {
+    let dir = unique_temp_dir("syntax_error");
+    let bad = dir.join("bad.n");
+    let good = dir.join("good.n");
+    fs::write(&bad, "val = 1\n").expect("Failed to write test script");
+    fs::write(&good, "val x = 1").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&bad)
+        .arg(&good)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let bad_contents = fs::read_to_string(&bad).unwrap_or_default();
+    let good_contents = fs::read_to_string(&good).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    assert_eq!("val = 1\n", bad_contents);
+    assert_eq!("val x = 1\n", good_contents);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&bad.display().to_string()));
+    assert!(!stderr.is_empty());
+}
+
+#[test]
+fn fmt_without_paths_prints_usage_and_exits_64() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(64, output.status.code().unwrap());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert!(!String::from_utf8_lossy(&output.stderr).is_empty());
+}
+
+#[test]
+fn fmt_check_without_paths_prints_usage_and_exits_64() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(64, output.status.code().unwrap());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert!(!String::from_utf8_lossy(&output.stderr).is_empty());
+}
+
+#[test]
+fn fmt_missing_path_exits_66_and_modifies_nothing() {
+    let dir = unique_temp_dir("missing");
+    let existing = dir.join("a.n");
+    let missing = dir.join("does_not_exist.n");
+    fs::write(&existing, "val x = 1").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&existing)
+        .arg(&missing)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let existing_contents = fs::read_to_string(&existing).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(66, output.status.code().unwrap());
+    assert_eq!("val x = 1", existing_contents);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&missing.display().to_string()));
+}
+
+#[test]
+fn help_lists_fmt_command() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("fmt"));
+    assert!(stdout.contains("--check"));
+}
