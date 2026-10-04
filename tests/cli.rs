@@ -269,6 +269,7 @@ fn run_file_prints_opcode_stats_to_stderr_only() {
 }
 
 #[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
 fn spawn_neon_with_stdin(
     configure: impl FnOnce(&mut Command),
     stdin_input: &[u8],
@@ -295,6 +296,7 @@ fn spawn_neon_with_stdin(
 // Guards against a regression reintroducing an infinite REPL loop: a hung
 // child is killed after the deadline instead of letting the test suite hang.
 #[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
 fn wait_with_timeout(
     mut child: std::process::Child,
     timeout: std::time::Duration,
@@ -319,6 +321,7 @@ fn wait_with_timeout(
 }
 
 #[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
 fn run_script_with_stdin(script: &str, stdin_input: &[u8]) -> std::process::Output {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -391,6 +394,7 @@ fn stdin_second_read_after_eof_returns_empty_string() {
     assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
 }
 
+#[allow(clippy::expect_used)]
 fn unique_temp_dir(name: &str) -> std::path::PathBuf {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static COUNTER: AtomicUsize = AtomicUsize::new(0);

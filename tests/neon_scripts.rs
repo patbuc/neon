@@ -61,6 +61,7 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
 
 /// Interprets `script` and checks its output and error behavior against
 /// its own inline `// Expected:` / `// Expected runtime error:` comments.
+#[allow(clippy::expect_used)]
 fn check_script(path: &Path, script: &str) -> datatest_stable::Result<()> {
     // Extract expected output from inline comments
     let expected_result = extract_inline_expectation(script).ok_or_else(|| {

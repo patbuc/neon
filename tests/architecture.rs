@@ -175,6 +175,7 @@ fn violations(path: &str, source: &str) -> Vec<String> {
     found
 }
 
+#[allow(clippy::expect_used)]
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     let entries =
         fs::read_dir(dir).unwrap_or_else(|e| panic!("failed to read dir {}: {}", dir.display(), e));

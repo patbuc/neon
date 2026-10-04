@@ -260,7 +260,9 @@ enforces these edges in `cargo test`.
 
 ### Rust Patterns
 
-- Use `Result<T, E>` for error propagation, avoid `unwrap()` except in tests
+- Use `Result<T, E>` for error propagation; `unwrap()`/`expect()` outside tests are denied by
+  `clippy::unwrap_used`/`clippy::expect_used` — a kept `expect` states the invariant and carries an
+  item-level `#[allow(clippy::expect_used)]`
 - Pattern matching for AST traversal and opcode dispatch
 - Minimize allocations in VM hot path (execution loop)
 - Use `Rc` for shared ownership, `RefCell` only when mutation needed
@@ -383,10 +385,12 @@ cargo clippy --all-targets -- -D warnings    # Lint (no warnings allowed)
 cargo test                                   # All tests must pass
 ```
 
-`print_stdout`/`print_stderr` are denied via `[lints.clippy]` in `Cargo.toml`; test code is exempt through
-`allow-print-in-tests` in `clippy.toml`, and the few legitimate production print sites (the `print` native,
-the disassembler dump, CLI output in `main.rs`) carry an item-level `#[allow(clippy::print_stdout)]` (and/or
-`print_stderr`).
+`print_stdout`/`print_stderr`/`unwrap_used`/`expect_used` are denied via `[lints.clippy]` in `Cargo.toml`;
+test code is exempt through `allow-print-in-tests`/`allow-unwrap-in-tests`/`allow-expect-in-tests` in
+`clippy.toml`, and the few legitimate production sites (the `print` native, the disassembler dump, CLI
+output in `main.rs`; stack-underflow and similar invariants in the VM, compiler, and wasm bindings) carry
+an item-level `#[allow(clippy::print_stdout)]`/`#[allow(clippy::print_stderr)]`/`#[allow(clippy::expect_used)]`
+on the smallest enclosing fn.
 
 ### Plan File State Machine
 
