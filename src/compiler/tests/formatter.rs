@@ -279,6 +279,29 @@ fn test_impl_with_two_methods() {
 }
 
 #[test]
+fn test_expression_bodied_fn_stays_one_line() {
+    check("fn sq(x) = x * x\n", "fn sq(x) = x * x\n");
+}
+
+#[test]
+fn test_expression_bodied_fn_spacing_normalized() {
+    check("fn sq(x)=x*x\n", "fn sq(x) = x * x\n");
+}
+
+#[test]
+fn test_expression_bodied_impl_method_stays_one_line() {
+    check(
+        "impl P {\n    fn len(self) = self.x\n}\n",
+        "impl P {\n    fn len(self) = self.x\n}\n",
+    );
+}
+
+#[test]
+fn test_expression_bodied_fn_long_body_wraps() {
+    check("fn f(a) = a +\n    1\n", "fn f(a) = a +\n    1\n");
+}
+
+#[test]
 fn test_corpus_nested_fn_returning_lambda() {
     check(
         "fn getF() { print(\"callee\")\nreturn fn(a) { return a } }\n",

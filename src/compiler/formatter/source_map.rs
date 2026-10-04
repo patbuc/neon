@@ -169,18 +169,32 @@ impl SourceMap {
         self.end_line(self.last_token(expr))
     }
 
-    /// Params and body braces of a function or lambda.
+    /// Params and body braces of a function or lambda. For an expression-bodied
+    /// `fn name(params) = expr`, `body_open`/`body_close` both point at the `=`
+    /// token; callers that need the expression's real extent use `last_token`
+    /// on the body expression instead.
     pub(crate) fn fn_tokens(&self, location: &SourceLocation) -> FnTokens {
         let params_open = self.at(location) + 1;
         let params_close = self.partner(params_open);
         let body_open = params_close + 1;
-        let body_close = self.partner(body_open);
+        let body_close = if self.kinds[body_open] == TokenType::LeftBrace {
+            self.partner(body_open)
+        } else {
+            body_open
+        };
         FnTokens {
             params_open,
             params_close,
             body_open,
             body_close,
         }
+    }
+
+    /// True for a `fn name(params) = expr` declaration rather than a braced body.
+    pub(crate) fn is_expr_bodied_fn(&self, location: &SourceLocation) -> bool {
+        let params_open = self.at(location) + 1;
+        let params_close = self.partner(params_open);
+        self.kinds[params_close + 1] == TokenType::Equal
     }
 
     /// Source lines of the parameter names, in order.
@@ -215,7 +229,13 @@ impl SourceMap {
                 ..
             } => self.last_token(expr),
             Stmt::Val { location, .. } | Stmt::Var { location, .. } => self.at(location),
-            Stmt::Fn { location, .. } => self.fn_tokens(location).body_close,
+            Stmt::Fn { body, location, .. } => {
+                if self.is_expr_bodied_fn(location) {
+                    self.stmt_last_token(&body[0])
+                } else {
+                    self.fn_tokens(location).body_close
+                }
+            }
             Stmt::Struct { location, .. }
             | Stmt::Enum { location, .. }
             | Stmt::Impl { location, .. } => self.braces_after(location).1,

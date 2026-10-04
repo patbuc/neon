@@ -368,8 +368,20 @@ impl<'a> Printer<'a> {
                 self.write("fn ");
                 self.write(name);
                 self.print_params(location, params);
-                self.write(" ");
-                self.print_body(location, body);
+                if self.map.is_expr_bodied_fn(location) {
+                    let expr = match &body[0] {
+                        Stmt::Expression { expr, .. } => expr,
+                        _ => unreachable!("expression-bodied fn body is a single expression"),
+                    };
+                    self.write(" =");
+                    let params_close_line =
+                        self.map.line(self.map.fn_tokens(location).params_close);
+                    self.write_space_or_continuation(params_close_line, self.map.first_line(expr));
+                    self.print_expr(expr);
+                } else {
+                    self.write(" ");
+                    self.print_body(location, body);
+                }
             }
             Stmt::Block {
                 statements,
