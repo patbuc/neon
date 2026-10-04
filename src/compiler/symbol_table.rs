@@ -156,6 +156,20 @@ impl SymbolTable {
             scope_idx = self.scopes[scope_idx].parent?;
         }
     }
+
+    /// Moves out every symbol defined in the global scope, for the
+    /// `GlobalEnv` a later REPL line compiles against.
+    pub(crate) fn into_global_symbols(self) -> HashMap<String, Symbol> {
+        self.scopes.into_iter().next().unwrap().symbols
+    }
+
+    /// Defines symbols carried over from an earlier REPL line directly in
+    /// the global scope, bypassing the duplicate check `define` applies.
+    pub(crate) fn seed_globals(&mut self, symbols: impl IntoIterator<Item = Symbol>) {
+        for symbol in symbols {
+            self.scopes[0].symbols.insert(symbol.name.clone(), symbol);
+        }
+    }
 }
 
 impl Default for SymbolTable {

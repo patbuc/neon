@@ -37,8 +37,8 @@ pub struct FunctionResolution {
 /// every chunk of one compile. Seeded with `BUILTIN_TYPE_NAMES` so builtin
 /// type `BUILTIN_TYPE_NAMES[i]` always has symbol id `i` - the VM relies on
 /// that to recognize builtin types by id.
-#[derive(Debug)]
-struct Symbols {
+#[derive(Debug, Clone)]
+pub(crate) struct Symbols {
     ids: HashMap<Rc<str>, u16>,
     names: Vec<Rc<str>>,
 }
@@ -211,6 +211,19 @@ impl Resolutions {
     /// Whether this declaration can't be reassigned.
     pub fn is_immutable(&self, decl: DeclId) -> bool {
         self.immutable.contains(&decl)
+    }
+
+    /// Seeds the symbol interner and immutable set from an earlier REPL
+    /// line, so this one continues from its ids and `val`s.
+    pub(crate) fn seed(&mut self, symbols: Symbols, immutable: HashSet<DeclId>) {
+        self.symbols = symbols;
+        self.immutable = immutable;
+    }
+
+    /// Moves out the symbol interner and the immutable set, for a `GlobalEnv`
+    /// a later REPL line compiles against.
+    pub(crate) fn into_symbols_and_immutable(self) -> (Symbols, HashSet<DeclId>) {
+        (self.symbols, self.immutable)
     }
 
     pub(crate) fn record_enum_variant_access(&mut self, id: NodeId, access: EnumVariantAccess) {

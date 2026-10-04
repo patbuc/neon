@@ -4,6 +4,7 @@ mod error_kinds;
 mod formatter;
 mod formatter_source_map;
 mod parser;
+mod repl_line;
 mod resolutions;
 mod scanner;
 mod semantic;
