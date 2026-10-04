@@ -49,20 +49,7 @@ fn main() {
 }
 
 fn setup_logging() {
-    #[cfg(not(feature = "disassemble"))]
     env_logger::init();
-    #[cfg(feature = "disassemble")]
-    setup_tracing();
-}
-
-#[cfg(feature = "disassemble")]
-fn setup_tracing() {
-    tracing_subscriber::fmt()
-        .with_span_events(
-            tracing_subscriber::fmt::format::FmtSpan::ENTER
-                | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
-        )
-        .init()
 }
 
 #[allow(clippy::print_stdout)]
