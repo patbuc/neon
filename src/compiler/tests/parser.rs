@@ -417,6 +417,33 @@ fn test_parse_function() {
 }
 
 #[test]
+fn test_parse_expression_bodied_fn_with_body_on_next_line() {
+    let mut parser = Parser::new("fn f() =\n    1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Fn { name, body, .. } => {
+            assert_eq!(name, "f");
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Expression { .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_bare_return_at_eof_no_newline() {
+    let mut parser = Parser::new("return");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    assert!(matches!(stmts[0], Stmt::Return { value: None, .. }));
+}
+
+#[test]
 fn test_parse_single_line_function_body() {
     let mut parser = Parser::new("fn foo(n) { return n }\n");
     let result = parser.parse();

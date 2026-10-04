@@ -670,6 +670,24 @@ fn test_trailing_comment_after_binary_operator() {
 }
 
 #[test]
+fn test_trailing_comment_after_multiline_expr_bodied_fn_binary() {
+    check("fn f() = 1 +\n    2 // c\n", "fn f() = 1 +\n    2 // c\n");
+}
+
+#[test]
+fn test_trailing_comment_after_multiline_expr_bodied_fn_array() {
+    check(
+        "fn f(a) = [\n    a,\n] // c\n",
+        "fn f(a) = [\n    a,\n] // c\n",
+    );
+}
+
+#[test]
+fn test_expr_bodied_fn_body_on_next_line_kept_as_is() {
+    check("fn f() =\n    1\n", "fn f() =\n    1\n");
+}
+
+#[test]
 fn test_eof_comment_after_last_statement() {
     check("print(1)\n// eof\n", "print(1)\n// eof\n");
 }

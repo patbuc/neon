@@ -529,7 +529,7 @@ impl Parser {
 
         if self.match_token(TokenType::Equal) {
             let expr_location = self.current_location();
-            let expr = self.expression(false)?;
+            let expr = self.operand(Precedence::Assignment)?;
             let end_location = self.current_location();
             self.consume_statement_end("Expecting '\\n' or '\\0' after function body.");
 
