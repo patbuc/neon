@@ -15,4 +15,3 @@ if (x < 0) {
 } else {
     print("non-negative")
 }
-

@@ -5,7 +5,9 @@
 // local call
 
 fn f() {
-    val sleep = fn(x) { return "local " + x }
+    val sleep = fn(x) {
+        return "local " + x
+    }
     return sleep("call")
 }
 

@@ -87,7 +87,7 @@ large.add(4)
 print(small.isSubset(large)) // true
 print(small.isSubset(small)) // true (set is subset of itself)
 print(large.isSubset(small)) // false
-print(setA.isSubset(setB))   // false
+print(setA.isSubset(setB)) // false
 
 // Test 5: Empty set operations
 print("")
@@ -141,6 +141,6 @@ print(adminPerms)
 print(adminPerms.has("admin"))
 print(userPerms.has("admin"))
 print(adminPerms.intersection(userPerms)) // common permissions
-print(adminPerms.difference(userPerms))   // admin-only permissions
-print(guestPerms.isSubset(userPerms))     // guest has fewer perms
-print(userPerms.isSubset(adminPerms))     // user has subset of admin perms
+print(adminPerms.difference(userPerms)) // admin-only permissions
+print(guestPerms.isSubset(userPerms)) // guest has fewer perms
+print(userPerms.isSubset(adminPerms)) // user has subset of admin perms

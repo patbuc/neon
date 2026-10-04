@@ -11,11 +11,11 @@ val config = {
     "host": "localhost",
     "port": 8080,
     "debug": true,
-    "timeout": 30
+    "timeout": 30,
 }
 
 // Read configuration values
-print(config["host"])    // localhost
-print(config["port"])    // 8080
-print(config["debug"])   // true
+print(config["host"]) // localhost
+print(config["port"]) // 8080
+print(config["debug"]) // true
 print(config["timeout"]) // 30

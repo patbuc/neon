@@ -8,10 +8,14 @@
 // 10
 // 20
 
-fn k(n) { print("key " + n.toString())
-return n }
-fn v(n) { print("value " + (n * 10).toString())
-return n * 10 }
+fn k(n) {
+    print("key " + n.toString())
+    return n
+}
+fn v(n) {
+    print("value " + (n * 10).toString())
+    return n * 10
+}
 val m = {k(1): v(1), k(2): v(2)}
 print(m[1])
 print(m[2])

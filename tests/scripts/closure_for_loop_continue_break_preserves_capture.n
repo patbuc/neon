@@ -12,7 +12,9 @@
 var continueFns = []
 for (var i = 0; i < 5; i = i + 1) {
     val local = i * 10
-    continueFns.push(fn() { return i })
+    continueFns.push(fn() {
+        return i
+    })
     if (i == 2) {
         continue
     }
@@ -26,7 +28,9 @@ print("---")
 var breakFns = []
 for (var i = 0; i < 5; i = i + 1) {
     val local = i * 10
-    breakFns.push(fn() { return i })
+    breakFns.push(fn() {
+        return i
+    })
     if (i == 2) {
         break
     }

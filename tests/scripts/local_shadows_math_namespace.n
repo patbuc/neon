@@ -11,7 +11,9 @@ struct MathLike {
 }
 
 fn f() {
-    val Math = MathLike(fn(x) { return "local abs" })
+    val Math = MathLike(fn(x) {
+        return "local abs"
+    })
     return Math.abs(-1)
 }
 

@@ -5,7 +5,9 @@
 
 val fns = []
 for (var i = 0; i < 3; i = i + 1) {
-    fns.push(fn() { return i })
+    fns.push(fn() {
+        return i
+    })
 }
 for (f in fns) {
     print(f())

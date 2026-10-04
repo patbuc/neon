@@ -11,5 +11,7 @@ fn callIt(p) {
     return p.f(2)
 }
 
-val s = S(fn(x) { return x + 1 })
+val s = S(fn(x) {
+    return x + 1
+})
 print(callIt(s))

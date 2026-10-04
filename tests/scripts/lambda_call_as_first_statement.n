@@ -4,4 +4,6 @@
 // Expected:
 // 1
 
-print((fn() { return 1 })())
+print((fn() {
+    return 1
+})())

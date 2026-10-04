@@ -63,7 +63,7 @@ val empty = #{}
 print(empty)
 print(empty.size())
 print(empty.has(1))
-empty.remove(99)  // removing from empty set
+empty.remove(99) // removing from empty set
 print(empty.union(empty))
 
 // Test 2: toArray on empty set
@@ -119,7 +119,7 @@ print(dups.add(2)) // true (added)
 print(dups.add(1)) // false (duplicate)
 print(dups.add(2)) // false (duplicate)
 print(dups.add(3)) // true (added)
-dups.add(3)           // duplicate
+dups.add(3) // duplicate
 print(dups)
 print(dups.size())
 

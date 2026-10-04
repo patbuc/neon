@@ -12,11 +12,11 @@ val mixed = {
     "number": 42,
     "string": "Hello",
     "boolean": true,
-    "null": nil
+    "null": nil,
 }
 
-print(mixed["number"])  // 42
-print(mixed["string"])  // Hello
+print(mixed["number"]) // 42
+print(mixed["string"]) // Hello
 print(mixed["boolean"]) // true
-print(mixed["null"])    // nil
-print(mixed.size())     // 4
+print(mixed["null"]) // nil
+print(mixed.size()) // 4

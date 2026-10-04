@@ -6,7 +6,7 @@
 // zero is not nil
 
 val a = nil
-print(a)           // nil
+print(a) // nil
 if (a == nil) {
     print("is nil")
 } else {

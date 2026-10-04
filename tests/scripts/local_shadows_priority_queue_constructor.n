@@ -6,7 +6,9 @@
 // mine
 
 fn f() {
-    val PriorityQueue = fn() { return "mine" }
+    val PriorityQueue = fn() {
+        return "mine"
+    }
     return PriorityQueue()
 }
 

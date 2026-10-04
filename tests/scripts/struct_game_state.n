@@ -19,7 +19,7 @@ struct Game {
 val game = Game(
     Player("Alice", 100, 10),
     Player("Bob", 95, 8),
-    1
+    1,
 )
 
 // Access and modify
