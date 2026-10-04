@@ -20,10 +20,21 @@ cd "$PROJECT_DIR" || exit 1
 OUTPUT=$(cargo run -q -- --check "$FILE_PATH" 2>&1)
 STATUS=$?
 
+if [ "$STATUS" -eq 65 ]; then
+    echo "$OUTPUT" >&2
+    exit 2
+elif [ "$STATUS" -ne 0 ]; then
+    echo "$OUTPUT" >&2
+    exit 1
+fi
+
+OUTPUT=$(cargo run -q -- fmt --check "$FILE_PATH" 2>&1)
+STATUS=$?
+
 if [ "$STATUS" -eq 0 ]; then
     exit 0
-elif [ "$STATUS" -eq 65 ]; then
-    echo "$OUTPUT" >&2
+elif [ "$STATUS" -eq 1 ]; then
+    echo "check-neon.sh: $FILE_PATH is not formatted, run: cargo run -- fmt $FILE_PATH" >&2
     exit 2
 else
     echo "$OUTPUT" >&2
