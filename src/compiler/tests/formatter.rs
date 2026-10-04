@@ -197,11 +197,6 @@ fn test_empty_if_block() {
 }
 
 #[test]
-fn test_braceless_if_else_keeps_newline_before_else() {
-    check("if (c) x()\nelse y()\n", "if (c) x()\nelse y()\n");
-}
-
-#[test]
 fn test_else_if_chain() {
     check(
         "if (a) { x() } else if (b) { y() } else { z() }\n",
@@ -459,10 +454,10 @@ fn test_broken_if_condition_continuation_does_not_leak_into_block_body() {
 }
 
 #[test]
-fn test_broken_if_condition_continuation_does_not_leak_into_braceless_else() {
+fn test_broken_if_condition_indent_does_not_leak() {
     check(
-        "if (a &&\nb) x()\nelse y()\n",
-        "if (a &&\n    b) x()\nelse y()\n",
+        "if (a &&\nb) {\nx()\n}\nelse {\ny()\n}\n",
+        "if (a &&\n    b) {\n    x()\n} else {\n    y()\n}\n",
     );
 }
 
@@ -529,23 +524,10 @@ fn test_plain_string_literal() {
 }
 
 #[test]
-fn test_braceless_while_body() {
-    check("while (c) x()\n", "while (c) x()\n");
-}
-
-#[test]
 fn test_braceless_for_body() {
     check(
         "for (var i = 0; i < 3; i = i + 1) x()\n",
         "for (var i = 0; i < 3; i = i + 1) x()\n",
-    );
-}
-
-#[test]
-fn test_block_then_braceless_else() {
-    check(
-        "if (c) {\n    a\n} else b()\n",
-        "if (c) {\n    a\n} else b()\n",
     );
 }
 

@@ -770,9 +770,9 @@ impl Parser {
 
         let condition = self.expression(false)?;
 
-        let then_branch = Box::new(self.statement()?);
+        let then_branch = Box::new(self.require_block_body()?);
         let else_branch = if self.match_token(TokenType::Else) {
-            Some(Box::new(self.statement()?))
+            Some(Box::new(self.require_else_body()?))
         } else {
             None
         };
@@ -790,13 +790,39 @@ impl Parser {
 
         let condition = self.expression(false)?;
 
-        let body = Box::new(self.statement()?);
+        let body = Box::new(self.require_block_body()?);
 
         Some(Stmt::While {
             condition,
             body,
             location,
         })
+    }
+
+    /// Requires the next token to start a `{ ... }` block, as the body of an
+    /// `if`, `while`, or paren-free `for ... in`.
+    fn require_block_body(&mut self) -> Option<Stmt> {
+        if !self.check(TokenType::LeftBrace) {
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
+                "Expect '{' after condition".to_string(),
+            );
+            return None;
+        }
+        self.statement()
+    }
+
+    /// Requires an `else` to be followed by a block or another `if`.
+    fn require_else_body(&mut self) -> Option<Stmt> {
+        if self.check(TokenType::LeftBrace) || self.check(TokenType::If) {
+            self.statement()
+        } else {
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
+                "Expect '{' or 'if' after 'else'".to_string(),
+            );
+            None
+        }
     }
 
     fn for_statement(&mut self) -> Option<Stmt> {
@@ -817,7 +843,7 @@ impl Parser {
             }
 
             let collection = self.expression(false)?;
-            let body = Box::new(self.statement()?);
+            let body = Box::new(self.require_block_body()?);
 
             return Some(Stmt::ForIn {
                 variable: identifier,

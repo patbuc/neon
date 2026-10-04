@@ -4585,3 +4585,73 @@ fn test_leading_range_dots() {
     let mut parser = Parser::new("val a = 1\n    ..=5\n");
     assert!(parser.parse().is_err());
 }
+
+#[test]
+fn test_if_condition_with_empty_map_literal() {
+    let program = "if x == {} {\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::If {
+            condition,
+            then_branch,
+            ..
+        } => {
+            match condition {
+                Expr::Binary {
+                    operator, right, ..
+                } => {
+                    assert_eq!(*operator, BinaryOp::Equal);
+                    assert!(matches!(**right, Expr::MapLiteral { .. }));
+                }
+                _ => panic!("Expected binary condition"),
+            }
+            assert!(matches!(**then_branch, Stmt::Block { .. }));
+        }
+        _ => panic!("Expected If statement"),
+    }
+}
+
+#[test]
+fn test_if_while_still_accept_parenthesized_condition() {
+    let mut parser = Parser::new("if (x > 0) {\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap()[0], Stmt::If { .. }));
+
+    let mut parser = Parser::new("while (i < n) {\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap()[0], Stmt::While { .. }));
+}
+
+#[test]
+fn test_braceless_body_is_compile_error() {
+    let programs = [
+        "if x print(x)\n",
+        "if x { } else if y print(y)\n",
+        "while x x = x - 1\n",
+        "for x in xs print(x)\n",
+    ];
+    for program in programs {
+        let mut parser = Parser::new(program);
+        let result = parser.parse();
+        let errors = result.expect_err("expected a compile error");
+        assert!(!errors.is_empty());
+        assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
+        assert_eq!(errors[0].message, "Expect '{' after condition");
+    }
+}
+
+#[test]
+fn test_braceless_else_is_compile_error() {
+    let mut parser = Parser::new("if x { } else print(x)\n");
+    let result = parser.parse();
+    let errors = result.expect_err("expected a compile error");
+    assert!(!errors.is_empty());
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
+    assert_eq!(errors[0].message, "Expect '{' or 'if' after 'else'");
+}
