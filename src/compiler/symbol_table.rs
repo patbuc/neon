@@ -1,6 +1,6 @@
 use crate::common::SourceLocation;
 use crate::compiler::resolutions::DeclId;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Kind of symbol in the symbol table
 #[derive(Debug, Clone, PartialEq)]
@@ -70,6 +70,12 @@ impl Symbol {
 pub struct Scope {
     /// Symbols defined in this scope
     symbols: HashMap<String, Symbol>,
+    /// Names seeded from an earlier REPL line's globals, eligible to be
+    /// redeclared by a `val`/`var`/`fn` in this line rather than rejected
+    /// as a duplicate. Cleared for a name as soon as this line redeclares
+    /// it, so a second redeclaration of the same name in the same line
+    /// still conflicts.
+    replaceable: HashSet<String>,
     /// Parent scope index (None for global scope)
     parent: Option<usize>,
     /// Depth of this scope (0 for global)
@@ -80,14 +86,29 @@ impl Scope {
     pub fn new(parent: Option<usize>, depth: u32) -> Self {
         Scope {
             symbols: HashMap::new(),
+            replaceable: HashSet::new(),
             parent,
             depth,
         }
     }
 
-    /// Define a new symbol in this scope
+    /// Define a new symbol in this scope. A name seeded from an earlier
+    /// REPL line is replaced rather than rejected, unless the existing or
+    /// the new binding is a struct or enum - type redefinition stays a
+    /// `DuplicateSymbol` error.
     pub fn define(&mut self, symbol: Symbol) -> Result<(), String> {
-        if self.symbols.contains_key(&symbol.name) {
+        if let Some(existing) = self.symbols.get(&symbol.name) {
+            let is_type = |kind: &SymbolKind| {
+                matches!(kind, SymbolKind::Struct { .. } | SymbolKind::Enum { .. })
+            };
+            let can_replace = self.replaceable.contains(&symbol.name)
+                && !is_type(&existing.kind)
+                && !is_type(&symbol.kind);
+            if can_replace {
+                self.replaceable.remove(&symbol.name);
+                self.symbols.insert(symbol.name.clone(), symbol);
+                return Ok(());
+            }
             return Err(format!(
                 "Symbol '{}' already defined in this scope",
                 symbol.name
@@ -164,9 +185,12 @@ impl SymbolTable {
     }
 
     /// Defines symbols carried over from an earlier REPL line directly in
-    /// the global scope, bypassing the duplicate check `define` applies.
+    /// the global scope, bypassing the duplicate check `define` applies,
+    /// and marks each name replaceable by a `val`/`var`/`fn` later in this
+    /// line.
     pub(crate) fn seed_globals(&mut self, symbols: impl IntoIterator<Item = Symbol>) {
         for symbol in symbols {
+            self.scopes[0].replaceable.insert(symbol.name.clone());
             self.scopes[0].symbols.insert(symbol.name.clone(), symbol);
         }
     }

@@ -227,3 +227,117 @@ fn interpret_resets_repl() {
         vm.interpret_line("print(x)".to_string())
     );
 }
+
+#[test]
+fn redeclared_val_keeps_earlier_fn_binding() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("fn f() { return x }".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 2".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(x)\nprint(f())".to_string())
+    );
+    assert_eq!("2\n1", vm.get_output());
+}
+
+#[test]
+fn redeclared_fn_is_called() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("fn f() { return 1 }".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("fn f() { return 2 }".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(f())".to_string())
+    );
+    assert_eq!("2", vm.get_output());
+}
+
+#[test]
+fn redeclared_val_rejects_earlier_var_assignment() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("var x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 2".to_string())
+    );
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret_line("x = 3".to_string())
+    );
+}
+
+#[test]
+fn same_line_redeclaration_still_errors() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret_line("val x = 2\nval x = 3".to_string())
+    );
+}
+
+#[test]
+fn redeclaring_struct_name_errors() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("struct Point {\n    x\n    y\n}".to_string())
+    );
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret_line("val Point = 1".to_string())
+    );
+}
+
+#[test]
+fn redeclaring_val_as_struct_errors() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret_line("struct x {\n    a\n}".to_string())
+    );
+}
+
+#[test]
+fn failed_redeclaration_keeps_old_value() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("val x = 1".to_string())
+    );
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret_line("val x = 3\n1 + true".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(x)".to_string())
+    );
+    assert_eq!("1", vm.get_output());
+}

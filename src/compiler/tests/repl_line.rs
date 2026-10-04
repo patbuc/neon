@@ -196,13 +196,42 @@ fn immutable_val_rejected_across_lines() {
 }
 
 #[test]
-fn redeclare_earlier_global_rejected() {
+fn redeclare_earlier_global_allocates_new_slot() {
+    let mut compiler = Compiler::new();
+    let (_, env) = compiler
+        .compile_line("val x = 1\n", &GlobalEnv::default())
+        .unwrap();
+    let old_slot = env.decl_slots[&env.globals["x"].decl_id];
+
+    let (_, env) = compiler.compile_line("val x = 2\n", &env).unwrap();
+    let new_slot = env.decl_slots[&env.globals["x"].decl_id];
+
+    assert_ne!(old_slot, new_slot);
+}
+
+#[test]
+fn redeclare_struct_name_rejected() {
+    let mut compiler = Compiler::new();
+    let (_, env) = compiler
+        .compile_line("struct Point {\n    x\n}\n", &GlobalEnv::default())
+        .unwrap();
+
+    let result = compiler.compile_line("val Point = 1\n", &env);
+    assert!(result.is_none());
+    assert!(compiler
+        .get_structured_errors()
+        .iter()
+        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+}
+
+#[test]
+fn same_line_redeclaration_rejected() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
         .compile_line("val x = 1\n", &GlobalEnv::default())
         .unwrap();
 
-    let result = compiler.compile_line("val x = 2\n", &env);
+    let result = compiler.compile_line("val x = 2\nval x = 3\n", &env);
     assert!(result.is_none());
     assert!(compiler
         .get_structured_errors()
