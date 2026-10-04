@@ -7,6 +7,7 @@ pub enum CompilationPhase {
     Parse,
     Semantic,
     Codegen,
+    Format,
 }
 
 /// Declares `CompilationErrorKind`, its `code()`, and its `ALL` listing.
@@ -76,6 +77,7 @@ compilation_error_kinds! {
     EnumAsValue => "E0042",
     EnumNotTopLevel => "E0043",
     ImplOnEnum => "E0044",
+    UnplaceableComment => "E0045",
 }
 
 #[derive(Debug, Clone, PartialEq)]

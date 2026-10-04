@@ -4352,3 +4352,203 @@ fn test_trivia_reachable_after_parse() {
     assert_eq!(trivia.comments.len(), 1);
     assert_eq!(trivia.comments[0].text, "// hi");
 }
+
+#[test]
+fn test_parse_call_args_with_trailing_comma_one_line() {
+    let mut parser = Parser::new("f(1, 2,)\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => assert_eq!(arguments.len(), 2),
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
+fn test_parse_call_args_with_trailing_comma_multiline() {
+    let mut parser = Parser::new("f(\n    1,\n    2,\n)\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => assert_eq!(arguments.len(), 2),
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
+fn test_parse_array_with_multiline_trailing_comma() {
+    let mut parser = Parser::new("val arr = [\n    1,\n    2,\n]\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Val {
+            initializer: Some(expr),
+            ..
+        } => match expr {
+            Expr::ArrayLiteral { elements, .. } => assert_eq!(elements.len(), 2),
+            _ => panic!("Expected ArrayLiteral expression"),
+        },
+        _ => panic!("Expected Val statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_if_else() {
+    let mut parser = Parser::new("if (c) { a } else { b }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            match then_branch.as_ref() {
+                Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
+                _ => panic!("Expected Block then branch"),
+            }
+            match else_branch.as_deref() {
+                Some(Stmt::Block { statements, .. }) => assert_eq!(statements.len(), 1),
+                _ => panic!("Expected Block else branch"),
+            }
+        }
+        _ => panic!("Expected If statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_while_with_break() {
+    let mut parser = Parser::new("while (x) { break }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::While { body, .. } => match body.as_ref() {
+            Stmt::Block { statements, .. } => {
+                assert_eq!(statements.len(), 1);
+                assert!(matches!(statements[0], Stmt::Break { .. }));
+            }
+            _ => panic!("Expected Block body"),
+        },
+        _ => panic!("Expected While statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_c_style_for() {
+    let mut parser = Parser::new("for (var i = 0; i < 3; i = i + 1) { print(i) }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::For {
+            initializer, body, ..
+        } => {
+            assert!(matches!(initializer.as_ref(), Stmt::Var { .. }));
+            match body.as_ref() {
+                Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
+                _ => panic!("Expected Block body"),
+            }
+        }
+        _ => panic!("Expected For statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_for_in() {
+    let mut parser = Parser::new("for (x in xs) { print(x) }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::ForIn { variable, body, .. } => {
+            assert_eq!(variable, "x");
+            match body.as_ref() {
+                Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
+                _ => panic!("Expected Block body"),
+            }
+        }
+        _ => panic!("Expected ForIn statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_lambda_call_argument() {
+    let mut parser = Parser::new("f(fn(x) { return x }, 1)\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => {
+            assert_eq!(arguments.len(), 2);
+            match &arguments[0] {
+                Expr::Function { body, .. } => assert_eq!(body.len(), 1),
+                _ => panic!("Expected Function expression"),
+            }
+        }
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_block_statement() {
+    let mut parser = Parser::new("fn f() {\n    { a }\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            match &body[0] {
+                Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
+                _ => panic!("Expected Block statement"),
+            }
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_one_line_struct_two_fields() {
+    let mut parser = Parser::new("struct P { x y }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Struct { name, fields, .. } => {
+            assert_eq!(name, "P");
+            let names: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+            assert_eq!(names, vec!["x", "y"]);
+        }
+        _ => panic!("Expected Struct statement"),
+    }
+}
+
+#[test]
+fn test_parse_fn_with_expression_then_return_on_next_line() {
+    let mut parser = Parser::new("fn g() { a()\n    return 1 }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 2);
+            assert!(matches!(body[0], Stmt::Expression { .. }));
+            assert!(matches!(body[1], Stmt::Return { .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}

@@ -240,6 +240,16 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
+        CompilationErrorKind::UnplaceableComment => vec![
+            (
+                "if (a) {\n} // c\nelse {\n}\n".to_string(),
+                Some("line 2"),
+            ),
+            (
+                "print(\"${x // c\n}\")\n".to_string(),
+                Some("line 1"),
+            ),
+        ],
     }
 }
 
@@ -247,7 +257,11 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
 fn every_error_kind_is_produced_by_some_input() {
     for &kind in CompilationErrorKind::ALL {
         for (source, fragment) in sources_for(kind) {
-            let errors = compile_to_errors(&source);
+            let errors = if kind == CompilationErrorKind::UnplaceableComment {
+                crate::compiler::format(&source).err().unwrap_or_default()
+            } else {
+                compile_to_errors(&source)
+            };
             assert!(
                 errors
                     .iter()

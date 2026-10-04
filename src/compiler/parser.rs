@@ -306,7 +306,6 @@ impl Parser {
 
     /// Comments and blank lines dropped from the token stream. Valid
     /// after `parse()` returns.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn trivia(&self) -> &crate::compiler::Trivia {
         self.scanner.trivia()
     }

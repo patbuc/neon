@@ -59,18 +59,18 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
     }
 }
 
-fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
-    let script = fs::read_to_string(path)?;
-
+/// Interprets `script` and checks its output and error behavior against
+/// its own inline `// Expected:` / `// Expected runtime error:` comments.
+fn check_script(path: &Path, script: &str) -> datatest_stable::Result<()> {
     // Extract expected output from inline comments
-    let expected_result = extract_inline_expectation(&script).ok_or_else(|| {
+    let expected_result = extract_inline_expectation(script).ok_or_else(|| {
         format!(
             "No expected output found in {}. Add '// Expected:' block at the top of the file.",
             path.display()
         )
     })?;
 
-    let expected_runtime_error = extract_expected_runtime_error(&script);
+    let expected_runtime_error = extract_expected_runtime_error(script);
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(script.to_string());
@@ -114,7 +114,35 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
     Ok(())
 }
 
+fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
+    let script = fs::read_to_string(path)?;
+    check_script(path, &script)
+}
+
+/// Formats the script first, checks that formatting kept its `// Expected:`
+/// block intact, then runs the formatted source through the same checks as
+/// `run_neon_script`.
+fn run_formatted_neon_script(path: &Path) -> datatest_stable::Result<()> {
+    let script = fs::read_to_string(path)?;
+    let formatted = neon::compiler::format(&script)
+        .map_err(|errors| format!("format({}) failed: {errors:?}", path.display()))?;
+
+    let original_expectation = extract_inline_expectation(&script);
+    let formatted_expectation = extract_inline_expectation(&formatted);
+    if original_expectation != formatted_expectation {
+        return Err(format!(
+            "formatting {} changed its `// Expected:` block",
+            path.display()
+        )
+        .into());
+    }
+
+    check_script(path, &formatted)
+}
+
 datatest_stable::harness! {
     { test = run_neon_script, root = "tests/scripts", pattern = r"^.*\.n$" },
     { test = run_neon_script, root = "benches", pattern = r"^.*\.n$" },
+    { test = run_formatted_neon_script, root = "tests/scripts", pattern = r"^.*\.n$" },
+    { test = run_formatted_neon_script, root = "benches", pattern = r"^.*\.n$" },
 }
