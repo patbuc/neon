@@ -2,7 +2,8 @@ use colored::Colorize;
 use std::io::{Read, Write};
 use std::process::exit;
 
-use std::fs::File;
+use std::fs::{self, File};
+use std::path::Path;
 use std::{env, io};
 
 use neon::vm::{InterpretResult, VirtualMachine};
@@ -173,7 +174,7 @@ fn fmt_command(args: &[String]) {
     }
 
     for path in paths {
-        if path != "-" && !std::path::Path::new(path).exists() {
+        if path != "-" && !Path::new(path).exists() {
             eprintln!("Path not found: {}", path);
             exit(66);
         }
@@ -183,8 +184,8 @@ fn fmt_command(args: &[String]) {
     for path in paths {
         if path == "-" {
             files.push(path.clone());
-        } else if std::path::Path::new(path).is_dir() {
-            collect_n_files(std::path::Path::new(path), &mut files);
+        } else if Path::new(path).is_dir() {
+            collect_n_files(Path::new(path), &mut files);
         } else {
             files.push(path.clone());
         }
@@ -218,23 +219,17 @@ fn fmt_command(args: &[String]) {
             Ok(formatted) => {
                 let changed = formatted != source;
                 would_change |= changed;
-                if file == "-" {
-                    if check_mode {
-                        if changed {
-                            println!("-");
-                        }
-                    } else {
-                        print!("{}", formatted);
-                    }
-                } else if changed {
-                    if check_mode {
+                if check_mode {
+                    if changed {
                         println!("{}", file);
-                    } else {
-                        std::fs::write(file, &formatted).unwrap_or_else(|err| {
-                            eprintln!("Failed to write the file {}: {}", file, err);
-                            exit(74);
-                        });
                     }
+                } else if file == "-" {
+                    print!("{}", formatted);
+                } else if changed {
+                    fs::write(file, &formatted).unwrap_or_else(|err| {
+                        eprintln!("Failed to write the file {}: {}", file, err);
+                        exit(74);
+                    });
                 }
             }
             Err(errors) => {
@@ -276,10 +271,8 @@ fn read_file_for_fmt(path: &str) -> Option<String> {
     }
 }
 
-/// Recursively collects `.n` files under `dir`, sorted within each directory
-/// for deterministic ordering.
-fn collect_n_files(dir: &std::path::Path, out: &mut Vec<String>) {
-    let mut entries: Vec<_> = std::fs::read_dir(dir)
+fn collect_n_files(dir: &Path, out: &mut Vec<String>) {
+    let mut entries: Vec<_> = fs::read_dir(dir)
         .unwrap_or_else(|err| {
             eprintln!("Failed to read directory {}: {}", dir.display(), err);
             exit(74);
