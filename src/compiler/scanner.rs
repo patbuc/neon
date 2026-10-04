@@ -290,10 +290,14 @@ impl Scanner {
                 }
             }
             '\n' => {
-                let new_line = self.make_token(TokenType::NewLine);
+                let suppress = self.next_line_starts_with_single_dot();
                 self.line += 1;
                 self.column = 1;
-                new_line
+                if suppress {
+                    self.scan_token()
+                } else {
+                    self.make_token(TokenType::NewLine)
+                }
             }
             '"' => self.make_string(),
             '#' => {
@@ -663,6 +667,16 @@ impl Scanner {
             return '\0';
         }
         self.source[self.current + 1]
+    }
+
+    /// Looks past spaces/tabs on the line right after `self.current` (the
+    /// just-consumed `\n`) for a `.` that doesn't start a `..`/`..=` range.
+    fn next_line_starts_with_single_dot(&self) -> bool {
+        let mut i = self.current;
+        while matches!(self.source.get(i), Some(' ') | Some('\t')) {
+            i += 1;
+        }
+        self.source.get(i) == Some(&'.') && self.source.get(i + 1) != Some(&'.')
     }
 
     fn skip_whitespace(&mut self) {

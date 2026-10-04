@@ -1,0 +1,7 @@
+// Expected:
+// [4, 6, 8]
+
+val r = [1, 2, 3, 4]
+    .filter(fn(x) { return x > 1 })
+    .map(fn(x) { return x * 2 })
+print(r)
