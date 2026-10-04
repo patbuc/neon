@@ -264,7 +264,7 @@ enforces these edges in `cargo test`.
 - Pattern matching for AST traversal and opcode dispatch
 - Minimize allocations in VM hot path (execution loop)
 - Use `Rc` for shared ownership, `RefCell` only when mutation needed
-- Prefer `tracing` crate for debug logging, not `println!`
+- Prefer `log` macros (`info!`, `debug!`) for debug logging, not `println!` — enable with `RUST_LOG`
 
 ### Compiler/VM Patterns
 
