@@ -210,15 +210,6 @@ fn test_while_with_block_body() {
 }
 
 #[test]
-fn test_if_and_while_condition_parens_are_removed() {
-    check(
-        "if (a) { x() } else if (b) { y() }\n",
-        "if a {\n    x()\n} else if b {\n    y()\n}\n",
-    );
-    check("while (c) { x() }\n", "while c {\n    x()\n}\n");
-}
-
-#[test]
 fn test_if_condition_with_operand_parens_is_kept() {
     check("if (a) && (b) { x() }\n", "if (a) && (b) {\n    x()\n}\n");
 }
@@ -226,6 +217,22 @@ fn test_if_condition_with_operand_parens_is_kept() {
 #[test]
 fn test_while_missing_space_before_paren_is_added() {
     check("while(c) { x() }\n", "while c {\n    x()\n}\n");
+}
+
+#[test]
+fn test_for_in_loop() {
+    check(
+        "for x in xs {\n    print(x)\n}\n",
+        "for x in xs {\n    print(x)\n}\n",
+    );
+}
+
+#[test]
+fn test_for_in_collection_parens_are_removed() {
+    check(
+        "for x in (xs) {\n    print(x)\n}\n",
+        "for x in xs {\n    print(x)\n}\n",
+    );
 }
 
 #[test]

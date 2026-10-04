@@ -2929,6 +2929,37 @@ fn test_for_in_continue_does_not_grow_stack() {
 }
 
 #[test]
+fn test_for_in_closure_capture_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64, body: &str) -> usize {
+        let program = format!(
+            r#"
+            var fns = []
+            for i in 0..{iterations} {{
+                {body}
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(InterpretResult::Ok, result);
+        vm.stack.len()
+    }
+
+    let capture_body = "fns.push(fn() { return i })";
+    assert_eq!(
+        stack_len_after_loop(0, capture_body),
+        stack_len_after_loop(1000, capture_body)
+    );
+
+    let capture_then_continue_body = "fns.push(fn() { return i })\ncontinue";
+    assert_eq!(
+        stack_len_after_loop(0, capture_then_continue_body),
+        stack_len_after_loop(1000, capture_then_continue_body)
+    );
+}
+
+#[test]
 fn test_while_break_from_block_does_not_grow_stack() {
     fn stack_len_after_loop(iterations: i64) -> usize {
         let program = format!(

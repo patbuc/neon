@@ -132,8 +132,11 @@ fn test_range_step_zero_is_runtime_error() {
         vm.interpret(program.to_string())
     );
     let errors = vm.get_runtime_errors();
-    assert!(errors.contains("step()"), "{}", errors);
-    assert!(errors.contains('0'), "{}", errors);
+    assert!(
+        errors.contains("step() k must be >= 1, got 0"),
+        "{}",
+        errors
+    );
 }
 
 // ============================================================================
