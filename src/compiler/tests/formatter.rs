@@ -402,6 +402,22 @@ fn test_fmt_keeps_a_break_before_dot_and_indents_the_continuation_one_level() {
 }
 
 #[test]
+fn test_fmt_keeps_a_single_line_chain_on_one_line() {
+    check(
+        "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
+        "val r = [1, 2, 3, 4].reverse().slice(0, 2)\n",
+    );
+}
+
+#[test]
+fn test_fmt_keeps_trailing_comment_after_broken_chain_line() {
+    check(
+        "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
+        "val r = [1, 2, 3, 4]\n    .reverse() // t\n    .slice(0, 2)\n",
+    );
+}
+
+#[test]
 fn test_compound_assign_continuation() {
     check("x +=\n1\n", "x +=\n    1\n");
 }
