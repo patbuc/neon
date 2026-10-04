@@ -78,7 +78,10 @@ fn run_repl() {
     let mut vm = VirtualMachine::new();
     loop {
         print_prompt();
-        let line = read_line();
+        let line = match read_line() {
+            Some(line) => line,
+            None => break,
+        };
         if line == "exit" {
             println!("Ciao 👋 - May your coffee be strong");
             break;
@@ -101,12 +104,16 @@ fn run_repl() {
     }
 }
 
-fn read_line() -> String {
+fn read_line() -> Option<String> {
     let mut input = String::new();
-    io::stdin()
-        .read_line(&mut input)
-        .expect("Failed to read line");
-    String::from(input.trim())
+    match io::stdin().read_line(&mut input) {
+        Ok(0) => None,
+        Ok(_) => Some(String::from(input.trim())),
+        Err(err) => {
+            eprintln!("Failed to read line: {}", err);
+            exit(74);
+        }
+    }
 }
 
 fn print_prompt() {
