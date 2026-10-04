@@ -230,7 +230,10 @@ impl SourceMap {
                 None => self.stmt_last_token(then_branch),
             },
             Stmt::While { body, .. } | Stmt::ForIn { body, .. } => self.stmt_last_token(body),
-            Stmt::Return { value, .. } => self.last_token(value),
+            Stmt::Return { value, location } => match value {
+                Some(value) => self.last_token(value),
+                None => self.at(location),
+            },
             Stmt::Break { location } | Stmt::Continue { location } => self.at(location),
         }
     }

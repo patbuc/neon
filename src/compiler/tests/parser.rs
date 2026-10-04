@@ -449,6 +449,54 @@ fn test_parse_nested_single_line_blocks() {
 }
 
 #[test]
+fn test_parse_bare_return_before_brace() {
+    let mut parser = Parser::new("fn f() {\n    return\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Return { value: None, .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
+fn test_parse_bare_return_same_line_as_brace() {
+    let mut parser = Parser::new("fn g() { return }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => {
+            assert_eq!(body.len(), 1);
+            assert!(matches!(body[0], Stmt::Return { value: None, .. }));
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+
+    let mut parser = Parser::new("fn h(x) { if (x) { return } }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Fn { body, .. } => match &body[0] {
+            Stmt::If { then_branch, .. } => match then_branch.as_ref() {
+                Stmt::Block { statements, .. } => {
+                    assert_eq!(statements.len(), 1);
+                    assert!(matches!(statements[0], Stmt::Return { value: None, .. }));
+                }
+                _ => panic!("Expected Block statement"),
+            },
+            _ => panic!("Expected If statement"),
+        },
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
 fn test_parse_lambda_expression() {
     let mut parser = Parser::new("val double = fn(x) {\n  return x * 2\n}\n");
     let result = parser.parse();
@@ -3847,7 +3895,9 @@ fn collect_stmt_ids(stmt: &Stmt, ids: &mut Vec<u32>) {
                 .iter()
                 .for_each(|stmt| collect_stmt_ids(stmt, ids));
         }
-        Stmt::Return { value, .. } => collect_expr_ids(value, ids),
+        Stmt::Return {
+            value: Some(value), ..
+        } => collect_expr_ids(value, ids),
         _ => {}
     }
 }

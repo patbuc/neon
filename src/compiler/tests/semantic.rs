@@ -80,7 +80,10 @@ mod resolutions {
                 index_expr(condition, idx);
                 index_stmt(body, idx);
             }
-            Stmt::Return { value, .. } => index_expr(value, idx),
+            Stmt::Return {
+                value: Some(value), ..
+            } => index_expr(value, idx),
+            Stmt::Return { value: None, .. } => {}
             Stmt::ForIn {
                 variable,
                 collection,

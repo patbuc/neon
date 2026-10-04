@@ -349,10 +349,13 @@ impl<'a> Printer<'a> {
                 }
             }
             Stmt::Expression { expr, .. } => self.print_expr(expr),
-            Stmt::Return { value, .. } => {
-                self.write("return ");
-                self.print_expr(value);
-            }
+            Stmt::Return { value, .. } => match value {
+                Some(value) => {
+                    self.write("return ");
+                    self.print_expr(value);
+                }
+                None => self.write("return"),
+            },
             Stmt::Break { .. } => self.write("break"),
             Stmt::Continue { .. } => self.write("continue"),
             Stmt::Fn {

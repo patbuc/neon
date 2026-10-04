@@ -1032,7 +1032,9 @@ impl SemanticAnalyzer {
                 self.resolve_while_statement(condition, body);
             }
             Stmt::Return { value, .. } => {
-                self.resolve_expr(value);
+                if let Some(value) = value {
+                    self.resolve_expr(value);
+                }
             }
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);

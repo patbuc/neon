@@ -829,8 +829,11 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_return_stmt(&mut self, value: &Expr, location: SourceLocation) {
-        self.generate_expr(value);
+    fn generate_return_stmt(&mut self, value: &Option<Expr>, location: SourceLocation) {
+        match value {
+            Some(value) => self.generate_expr(value),
+            None => self.emit_op_code(OpCode::Nil, location),
+        }
         self.emit_op_code(OpCode::Return, location);
     }
 
