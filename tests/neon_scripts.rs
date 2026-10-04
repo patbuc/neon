@@ -61,7 +61,6 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
 
 /// Interprets `script` and checks its output and error behavior against
 /// its own inline `// Expected:` / `// Expected runtime error:` comments.
-/// `path` is only used to name the script in failure messages.
 fn check_script(path: &Path, script: &str) -> datatest_stable::Result<()> {
     // Extract expected output from inline comments
     let expected_result = extract_inline_expectation(script).ok_or_else(|| {
@@ -122,7 +121,7 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
 
 /// Formats the script first, checks that formatting kept its `// Expected:`
 /// block intact, then runs the formatted source through the same checks as
-/// `run_neon_script` - formatting must never change a script's behavior.
+/// `run_neon_script`.
 fn run_formatted_neon_script(path: &Path) -> datatest_stable::Result<()> {
     let script = fs::read_to_string(path)?;
     let formatted = neon::compiler::format(&script)
