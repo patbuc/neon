@@ -269,8 +269,7 @@ cargo run --features disassemble -- script.n
   syntax differs from JS/Kotlin and the full list of native methods
 - A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
   written, feeding compile errors back automatically; for files under `tests/scripts/` and `benches/` it then runs
-  `neon fmt --check` and blocks with
-  feedback to run `cargo run -- fmt <file>` if it's unformatted
+  `neon fmt --check` and blocks with feedback to run `cargo run -- fmt <file>` if it's unformatted
 - New or edited `.n` files under `tests/scripts/` and `benches/` must pass `neon fmt --check`; the Lint
   CI workflow runs the same check over both directories
 - Test both success and error paths
