@@ -105,6 +105,7 @@ impl SourceMap {
     pub(crate) fn first_token(&self, expr: &Expr) -> usize {
         match expr {
             Expr::Number { location, .. }
+            | Expr::Int { location, .. }
             | Expr::String { location, .. }
             | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }
@@ -135,6 +136,7 @@ impl SourceMap {
     pub(crate) fn last_token(&self, expr: &Expr) -> usize {
         match expr {
             Expr::Number { location, .. }
+            | Expr::Int { location, .. }
             | Expr::String { location, .. }
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }

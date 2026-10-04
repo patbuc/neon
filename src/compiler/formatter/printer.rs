@@ -567,7 +567,7 @@ impl<'a> Printer<'a> {
 
     fn print_expr(&mut self, expr: &Expr) {
         match expr {
-            Expr::Number { raw, .. } => self.write_raw(raw),
+            Expr::Number { raw, .. } | Expr::Int { raw, .. } => self.write_raw(raw),
             Expr::String { raw, .. } => {
                 self.write("\"");
                 self.write_raw(raw);
