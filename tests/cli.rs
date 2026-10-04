@@ -883,3 +883,22 @@ fn repl_exit_stops_before_eof() {
         stdout
     );
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn repl_keeps_state_across_lines() {
+    let output = run_repl_with_stdin(b"var x = 1\nprint(x)\nfn f() { return x + 1 }\nprint(f())\n");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(">> 1"),
+        "expected stdout to contain the printed 1:\n{}",
+        stdout
+    );
+    assert!(
+        stdout.contains(">> 2"),
+        "expected stdout to contain the printed 2:\n{}",
+        stdout
+    );
+}

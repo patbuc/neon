@@ -172,11 +172,13 @@ impl SemanticAnalyzer {
 
     /// Builds the `GlobalEnv` a later REPL line compiles against: this
     /// line's final global scope, with `decl_slots` narrowed to the
-    /// declarations that actually got a global.
+    /// declarations that actually got a global. `previous_slot_count`
+    /// keeps `slot_count` from shrinking below the seed env's.
     pub(crate) fn snapshot_env(
         self,
         resolutions: Resolutions,
         decl_slots: HashMap<DeclId, u32>,
+        previous_slot_count: u32,
     ) -> GlobalEnv {
         let builtin_decl_count = self.builtin_decl_count;
         let globals: HashMap<String, Symbol> = self
@@ -190,7 +192,12 @@ impl SemanticAnalyzer {
             .into_iter()
             .filter(|(decl, _)| global_ids.contains(decl))
             .collect();
-        let slot_count = decl_slots.len() as u32;
+        let slot_count = decl_slots
+            .values()
+            .map(|&slot| slot + 1)
+            .max()
+            .unwrap_or(0)
+            .max(previous_slot_count);
         let (symbols, immutable) = resolutions.into_symbols_and_immutable();
         let immutable = immutable
             .into_iter()

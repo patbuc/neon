@@ -53,7 +53,7 @@ impl Compiler {
         };
         let decl_slots = codegen.into_decl_slots();
 
-        let new_env = analyzer.snapshot_env(resolutions, decl_slots);
+        let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Some((chunk, new_env))
     }
 

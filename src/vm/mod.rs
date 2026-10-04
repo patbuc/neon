@@ -1,5 +1,6 @@
 use crate::common::method_registry::NativeMethodTable;
 use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
+use crate::compiler::global_env::GlobalEnv;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -52,6 +53,8 @@ pub struct VirtualMachine {
     /// Native methods of the builtin types, built from the running
     /// compile's symbol table.
     native_methods: NativeMethodTable,
+    /// Globals, symbols and slot layout the REPL has accumulated so far.
+    repl_env: GlobalEnv,
     /// Execution count per opcode byte, for the `opcode-stats` histogram.
     #[cfg(feature = "opcode-stats")]
     opcode_counts: [u64; 256],

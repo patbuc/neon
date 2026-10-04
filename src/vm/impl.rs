@@ -1,6 +1,7 @@
 use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
+use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, RuntimeError, TraceFrame, VirtualMachine, TRACE_EDGE_FRAMES};
@@ -32,6 +33,7 @@ impl VirtualMachine {
             native_call_depth: 0,
             methods: Vec::new(),
             native_methods: Vec::new(),
+            repl_env: GlobalEnv::default(),
             #[cfg(feature = "opcode-stats")]
             opcode_counts: [0; 256],
             #[cfg(feature = "opcode-stats")]
@@ -82,7 +84,16 @@ impl VirtualMachine {
             return InterpretResult::CompileError;
         }
 
-        let chunk = chunk.unwrap();
+        let result = self.run_script_chunk(chunk.unwrap());
+
+        #[cfg(not(target_arch = "wasm32"))]
+        info!("Run time: {}ms", start.elapsed().as_millis());
+
+        result
+    }
+
+    /// Makes `chunk` the running script frame and runs it to completion.
+    fn run_script_chunk(&mut self, chunk: Chunk) -> InterpretResult {
         self.native_methods = native_method_table(&chunk.symbols);
 
         let script_function = Rc::new(ObjFunction {
@@ -98,10 +109,59 @@ impl VirtualMachine {
         // Use -1 for slot_start since the script has no function object on the stack
         self.push_frame(script_closure, -1);
 
-        let result = self.run_script(0);
+        self.run_script(0)
+    }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        info!("Run time: {}ms", start.elapsed().as_millis());
+    /// Interprets one REPL line, keeping globals and methods earlier lines
+    /// defined. A compile error leaves the VM untouched; a runtime error
+    /// rolls back everything the line declared.
+    pub fn interpret_line(&mut self, source: String) -> InterpretResult {
+        self.source = source.clone();
+
+        let previous_env = self.repl_env.clone();
+        let previous_methods = self.methods.clone();
+        let previous_slot_count = previous_env.slot_count as usize;
+
+        let mut compiler = Compiler::new();
+        let (chunk, new_env) = match compiler.compile_line(&source, &previous_env) {
+            Some(result) => result,
+            None => {
+                self.structured_errors = compiler.get_structured_errors();
+                return InterpretResult::CompileError;
+            }
+        };
+
+        self.call_frames.clear();
+        self.open_upvalues.clear();
+        self.native_call_depth = 0;
+        self.runtime_error = None;
+
+        let result = self.run_script_chunk(chunk);
+
+        match result {
+            InterpretResult::Ok => {
+                self.stack.truncate(new_env.slot_count as usize);
+                self.repl_env = new_env;
+            }
+            InterpretResult::RuntimeError => {
+                let new_slot_count = new_env.slot_count as usize;
+                self.close_upvalues_above(new_slot_count);
+                self.stack.truncate(new_slot_count);
+                for (name, symbol) in &new_env.globals {
+                    let Some(&slot) = new_env.decl_slots.get(&symbol.decl_id) else {
+                        continue;
+                    };
+                    if slot as usize >= previous_slot_count {
+                        self.stack[slot as usize] = Value::Uninitialized(Rc::new(name.clone()));
+                    }
+                }
+                self.call_frames.clear();
+                self.native_call_depth = 0;
+                self.methods = previous_methods;
+                self.repl_env = previous_env.after_runtime_error(&new_env);
+            }
+            InterpretResult::CompileError => unreachable!("compile already handled"),
+        }
 
         result
     }
@@ -455,6 +515,7 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.methods.clear();
+        self.repl_env = GlobalEnv::default();
         #[cfg(feature = "opcode-stats")]
         {
             self.opcode_counts = [0; 256];

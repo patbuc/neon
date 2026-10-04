@@ -19,3 +19,17 @@ pub(crate) struct GlobalEnv {
     pub(crate) slot_count: u32,
     pub(crate) immutable: HashSet<DeclId>,
 }
+
+impl GlobalEnv {
+    /// Rolls back a line that compiled but failed at runtime: keeps this
+    /// env's names, types, struct methods and immutability, but takes
+    /// `after`'s slot count, next decl id and symbols, which are append-only.
+    pub(crate) fn after_runtime_error(self, after: &GlobalEnv) -> GlobalEnv {
+        GlobalEnv {
+            slot_count: after.slot_count,
+            next_decl_id: after.next_decl_id,
+            symbols: after.symbols.clone(),
+            ..self
+        }
+    }
+}

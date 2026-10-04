@@ -86,7 +86,7 @@ fn run_repl() {
             println!("Ciao 👋 - May your coffee be strong");
             break;
         }
-        let result = vm.interpret(line);
+        let result = vm.interpret_line(line);
         match result {
             InterpretResult::Ok => {}
             InterpretResult::CompileError => {
