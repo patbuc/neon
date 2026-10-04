@@ -1,4 +1,7 @@
 use crate::compiler::format;
+use crate::compiler::parser::Parser;
+use crate::compiler::Comment;
+use crate::compiler::CommentKind;
 use crate::compiler::Compiler;
 
 /// Asserts `format(input) == Ok(expected)` and that `expected` is already
@@ -638,4 +641,56 @@ fn test_unplaceable_comment_inside_interpolation_is_an_error() {
     let errors = crate::compiler::format(source).unwrap_err();
     assert_eq!(errors.len(), 1);
     assert!(errors[0].message.contains("line 1"), "{:?}", errors[0]);
+}
+
+fn corpus_comments(source: &str) -> Vec<Comment> {
+    let mut parser = Parser::new(source);
+    let _ = parser.parse();
+    parser.trivia().comments.clone()
+}
+
+#[test]
+fn test_corpus_formats_idempotently_and_preserves_comments() {
+    for dir in ["tests/scripts", "benches"] {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|e| e.to_str()) != Some("n") {
+                continue;
+            }
+            let source = std::fs::read_to_string(&path).unwrap();
+
+            let formatted =
+                format(&source).unwrap_or_else(|e| panic!("format({path:?}) failed: {e:?}"));
+            let reformatted = format(&formatted)
+                .unwrap_or_else(|e| panic!("format(format({path:?})) failed: {e:?}"));
+            assert_eq!(formatted, reformatted, "not idempotent: {path:?}");
+
+            let input_comments = corpus_comments(&source);
+            let output_comments = corpus_comments(&formatted);
+            let input_signature: Vec<_> = input_comments
+                .iter()
+                .map(|c| (c.text.trim_end().to_string(), c.kind))
+                .collect();
+            let output_signature: Vec<_> = output_comments
+                .iter()
+                .map(|c| (c.text.trim_end().to_string(), c.kind))
+                .collect();
+            assert_eq!(
+                input_signature, output_signature,
+                "comments changed: {path:?}"
+            );
+
+            for i in 0..input_comments.len().saturating_sub(1) {
+                if input_comments[i + 1].kind == CommentKind::OwnLine
+                    && input_comments[i + 1].line == input_comments[i].line + 1
+                {
+                    assert_eq!(
+                        output_comments[i + 1].line,
+                        output_comments[i].line + 1,
+                        "adjacent comments drifted apart in {path:?}"
+                    );
+                }
+            }
+        }
+    }
 }
