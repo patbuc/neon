@@ -192,24 +192,25 @@ fn fmt_command(args: &[String]) {
     }
 
     let mut had_syntax_error = false;
-    let mut had_read_error = false;
+    let mut had_io_error = false;
     let mut would_change = false;
 
     for file in &files {
         let source = if file == "-" {
             let mut source = String::new();
-            io::stdin()
-                .read_to_string(&mut source)
-                .unwrap_or_else(|err| {
+            match io::stdin().read_to_string(&mut source) {
+                Ok(_) => source,
+                Err(err) => {
                     eprintln!("Failed to read stdin: {}", err);
-                    exit(74);
-                });
-            source
+                    had_io_error = true;
+                    continue;
+                }
+            }
         } else {
             match read_file_for_fmt(file) {
                 Some(source) => source,
                 None => {
-                    had_read_error = true;
+                    had_io_error = true;
                     continue;
                 }
             }
@@ -226,10 +227,10 @@ fn fmt_command(args: &[String]) {
                 } else if file == "-" {
                     print!("{}", formatted);
                 } else if changed {
-                    fs::write(file, &formatted).unwrap_or_else(|err| {
+                    if let Err(err) = fs::write(file, &formatted) {
                         eprintln!("Failed to write the file {}: {}", file, err);
-                        exit(74);
-                    });
+                        had_io_error = true;
+                    }
                 }
             }
             Err(errors) => {
@@ -241,7 +242,7 @@ fn fmt_command(args: &[String]) {
         }
     }
 
-    if had_read_error {
+    if had_io_error {
         exit(74);
     }
     if had_syntax_error {
@@ -277,7 +278,16 @@ fn collect_n_files(dir: &Path, out: &mut Vec<String>) {
             eprintln!("Failed to read directory {}: {}", dir.display(), err);
             exit(74);
         })
-        .filter_map(|entry| entry.ok())
+        .map(|entry| {
+            entry.unwrap_or_else(|err| {
+                eprintln!(
+                    "Failed to read entry in directory {}: {}",
+                    dir.display(),
+                    err
+                );
+                exit(74);
+            })
+        })
         .collect();
     entries.sort_by_key(|entry| entry.file_name());
 

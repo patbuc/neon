@@ -636,6 +636,70 @@ fn fmt_unreadable_file_is_skipped_rest_still_format_and_exits_74() {
 }
 
 #[test]
+fn fmt_io_error_takes_precedence_over_syntax_error_exits_74() {
+    let dir = unique_temp_dir("io_over_syntax");
+    let bad = dir.join("bad.n");
+    let unreadable = dir.join("unreadable.n");
+    fs::write(&bad, "val = 1\n").expect("Failed to write test script");
+    fs::write(&unreadable, [0xff, 0xfe]).expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&dir)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(74, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&bad.display().to_string()));
+    assert!(stderr.contains(&unreadable.display().to_string()));
+}
+
+#[cfg(unix)]
+#[test]
+fn fmt_write_failure_is_skipped_rest_still_format_and_exits_74() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = unique_temp_dir("write_failure");
+    let readonly = dir.join("a.n");
+    let writable = dir.join("b.n");
+    fs::write(&readonly, "val x = 1").expect("Failed to write test script");
+    fs::write(&writable, "val y = 2").expect("Failed to write test script");
+
+    let mut perms = fs::metadata(&readonly).unwrap().permissions();
+    perms.set_mode(0o444);
+    fs::set_permissions(&readonly, perms).expect("Failed to set permissions");
+
+    // Root ignores the read-only bit, which would turn this into a false negative.
+    if fs::write(&readonly, "val x = 1").is_ok() {
+        fs::remove_dir_all(&dir).ok();
+        eprintln!("skipping: running as a user that bypasses file permissions");
+        return;
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&readonly)
+        .arg(&writable)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let mut perms = fs::metadata(&readonly).unwrap().permissions();
+    perms.set_mode(0o644);
+    fs::set_permissions(&readonly, perms).ok();
+
+    let writable_contents = fs::read_to_string(&writable).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(74, output.status.code().unwrap());
+    assert_eq!("val y = 2\n", writable_contents);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&readonly.display().to_string()));
+}
+
+#[test]
 fn fmt_without_paths_prints_usage_and_exits_64() {
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("fmt")
