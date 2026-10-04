@@ -59,8 +59,8 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 **Control flow**
 - Conditions are paren-free: `if x {`, `while x {`. Parentheses around a
   condition are just grouping, not required.
-- Always use braces. `if c { print(1) } else { print(2) }` on one line
-  doesn't compile without the braces.
+- Every branch and loop body needs braces: `if c print(1)` is a compile
+  error; write `if c { print(1) } else { print(2) }`.
 - `for x in coll { }` is the only `for`; no C-style `for`. Count with a range
   instead: `for i in 0..n { }`. For-in over a map gives keys. `break`/
   `continue` exist.
