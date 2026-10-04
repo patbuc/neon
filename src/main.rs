@@ -2,7 +2,8 @@ use colored::Colorize;
 use std::io::{Read, Write};
 use std::process::exit;
 
-use std::fs::File;
+use std::fs::{self, File};
+use std::path::Path;
 use std::{env, io};
 
 use neon::vm::{InterpretResult, VirtualMachine};
@@ -33,6 +34,9 @@ fn main() {
                     exit(64);
                 }
                 check_file(&args[2]);
+            }
+            "fmt" => {
+                fmt_command(&args[2..]);
             }
             _ => {
                 let file_path = &args[1];
@@ -160,6 +164,166 @@ fn check_file(path: &str) {
     }
 }
 
+fn fmt_command(args: &[String]) {
+    let check_mode = args.first().map(|arg| arg == "--check").unwrap_or(false);
+    let paths = if check_mode { &args[1..] } else { args };
+
+    if paths.is_empty() {
+        eprintln!("Usage: neon fmt [--check] <paths...>");
+        exit(64);
+    }
+
+    for path in paths {
+        if path != "-" && !Path::new(path).exists() {
+            eprintln!("Path not found: {}", path);
+            exit(66);
+        }
+    }
+
+    let mut had_io_error = false;
+    let mut files = Vec::new();
+    for path in paths {
+        if path == "-" {
+            files.push(path.clone());
+        } else if Path::new(path).is_dir() {
+            collect_n_files(Path::new(path), &mut files, &mut had_io_error);
+        } else {
+            files.push(path.clone());
+        }
+    }
+
+    let mut had_syntax_error = false;
+    let mut would_change = false;
+
+    for file in &files {
+        let source = if file == "-" {
+            let mut source = String::new();
+            match io::stdin().read_to_string(&mut source) {
+                Ok(_) => source,
+                Err(err) => {
+                    eprintln!("Failed to read stdin: {}", err);
+                    had_io_error = true;
+                    continue;
+                }
+            }
+        } else {
+            match read_file_for_fmt(file) {
+                Some(source) => source,
+                None => {
+                    had_io_error = true;
+                    continue;
+                }
+            }
+        };
+
+        match neon::compiler::format(&source) {
+            Ok(formatted) => {
+                let changed = formatted != source;
+                would_change |= changed;
+                if check_mode {
+                    if changed {
+                        println!("{}", file);
+                    }
+                } else if file == "-" {
+                    print!("{}", formatted);
+                } else if changed {
+                    if let Err(err) = fs::write(file, &formatted) {
+                        eprintln!("Failed to write the file {}: {}", file, err);
+                        had_io_error = true;
+                    }
+                }
+            }
+            Err(errors) => {
+                had_syntax_error = true;
+                let rendered = neon::common::error_renderer::ErrorRenderer::default()
+                    .render_errors(&errors, &source, file);
+                eprintln!("{}", rendered);
+            }
+        }
+    }
+
+    if had_io_error {
+        exit(74);
+    }
+    if had_syntax_error {
+        exit(65);
+    }
+    if check_mode && would_change {
+        exit(1);
+    }
+}
+
+fn read_file_for_fmt(path: &str) -> Option<String> {
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to open the file {}: {}", path, err);
+            return None;
+        }
+    };
+
+    let mut contents = String::new();
+    match file.read_to_string(&mut contents) {
+        Ok(_) => Some(contents),
+        Err(err) => {
+            eprintln!("Failed to read the file {}: {}", path, err);
+            None
+        }
+    }
+}
+
+fn collect_n_files(dir: &Path, out: &mut Vec<String>, had_io_error: &mut bool) {
+    let read_dir = match fs::read_dir(dir) {
+        Ok(read_dir) => read_dir,
+        Err(err) => {
+            eprintln!("Failed to read directory {}: {}", dir.display(), err);
+            *had_io_error = true;
+            return;
+        }
+    };
+
+    let mut entries = Vec::new();
+    for entry in read_dir {
+        match entry {
+            Ok(entry) => entries.push(entry),
+            Err(err) => {
+                eprintln!(
+                    "Failed to read entry in directory {}: {}",
+                    dir.display(),
+                    err
+                );
+                *had_io_error = true;
+            }
+        }
+    }
+    entries.sort_by_key(|entry| entry.file_name());
+
+    for entry in entries {
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(err) => {
+                eprintln!(
+                    "Failed to read file type of {}: {}",
+                    entry.path().display(),
+                    err
+                );
+                *had_io_error = true;
+                continue;
+            }
+        };
+        if file_type.is_symlink() {
+            continue;
+        }
+
+        let path = entry.path();
+        if file_type.is_dir() {
+            collect_n_files(&path, out, had_io_error);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("n") {
+            out.push(path.to_string_lossy().into_owned());
+        }
+    }
+}
+
 fn read_file(path: &str) -> String {
     let mut file = File::open(path).unwrap_or_else(|err| {
         eprintln!("Failed to open the file {}: {}", path, err);
@@ -185,9 +349,12 @@ fn print_help() {
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
+    println!("  neon fmt [--check] <paths...>  Format .n files in place");
     println!("  neon help                Show this help message");
     println!();
     println!("Examples:");
     println!("  neon script.n            # Interpret script.n");
     println!("  neon script.n arg1 arg2  # Interpret script.n with arguments");
+    println!("  neon fmt src/            # Format every .n file under src/");
+    println!("  neon fmt --check src/    # Print files that would change, exit 1 if any");
 }

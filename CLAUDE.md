@@ -105,6 +105,9 @@ every push to `main`, and on demand.
 cargo run -- script.n           # Interpret a Neon script
 cargo run -- script.n arg1 arg2 # Pass arguments to script
 cargo run -- --check script.n   # Compile without running
+cargo run -- fmt path...         # Format .n files in place, recursing into directories
+cargo run -- fmt --check path... # Print files that would change, exit 1 if any
+cargo run -- fmt -               # Format stdin, write to stdout
 cargo run                       # Start REPL
 ```
 
