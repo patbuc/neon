@@ -111,6 +111,10 @@ cargo run -- fmt -               # Format stdin, write to stdout
 cargo run                       # Start REPL
 ```
 
+The REPL drives `VirtualMachine::interpret_line`/`Compiler::compile_line`, which persist
+globals and methods across lines via a `GlobalEnv` carried line to line, instead of
+resetting per line like `interpret` does for a file.
+
 ### WebAssembly
 
 ```bash

@@ -7,6 +7,7 @@ use crate::common::errors::{
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
+use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{int, number, string};
 use std::collections::{HashMap, HashSet};
@@ -129,6 +130,22 @@ impl<'a> CodeGenerator<'a> {
             decl_slots: HashMap::new(),
             symbols,
         }
+    }
+
+    /// Seeds the script frame with one placeholder local per global an
+    /// earlier REPL line already defined, so this line's new globals get
+    /// slots starting right after them, and restores where each of those
+    /// earlier globals lives.
+    pub(crate) fn seed(&mut self, env: &GlobalEnv) {
+        self.decl_slots = env.decl_slots.clone();
+        let script = &mut self.functions[0];
+        for _ in 0..env.slot_count {
+            script.locals.push(Local::new(0, false));
+        }
+    }
+
+    pub(crate) fn into_decl_slots(self) -> HashMap<DeclId, u32> {
+        self.decl_slots
     }
 
     pub fn generate(

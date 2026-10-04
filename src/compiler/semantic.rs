@@ -8,6 +8,7 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{EnumVariant, Expr, NodeId, Stmt, StructField};
+use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
 };
@@ -19,7 +20,7 @@ use std::rc::Rc;
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
 /// its first parameter literally read `self`.
 #[derive(Clone, Copy)]
-struct MethodSignature {
+pub(crate) struct MethodSignature {
     param_count: u8,
     takes_self: bool,
 }
@@ -88,6 +89,11 @@ pub struct SemanticAnalyzer {
     // Whether `TooManySymbols` has already been reported, so one program
     // with many overflowing names doesn't produce one error per name.
     too_many_symbols_reported: bool,
+    // DeclIds below this were seeded by `new()` itself (namespaces, builtin
+    // values) rather than declared by the program; `snapshot_env` excludes
+    // them so a later REPL line can't redeclare a builtin, since a fresh
+    // analyzer re-seeds them anyway.
+    builtin_decl_count: u32,
 }
 
 impl SemanticAnalyzer {
@@ -148,6 +154,65 @@ impl SemanticAnalyzer {
             currently_initializing: None,
             pending_block_fns: HashSet::new(),
             too_many_symbols_reported: false,
+            builtin_decl_count: next_decl_id,
+        }
+    }
+
+    /// Seeds global scope with an earlier REPL line's declarations, so this
+    /// line continues from where that line left off.
+    pub(crate) fn seed(&mut self, env: &GlobalEnv) {
+        self.symbol_table
+            .seed_globals(env.globals.values().cloned());
+        self.type_env[0].extend(env.types.clone());
+        self.struct_methods = env.struct_methods.clone();
+        self.resolutions
+            .seed(env.symbols.clone(), env.immutable.clone());
+        self.next_decl_id = self.next_decl_id.max(env.next_decl_id);
+    }
+
+    /// Builds the `GlobalEnv` a later REPL line compiles against: this
+    /// line's final global scope, with `decl_slots` narrowed to the
+    /// declarations that actually got a global. `previous_slot_count`
+    /// keeps `slot_count` from shrinking below the seed env's.
+    pub(crate) fn snapshot_env(
+        self,
+        resolutions: Resolutions,
+        decl_slots: HashMap<DeclId, u32>,
+        previous_slot_count: u32,
+    ) -> GlobalEnv {
+        let builtin_decl_count = self.builtin_decl_count;
+        let globals: HashMap<String, Symbol> = self
+            .symbol_table
+            .into_global_symbols()
+            .into_iter()
+            .filter(|(_, symbol)| symbol.decl_id.0 >= builtin_decl_count)
+            .collect();
+        let global_ids: HashSet<DeclId> = globals.values().map(|symbol| symbol.decl_id).collect();
+        let decl_slots: HashMap<DeclId, u32> = decl_slots
+            .into_iter()
+            .filter(|(decl, _)| global_ids.contains(decl))
+            .collect();
+        let slot_count = decl_slots
+            .values()
+            .map(|&slot| slot + 1)
+            .max()
+            .unwrap_or(0)
+            .max(previous_slot_count);
+        let (symbols, immutable) = resolutions.into_symbols_and_immutable();
+        let immutable = immutable
+            .into_iter()
+            .filter(|decl| global_ids.contains(decl))
+            .collect();
+
+        GlobalEnv {
+            globals,
+            types: self.type_env.into_iter().next().unwrap(),
+            struct_methods: self.struct_methods,
+            symbols,
+            next_decl_id: self.next_decl_id,
+            decl_slots,
+            slot_count,
+            immutable,
         }
     }
 

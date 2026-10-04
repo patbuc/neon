@@ -269,6 +269,56 @@ fn run_file_prints_opcode_stats_to_stderr_only() {
 }
 
 #[cfg(not(feature = "disassemble"))]
+fn spawn_neon_with_stdin(
+    configure: impl FnOnce(&mut Command),
+    stdin_input: &[u8],
+) -> std::process::Child {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_neon"));
+    configure(&mut command);
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn neon binary");
+
+    child
+        .stdin
+        .take()
+        .expect("child stdin")
+        .write_all(stdin_input)
+        .expect("Failed to write stdin");
+
+    child
+}
+
+// Guards against a regression reintroducing an infinite REPL loop: a hung
+// child is killed after the deadline instead of letting the test suite hang.
+#[cfg(not(feature = "disassemble"))]
+fn wait_with_timeout(
+    mut child: std::process::Child,
+    timeout: std::time::Duration,
+) -> std::process::Output {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if child
+            .try_wait()
+            .expect("Failed to poll neon binary")
+            .is_some()
+        {
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            child.kill().ok();
+            child.wait().ok();
+            panic!("neon process did not exit within {:?}", timeout);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    child.wait_with_output().expect("Failed to run neon binary")
+}
+
+#[cfg(not(feature = "disassemble"))]
 fn run_script_with_stdin(script: &str, stdin_input: &[u8]) -> std::process::Output {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -285,26 +335,23 @@ fn run_script_with_stdin(script: &str, stdin_input: &[u8]) -> std::process::Outp
         .expect("Failed to write test script");
     drop(file);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
-        .arg(&script_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to spawn neon binary");
-
-    child
-        .stdin
-        .take()
-        .expect("child stdin")
-        .write_all(stdin_input)
-        .expect("Failed to write stdin");
-
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command.arg(&script_path);
+        },
+        stdin_input,
+    );
     let output = child.wait_with_output().expect("Failed to run neon binary");
 
     fs::remove_file(&script_path).ok();
 
     output
+}
+
+#[cfg(not(feature = "disassemble"))]
+fn run_repl_with_stdin(stdin_input: &[u8]) -> std::process::Output {
+    let child = spawn_neon_with_stdin(|_| {}, stdin_input);
+    wait_with_timeout(child, std::time::Duration::from_secs(5))
 }
 
 #[cfg(not(feature = "disassemble"))]
@@ -802,4 +849,56 @@ fn help_lists_fmt_command() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("fmt"));
     assert!(stdout.contains("--check"));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn repl_ends_at_eof_without_exit() {
+    let output = run_repl_with_stdin(b"print(1)\n");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains('1'),
+        "expected stdout to contain 1:\n{}",
+        stdout
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn repl_exit_stops_before_eof() {
+    let output = run_repl_with_stdin(b"print(2)\nexit\nprint(3)\n");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains('2'),
+        "expected stdout to contain 2:\n{}",
+        stdout
+    );
+    assert!(
+        !stdout.contains('3'),
+        "expected stdout not to contain 3:\n{}",
+        stdout
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn repl_keeps_state_across_lines() {
+    let output = run_repl_with_stdin(b"var x = 1\nprint(x)\nfn f() { return x + 1 }\nprint(f())\n");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(">> 1"),
+        "expected stdout to contain the printed 1:\n{}",
+        stdout
+    );
+    assert!(
+        stdout.contains(">> 2"),
+        "expected stdout to contain the printed 2:\n{}",
+        stdout
+    );
 }
