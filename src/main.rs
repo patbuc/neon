@@ -190,7 +190,8 @@ fn fmt_command(args: &[String]) {
         }
     }
 
-    let mut had_error = false;
+    let mut had_syntax_error = false;
+    let mut had_read_error = false;
     let mut would_change = false;
 
     for file in &files {
@@ -204,7 +205,13 @@ fn fmt_command(args: &[String]) {
                 });
             source
         } else {
-            read_file(file)
+            match read_file_for_fmt(file) {
+                Some(source) => source,
+                None => {
+                    had_read_error = true;
+                    continue;
+                }
+            }
         };
 
         match neon::compiler::format(&source) {
@@ -231,7 +238,7 @@ fn fmt_command(args: &[String]) {
                 }
             }
             Err(errors) => {
-                had_error = true;
+                had_syntax_error = true;
                 let rendered = neon::common::error_renderer::ErrorRenderer::default()
                     .render_errors(&errors, &source, file);
                 eprintln!("{}", rendered);
@@ -239,11 +246,33 @@ fn fmt_command(args: &[String]) {
         }
     }
 
-    if had_error {
+    if had_read_error {
+        exit(74);
+    }
+    if had_syntax_error {
         exit(65);
     }
     if check_mode && would_change {
         exit(1);
+    }
+}
+
+fn read_file_for_fmt(path: &str) -> Option<String> {
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to open the file {}: {}", path, err);
+            return None;
+        }
+    };
+
+    let mut contents = String::new();
+    match file.read_to_string(&mut contents) {
+        Ok(_) => Some(contents),
+        Err(err) => {
+            eprintln!("Failed to read the file {}: {}", path, err);
+            None
+        }
     }
 }
 

@@ -572,6 +572,37 @@ fn fmt_syntax_error_leaves_file_unchanged_formats_rest_and_exits_65() {
 }
 
 #[test]
+fn fmt_unreadable_file_is_skipped_rest_still_format_and_exits_74() {
+    let dir = unique_temp_dir("unreadable");
+    let a = dir.join("a.n");
+    let b = dir.join("b.n");
+    let c = dir.join("c.n");
+    fs::write(&a, "val x = 1").expect("Failed to write test script");
+    fs::write(&b, [0xff, 0xfe]).expect("Failed to write test script");
+    fs::write(&c, "val y = 2").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg(&a)
+        .arg(&b)
+        .arg(&c)
+        .output()
+        .expect("Failed to run neon binary");
+
+    let a_contents = fs::read_to_string(&a).unwrap_or_default();
+    let b_contents = fs::read(&b).unwrap_or_default();
+    let c_contents = fs::read_to_string(&c).unwrap_or_default();
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(74, output.status.code().unwrap());
+    assert_eq!("val x = 1\n", a_contents);
+    assert_eq!(vec![0xff, 0xfe], b_contents);
+    assert_eq!("val y = 2\n", c_contents);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&b.display().to_string()));
+}
+
+#[test]
 fn fmt_without_paths_prints_usage_and_exits_64() {
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("fmt")
