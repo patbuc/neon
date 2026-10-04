@@ -89,6 +89,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_not(&mut self) {
         // [.., operand] -> [.., result]
         let slot = self.stack.last_mut().expect("stack underflow");
@@ -475,6 +476,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -522,6 +524,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_divide(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]; division is always float, even for
         // two ints.
@@ -539,6 +542,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_modulo(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -562,6 +566,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_exponent(&mut self) -> OpResult {
         // [.., base, exponent] -> [.., result]
         let b = self.pop();
@@ -645,6 +650,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     fn binary_bitwise_op(&mut self, op: &str, f: impl Fn(i64, i64) -> i64) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -704,6 +710,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_multiply(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -723,6 +730,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_subtract(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -742,6 +750,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_add(&mut self) -> OpResult {
         // [.., a, b] -> [.., result]
         let b = self.pop();
@@ -783,6 +792,7 @@ impl VirtualMachine {
     /// operand, or a mix the fast path doesn't cover, goes through `op_add`
     /// so its result and error stay identical.
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
@@ -817,6 +827,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
@@ -851,6 +862,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
         let index = self.operand_u16(1) as usize;
         let slot = self.stack.last_mut().expect("stack underflow");
@@ -891,6 +903,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_negate(&mut self) -> OpResult {
         // [.., operand] -> [.., result]
         let slot = self.stack.last_mut().expect("stack underflow");
@@ -1208,6 +1221,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
         let symbol = self.read_index() as u16;
         let value = match self.peek(0) {
@@ -1285,6 +1299,7 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
         // [.., instance, value] -> [.., value]
         let symbol = self.read_index() as u16;
