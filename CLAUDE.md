@@ -285,6 +285,8 @@ enforces these edges in `cargo test`.
 - A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
   written, feeding compile errors back automatically; for files under `tests/scripts/` and `benches/` it then runs
   `neon fmt --check` and blocks with feedback to run `cargo run -- fmt <file>` if it's unformatted
+- A PostToolUse hook (`.claude/hooks/check-arch.sh`) runs `cargo test --test architecture` after any
+  `src/*.rs` file is edited or written, blocking with the test's layer-violation output if it fails
 - New or edited `.n` files under `tests/scripts/` and `benches/` must pass `neon fmt --check`; the Lint
   CI workflow runs the same check over both directories
 - Test both success and error paths
