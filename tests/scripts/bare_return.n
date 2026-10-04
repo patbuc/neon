@@ -8,11 +8,15 @@ fn f() {
 }
 print(f())
 
-fn g() { return }
+fn g() {
+    return
+}
 print(g())
 
 fn h(x) {
-    if (x) { return }
+    if x {
+        return
+    }
     return "unreached"
 }
 print(h(true))
