@@ -527,6 +527,26 @@ impl Parser {
             return None;
         }
 
+        if self.match_token(TokenType::Equal) {
+            let expr_location = self.current_location();
+            let expr = self.expression(false)?;
+            let end_location = self.current_location();
+            self.consume_statement_end("Expecting '\\n' or '\\0' after function body.");
+
+            let id = self.next_id();
+            self.end_locations.insert(id, end_location);
+            return Some(Stmt::Fn {
+                name,
+                params,
+                body: vec![Stmt::Expression {
+                    expr,
+                    location: expr_location,
+                }],
+                id,
+                location,
+            });
+        }
+
         if !self.consume(TokenType::LeftBrace, "Expect '{' before function body.") {
             return None;
         }

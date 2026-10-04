@@ -434,6 +434,34 @@ fn test_parse_single_line_function_body() {
 }
 
 #[test]
+fn test_parse_expression_bodied_fn() {
+    let mut parser = Parser::new("fn sq(x) = x * x\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Fn {
+            name, params, body, ..
+        } => {
+            assert_eq!(name, "sq");
+            assert_eq!(params.len(), 1);
+            assert_eq!(body.len(), 1);
+            match &body[0] {
+                Stmt::Expression { expr, .. } => match expr {
+                    Expr::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOp::Multiply);
+                    }
+                    _ => panic!("Expected Binary expression"),
+                },
+                _ => panic!("Expected Expression statement"),
+            }
+        }
+        _ => panic!("Expected Fn statement"),
+    }
+}
+
+#[test]
 fn test_parse_nested_single_line_blocks() {
     let mut parser = Parser::new("fn foo(x) { if (x > 0) { return 1 } }\n");
     let result = parser.parse();
