@@ -5,6 +5,7 @@ use std::fmt::Write;
 #[cfg(feature = "disassemble")]
 impl Chunk {
     #[allow(dead_code)]
+    #[allow(clippy::print_stdout)]
     pub(crate) fn disassemble_chunk(&self) {
         print!("\n{}", self.disassemble());
     }

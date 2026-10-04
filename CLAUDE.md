@@ -383,6 +383,11 @@ cargo clippy --all-targets -- -D warnings    # Lint (no warnings allowed)
 cargo test                                   # All tests must pass
 ```
 
+`print_stdout`/`print_stderr` are denied via `[lints.clippy]` in `Cargo.toml`; test code is exempt through
+`allow-print-in-tests` in `clippy.toml`, and the few legitimate production print sites (the `print` native,
+the disassembler dump, CLI output in `main.rs`) carry an item-level `#[allow(clippy::print_stdout)]` (and/or
+`print_stderr`).
+
 ### Plan File State Machine
 
 The plan file (`.claude/plans/feature-{slug}.md`) tracks:

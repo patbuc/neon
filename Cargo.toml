@@ -40,3 +40,7 @@ harness = false
 [features]
 disassemble = []
 opcode-stats = []
+
+[lints.clippy]
+print_stdout = "deny"
+print_stderr = "deny"

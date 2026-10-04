@@ -8,6 +8,7 @@ use std::{env, io};
 
 use neon::vm::{InterpretResult, VirtualMachine};
 
+#[allow(clippy::print_stderr)]
 fn main() {
     setup_logging();
 
@@ -64,6 +65,7 @@ fn setup_tracing() {
         .init()
 }
 
+#[allow(clippy::print_stdout)]
 fn print_tagline() {
     println!(
         "✨ neon {} - a toy language you didn't wait for",
@@ -71,6 +73,7 @@ fn print_tagline() {
     );
 }
 
+#[allow(clippy::print_stdout, clippy::print_stderr)]
 fn run_repl() {
     println!("Type 'exit' or Ctrl+D to quit");
 
@@ -104,6 +107,7 @@ fn run_repl() {
     }
 }
 
+#[allow(clippy::print_stderr)]
 fn read_line() -> Option<String> {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
@@ -116,11 +120,13 @@ fn read_line() -> Option<String> {
     }
 }
 
+#[allow(clippy::print_stdout)]
 fn print_prompt() {
     print!(">> ");
     io::stdout().flush().unwrap();
 }
 
+#[allow(clippy::print_stderr)]
 fn run_file(path: &str, args: Vec<String>) {
     let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
@@ -155,11 +161,13 @@ fn run_file(path: &str, args: Vec<String>) {
     }
 }
 
+#[allow(clippy::print_stdout)]
 fn print_tokens(path: &str) {
     let source = read_file(path);
     println!("{}", neon::compiler::tokens_to_json(&source));
 }
 
+#[allow(clippy::print_stderr)]
 fn check_file(path: &str) {
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
@@ -171,6 +179,7 @@ fn check_file(path: &str) {
     }
 }
 
+#[allow(clippy::print_stdout, clippy::print_stderr)]
 fn fmt_command(args: &[String]) {
     let check_mode = args.first().map(|arg| arg == "--check").unwrap_or(false);
     let paths = if check_mode { &args[1..] } else { args };
@@ -260,6 +269,7 @@ fn fmt_command(args: &[String]) {
     }
 }
 
+#[allow(clippy::print_stderr)]
 fn read_file_for_fmt(path: &str) -> Option<String> {
     let mut file = match File::open(path) {
         Ok(file) => file,
@@ -279,6 +289,7 @@ fn read_file_for_fmt(path: &str) -> Option<String> {
     }
 }
 
+#[allow(clippy::print_stderr)]
 fn collect_n_files(dir: &Path, out: &mut Vec<String>, had_io_error: &mut bool) {
     let read_dir = match fs::read_dir(dir) {
         Ok(read_dir) => read_dir,
@@ -331,6 +342,7 @@ fn collect_n_files(dir: &Path, out: &mut Vec<String>, had_io_error: &mut bool) {
     }
 }
 
+#[allow(clippy::print_stderr)]
 fn read_file(path: &str) -> String {
     let mut file = File::open(path).unwrap_or_else(|err| {
         eprintln!("Failed to open the file {}: {}", path, err);
@@ -346,6 +358,7 @@ fn read_file(path: &str) -> String {
     contents
 }
 
+#[allow(clippy::print_stdout)]
 fn print_help() {
     println!(
         "Neon {} - a toy language you didn't wait for",

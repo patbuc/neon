@@ -12,6 +12,7 @@ pub fn format_print_args(args: &[Value]) -> String {
 }
 
 /// Native implementation of print(): writes its arguments, space-joined, to stdout.
+#[allow(clippy::print_stdout)]
 pub fn native_system_print(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
         return Err("print() expects at least 1 argument".to_string());
