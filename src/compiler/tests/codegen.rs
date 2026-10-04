@@ -1338,6 +1338,7 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::Pop
             | OpCode::Add
             | OpCode::Subtract
+            | OpCode::Multiply
             | OpCode::Less
             | OpCode::CloseUpvalue => 0,
             OpCode::Call => 1,
@@ -1805,6 +1806,7 @@ fn test_if_return_skips_jump() {
     fn f() {
         if (true) { return 1 }
         print(1)
+        val y = 1
     }
     f()
     "#;
@@ -1815,10 +1817,10 @@ fn test_if_return_skips_jump() {
 0001      | Closure 00 '<fn f>'
 0005      | SetLocal 00
 0008      | Pop
-0009      6 GetLocal 00
+0009      7 GetLocal 00
 000c      | Call (args: 0)
-000e      5 Pop
-000f      7 Nil
+000e      6 Pop
+000f      8 Nil
 0010      | Return
 === </main> ===
 === <function_f>  ===
@@ -1832,8 +1834,9 @@ fn test_if_return_skips_jump() {
 000f      | Constant 00 '1'
 0012      | Call (args: 1)
 0014      3 Pop
-0015      5 Nil
-0016      | Return
+0015      5 Constant 00 '1'
+0018      6 Nil
+0019      | Return
 === </function_f> ===
 "#;
 
@@ -2171,4 +2174,17 @@ print(p)
         disassemble_program(&compound_chunk),
         disassemble_program(&desugared_chunk)
     );
+}
+
+#[test]
+fn test_tail_expression_returns_directly() {
+    let program = "fn sq(x) {\n    x * x\n}\nprint(sq(3))\n";
+    let chunk = compile_program(program).unwrap();
+
+    let Value::Function(function) = &chunk.constants.values[0] else {
+        panic!("expected sq's chunk to be the first constant");
+    };
+    let ops = op_codes(&function.chunk);
+
+    assert_eq!(&ops[ops.len() - 2..], &[OpCode::Multiply, OpCode::Return]);
 }

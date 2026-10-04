@@ -602,15 +602,27 @@ impl<'a> CodeGenerator<'a> {
 
         // Compile function body
         self.hoist_block_functions(body);
-        for stmt in body {
-            self.generate_stmt(stmt);
-        }
-
         let end_location = *self
             .end_locations
             .get(&id)
             .unwrap_or_else(|| panic!("no end location recorded for {:?}", id));
-        self.emit_return(end_location);
+        match body.split_last() {
+            // Tail expression statement: its value is the return value, so
+            // leave it on the stack instead of popping it before returning.
+            Some((Stmt::Expression { expr, .. }, init)) => {
+                for stmt in init {
+                    self.generate_stmt(stmt);
+                }
+                self.generate_expr(expr);
+                self.emit_op_code(OpCode::Return, end_location);
+            }
+            _ => {
+                for stmt in body {
+                    self.generate_stmt(stmt);
+                }
+                self.emit_return(end_location);
+            }
+        }
 
         let compiler = self
             .functions
