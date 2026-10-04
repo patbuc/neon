@@ -398,6 +398,30 @@ fn fmt_leaves_already_formatted_file_mtime_unchanged() {
     assert_eq!(mtime_before, mtime_after);
 }
 
+#[cfg(unix)]
+#[test]
+fn fmt_check_directory_skips_symlinks_and_does_not_loop() {
+    let dir = unique_temp_dir("symlink_loop");
+    let a = dir.join("a.n");
+    fs::write(&a, "val x = 1").expect("Failed to write test script");
+    std::os::unix::fs::symlink(&dir, dir.join("loop")).expect("Failed to create symlink");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("fmt")
+        .arg("--check")
+        .arg(&dir)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(1, output.status.code().unwrap());
+    assert_eq!(
+        format!("{}\n", a.display()),
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
 #[test]
 fn fmt_directory_walks_recursively_and_ignores_other_files() {
     let dir = unique_temp_dir("walk");

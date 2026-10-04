@@ -260,8 +260,20 @@ fn collect_n_files(dir: &std::path::Path, out: &mut Vec<String>) {
     entries.sort_by_key(|entry| entry.file_name());
 
     for entry in entries {
+        let file_type = entry.file_type().unwrap_or_else(|err| {
+            eprintln!(
+                "Failed to read file type of {}: {}",
+                entry.path().display(),
+                err
+            );
+            exit(74);
+        });
+        if file_type.is_symlink() {
+            continue;
+        }
+
         let path = entry.path();
-        if path.is_dir() {
+        if file_type.is_dir() {
             collect_n_files(&path, out);
         } else if path.extension().and_then(|ext| ext.to_str()) == Some("n") {
             out.push(path.to_string_lossy().into_owned());
