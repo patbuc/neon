@@ -669,8 +669,6 @@ impl Scanner {
         self.source[self.current + 1]
     }
 
-    /// Looks past spaces/tabs on the line right after `self.current` (the
-    /// just-consumed `\n`) for a `.` that doesn't start a `..`/`..=` range.
     fn next_line_starts_with_single_dot(&self) -> bool {
         let mut i = self.current;
         while matches!(self.source.get(i), Some(' ') | Some('\t')) {
