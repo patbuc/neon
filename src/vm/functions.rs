@@ -1,11 +1,11 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
+use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, ObjInstance, ObjNativeFunction,
-    ObjStruct, Value,
+    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
+    ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{ObjClosure, Upvalue};
-use crate::vm::RuntimeError;
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -1765,6 +1765,12 @@ impl VirtualMachine {
             self.methods.resize_with(type_symbol + 1, Vec::new);
         }
         self.methods[type_symbol].push((method_symbol, Rc::clone(closure), takes_self));
+    }
+}
+
+impl NativeContext for VirtualMachine {
+    fn call_value(&mut self, callee: Value, args: &[Value]) -> Result<Value, NativeCallError> {
+        VirtualMachine::call_value(self, callee, args)
     }
 }
 

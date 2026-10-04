@@ -1,6 +1,6 @@
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
+use crate::common::NativeContext;
 use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
-use crate::vm::VirtualMachine;
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 
 /// Native implementation of Array.push(value)
@@ -112,7 +112,7 @@ fn sort_rank(value: &Value) -> u8 {
 /// Sorts in place (default order, or by calling the comparator on each
 /// pair) and returns the same array.
 pub fn native_array_sort(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 1 && args.len() != 2 {
@@ -151,7 +151,7 @@ pub fn native_array_sort(
 
 /// Stable merge sort driven by a user comparator.
 fn merge_sort_by(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     mut values: Vec<Value>,
     comparator: &Value,
 ) -> Result<Vec<Value>, NativeCallError> {
@@ -168,7 +168,7 @@ fn merge_sort_by(
 /// Merges two already-sorted runs, favoring the left run on a tie so the
 /// merge is stable.
 fn merge_by(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     left: Vec<Value>,
     right: Vec<Value>,
     comparator: &Value,
@@ -206,7 +206,7 @@ fn comparator_result_to_f64(value: Value) -> Result<f64, NativeCallError> {
 
 /// Calls the comparator with (a, b) and requires a number result.
 fn compare(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     comparator: &Value,
     a: &Value,
     b: &Value,
@@ -455,7 +455,10 @@ pub fn native_array_max(args: &[Value]) -> Result<Value, String> {
 /// Returns a new array with fn applied to each element.
 /// Snapshots the elements before calling fn, so a callback that mutates
 /// the receiving array doesn't change what map iterates over.
-pub fn native_array_map(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value, NativeCallError> {
+pub fn native_array_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
     if args.len() != 2 {
         return Err(format!(
             "map() expects 1 argument (function), got {}",
@@ -479,7 +482,7 @@ pub fn native_array_map(vm: &mut VirtualMachine, args: &[Value]) -> Result<Value
 /// Native implementation of Array.filter(fn)
 /// Returns a new array of the elements for which fn is truthy.
 pub fn native_array_filter(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 2 {
@@ -508,7 +511,7 @@ pub fn native_array_filter(
 /// Native implementation of Array.reduce(fn, initial)
 /// Folds the array from the left, calling fn(accumulator, element).
 pub fn native_array_reduce(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 3 {
@@ -536,7 +539,7 @@ pub fn native_array_reduce(
 /// some and every, which only differ in `wanted` and how they read the
 /// result.
 fn find_by_truthiness(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     elements: Vec<Value>,
     predicate: &Value,
     wanted: bool,
@@ -554,7 +557,7 @@ fn find_by_truthiness(
 /// Native implementation of Array.find(fn)
 /// Returns the first element for which fn is truthy, or nil.
 pub fn native_array_find(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 2 {
@@ -575,7 +578,7 @@ pub fn native_array_find(
 /// Returns true if fn is truthy for any element, stopping at the first one.
 /// False on an empty array.
 pub fn native_array_some(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 2 {
@@ -597,7 +600,7 @@ pub fn native_array_some(
 /// Returns true if fn is truthy for every element, stopping at the first
 /// one that isn't. True on an empty array.
 pub fn native_array_every(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 2 {
@@ -666,7 +669,7 @@ fn is_callable(value: &Value) -> bool {
 /// or native function), it's called with each index 0..n to produce that
 /// element; otherwise init is stored (the same reference) in every element.
 pub fn native_array_constructor(
-    vm: &mut VirtualMachine,
+    vm: &mut dyn NativeContext,
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     if args.len() != 2 {

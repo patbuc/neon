@@ -12,6 +12,7 @@ pub mod error_renderer;
 pub mod errors;
 pub mod method_registry;
 pub(crate) mod opcodes;
+pub mod runtime_error;
 pub mod static_type;
 pub mod stdlib;
 pub mod string_similarity;
@@ -23,13 +24,19 @@ const TWO_POW_63: f64 = 9223372036854775808.0;
 
 pub(crate) type NativeFn = fn(&[Value]) -> Result<Value, String>;
 pub(crate) type NativeFnWithVm =
-    fn(&mut crate::vm::VirtualMachine, &[Value]) -> Result<Value, NativeCallError>;
+    fn(&mut dyn NativeContext, &[Value]) -> Result<Value, NativeCallError>;
+
+/// Lets a native method call back into Neon code without depending on the
+/// VM's concrete type, implemented by `VirtualMachine`.
+pub(crate) trait NativeContext {
+    fn call_value(&mut self, callee: Value, args: &[Value]) -> Result<Value, NativeCallError>;
+}
 
 /// `Runtime` holds an error a `call_value` callback already built.
 #[derive(Debug)]
 pub(crate) enum NativeCallError {
     Message(String),
-    Runtime(crate::vm::RuntimeError),
+    Runtime(crate::common::runtime_error::RuntimeError),
 }
 
 impl From<String> for NativeCallError {
