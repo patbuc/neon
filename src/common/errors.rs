@@ -80,6 +80,7 @@ compilation_error_kinds! {
     OptionalDotOnType => "E0046",
     NonExhaustiveMatch => "E0047",
     PatternNotInEnum => "E0048",
+    UnreachablePattern => "E0049",
 }
 
 #[derive(Debug, Clone, PartialEq)]

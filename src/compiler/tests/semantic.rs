@@ -4210,3 +4210,43 @@ fn test_match_pattern_not_belonging_to_enum_is_compile_error() {
         errors
     );
 }
+
+#[test]
+fn test_match_duplicate_pattern_is_unreachable() {
+    let program =
+        "val x = 1\nval y = match x {\n    1 -> \"a\"\n    1 -> \"b\"\n    _ -> \"c\"\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.message.contains("unreachable pattern"))
+        .unwrap_or_else(|| panic!("expected an unreachable pattern error, got {:#?}", errors));
+    assert_eq!(error.location.line, 4);
+    assert_eq!(error.location.column, 5);
+}
+
+#[test]
+fn test_match_duplicate_pattern_within_single_arm_is_unreachable() {
+    let program = "val x = 1\nval y = match x {\n    1, 1 -> \"a\"\n    _ -> \"c\"\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("unreachable pattern")),
+        "expected an unreachable pattern error, got {:#?}",
+        errors
+    );
+}

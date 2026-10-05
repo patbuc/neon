@@ -19,6 +19,18 @@ use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
+/// Comparable identity of a match pattern, for finding duplicates. Numbers
+/// are unified to `f64` so `1` and `1.0` compare equal like `==` does.
+#[derive(Clone, PartialEq)]
+enum MatchPatternKey {
+    Number(f64),
+    Str(String),
+    Bool(bool),
+    Nil,
+    Range(f64, f64, bool),
+    Enum(Rc<str>, Rc<str>),
+}
+
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
 /// its first parameter literally read `self`.
@@ -1207,6 +1219,7 @@ impl SemanticAnalyzer {
                     }
                 }
                 self.check_match_exhaustiveness(arms, *location);
+                self.check_match_unreachable_patterns(arms);
             }
         }
     }
@@ -2108,6 +2121,77 @@ impl SemanticAnalyzer {
                     format!("match on {} is missing {}", enum_name, missing.join(", ")),
                     match_location,
                 ));
+            }
+        }
+    }
+
+    /// The numeric value of a literal or negative-number match pattern,
+    /// unified across `Number` and `Int` so `1` and `1.0` compare equal
+    /// like `==` does.
+    fn match_pattern_number(expr: &Expr) -> Option<f64> {
+        match expr {
+            Expr::Number { value, .. } => Some(*value),
+            Expr::Int { value, .. } => Some(*value as f64),
+            Expr::Unary {
+                operator: UnaryOp::Negate,
+                operand,
+                ..
+            } => Self::match_pattern_number(operand).map(|value| -value),
+            _ => None,
+        }
+    }
+
+    /// A comparable identity for a match pattern expression, used to find
+    /// duplicate patterns. `None` for a pattern kind duplicate-detection
+    /// doesn't cover.
+    fn match_pattern_key(&self, expr: &Expr) -> Option<MatchPatternKey> {
+        if let Some(number) = Self::match_pattern_number(expr) {
+            return Some(MatchPatternKey::Number(number));
+        }
+        match expr {
+            Expr::String { value, .. } => Some(MatchPatternKey::Str(value.clone())),
+            Expr::Boolean { value, .. } => Some(MatchPatternKey::Bool(*value)),
+            Expr::Nil { .. } => Some(MatchPatternKey::Nil),
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                ..
+            } => {
+                let start = Self::match_pattern_number(start)?;
+                let end = Self::match_pattern_number(end)?;
+                Some(MatchPatternKey::Range(start, end, *inclusive))
+            }
+            _ => self
+                .match_pattern_enum_variant(expr)
+                .map(|access| MatchPatternKey::Enum(access.enum_name, access.variant_name)),
+        }
+    }
+
+    /// A pattern that repeats an earlier pattern in the same match - across
+    /// arms or within one arm's comma-separated list - can never be
+    /// reached, since an earlier arm (or an earlier pattern in the same
+    /// arm) already matches it first.
+    fn check_match_unreachable_patterns(&mut self, arms: &[MatchArm]) {
+        let mut seen: Vec<MatchPatternKey> = Vec::new();
+        for arm in arms {
+            for pattern in &arm.patterns {
+                let MatchPattern::Expr(expr) = pattern else {
+                    continue;
+                };
+                let Some(key) = self.match_pattern_key(expr) else {
+                    continue;
+                };
+                if seen.contains(&key) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::UnreachablePattern,
+                        "unreachable pattern".to_string(),
+                        Self::match_pattern_location(expr),
+                    ));
+                } else {
+                    seen.push(key);
+                }
             }
         }
     }

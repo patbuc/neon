@@ -251,6 +251,11 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             Some("does not belong to enum Color"),
         )],
+        CompilationErrorKind::UnreachablePattern => vec![(
+            "val x = 1\nval y = match x {\n    1 -> \"a\"\n    1 -> \"b\"\n    _ -> \"c\"\n}\n"
+                .to_string(),
+            Some("unreachable pattern"),
+        )],
         CompilationErrorKind::UnplaceableComment => vec![
             (
                 "if (a) {\n} // c\nelse {\n}\n".to_string(),
