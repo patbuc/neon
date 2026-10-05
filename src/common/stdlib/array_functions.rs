@@ -727,6 +727,104 @@ pub fn native_array_copy(args: &[Value]) -> Result<Value, String> {
     Ok(Value::new_array(elements))
 }
 
+/// Native implementation of Array.take(n)
+/// Returns a new array of the first n elements, clamped to the array's length.
+pub fn native_array_take(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "take() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "take")?;
+    let n = extract_integer_arg(args, 1, "n", "take")?;
+    if n < 0 {
+        return Err(format!("take() n must be non-negative, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let end = (n as usize).min(array.len());
+    Ok(Value::new_array(array[..end].to_vec()))
+}
+
+/// Native implementation of Array.drop(n)
+/// Returns a new array with the first n elements removed, clamped to the
+/// array's length.
+pub fn native_array_drop(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "drop() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "drop")?;
+    let n = extract_integer_arg(args, 1, "n", "drop")?;
+    if n < 0 {
+        return Err(format!("drop() n must be non-negative, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let start = (n as usize).min(array.len());
+    Ok(Value::new_array(array[start..].to_vec()))
+}
+
+/// Native implementation of Array.first()
+/// Returns the first element, or nil if the array is empty.
+pub fn native_array_first(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "first() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "first")?;
+    let array = array_ref.borrow();
+    Ok(array.first().cloned().unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.last()
+/// Returns the last element, or nil if the array is empty.
+pub fn native_array_last(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "last() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "last")?;
+    let array = array_ref.borrow();
+    Ok(array.last().cloned().unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.chunked(n)
+/// Splits the array into arrays of n elements each; the last chunk may be
+/// shorter.
+pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "chunked() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "chunked")?;
+    let n = extract_integer_arg(args, 1, "n", "chunked")?;
+    if n < 1 {
+        return Err(format!("chunked() n must be >= 1, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let chunks: Vec<Value> = array
+        .chunks(n as usize)
+        .map(|chunk| Value::new_array(chunk.to_vec()))
+        .collect();
+    Ok(Value::new_array(chunks))
+}
+
 const MAX_ARRAY_LEN: usize = 100_000_000;
 
 fn is_callable(value: &Value) -> bool {

@@ -1210,3 +1210,125 @@ fn test_array_flat_map_non_array_return_errors() {
         errors
     );
 }
+
+// ============================================================================
+// Array.take() / Array.drop()
+// ============================================================================
+
+#[test]
+fn test_array_take_and_drop() {
+    let program = r#"
+        print([1, 2, 3].take(2))
+        print([1, 2, 3].take(9))
+        print([1, 2, 3].drop(1))
+        print([1, 2, 3].drop(9))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2]\n[1, 2, 3]\n[2, 3]\n[]", vm.get_output());
+}
+
+#[test]
+fn test_array_take_negative_errors() {
+    let program = r#"
+        [1, 2, 3].take(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("take() n must be non-negative, got -1"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_drop_negative_errors() {
+    let program = r#"
+        [1, 2, 3].drop(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("drop() n must be non-negative, got -1"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_take_drop_does_not_mutate_receiver() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        arr.take(2)
+        arr.drop(1)
+        print(arr)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]", vm.get_output());
+}
+
+// ============================================================================
+// Array.first() / Array.last()
+// ============================================================================
+
+#[test]
+fn test_array_first_and_last() {
+    let program = r#"
+        print([].first())
+        print([].last())
+        print([1, 2].first())
+        print([1, 2].last())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("nil\nnil\n1\n2", vm.get_output());
+}
+
+// ============================================================================
+// Array.chunked()
+// ============================================================================
+
+#[test]
+fn test_array_chunked() {
+    let program = r#"
+        print([1, 2, 3, 4, 5].chunked(2))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 2], [3, 4], [5]]", vm.get_output());
+}
+
+#[test]
+fn test_array_chunked_zero_errors() {
+    let program = r#"
+        [1, 2, 3].chunked(0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("chunked() n must be >= 1, got 0"),
+        "{}",
+        errors
+    );
+}

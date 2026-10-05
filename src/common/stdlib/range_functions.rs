@@ -168,6 +168,31 @@ pub fn native_range_flat_map(
     array_functions::native_array_flat_map(vm, &materialize(args, "flatMap")?)
 }
 
+/// Native implementation of Range.take(n)
+pub fn native_range_take(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_take(&materialize(args, "take")?)
+}
+
+/// Native implementation of Range.drop(n)
+pub fn native_range_drop(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_drop(&materialize(args, "drop")?)
+}
+
+/// Native implementation of Range.first()
+pub fn native_range_first(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_first(&materialize(args, "first")?)
+}
+
+/// Native implementation of Range.last()
+pub fn native_range_last(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_last(&materialize(args, "last")?)
+}
+
+/// Native implementation of Range.chunked(n)
+pub fn native_range_chunked(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_chunked(&materialize(args, "chunked")?)
+}
+
 /// Native implementation of Range.reduce(fn, initial)
 pub fn native_range_reduce(
     vm: &mut dyn NativeContext,

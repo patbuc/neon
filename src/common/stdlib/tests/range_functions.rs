@@ -256,3 +256,125 @@ fn test_range_flat_map_non_array_return_errors() {
         errors
     );
 }
+
+// ============================================================================
+// Range.take() / Range.drop()
+// ============================================================================
+
+#[test]
+fn test_range_take_and_drop() {
+    let program = r#"
+        print((1..=3).take(2))
+        print((1..=3).take(9))
+        print((1..=3).drop(1))
+        print((1..=3).drop(9))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2]\n[1, 2, 3]\n[2, 3]\n[]", vm.get_output());
+}
+
+#[test]
+fn test_range_take_negative_errors() {
+    let program = r#"
+        (1..=3).take(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("take() n must be non-negative, got -1"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_range_drop_negative_errors() {
+    let program = r#"
+        (1..=3).drop(-1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("drop() n must be non-negative, got -1"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_range_take_drop_does_not_mutate_receiver() {
+    let program = r#"
+        val r = 1..=3
+        r.take(2)
+        r.drop(1)
+        print(r.toArray())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]", vm.get_output());
+}
+
+// ============================================================================
+// Range.first() / Range.last()
+// ============================================================================
+
+#[test]
+fn test_range_first_and_last() {
+    let program = r#"
+        print((1..1).first())
+        print((1..1).last())
+        print((1..=2).first())
+        print((1..=2).last())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("nil\nnil\n1\n2", vm.get_output());
+}
+
+// ============================================================================
+// Range.chunked()
+// ============================================================================
+
+#[test]
+fn test_range_chunked() {
+    let program = r#"
+        print((1..=5).chunked(2))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 2], [3, 4], [5]]", vm.get_output());
+}
+
+#[test]
+fn test_range_chunked_zero_errors() {
+    let program = r#"
+        (1..=3).chunked(0)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("chunked() n must be >= 1, got 0"),
+        "{}",
+        errors
+    );
+}
