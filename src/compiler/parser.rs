@@ -174,6 +174,15 @@ impl Parser {
         self.current_token.token_type == token_type
     }
 
+    /// True when the current token is `fn` and it's immediately followed by
+    /// `(`, i.e. a statement-position lambda (`fn(x) { .. }(5)`) rather than
+    /// a named function declaration. Scans ahead on a copy of the scanner
+    /// so the real one isn't advanced.
+    fn fn_starts_lambda(&self) -> bool {
+        let mut scanner = self.scanner.clone();
+        scanner.scan_token().token_type == TokenType::LeftParen
+    }
+
     fn consume(&mut self, token_type: TokenType, message: &str) -> bool {
         if self.current_token.token_type == token_type {
             self.advance();
@@ -450,7 +459,8 @@ impl Parser {
             self.val_declaration()
         } else if self.match_token(TokenType::Var) {
             self.var_declaration()
-        } else if self.match_token(TokenType::Fn) {
+        } else if self.check(TokenType::Fn) && !self.fn_starts_lambda() {
+            self.advance();
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
             self.struct_declaration()

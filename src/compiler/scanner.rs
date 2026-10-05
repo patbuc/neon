@@ -17,7 +17,7 @@ struct Position {
 
 /// One open `${...}` interpolation. `brace_depth` counts unclosed `{`/`#{`
 /// opened since the `${`, so a nested brace expression's `}` doesn't end it.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(in crate::compiler) struct Interpolation {
     brace_depth: usize,
     dollar: Position,

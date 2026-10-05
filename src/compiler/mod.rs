@@ -29,7 +29,7 @@ pub(crate) struct Token {
     pub offset: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Scanner {
     source: Vec<char>,
     start: usize,
