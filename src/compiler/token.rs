@@ -67,6 +67,7 @@ pub(crate) enum TokenType {
     Fn,
     If,
     Impl,
+    Match,
     Nil,
     Return,
     Struct,

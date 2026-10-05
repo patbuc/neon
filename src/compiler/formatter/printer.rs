@@ -1,6 +1,9 @@
 use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Pattern, Stmt, UnaryOp};
+use crate::compiler::ast::{
+    BinaryOp, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, Pattern,
+    Stmt, UnaryOp,
+};
 use crate::compiler::formatter::source_map::SourceMap;
 use crate::compiler::{Comment, CommentKind, Trivia};
 
@@ -1019,6 +1022,52 @@ impl<'a> Printer<'a> {
                     IfExprElse::Block(stmt) => self.print_stmt(stmt),
                 }
             }
+            Expr::Match {
+                scrutinee, arms, ..
+            } => {
+                self.write("match ");
+                self.nested(0, |printer| printer.print_condition(scrutinee));
+                self.write(" ");
+                self.print_match_arms(scrutinee, arms);
+            }
+        }
+    }
+
+    /// A match expression's `{ arm, arm, ... }`, one arm per line.
+    fn print_match_arms(&mut self, scrutinee: &Expr, arms: &[MatchArm]) {
+        let (open, close) = self.map.match_arms_braces(scrutinee);
+        let spans: Vec<(u32, u32)> = arms
+            .iter()
+            .map(|arm| {
+                let last_line = match &arm.body {
+                    MatchArmBody::Expr(expr) => self.map.last_line(expr),
+                    MatchArmBody::Block(stmt) => self.map.stmt_last_line(stmt),
+                };
+                (arm.location.line, last_line)
+            })
+            .collect();
+        self.braced_lines(
+            self.map.line(open),
+            self.map.line(close),
+            &spans,
+            |printer, i| printer.print_match_arm(&arms[i]),
+        );
+    }
+
+    fn print_match_arm(&mut self, arm: &MatchArm) {
+        for (i, pattern) in arm.patterns.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            match pattern {
+                MatchPattern::Expr(expr) => self.print_expr(expr),
+                MatchPattern::Wildcard(_) => self.write("_"),
+            }
+        }
+        self.write(" -> ");
+        match &arm.body {
+            MatchArmBody::Expr(expr) => self.print_expr(expr),
+            MatchArmBody::Block(stmt) => self.print_stmt(stmt),
         }
     }
 

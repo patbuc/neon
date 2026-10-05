@@ -1,0 +1,19 @@
+// Expected:
+// 12
+// 12
+
+var f = nil
+val code = 2
+val result = match code {
+    1 -> "a"
+    2 -> {
+        val base = 10
+        f = fn() {
+            return base + 2
+        }
+        base + 2
+    }
+    _ -> "other"
+}
+print(result)
+print(f())

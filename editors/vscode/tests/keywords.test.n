@@ -3,6 +3,8 @@
 //^^ keyword.control.neon
   else { }
 //^^^^ keyword.control.neon
+  match x { }
+//^^^^^ keyword.control.neon
   for x in y { }
 //^^^ keyword.control.neon
 //      ^^ keyword.control.neon

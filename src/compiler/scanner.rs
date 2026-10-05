@@ -35,6 +35,7 @@ pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("if", TokenType::If),
     ("impl", TokenType::Impl),
     ("in", TokenType::In),
+    ("match", TokenType::Match),
     ("nil", TokenType::Nil),
     ("return", TokenType::Return),
     ("struct", TokenType::Struct),

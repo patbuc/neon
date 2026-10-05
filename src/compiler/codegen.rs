@@ -6,7 +6,10 @@ use crate::common::errors::{
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Binding, Expr, IfExprElse, NodeId, Pattern, Stmt, UnaryOp};
+use crate::compiler::ast::{
+    BinaryOp, Binding, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId, Pattern,
+    Stmt, UnaryOp,
+};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{int, number, string};
@@ -1900,6 +1903,13 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_if_expr(condition, then_branch, else_branch, *location);
             }
+            Expr::Match {
+                scrutinee,
+                arms,
+                location,
+            } => {
+                self.generate_match_expr(scrutinee, arms, *location);
+            }
         }
     }
 
@@ -1995,6 +2005,132 @@ impl<'a> CodeGenerator<'a> {
         self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", branch_location);
         self.end_scope(branch_location);
         self.current().transient_offset = previous_offset;
+    }
+
+    /// Compiles `match scrutinee { pattern, pattern -> body ... }`. A hidden
+    /// local holds the scrutinee; the matching arm's value overwrites it.
+    fn generate_match_expr(
+        &mut self,
+        scrutinee: &Expr,
+        arms: &[MatchArm],
+        location: SourceLocation,
+    ) {
+        self.current().scope_depth += 1;
+        let hidden_depth = self.current().scope_depth;
+        self.generate_expr(scrutinee);
+        self.current().locals.push(Local::new(hidden_depth, false));
+        let hidden_slot = self.current().stack_height - 1;
+
+        let mut end_jumps = Vec::new();
+        for arm in arms {
+            self.generate_match_arm_test(hidden_slot, &arm.patterns, arm.location);
+            let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
+            let false_path_height = self.current().stack_height;
+            self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
+            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+            end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
+
+            self.patch_jump(next_arm_jump);
+            self.current().stack_height = false_path_height;
+            self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if false
+        }
+
+        self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+        self.emit_op_code(OpCode::NoMatchArm, location);
+
+        for jump in end_jumps {
+            self.patch_jump(jump);
+        }
+
+        self.current().scope_depth -= 1;
+        self.current().locals.pop();
+    }
+
+    /// Stores an arm's body value into `hidden_slot`, the same way an
+    /// if-expression branch stores its own result.
+    fn generate_match_arm_value(
+        &mut self,
+        body: &MatchArmBody,
+        hidden_slot: u32,
+        location: SourceLocation,
+    ) {
+        match body {
+            MatchArmBody::Expr(expr) => {
+                self.generate_expr(expr);
+                // StoreLocal pops the value, unlike SetLocal.
+                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+            }
+            MatchArmBody::Block(stmt) => self.generate_if_expr_branch(stmt, hidden_slot),
+        }
+    }
+
+    /// Leaves a boolean on the stack: whether the value in `hidden_slot`
+    /// matches any of `patterns`, tested left to right with `||`'s
+    /// short-circuit (mirrors `generate_binary_expr`'s `BinaryOp::Or`).
+    fn generate_match_arm_test(
+        &mut self,
+        hidden_slot: u32,
+        patterns: &[MatchPattern],
+        location: SourceLocation,
+    ) {
+        let Some((first, rest)) = patterns.split_first() else {
+            unreachable!("a match arm always has at least one pattern")
+        };
+        self.generate_match_pattern_test(hidden_slot, first, location);
+        for pattern in rest {
+            let else_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+            let end_jump = self.emit_jump(OpCode::Jump, location);
+            self.patch_jump(else_jump);
+            self.emit_op_code(OpCode::Pop, location);
+            self.generate_match_pattern_test(hidden_slot, pattern, location);
+            self.patch_jump(end_jump);
+        }
+    }
+
+    /// Leaves a boolean on the stack: whether the value in `hidden_slot`
+    /// matches one pattern. A wildcard always matches; a range is tested by
+    /// containment, and only a number can be in one; anything else is tested
+    /// with `==`.
+    fn generate_match_pattern_test(
+        &mut self,
+        hidden_slot: u32,
+        pattern: &MatchPattern,
+        location: SourceLocation,
+    ) {
+        match pattern {
+            MatchPattern::Wildcard(_) => self.emit_op_code(OpCode::True, location),
+            MatchPattern::Expr(Expr::Range {
+                start,
+                end,
+                inclusive,
+                location: range_location,
+            }) => {
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.emit_op_code(OpCode::IsNumber, *range_location);
+                let not_number_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
+                self.emit_op_code(OpCode::Pop, *range_location);
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.generate_expr(start);
+                self.emit_op_code(OpCode::GreaterEqual, *range_location);
+                let end_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
+                self.emit_op_code(OpCode::Pop, *range_location);
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.generate_expr(end);
+                let op_code = if *inclusive {
+                    OpCode::LessEqual
+                } else {
+                    OpCode::Less
+                };
+                self.emit_op_code(op_code, *range_location);
+                self.patch_jump(end_jump);
+                self.patch_jump(not_number_jump);
+            }
+            MatchPattern::Expr(expr) => {
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+                self.generate_expr(expr);
+                self.emit_op_code(OpCode::Equal, location);
+            }
+        }
     }
 
     /// Pushes the placeholder native callable for a call dispatched by

@@ -229,6 +229,37 @@ pub enum Expr {
         else_branch: Box<IfExprElse>,
         location: SourceLocation,
     },
+    /// `match scrutinee { pattern, pattern -> body ... }`.
+    Match {
+        scrutinee: Box<Expr>,
+        arms: Vec<MatchArm>,
+        location: SourceLocation,
+    },
+}
+
+/// One `pattern, pattern -> body` arm of a `match`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub patterns: Vec<MatchPattern>,
+    pub body: MatchArmBody,
+    pub location: SourceLocation,
+}
+
+/// A single pattern in a match arm.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchPattern {
+    /// A literal, `Enum.Variant` or range expression; matched with `==`,
+    /// except an `Expr::Range`, which is matched by containment.
+    Expr(Expr),
+    Wildcard(SourceLocation),
+}
+
+/// The body of a match arm: `-> expr` or `-> { ... }`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchArmBody {
+    Expr(Expr),
+    /// Always wraps `Stmt::Block`.
+    Block(Stmt),
 }
 
 /// The `else` clause of an if-expression.

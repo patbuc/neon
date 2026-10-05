@@ -241,6 +241,25 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::OptionalDotOnType => {
             vec![("Math?.abs(-3)\n".to_string(), Some("'?.'"))]
         }
+        CompilationErrorKind::NonExhaustiveMatch => vec![(
+            "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n"
+                .to_string(),
+            Some("is missing Green"),
+        )],
+        CompilationErrorKind::PatternNotInEnum => vec![(
+            "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    3 -> 2\n    _ -> 0\n}\n"
+                .to_string(),
+            Some("does not belong to enum Color"),
+        )],
+        CompilationErrorKind::UnreachablePattern => vec![(
+            "val x = 1\nval y = match x {\n    1 -> \"a\"\n    1 -> \"b\"\n    _ -> \"c\"\n}\n"
+                .to_string(),
+            Some("unreachable pattern"),
+        )],
+        CompilationErrorKind::InvalidMatchPattern => vec![(
+            "val y = 1\nval r = match 1 {\n    y -> 1\n    _ -> 0\n}\n".to_string(),
+            Some("Invalid match pattern"),
+        )],
         CompilationErrorKind::UnplaceableComment => vec![
             (
                 "if (a) {\n} // c\nelse {\n}\n".to_string(),

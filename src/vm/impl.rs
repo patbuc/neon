@@ -242,6 +242,8 @@ impl VirtualMachine {
                 OpCode::JumpIfFalse => self.op_jump_if_false(),
                 OpCode::JumpIfNotNil => self.op_jump_if_not_nil(),
                 OpCode::JumpIfNil => self.op_jump_if_nil(),
+                OpCode::NoMatchArm => self.op_no_match_arm()?,
+                OpCode::IsNumber => self.op_is_number(),
                 OpCode::Jump => self.op_jump(),
                 OpCode::Loop => {
                     self.op_loop();

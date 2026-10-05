@@ -20,6 +20,7 @@ const KEYWORD_FAMILY = {
   For: 'keyword.control.neon',
   If: 'keyword.control.neon',
   In: 'keyword.control.neon',
+  Match: 'keyword.control.neon',
   Return: 'keyword.control.neon',
   While: 'keyword.control.neon',
   Fn: 'storage.type.neon',

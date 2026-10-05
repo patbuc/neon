@@ -515,6 +515,60 @@ element (or, over a Map, each `[key, value]` pair) is bound by position, and
 `for-in` gives every iteration its own binding of the loop variable (or
 variables), so a closure created in the body keeps that iteration's value.
 
+**Match:**
+
+```neon
+enum Color {
+    Red
+    Green
+    Blue
+}
+
+fn status(code) {
+    return match code {
+        200 -> "ok"
+        301, 302 -> "moved"
+        400..500 -> "client error"
+        _ -> "other"
+    }
+}
+
+print(status(302))  // moved
+print(status(404))  // client error
+print(status("x"))  // other
+
+val name = match Color.Green {
+    Color.Red -> "red"
+    Color.Green -> {
+        print("checking green")
+        "green"
+    }
+    Color.Blue -> "blue"
+}
+print(name)  // green
+```
+
+`match` is an expression, and also a statement. It tries the arms top to
+bottom and runs the first one with a matching pattern; its value is the
+arm's value.
+
+- A pattern is a number, string, `true`/`false` or `nil` literal (a leading
+  `-` is fine), an `Enum.Variant`, an integer range (`400..500`,
+  `1..=5`), or `_`, which matches anything. Anything else, such as a
+  variable or a call, is a compile error (`Invalid match pattern`).
+- An arm lists one or more patterns separated by commas and runs if any of
+  them matches. A range pattern only matches a number; any other value falls
+  through to the next arm.
+- An arm's body is an expression, or a `{ ... }` block whose value is its
+  last expression statement.
+- A match whose patterns include an enum variant is an enum match: every
+  other pattern must belong to the same enum, and without a `_` arm every
+  variant must be covered.
+- A pattern that repeats an earlier one, or comes after `_`, is a compile
+  error (`unreachable pattern`).
+- If no arm matches, the program stops with a runtime error
+  (`No match arm for <value>`).
+
 ### Operators
 
 **Arithmetic:**

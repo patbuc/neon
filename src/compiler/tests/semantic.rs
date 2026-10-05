@@ -3,7 +3,7 @@ use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
 mod resolutions {
-    use crate::compiler::ast::{Expr, IfExprElse, NodeId, Stmt};
+    use crate::compiler::ast::{Expr, IfExprElse, MatchArmBody, MatchPattern, NodeId, Stmt};
     use crate::compiler::parser::Parser;
     use crate::compiler::resolutions::{Capture, Res, Resolutions};
     use crate::compiler::semantic::SemanticAnalyzer;
@@ -197,6 +197,22 @@ mod resolutions {
                 match else_branch.as_ref() {
                     IfExprElse::If(expr) => index_expr(expr, idx),
                     IfExprElse::Block(stmt) => index_stmt(stmt, idx),
+                }
+            }
+            Expr::Match {
+                scrutinee, arms, ..
+            } => {
+                index_expr(scrutinee, idx);
+                for arm in arms {
+                    for pattern in &arm.patterns {
+                        if let MatchPattern::Expr(expr) = pattern {
+                            index_expr(expr, idx);
+                        }
+                    }
+                    match &arm.body {
+                        MatchArmBody::Expr(expr) => index_expr(expr, idx),
+                        MatchArmBody::Block(stmt) => index_stmt(stmt, idx),
+                    }
                 }
             }
             Expr::Number { .. }
@@ -4141,5 +4157,241 @@ fn test_optional_dot_on_struct_type_name_is_compile_error() {
         errors.iter().any(|e| e.message.contains("'?.'")),
         "expected a '?.' compile error, got {:#?}",
         errors
+    );
+}
+
+// =============================================================================
+// Match Expression Tests (issue #405)
+// =============================================================================
+
+#[test]
+fn test_match_missing_enum_variant_is_compile_error() {
+    let program =
+        "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("match on Color is missing Green")),
+        "expected the missing-variant error, got {:#?}",
+        errors
+    );
+
+    let with_wildcard = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    _ -> 0\n}\n";
+    let mut parser = Parser::new(with_wildcard);
+    let ast = parser.parse().unwrap();
+    let mut analyzer = SemanticAnalyzer::new();
+    assert!(analyzer.analyze(&ast).is_ok());
+}
+
+#[test]
+fn test_match_pattern_not_belonging_to_enum_is_compile_error() {
+    let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    3 -> 2\n    _ -> 0\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors.iter().any(|e| e
+            .message
+            .contains("Pattern 3 does not belong to enum Color")),
+        "expected the wrong-enum-pattern error, got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_match_duplicate_pattern_is_unreachable() {
+    let program =
+        "val x = 1\nval y = match x {\n    1 -> \"a\"\n    1 -> \"b\"\n    _ -> \"c\"\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.message.contains("unreachable pattern"))
+        .unwrap_or_else(|| panic!("expected an unreachable pattern error, got {:#?}", errors));
+    assert_eq!(error.location.line, 4);
+    assert_eq!(error.location.column, 5);
+}
+
+#[test]
+fn test_match_duplicate_pattern_within_single_arm_is_unreachable() {
+    let program = "val x = 1\nval y = match x {\n    1, 1 -> \"a\"\n    _ -> \"c\"\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("unreachable pattern")),
+        "expected an unreachable pattern error, got {:#?}",
+        errors
+    );
+}
+
+fn match_errors(program: &str) -> Vec<String> {
+    let mut parser = Parser::new(program);
+    let ast = match parser.parse() {
+        Ok(ast) => ast,
+        Err(errors) => return errors.iter().map(|e| e.message.clone()).collect(),
+    };
+    let mut analyzer = SemanticAnalyzer::new();
+    match analyzer.analyze(&ast) {
+        Ok(_) => Vec::new(),
+        Err(errors) => errors.iter().map(|e| e.message.clone()).collect(),
+    }
+}
+
+fn assert_match_error(program: &str, expected: &str) {
+    let errors = match_errors(program);
+    assert!(
+        errors.iter().any(|m| m.contains(expected)),
+        "expected {:?}, got {:#?}",
+        expected,
+        errors
+    );
+}
+
+#[test]
+fn test_match_variable_pattern_is_invalid() {
+    assert_match_error(
+        "val y = 1\nval r = match 1 {\n    y -> 1\n    _ -> 0\n}\n",
+        "Invalid match pattern",
+    );
+}
+
+#[test]
+fn test_match_expression_pattern_is_invalid() {
+    assert_match_error(
+        "val y = 1\nval r = match 1 {\n    y + 1 -> 1\n    _ -> 0\n}\n",
+        "Invalid match pattern",
+    );
+}
+
+#[test]
+fn test_match_interpolated_string_pattern_is_invalid() {
+    assert_match_error(
+        "val y = 1\nval r = match \"a\" {\n    \"a${y}\" -> 1\n    _ -> 0\n}\n",
+        "Invalid match pattern",
+    );
+}
+
+#[test]
+fn test_match_float_range_pattern_is_invalid() {
+    assert_match_error(
+        "val r = match 2 {\n    1.5..2.5 -> 1\n    _ -> 0\n}\n",
+        "Invalid match pattern",
+    );
+}
+
+#[test]
+fn test_match_call_pattern_is_invalid() {
+    assert_match_error(
+        "fn f() = 1\nval r = match 1 {\n    f() -> 1\n    _ -> 0\n}\n",
+        "Invalid match pattern",
+    );
+}
+
+#[test]
+fn test_match_literal_patterns_are_valid() {
+    let program = "enum Color {\n    Red\n}\nval r = match 1 {\n    -1 -> 1\n    2.5 -> 2\n    \"s\" -> 3\n    true -> 4\n    nil -> 5\n    10..20 -> 6\n    -5..=-1 -> 7\n    _ -> 0\n}\nval c = match Color.Red {\n    Color.Red -> 1\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
+fn test_match_duplicate_enum_variant_is_unreachable() {
+    assert_match_error(
+        "enum Color {\n    Red\n    Green\n}\nval r = match Color.Red {\n    Color.Red -> 1\n    Color.Red -> 2\n    Color.Green -> 3\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_duplicate_range_is_unreachable() {
+    assert_match_error(
+        "val r = match 2 {\n    1..3 -> 1\n    1..3 -> 2\n    _ -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_int_and_float_duplicate_is_unreachable() {
+    assert_match_error(
+        "val r = match 1 {\n    1, 1.0 -> 1\n    _ -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_enum_taken_from_non_first_pattern() {
+    assert_match_error(
+        "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    3 -> 1\n    Color.Red -> 2\n    _ -> 0\n}\n",
+        "Pattern 3 does not belong to enum Color",
+    );
+}
+
+#[test]
+fn test_match_large_distinct_ints_are_not_duplicates() {
+    let program =
+        "val r = match 1 {\n    9007199254740992 -> 1\n    9007199254740993 -> 2\n    _ -> 0\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
+fn test_match_range_pattern_in_enum_match_is_displayed() {
+    assert_match_error(
+        "enum Color {\n    Red\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    1..=3 -> 2\n}\n",
+        "Pattern 1..=3 does not belong to enum Color",
+    );
+}
+
+#[test]
+fn test_match_duplicate_enum_variant_points_at_pattern_start() {
+    let program = "enum Color {\n    Red\n}\nval x = match Color.Red {\n    Color.Red -> 1\n    Color.Red -> 2\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+    let errors = SemanticAnalyzer::new().analyze(&ast).unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.message.contains("unreachable pattern"))
+        .unwrap_or_else(|| panic!("expected an unreachable pattern error, got {:#?}", errors));
+    assert_eq!((error.location.line, error.location.column), (6, 5));
+}
+
+#[test]
+fn test_match_arm_after_wildcard_is_unreachable() {
+    assert_match_error(
+        "val r = match 3 {\n    _ -> \"w\"\n    3 -> \"dead\"\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_second_wildcard_is_unreachable() {
+    assert_match_error(
+        "val r = match 3 {\n    _ -> \"a\"\n    _ -> \"b\"\n}\n",
+        "unreachable pattern",
     );
 }

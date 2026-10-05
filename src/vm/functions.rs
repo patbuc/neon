@@ -129,6 +129,15 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_is_number(&mut self) {
+        // [.., value] -> [.., is_number]
+        let slot = self.stack.last_mut().expect("operand is on the stack");
+        let is_number = matches!(slot, Value::Number(_) | Value::Int(_));
+        *slot = boolean!(is_number);
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_call(&mut self) -> OpResult {
         let arg_count = self.operand_u8(1) as usize;
         self.ip += 2; // Skip CALL opcode and arg_count byte
@@ -1281,6 +1290,14 @@ impl VirtualMachine {
             return Err(self.runtime_error(message));
         }
         Ok(())
+    }
+
+    /// Pops the scrutinee value and raises "No match arm for <value>",
+    /// formatted like `print`. Emitted after every `match` arm has been
+    /// tested and none matched.
+    pub(in crate::vm) fn op_no_match_arm(&mut self) -> OpResult {
+        let value = self.pop();
+        Err(self.runtime_error(format!("No match arm for {value}")))
     }
 
     /// Peeks the top of the stack and errors unless it holds an Array of

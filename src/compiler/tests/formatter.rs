@@ -102,6 +102,62 @@ fn test_range_unchanged() {
 }
 
 #[test]
+fn test_match_arms_one_per_line() {
+    check(
+        "val x = match c { 1, 2 -> \"a\"\n _ -> \"b\" }\n",
+        "val x = match c {\n    1, 2 -> \"a\"\n    _ -> \"b\"\n}\n",
+    );
+}
+
+#[test]
+fn test_match_arm_spacing() {
+    check(
+        "val x = match c {\n1,2->\"a\"\n_->\"b\"\n}\n",
+        "val x = match c {\n    1, 2 -> \"a\"\n    _ -> \"b\"\n}\n",
+    );
+}
+
+#[test]
+fn test_match_block_arm() {
+    check(
+        "val x = match c {\nColor.Red -> {\nprint(1)\n}\n_ -> {\nprint(2)\n}\n}\n",
+        "val x = match c {\n    Color.Red -> {\n        print(1)\n    }\n    _ -> {\n        print(2)\n    }\n}\n",
+    );
+}
+
+#[test]
+fn test_match_comment_between_arms_kept() {
+    check(
+        "val x = match c {\n1 -> \"a\"\n// second\n_ -> \"b\"\n}\n",
+        "val x = match c {\n    1 -> \"a\"\n    // second\n    _ -> \"b\"\n}\n",
+    );
+}
+
+#[test]
+fn test_match_blank_line_between_arms_kept() {
+    check(
+        "val x = match c {\n1 -> \"a\"\n\n_ -> \"b\"\n}\n",
+        "val x = match c {\n    1 -> \"a\"\n\n    _ -> \"b\"\n}\n",
+    );
+}
+
+#[test]
+fn test_match_trailing_comment_on_arm_kept() {
+    check(
+        "val x = match c {\n1 -> \"one\" // c\n_ -> \"b\"\n}\n",
+        "val x = match c {\n    1 -> \"one\" // c\n    _ -> \"b\"\n}\n",
+    );
+}
+
+#[test]
+fn test_match_range_patterns() {
+    check(
+        "val x = match c {\n400..500 -> \"a\"\n-5..=-1 -> \"b\"\n_ -> \"c\"\n}\n",
+        "val x = match c {\n    400..500 -> \"a\"\n    -5..=-1 -> \"b\"\n    _ -> \"c\"\n}\n",
+    );
+}
+
+#[test]
 fn test_get_field_unchanged() {
     check("a . b\n", "a.b\n");
 }

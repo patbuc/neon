@@ -6,7 +6,8 @@ use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
 use crate::compiler::ast::{
-    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId,
+    Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
@@ -1198,6 +1199,7 @@ impl Parser {
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
             TokenType::If => self.if_expression(),
+            TokenType::Match => self.match_expression(),
             _ => {
                 self.report_error_at_previous(
                     CompilationErrorKind::ExpectedExpression,
@@ -1891,6 +1893,80 @@ impl Parser {
             statements,
             location,
         })
+    }
+
+    /// Parses `match scrutinee { pattern, pattern -> body ... }`, valid in
+    /// both statement and expression position; a bare statement reaches
+    /// this through `expression_statement`, same as any other expression.
+    fn match_expression(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+
+        let scrutinee = self.without_trailing_block(|parser| parser.expression(false))?;
+        if !self.consume(TokenType::LeftBrace, "Expect '{' after match expression.") {
+            return None;
+        }
+        let arms = self.match_arms()?;
+        if !self.consume(TokenType::RightBrace, "Expect '}' after match arms.") {
+            return None;
+        }
+
+        Some(Expr::Match {
+            scrutinee: Box::new(scrutinee),
+            arms,
+            location,
+        })
+    }
+
+    fn match_arms(&mut self) -> Option<Vec<MatchArm>> {
+        let mut arms = Vec::new();
+        self.skip_new_lines();
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            arms.push(self.match_arm()?);
+            self.skip_new_lines();
+        }
+        Some(arms)
+    }
+
+    fn match_arm(&mut self) -> Option<MatchArm> {
+        let location = self.current_token_location();
+
+        let mut patterns = vec![self.match_pattern()?];
+        while self.match_token(TokenType::Comma) {
+            patterns.push(self.match_pattern()?);
+        }
+
+        if !self.consume(TokenType::Arrow, "Expect '->' after match pattern.") {
+            return None;
+        }
+
+        let body = if self.check(TokenType::LeftBrace) {
+            self.advance();
+            let block_location = self.current_location();
+            let statements = self.parse_block_body()?;
+            MatchArmBody::Block(Stmt::Block {
+                statements,
+                location: block_location,
+            })
+        } else {
+            MatchArmBody::Expr(self.expression(false)?)
+        };
+        self.consume_statement_end("Expecting '\\n' or '\\0' after match arm.");
+
+        Some(MatchArm {
+            patterns,
+            body,
+            location,
+        })
+    }
+
+    /// A single pattern: `_`, or a literal, range or enum variant.
+    fn match_pattern(&mut self) -> Option<MatchPattern> {
+        if self.check(TokenType::Identifier) && self.current_token.token == "_" {
+            let location = self.current_token_location();
+            self.advance();
+            return Some(MatchPattern::Wildcard(location));
+        }
+        Some(MatchPattern::Expr(self.expression(false)?))
     }
 
     fn index(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {
