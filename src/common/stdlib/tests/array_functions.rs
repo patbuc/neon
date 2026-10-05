@@ -213,6 +213,32 @@ fn test_array_sort_with_comparator_is_stable() {
     assert_eq!("[[0, c], [1, a], [1, b], [1, d]]", vm.get_output());
 }
 
+// ============================================================================
+// Array.sortBy() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_array_sort_by() {
+    let program = r#"
+        val words = ["bb", "a", "ccc"]
+        val sorted = words.sortBy(fn(s) { return s.size() })
+        print(sorted)
+        print(words)
+
+        val ties = ["cc", "bb", "a"]
+        print(ties.sortBy(fn(s) { return s.size() }))
+
+        print([3, 1, 2].sortBy(fn(x) { return -x }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!(
+        "[a, bb, ccc]\n[bb, a, ccc]\n[a, cc, bb]\n[3, 2, 1]",
+        vm.get_output()
+    );
+}
+
 #[test]
 fn test_array_sort_comparator_non_number_result() {
     let program = r#"
@@ -227,6 +253,89 @@ fn test_array_sort_comparator_non_number_result() {
     let errors = vm.get_runtime_errors();
     assert!(
         errors.contains("sort() comparator must return a number, got string"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_sort_by_mixed_key_types_errors() {
+    let program = r#"
+        [1, "a"].sortBy(fn(x) { return x })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("sortBy() keys must be all numbers or all strings"),
+        "{}",
+        errors
+    );
+}
+
+// ============================================================================
+// Array.minBy() / Array.maxBy() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_array_min_by_and_max_by() {
+    let program = r#"
+        val words = ["bb", "a", "ccc"]
+        print(words.minBy(fn(s) { return s.size() }))
+        print(words.maxBy(fn(s) { return s.size() }))
+
+        val minTies = ["bb", "cc", "ddd"]
+        print(minTies.minBy(fn(s) { return s.size() }))
+
+        val maxTies = ["aa", "b", "cc"]
+        print(maxTies.maxBy(fn(s) { return s.size() }))
+
+        print([].minBy(fn(s) { return s.size() }))
+        print([].maxBy(fn(s) { return s.size() }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("a\nccc\nbb\naa\nnil\nnil", vm.get_output());
+}
+
+#[test]
+fn test_array_min_by_mixed_key_types_errors() {
+    let program = r#"
+        [1, "a"].minBy(fn(x) { return x })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("minBy() keys must be all numbers or all strings"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_max_by_mixed_key_types_errors() {
+    let program = r#"
+        [1, "a"].maxBy(fn(x) { return x })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("maxBy() keys must be all numbers or all strings"),
         "{}",
         errors
     );
@@ -1500,4 +1609,90 @@ fn test_array_with_index() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[[0, a], [1, b]]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_by_stable_with_many_elements() {
+    let program = r#"
+        print((0..50).sortBy(fn(x) { return x % 2 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+
+    let output = vm.get_output();
+    let values: Vec<i64> = output
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .split(", ")
+        .map(|v| v.parse::<i64>().expect("value should parse"))
+        .collect();
+    assert_eq!(50, values.len());
+
+    let evens: Vec<i64> = values[..25].to_vec();
+    let odds: Vec<i64> = values[25..].to_vec();
+    assert_eq!(
+        (0..50).step_by(2).collect::<Vec<i64>>(),
+        evens,
+        "{}",
+        output
+    );
+    assert_eq!((1..50).step_by(2).collect::<Vec<i64>>(), odds, "{}", output);
+}
+
+#[test]
+fn test_array_sort_by_calls_key_fn_once_per_element() {
+    let program = r#"
+        var calls = 0
+        print([3, 1, 2].sortBy(fn(x) {
+            calls += 1
+            return x
+        }))
+        print(calls)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n3", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_by_key_fn_error_propagates() {
+    let program = r#"
+        [1, 2].sortBy(fn(x) { return [][0] })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("index out of bounds"), "{}", errors);
+}
+
+#[test]
+fn test_array_min_by_key_fn_error_propagates() {
+    let program = r#"
+        [1, 2].minBy(fn(x) { return [][0] })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("index out of bounds"), "{}", errors);
+}
+
+#[test]
+fn test_array_sort_by_mixed_int_and_float_keys() {
+    let program = r#"
+        print([1, 2.5, 2].sortBy(fn(x) { return x }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 2.5]", vm.get_output());
 }

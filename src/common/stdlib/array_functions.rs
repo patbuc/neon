@@ -192,6 +192,148 @@ fn merge_by(
     Ok(result)
 }
 
+/// Calls `callback` with each element to produce its sort/min/max key, then
+/// checks the keys are all numbers or all strings. Shared by sortBy, minBy
+/// and maxBy, which only differ in `method`'s name (for the error message)
+/// and in what they do with the keyed elements.
+fn compute_and_validate_keys(
+    vm: &mut dyn NativeContext,
+    elements: &[Value],
+    callback: &Value,
+    method: &str,
+) -> Result<Vec<Value>, NativeCallError> {
+    let mut keys = Vec::with_capacity(elements.len());
+    for element in elements {
+        keys.push(vm.call_value(callback.clone(), std::slice::from_ref(element))?);
+    }
+
+    let all_numbers = keys.iter().all(|k| Numeric::from_value(k).is_some());
+    let all_strings = keys.iter().all(|k| matches!(k, Value::String(_)));
+    if !keys.is_empty() && !all_numbers && !all_strings {
+        return Err(format!("{}() keys must be all numbers or all strings", method).into());
+    }
+
+    Ok(keys)
+}
+
+/// Orders two keys produced by `compute_and_validate_keys` (already known to
+/// be all numbers or all strings).
+fn compare_keys(a: &Value, b: &Value) -> std::cmp::Ordering {
+    match (Numeric::from_value(a), Numeric::from_value(b)) {
+        (Some(na), Some(nb)) => compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal),
+        _ => match (a, b) {
+            (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+            _ => std::cmp::Ordering::Equal,
+        },
+    }
+}
+
+/// Native implementation of Array.sortBy(fn)
+/// Returns a new array sorted ascending by fn's key for each element
+/// (stable); the receiver is unchanged. Keys must be all numbers or all
+/// strings.
+pub fn native_array_sort_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "sortBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "sortBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+    let keys = compute_and_validate_keys(vm, &elements, &callback, "sortBy")?;
+
+    let mut indexed: Vec<(usize, Value)> = elements.into_iter().enumerate().collect();
+    indexed.sort_by(|a, b| compare_keys(&keys[a.0], &keys[b.0]));
+    let sorted = indexed.into_iter().map(|(_, value)| value).collect();
+
+    Ok(Value::new_array(sorted))
+}
+
+/// Finds the element whose key (from fn) compares as `wanted` against every
+/// other key; `None` on an empty array. Shared by minBy and maxBy.
+fn extremum_by(
+    vm: &mut dyn NativeContext,
+    elements: Vec<Value>,
+    callback: &Value,
+    method: &str,
+    wanted: std::cmp::Ordering,
+) -> Result<Option<Value>, NativeCallError> {
+    if elements.is_empty() {
+        return Ok(None);
+    }
+
+    let keys = compute_and_validate_keys(vm, &elements, callback, method)?;
+    let mut best = 0;
+    for i in 1..elements.len() {
+        if compare_keys(&keys[i], &keys[best]) == wanted {
+            best = i;
+        }
+    }
+
+    Ok(Some(elements[best].clone()))
+}
+
+/// Native implementation of Array.minBy(fn)
+/// Returns the first element with the smallest key from fn, or nil on an
+/// empty array. Keys must be all numbers or all strings.
+pub fn native_array_min_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "minBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "minBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(
+        extremum_by(vm, elements, &callback, "minBy", std::cmp::Ordering::Less)?
+            .unwrap_or(Value::Nil),
+    )
+}
+
+/// Native implementation of Array.maxBy(fn)
+/// Returns the first element with the largest key from fn, or nil on an
+/// empty array. Keys must be all numbers or all strings.
+pub fn native_array_max_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "maxBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "maxBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(extremum_by(
+        vm,
+        elements,
+        &callback,
+        "maxBy",
+        std::cmp::Ordering::Greater,
+    )?
+    .unwrap_or(Value::Nil))
+}
+
 /// Converts a comparator's return value to the signed number `sort()` needs.
 fn comparator_result_to_f64(value: Value) -> Result<f64, NativeCallError> {
     match value {

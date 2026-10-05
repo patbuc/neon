@@ -244,6 +244,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "sortBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_sort_by,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "minBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_min_by,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "maxBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_max_by,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
         "reverse",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_reverse,
@@ -610,6 +637,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::range_functions::native_range_flat_map,
             arity: 1,
             returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "sortBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_sort_by,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "minBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_min_by,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "maxBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_max_by,
+            arity: 1,
+            returns: None,
         },
     ),
     (
