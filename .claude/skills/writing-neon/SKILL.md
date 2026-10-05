@@ -103,10 +103,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   (nested arrays are fine); a cyclic array, or any other type (`nil`, maps, sets, instances,
   functions, files, ranges, priority queues), is a runtime error.
 - Missing map keys give `nil` (`m["k"]`, `m.get("k")`), not an error.
-- Negative indices work on arrays and ranges (`a[-1]`).
-- Strings are indexed by character: `s[0]` is the first character, `s[-1]` the last (negative counts
-  from the end), both as one-character strings; an out-of-range index is a runtime error. Strings are
-  immutable, so `s[0] = "x"` is a runtime error too. `for ch in s` and `s.chars()` iterate the same way.
+- Negative indices work on arrays, ranges, and strings (`a[-1]`, `s[-1]` the last character, counting
+  from the end). Strings are indexed by character: `s[0]` is the first character, both as one-character
+  strings; an out-of-range index is a runtime error. Strings are immutable, so `s[0] = "x"` is a runtime
+  error too. `for ch in s` and `s.chars()` iterate the same way.
 - Ranges: `1..10` excludes the end, `1..=10` includes it. They're immutable.
 
 **Sizes and membership use the same names on every collection**
