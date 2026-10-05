@@ -305,10 +305,10 @@ fn(x) {
 #### Tail Calls
 
 A call in tail position reuses the caller's frame, so tail recursion isn't limited by the
-call-depth limit (1,000,000 frames). Tail position is the operand of `return`, a function's
-last expression (including `fn f() = expr`), the branches of an `if`/`else` expression, and
-the arms of a `match` or the branches of a ternary that are themselves in tail position.
-Method calls count too. Operands of `&&`, `||` and `??` and script-level code are not tail
+call-depth limit (1,000,000 frames). Tail position is the operand of `return` and a function's
+last expression (including `fn f() = expr`). When an `if`/`else` expression, a `match` or a
+ternary is in tail position, so are its branches and arms. Parentheses don't change tail
+position. Method calls count too, including a closure stored in a field. Operands of `&&`, `||` and `??` and script-level code are not tail
 positions. A tail call to a native function, a struct constructor or a native method behaves
 like a call followed by a return.
 
