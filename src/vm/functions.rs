@@ -196,6 +196,41 @@ impl VirtualMachine {
         }
     }
 
+    /// TailCall: `Call` followed by `Return`, except that a closure callee
+    /// takes over the running frame. Returns whether it did; otherwise the
+    /// callee's result is on the stack for the caller to return.
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_tail_call(&mut self) -> Result<bool, RuntimeError> {
+        let arg_count = self.operand_u8(1) as usize;
+        self.ip += 2; // Skip TailCall opcode and arg_count byte
+
+        let callable_index = self.stack.len() - 1 - arg_count;
+        let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
+        let Value::Closure(closure) = callable_value else {
+            self.check_frame_limit()?;
+            self.dispatch_call_value(callable_value, arg_count)?;
+            return Ok(false);
+        };
+
+        let arity = closure.function.arity;
+        if arg_count != arity as usize {
+            return Err(self.arity_error(arg_count, arity, false, &closure.function.name));
+        }
+
+        // [.., frame slots..., callee, args...] -> [.., callee, args...]
+        let slot_start = self.current_frame().slot_start as usize;
+        self.close_upvalues_above(slot_start + 1);
+        self.stack.drain(slot_start..callable_index);
+
+        self.ip = 0;
+        self.chunk = Rc::clone(&closure.function.chunk);
+        self.call_frames
+            .last_mut()
+            .expect("a tail call runs inside a function's frame")
+            .closure = closure;
+        Ok(true)
+    }
+
     /// Invoke: a method call dispatched by name at runtime. Stack before:
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]

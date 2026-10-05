@@ -4,7 +4,7 @@
 // Expected runtime error: Stack overflow
 
 fn recurse(n) {
-    return recurse(n + 1)
+    return 1 + recurse(n + 1)
 }
 
 print("before")

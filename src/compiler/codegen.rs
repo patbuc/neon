@@ -1068,7 +1068,17 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn generate_return_stmt(&mut self, value: &Option<Expr>, location: SourceLocation) {
+        let in_function = self.functions.len() > 1;
         match value {
+            Some(Expr::Call {
+                callee,
+                arguments,
+                id,
+                location: call_location,
+            }) if in_function && !matches!(callee.as_ref(), Expr::GetField { .. }) => {
+                self.generate_call_expr(*id, callee, arguments, OpCode::TailCall, *call_location);
+                return;
+            }
             Some(value) => self.generate_expr(value),
             None => self.emit_op_code(OpCode::Nil, location),
         }
@@ -1528,19 +1538,21 @@ impl<'a> CodeGenerator<'a> {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         let Some(index) = self.resolutions.native(id) else {
-            self.generate_regular_call_expr(callee, arguments, location);
+            self.generate_regular_call_expr(callee, arguments, call_op, location);
             return;
         };
-        self.generate_native_call_expr(index, arguments, location);
+        self.generate_native_call_expr(index, arguments, call_op, location);
     }
 
     fn generate_regular_call_expr(
         &mut self,
         callee: &Expr,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         // Unified calling convention: [callable, args...]
@@ -1550,7 +1562,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_call(arguments.len() as u8, location);
+        self.emit_call(call_op, arguments.len() as u8, location);
     }
 
     /// Emits a call dispatched by registry index, known at compile time: a
@@ -1560,6 +1572,7 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         index: usize,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         let label = crate::common::method_registry::native_label(index);
@@ -1569,7 +1582,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_call(arguments.len() as u8, location);
+        self.emit_call(call_op, arguments.len() as u8, location);
     }
 
     fn generate_method_call_expr(
@@ -1601,7 +1614,7 @@ impl<'a> CodeGenerator<'a> {
             return;
         }
         match self.resolutions.native(id) {
-            Some(index) => self.generate_native_call_expr(index, arguments, location),
+            Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
             None => {
                 self.generate_instance_method_call_expr(object, method, arguments, false, location)
             }
@@ -1753,7 +1766,7 @@ impl<'a> CodeGenerator<'a> {
                         self.generate_method_call_expr(*id, object, field, arguments, *location);
                     }
                 } else {
-                    self.generate_call_expr(*id, callee, arguments, *location);
+                    self.generate_call_expr(*id, callee, arguments, OpCode::Call, *location);
                 }
             }
             Expr::GetField {
@@ -2395,8 +2408,8 @@ impl<'a> CodeGenerator<'a> {
         self.emit_constant(callable, location);
     }
 
-    fn emit_call(&mut self, argc: u8, location: SourceLocation) {
-        self.emit_op_code(OpCode::Call, location);
+    fn emit_call(&mut self, call_op: OpCode, argc: u8, location: SourceLocation) {
+        self.emit_op_code(call_op, location);
         self.current_chunk().write_u8(argc);
         // Pops the callable and all argc arguments, pushes one result.
         self.adjust_stack_height(-(argc as i32));

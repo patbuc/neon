@@ -95,7 +95,8 @@ impl Chunk {
             OpCode::EnumConstruct => self.constant_instruction(OpCode::EnumConstruct, offset, out),
             OpCode::Jump => self.jump_instruction(instruction, offset, out),
             OpCode::Loop => self.loop_instruction(offset, out),
-            OpCode::Call => self.call_instruction(offset, out),
+            OpCode::Call => self.call_instruction(OpCode::Call, offset, out),
+            OpCode::TailCall => self.call_instruction(OpCode::TailCall, offset, out),
             OpCode::Invoke => self.invoke_instruction(offset, out),
             OpCode::Modulo => self.simple_instruction(instruction, offset, out),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset, out),
@@ -227,9 +228,9 @@ impl Chunk {
         offset + 5
     }
 
-    fn call_instruction(&self, offset: usize, out: &mut String) -> usize {
+    fn call_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let arg_count = self.read_u8(offset + 1);
-        let _ = writeln!(out, "Call (args: {})", arg_count);
+        let _ = writeln!(out, "{:?} (args: {})", op_code, arg_count);
         offset + 2
     }
 

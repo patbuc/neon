@@ -29,6 +29,19 @@ fn create_set_instruction_round_trips_counts_above_255() {
 }
 
 #[test]
+fn tail_call_instruction_prints_the_argument_count() {
+    let mut chunk = Chunk::new("origin");
+    chunk.write_op_code(OpCode::TailCall, 1, 1);
+    chunk.write_u8(2);
+
+    let mut out = String::new();
+    let next_offset = chunk.disassemble_instruction(0, &mut out);
+
+    assert_eq!(out, "0000      1 TailCall (args: 2)\n");
+    assert_eq!(2, next_offset);
+}
+
+#[test]
 fn get_field_instruction_prints_the_symbol_name() {
     let mut chunk = Chunk::new("origin");
     chunk.symbols = Rc::from(vec![Rc::from("x"), Rc::from("value")]);

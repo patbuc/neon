@@ -1,10 +1,11 @@
 impl OpCode {
     /// Net operand-stack effect of this opcode on its own: how many values
-    /// it pushes minus how many it pops. `Call`, `Invoke`, `CreateArray`,
-    /// `CreateMap`, and `CreateSet` consume a count that is only known at
-    /// the emit site (argument count or element count), so their entry here
-    /// is 0 and codegen applies the rest of their effect itself right after
-    /// emitting them.
+    /// it pushes minus how many it pops. `Call`, `TailCall`, `Invoke`,
+    /// `CreateArray`, `CreateMap`, and `CreateSet` consume a count that is
+    /// only known at the emit site (argument count or element count), so
+    /// their entry here is 0 (-1 for `TailCall`, which also returns) and
+    /// codegen applies the rest of their effect itself right after emitting
+    /// them.
     pub(crate) fn stack_effect(self) -> i32 {
         match self {
             OpCode::Return => -1,
@@ -69,13 +70,14 @@ impl OpCode {
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
             OpCode::IsVariant => 0,
+            OpCode::TailCall => -1,
             OpCode::EnumConstruct => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 73] = [
+        const OPCODES: [OpCode; 74] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -148,6 +150,7 @@ impl OpCode {
             OpCode::EnumConstruct,
             OpCode::IsArrayOfLen,
             OpCode::IsVariant,
+            OpCode::TailCall,
             OpCode::IsNumber,
         ];
         OPCODES.get(value as usize).copied()
@@ -294,6 +297,11 @@ pub(crate) enum OpCode {
     /// Replaces the top of stack with whether it is the enum variant whose
     /// template is the 16-bit constant-pool operand: same enum and ordinal.
     IsVariant,
+
+    /// A call in tail position: `[callable, args...]` with an 8-bit argument
+    /// count, like `Call` followed by `Return`. A closure callee reuses the
+    /// running frame instead of pushing a new one.
+    TailCall,
 
     /// Replaces the top of stack with whether it is an Int or a Number.
     IsNumber,

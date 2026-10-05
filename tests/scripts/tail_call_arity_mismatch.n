@@ -1,0 +1,18 @@
+// Expected:
+// before
+
+// Expected runtime error: Expected 2 arguments but got 1 for 'add'.
+
+fn add(a, b) {
+    return a + b
+}
+
+fn forward(f, n) {
+    if n == 0 {
+        return f(1)
+    }
+    return forward(f, n - 1)
+}
+
+print("before")
+forward(add, 3)
