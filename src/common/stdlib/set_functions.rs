@@ -42,9 +42,9 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(was_removed))
 }
 
-/// Native implementation of Set.has(element)
+/// Native implementation of Set.contains(element)
 /// Returns true if the set contains the element, false otherwise
-pub fn native_set_has(args: &[Value]) -> Result<Value, String> {
+pub fn native_set_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "has() expects 1 argument (element), got {}",

@@ -43,7 +43,7 @@ pub fn native_map_is_empty(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(map.is_empty()))
 }
 
-pub fn native_map_has(args: &[Value]) -> Result<Value, String> {
+pub fn native_map_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "has() expects 1 argument (key), got {}",

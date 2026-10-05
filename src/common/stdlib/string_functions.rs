@@ -3,9 +3,9 @@ use crate::common::Value;
 use crate::string;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 
-/// Native implementation of String.len()
+/// Native implementation of String.size()
 /// Returns the number of Unicode characters in the string
-pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_size(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!(
             "len() expects no arguments, got {}",
@@ -559,9 +559,9 @@ pub fn native_string_last_index_of(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(-1))
 }
 
-/// Native implementation of String.includes(substring)
+/// Native implementation of String.contains(substring)
 /// Returns true if substring occurs anywhere in the string.
-pub fn native_string_includes(args: &[Value]) -> Result<Value, String> {
+pub fn native_string_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
             "includes() expects 1 argument (substring), got {}",
