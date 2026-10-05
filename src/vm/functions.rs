@@ -199,6 +199,7 @@ impl VirtualMachine {
     /// TailCall: `Call` followed by `Return`, except that a closure callee
     /// takes over the running frame. Returns whether it did; otherwise the
     /// callee's result is on the stack for the caller to return.
+    #[inline(never)]
     pub(in crate::vm) fn op_tail_call(&mut self) -> Result<bool, RuntimeError> {
         let arg_count = self.operand_u8(1) as usize;
         self.ip += 2; // Skip TailCall opcode and arg_count byte
@@ -227,10 +228,11 @@ impl VirtualMachine {
 
         let receiver_index = self.stack.len() - arg_count - 1;
         let receiver = self.stack[receiver_index].clone();
-        if let Some(type_name) = self.get_type_name(&receiver) {
+        let type_name = self.get_type_name(&receiver);
+        if let Some(type_name) = &type_name {
             let is_static_call = matches!(receiver, Value::Struct(_));
             match self.dispatch_user_method(
-                &type_name,
+                type_name,
                 is_static_call,
                 receiver_index,
                 arg_count,
@@ -245,18 +247,24 @@ impl VirtualMachine {
             }
         }
 
-        if let Value::Instance(inst) = &receiver {
-            let field_value = inst.borrow().field(method_symbol).cloned();
-            if let Some(Value::Closure(closure)) = field_value {
-                self.stack[receiver_index] = Value::Nil;
-                self.reuse_frame(receiver_index, arg_count, closure, false)?;
-                return Ok(true);
-            }
-        }
-
         self.check_frame_limit()?;
-        self.dispatch_invoke(method_symbol, arg_count)?;
-        Ok(false)
+        match self.dispatch_native_method_or_field(
+            &receiver,
+            type_name,
+            receiver_index,
+            method_symbol,
+            arg_count,
+        )? {
+            Some(Value::Closure(closure)) => {
+                self.reuse_frame(receiver_index, arg_count, closure, false)?;
+                Ok(true)
+            }
+            Some(callable) => {
+                self.dispatch_call_value(callable, arg_count)?;
+                Ok(false)
+            }
+            None => Ok(false),
+        }
     }
 
     /// Replaces the running frame with a call to `closure` whose callee slot
@@ -312,8 +320,7 @@ impl VirtualMachine {
     }
 
     /// Dispatches a call: the stack must already hold `[callable, args...]`.
-    /// Shared by `call_value`'s re-entrant native-to-Neon calls and
-    /// `Invoke` falling through to a callable instance field.
+    /// Used by `call_value`'s re-entrant native-to-Neon calls.
     fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
@@ -381,7 +388,33 @@ impl VirtualMachine {
                 MethodDispatch::Mismatch(e) => return Err(e),
                 MethodDispatch::NotFound => {}
             }
+        }
 
+        match self.dispatch_native_method_or_field(
+            &receiver,
+            type_name,
+            receiver_index,
+            method_symbol,
+            arg_count,
+        )? {
+            Some(callable) => self.dispatch_call_value(callable, arg_count),
+            None => Ok(()),
+        }
+    }
+
+    /// The rest of `dispatch_invoke` once no user method matched: runs a
+    /// native method, leaving its result on the stack, or returns a
+    /// callable instance field for the caller to call, with the receiver's
+    /// slot cleared to become the callee slot.
+    fn dispatch_native_method_or_field(
+        &mut self,
+        receiver: &Value,
+        type_name: Option<TypeName>,
+        receiver_index: usize,
+        method_symbol: u16,
+        arg_count: usize,
+    ) -> Result<Option<Value>, RuntimeError> {
+        if let Some(type_name) = &type_name {
             let native = match type_name {
                 TypeName::Builtin(type_symbol) => self
                     .native_methods
@@ -401,15 +434,15 @@ impl VirtualMachine {
                 };
                 self.stack.truncate(receiver_index);
                 self.push(result);
-                return Ok(());
+                return Ok(None);
             }
         }
 
-        if let Value::Instance(inst) = &receiver {
+        if let Value::Instance(inst) = receiver {
             let field_value = inst.borrow().field(method_symbol).cloned();
             if let Some(field_value) = field_value {
-                self.stack[receiver_index] = field_value;
-                return self.dispatch_call(arg_count);
+                self.stack[receiver_index] = Value::Nil;
+                return Ok(Some(field_value));
             }
         }
 

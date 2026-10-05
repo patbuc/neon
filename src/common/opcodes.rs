@@ -1,11 +1,10 @@
 impl OpCode {
     /// Net operand-stack effect of this opcode on its own: how many values
-    /// it pushes minus how many it pops. `Call`, `TailCall`, `Invoke`, `TailInvoke`,
-    /// `CreateArray`, `CreateMap`, and `CreateSet` consume a count that is
-    /// only known at the emit site (argument count or element count), so
-    /// their entry here is 0 (-1 for `TailCall` and `TailInvoke`, which also returns) and
-    /// codegen applies the rest of their effect itself right after emitting
-    /// them.
+    /// it pushes minus how many it pops. `Call`, `TailCall`, `Invoke`,
+    /// `TailInvoke`, `CreateArray`, `CreateMap`, and `CreateSet` consume a
+    /// count that is only known at the emit site (argument count or element
+    /// count), so their entry here is 0 and codegen applies the rest of
+    /// their effect itself right after emitting them.
     pub(crate) fn stack_effect(self) -> i32 {
         match self {
             OpCode::Return => -1,
@@ -28,7 +27,7 @@ impl OpCode {
             OpCode::SetLocal => 0,
             OpCode::GetLocal => 1,
             OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 0,
-            OpCode::Call | OpCode::Invoke => 0,
+            OpCode::Call | OpCode::TailCall | OpCode::Invoke | OpCode::TailInvoke => 0,
             OpCode::GetBuiltin | OpCode::GetGlobal => 1,
             OpCode::SetGlobal => 0,
             OpCode::GetField => 0,
@@ -70,7 +69,6 @@ impl OpCode {
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
             OpCode::IsVariant => 0,
-            OpCode::TailCall | OpCode::TailInvoke => -1,
             OpCode::EnumConstruct => 0,
         }
     }

@@ -1077,9 +1077,7 @@ impl<'a> CodeGenerator<'a> {
 
     /// Compiles `expr`; when `tail` is set, the value is the function's
     /// return value, so a call here reuses the caller's frame and the
-    /// branches of a conditional, if, or match are tail positions too. A
-    /// `TailCall` never pushes a result, but the height is bumped as if it
-    /// had so the unreachable code after it stays balanced.
+    /// branches of a conditional, if, or match are tail positions too.
     fn generate_expr_in_tail(&mut self, expr: &Expr, tail: bool) {
         let in_function = self.functions.len() > 1;
         match expr {
@@ -1088,29 +1086,23 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
-            } if tail && in_function && !matches!(callee.as_ref(), Expr::GetField { .. }) => {
-                self.generate_call_expr(*id, callee, arguments, OpCode::TailCall, *location);
-                self.adjust_stack_height(1);
-            }
-            Expr::Call {
-                callee,
-                arguments,
-                id,
-                location,
-            } if tail && in_function && self.is_instance_method_call(*id, callee) => {
-                let Expr::GetField { object, field, .. } = callee.as_ref() else {
-                    unreachable!("is_instance_method_call matched a GetField callee");
-                };
-                self.generate_instance_method_call_expr(
+            } if tail && in_function => match callee.as_ref() {
+                Expr::GetField {
+                    object,
+                    field,
+                    optional: false,
+                    ..
+                } => self.generate_method_call_expr(
+                    *id,
                     object,
                     field,
                     arguments,
-                    false,
                     OpCode::TailInvoke,
                     *location,
-                );
-                self.adjust_stack_height(1);
-            }
+                ),
+                Expr::GetField { .. } => self.generate_expr(expr),
+                _ => self.generate_call_expr(*id, callee, arguments, OpCode::TailCall, *location),
+            },
             Expr::Conditional {
                 condition,
                 then_expr,
@@ -1131,21 +1123,6 @@ impl<'a> CodeGenerator<'a> {
             Expr::Grouping { expr, .. } => self.generate_expr_in_tail(expr, tail),
             _ => self.generate_expr(expr),
         }
-    }
-
-    /// Whether the call compiles to a runtime-dispatched `Invoke`: a
-    /// non-optional `obj.m(..)` that is not an enum construction, an enum
-    /// `values()` call, or a native call resolved at compile time.
-    fn is_instance_method_call(&self, id: NodeId, callee: &Expr) -> bool {
-        matches!(
-            callee,
-            Expr::GetField {
-                optional: false,
-                ..
-            }
-        ) && self.resolutions.enum_construct(id).is_none()
-            && self.resolutions.enum_values_access(id).is_none()
-            && self.resolutions.native(id).is_none()
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
@@ -1654,6 +1631,7 @@ impl<'a> CodeGenerator<'a> {
         object: &Expr,
         method: &str,
         arguments: &[Expr],
+        invoke_op: OpCode,
         location: SourceLocation,
     ) {
         if let Some(access) = self.resolutions.enum_construct(id) {
@@ -1679,12 +1657,7 @@ impl<'a> CodeGenerator<'a> {
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
             None => self.generate_instance_method_call_expr(
-                object,
-                method,
-                arguments,
-                false,
-                OpCode::Invoke,
-                location,
+                object, method, arguments, false, invoke_op, location,
             ),
         }
     }
@@ -1837,7 +1810,14 @@ impl<'a> CodeGenerator<'a> {
                             *location,
                         );
                     } else {
-                        self.generate_method_call_expr(*id, object, field, arguments, *location);
+                        self.generate_method_call_expr(
+                            *id,
+                            object,
+                            field,
+                            arguments,
+                            OpCode::Invoke,
+                            *location,
+                        );
                     }
                 } else {
                     self.generate_call_expr(*id, callee, arguments, OpCode::Call, *location);
