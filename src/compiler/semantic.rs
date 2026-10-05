@@ -2136,12 +2136,7 @@ fn builtin_index(symbol: &Symbol) -> Option<u32> {
     }
 }
 
-/// Methods removed in favor of a unified name, checked before the
-/// edit-distance suggestion below since the names are too dissimilar for it
-/// to find on its own (e.g. `len` / `size`). Only applies to builtin
-/// receivers: a user struct's own methods were never renamed, so a struct
-/// method coincidentally named `size` shouldn't make `len` look like a typo
-/// for it.
+/// Builtin methods removed in favour of a unified name, so the unknown-method hint can point at it.
 const RENAMED_METHODS: &[(&str, &str)] = &[
     ("len", "size"),
     ("length", "size"),
