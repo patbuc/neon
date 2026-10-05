@@ -2237,6 +2237,19 @@ impl SemanticAnalyzer {
         self.resolutions.enum_variant_access(*id).cloned()
     }
 
+    /// The variant a pattern names, as `Enum.Variant` or `Enum.Variant(..)`,
+    /// and whether it matches every value of that variant.
+    fn match_pattern_variant(&self, pattern: &MatchPattern) -> Option<(EnumVariantAccess, bool)> {
+        match pattern {
+            MatchPattern::Expr(expr) => Some((self.match_pattern_enum_variant(expr)?, true)),
+            MatchPattern::Variant { target, fields } => Some((
+                self.match_pattern_enum_variant(target)?,
+                fields.iter().all(MatchPattern::is_irrefutable),
+            )),
+            _ => None,
+        }
+    }
+
     /// The location of the first token of a match pattern expression.
     fn match_pattern_location(expr: &Expr) -> SourceLocation {
         match expr {
@@ -2329,14 +2342,12 @@ impl SemanticAnalyzer {
         let mut enum_identity: Option<(Rc<str>, Vec<EnumVariant>)> = None;
         for arm in arms {
             for pattern in &arm.patterns {
-                if let MatchPattern::Expr(expr) = pattern {
-                    if let Some(access) = self.match_pattern_enum_variant(expr) {
-                        let variants = self
-                            .enum_variants(&access.enum_name)
-                            .expect("a resolved enum variant access names a declared enum");
-                        enum_identity = Some((access.enum_name, variants));
-                        break;
-                    }
+                if let Some((access, _)) = self.match_pattern_variant(pattern) {
+                    let variants = self
+                        .enum_variants(&access.enum_name)
+                        .expect("a resolved enum variant access names a declared enum");
+                    enum_identity = Some((access.enum_name, variants));
+                    break;
                 }
             }
             if enum_identity.is_some() {
@@ -2355,6 +2366,27 @@ impl SemanticAnalyzer {
             for pattern in &arm.patterns {
                 if pattern.is_irrefutable() {
                     has_wildcard |= arm.guard.is_none();
+                    continue;
+                }
+                if let MatchPattern::Variant { .. } = pattern {
+                    if let Some((access, matches_all)) = self.match_pattern_variant(pattern) {
+                        if access.enum_name != enum_name {
+                            self.push_error(CompilationError::new(
+                                CompilationPhase::Semantic,
+                                CompilationErrorKind::PatternNotInEnum,
+                                format!(
+                                    "Pattern {}.{} does not belong to enum {}",
+                                    access.enum_name, access.variant_name, enum_name
+                                ),
+                                Self::pattern_location(pattern),
+                            ));
+                        } else if matches_all
+                            && arm.guard.is_none()
+                            && !covered.contains(&access.variant_name.to_string())
+                        {
+                            covered.push(access.variant_name.to_string());
+                        }
+                    }
                     continue;
                 }
                 let MatchPattern::Expr(expr) = pattern else {
@@ -2473,6 +2505,15 @@ impl SemanticAnalyzer {
             for pattern in &arm.patterns {
                 let key = match pattern {
                     MatchPattern::Expr(expr) => self.match_pattern_key(expr),
+                    MatchPattern::Variant { .. } => {
+                        self.match_pattern_variant(pattern)
+                            .and_then(|(access, matches_all)| {
+                                matches_all.then_some(MatchPatternKey::Enum(
+                                    access.enum_name,
+                                    access.variant_name,
+                                ))
+                            })
+                    }
                     _ => None,
                 };
                 let location = Self::pattern_location(pattern);

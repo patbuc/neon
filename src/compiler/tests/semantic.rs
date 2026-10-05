@@ -3698,6 +3698,28 @@ fn test_match_parentheses_on_unit_variant_pattern_is_compile_error() {
 }
 
 #[test]
+fn test_match_variant_patterns_with_bindings_cover_every_variant() {
+    let program = "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Shape.Rect(w, _) -> w\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
+fn test_match_variant_pattern_with_literal_subpattern_is_not_exhaustive() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Shape.Rect(w, 0) -> w\n}\n",
+        "match on Shape is missing Rect",
+    );
+}
+
+#[test]
+fn test_match_repeated_irrefutable_variant_pattern_is_unreachable() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Circle(a) -> a\n    Shape.Circle(b) -> b\n    Shape.Dot -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
 fn test_match_literal_patterns_are_valid() {
     let program = "enum Color {\n    Red\n}\nval r = match 1 {\n    -1 -> 1\n    2.5 -> 2\n    \"s\" -> 3\n    true -> 4\n    nil -> 5\n    10..20 -> 6\n    -5..=-1 -> 7\n    _ -> 0\n}\nval c = match Color.Red {\n    Color.Red -> 1\n}\n";
     assert_eq!(match_errors(program), Vec::<String>::new());
