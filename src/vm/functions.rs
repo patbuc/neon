@@ -14,6 +14,37 @@ use std::rc::Rc;
 
 pub(in crate::vm) type OpResult = std::result::Result<(), RuntimeError>;
 
+/// Coerces an index `Value` to a number, normalizes a negative index against
+/// `len`, and bounds-checks it. Shared by the Array, Range and String arms of
+/// `op_get_index`.
+fn normalize_index(index_value: Value, len: i64, type_name: &str) -> Result<usize, String> {
+    let index = match index_value {
+        Value::Number(n) => n as i64,
+        Value::Int(i) => i,
+        _ => {
+            return Err(format!(
+                "{} index must be a number, got {}.",
+                type_name, index_value
+            ));
+        }
+    };
+
+    let actual_index = if index < 0 { len + index } else { index };
+
+    if actual_index < 0 || actual_index >= len {
+        return Err(format!(
+            "{} index out of bounds: index {} (normalized: {}) on {} of length {}.",
+            type_name,
+            index,
+            actual_index,
+            type_name.to_lowercase(),
+            len
+        ));
+    }
+
+    Ok(actual_index as usize)
+}
+
 pub(in crate::vm) enum Comparison {
     Greater,
     GreaterEqual,
@@ -1531,83 +1562,35 @@ impl VirtualMachine {
                 Ok(())
             }
             Value::Array(array_ref) => {
-                let index = match index_value {
-                    Value::Number(n) => n as i64,
-                    Value::Int(i) => i,
-                    _ => {
-                        return Err(self.runtime_error(format!(
-                            "Array index must be a number, got {}.",
-                            index_value
-                        )));
-                    }
-                };
-
                 let array = array_ref.borrow();
                 let len = array.len() as i64;
+                let actual_index = normalize_index(index_value, len, "Array")
+                    .map_err(|m| self.runtime_error(m))?;
 
-                let actual_index = if index < 0 { len + index } else { index };
-
-                if actual_index < 0 || actual_index >= len {
-                    return Err(self.runtime_error(format!(
-                        "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
-                        index, actual_index, len
-                    )));
-                }
-
-                let result = array[actual_index as usize].clone();
+                let result = array[actual_index].clone();
                 self.push(result);
                 Ok(())
             }
             Value::Range(range) => {
-                let index = match index_value {
-                    Value::Number(n) => n as i64,
-                    Value::Int(i) => i,
-                    _ => {
-                        return Err(self.runtime_error(format!(
-                            "Range index must be a number, got {}.",
-                            index_value
-                        )));
-                    }
-                };
-
                 let len = range.len();
-                let actual_index = if index < 0 { len + index } else { index };
+                let actual_index = normalize_index(index_value, len, "Range")
+                    .map_err(|m| self.runtime_error(m))?;
 
-                if actual_index < 0 || actual_index >= len {
-                    return Err(self.runtime_error(format!(
-                        "Range index out of bounds: index {} (normalized: {}) on range of length {}.",
-                        index, actual_index, len
-                    )));
-                }
-
-                self.push(Value::Int(range.get(actual_index)));
+                self.push(Value::Int(range.get(actual_index as i64)));
                 Ok(())
             }
             Value::String(s) => {
-                let index = match index_value {
-                    Value::Number(n) => n as i64,
-                    Value::Int(i) => i,
-                    _ => {
-                        return Err(self.runtime_error(format!(
-                            "String index must be a number, got {}.",
-                            index_value
-                        )));
-                    }
-                };
+                let len = s.chars().count() as i64;
+                let actual_index = normalize_index(index_value, len, "String")
+                    .map_err(|m| self.runtime_error(m))?;
 
-                let chars: Vec<char> = s.chars().collect();
-                let len = chars.len() as i64;
-
-                let actual_index = if index < 0 { len + index } else { index };
-
-                if actual_index < 0 || actual_index >= len {
-                    return Err(self.runtime_error(format!(
+                let ch = s.chars().nth(actual_index).ok_or_else(|| {
+                    self.runtime_error(format!(
                         "String index out of bounds: index {} (normalized: {}) on string of length {}.",
-                        index, actual_index, len
-                    )));
-                }
-
-                self.push(string!(chars[actual_index as usize].to_string()));
+                        actual_index, actual_index, len
+                    ))
+                })?;
+                self.push(string!(ch.to_string()));
                 Ok(())
             }
             _ => Err(self.runtime_error(format!(

@@ -553,7 +553,6 @@ pub fn native_string_chars(args: &[Value]) -> Result<Value, String> {
 }
 
 /// Converts a string into an array of one-character strings, one per Unicode scalar value.
-/// Shared by String.chars() and the for-in iterator over strings.
 pub fn string_chars_array(string: &str) -> Value {
     let chars: Vec<Value> = string.chars().map(|c| string!(c.to_string())).collect();
     Value::new_array(chars)
