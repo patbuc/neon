@@ -1658,6 +1658,61 @@ fn test_array_tally_invalid_key_errors() {
 }
 
 #[test]
+fn test_array_sort_nan_last() {
+    let program = r#"
+        val nums = [3, 0.0 / 0.0, 1]
+        nums.sort()
+        print(nums)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 3, NaN]", vm.get_output());
+}
+
+#[test]
+fn test_array_sort_by_nan_keys_do_not_crash() {
+    let program = r#"
+        var arr = []
+        for i in 0..60 {
+            if (i % 7 == 0) {
+                arr.push(0.0 / 0.0)
+            } else {
+                arr.push((60 - i).toFloat())
+            }
+        }
+        val sorted = arr.sortBy(fn(x) { return x })
+        print(sorted)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+
+    let output = vm.get_output();
+    let values: Vec<&str> = output
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .split(", ")
+        .collect();
+    assert_eq!(60, values.len(), "{}", output);
+
+    let nan_count = values.iter().filter(|v| **v == "NaN").count();
+    assert_eq!(9, nan_count, "{}", output);
+
+    let non_nan: Vec<f64> = values[..60 - nan_count]
+        .iter()
+        .map(|v| v.parse::<f64>().expect("non-NaN values should parse"))
+        .collect();
+    let mut sorted_non_nan = non_nan.clone();
+    sorted_non_nan.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    assert_eq!(sorted_non_nan, non_nan, "{}", output);
+
+    for v in &values[60 - nan_count..] {
+        assert_eq!("NaN", *v, "{}", output);
+    }
+}
+
+#[test]
 fn test_array_sort_by_stable_with_many_elements() {
     let program = r#"
         print((0..50).sortBy(fn(x) { return x % 2 }))

@@ -109,12 +109,18 @@ fn sort_rank(value: &Value) -> u8 {
     }
 }
 
+/// Orders two `Numeric`s with NaN sorting after every other number, so the
+/// result is a total order even when one side is an unordered float.
+fn compare_numeric_nan_last(a: Numeric, b: Numeric) -> std::cmp::Ordering {
+    compare_numeric(a, b).unwrap_or_else(|| a.as_f64().is_nan().cmp(&b.as_f64().is_nan()))
+}
+
 /// Default ascending order shared by `sort()`'s no-comparator path,
-/// `sortBy`, `minBy`, and `maxBy`: numbers compare by value, strings compare
-/// lexically, anything else falls back to `sort_rank`.
+/// `sortBy`, `minBy`, and `maxBy`: numbers compare by value (NaN last),
+/// strings compare lexically, anything else falls back to `sort_rank`.
 fn default_order(a: &Value, b: &Value) -> std::cmp::Ordering {
     match (Numeric::from_value(a), Numeric::from_value(b)) {
-        (Some(na), Some(nb)) => compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal),
+        (Some(na), Some(nb)) => compare_numeric_nan_last(na, nb),
         _ => match (a, b) {
             (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
             _ => sort_rank(a).cmp(&sort_rank(b)),
