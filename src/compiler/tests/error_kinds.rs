@@ -232,6 +232,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
+        CompilationErrorKind::OptionalDotOnType => {
+            vec![("Math?.abs(-3)\n".to_string(), Some("'?.'"))]
+        }
         CompilationErrorKind::UnplaceableComment => vec![
             (
                 "if (a) {\n} // c\nelse {\n}\n".to_string(),

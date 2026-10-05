@@ -3871,3 +3871,52 @@ fn test_impl_on_enum_is_compile_error() {
     assert_eq!(errors[0].location.line, 4);
     assert!(errors[0].message.contains("'Color'"));
 }
+
+/// `?.` on a namespace, enum, or struct type name is nonsensical (none of
+/// those are ever nil), so it should be a compile error rather than the
+/// codegen panic ("no resolution recorded") it causes today.
+fn compile_to_errors(source: &str) -> Vec<crate::common::errors::CompilationError> {
+    let mut compiler = crate::compiler::Compiler::new();
+    compiler.compile(source);
+    compiler.get_structured_errors()
+}
+
+#[test]
+fn test_optional_dot_on_namespace_is_compile_error() {
+    let errors = compile_to_errors("Math?.abs(-3)\n");
+    assert!(
+        errors.iter().any(|e| e.message.contains("'?.'")),
+        "expected a '?.' compile error, got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_optional_dot_on_enum_static_call_is_compile_error() {
+    let errors = compile_to_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
+    assert!(
+        errors.iter().any(|e| e.message.contains("'?.'")),
+        "expected a '?.' compile error, got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_optional_dot_on_enum_variant_is_compile_error() {
+    let errors = compile_to_errors("enum Color {\n    Red\n    Green\n}\nColor?.Red\n");
+    assert!(
+        errors.iter().any(|e| e.message.contains("'?.'")),
+        "expected a '?.' compile error, got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_optional_dot_on_struct_type_name_is_compile_error() {
+    let errors = compile_to_errors("struct P {\n    x\n}\nP?.x\n");
+    assert!(
+        errors.iter().any(|e| e.message.contains("'?.'")),
+        "expected a '?.' compile error, got {:#?}",
+        errors
+    );
+}

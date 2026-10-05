@@ -1358,7 +1358,9 @@ impl<'a> CodeGenerator<'a> {
         }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, location),
-            None => self.generate_instance_method_call_expr(object, method, arguments, location),
+            None => {
+                self.generate_instance_method_call_expr(object, method, arguments, false, location)
+            }
         }
     }
 
@@ -1367,17 +1369,22 @@ impl<'a> CodeGenerator<'a> {
         callee: &Expr,
         method: &str,
         arguments: &[Expr],
+        optional: bool,
         location: SourceLocation,
     ) {
         // Instance method call: arr.push(x), str.len(), etc.
         // Type is unknown at compile time, so dispatch by name at runtime.
         self.generate_expr(callee);
+        let end_jump = optional.then(|| self.emit_jump(OpCode::JumpIfNil, location));
 
         for arg in arguments {
             self.generate_expr(arg);
         }
 
         self.emit_invoke(method, arguments.len() as u8, location);
+        if let Some(end_jump) = end_jump {
+            self.patch_jump(end_jump);
+        }
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1496,13 +1503,9 @@ impl<'a> CodeGenerator<'a> {
                 } = callee.as_ref()
                 {
                     if *optional {
-                        self.generate_expr(object);
-                        let end_jump = self.emit_jump(OpCode::JumpIfNil, *location);
-                        for arg in arguments {
-                            self.generate_expr(arg);
-                        }
-                        self.emit_invoke(field, arguments.len() as u8, *location);
-                        self.patch_jump(end_jump);
+                        self.generate_instance_method_call_expr(
+                            object, field, arguments, true, *location,
+                        );
                     } else {
                         self.generate_method_call_expr(*id, object, field, arguments, *location);
                     }

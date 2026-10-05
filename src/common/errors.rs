@@ -77,6 +77,7 @@ compilation_error_kinds! {
     EnumNotTopLevel => "E0043",
     ImplOnEnum => "E0044",
     UnplaceableComment => "E0045",
+    OptionalDotOnType => "E0046",
 }
 
 #[derive(Debug, Clone, PartialEq)]
