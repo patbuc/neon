@@ -2231,12 +2231,7 @@ impl<'a> CodeGenerator<'a> {
                 let mut fail_jumps = Vec::new();
                 let steps = PathStep::for_elements(elements);
                 for (step, element) in steps.into_iter().zip(elements) {
-                    if matches!(
-                        element,
-                        MatchPattern::Wildcard(_)
-                            | MatchPattern::Binding(_)
-                            | MatchPattern::Rest { .. }
-                    ) {
+                    if element.is_irrefutable() {
                         continue;
                     }
                     fail_jumps.push(self.emit_jump(OpCode::JumpIfFalse, *array_location));

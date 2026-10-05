@@ -301,6 +301,14 @@ impl PathStep {
 }
 
 impl MatchPattern {
+    /// Whether the pattern matches any value: `_`, a name, or a rest.
+    pub fn is_irrefutable(&self) -> bool {
+        matches!(
+            self,
+            MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. }
+        )
+    }
+
     /// Every name this pattern binds, in source order, each with the
     /// element indices that lead from the matched value to what it binds.
     pub fn bindings(&self) -> Vec<(&Binding, Vec<PathStep>)> {

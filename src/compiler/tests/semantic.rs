@@ -3705,6 +3705,22 @@ fn test_match_alternatives_binding_different_names_is_error() {
 }
 
 #[test]
+fn test_match_name_repeated_in_later_alternative_is_error() {
+    assert_match_error(
+        "val r = match [1, 2] {\n    [x, 0], [x, x] -> x\n    _ -> 0\n}\n",
+        "already defined",
+    );
+}
+
+#[test]
+fn test_match_array_alternatives_binding_different_names_is_error() {
+    assert_match_error(
+        "val r = match [1, 2] {\n    [a, 0], [0, b] -> 1\n    _ -> 0\n}\n",
+        "must bind the same names",
+    );
+}
+
+#[test]
 fn test_match_arm_after_guarded_binding_is_reachable() {
     let program = "val x = 1\nval y = match x {\n    n if n > 5 -> 1\n    _ -> 0\n}\n";
     assert_eq!(match_errors(program), Vec::<String>::new());

@@ -1298,11 +1298,19 @@ impl SemanticAnalyzer {
         first_names.sort_unstable();
         first_names.dedup();
         for pattern in &arm.patterns[1..] {
-            let mut names: Vec<&str> = pattern
-                .bindings()
-                .iter()
-                .map(|(b, _)| b.name.as_str())
-                .collect();
+            let bindings = pattern.bindings();
+            let mut names: Vec<&str> = Vec::new();
+            for (binding, _) in &bindings {
+                if names.contains(&binding.name.as_str()) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::DuplicateSymbol,
+                        format!("Symbol '{}' already defined in this scope", binding.name),
+                        binding.location,
+                    ));
+                }
+                names.push(binding.name.as_str());
+            }
             names.sort_unstable();
             names.dedup();
             if names != first_names {
@@ -2231,33 +2239,34 @@ impl SemanticAnalyzer {
 
         for arm in arms {
             for pattern in &arm.patterns {
-                match pattern {
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
-                        has_wildcard |= arm.guard.is_none()
+                if pattern.is_irrefutable() {
+                    has_wildcard |= arm.guard.is_none();
+                    continue;
+                }
+                let MatchPattern::Expr(expr) = pattern else {
+                    continue;
+                };
+                match self.match_pattern_enum_variant(expr) {
+                    Some(access) if access.enum_name == enum_name => {
+                        if arm.guard.is_none()
+                            && !covered.contains(&access.variant_name.to_string())
+                        {
+                            covered.push(access.variant_name.to_string());
+                        }
                     }
-                    MatchPattern::Array { .. } | MatchPattern::Rest { .. } => {}
-                    MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
-                        Some(access) if access.enum_name == enum_name => {
-                            if arm.guard.is_none()
-                                && !covered.contains(&access.variant_name.to_string())
-                            {
-                                covered.push(access.variant_name.to_string());
-                            }
-                        }
-                        _ if !self.is_valid_match_pattern(expr) => {}
-                        _ => {
-                            self.push_error(CompilationError::new(
-                                CompilationPhase::Semantic,
-                                CompilationErrorKind::PatternNotInEnum,
-                                format!(
-                                    "Pattern {} does not belong to enum {}",
-                                    Self::match_pattern_display(expr),
-                                    enum_name
-                                ),
-                                Self::match_pattern_location(expr),
-                            ));
-                        }
-                    },
+                    _ if !self.is_valid_match_pattern(expr) => {}
+                    _ => {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::PatternNotInEnum,
+                            format!(
+                                "Pattern {} does not belong to enum {}",
+                                Self::match_pattern_display(expr),
+                                enum_name
+                            ),
+                            Self::match_pattern_location(expr),
+                        ));
+                    }
                 }
             }
         }
@@ -2364,10 +2373,7 @@ impl SemanticAnalyzer {
                 } else if let Some(key) = key {
                     seen.push(key);
                 }
-                if matches!(
-                    pattern,
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
-                ) {
+                if pattern.is_irrefutable() {
                     arm_wildcard = true;
                 }
             }

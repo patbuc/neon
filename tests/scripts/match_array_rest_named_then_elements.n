@@ -1,0 +1,19 @@
+// Expected:
+// 1 [2, 3] 4
+// 1 [2, 3] 4 5
+// 1 [] 2
+
+match [1, 2, 3, 4] {
+    [a, ..m, z] -> print("${a} ${m} ${z}")
+    _ -> print("no")
+}
+
+match [1, 2, 3, 4, 5] {
+    [a, ..m, y, z] -> print("${a} ${m} ${y} ${z}")
+    _ -> print("no")
+}
+
+match [1, 2] {
+    [a, ..m, z] -> print("${a} ${m} ${z}")
+    _ -> print("no")
+}

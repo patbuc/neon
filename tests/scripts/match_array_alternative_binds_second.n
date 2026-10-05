@@ -1,0 +1,7 @@
+// Expected:
+// 6
+
+match [0, 6] {
+    [x, 0], [0, x] -> print(x)
+    _ -> print("no")
+}
