@@ -130,11 +130,10 @@ impl SourceMap {
             Expr::Call { callee, .. } => self.first_token(callee),
             Expr::GetField { object, .. }
             | Expr::SetField { object, .. }
+            | Expr::CompoundAssignField { object, .. }
             | Expr::Index { object, .. }
-            | Expr::IndexAssign { object, .. } => self.first_token(object),
-            Expr::PostfixIncrement { operand, .. } | Expr::PostfixDecrement { operand, .. } => {
-                self.first_token(operand)
-            }
+            | Expr::IndexAssign { object, .. }
+            | Expr::CompoundAssignIndex { object, .. } => self.first_token(object),
             Expr::Conditional { condition, .. } => self.first_token(condition),
             Expr::Grouping { location, .. } => self.partner(self.at(location)),
         }
@@ -148,8 +147,6 @@ impl SourceMap {
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }
             | Expr::Variable { location, .. }
-            | Expr::PostfixIncrement { location, .. }
-            | Expr::PostfixDecrement { location, .. }
             | Expr::Grouping { location, .. } => self.at(location),
             Expr::StringInterpolation { location, .. }
             | Expr::Call { location, .. }
@@ -161,7 +158,9 @@ impl SourceMap {
             Expr::Assign { value, .. }
             | Expr::CompoundAssign { value, .. }
             | Expr::SetField { value, .. }
-            | Expr::IndexAssign { value, .. } => self.last_token(value),
+            | Expr::CompoundAssignField { value, .. }
+            | Expr::IndexAssign { value, .. }
+            | Expr::CompoundAssignIndex { value, .. } => self.last_token(value),
             Expr::Binary { right, .. } => self.last_token(right),
             Expr::Range { end, .. } => self.last_token(end),
             Expr::Unary { operand, .. } => self.last_token(operand),

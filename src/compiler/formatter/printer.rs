@@ -702,6 +702,27 @@ impl<'a> Printer<'a> {
                 self.write_space_or_continuation(dot_line, self.map.first_line(value));
                 self.print_expr(value);
             }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+                ..
+            } => {
+                self.print_expr(object);
+                let object_line = self.map.last_line(object);
+                if location.line > object_line {
+                    self.continue_line(object_line, location.line);
+                }
+                self.write(".");
+                self.write(field);
+                self.write(" ");
+                self.write(&compound_op_text(operator));
+                let dot_line = self.map.line(self.map.at(location));
+                self.write_space_or_continuation(dot_line, self.map.first_line(value));
+                self.print_expr(value);
+            }
             Expr::Grouping {
                 expr: inner,
                 location,
@@ -776,6 +797,22 @@ impl<'a> Printer<'a> {
                 self.write_space_or_continuation(index_last_line, self.map.first_line(value));
                 self.print_expr(value);
             }
+            Expr::CompoundAssignIndex {
+                object,
+                index,
+                operator,
+                value,
+                ..
+            } => {
+                self.print_expr(object);
+                self.write("[");
+                self.print_expr(index);
+                self.write("] ");
+                self.write(&compound_op_text(operator));
+                let index_last_line = self.map.last_line(index);
+                self.write_space_or_continuation(index_last_line, self.map.first_line(value));
+                self.print_expr(value);
+            }
             Expr::Range {
                 start,
                 end,
@@ -790,14 +827,6 @@ impl<'a> Printer<'a> {
                     self.continue_line(location.line, end_first_line);
                 }
                 self.print_expr(end);
-            }
-            Expr::PostfixIncrement { operand, .. } => {
-                self.print_expr(operand);
-                self.write("++");
-            }
-            Expr::PostfixDecrement { operand, .. } => {
-                self.print_expr(operand);
-                self.write("--");
             }
             Expr::Conditional {
                 condition,

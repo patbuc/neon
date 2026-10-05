@@ -664,6 +664,47 @@ impl<'a> CodeGenerator<'a> {
         self.generate_binary_op_tail(operator, value, location);
     }
 
+    /// Generates `object; Dup; GetField field; value; operator`, leaving
+    /// `[.., instance, result]` on the stack so the caller can finish with
+    /// `SetField` (expression position) or `StoreField` (statement
+    /// position); `object` evaluates exactly once. Returns the field's
+    /// symbol id.
+    fn generate_field_compound_assign_value(
+        &mut self,
+        object: &Expr,
+        field: &str,
+        operator: &BinaryOp,
+        value: &Expr,
+        location: SourceLocation,
+        operator_location: SourceLocation,
+    ) -> u16 {
+        self.generate_expr(object);
+        self.emit_op_code(OpCode::Dup, location);
+        let symbol = self.resolutions.symbol(field);
+        self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", location);
+        self.generate_binary_op_tail(operator, value, operator_location);
+        symbol
+    }
+
+    /// Generates `object; index; Dup2; GetIndex; value; operator`, leaving
+    /// `[.., object, index, result]` on the stack so the caller can finish
+    /// with `SetIndex`; `object` and `index` each evaluate exactly once.
+    fn generate_index_compound_assign_value(
+        &mut self,
+        object: &Expr,
+        index: &Expr,
+        operator: &BinaryOp,
+        value: &Expr,
+        location: SourceLocation,
+        operator_location: SourceLocation,
+    ) {
+        self.generate_expr(object);
+        self.generate_expr(index);
+        self.emit_op_code(OpCode::Dup2, location);
+        self.emit_op_code(OpCode::GetIndex, location);
+        self.generate_binary_op_tail(operator, value, operator_location);
+    }
+
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
         match expr {
             Expr::Assign {
@@ -708,6 +749,24 @@ impl<'a> CodeGenerator<'a> {
                 }
                 self.generate_expr(object);
                 self.generate_expr(value);
+                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+            }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+                operator_location,
+            } => {
+                let symbol = self.generate_field_compound_assign_value(
+                    object,
+                    field,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
+                );
                 self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
             }
             _ => {
@@ -1338,41 +1397,6 @@ impl<'a> CodeGenerator<'a> {
         self.current_chunk().write_u16(elements.len() as u16);
     }
 
-    fn generate_postfix_operation(
-        &mut self,
-        operand: &Expr,
-        operation: OpCode,
-        location: SourceLocation,
-    ) {
-        let Expr::Variable { id, .. } = operand else {
-            unreachable!("semantic pass guarantees a postfix operand is a variable")
-        };
-
-        // Load old value (will be the return value)
-        self.emit_variable_get(*id, location);
-
-        // Load old value again (for modification)
-        self.emit_variable_get(*id, location);
-
-        // Push 1 and perform operation (add or subtract)
-        self.emit_constant(int!(1), location);
-        self.emit_op_code(operation, location);
-
-        // Store new value
-        self.emit_variable_set(*id, location);
-
-        // Pop the new value, leaving old value on stack
-        self.emit_op_code(OpCode::Pop, location);
-    }
-
-    fn generate_postfix_increment_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Add, location);
-    }
-
-    fn generate_postfix_decrement_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Subtract, location);
-    }
-
     fn generate_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Number {
@@ -1498,6 +1522,24 @@ impl<'a> CodeGenerator<'a> {
                 let symbol = self.resolutions.symbol(field);
                 self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
             }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+                operator_location,
+            } => {
+                let symbol = self.generate_field_compound_assign_value(
+                    object,
+                    field,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
+                );
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+            }
             Expr::Grouping { expr, .. } => {
                 self.generate_expr(expr);
             }
@@ -1575,6 +1617,24 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(value);
                 self.emit_op_code(OpCode::SetIndex, *location);
             }
+            Expr::CompoundAssignIndex {
+                object,
+                index,
+                operator,
+                value,
+                location,
+                operator_location,
+            } => {
+                self.generate_index_compound_assign_value(
+                    object,
+                    index,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
+                );
+                self.emit_op_code(OpCode::SetIndex, *location);
+            }
             Expr::Range {
                 start,
                 end,
@@ -1586,12 +1646,6 @@ impl<'a> CodeGenerator<'a> {
                 self.emit_op_code(OpCode::CreateRange, *location);
                 self.current_chunk()
                     .write_u8(if *inclusive { 1 } else { 0 });
-            }
-            Expr::PostfixIncrement { operand, location } => {
-                self.generate_postfix_increment_expr(operand, *location);
-            }
-            Expr::PostfixDecrement { operand, location } => {
-                self.generate_postfix_decrement_expr(operand, *location);
             }
             Expr::Conditional {
                 condition,

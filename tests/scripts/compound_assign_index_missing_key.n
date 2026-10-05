@@ -1,0 +1,8 @@
+// Expected:
+// before
+
+// Expected runtime error: Operands must be two numbers or two strings
+
+var m = {}
+print("before")
+m["missing"] += 1

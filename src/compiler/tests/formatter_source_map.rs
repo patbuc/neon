@@ -238,18 +238,7 @@ fn test_string_interpolation_last_line_nested_multiline() {
 }
 
 #[test]
-fn test_postfix_and_range_first_token() {
-    // x  ++
-    // 0  1
-    let source = "x++\n";
-    let mut parser = Parser::new(source);
-    let stmts = parser.parse().expect("should parse");
-    let map = SourceMap::new(source);
-    match &stmts[0] {
-        Stmt::Expression { expr, .. } => assert_eq!(map.first_token(expr), 0),
-        _ => panic!("Expected Expression statement"),
-    }
-
+fn test_range_first_token() {
     // 1  ..  5
     // 0  1   2
     let source = "1..5\n";

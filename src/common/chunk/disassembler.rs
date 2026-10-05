@@ -130,6 +130,8 @@ impl Chunk {
             OpCode::LessEqualConstant => {
                 self.constant_instruction(OpCode::LessEqualConstant, offset, out)
             }
+            OpCode::Dup => self.simple_instruction(OpCode::Dup, offset, out),
+            OpCode::Dup2 => self.simple_instruction(OpCode::Dup2, offset, out),
         }
     }
 

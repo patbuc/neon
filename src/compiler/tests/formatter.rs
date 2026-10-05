@@ -69,6 +69,16 @@ fn test_compound_assign_spacing() {
 }
 
 #[test]
+fn test_compound_assign_field_spacing() {
+    check("o.n+=1\n", "o.n += 1\n");
+}
+
+#[test]
+fn test_compound_assign_index_spacing() {
+    check("a[i]*=2\n", "a[i] *= 2\n");
+}
+
+#[test]
 fn test_ternary_spacing() {
     check("c?1:2\n", "c ? 1 : 2\n");
 }
@@ -83,11 +93,6 @@ fn test_unary_operators_no_space() {
 #[test]
 fn test_double_negate_keeps_separating_space() {
     check("-  -x\n", "- -x\n");
-}
-
-#[test]
-fn test_postfix_increment() {
-    check("x ++\n", "x++\n");
 }
 
 #[test]
@@ -449,6 +454,16 @@ fn test_fmt_leading_dot_trailing_comment() {
 #[test]
 fn test_compound_assign_continuation() {
     check("x +=\n1\n", "x +=\n    1\n");
+}
+
+#[test]
+fn test_compound_assign_field_continuation() {
+    check("o.n +=\n1\n", "o.n +=\n    1\n");
+}
+
+#[test]
+fn test_compound_assign_index_continuation() {
+    check("a[i] +=\n1\n", "a[i] +=\n    1\n");
 }
 
 #[test]

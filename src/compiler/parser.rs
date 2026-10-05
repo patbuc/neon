@@ -1019,7 +1019,6 @@ impl Parser {
                 TokenType::LeftParen => self.call(expr),
                 TokenType::Dot => self.dot(expr, can_assign),
                 TokenType::LeftBracket => self.index(expr, can_assign),
-                TokenType::PlusPlus | TokenType::MinusMinus => self.postfix(expr),
                 TokenType::Question => self.ternary(expr),
                 _ => {
                     return Some(expr);
@@ -1045,11 +1044,7 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen
-            | TokenType::Dot
-            | TokenType::LeftBracket
-            | TokenType::PlusPlus
-            | TokenType::MinusMinus => Precedence::Call,
+            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket => Precedence::Call,
             TokenType::StarStar => Precedence::Exponent,
             TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
@@ -1425,6 +1420,19 @@ impl Parser {
                 value,
                 location,
             })
+        } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
+            self.advance();
+            let operator_location = self.current_location();
+            self.skip_new_lines();
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::CompoundAssignField {
+                object: Box::new(object),
+                field,
+                operator,
+                value,
+                location,
+                operator_location,
+            })
         } else {
             Some(Expr::GetField {
                 object: Box::new(object),
@@ -1521,29 +1529,25 @@ impl Parser {
                 value,
                 location,
             })
+        } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
+            self.advance();
+            let operator_location = self.current_location();
+            self.skip_new_lines();
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::CompoundAssignIndex {
+                object: Box::new(object),
+                index,
+                operator,
+                value,
+                location,
+                operator_location,
+            })
         } else {
             Some(Expr::Index {
                 object: Box::new(object),
                 index,
                 location,
             })
-        }
-    }
-
-    fn postfix(&self, operand: Expr) -> Option<Expr> {
-        let operator_type = self.previous_token.token_type.clone();
-        let location = self.current_location();
-
-        match operator_type {
-            TokenType::PlusPlus => Some(Expr::PostfixIncrement {
-                operand: Box::new(operand),
-                location,
-            }),
-            TokenType::MinusMinus => Some(Expr::PostfixDecrement {
-                operand: Box::new(operand),
-                location,
-            }),
-            _ => None,
         }
     }
 }

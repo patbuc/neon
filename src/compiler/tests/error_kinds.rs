@@ -119,16 +119,14 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::UndefinedVariable => vec![
             ("print(z)\n".to_string(), None),
             ("z = 1\n".to_string(), None),
-            ("z++\n".to_string(), None),
         ],
         CompilationErrorKind::UndefinedType => vec![(
             "impl Ghost {\n    fn boo(self) { return 1 }\n}\n".to_string(),
             None,
         )],
-        CompilationErrorKind::ImmutableAssignment => vec![
-            ("val x = 1\nx = 2\n".to_string(), Some("Cannot assign to")),
-            ("val x = 1\nx++\n".to_string(), Some("Cannot modify")),
-        ],
+        CompilationErrorKind::ImmutableAssignment => {
+            vec![("val x = 1\nx = 2\n".to_string(), Some("Cannot assign to"))]
+        }
         CompilationErrorKind::ReadInOwnInitializer => {
             vec![("val x = x\n".to_string(), None)]
         }
@@ -168,10 +166,6 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         }
         CompilationErrorKind::LoopControlOutsideLoop => vec![("break\n".to_string(), None)],
         CompilationErrorKind::NamespaceAsValue => vec![("Math\n".to_string(), None)],
-        CompilationErrorKind::InvalidIncrementTarget => vec![
-            ("1++\n".to_string(), Some("Increment operator")),
-            ("1--\n".to_string(), Some("Decrement operator")),
-        ],
         CompilationErrorKind::UnknownNamespaceMethod => {
             vec![("Math.bogus()\n".to_string(), None)]
         }
