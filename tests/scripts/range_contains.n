@@ -1,6 +1,26 @@
 // Expected:
 // false
 // true
+// true
+// false
+// true
+// false
+// true
+// false
+// false
+// false
+// false
+// false
 
 print((1..10).contains(10))
 print((1..=10).contains(10))
+print((1..10).contains(1))
+print((1..10).contains(0))
+print((-5..-1).contains(-5))
+print((-5..-1).contains(-1))
+print((-5..=-1).contains(-1))
+print((1..10).contains(1.5))
+print((1..10).contains("1"))
+print((1..10).contains(nil))
+print((1..10).contains(true))
+print((5..1).contains(3))

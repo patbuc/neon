@@ -2,7 +2,19 @@
 // 3
 // 4
 // 0
+// 0
+// 6
+// 7
+// false
+// true
+// true
 
 print((1..4).size())
 print((1..=4).size())
 print((5..1).size())
+print((1..1).size())
+print((-3..3).size())
+print((-3..=3).size())
+print((1..4).isEmpty())
+print((5..1).isEmpty())
+print((1..1).isEmpty())

@@ -30,6 +30,14 @@
 // 3.14159
 // -2.718
 // 1000000
+// 45.67
+// -3.15
+// 0.001
+// 12300000000
+// inf
+// -inf
+// NaN
+// 9007199254740993
 // === Boolean to String ===
 // true
 // false
@@ -119,6 +127,14 @@ val n5 = -2.718
 print(n5.toString())
 val n6 = 1000000
 print(n6.toString())
+print((45.67).toString())
+print((-3.15).toString())
+print((0.001).toString())
+print((12300000000).toString())
+print((1.0 / 0.0).toString())
+print((-1.0 / 0.0).toString())
+print((0.0 / 0.0).toString())
+print(9007199254740993.toString())
 
 print("=== Boolean to String ===")
 val b1 = true

@@ -10,6 +10,7 @@
 // 3
 // [2, 3]
 // 6
+// [1, 2, 3, 4]
 
 print((1..4).map { it * 2 })
 print((1..4).toArray())
@@ -22,3 +23,4 @@ print((1..4).min())
 print((1..4).max())
 print((1..4).filter { it > 1 })
 print((1..4).reduce(0) { acc, x -> acc + x })
+print((1..=4).toArray())

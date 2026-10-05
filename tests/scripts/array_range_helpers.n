@@ -27,6 +27,18 @@
 // [[1, 2], [3, 4], [5]]
 // [[1, 10], [2, 20]]
 // [[0, 1], [1, 2], [2, 3]]
+// [1, 2, 3]
+// []
+// nil
+// nil
+// [[1, 1], [2, 2]]
+// [[0, a], [1, b]]
+// [1, 2, 3]
+// []
+// nil
+// nil
+// [[1, a], [2, b]]
+// [[0, 1], [1, 2]]
 
 val arr = [1, 2, 3, 4, 5]
 print(arr.forEach { print(it) })
@@ -49,3 +61,16 @@ print(rng.last())
 print(rng.chunked(2))
 print(rng.zip([10, 20]))
 print(rng.withIndex().take(3))
+
+print([1, 2, 3].take(9))
+print([1, 2, 3].drop(9))
+print([].first())
+print([].last())
+print((1..3).zip(1..3))
+print(["a", "b"].withIndex())
+print((1..=3).take(9))
+print((1..=3).drop(9))
+print((1..1).first())
+print((1..1).last())
+print((1..=2).zip(["a", "b"]))
+print((1..=2).withIndex())

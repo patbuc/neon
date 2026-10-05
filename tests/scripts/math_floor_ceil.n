@@ -9,6 +9,12 @@
 // 5
 // -100
 // -99
+// 0
+// 1
+// -1
+// 0
+// 0
+// 1
 
 print(Math.floor(3.7))
 print(Math.ceil(3.2))
@@ -20,3 +26,9 @@ print(Math.floor(5))
 print(Math.ceil(5))
 print(Math.floor(-99.1))
 print(Math.ceil(-99.9))
+print(Math.floor(0.5))
+print(Math.ceil(0.5))
+print(Math.floor(-0.5))
+print(Math.ceil(-0.5))
+print(Math.floor(0.00001))
+print(Math.ceil(0.00001))

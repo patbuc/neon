@@ -18,6 +18,7 @@
 // true
 // false
 // false
+// true
 //
 // Empty set operations
 // #{1, 2, 3}
@@ -88,6 +89,8 @@ print(small.isSubset(large)) // true
 print(small.isSubset(small)) // true (set is subset of itself)
 print(large.isSubset(small)) // false
 print(setA.isSubset(setB)) // false
+val smallCopy = #{1, 2}
+print(small.isSubset(smallCopy)) // true (equal contents, distinct set)
 
 // Test 5: Empty set operations
 print("")
