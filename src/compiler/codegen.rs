@@ -31,6 +31,10 @@ struct LoopContext {
     continue_jumps: Vec<u32>,
     /// Locals deeper than this are popped by a break/continue before it jumps.
     depth: u32,
+    /// Operand-stack height when the loop was entered; break/continue pop
+    /// down to this, which also accounts for transient values above the
+    /// loop's locals (e.g. an if-expression branch's own transients).
+    entry_stack_height: u32,
 }
 
 enum LoopExit {
@@ -56,9 +60,14 @@ struct FunctionCompiler {
     reported_overflows: HashSet<&'static str>,
     constant_keys: HashMap<ConstantKey, u32>,
     /// Operand-stack height, tracked by applying each emitted opcode's
-    /// `stack_effect`. Equal to `locals.len()` at every statement boundary,
-    /// checked by `assert_stack_height`.
+    /// `stack_effect`. Equal to `locals.len() + transient_offset` at every
+    /// statement boundary, checked by `assert_stack_height`.
     stack_height: u32,
+    /// Transient values sitting below the current statement's locals (e.g.
+    /// a callee and already-evaluated arguments while a later argument, an
+    /// if-expression, generates its own branches). Saved and restored
+    /// around each if-expression branch.
+    transient_offset: u32,
 }
 
 impl FunctionCompiler {
@@ -73,6 +82,7 @@ impl FunctionCompiler {
             reported_overflows: HashSet::new(),
             constant_keys: HashMap::new(),
             stack_height: 0,
+            transient_offset: 0,
         }
     }
 
@@ -313,7 +323,7 @@ impl<'a> CodeGenerator<'a> {
         let compiler = self.current();
         debug_assert_eq!(
             compiler.stack_height,
-            compiler.locals.len() as u32,
+            compiler.locals.len() as u32 + compiler.transient_offset,
             "stack height drifted from the live locals count"
         );
     }
@@ -902,11 +912,13 @@ impl<'a> CodeGenerator<'a> {
 
         // Push loop context for break/continue tracking
         let depth = self.current().scope_depth;
+        let entry_stack_height = self.current().stack_height;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
+            entry_stack_height,
         });
 
         self.generate_expr(condition);
@@ -953,9 +965,35 @@ impl<'a> CodeGenerator<'a> {
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
-    fn emit_loop_exit_pops(&mut self, depth: u32, location: SourceLocation) {
-        let captured = self.current().captured_flags_above(depth);
-        self.emit_scope_exit(&captured, location);
+    // Pops every value down to the loop's entry height, not just its
+    // registered locals: a break/continue inside an if-expression branch
+    // can also have to unwind transient values the branch doesn't track as
+    // locals (e.g. an array literal's earlier elements), interleaved with
+    // locals in a way this function can't individually place. CloseUpvalue
+    // only acts on a slot it finds still open when it pops it, so using it
+    // for every one of these pops (rather than only the ones known to be
+    // captured locals) is harmless for the rest and still closes every
+    // captured local in the range, whatever the interleaving.
+    fn emit_loop_exit_pops(
+        &mut self,
+        depth: u32,
+        entry_stack_height: u32,
+        location: SourceLocation,
+    ) {
+        let any_captured = self
+            .current()
+            .captured_flags_above(depth)
+            .iter()
+            .any(|c| *c);
+        let total_pops = self.current().stack_height - entry_stack_height;
+        let op_code = if any_captured {
+            OpCode::CloseUpvalue
+        } else {
+            OpCode::Pop
+        };
+        for _ in 0..total_pops {
+            self.emit_op_code(op_code, location);
+        }
     }
 
     #[allow(clippy::expect_used)]
@@ -963,21 +1001,25 @@ impl<'a> CodeGenerator<'a> {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
         // instruction.
-        let depth = self
-            .current()
-            .loop_contexts
-            .last()
-            .expect("semantic pass guarantees a loop context")
-            .depth;
-        self.emit_loop_exit_pops(depth, location);
+        let (depth, entry_stack_height) = {
+            let context = self
+                .current()
+                .loop_contexts
+                .last()
+                .expect("semantic pass guarantees a loop context");
+            (context.depth, context.entry_stack_height)
+        };
+        self.emit_loop_exit_pops(depth, entry_stack_height, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
-        // The pops above tracked height down to the loop's depth, matching
-        // the real stack once this jump is taken. But locals above that
-        // depth are still in scope here (break/continue doesn't remove
-        // them), so resync to keep height matching locals for whatever
-        // code follows in this block, reachable or not.
-        self.current().stack_height = self.current().locals.len() as u32;
+        // The pops above tracked height down to the loop's entry height,
+        // matching the real stack once this jump is taken. But locals above
+        // that depth are still in scope here (break/continue doesn't remove
+        // them), so resync to keep height matching locals (plus any
+        // transient offset) for whatever code follows in this block,
+        // reachable or not.
+        self.current().stack_height =
+            self.current().locals.len() as u32 + self.current().transient_offset;
         let context = self
             .current()
             .loop_contexts
@@ -1043,11 +1085,13 @@ impl<'a> CodeGenerator<'a> {
         // Push loop context for break/continue tracking
         // - 1 so break/continue also pop the loop variable itself.
         let depth = self.current().scope_depth - 1;
+        let entry_stack_height = self.current().stack_height;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
+            entry_stack_height,
         });
 
         // Check if iterator has more elements (pushes true if more, false if done)
@@ -1879,26 +1923,32 @@ impl<'a> CodeGenerator<'a> {
 
         self.current().scope_depth += 1;
         self.hoist_block_functions(statements);
-        // Unlike a plain block's statements, these may run under transient
-        // values the enclosing expression hasn't registered as locals (e.g.
-        // a callee kept alive while its arguments are generated), so
-        // `assert_stack_height`'s locals-count comparison doesn't hold here.
+        let previous_offset = self.current().transient_offset;
+        self.current().transient_offset =
+            self.current().stack_height - self.current().locals.len() as u32;
         match statements.split_last() {
             Some((last, init)) => {
                 for stmt in init {
                     self.generate_stmt(stmt);
+                    self.assert_stack_height();
                 }
                 if let Stmt::Expression { expr, .. } = last {
                     self.generate_expr(expr);
+                    self.store_into_hidden_local(hidden_slot, branch_location);
                 } else {
                     self.generate_stmt(last);
+                    self.assert_stack_height();
                     self.emit_op_code(OpCode::Nil, branch_location);
+                    self.store_into_hidden_local(hidden_slot, branch_location);
                 }
             }
-            None => self.emit_op_code(OpCode::Nil, branch_location),
+            None => {
+                self.emit_op_code(OpCode::Nil, branch_location);
+                self.store_into_hidden_local(hidden_slot, branch_location);
+            }
         }
-        self.store_into_hidden_local(hidden_slot, branch_location);
         self.end_scope(branch_location);
+        self.current().transient_offset = previous_offset;
     }
 
     /// Pushes the placeholder native callable for a call dispatched by
