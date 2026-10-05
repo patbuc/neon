@@ -20,9 +20,20 @@ fn test_parse_val_declaration() {
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
-        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        Stmt::Val { pattern, .. } => assert_eq!(pattern.bindings()[0].name, "x"),
         _ => panic!("Expected Val statement"),
     }
+}
+
+#[test]
+fn test_tuple_pattern_needs_at_least_two_names() {
+    let mut parser = Parser::new("val (a) = [1]\n");
+    let result = parser.parse();
+    let errors = result.expect_err("expected a compile error");
+    assert_eq!(1, errors.len());
+    assert!(errors[0]
+        .message
+        .contains("Tuple pattern needs at least two names"));
 }
 
 #[test]
@@ -3707,7 +3718,7 @@ fn test_parse_val_initializer_after_newline() {
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
-        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        Stmt::Val { pattern, .. } => assert_eq!(pattern.bindings()[0].name, "x"),
         _ => panic!("Expected Val statement"),
     }
 }
@@ -3721,9 +3732,11 @@ fn test_parse_map_value_after_newline() {
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
         Stmt::Val {
-            name, initializer, ..
+            pattern,
+            initializer,
+            ..
         } => {
-            assert_eq!(name, "m");
+            assert_eq!(pattern.bindings()[0].name, "m");
             match initializer {
                 Some(Expr::MapLiteral { entries, .. }) => {
                     assert_eq!(entries.len(), 1);
@@ -3750,7 +3763,7 @@ fn test_parse_newline_before_operator_ends_statement() {
     let stmts = result.unwrap();
     assert_eq!(stmts.len(), 2);
     match &stmts[0] {
-        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        Stmt::Val { pattern, .. } => assert_eq!(pattern.bindings()[0].name, "x"),
         _ => panic!("Expected Val statement"),
     }
     match &stmts[1] {
@@ -3768,12 +3781,18 @@ fn test_parse_newline_before_operator_ends_statement() {
 fn collect_stmt_ids(stmt: &Stmt, ids: &mut Vec<u32>) {
     match stmt {
         Stmt::Val {
-            id, initializer, ..
+            pattern,
+            initializer,
+            ..
         }
         | Stmt::Var {
-            id, initializer, ..
+            pattern,
+            initializer,
+            ..
         } => {
-            ids.push(id.0);
+            for binding in pattern.bindings() {
+                ids.push(binding.id.0);
+            }
             if let Some(expr) = initializer {
                 collect_expr_ids(expr, ids);
             }

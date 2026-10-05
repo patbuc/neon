@@ -6,7 +6,7 @@ use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
 use crate::compiler::ast::{
-    BinaryOp, EnumVariant, Expr, IfExprElse, NodeId, Stmt, StructField, UnaryOp,
+    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
@@ -561,6 +561,11 @@ impl Parser {
         }
         let name = self.previous_token.token.clone();
         let location = self.current_location();
+        let binding = Binding {
+            name,
+            id: self.next_id(),
+            location,
+        };
 
         let initializer = if self.match_token(TokenType::Equal) {
             Some(self.operand(Precedence::Assignment)?)
@@ -578,27 +583,108 @@ impl Parser {
 
         Some(if is_mutable {
             Stmt::Var {
-                name,
+                pattern: Pattern::Name(binding),
                 initializer,
-                id: self.next_id(),
                 location,
             }
         } else {
             Stmt::Val {
-                name,
+                pattern: Pattern::Name(binding),
                 initializer,
-                id: self.next_id(),
                 location,
             }
         })
     }
 
     fn val_declaration(&mut self) -> Option<Stmt> {
+        if self.check(TokenType::LeftParen) {
+            return self.tuple_declaration(false);
+        }
         self.parse_variable_declaration(false, true)
     }
 
     fn var_declaration(&mut self) -> Option<Stmt> {
+        if self.check(TokenType::LeftParen) {
+            return self.tuple_declaration(true);
+        }
         self.parse_variable_declaration(true, true)
+    }
+
+    /// `(a, _, c)`: two or more names in parens, `_` skipping a position
+    /// without declaring anything. Shared by `val`/`var` tuple declarations
+    /// and `for` tuple patterns.
+    fn parse_tuple_pattern(&mut self) -> Option<Vec<Option<Binding>>> {
+        if !self.consume(TokenType::LeftParen, "Expect '(' in tuple pattern.") {
+            return None;
+        }
+
+        let mut slots = Vec::new();
+        loop {
+            if !self.consume(TokenType::Identifier, "Expecting a name in tuple pattern.") {
+                return None;
+            }
+            let token = self.previous_token.token.clone();
+            let location = self.current_location();
+            slots.push(if token == "_" {
+                None
+            } else {
+                Some(Binding {
+                    name: token,
+                    id: self.next_id(),
+                    location,
+                })
+            });
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+        }
+
+        if !self.consume(TokenType::RightParen, "Expect ')' after tuple pattern.") {
+            return None;
+        }
+
+        if slots.len() < 2 {
+            self.report_error_at_previous(
+                CompilationErrorKind::ExpectedToken,
+                "Tuple pattern needs at least two names".to_string(),
+            );
+            return None;
+        }
+
+        Some(slots)
+    }
+
+    /// `(a, _, c) = expr` after a `val`/`var` keyword.
+    fn tuple_declaration(&mut self, is_mutable: bool) -> Option<Stmt> {
+        let location = self.current_location();
+        let slots = self.parse_tuple_pattern()?;
+
+        if !self.consume(TokenType::Equal, "Expect '=' after tuple pattern.") {
+            return None;
+        }
+
+        let initializer = self.operand(Precedence::Assignment)?;
+
+        let decl_type = if is_mutable { "variable" } else { "value" };
+        self.consume_statement_end(&format!(
+            "Expecting '\\n' or '\\0' after {} declaration.",
+            decl_type
+        ));
+
+        let pattern = Pattern::Tuple(slots);
+        Some(if is_mutable {
+            Stmt::Var {
+                pattern,
+                initializer: Some(initializer),
+                location,
+            }
+        } else {
+            Stmt::Val {
+                pattern,
+                initializer: Some(initializer),
+                location,
+            }
+        })
     }
 
     fn fn_declaration(&mut self) -> Option<Stmt> {

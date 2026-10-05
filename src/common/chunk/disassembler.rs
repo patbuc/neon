@@ -113,6 +113,7 @@ impl Chunk {
             OpCode::CheckInitialized => {
                 self.simple_instruction(OpCode::CheckInitialized, offset, out)
             }
+            OpCode::CheckTuple => self.variable_instruction(OpCode::CheckTuple, offset, out),
             OpCode::StoreLocal => self.variable_instruction(OpCode::StoreLocal, offset, out),
             OpCode::StoreField => self.field_instruction(OpCode::StoreField, offset, out),
             OpCode::StoreLocalField => {

@@ -36,18 +36,18 @@ mod resolutions {
     fn index_stmt<'a>(stmt: &'a Stmt, idx: &mut Index<'a>) {
         match stmt {
             Stmt::Val {
-                name,
+                pattern,
                 initializer,
-                id,
                 ..
             }
             | Stmt::Var {
-                name,
+                pattern,
                 initializer,
-                id,
                 ..
             } => {
-                idx.decls.push((name, *id));
+                for binding in pattern.bindings() {
+                    idx.decls.push((&binding.name, binding.id));
+                }
                 if let Some(expr) = initializer {
                     index_expr(expr, idx);
                 }
@@ -737,6 +737,38 @@ fn test_undefined_variable() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
     assert!(errors[0].message.contains("Undefined variable 'x'"));
+}
+
+#[test]
+fn test_tuple_pattern_underscore_declares_nothing() {
+    let program = "val (p, _) = [1, 2]\nprint(_)\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Undefined variable '_'"));
+}
+
+#[test]
+fn test_tuple_pattern_duplicate_name_is_duplicate_declaration() {
+    let program = "val (a, a) = [1, 2]\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0]
+        .message
+        .contains("Symbol 'a' already defined in this scope"));
 }
 
 #[test]

@@ -52,6 +52,7 @@ impl OpCode {
             OpCode::CloseUpvalue => -1,
             OpCode::DefineMethod => -1,
             OpCode::CheckInitialized => 0,
+            OpCode::CheckTuple => 0,
             OpCode::StoreLocal => -1,
             OpCode::StoreField => -2,
             OpCode::StoreLocalField => -1,
@@ -69,7 +70,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 67] = [
+        const OPCODES: [OpCode; 68] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -124,6 +125,7 @@ impl OpCode {
             OpCode::CloseUpvalue,
             OpCode::DefineMethod,
             OpCode::CheckInitialized,
+            OpCode::CheckTuple,
             OpCode::StoreLocal,
             OpCode::StoreField,
             OpCode::StoreLocalField,
@@ -218,6 +220,11 @@ pub(crate) enum OpCode {
     /// Peeks the top of the stack and errors if it holds a hoisted
     /// declaration's uninitialized sentinel; otherwise a no-op.
     CheckInitialized,
+    /// Peeks the top of stack and errors unless it holds an Array of
+    /// exactly the 16-bit operand's length; otherwise a no-op. Emitted for
+    /// `val (a, b) = expr` (and a `for (a, b) in ...` pair) before
+    /// extracting each name.
+    CheckTuple,
 
     /// Statement-position `SetLocal`: moves the top of stack into a 16-bit
     /// local slot without pushing it back.

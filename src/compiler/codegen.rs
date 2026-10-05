@@ -6,7 +6,7 @@ use crate::common::errors::{
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, NodeId, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Binding, Expr, IfExprElse, NodeId, Pattern, Stmt, UnaryOp};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{int, number, string};
@@ -203,16 +203,13 @@ impl<'a> CodeGenerator<'a> {
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
                 }
-                Stmt::Val {
-                    name, id, location, ..
-                }
-                | Stmt::Var {
-                    name, id, location, ..
-                } => {
-                    let sentinel = Value::Uninitialized(Rc::new(name.clone()));
-                    self.emit_constant(sentinel, *location);
-                    let decl = self.resolutions.decl(*id);
-                    self.bind_decl_local(decl, *location);
+                Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
+                    for binding in pattern.bindings() {
+                        let sentinel = Value::Uninitialized(Rc::new(binding.name.clone()));
+                        self.emit_constant(sentinel, binding.location);
+                        let decl = self.resolutions.decl(binding.id);
+                        self.bind_decl_local(decl, binding.location);
+                    }
                 }
                 _ => {}
             }
@@ -582,6 +579,54 @@ impl<'a> CodeGenerator<'a> {
             self.emit_op_code(OpCode::Pop, location);
         } else {
             self.bind_decl_local(decl, location);
+        }
+    }
+
+    /// `val (a, _, c) = expr` / `var (...)`. The checked value is held in a
+    /// hidden local so each name can fetch its element without disturbing
+    /// one already bound; `_` positions are skipped entirely. At depth 0
+    /// the hidden local is dropped right after binding, so no slot leaks.
+    fn generate_tuple_declaration(
+        &mut self,
+        slots: &[Option<Binding>],
+        initializer: &Expr,
+        location: SourceLocation,
+    ) {
+        self.generate_expr(initializer);
+        self.emit_index_op(
+            OpCode::CheckTuple,
+            slots.len() as u32,
+            "tuple pattern names",
+            location,
+        );
+
+        let is_top_level = self.current().scope_depth == 0;
+        let depth = self.current().scope_depth;
+        self.current().locals.push(Local::new(depth, false));
+        let hidden_slot = self.current().stack_height - 1;
+
+        for (index, slot) in slots.iter().enumerate() {
+            let Some(binding) = slot else {
+                continue;
+            };
+
+            self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+            self.emit_constant(int!(index as i64), location);
+            self.emit_op_code(OpCode::GetIndex, location);
+
+            let decl = self.resolutions.decl(binding.id);
+            if is_top_level {
+                let slot = self.decl_slot(decl);
+                self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
+            } else {
+                self.bind_decl_local(decl, location);
+            }
+        }
+
+        if is_top_level {
+            self.current().locals.pop();
+            self.emit_op_code(OpCode::Pop, location);
         }
     }
 
@@ -1160,21 +1205,25 @@ impl<'a> CodeGenerator<'a> {
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
+                pattern,
                 initializer,
-                id,
                 location,
-                ..
-            } => {
-                self.generate_variable_declaration(*id, initializer, *location);
             }
-            Stmt::Var {
+            | Stmt::Var {
+                pattern,
                 initializer,
-                id,
                 location,
-                ..
-            } => {
-                self.generate_variable_declaration(*id, initializer, *location);
-            }
+            } => match (pattern, initializer) {
+                (Pattern::Tuple(slots), Some(initializer)) => {
+                    self.generate_tuple_declaration(slots, initializer, *location);
+                }
+                (Pattern::Name(binding), _) => {
+                    self.generate_variable_declaration(binding.id, initializer, binding.location);
+                }
+                (Pattern::Tuple(_), None) => {
+                    unreachable!("tuple pattern always has an initializer")
+                }
+            },
             Stmt::Fn {
                 name,
                 body,

@@ -1,5 +1,5 @@
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt};
+use crate::compiler::ast::{BinaryOp, Binding, Expr, NodeId, Pattern, Stmt};
 
 fn dummy_location() -> SourceLocation {
     SourceLocation {
@@ -39,17 +39,22 @@ fn test_expr_binary() {
 #[test]
 fn test_stmt_val() {
     let stmt = Stmt::Val {
-        name: "x".to_string(),
+        pattern: Pattern::Name(Binding {
+            name: "x".to_string(),
+            id: NodeId(0),
+            location: dummy_location(),
+        }),
         initializer: Some(Expr::Number {
             value: 5.0,
             raw: "5".to_string(),
             location: dummy_location(),
         }),
-        id: NodeId(0),
         location: dummy_location(),
     };
     match stmt {
-        Stmt::Val { name, .. } => assert_eq!(name, "x"),
+        Stmt::Val { pattern, .. } => {
+            assert_eq!(pattern.bindings()[0].name, "x")
+        }
         _ => panic!("Expected Val statement"),
     }
 }

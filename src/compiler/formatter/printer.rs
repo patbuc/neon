@@ -1,6 +1,6 @@
 use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Pattern, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
 use crate::compiler::{Comment, CommentKind, Trivia};
 
@@ -338,23 +338,32 @@ impl<'a> Printer<'a> {
     fn print_stmt_body(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
-                name,
+                pattern,
                 initializer,
                 location,
-                ..
             }
             | Stmt::Var {
-                name,
+                pattern,
                 initializer,
                 location,
-                ..
             } => {
-                self.write(if matches!(stmt, Stmt::Val { .. }) {
-                    "val "
-                } else {
-                    "var "
-                });
-                self.write(name);
+                let is_val = matches!(stmt, Stmt::Val { .. });
+                match pattern {
+                    Pattern::Name(binding) => {
+                        self.write(if is_val { "val " } else { "var " });
+                        self.write(&binding.name);
+                    }
+                    Pattern::Tuple(slots) => {
+                        self.write(if is_val { "val (" } else { "var (" });
+                        for (i, slot) in slots.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
+                        }
+                        self.write(")");
+                    }
+                }
                 if let Some(init) = initializer {
                     self.write(" =");
                     self.write_space_or_continuation(location.line, self.map.first_line(init));

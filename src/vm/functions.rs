@@ -1,6 +1,7 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
+use crate::common::stdlib::array_functions;
 use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
@@ -1280,6 +1281,33 @@ impl VirtualMachine {
             return Err(self.runtime_error(message));
         }
         Ok(())
+    }
+
+    /// Peeks the top of the stack and errors unless it holds an Array of
+    /// exactly `n` elements, read from the 16-bit operand; otherwise a
+    /// no-op.
+    #[inline(always)]
+    pub(in crate::vm) fn op_check_tuple(&mut self) -> OpResult {
+        let n = self.read_index();
+        self.ip += 2;
+
+        match self.peek(0) {
+            Value::Array(array_ref) => {
+                let len = array_ref.borrow().len();
+                if len != n {
+                    return Err(self.runtime_error(format!(
+                        "Cannot destructure Array of size {} into {} names",
+                        len, n
+                    )));
+                }
+                Ok(())
+            }
+            other => Err(self.runtime_error(format!(
+                "Cannot destructure {} into {} names",
+                array_functions::type_name_for_error(other),
+                n
+            ))),
+        }
     }
 
     /// The "used before initialization" message for `value`, if it's the
