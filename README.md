@@ -573,6 +573,11 @@ arm's value.
 - A guard, `pattern if condition -> body`, runs after the pattern matches
   and sees its bindings. If it is false the match falls through to the next
   arm. A guarded arm never counts toward coverage.
+- An array pattern, `[1, x, _]`, matches an array of exactly that length;
+  its elements are literal, `_`, binding, range, nested array or enum
+  variant patterns. One `..` anywhere matches any number of elements, and
+  `..rest` binds them to a new array (a copy). A non-array never matches.
+  Array patterns never count toward coverage.
 - An arm's body is an expression, or a `{ ... }` block whose value is its
   last expression statement.
 - A match whose patterns include an enum variant is an enum match: every
