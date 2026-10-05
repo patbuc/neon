@@ -47,7 +47,9 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   return value, with no `return` needed; a bare `return` or any other kind of
   last statement returns `nil`. Lambdas are `fn(x) { x * 2 }`; no `=>`
   arrows. A named function or method whose whole body is one expression can
-  skip the braces with `fn name(a, b) = expr` (lambdas can't use `= expr`).
+  skip the braces with `fn name(a, b) = expr` (lambdas can't use `= expr`). A
+  statement starting with `fn(` is always a lambda, not a declaration, so it
+  can be called right away: `fn(x) { print(x) }(5)`.
 - Struct fields are listed one per line, no commas or types:
   `struct Point {` / `x` / `y` / `}`. Construct with `Point(1, 2)`.
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
@@ -64,6 +66,15 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   condition are just grouping, not required.
 - Every branch and loop body needs braces: `if c print(1)` is a compile
   error; write `if c { print(1) } else { print(2) }`.
+- `if`/`else` is also an expression: its value is the branch's last
+  expression statement (`nil` if that branch's last statement isn't an
+  expression). `else` is required in expression position — omitting it is a
+  compile error (`if expression requires else`). The ternary (`c ? a : b`)
+  stays the shorter form for one-liners.
+- A branch ending in an `if`/`else` *statement* also yields `nil` — the
+  parser can't tell it apart from a nested if-expression. Bind it to a
+  `val` first (`val sign = if n > 100 { "big" } else { "small" }`) and use
+  that as the branch's last statement instead.
 - `for x in coll { }` is the only `for`; no C-style `for`. Count with a range
   instead: `for i in 0..n { }`. For-in over a map gives keys. `break`/
   `continue` exist.

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::common::SourceLocation;
-use crate::compiler::ast::{Expr, Stmt};
+use crate::compiler::ast::{Expr, IfExprElse, Stmt};
 use crate::compiler::token::TokenType;
 use crate::compiler::Scanner;
 
@@ -124,7 +124,8 @@ impl SourceMap {
             | Expr::MapLiteral { location, .. }
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
-            | Expr::Function { location, .. } => self.at(location),
+            | Expr::Function { location, .. }
+            | Expr::If { location, .. } => self.at(location),
             Expr::Binary { left, .. } => self.first_token(left),
             Expr::Range { start, .. } => self.first_token(start),
             Expr::Call { callee, .. } => self.first_token(callee),
@@ -166,6 +167,10 @@ impl SourceMap {
             Expr::Unary { operand, .. } => self.last_token(operand),
             Expr::Conditional { else_expr, .. } => self.last_token(else_expr),
             Expr::Function { location, .. } => self.fn_tokens(location).body_close,
+            Expr::If { else_branch, .. } => match else_branch.as_ref() {
+                IfExprElse::If(expr) => self.last_token(expr),
+                IfExprElse::Block(stmt) => self.stmt_last_token(stmt),
+            },
         }
     }
 

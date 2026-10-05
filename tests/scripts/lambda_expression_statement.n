@@ -1,0 +1,15 @@
+// Expected:
+// 5
+// 5
+
+fn(x) {
+    print(x)
+}(5)
+
+fn mk() {
+    val k = 5
+    fn() {
+        k
+    }
+}
+print(mk()())

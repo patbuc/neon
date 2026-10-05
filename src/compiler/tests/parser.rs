@@ -591,12 +591,19 @@ fn test_parse_lambda_as_call_argument() {
 }
 
 #[test]
-fn test_fn_without_name_at_statement_level_is_error() {
-    // Statement-level `fn` is always the named declaration; a bare lambda
-    // is only valid in expression position.
+fn test_lambda_expression_statement() {
     let mut parser = Parser::new("fn(x) { return x }\n");
     let result = parser.parse();
-    assert!(result.is_err());
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Function { .. },
+            ..
+        } => {}
+        _ => panic!("Expected Expression statement wrapping a Function expression"),
+    }
 }
 
 #[test]
@@ -4342,4 +4349,14 @@ fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
+fn test_if_expression_without_else_is_a_compile_error() {
+    let mut parser = Parser::new("val x = if c { 1 }\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
+    assert_eq!(errors[0].message, "if expression requires else");
 }

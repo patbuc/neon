@@ -5,7 +5,9 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
-use crate::compiler::ast::{BinaryOp, EnumVariant, Expr, NodeId, Stmt, StructField, UnaryOp};
+use crate::compiler::ast::{
+    BinaryOp, EnumVariant, Expr, IfExprElse, NodeId, Stmt, StructField, UnaryOp,
+};
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
 use std::collections::HashMap;
@@ -400,7 +402,6 @@ impl Parser {
                         | TokenType::Val
                         | TokenType::Var
                         | TokenType::For
-                        | TokenType::If
                         | TokenType::While
                         | TokenType::Return => {
                             self.nesting_depth = depth;
@@ -450,7 +451,8 @@ impl Parser {
             self.val_declaration()
         } else if self.match_token(TokenType::Var) {
             self.var_declaration()
-        } else if self.match_token(TokenType::Fn) {
+        } else if self.check(TokenType::Fn) && !self.scanner.next_is_left_paren() {
+            self.advance();
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
             self.struct_declaration()
@@ -821,14 +823,24 @@ impl Parser {
         })
     }
 
-    /// Requires the next token to start a `{ ... }` block, as the body of an
-    /// `if`, `while`, or `for ... in`.
-    fn require_block_body(&mut self) -> Option<Stmt> {
-        if !self.check(TokenType::LeftBrace) {
+    /// Reports "Expect '{' after condition" unless the current token starts
+    /// a block, shared by `require_block_body` and `if_expr_block`.
+    fn require_left_brace(&mut self) -> bool {
+        if self.check(TokenType::LeftBrace) {
+            true
+        } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
                 "Expect '{' after condition".to_string(),
             );
+            false
+        }
+    }
+
+    /// Requires the next token to start a `{ ... }` block, as the body of an
+    /// `if`, `while`, or `for ... in`.
+    fn require_block_body(&mut self) -> Option<Stmt> {
+        if !self.require_left_brace() {
             return None;
         }
         self.statement()
@@ -926,7 +938,6 @@ impl Parser {
                 | TokenType::Enum
                 | TokenType::Impl
                 | TokenType::For
-                | TokenType::If
                 | TokenType::While
                 | TokenType::Return
                 | TokenType::Break
@@ -986,6 +997,7 @@ impl Parser {
             TokenType::HashLeftBrace => self.set_literal(),
             TokenType::LeftBracket => self.array_literal(),
             TokenType::Fn => self.lambda(),
+            TokenType::If => self.if_expression(),
             _ => {
                 self.report_error_at_previous(
                     CompilationErrorKind::ExpectedExpression,
@@ -1521,6 +1533,56 @@ impl Parser {
             params,
             body,
             id,
+            location,
+        })
+    }
+
+    /// Parses `if cond { ... } else if cond { ... } else { ... }` in
+    /// expression position; `else` is required. Reuses `Stmt::Block` for
+    /// each branch so the formatter's brace-location lookups apply
+    /// unchanged.
+    fn if_expression(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+
+        let condition = self.expression(false)?;
+        let then_branch = Box::new(self.if_expr_block()?);
+
+        if !self.consume(TokenType::Else, "if expression requires else") {
+            return None;
+        }
+
+        let else_branch = if self.match_token(TokenType::If) {
+            Box::new(IfExprElse::If(self.if_expression()?))
+        } else if self.check(TokenType::LeftBrace) {
+            Box::new(IfExprElse::Block(self.if_expr_block()?))
+        } else {
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
+                "Expect '{' or 'if' after 'else'".to_string(),
+            );
+            return None;
+        };
+
+        Some(Expr::If {
+            condition: Box::new(condition),
+            then_branch,
+            else_branch,
+            location,
+        })
+    }
+
+    /// Parses a `{ ... }` branch of an if-expression as a `Stmt::Block`,
+    /// without requiring a statement terminator after the closing brace -
+    /// the branch sits inside a larger expression, which may continue past it.
+    fn if_expr_block(&mut self) -> Option<Stmt> {
+        if !self.require_left_brace() {
+            return None;
+        }
+        self.advance();
+        let location = self.current_location();
+        let statements = self.parse_block_body()?;
+        Some(Stmt::Block {
+            statements,
             location,
         })
     }

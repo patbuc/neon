@@ -6,7 +6,7 @@ use crate::common::errors::{
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, NodeId, Stmt, UnaryOp};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{int, number, string};
@@ -31,6 +31,10 @@ struct LoopContext {
     continue_jumps: Vec<u32>,
     /// Locals deeper than this are popped by a break/continue before it jumps.
     depth: u32,
+    /// Operand-stack height when the loop was entered; break/continue pop
+    /// down to this, which also accounts for transient values above the
+    /// loop's locals (e.g. an if-expression branch's own transients).
+    entry_stack_height: u32,
 }
 
 enum LoopExit {
@@ -56,9 +60,14 @@ struct FunctionCompiler {
     reported_overflows: HashSet<&'static str>,
     constant_keys: HashMap<ConstantKey, u32>,
     /// Operand-stack height, tracked by applying each emitted opcode's
-    /// `stack_effect`. Equal to `locals.len()` at every statement boundary,
-    /// checked by `assert_stack_height`.
+    /// `stack_effect`. Equal to `locals.len() + transient_offset` at every
+    /// statement boundary, checked by `assert_stack_height`.
     stack_height: u32,
+    /// Transient values sitting below the current statement's locals (e.g.
+    /// a callee and already-evaluated arguments while a later argument, an
+    /// if-expression, generates its own branches). Saved and restored
+    /// around each if-expression branch.
+    transient_offset: u32,
 }
 
 impl FunctionCompiler {
@@ -73,6 +82,7 @@ impl FunctionCompiler {
             reported_overflows: HashSet::new(),
             constant_keys: HashMap::new(),
             stack_height: 0,
+            transient_offset: 0,
         }
     }
 
@@ -313,7 +323,7 @@ impl<'a> CodeGenerator<'a> {
         let compiler = self.current();
         debug_assert_eq!(
             compiler.stack_height,
-            compiler.locals.len() as u32,
+            compiler.locals.len() as u32 + compiler.transient_offset,
             "stack height drifted from the live locals count"
         );
     }
@@ -902,11 +912,13 @@ impl<'a> CodeGenerator<'a> {
 
         // Push loop context for break/continue tracking
         let depth = self.current().scope_depth;
+        let entry_stack_height = self.current().stack_height;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
+            entry_stack_height,
         });
 
         self.generate_expr(condition);
@@ -953,9 +965,29 @@ impl<'a> CodeGenerator<'a> {
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
-    fn emit_loop_exit_pops(&mut self, depth: u32, location: SourceLocation) {
-        let captured = self.current().captured_flags_above(depth);
-        self.emit_scope_exit(&captured, location);
+    // Pops everything down to the loop's entry height, not just registered
+    // locals, since a break/continue inside an if-expression branch can also
+    // leave transient values interleaved with them.
+    fn emit_loop_exit_pops(
+        &mut self,
+        depth: u32,
+        entry_stack_height: u32,
+        location: SourceLocation,
+    ) {
+        let any_captured = self
+            .current()
+            .captured_flags_above(depth)
+            .iter()
+            .any(|c| *c);
+        let total_pops = self.current().stack_height - entry_stack_height;
+        let op_code = if any_captured {
+            OpCode::CloseUpvalue
+        } else {
+            OpCode::Pop
+        };
+        for _ in 0..total_pops {
+            self.emit_op_code(op_code, location);
+        }
     }
 
     #[allow(clippy::expect_used)]
@@ -963,21 +995,25 @@ impl<'a> CodeGenerator<'a> {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
         // instruction.
-        let depth = self
-            .current()
-            .loop_contexts
-            .last()
-            .expect("semantic pass guarantees a loop context")
-            .depth;
-        self.emit_loop_exit_pops(depth, location);
+        let (depth, entry_stack_height) = {
+            let context = self
+                .current()
+                .loop_contexts
+                .last()
+                .expect("semantic pass guarantees a loop context");
+            (context.depth, context.entry_stack_height)
+        };
+        self.emit_loop_exit_pops(depth, entry_stack_height, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
-        // The pops above tracked height down to the loop's depth, matching
-        // the real stack once this jump is taken. But locals above that
-        // depth are still in scope here (break/continue doesn't remove
-        // them), so resync to keep height matching locals for whatever
-        // code follows in this block, reachable or not.
-        self.current().stack_height = self.current().locals.len() as u32;
+        // The pops above tracked height down to the loop's entry height,
+        // matching the real stack once this jump is taken. But locals above
+        // that depth are still in scope here (break/continue doesn't remove
+        // them), so resync to keep height matching locals (plus any
+        // transient offset) for whatever code follows in this block,
+        // reachable or not.
+        self.current().stack_height =
+            self.current().locals.len() as u32 + self.current().transient_offset;
         let context = self
             .current()
             .loop_contexts
@@ -1043,11 +1079,13 @@ impl<'a> CodeGenerator<'a> {
         // Push loop context for break/continue tracking
         // - 1 so break/continue also pop the loop variable itself.
         let depth = self.current().scope_depth - 1;
+        let entry_stack_height = self.current().stack_height;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
+            entry_stack_height,
         });
 
         // Check if iterator has more elements (pushes true if more, false if done)
@@ -1758,31 +1796,15 @@ impl<'a> CodeGenerator<'a> {
                 else_expr,
                 location,
             } => {
-                // Generate condition
                 self.generate_expr(condition);
-
-                // Jump to else branch if condition is false
                 let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
-
-                // Pop the condition value (it's still on the stack)
                 self.emit_op_code(OpCode::Pop, *location);
-
-                // Generate then expression (leaves value on stack)
                 self.generate_expr(then_expr);
-
-                // Jump over else branch
                 let end_jump = self.emit_jump(OpCode::Jump, *location);
 
-                // Patch the else jump to here
                 self.patch_jump(else_jump);
-
-                // Pop the condition value for the else path
                 self.emit_op_code(OpCode::Pop, *location);
-
-                // Generate else expression (leaves value on stack)
                 self.generate_expr(else_expr);
-
-                // Patch the end jump to here
                 self.patch_jump(end_jump);
             }
             Expr::Function {
@@ -1793,7 +1815,109 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_closure(*id, "anonymous", params, body, *location);
             }
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                location,
+            } => {
+                self.generate_if_expr(condition, then_branch, else_branch, *location);
+            }
         }
+    }
+
+    /// Compiles `if cond { ... } else ...` in expression position: a hidden
+    /// local reserved before the branches holds the result; each branch
+    /// runs in its own nested scope, which is torn down (popping the
+    /// branch's own locals / closing their upvalues) right after storing
+    /// its value into the hidden local. That leaves the hidden local's
+    /// value sitting on top of the stack with nothing above it, so it's
+    /// already the if-expression's value - dropping it from the compiler's
+    /// local bookkeeping (without popping it at runtime) hands it to
+    /// whatever uses the expression next, the same way any other
+    /// expression's value is handed off. Mirrors the hidden locals for-in
+    /// keeps for its iterator state - no new opcode.
+    fn generate_if_expr(
+        &mut self,
+        condition: &Expr,
+        then_branch: &Stmt,
+        else_branch: &IfExprElse,
+        location: SourceLocation,
+    ) {
+        self.current().scope_depth += 1;
+        let hidden_depth = self.current().scope_depth;
+        self.emit_op_code(OpCode::Nil, location);
+        self.current().locals.push(Local::new(hidden_depth, false));
+        let hidden_slot = self.current().stack_height - 1;
+
+        self.generate_expr(condition);
+        let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // See generate_if_stmt: then_jump lands here with the condition
+        // still unpopped, not at the height the then-branch leaves behind.
+        let false_path_height = self.current().stack_height;
+        self.emit_op_code(OpCode::Pop, location); // Pop condition if true
+        self.generate_if_expr_branch(then_branch, hidden_slot);
+        let else_jump = self.emit_jump(OpCode::Jump, location);
+
+        self.patch_jump(then_jump);
+        self.current().stack_height = false_path_height;
+        self.emit_op_code(OpCode::Pop, location); // Pop condition if false
+
+        match else_branch {
+            IfExprElse::If(expr) => {
+                self.generate_expr(expr);
+                // StoreLocal pops the value, unlike SetLocal.
+                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+            }
+            IfExprElse::Block(stmt) => {
+                self.generate_if_expr_branch(stmt, hidden_slot);
+            }
+        }
+        self.patch_jump(else_jump);
+
+        self.current().scope_depth -= 1;
+        self.current().locals.pop();
+    }
+
+    /// Compiles one `{ ... }` branch of an if-expression: its last
+    /// expression statement becomes the branch's value, stored into
+    /// `hidden_slot`; any other kind of last statement (or an empty
+    /// branch) leaves `nil`.
+    fn generate_if_expr_branch(&mut self, branch: &Stmt, hidden_slot: u32) {
+        let Stmt::Block {
+            statements,
+            location: branch_location,
+        } = branch
+        else {
+            unreachable!("if-expression branches are always blocks")
+        };
+        let branch_location = *branch_location;
+
+        self.current().scope_depth += 1;
+        self.hoist_block_functions(statements);
+        let previous_offset = self.current().transient_offset;
+        self.current().transient_offset =
+            self.current().stack_height - self.current().locals.len() as u32;
+        match statements.split_last() {
+            Some((last, init)) => {
+                for stmt in init {
+                    self.generate_stmt(stmt);
+                    self.assert_stack_height();
+                }
+                if let Stmt::Expression { expr, .. } = last {
+                    self.generate_expr(expr);
+                } else {
+                    self.generate_stmt(last);
+                    self.assert_stack_height();
+                    self.emit_op_code(OpCode::Nil, branch_location);
+                }
+            }
+            None => self.emit_op_code(OpCode::Nil, branch_location),
+        }
+        // StoreLocal pops the value, unlike SetLocal.
+        self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", branch_location);
+        self.end_scope(branch_location);
+        self.current().transient_offset = previous_offset;
     }
 
     /// Pushes the placeholder native callable for a call dispatched by

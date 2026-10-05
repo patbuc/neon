@@ -181,6 +181,30 @@ fn test_break_and_continue_in_lambda_body() {
 }
 
 #[test]
+fn test_if_expression_body_expands() {
+    check(
+        "val s = if a { 1 } else { 2 }\n",
+        "val s = if a {\n    1\n} else {\n    2\n}\n",
+    );
+}
+
+#[test]
+fn test_if_expression_else_if_chain_expands() {
+    check(
+        "val s = if a { 1 } else if b { 2 } else { 3 }\n",
+        "val s = if a {\n    1\n} else if b {\n    2\n} else {\n    3\n}\n",
+    );
+}
+
+#[test]
+fn test_if_expression_as_call_argument_expands() {
+    check(
+        "f(if a { 1 } else { 2 })\n",
+        "f(if a {\n    1\n} else {\n    2\n})\n",
+    );
+}
+
+#[test]
 fn test_if_else_blocks_expand_and_cuddle() {
     check(
         "if (c) { a } else { b }\n",

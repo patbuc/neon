@@ -1,0 +1,137 @@
+// Expected:
+// [1, 1]
+// 42
+// [1, 1]
+// [3, 3]
+// 42
+// 1
+// 3
+// [0, 0]
+// 99
+// 1
+// nil
+// [1, 7]
+// inner
+// val=5
+// 11
+// 1
+// 1
+
+fn breakInIf() {
+    for x in [1, 2, 3] {
+        print([x, if x == 2 {
+            break
+        } else {
+            x
+        }])
+    }
+    val after = 42
+    print(after)
+}
+breakInIf()
+
+fn continueInIf() {
+    for x in [1, 2, 3] {
+        print([x, if x == 2 {
+            continue
+        } else {
+            x
+        }])
+    }
+    val after2 = 42
+    print(after2)
+}
+continueInIf()
+
+for x in [1, 2, 3] {
+    print(if x == 2 {
+        continue
+    } else {
+        x
+    })
+}
+
+fn breakInWhile() {
+    var i = 0
+    while i < 3 {
+        print([i, if i == 1 {
+            break
+        } else {
+            i
+        }])
+        i += 1
+    }
+    val afterw = 99
+    print(afterw)
+}
+breakInWhile()
+
+val c = true
+print(if c {
+    val inner = if c {
+        1
+    } else {
+        2
+    }
+    inner
+} else {
+    3
+})
+
+print(if c {
+    if c {
+        1
+    } else {
+        2
+    }
+} else {
+    3
+})
+
+fn g(a, b) {
+    print([a, b])
+}
+
+g(1, if c {
+    var total = 0
+    for n in [1, 2, 3] {
+        total += n
+    }
+    var j = 0
+    while j < 2 {
+        total += j
+        j += 1
+    }
+    total
+} else {
+    0
+})
+
+print("val=${if c {
+    if c {
+        print("inner")
+    }
+    5
+} else {
+    0
+}}")
+
+val x = 10
+print(x + if c {
+    1
+} else {
+    2
+})
+
+val y = nil
+print(y ?? if c {
+    1
+} else {
+    2
+})
+
+print(c ? if c {
+    1
+} else {
+    2
+} : 0)
