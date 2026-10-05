@@ -1,0 +1,13 @@
+// Expected:
+// other
+// other
+
+print(match [1, 2, 3] {
+    [a, b] -> "pair"
+    _ -> "other"
+})
+
+print(match [1] {
+    [a, b] -> "pair"
+    _ -> "other"
+})

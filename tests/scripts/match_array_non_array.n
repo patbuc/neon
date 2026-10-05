@@ -1,0 +1,19 @@
+// Expected:
+// other
+// other
+// other
+
+print(match 5 {
+    [a] -> "one"
+    _ -> "other"
+})
+
+print(match "a" {
+    [a] -> "one"
+    _ -> "other"
+})
+
+print(match nil {
+    [] -> "empty"
+    _ -> "other"
+})

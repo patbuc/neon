@@ -1219,17 +1219,7 @@ impl SemanticAnalyzer {
                     self.enter_scope();
                     self.declare_match_arm_bindings(arm);
                     for pattern in &arm.patterns {
-                        if let MatchPattern::Expr(expr) = pattern {
-                            self.resolve_expr(expr);
-                            if !self.is_valid_match_pattern(expr) {
-                                self.push_error(CompilationError::new(
-                                    CompilationPhase::Semantic,
-                                    CompilationErrorKind::InvalidMatchPattern,
-                                    "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, or '_'".to_string(),
-                                    Self::match_pattern_location(expr),
-                                ));
-                            }
-                        }
+                        self.resolve_match_pattern(pattern);
                     }
                     if let Some(guard) = &arm.guard {
                         self.resolve_expr(guard);
@@ -1246,42 +1236,102 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Declares the names an arm's bare-name patterns bind, as immutable
-    /// values in the arm's scope. Alternatives may bind only if they all
-    /// bind the same name; the first declares it.
+    fn resolve_match_pattern(&mut self, pattern: &MatchPattern) {
+        match pattern {
+            MatchPattern::Expr(expr) => {
+                self.resolve_expr(expr);
+                if !self.is_valid_match_pattern(expr) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::InvalidMatchPattern,
+                        "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, an array pattern, or '_'".to_string(),
+                        Self::match_pattern_location(expr),
+                    ));
+                }
+            }
+            MatchPattern::Array { elements, .. } => {
+                let mut rests = elements
+                    .iter()
+                    .filter(|element| matches!(element, MatchPattern::Rest { .. }));
+                if let Some(second) = rests.nth(1) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::InvalidMatchPattern,
+                        "Invalid match pattern: an array pattern can have only one rest ('..')"
+                            .to_string(),
+                        Self::pattern_location(second),
+                    ));
+                }
+                for element in elements {
+                    self.resolve_match_pattern(element);
+                }
+            }
+            MatchPattern::Rest { binding, location } => {
+                if binding.is_some() {
+                    self.intern_name("slice", *location);
+                    self.intern_name("drop", *location);
+                }
+            }
+            MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {}
+        }
+    }
+
+    fn pattern_location(pattern: &MatchPattern) -> SourceLocation {
+        match pattern {
+            MatchPattern::Wildcard(location)
+            | MatchPattern::Array { location, .. }
+            | MatchPattern::Rest { location, .. } => *location,
+            MatchPattern::Binding(binding) => binding.location,
+            MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
+        }
+    }
+
+    /// Declares the names an arm's patterns bind, as immutable values in
+    /// the arm's scope. Alternatives must all bind the same names; the
+    /// first alternative declares them.
     fn declare_match_arm_bindings(&mut self, arm: &MatchArm) {
-        let mut bindings = arm.patterns.iter().filter_map(|pattern| match pattern {
-            MatchPattern::Binding(binding) => Some(binding),
-            _ => None,
-        });
-        let Some(first) = bindings.next() else {
+        let Some(first_pattern) = arm.patterns.first() else {
             return;
         };
-        let mismatch = arm.patterns.iter().find(|pattern| match pattern {
-            MatchPattern::Binding(binding) => binding.name != first.name,
-            _ => true,
-        });
-        if let Some(pattern) = mismatch {
-            let location = match pattern {
-                MatchPattern::Wildcard(location) => *location,
-                MatchPattern::Binding(binding) => binding.location,
-                MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
-            };
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::InvalidMatchPattern,
-                "Invalid match pattern: alternatives must bind the same names".to_string(),
-                location,
-            ));
+        let first = first_pattern.bindings();
+        let mut first_names: Vec<&str> = first.iter().map(|(b, _)| b.name.as_str()).collect();
+        first_names.sort_unstable();
+        first_names.dedup();
+        for pattern in &arm.patterns[1..] {
+            let bindings = pattern.bindings();
+            let mut names: Vec<&str> = Vec::new();
+            for (binding, _) in &bindings {
+                if names.contains(&binding.name.as_str()) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::DuplicateSymbol,
+                        format!("Symbol '{}' already defined in this scope", binding.name),
+                        binding.location,
+                    ));
+                }
+                names.push(binding.name.as_str());
+            }
+            names.sort_unstable();
+            names.dedup();
+            if names != first_names {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::InvalidMatchPattern,
+                    "Invalid match pattern: alternatives must bind the same names".to_string(),
+                    Self::pattern_location(pattern),
+                ));
+            }
         }
-        self.define_type(&first.name, None);
-        self.declare_symbol(
-            first.id,
-            first.name.clone(),
-            SymbolKind::Value,
-            false,
-            first.location,
-        );
+        for (binding, _) in first {
+            self.define_type(&binding.name, None);
+            self.declare_symbol(
+                binding.id,
+                binding.name.clone(),
+                SymbolKind::Value,
+                false,
+                binding.location,
+            );
+        }
     }
 
     // Statement resolution methods
@@ -2189,32 +2239,34 @@ impl SemanticAnalyzer {
 
         for arm in arms {
             for pattern in &arm.patterns {
-                match pattern {
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
-                        has_wildcard |= arm.guard.is_none()
+                if pattern.is_irrefutable() {
+                    has_wildcard |= arm.guard.is_none();
+                    continue;
+                }
+                let MatchPattern::Expr(expr) = pattern else {
+                    continue;
+                };
+                match self.match_pattern_enum_variant(expr) {
+                    Some(access) if access.enum_name == enum_name => {
+                        if arm.guard.is_none()
+                            && !covered.contains(&access.variant_name.to_string())
+                        {
+                            covered.push(access.variant_name.to_string());
+                        }
                     }
-                    MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
-                        Some(access) if access.enum_name == enum_name => {
-                            if arm.guard.is_none()
-                                && !covered.contains(&access.variant_name.to_string())
-                            {
-                                covered.push(access.variant_name.to_string());
-                            }
-                        }
-                        _ if !self.is_valid_match_pattern(expr) => {}
-                        _ => {
-                            self.push_error(CompilationError::new(
-                                CompilationPhase::Semantic,
-                                CompilationErrorKind::PatternNotInEnum,
-                                format!(
-                                    "Pattern {} does not belong to enum {}",
-                                    Self::match_pattern_display(expr),
-                                    enum_name
-                                ),
-                                Self::match_pattern_location(expr),
-                            ));
-                        }
-                    },
+                    _ if !self.is_valid_match_pattern(expr) => {}
+                    _ => {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::PatternNotInEnum,
+                            format!(
+                                "Pattern {} does not belong to enum {}",
+                                Self::match_pattern_display(expr),
+                                enum_name
+                            ),
+                            Self::match_pattern_location(expr),
+                        ));
+                    }
                 }
             }
         }
@@ -2305,14 +2357,11 @@ impl SemanticAnalyzer {
             let seen_before_arm = seen.len();
             let mut arm_wildcard = seen_wildcard;
             for pattern in &arm.patterns {
-                let (key, location) = match pattern {
-                    MatchPattern::Wildcard(location) => (None, *location),
-                    MatchPattern::Binding(binding) => (None, binding.location),
-                    MatchPattern::Expr(expr) => (
-                        self.match_pattern_key(expr),
-                        Self::match_pattern_location(expr),
-                    ),
+                let key = match pattern {
+                    MatchPattern::Expr(expr) => self.match_pattern_key(expr),
+                    _ => None,
                 };
+                let location = Self::pattern_location(pattern);
                 let duplicate = key.as_ref().is_some_and(|key| seen.contains(key));
                 if arm_wildcard || duplicate {
                     self.push_error(CompilationError::new(
@@ -2324,10 +2373,7 @@ impl SemanticAnalyzer {
                 } else if let Some(key) = key {
                     seen.push(key);
                 }
-                if matches!(
-                    pattern,
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
-                ) {
+                if pattern.is_irrefutable() {
                     arm_wildcard = true;
                 }
             }
@@ -2723,6 +2769,14 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
     }
 }
 
+fn pattern_references_it(pattern: &MatchPattern) -> bool {
+    match pattern {
+        MatchPattern::Expr(expr) => expr_references_it(expr),
+        MatchPattern::Array { elements, .. } => elements.iter().any(pattern_references_it),
+        MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. } => false,
+    }
+}
+
 fn expr_references_it(expr: &Expr) -> bool {
     match expr {
         Expr::Variable { name, .. } => name == "it",
@@ -2806,10 +2860,8 @@ fn expr_references_it(expr: &Expr) -> bool {
         } => {
             expr_references_it(scrutinee)
                 || arms.iter().any(|arm| {
-                    arm.patterns.iter().any(|pattern| match pattern {
-                        MatchPattern::Expr(expr) => expr_references_it(expr),
-                        MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => false,
-                    }) || arm.guard.as_ref().is_some_and(expr_references_it)
+                    arm.patterns.iter().any(pattern_references_it)
+                        || arm.guard.as_ref().is_some_and(expr_references_it)
                         || match &arm.body {
                             MatchArmBody::Expr(expr) => expr_references_it(expr),
                             MatchArmBody::Block(stmt) => stmt_references_it(stmt),

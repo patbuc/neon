@@ -138,6 +138,21 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_is_array_of_len(&mut self) {
+        // [.., value] -> [.., is_array_of_len]
+        let length = self.operand_u16(1) as usize;
+        let at_least = self.operand_u8(3) != 0;
+        self.ip += 3;
+        let slot = self.stack.last_mut().expect("operand is on the stack");
+        let matches = matches!(slot, Value::Array(array) if {
+            let actual = array.borrow().len();
+            if at_least { actual >= length } else { actual == length }
+        });
+        *slot = boolean!(matches);
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_call(&mut self) -> OpResult {
         let arg_count = self.operand_u8(1) as usize;
         self.ip += 2; // Skip CALL opcode and arg_count byte

@@ -1,0 +1,19 @@
+// Expected:
+// one-two
+// other
+// range
+
+print(match [1, "two"] {
+    [1, "two"] -> "one-two"
+    _ -> "other"
+})
+
+print(match [1, "three"] {
+    [1, "two"] -> "one-two"
+    _ -> "other"
+})
+
+print(match [4, nil] {
+    [1..5, _] -> "range"
+    _ -> "other"
+})

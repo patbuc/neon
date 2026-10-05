@@ -1,0 +1,7 @@
+// Expected:
+// 3
+
+match [1, 2, 3] {
+    [.., last] -> print(last)
+    _ -> print("no")
+}

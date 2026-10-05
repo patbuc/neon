@@ -921,3 +921,17 @@ fn test_match_guards_and_binding_patterns() {
         "val x = match c {\n    n if n > 1 -> \"a\"\n    1, 2 if ok(1) -> \"b\"\n    m -> m\n}\n",
     );
 }
+
+#[test]
+fn test_match_array_patterns_unchanged() {
+    let source = "val x = match c {\n    [] -> 0\n    [a, _] -> a\n    [1, [b, c]] -> b + c\n    _ -> 1\n}\n";
+    check(source, source);
+}
+
+#[test]
+fn test_match_underscore_rest_formats_as_bare_rest() {
+    check(
+        "val x = match c {\n    [.._, 1] -> 1\n    _ -> 0\n}\n",
+        "val x = match c {\n    [.., 1] -> 1\n    _ -> 0\n}\n",
+    );
+}

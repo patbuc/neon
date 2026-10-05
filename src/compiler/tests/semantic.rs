@@ -3545,6 +3545,14 @@ fn assert_match_error(program: &str, expected: &str) {
 }
 
 #[test]
+fn test_match_array_pattern_with_two_rests_is_compile_error() {
+    assert_match_error(
+        "val r = match [1, 2, 3] {\n    [.., ..] -> 1\n    _ -> 0\n}\n",
+        "only one rest",
+    );
+}
+
+#[test]
 fn test_match_expression_pattern_is_invalid() {
     assert_match_error(
         "val y = 1\nval r = match 1 {\n    y + 1 -> 1\n    _ -> 0\n}\n",
@@ -3692,6 +3700,38 @@ fn test_match_binding_covers_every_enum_variant() {
 fn test_match_alternatives_binding_different_names_is_error() {
     assert_match_error(
         "val r = match 1 {\n    a, b -> 1\n}\n",
+        "must bind the same names",
+    );
+}
+
+#[test]
+fn test_match_name_repeated_in_later_alternative_is_error() {
+    assert_match_error(
+        "val r = match [1, 2] {\n    [x, 0], [x, x] -> x\n    _ -> 0\n}\n",
+        "already defined",
+    );
+}
+
+#[test]
+fn test_match_underscore_rest_alternatives_compile() {
+    let program = "val r = match [5] {\n    [.._, 1], [1] -> 1\n    _ -> 0\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(
+        result.is_ok(),
+        "expected no errors, got {:#?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_array_alternatives_binding_different_names_is_error() {
+    assert_match_error(
+        "val r = match [1, 2] {\n    [a, 0], [0, b] -> 1\n    _ -> 0\n}\n",
         "must bind the same names",
     );
 }

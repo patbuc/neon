@@ -1054,16 +1054,36 @@ impl<'a> Printer<'a> {
         );
     }
 
+    fn print_match_pattern(&mut self, pattern: &MatchPattern) {
+        match pattern {
+            MatchPattern::Expr(expr) => self.print_expr(expr),
+            MatchPattern::Wildcard(_) => self.write("_"),
+            MatchPattern::Binding(binding) => self.write(&binding.name),
+            MatchPattern::Rest { binding, .. } => {
+                self.write("..");
+                if let Some(binding) = binding {
+                    self.write(&binding.name);
+                }
+            }
+            MatchPattern::Array { elements, .. } => {
+                self.write("[");
+                for (i, element) in elements.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.print_match_pattern(element);
+                }
+                self.write("]");
+            }
+        }
+    }
+
     fn print_match_arm(&mut self, arm: &MatchArm) {
         for (i, pattern) in arm.patterns.iter().enumerate() {
             if i > 0 {
                 self.write(", ");
             }
-            match pattern {
-                MatchPattern::Expr(expr) => self.print_expr(expr),
-                MatchPattern::Wildcard(_) => self.write("_"),
-                MatchPattern::Binding(binding) => self.write(&binding.name),
-            }
+            self.print_match_pattern(pattern);
         }
         if let Some(guard) = &arm.guard {
             self.write(" if ");
