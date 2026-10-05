@@ -1416,22 +1416,22 @@ fn test_for_in_bytecode() {
 0003      | Constant 01 '20'
 0006      | Constant 02 '30'
 0009      | CreateArray (elements: 3)
-000c      | GetIterator
-000d      | IteratorDone 00
-0010      | JumpIfFalse 0010 -> 0028
-0015      | Pop
-0016      | IteratorNext 00
-0019      3 Constant 03 '<native fn print>'
-001c      | GetLocal 02
-001f      | Call (args: 1)
-0021      2 Pop
-0022      | Pop
-0023      | Loop 0023 -> 000d
-0028      | Pop
+000c      | GetIterator (pairs: false)
+000e      | IteratorDone 00
+0011      | JumpIfFalse 0011 -> 0029
+0016      | Pop
+0017      | IteratorNext 00
+001a      3 Constant 03 '<native fn print>'
+001d      | GetLocal 02
+0020      | Call (args: 1)
+0022      2 Pop
+0023      | Pop
+0024      | Loop 0024 -> 000e
 0029      | Pop
 002a      | Pop
-002b      5 Nil
-002c      | Return
+002b      | Pop
+002c      5 Nil
+002d      | Return
 === </main> ===
 "#;
 

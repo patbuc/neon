@@ -240,19 +240,46 @@ pub enum IfExprElse {
     Block(Stmt),
 }
 
+/// A single declared name: `val x = ...`'s `x`, or one non-`_` slot of a
+/// tuple pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Binding {
+    pub name: String,
+    pub id: NodeId,
+    pub location: SourceLocation,
+}
+
+/// What a `val`/`var`/`for` declares: a single name, or a tuple pattern
+/// (`(a, _, c)`) destructuring an Array - `_` skips a position without
+/// declaring anything, so that slot is `None`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    Name(Binding),
+    Tuple(Vec<Option<Binding>>),
+}
+
+impl Pattern {
+    /// The names this pattern actually declares, in order - skipping `_`
+    /// slots for a tuple pattern.
+    pub fn bindings(&self) -> Vec<&Binding> {
+        match self {
+            Pattern::Name(binding) => vec![binding],
+            Pattern::Tuple(slots) => slots.iter().filter_map(Option::as_ref).collect(),
+        }
+    }
+}
+
 /// Statement nodes
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Val {
-        name: String,
+        pattern: Pattern,
         initializer: Option<Expr>,
-        id: NodeId,
         location: SourceLocation,
     },
     Var {
-        name: String,
+        pattern: Pattern,
         initializer: Option<Expr>,
-        id: NodeId,
         location: SourceLocation,
     },
     Fn {
@@ -303,10 +330,9 @@ pub enum Stmt {
         location: SourceLocation,
     },
     ForIn {
-        variable: String,
+        pattern: Pattern,
         collection: Expr,
         body: Box<Stmt>,
-        id: NodeId,
         location: SourceLocation,
     },
     Break {

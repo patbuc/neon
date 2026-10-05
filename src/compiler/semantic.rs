@@ -8,7 +8,7 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    EnumVariant, Expr, IfExprElse, InterpolationPart, NodeId, Stmt, StructField,
+    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, NodeId, Pattern, Stmt, StructField,
 };
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
@@ -79,10 +79,11 @@ pub struct SemanticAnalyzer {
     // resolved yet; a direct script-level read/write/postfix-op naming one
     // is a compile error.
     not_initialized_top_level: HashSet<DeclId>,
-    // DeclId of the top-level val/var currently resolving its own
-    // initializer, if any - a direct read of it there is "in its own
-    // initializer", not "before its declaration".
-    currently_initializing: Option<DeclId>,
+    // DeclIds of the top-level val/var name(s) currently resolving their own
+    // initializer, if any - a direct read of one of them there is "in its
+    // own initializer", not "before its declaration". A tuple pattern can
+    // declare more than one name from a single initializer.
+    currently_initializing: HashSet<DeclId>,
     // DeclIds of block/function-body-local `fn` declarations whose own
     // `Stmt::Fn` hasn't been resolved yet. A read that resolves to one of
     // these can run before that `fn`'s slot is bound, so it needs a
@@ -153,7 +154,7 @@ impl SemanticAnalyzer {
             next_decl_id,
             function_frames: vec![FunctionResolution::default()],
             not_initialized_top_level: HashSet::new(),
-            currently_initializing: None,
+            currently_initializing: HashSet::new(),
             pending_block_fns: HashSet::new(),
             too_many_symbols_reported: false,
             builtin_decl_count: next_decl_id,
@@ -321,21 +322,23 @@ impl SemanticAnalyzer {
                         *location,
                     );
                 }
-                Stmt::Val {
-                    name, id, location, ..
-                }
-                | Stmt::Var {
-                    name, id, location, ..
-                } => {
+                Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
                     let is_mutable = matches!(stmt, Stmt::Var { .. });
                     let kind = if is_mutable {
                         SymbolKind::Variable
                     } else {
                         SymbolKind::Value
                     };
-                    let decl_id =
-                        self.declare_symbol(*id, name.clone(), kind, is_mutable, *location);
-                    self.not_initialized_top_level.insert(decl_id);
+                    for binding in pattern.bindings() {
+                        let decl_id = self.declare_symbol(
+                            binding.id,
+                            binding.name.clone(),
+                            kind.clone(),
+                            is_mutable,
+                            binding.location,
+                        );
+                        self.not_initialized_top_level.insert(decl_id);
+                    }
                 }
                 _ => {}
             }
@@ -827,7 +830,7 @@ impl SemanticAnalyzer {
             return;
         }
         let decl_id = use_.decl_id;
-        if self.currently_initializing == Some(decl_id) {
+        if self.currently_initializing.contains(&decl_id) {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::ReadInOwnInitializer,
@@ -853,35 +856,49 @@ impl SemanticAnalyzer {
     fn resolve_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
-                name,
+                pattern,
                 initializer,
-                id,
-                location,
-            } => {
-                self.resolve_variable_declaration(
-                    *id,
-                    name,
-                    initializer.as_ref(),
-                    SymbolKind::Value,
-                    false,
-                    *location,
-                );
-            }
+                ..
+            } => match (pattern, initializer.as_ref()) {
+                (Pattern::Tuple(slots), Some(init)) => {
+                    self.resolve_tuple_declaration(slots, init, false);
+                }
+                (Pattern::Name(binding), _) => {
+                    self.resolve_variable_declaration(
+                        binding.id,
+                        &binding.name,
+                        initializer.as_ref(),
+                        SymbolKind::Value,
+                        false,
+                        binding.location,
+                    );
+                }
+                (Pattern::Tuple(_), None) => {
+                    unreachable!("tuple pattern always has an initializer")
+                }
+            },
             Stmt::Var {
-                name,
+                pattern,
                 initializer,
-                id,
-                location,
-            } => {
-                self.resolve_variable_declaration(
-                    *id,
-                    name,
-                    initializer.as_ref(),
-                    SymbolKind::Variable,
-                    true,
-                    *location,
-                );
-            }
+                ..
+            } => match (pattern, initializer.as_ref()) {
+                (Pattern::Tuple(slots), Some(init)) => {
+                    self.resolve_tuple_declaration(slots, init, true);
+                }
+                (Pattern::Name(binding), _) => {
+                    self.resolve_variable_declaration(
+                        binding.id,
+                        &binding.name,
+                        initializer.as_ref(),
+                        SymbolKind::Variable,
+                        true,
+                        binding.location,
+                    );
+                }
+                (Pattern::Tuple(_), None) => {
+                    unreachable!("tuple pattern always has an initializer")
+                }
+            },
             Stmt::Fn {
                 params,
                 body,
@@ -1020,13 +1037,12 @@ impl SemanticAnalyzer {
                 self.validate_loop_control_statement("continue", *location);
             }
             Stmt::ForIn {
-                variable,
+                pattern,
                 collection,
                 body,
-                id,
-                location,
+                ..
             } => {
-                self.resolve_for_in_statement(*id, variable, collection, body, *location);
+                self.resolve_for_in_statement(pattern, collection, body);
             }
         }
     }
@@ -1192,7 +1208,8 @@ impl SemanticAnalyzer {
             // tracking which decl is initializing so a self-read reports the
             // right message, then mark it initialized.
             let decl_id = self.resolutions.decl(id);
-            let previous = self.currently_initializing.replace(decl_id);
+            let previous =
+                std::mem::replace(&mut self.currently_initializing, HashSet::from([decl_id]));
             let inferred_type = initializer.map(|init| {
                 self.resolve_expr(init);
                 self.infer_expr_type(init)
@@ -1213,6 +1230,54 @@ impl SemanticAnalyzer {
         self.define_type(name, inferred_type.flatten());
         // Then define the variable in current scope
         self.declare_symbol(id, name.to_string(), kind, is_mutable, location);
+    }
+
+    /// Resolves `val (a, _, c) = expr` / `var (...)`: the initializer, then
+    /// each named slot (an element's type isn't tracked, unlike a plain
+    /// `val`/`var`, since it's not the initializer's own type).
+    fn resolve_tuple_declaration(
+        &mut self,
+        slots: &[Option<Binding>],
+        initializer: &Expr,
+        is_mutable: bool,
+    ) {
+        let bindings: Vec<&Binding> = slots.iter().filter_map(Option::as_ref).collect();
+
+        if self.symbol_table.current_depth() == 0 {
+            // Top level: collect_declarations already declared these names.
+            let decl_ids: HashSet<DeclId> = bindings
+                .iter()
+                .map(|binding| self.resolutions.decl(binding.id))
+                .collect();
+            let previous = std::mem::replace(&mut self.currently_initializing, decl_ids.clone());
+            self.resolve_expr(initializer);
+            self.currently_initializing = previous;
+            for binding in &bindings {
+                self.define_type(&binding.name, None);
+            }
+            for decl_id in decl_ids {
+                self.not_initialized_top_level.remove(&decl_id);
+            }
+            return;
+        }
+
+        self.resolve_expr(initializer);
+
+        for binding in &bindings {
+            self.define_type(&binding.name, None);
+            let kind = if is_mutable {
+                SymbolKind::Variable
+            } else {
+                SymbolKind::Value
+            };
+            self.declare_symbol(
+                binding.id,
+                binding.name.clone(),
+                kind,
+                is_mutable,
+                binding.location,
+            );
+        }
     }
 
     fn resolve_function_declaration(
@@ -1356,24 +1421,25 @@ impl SemanticAnalyzer {
         self.loop_depth -= 1;
     }
 
-    fn resolve_for_in_statement(
-        &mut self,
-        id: NodeId,
-        variable: &str,
-        collection: &Expr,
-        body: &Stmt,
-        location: SourceLocation,
-    ) {
+    fn resolve_for_in_statement(&mut self, pattern: &Pattern, collection: &Expr, body: &Stmt) {
         // Resolve the collection expression
         self.resolve_expr(collection);
 
         // Enter a new scope for the loop
         self.enter_scope();
 
-        // Define the loop variable as immutable (always val). Its type is
-        // unknown and explicitly shadows any outer type of the same name.
-        self.define_type(variable, None);
-        self.declare_symbol(id, variable.to_string(), SymbolKind::Value, false, location);
+        // Define the loop variable(s) as immutable (always val). Their type
+        // is unknown and explicitly shadows any outer type of the same name.
+        for binding in pattern.bindings() {
+            self.define_type(&binding.name, None);
+            self.declare_symbol(
+                binding.id,
+                binding.name.clone(),
+                SymbolKind::Value,
+                false,
+                binding.location,
+            );
+        }
 
         // Track loop depth for break/continue validation
         self.loop_depth += 1;
@@ -2240,7 +2306,10 @@ fn block_references_it(body: &[Stmt]) -> bool {
 
 fn stmt_declares_it(stmt: &Stmt) -> bool {
     match stmt {
-        Stmt::Val { name, .. } | Stmt::Var { name, .. } | Stmt::Fn { name, .. } => name == "it",
+        Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
+            pattern.bindings().iter().any(|b| b.name == "it")
+        }
+        Stmt::Fn { name, .. } => name == "it",
         _ => false,
     }
 }
@@ -2272,11 +2341,14 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
         } => expr_references_it(condition) || stmt_references_it(body),
         Stmt::Return { value, .. } => value.as_ref().is_some_and(expr_references_it),
         Stmt::ForIn {
-            variable,
+            pattern,
             collection,
             body,
             ..
-        } => expr_references_it(collection) || (variable != "it" && stmt_references_it(body)),
+        } => {
+            let declares_it = pattern.bindings().iter().any(|b| b.name == "it");
+            expr_references_it(collection) || (!declares_it && stmt_references_it(body))
+        }
     }
 }
 

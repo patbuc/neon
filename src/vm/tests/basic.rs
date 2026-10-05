@@ -3644,6 +3644,20 @@ fn val_reading_itself_in_initializer_is_compile_error() {
 }
 
 #[test]
+fn tuple_val_reading_itself_in_initializer_is_compile_error() {
+    let program = r#"
+        val (b, c) = [1, b]
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::CompileError, result);
+    assert!(vm
+        .get_compiler_error()
+        .contains("Cannot read 'b' in its own initializer"));
+}
+
+#[test]
 fn nested_fn_reading_later_block_val_is_compile_error() {
     let program = r#"
         fn outer() {

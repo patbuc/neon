@@ -151,6 +151,17 @@ var x = 10        // Mutable variable
 val name = "Bob"  // Immutable variable
 ```
 
+`val`/`var` also destructure a tuple pattern - an Array of exactly the right
+length - binding each element to a name; `_` skips a position without
+declaring anything:
+
+```neon
+val (a, b) = [1, 2]
+print(a, b)  // 1 2
+
+var (x, _, z) = [1, 2, 3]
+```
+
 ### Statements and Newlines
 
 A newline ends a statement, so two statements can't share a line without one:
@@ -485,6 +496,11 @@ for key in person {
     print("${key}: ${person[key]}")
 }
 
+// For-in loop over map entries, destructuring each [key, value] pair
+for (key, value) in person {
+    print("${key}: ${value}")
+}
+
 // For-in loop over set
 val numbers = #{1, 2, 3}
 for num in numbers {
@@ -492,8 +508,12 @@ for num in numbers {
 }
 ```
 
-`for-in` gives every iteration its own binding of the loop variable, so a closure
-created in the body keeps that iteration's value.
+`for-in` also destructures a tuple pattern, the same as `val`/`var`: each
+element (or, over a Map, each `[key, value]` pair) is bound by position, and
+`_` skips a position without declaring anything.
+
+`for-in` gives every iteration its own binding of the loop variable (or
+variables), so a closure created in the body keeps that iteration's value.
 
 ### Operators
 
@@ -744,6 +764,11 @@ person["email"] = "alice@example.com"
 // Iterate over keys
 for key in person {
     print("${key}: ${person[key]}")
+}
+
+// Iterate over entries, destructuring each [key, value] pair
+for (key, value) in person {
+    print("${key}: ${value}")
 }
 
 // Check if key exists

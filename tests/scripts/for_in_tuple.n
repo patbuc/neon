@@ -1,0 +1,25 @@
+// Expected:
+// a 1
+// b 2
+// a
+// b
+// 0 p
+// 1 q
+// a
+// b
+
+for (k, v) in {"a": 1, "b": 2} {
+    print(k, v)
+}
+
+for k in {"a": 1, "b": 2} {
+    print(k)
+}
+
+for (i, x) in ["p", "q"].withIndex() {
+    print(i, x)
+}
+
+for (k, _) in {"a": 1, "b": 2} {
+    print(k)
+}

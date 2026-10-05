@@ -281,6 +281,7 @@ impl VirtualMachine {
                 OpCode::CloseUpvalue => self.op_close_upvalue(),
                 OpCode::DefineMethod => self.op_define_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
+                OpCode::CheckTuple => self.op_check_tuple()?,
                 OpCode::StoreLocal => self.op_store_local()?,
                 OpCode::StoreField => self.op_store_field()?,
                 OpCode::StoreLocalField => self.op_store_local_field()?,

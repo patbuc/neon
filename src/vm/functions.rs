@@ -1,6 +1,7 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
+use crate::common::stdlib::array_functions;
 use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
@@ -1282,6 +1283,33 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Peeks the top of the stack and errors unless it holds an Array of
+    /// exactly `n` elements, read from the 16-bit operand; otherwise a
+    /// no-op.
+    #[inline(always)]
+    pub(in crate::vm) fn op_check_tuple(&mut self) -> OpResult {
+        let n = self.read_index();
+        self.ip += 2;
+
+        match self.peek(0) {
+            Value::Array(array_ref) => {
+                let len = array_ref.borrow().len();
+                if len != n {
+                    return Err(self.runtime_error(format!(
+                        "Cannot destructure Array of size {} into {} names",
+                        len, n
+                    )));
+                }
+                Ok(())
+            }
+            other => Err(self.runtime_error(format!(
+                "Cannot destructure {} into {} names",
+                array_functions::type_name_for_error(other),
+                n
+            ))),
+        }
+    }
+
     /// The "used before initialization" message for `value`, if it's the
     /// uninitialized sentinel. A free function (no `self`) so callers can
     /// build it while still holding an immutable borrow of the stack.
@@ -1665,6 +1693,8 @@ impl VirtualMachine {
     /// collected into a new array) followed by the starting index, 0.
     #[inline(always)]
     pub(in crate::vm) fn op_get_iterator(&mut self) -> OpResult {
+        let pairs = self.operand_u8(1) != 0;
+
         let collection = self.pop();
 
         let iterator_value = match &collection {
@@ -1672,9 +1702,18 @@ impl VirtualMachine {
             Value::Range(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
-                let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
+                if pairs {
+                    let entries: Vec<Value> = map
+                        .iter()
+                        .map(|(key, value)| Value::new_array(vec![key.to_value(), value.clone()]))
+                        .collect();
 
-                Value::new_array(keys)
+                    Value::new_array(entries)
+                } else {
+                    let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
+
+                    Value::new_array(keys)
+                }
             }
             Value::Set(set_ref) => {
                 let set = set_ref.borrow();
@@ -1693,6 +1732,7 @@ impl VirtualMachine {
 
         self.push(iterator_value);
         self.push(int!(0));
+        self.ip += 1;
         Ok(())
     }
 

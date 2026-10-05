@@ -1,6 +1,6 @@
 use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Pattern, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
 use crate::compiler::{Comment, CommentKind, Trivia};
 
@@ -335,26 +335,37 @@ impl<'a> Printer<'a> {
         self.nested(0, |printer| printer.print_stmt_body(stmt));
     }
 
+    fn write_pattern(&mut self, pattern: &Pattern) {
+        match pattern {
+            Pattern::Name(binding) => self.write(&binding.name),
+            Pattern::Tuple(slots) => {
+                self.write("(");
+                for (i, slot) in slots.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
+                }
+                self.write(")");
+            }
+        }
+    }
+
     fn print_stmt_body(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
-                name,
+                pattern,
                 initializer,
                 location,
-                ..
             }
             | Stmt::Var {
-                name,
+                pattern,
                 initializer,
                 location,
-                ..
             } => {
-                self.write(if matches!(stmt, Stmt::Val { .. }) {
-                    "val "
-                } else {
-                    "var "
-                });
-                self.write(name);
+                let is_val = matches!(stmt, Stmt::Val { .. });
+                self.write(if is_val { "val " } else { "var " });
+                self.write_pattern(pattern);
                 if let Some(init) = initializer {
                     self.write(" =");
                     self.write_space_or_continuation(location.line, self.map.first_line(init));
@@ -423,13 +434,13 @@ impl<'a> Printer<'a> {
                 self.print_stmt(body);
             }
             Stmt::ForIn {
-                variable,
+                pattern,
                 collection,
                 body,
                 ..
             } => {
                 self.write("for ");
-                self.write(variable);
+                self.write_pattern(pattern);
                 self.write(" in ");
                 self.nested(0, |printer| printer.print_condition(collection));
                 self.write(" ");

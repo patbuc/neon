@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot destructure Array of size 1 into 2 names
+
+print("before")
+val (a, b) = [1]

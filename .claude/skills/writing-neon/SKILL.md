@@ -86,8 +86,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   `val` first (`val sign = if n > 100 { "big" } else { "small" }`) and use
   that as the branch's last statement instead.
 - `for x in coll { }` is the only `for`; no C-style `for`. Count with a range
-  instead: `for i in 0..n { }`. For-in over a map gives keys. `break`/
-  `continue` exist.
+  instead: `for i in 0..n { }`. For-in over a map gives keys, or
+  `[key, value]` pairs with `for (k, v) in m { }`. `val`/`var`/`for` also
+  destructure a tuple pattern (`val (a, b) = [1, 2]`), `_` skipping a
+  position. `break`/`continue` exist.
 - No `switch`/`match`, `do`/`while`, `try`/`catch`, or `throw`.
 
 **Operators**
