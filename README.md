@@ -1078,10 +1078,10 @@ for ch in "abc" {
 - `.groupBy(fn)` - Map from each element's key (from `fn`) to an array of the elements that produced
   it, in first-key insertion order. Keys must be valid map keys
 - `.tally()` - Map from each distinct element to how many times it occurs, in first-occurrence order.
+  Elements must be valid map keys
 - `.takeWhile(fn)` - New array of the leading elements for which `fn` is truthy, stopping at the first that isn't
 - `.dropWhile(fn)` - New array of the elements from the first one for which `fn` is falsy onwards
 - `.partition(fn)` - `[matching, nonMatching]`: two new arrays split by whether `fn` is truthy
-  Elements must be valid map keys
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
 - `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements. `.sum()` is an int if every
