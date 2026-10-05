@@ -36,6 +36,7 @@ fn assert_first_token(source: &str, token_type: TokenType, lexeme: &str) {
     let tokens = collect_tokens(Scanner::new(source));
     assert_eq!(tokens[0].token_type, token_type, "source {source:?}");
     assert_eq!(tokens[0].token, lexeme, "source {source:?}");
+    assert_eq!(tokens.len(), 2, "source {source:?}");
 }
 
 #[test]
@@ -267,41 +268,47 @@ fn scans_number_literals() {
     ];
     for (source, lexeme) in cases {
         assert_first_token(source, TokenType::Number, lexeme);
-        assert_eq!(
-            collect_tokens(Scanner::new(source)).len(),
-            2,
-            "source {source:?}"
-        );
     }
 }
 
 #[test]
-fn rejects_invalid_number_literals() {
+fn rejects_malformed_input() {
+    let invalid_number = CompilationErrorKind::InvalidNumberLiteral;
     let cases = [
-        ("1e", "Missing digits in number exponent"),
-        ("1e+", "Missing digits in number exponent"),
-        ("1e_5", "Missing digits in number exponent"),
-        ("0b123", "Invalid digit in binary literal"),
+        ("1e", invalid_number, "Missing digits in number exponent"),
+        ("1e+", invalid_number, "Missing digits in number exponent"),
+        ("1e_5", invalid_number, "Missing digits in number exponent"),
+        ("0b123", invalid_number, "Invalid digit in binary literal"),
         (
             "0b2",
+            invalid_number,
             "Invalid digit in binary literal (only 0 and 1 allowed)",
         ),
-        ("0o89", "Invalid digit in octal literal"),
-        ("0x", "requires at least one digit"),
-        ("0b", "requires at least one digit"),
-        ("123_", "underscore"),
+        ("0o89", invalid_number, "Invalid digit in octal literal"),
+        ("0x", invalid_number, "requires at least one digit"),
+        ("0b", invalid_number, "requires at least one digit"),
+        ("123_", invalid_number, "underscore"),
+        (
+            "val s = # {1}",
+            CompilationErrorKind::UnexpectedCharacter,
+            "Unexpected character",
+        ),
     ];
-    for (source, message) in cases {
+    for (source, kind, message) in cases {
         let tokens = collect_tokens(Scanner::new(source));
+        let error = tokens
+            .iter()
+            .find(|token| matches!(token.token_type, TokenType::Error(_)))
+            .unwrap_or_else(|| panic!("source {source:?}: no error token"));
         assert_eq!(
-            tokens[0].token_type,
-            TokenType::Error(CompilationErrorKind::InvalidNumberLiteral),
+            error.token_type,
+            TokenType::Error(kind),
             "source {source:?}"
         );
         assert!(
-            tokens[0].token.contains(message),
+            error.token.contains(message),
             "source {source:?}: {:?} does not contain {message:?}",
-            tokens[0].token
+            error.token
         );
     }
 }
@@ -320,18 +327,6 @@ fn can_scan_hash_left_brace() {
     assert_eq!(x[1].column, 3);
     assert_eq!(x[2].token_type, TokenType::RightBrace);
     assert_eq!(x[3].token_type, TokenType::Eof);
-}
-
-#[test]
-fn rejects_bare_hash() {
-    let scanner = Scanner::new("val s = # {1}");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[3].token_type,
-        TokenType::Error(CompilationErrorKind::UnexpectedCharacter)
-    );
-    assert!(tokens[3].token.contains("Unexpected character"));
 }
 
 #[test]
