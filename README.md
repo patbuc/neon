@@ -291,6 +291,59 @@ fn(x) {
 }(5)  // 5
 ```
 
+#### Trailing Blocks
+
+When a function literal is a call's last (or only) argument, it can be
+written as a block right after the call instead of `fn(...) { ... }`. Any
+other arguments stay inside the parentheses, and the block takes the
+function's place as the last one; a call with no other arguments can drop
+the parentheses entirely:
+
+```neon
+print([1, 2, 3].map { it * 2 })                   // [2, 4, 6]
+print([1, 2, 3].reduce(0) { acc, x -> acc + x })  // 6
+twice { print("hi") }
+```
+
+Named parameters go in a `name, name ->` header before the body, just like a
+lambda's parameter list:
+
+```neon
+print(["a", "bb", "ccc"].sortBy { s -> s.size() })
+```
+
+A block with no `->` header takes an implicit parameter named `it`, but only
+when its body actually reads a free `it`; a block that never mentions `it`
+takes zero parameters instead, same as `fn() { ... }`:
+
+```neon
+print([1, 2, 3].map { it * 2 })   // it is the element
+twice { print("hi") }             // no parameters at all
+```
+
+A block that declares its own `it` — as a parameter, a `val it`/`var it`, or
+a `for it in ...` — doesn't get the implicit one, and nested blocks each
+bind their own `it` independently of any outer one:
+
+```neon
+print([[1, 2], [3]].map { row ->
+    row.map { it * 10 }   // inner it is row's element, not the outer map's
+})
+```
+
+`return` inside a trailing block returns from the block itself, same as any
+other lambda, not from the function the block was passed into.
+
+Trailing blocks aren't allowed in an `if`/`while` condition or a `for ... in`
+collection — Neon can't tell the block apart from the statement body that
+follows. Parenthesize the call instead:
+
+```neon
+if ([1, 2, 3].filter { it > 1 }.isEmpty()) {
+    print("empty")
+}
+```
+
 #### Hoisting
 
 Every top-level `fn`, `struct`, `val`, and `var` is visible throughout the
