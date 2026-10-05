@@ -2055,6 +2055,14 @@ fn test_nil_coalesce_emits_jump_if_not_nil() {
     a ?? b
     "#;
     let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
-    assert!(disassembly.contains("JumpIfNotNil"));
+    let ops = op_codes(&chunk);
+
+    let jump_index = ops
+        .iter()
+        .position(|op| *op == OpCode::JumpIfNotNil)
+        .expect("expected a JumpIfNotNil instruction");
+    assert_eq!(
+        &[OpCode::JumpIfNotNil, OpCode::Pop, OpCode::GetLocal],
+        &ops[jump_index..jump_index + 3]
+    );
 }

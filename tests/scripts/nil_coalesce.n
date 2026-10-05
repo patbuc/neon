@@ -5,6 +5,8 @@
 // []
 // 1
 // 1
+// false
+// 5
 
 print(nil ?? 1, false ?? 1, 0 ?? 1)
 print("[" + ("" ?? 1) + "]")
@@ -19,3 +21,9 @@ nil ?? boom()
 print(count)
 1 ?? boom()
 print(count)
+
+print(nil ?? false ?? 3)
+
+val v = nil ??
+    5
+print(v)

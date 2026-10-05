@@ -4269,9 +4269,6 @@ fn test_c_style_for_is_compile_error() {
     assert!(result.is_err(), "C-style for should be removed");
 }
 
-// `??` is assumed to mirror how `||` is represented: `Expr::Binary` with
-// `operator: BinaryOp::NilCoalesce`, not a dedicated `Expr::NilCoalesce` node.
-
 #[test]
 fn test_parse_nil_coalesce_binds_looser_than_or() {
     let mut parser = Parser::new("a ?? b || c\n");
