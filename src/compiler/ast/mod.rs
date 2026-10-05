@@ -241,6 +241,8 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchArm {
     pub patterns: Vec<MatchPattern>,
+    /// `if cond` after the patterns; the arm is skipped when it is false.
+    pub guard: Option<Expr>,
     pub body: MatchArmBody,
     pub location: SourceLocation,
 }
@@ -252,6 +254,8 @@ pub enum MatchPattern {
     /// except an `Expr::Range`, which is matched by containment.
     Expr(Expr),
     Wildcard(SourceLocation),
+    /// A bare name: matches anything and binds it, immutably, for the arm.
+    Binding(Binding),
 }
 
 /// The body of a match arm: `-> expr` or `-> { ... }`.

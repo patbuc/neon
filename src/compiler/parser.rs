@@ -1935,6 +1935,12 @@ impl Parser {
             patterns.push(self.match_pattern()?);
         }
 
+        let guard = if self.match_token(TokenType::If) {
+            Some(self.expression(false)?)
+        } else {
+            None
+        };
+
         if !self.consume(TokenType::Arrow, "Expect '->' after match pattern.") {
             return None;
         }
@@ -1954,19 +1960,25 @@ impl Parser {
 
         Some(MatchArm {
             patterns,
+            guard,
             body,
             location,
         })
     }
 
-    /// A single pattern: `_`, or a literal, range or enum variant.
+    /// A single pattern: `_`, a bare name, or a literal, range or enum variant.
     fn match_pattern(&mut self) -> Option<MatchPattern> {
         if self.check(TokenType::Identifier) && self.current_token.token == "_" {
             let location = self.current_token_location();
             self.advance();
             return Some(MatchPattern::Wildcard(location));
         }
-        Some(MatchPattern::Expr(self.expression(false)?))
+        match self.expression(false)? {
+            Expr::Variable { name, id, location } => {
+                Some(MatchPattern::Binding(Binding { name, id, location }))
+            }
+            expr => Some(MatchPattern::Expr(expr)),
+        }
     }
 
     fn index(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {

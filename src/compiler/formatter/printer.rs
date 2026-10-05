@@ -1062,7 +1062,12 @@ impl<'a> Printer<'a> {
             match pattern {
                 MatchPattern::Expr(expr) => self.print_expr(expr),
                 MatchPattern::Wildcard(_) => self.write("_"),
+                MatchPattern::Binding(binding) => self.write(&binding.name),
             }
+        }
+        if let Some(guard) = &arm.guard {
+            self.write(" if ");
+            self.print_expr(guard);
         }
         self.write(" -> ");
         match &arm.body {

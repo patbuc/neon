@@ -913,3 +913,11 @@ fn test_corpus_formats_idempotently_and_preserves_comments() {
         }
     }
 }
+
+#[test]
+fn test_match_guards_and_binding_patterns() {
+    check(
+        "val x = match c {\nn if n>1 ->\"a\"\n1,2 if  ok(1)->\"b\"\nm->m\n}\n",
+        "val x = match c {\n    n if n > 1 -> \"a\"\n    1, 2 if ok(1) -> \"b\"\n    m -> m\n}\n",
+    );
+}

@@ -1,0 +1,12 @@
+// Expected:
+// 12
+
+var f = nil
+match 10 {
+    n -> {
+        f = fn() {
+            return n + 2
+        }
+    }
+}
+print(f())

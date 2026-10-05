@@ -1,0 +1,13 @@
+// Expected:
+// guard
+// matched
+
+fn check() {
+    print("guard")
+    return true
+}
+
+match 1 {
+    1 if check() -> print("matched")
+    _ -> print("other")
+}
