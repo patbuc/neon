@@ -78,6 +78,8 @@ compilation_error_kinds! {
     ImplOnEnum => "E0044",
     UnplaceableComment => "E0045",
     OptionalDotOnType => "E0046",
+    NonExhaustiveMatch => "E0047",
+    PatternNotInEnum => "E0048",
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,0 +1,28 @@
+// Expected:
+// 1
+// 2
+// red
+
+enum Color {
+    Red
+    Green
+}
+
+fn describe(c) {
+    return match c {
+        Color.Red -> 1
+        Color.Green -> 2
+    }
+}
+
+print(describe(Color.Red))
+print(describe(Color.Green))
+
+val s = match Color.Red {
+    Color.Red -> {
+        val s = "r"
+        s + "ed"
+    }
+    Color.Green -> "green"
+}
+print(s)

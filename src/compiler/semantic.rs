@@ -8,8 +8,8 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArmBody, MatchPattern, NodeId,
-    Pattern, Stmt, StructField,
+    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
+    MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
@@ -1190,7 +1190,9 @@ impl SemanticAnalyzer {
                 }
             }
             Expr::Match {
-                scrutinee, arms, ..
+                scrutinee,
+                arms,
+                location,
             } => {
                 self.resolve_expr(scrutinee);
                 for arm in arms {
@@ -1204,6 +1206,7 @@ impl SemanticAnalyzer {
                         MatchArmBody::Block(stmt) => self.resolve_stmt(stmt),
                     }
                 }
+                self.check_match_exhaustiveness(arms, *location);
             }
         }
     }
@@ -1982,6 +1985,130 @@ impl SemanticAnalyzer {
                 ..
             }) => Some(variants.clone()),
             _ => None,
+        }
+    }
+
+    /// If `pattern` is `Enum.Variant`, already resolved by `resolve_expr` as
+    /// an enum-variant access, its recorded access.
+    fn match_pattern_enum_variant(&self, expr: &Expr) -> Option<EnumVariantAccess> {
+        let Expr::GetField { object, .. } = expr else {
+            return None;
+        };
+        let Expr::Variable { id, .. } = object.as_ref() else {
+            return None;
+        };
+        self.resolutions.enum_variant_access(*id).cloned()
+    }
+
+    /// The location of a match pattern expression, for pointing an error at
+    /// the pattern as written.
+    fn match_pattern_location(expr: &Expr) -> SourceLocation {
+        match expr {
+            Expr::Number { location, .. }
+            | Expr::Int { location, .. }
+            | Expr::String { location, .. }
+            | Expr::Boolean { location, .. }
+            | Expr::Nil { location }
+            | Expr::Unary { location, .. }
+            | Expr::Range { location, .. }
+            | Expr::GetField { location, .. } => *location,
+            _ => SourceLocation::default(),
+        }
+    }
+
+    /// How a match pattern prints in an error message: its source spelling
+    /// for a literal or negative number, `Enum.Variant` for an enum
+    /// variant.
+    fn match_pattern_display(expr: &Expr) -> String {
+        match expr {
+            Expr::Number { raw, .. } | Expr::Int { raw, .. } => raw.clone(),
+            Expr::String { raw, .. } => format!("\"{}\"", raw),
+            Expr::Boolean { value, .. } => value.to_string(),
+            Expr::Nil { .. } => "nil".to_string(),
+            Expr::Unary {
+                operator: UnaryOp::Negate,
+                operand,
+                ..
+            } => format!("-{}", Self::match_pattern_display(operand)),
+            Expr::GetField { object, field, .. } => {
+                if let Expr::Variable { name, .. } = object.as_ref() {
+                    format!("{}.{}", name, field)
+                } else {
+                    field.clone()
+                }
+            }
+            _ => "<pattern>".to_string(),
+        }
+    }
+
+    /// An enum match - one whose patterns include at least one
+    /// `Enum.Variant` - must have every non-wildcard pattern belong to that
+    /// enum, and (absent a wildcard) cover every one of its variants.
+    fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
+        let mut enum_identity: Option<(Rc<str>, Vec<String>)> = None;
+        for arm in arms {
+            for pattern in &arm.patterns {
+                if let MatchPattern::Expr(expr) = pattern {
+                    if let Some(access) = self.match_pattern_enum_variant(expr) {
+                        let variants = self.enum_variants(&access.enum_name).unwrap_or_default();
+                        enum_identity = Some((access.enum_name, variants));
+                        break;
+                    }
+                }
+            }
+            if enum_identity.is_some() {
+                break;
+            }
+        }
+
+        let Some((enum_name, variants)) = enum_identity else {
+            return;
+        };
+
+        let mut has_wildcard = false;
+        let mut covered: Vec<String> = Vec::new();
+
+        for arm in arms {
+            for pattern in &arm.patterns {
+                match pattern {
+                    MatchPattern::Wildcard => has_wildcard = true,
+                    MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
+                        Some(access) if access.enum_name == enum_name => {
+                            if !covered.contains(&access.variant_name.to_string()) {
+                                covered.push(access.variant_name.to_string());
+                            }
+                        }
+                        _ => {
+                            self.push_error(CompilationError::new(
+                                CompilationPhase::Semantic,
+                                CompilationErrorKind::PatternNotInEnum,
+                                format!(
+                                    "Pattern {} does not belong to enum {}",
+                                    Self::match_pattern_display(expr),
+                                    enum_name
+                                ),
+                                Self::match_pattern_location(expr),
+                            ));
+                        }
+                    },
+                }
+            }
+        }
+
+        if !has_wildcard {
+            let missing: Vec<&str> = variants
+                .iter()
+                .filter(|v| !covered.contains(v))
+                .map(|v| v.as_str())
+                .collect();
+            if !missing.is_empty() {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::NonExhaustiveMatch,
+                    format!("match on {} is missing {}", enum_name, missing.join(", ")),
+                    match_location,
+                ));
+            }
         }
     }
 

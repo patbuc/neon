@@ -4159,3 +4159,54 @@ fn test_optional_dot_on_struct_type_name_is_compile_error() {
         errors
     );
 }
+
+// =============================================================================
+// Match Expression Tests (issue #405)
+// =============================================================================
+
+#[test]
+fn test_match_missing_enum_variant_is_compile_error() {
+    let program =
+        "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("match on Color is missing Green")),
+        "expected the missing-variant error, got {:#?}",
+        errors
+    );
+
+    let with_wildcard = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    _ -> 0\n}\n";
+    let mut parser = Parser::new(with_wildcard);
+    let ast = parser.parse().unwrap();
+    let mut analyzer = SemanticAnalyzer::new();
+    assert!(analyzer.analyze(&ast).is_ok());
+}
+
+#[test]
+fn test_match_pattern_not_belonging_to_enum_is_compile_error() {
+    let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    3 -> 2\n    _ -> 0\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(
+        errors.iter().any(|e| e
+            .message
+            .contains("Pattern 3 does not belong to enum Color")),
+        "expected the wrong-enum-pattern error, got {:#?}",
+        errors
+    );
+}
