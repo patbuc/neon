@@ -1225,7 +1225,7 @@ impl SemanticAnalyzer {
                                 self.push_error(CompilationError::new(
                                     CompilationPhase::Semantic,
                                     CompilationErrorKind::InvalidMatchPattern,
-                                    "Invalid match pattern: expected a literal, an integer range, an enum variant, or '_'".to_string(),
+                                    "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, or '_'".to_string(),
                                     Self::match_pattern_location(expr),
                                 ));
                             }
@@ -1257,15 +1257,21 @@ impl SemanticAnalyzer {
         let Some(first) = bindings.next() else {
             return;
         };
-        if arm.patterns.iter().any(|pattern| match pattern {
+        let mismatch = arm.patterns.iter().find(|pattern| match pattern {
             MatchPattern::Binding(binding) => binding.name != first.name,
             _ => true,
-        }) {
+        });
+        if let Some(pattern) = mismatch {
+            let location = match pattern {
+                MatchPattern::Wildcard(location) => *location,
+                MatchPattern::Binding(binding) => binding.location,
+                MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
+            };
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::InvalidMatchPattern,
                 "Invalid match pattern: alternatives must bind the same names".to_string(),
-                arm.location,
+                location,
             ));
         }
         self.define_type(&first.name, None);
@@ -2296,6 +2302,8 @@ impl SemanticAnalyzer {
         let mut seen: Vec<MatchPatternKey> = Vec::new();
         let mut seen_wildcard = false;
         for arm in arms {
+            let seen_before_arm = seen.len();
+            let mut arm_wildcard = seen_wildcard;
             for pattern in &arm.patterns {
                 let (key, location) = match pattern {
                     MatchPattern::Wildcard(location) => (None, *location),
@@ -2306,24 +2314,27 @@ impl SemanticAnalyzer {
                     ),
                 };
                 let duplicate = key.as_ref().is_some_and(|key| seen.contains(key));
-                if seen_wildcard || duplicate {
+                if arm_wildcard || duplicate {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::UnreachablePattern,
                         "unreachable pattern".to_string(),
                         location,
                     ));
-                } else if let Some(key) = key.filter(|_| arm.guard.is_none()) {
+                } else if let Some(key) = key {
                     seen.push(key);
                 }
-                if arm.guard.is_none()
-                    && matches!(
-                        pattern,
-                        MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
-                    )
-                {
-                    seen_wildcard = true;
+                if matches!(
+                    pattern,
+                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
+                ) {
+                    arm_wildcard = true;
                 }
+            }
+            if arm.guard.is_some() {
+                seen.truncate(seen_before_arm);
+            } else {
+                seen_wildcard = arm_wildcard;
             }
         }
     }

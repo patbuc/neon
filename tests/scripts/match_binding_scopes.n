@@ -1,0 +1,48 @@
+// Expected:
+// 8
+// inner 5
+// 4
+// 5
+// 0
+// 1
+// 2
+
+fn double(v) {
+    return match v {
+        n -> n * 2
+    }
+}
+print(double(4))
+
+val nested = match 5 {
+    n -> match n + 1 {
+        6 -> "inner ${n}"
+        m -> "other ${m}"
+    }
+}
+print(nested)
+
+match 5 {
+    n -> {
+        val n = 4
+        print(n)
+    }
+}
+
+match 5 {
+    n -> {
+        print(n)
+    }
+}
+
+val fns = []
+for i in 0..3 {
+    match i {
+        n -> fns.push(fn() {
+            return n
+        })
+    }
+}
+for f in fns {
+    print(f())
+}

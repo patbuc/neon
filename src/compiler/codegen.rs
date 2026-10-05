@@ -2050,9 +2050,6 @@ impl<'a> CodeGenerator<'a> {
 
     /// Runs the arm's body, with a bound name (if the arm binds one) as a
     /// local copy of the scrutinee that lives only for the guard and body.
-    /// The jump to the end of the match is added to `end_jumps`. A guarded
-    /// arm returns the jump taken when the guard is false, after the
-    /// binding is popped; the caller patches it to the next arm.
     fn generate_match_arm_body(
         &mut self,
         arm: &MatchArm,

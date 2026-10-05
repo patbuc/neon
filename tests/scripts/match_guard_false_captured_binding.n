@@ -1,0 +1,21 @@
+// Expected:
+// 11
+
+var saved = nil
+
+fn keep(f) {
+    saved = f
+    return false
+}
+
+fn run() {
+    match 10 {
+        n if keep(fn() {
+            return n + 1
+        }) -> 0
+        _ -> 0
+    }
+    val junk = 7
+    print(saved())
+}
+run()

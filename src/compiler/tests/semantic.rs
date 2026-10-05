@@ -3707,3 +3707,35 @@ fn test_match_guarded_arm_does_not_count_toward_exhaustiveness() {
     let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    Color.Green if false -> 2\n}\n";
     assert_match_error(program, "match on Color is missing Green");
 }
+
+#[test]
+fn test_match_guarded_arm_repeated_alternative_is_unreachable() {
+    assert_match_error(
+        "val r = match 1 {\n    1, 1 if true -> \"a\"\n    _ -> \"b\"\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_guarded_arm_wildcard_then_repeated_alternative_is_unreachable() {
+    assert_match_error(
+        "val c = true\nval r = match 1 {\n    _, 1 if c -> \"a\"\n    _ -> \"b\"\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_literal_then_binding_alternatives_is_error() {
+    assert_match_error(
+        "val r = match 1 {\n    1, n -> n\n}\n",
+        "must bind the same names",
+    );
+}
+
+#[test]
+fn test_match_binding_then_literal_alternatives_is_error() {
+    assert_match_error(
+        "val r = match 1 {\n    n, 1 -> n\n}\n",
+        "must bind the same names",
+    );
+}
