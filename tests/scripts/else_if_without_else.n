@@ -1,0 +1,23 @@
+// Expected:
+// first 1
+// after 1
+// second 5
+// after 5
+// third 15
+// after 15
+// after 50
+
+fn classify(n) {
+    if n < 2 {
+        print("first", n)
+    } else if n < 10 {
+        print("second", n)
+    } else if n < 20 {
+        print("third", n)
+    }
+    print("after", n)
+}
+
+for n in [1, 5, 15, 50] {
+    classify(n)
+}

@@ -1,0 +1,17 @@
+// Expected:
+// right
+// true
+// false
+// right
+// false
+// true
+
+fn right(value) {
+    print("right")
+    return value
+}
+
+print(true && right(true))
+print(false && right(true))
+print(false || right(false))
+print(true || right(true))

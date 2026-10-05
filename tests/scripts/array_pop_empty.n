@@ -1,0 +1,18 @@
+// Expected:
+// nil
+// 2
+// 1
+// nil
+// 0
+// nil
+// 0
+
+print([].pop())
+
+val arr = [1, 2]
+print(arr.pop())
+print(arr.pop())
+print(arr.pop())
+print(arr.size())
+print(arr.pop())
+print(arr.size())
