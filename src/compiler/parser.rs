@@ -1933,7 +1933,7 @@ impl Parser {
     }
 
     fn match_arm(&mut self) -> Option<MatchArm> {
-        let location = self.current_location();
+        let location = self.current_token_location();
 
         let mut patterns = vec![self.match_pattern()?];
         while self.match_token(TokenType::Comma) {
