@@ -792,6 +792,11 @@ print(Math.mod(-7, 3))     // 2
 - `.contains(substring)` - Whether `substring` occurs anywhere in the string
 - `.chars()` - Array of the string's characters, each a one-character string
 
+Strings are indexable by character: `s[i]` returns the character at index `i` as a one-character
+string, and a negative index counts from the end (`s[-1]` is the last character). An index outside
+the string's bounds is a runtime error. Strings are immutable, so index assignment (`s[i] = v`) is
+also a runtime error. `for ch in s` iterates the string's characters in the same order as `.chars()`.
+
 **Example:**
 ```neon
 val text = "Hello World"
@@ -799,6 +804,11 @@ print(text.toUpperCase())             // "HELLO WORLD"
 print(text.substring(0, 5))           // "Hello"
 print("one,two,three".split(","))     // ["one", "two", "three"]
 print("42".toInt() + 8)               // 50
+print(text[0])                        // "H"
+print(text[-1])                       // "d"
+for ch in "abc" {
+    print(ch)
+}
 ```
 
 ### Array Methods
