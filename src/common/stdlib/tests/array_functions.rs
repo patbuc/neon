@@ -1611,6 +1611,52 @@ fn test_array_with_index() {
     assert_eq!("[[0, a], [1, b]]", vm.get_output());
 }
 
+// ============================================================================
+// Array.groupBy() / Array.tally()
+// ============================================================================
+
+#[test]
+fn test_array_group_by() {
+    let program = r#"
+        print([1, 2, 3, 4].groupBy(fn(x) { return x % 2 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("{1: [1, 3], 0: [2, 4]}", vm.get_output());
+}
+
+#[test]
+fn test_array_tally() {
+    let program = r#"
+        print(["a", "b", "a"].tally())
+        print([[1], [1]].tally())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("{a: 2, b: 1}\n{[1]: 2}", vm.get_output());
+}
+
+#[test]
+fn test_array_tally_invalid_key_errors() {
+    let program = r#"
+        [{}].tally()
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("Invalid map key type: {}. Only strings, numbers, booleans, arrays, and enum variants can be used as map keys."),
+        "{}",
+        errors
+    );
+}
+
 #[test]
 fn test_array_sort_by_stable_with_many_elements() {
     let program = r#"
@@ -1687,6 +1733,21 @@ fn test_array_min_by_key_fn_error_propagates() {
 }
 
 #[test]
+fn test_array_group_by_key_fn_error_propagates() {
+    let program = r#"
+        [1, 2].groupBy(fn(x) { return [][0] })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("index out of bounds"), "{}", errors);
+}
+
+#[test]
 fn test_array_sort_by_mixed_int_and_float_keys() {
     let program = r#"
         print([1, 2.5, 2].sortBy(fn(x) { return x }))
@@ -1695,4 +1756,23 @@ fn test_array_sort_by_mixed_int_and_float_keys() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[1, 2, 2.5]", vm.get_output());
+}
+
+#[test]
+fn test_array_group_by_invalid_key_errors() {
+    let program = r#"
+        [1].groupBy(fn(x) { return {} })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("Invalid map key type: {}. Only strings, numbers, booleans, arrays, and enum variants can be used as map keys."),
+        "{}",
+        errors
+    );
 }

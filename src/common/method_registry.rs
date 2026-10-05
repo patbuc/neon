@@ -271,6 +271,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "groupBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_group_by,
+            arity: 1,
+            returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Array",
+        "tally",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_tally,
+            arity: 0,
+            returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Array",
         "reverse",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_reverse,
@@ -664,6 +682,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::range_functions::native_range_max_by,
             arity: 1,
             returns: None,
+        },
+    ),
+    (
+        "Range",
+        "groupBy",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_group_by,
+            arity: 1,
+            returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Range",
+        "tally",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_tally,
+            arity: 0,
+            returns: Some(StaticType::Map),
         },
     ),
     (

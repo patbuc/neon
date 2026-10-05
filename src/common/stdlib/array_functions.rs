@@ -1,7 +1,8 @@
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
-use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
+use crate::common::{compare_numeric, MapKey, NativeCallError, Numeric, Value};
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
+use indexmap::IndexMap;
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil
@@ -332,6 +333,67 @@ pub fn native_array_max_by(
         std::cmp::Ordering::Greater,
     )?
     .unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.groupBy(fn)
+/// Returns a map from each element's key (from fn) to an array of the
+/// elements that produced it, in first-key insertion order. Keys must be
+/// valid map keys.
+pub fn native_array_group_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "groupBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "groupBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut groups: IndexMap<MapKey, Value> = IndexMap::new();
+    for element in elements {
+        let key_value = vm.call_value(callback.clone(), std::slice::from_ref(&element))?;
+        let key = MapKey::from_value(&key_value, "map key")?;
+        let group = groups
+            .entry(key)
+            .or_insert_with(|| Value::new_array(Vec::new()));
+        if let Value::Array(group) = group {
+            group.borrow_mut().push(element);
+        }
+    }
+
+    Ok(Value::new_map(groups))
+}
+
+/// Native implementation of Array.tally()
+/// Returns a map from each distinct element to how many times it occurs, in
+/// first-occurrence order. Elements must be valid map keys.
+pub fn native_array_tally(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "tally() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "tally")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut counts: IndexMap<MapKey, Value> = IndexMap::new();
+    for element in elements {
+        let key = MapKey::from_value(&element, "map key")?;
+        let count = counts.entry(key).or_insert(Value::Int(0));
+        if let Value::Int(n) = count {
+            *n += 1;
+        }
+    }
+
+    Ok(Value::new_map(counts))
 }
 
 /// Converts a comparator's return value to the signed number `sort()` needs.

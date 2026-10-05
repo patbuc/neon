@@ -1,0 +1,39 @@
+// Expected:
+// [1, 2, 3, 4]
+// 1
+// 4
+// {1: [1, 3], 0: [2, 4]}
+// {a: 2, b: 1, c: 1}
+// [1, 2, 3, 4]
+// 1
+// 4
+// {1: [1, 3], 0: [2, 4]}
+// {1: 1, 2: 1, 3: 1}
+
+print([4, 1, 3, 2].sortBy(fn(x) {
+    return x
+}))
+print([4, 1, 3, 2].minBy(fn(x) {
+    return x
+}))
+print([4, 1, 3, 2].maxBy(fn(x) {
+    return x
+}))
+print([1, 2, 3, 4].groupBy(fn(x) {
+    return x % 2
+}))
+print(["a", "b", "a", "c"].tally())
+
+print((1..5).sortBy(fn(x) {
+    return x
+}))
+print((1..5).minBy(fn(x) {
+    return x
+}))
+print((1..5).maxBy(fn(x) {
+    return x
+}))
+print((1..5).groupBy(fn(x) {
+    return x % 2
+}))
+print((1..4).tally())

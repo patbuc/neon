@@ -466,3 +466,25 @@ fn test_range_max_by() {
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("2", vm.get_output());
 }
+
+#[test]
+fn test_range_group_by() {
+    let program = r#"
+        print((1..5).groupBy(fn(x) { return x % 2 }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("{1: [1, 3], 0: [2, 4]}", vm.get_output());
+}
+
+#[test]
+fn test_range_tally() {
+    let program = r#"
+        print((1..4).tally())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("{1: 1, 2: 1, 3: 1}", vm.get_output());
+}
