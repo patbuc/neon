@@ -7,6 +7,8 @@
 // l
 // l
 // o
+// [a, b, c]
+// []
 
 for ch in "abc" {
     print(ch)
@@ -19,3 +21,6 @@ for ch in "héllo" {
 for ch in "" {
     print(ch)
 }
+
+print("abc".chars())
+print("".chars())

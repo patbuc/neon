@@ -3622,6 +3622,7 @@ fn test_native_method_return_types_are_inferred() {
         (r#"val m = {"a": 1}\nm.values().bogus()"#, "Array"),
         (r#"val s = #{1}\ns.toArray().bogus()"#, "Array"),
         (r#""a,b".split(",").bogus()"#, "Array"),
+        (r#""ab".chars().bogus()"#, "Array"),
         (r#""ab".toUpperCase().bogus()"#, "String"),
         (r#""AB".toLowerCase().bogus()"#, "String"),
         (r#""  ab  ".trim().bogus()"#, "String"),

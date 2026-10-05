@@ -2070,15 +2070,3 @@ fn test_nil_coalesce_emits_jump_if_not_nil() {
         &ops[jump_index..jump_index + 3]
     );
 }
-
-#[test]
-fn test_string_index_access_emits_get_index() {
-    let program = r#"
-    val s = "abc"
-    print(s[0])
-    "#;
-    let chunk = compile_program(program).unwrap();
-    let ops = op_codes(&chunk);
-
-    assert!(ops.contains(&OpCode::GetIndex));
-}

@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: String index out of bounds: index -4 (normalized: -1) on string of length 3.
+
+print("before")
+print("abc"[-4])
