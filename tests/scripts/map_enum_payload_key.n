@@ -1,0 +1,17 @@
+// Expected:
+// 1
+// 2
+// nil
+// 2
+
+enum Shape {
+    Circle(radius)
+}
+
+val m = {}
+m[Shape.Circle(2)] = 1
+m[Shape.Circle(3)] = 2
+print(m[Shape.Circle(2)])
+print(m[Shape.Circle(3)])
+print(m[Shape.Circle(4)])
+print(m.size())

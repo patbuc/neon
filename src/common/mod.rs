@@ -92,9 +92,22 @@ pub enum MapKey {
     /// as a key. Compared and hashed by content, so two arrays with equal
     /// elements share an entry even after the original array is mutated.
     Array(Rc<Vec<MapKey>>),
-    /// Compared by `enum_name` and `ordinal` (see `ObjEnumVariant`'s `Eq`/
-    /// `Hash`), since each use of `Color.Red` builds its own `ObjEnumVariant`.
+    /// A unit variant, compared by `enum_name` and `ordinal` (see
+    /// `ObjEnumVariant`'s `Eq`/`Hash`), since each use of `Color.Red`
+    /// builds its own `ObjEnumVariant`.
     EnumVariant(Rc<ObjEnumVariant>),
+    PayloadVariant(Rc<EnumKey>),
+}
+
+/// A payload variant frozen as a key: its identity plus every field
+/// converted to key form, so no interior-mutable value is held.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EnumKey {
+    enum_name: String,
+    variant_name: String,
+    ordinal: u16,
+    field_symbols: Rc<[u16]>,
+    fields: Vec<MapKey>,
 }
 
 pub type SetKey = MapKey;
@@ -120,7 +133,23 @@ impl MapKey {
                 }
             }
             Value::Boolean(b) => Ok(MapKey::Boolean(*b)),
-            Value::EnumVariant(variant) => Ok(MapKey::EnumVariant(Rc::clone(variant))),
+            Value::EnumVariant(variant) if variant.field_symbols.is_empty() => {
+                Ok(MapKey::EnumVariant(Rc::clone(variant)))
+            }
+            Value::EnumVariant(variant) => {
+                let fields = variant
+                    .fields
+                    .iter()
+                    .map(|field| MapKey::from_value(field, kind))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(MapKey::PayloadVariant(Rc::new(EnumKey {
+                    enum_name: variant.enum_name.clone(),
+                    variant_name: variant.variant_name.clone(),
+                    ordinal: variant.ordinal,
+                    field_symbols: Rc::clone(&variant.field_symbols),
+                    fields,
+                })))
+            }
             Value::Array(array) => from_value_array(array, kind, &mut Vec::new()),
             other => Err(invalid_key_message(kind, other)),
         }
@@ -139,6 +168,13 @@ impl MapKey {
             MapKey::Boolean(b) => Value::Boolean(*b),
             MapKey::Array(items) => Value::new_array(items.iter().map(MapKey::to_value).collect()),
             MapKey::EnumVariant(variant) => Value::EnumVariant(Rc::clone(variant)),
+            MapKey::PayloadVariant(key) => Value::EnumVariant(Rc::new(ObjEnumVariant {
+                enum_name: key.enum_name.clone(),
+                variant_name: key.variant_name.clone(),
+                ordinal: key.ordinal,
+                field_symbols: Rc::clone(&key.field_symbols),
+                fields: key.fields.iter().map(MapKey::to_value).collect(),
+            })),
         }
     }
 }
@@ -199,8 +235,26 @@ impl Display for MapKey {
             MapKey::EnumVariant(variant) => {
                 write!(f, "{}.{}", variant.enum_name, variant.variant_name)
             }
+            MapKey::PayloadVariant(key) => {
+                write!(f, "{}.{}", key.enum_name, key.variant_name)?;
+                write_fields(f, &key.fields)
+            }
         }
     }
+}
+
+fn write_fields<T: Display>(f: &mut Formatter<'_>, fields: &[T]) -> std::fmt::Result {
+    if fields.is_empty() {
+        return Ok(());
+    }
+    write!(f, "(")?;
+    for (i, field) in fields.iter().enumerate() {
+        if i > 0 {
+            write!(f, ", ")?;
+        }
+        write!(f, "{}", field)?;
+    }
+    write!(f, ")")
 }
 
 /// `MapKey` groups for cross-variant ordering: strings, then numbers
@@ -211,7 +265,7 @@ fn map_key_rank(key: &MapKey) -> u8 {
         MapKey::String(_) => 0,
         MapKey::Int(_) | MapKey::Number(_) => 1,
         MapKey::Boolean(_) => 2,
-        MapKey::EnumVariant(_) => 3,
+        MapKey::EnumVariant(_) | MapKey::PayloadVariant(_) => 3,
         MapKey::Array(_) => 4,
     }
 }
@@ -237,6 +291,9 @@ impl Ord for MapKey {
                 .unwrap_or(Ordering::Greater),
             (MapKey::Boolean(a), MapKey::Boolean(b)) => a.cmp(b),
             (MapKey::EnumVariant(a), MapKey::EnumVariant(b)) => cmp_enum_variants(a, b),
+            (MapKey::PayloadVariant(a), MapKey::PayloadVariant(b)) => cmp_payload_variants(a, b),
+            (MapKey::EnumVariant(_), MapKey::PayloadVariant(_)) => Ordering::Less,
+            (MapKey::PayloadVariant(_), MapKey::EnumVariant(_)) => Ordering::Greater,
             (MapKey::Array(a), MapKey::Array(b)) => cmp_arrays(a, b),
             _ => map_key_rank(self).cmp(&map_key_rank(other)),
         }
@@ -255,6 +312,15 @@ fn cmp_enum_variants(a: &ObjEnumVariant, b: &ObjEnumVariant) -> std::cmp::Orderi
     a.enum_name
         .cmp(&b.enum_name)
         .then(a.ordinal.cmp(&b.ordinal))
+}
+
+/// Orders payload variants like `cmp_enum_variants`, then by fields.
+#[inline(never)]
+fn cmp_payload_variants(a: &EnumKey, b: &EnumKey) -> std::cmp::Ordering {
+    a.enum_name
+        .cmp(&b.enum_name)
+        .then(a.ordinal.cmp(&b.ordinal))
+        .then_with(|| a.fields.cmp(&b.fields))
 }
 
 /// Compares an `i64` and an `f64` by their exact numeric value (not by
@@ -556,6 +622,22 @@ impl ObjEnumVariant {
         let index = self.field_symbols.iter().position(|&s| s == symbol)?;
         self.fields.get(index)
     }
+
+    /// True for the constant-pool template of a payload variant, which
+    /// declares fields but holds no values.
+    pub(crate) fn is_template(&self) -> bool {
+        self.fields.is_empty() && !self.field_symbols.is_empty()
+    }
+
+    pub(crate) fn with_fields(&self, fields: Vec<Value>) -> ObjEnumVariant {
+        ObjEnumVariant {
+            enum_name: self.enum_name.clone(),
+            variant_name: self.variant_name.clone(),
+            ordinal: self.ordinal,
+            field_symbols: Rc::clone(&self.field_symbols),
+            fields,
+        }
+    }
 }
 
 impl Value {
@@ -721,7 +803,9 @@ impl PartialEq for ObjStruct {
 
 impl PartialEq for ObjEnumVariant {
     fn eq(&self, other: &Self) -> bool {
-        self.enum_name == other.enum_name && self.ordinal == other.ordinal
+        self.enum_name == other.enum_name
+            && self.ordinal == other.ordinal
+            && self.fields == other.fields
     }
 }
 
@@ -772,7 +856,18 @@ impl Value {
                 write!(f, "<{} instance>", instance.borrow().r#struct.name)
             }
             Value::EnumVariant(variant) => {
-                write!(f, "{}.{}", variant.enum_name, variant.variant_name)
+                write!(f, "{}.{}", variant.enum_name, variant.variant_name)?;
+                if variant.fields.is_empty() {
+                    return Ok(());
+                }
+                write!(f, "(")?;
+                for (i, field) in variant.fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    field.fmt_with_seen(f, seen)?;
+                }
+                write!(f, ")")
             }
             Value::Array(array) => {
                 let ptr = Rc::as_ptr(array) as *const ();

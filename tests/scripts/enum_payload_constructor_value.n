@@ -1,0 +1,8 @@
+// Expected:
+// [Shape.Circle(1), Shape.Circle(2)]
+
+enum Shape {
+    Circle(radius)
+}
+
+print([1, 2].map(Shape.Circle))

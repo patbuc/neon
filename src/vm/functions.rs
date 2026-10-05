@@ -6,7 +6,7 @@ use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
 };
-use crate::common::{ObjClosure, ObjEnumVariant, Upvalue};
+use crate::common::{ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -138,13 +138,7 @@ impl VirtualMachine {
             .stack
             .split_off(self.stack.len() - template.field_symbols.len());
         self.ip += 2;
-        self.push(Value::EnumVariant(Rc::new(ObjEnumVariant {
-            enum_name: template.enum_name.clone(),
-            variant_name: template.variant_name.clone(),
-            ordinal: template.ordinal,
-            field_symbols: Rc::clone(&template.field_symbols),
-            fields,
-        })));
+        self.push(Value::EnumVariant(Rc::new(template.with_fields(fields))));
         Ok(())
     }
 
@@ -232,6 +226,17 @@ impl VirtualMachine {
                     Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
                     Err(NativeCallError::Runtime(e)) => return Err(e),
                 }
+            }
+            Value::EnumVariant(template) if template.is_template() => {
+                let expected = template.field_symbols.len();
+                if arg_count != expected {
+                    return Err(self.call_error(format!(
+                        "Expected {} arguments but got {} for '{}'.",
+                        expected, arg_count, template.variant_name
+                    )));
+                }
+                let fields = self.stack.split_off(self.stack.len() - arg_count);
+                Value::EnumVariant(Rc::new(template.with_fields(fields)))
             }
             _ => {
                 return Err(self.call_error("Value is not callable"));
