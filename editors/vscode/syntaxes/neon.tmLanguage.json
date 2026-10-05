@@ -95,6 +95,7 @@
         { "match": "!=", "name": "keyword.operator.comparison.neon" },
         { "match": "<=", "name": "keyword.operator.comparison.neon" },
         { "match": ">=", "name": "keyword.operator.comparison.neon" },
+        { "match": "->", "name": "keyword.operator.arrow.neon" },
         { "match": "[+\\-*/%]=", "name": "keyword.operator.assignment.neon" },
         { "match": "[+\\-*/%]", "name": "keyword.operator.arithmetic.neon" },
         { "match": "[<>]", "name": "keyword.operator.comparison.neon" },
