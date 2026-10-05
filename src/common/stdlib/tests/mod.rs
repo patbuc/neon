@@ -1,11 +1,9 @@
 mod array_functions;
-mod boolean_functions;
 mod builtins;
 mod file_functions;
 mod map_functions;
 mod math_errors;
 mod math_functions;
-mod math_variadic;
 mod number_functions;
 mod priority_queue_functions;
 mod range_functions;
