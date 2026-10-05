@@ -1037,13 +1037,12 @@ impl SemanticAnalyzer {
                 self.validate_loop_control_statement("continue", *location);
             }
             Stmt::ForIn {
-                variable,
+                pattern,
                 collection,
                 body,
-                id,
-                location,
+                ..
             } => {
-                self.resolve_for_in_statement(*id, variable, collection, body, *location);
+                self.resolve_for_in_statement(pattern, collection, body);
             }
         }
     }
@@ -1422,24 +1421,25 @@ impl SemanticAnalyzer {
         self.loop_depth -= 1;
     }
 
-    fn resolve_for_in_statement(
-        &mut self,
-        id: NodeId,
-        variable: &str,
-        collection: &Expr,
-        body: &Stmt,
-        location: SourceLocation,
-    ) {
+    fn resolve_for_in_statement(&mut self, pattern: &Pattern, collection: &Expr, body: &Stmt) {
         // Resolve the collection expression
         self.resolve_expr(collection);
 
         // Enter a new scope for the loop
         self.enter_scope();
 
-        // Define the loop variable as immutable (always val). Its type is
-        // unknown and explicitly shadows any outer type of the same name.
-        self.define_type(variable, None);
-        self.declare_symbol(id, variable.to_string(), SymbolKind::Value, false, location);
+        // Define the loop variable(s) as immutable (always val). Their type
+        // is unknown and explicitly shadows any outer type of the same name.
+        for binding in pattern.bindings() {
+            self.define_type(&binding.name, None);
+            self.declare_symbol(
+                binding.id,
+                binding.name.clone(),
+                SymbolKind::Value,
+                false,
+                binding.location,
+            );
+        }
 
         // Track loop depth for break/continue validation
         self.loop_depth += 1;
@@ -2341,11 +2341,14 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
         } => expr_references_it(condition) || stmt_references_it(body),
         Stmt::Return { value, .. } => value.as_ref().is_some_and(expr_references_it),
         Stmt::ForIn {
-            variable,
+            pattern,
             collection,
             body,
             ..
-        } => expr_references_it(collection) || (variable != "it" && stmt_references_it(body)),
+        } => {
+            let declares_it = pattern.bindings().iter().any(|b| b.name == "it");
+            expr_references_it(collection) || (!declares_it && stmt_references_it(body))
+        }
     }
 }
 

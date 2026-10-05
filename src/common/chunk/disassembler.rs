@@ -94,7 +94,7 @@ impl Chunk {
             OpCode::CreateSet => self.create_set_instruction(offset, out),
             OpCode::GetIndex => self.simple_instruction(OpCode::GetIndex, offset, out),
             OpCode::SetIndex => self.simple_instruction(OpCode::SetIndex, offset, out),
-            OpCode::GetIterator => self.simple_instruction(OpCode::GetIterator, offset, out),
+            OpCode::GetIterator => self.get_iterator_instruction(offset, out),
             OpCode::IteratorNext => self.variable_instruction(OpCode::IteratorNext, offset, out),
             OpCode::IteratorDone => self.variable_instruction(OpCode::IteratorDone, offset, out),
             OpCode::CreateRange => self.create_range_instruction(offset, out),
@@ -270,6 +270,12 @@ impl Chunk {
     fn create_range_instruction(&self, offset: usize, out: &mut String) -> usize {
         let inclusive = self.read_u8(offset + 1);
         let _ = writeln!(out, "CreateRange (inclusive: {})", inclusive != 0);
+        offset + 2
+    }
+
+    fn get_iterator_instruction(&self, offset: usize, out: &mut String) -> usize {
+        let pairs = self.read_u8(offset + 1);
+        let _ = writeln!(out, "GetIterator (pairs: {})", pairs != 0);
         offset + 2
     }
 }

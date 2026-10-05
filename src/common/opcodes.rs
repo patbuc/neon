@@ -191,6 +191,10 @@ pub(crate) enum OpCode {
     CreateSet,
     GetIndex,
     SetIndex,
+    /// Pops a collection, pushes it (or, for a Map/Set, an array built from
+    /// it) and a starting index 0 as two hidden locals. An 8-bit operand: 1
+    /// asks a Map for `[key, value]` entries instead of just its keys, for
+    /// `for (k, v) in map`.
     GetIterator,
     IteratorNext,
     IteratorDone,

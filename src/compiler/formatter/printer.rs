@@ -432,13 +432,25 @@ impl<'a> Printer<'a> {
                 self.print_stmt(body);
             }
             Stmt::ForIn {
-                variable,
+                pattern,
                 collection,
                 body,
                 ..
             } => {
                 self.write("for ");
-                self.write(variable);
+                match pattern {
+                    Pattern::Name(binding) => self.write(&binding.name),
+                    Pattern::Tuple(slots) => {
+                        self.write("(");
+                        for (i, slot) in slots.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
+                        }
+                        self.write(")");
+                    }
+                }
                 self.write(" in ");
                 self.nested(0, |printer| printer.print_condition(collection));
                 self.write(" ");

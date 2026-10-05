@@ -1072,14 +1072,15 @@ impl<'a> CodeGenerator<'a> {
     #[allow(clippy::expect_used)]
     fn generate_for_in_stmt(
         &mut self,
-        id: NodeId,
+        pattern: &Pattern,
         collection: &Expr,
         body: &Stmt,
         location: SourceLocation,
     ) {
         // For-in loop code generation strategy: uses iterator opcodes.
         // The iterator state lives in two hidden locals (collection, index) below
-        // the loop variable.
+        // the loop variable (or, for `for (a, b) in coll`, below the hidden pair
+        // local and the names destructured from it).
         //
         // Bytecode structure:
         //   <evaluate collection>
@@ -1102,8 +1103,14 @@ impl<'a> CodeGenerator<'a> {
         self.generate_expr(collection);
 
         // Convert collection to iterator: pushes the iterable collection and
-        // the starting index as two hidden locals.
+        // the starting index as two hidden locals (see OpCode::GetIterator).
         self.emit_op_code(OpCode::GetIterator, location);
+        self.current_chunk()
+            .write_u8(if matches!(pattern, Pattern::Tuple(_)) {
+                1
+            } else {
+                0
+            });
 
         // Enter a block scope owning the two hidden iterator slots.
         self.current().scope_depth += 1;
@@ -1147,25 +1154,45 @@ impl<'a> CodeGenerator<'a> {
         // Get next value from iterator (pushes value)
         self.emit_index_op(OpCode::IteratorNext, iterator_slot, "locals", location);
 
-        // Define the loop variable (value is already on stack from IteratorNext)
-        let decl = self.resolutions.decl(id);
-        self.bind_decl_local(decl, location);
+        match pattern {
+            Pattern::Name(binding) => {
+                // Define the loop variable (value is already on stack from IteratorNext)
+                self.bind_decl_local(self.resolutions.decl(binding.id), location);
+            }
+            Pattern::Tuple(slots) => {
+                // Hold the element in a hidden local, then define each name
+                // from it, fresh every iteration.
+                self.emit_index_op(
+                    OpCode::CheckTuple,
+                    slots.len() as u32,
+                    "tuple pattern names",
+                    location,
+                );
+                let pair_depth = self.current().scope_depth;
+                self.current().locals.push(Local::new(pair_depth, false));
+                let pair_slot = self.current().stack_height - 1;
+
+                for (index, slot) in slots.iter().enumerate() {
+                    let Some(binding) = slot else {
+                        continue;
+                    };
+                    self.emit_index_op(OpCode::GetLocal, pair_slot, "locals", location);
+                    self.emit_constant(int!(index as i64), location);
+                    self.emit_op_code(OpCode::GetIndex, location);
+
+                    let decl = self.resolutions.decl(binding.id);
+                    self.bind_decl_local(decl, location);
+                }
+            }
+        }
 
         // Generate the loop body
         self.generate_stmt(body);
 
-        let loop_variable_captured = self
-            .current()
-            .locals
-            .last()
-            .map(|local| local.is_captured)
-            .unwrap_or(false);
-        let exit_op = if loop_variable_captured {
-            OpCode::CloseUpvalue
-        } else {
-            OpCode::Pop
-        };
-        self.emit_op_code(exit_op, location);
+        // Pop the loop variable (or hidden pair local and destructured
+        // names), each with CloseUpvalue instead of Pop if captured.
+        let captured = self.current().pop_locals_above(depth);
+        self.emit_scope_exit(&captured, location);
 
         // Patch all continue jumps to point here (just before the Loop)
         // This allows continue to properly skip to the next iteration
@@ -1193,10 +1220,9 @@ impl<'a> CodeGenerator<'a> {
             self.patch_jump(break_jump);
         }
 
-        // Exit the inner scope. The loop variable's slot was already popped
-        // above, so only its Local entry needs dropping here.
+        // Exit the inner scope. Its locals' runtime slots and Local entries
+        // were already popped above.
         self.current().scope_depth -= 1;
-        self.discard_locals_above_current_depth();
 
         // Exit the outer scope, popping the two hidden iterator slots.
         self.end_scope(location);
@@ -1274,13 +1300,12 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_loop_exit_stmt(LoopExit::Continue, *location);
             }
             Stmt::ForIn {
+                pattern,
                 collection,
                 body,
-                id,
                 location,
-                ..
             } => {
-                self.generate_for_in_stmt(*id, collection, body, *location);
+                self.generate_for_in_stmt(pattern, collection, body, *location);
             }
         }
     }

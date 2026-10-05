@@ -85,13 +85,14 @@ mod resolutions {
             } => index_expr(value, idx),
             Stmt::Return { value: None, .. } => {}
             Stmt::ForIn {
-                variable,
+                pattern,
                 collection,
                 body,
-                id,
                 ..
             } => {
-                idx.decls.push((variable, *id));
+                for binding in pattern.bindings() {
+                    idx.decls.push((&binding.name, binding.id));
+                }
                 index_expr(collection, idx);
                 index_stmt(body, idx);
             }

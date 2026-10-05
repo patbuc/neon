@@ -330,10 +330,9 @@ pub enum Stmt {
         location: SourceLocation,
     },
     ForIn {
-        variable: String,
+        pattern: Pattern,
         collection: Expr,
         body: Box<Stmt>,
-        id: NodeId,
         location: SourceLocation,
     },
     Break {

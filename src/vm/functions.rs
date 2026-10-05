@@ -1693,6 +1693,8 @@ impl VirtualMachine {
     /// collected into a new array) followed by the starting index, 0.
     #[inline(always)]
     pub(in crate::vm) fn op_get_iterator(&mut self) -> OpResult {
+        let pairs = self.operand_u8(1) != 0;
+
         let collection = self.pop();
 
         let iterator_value = match &collection {
@@ -1700,9 +1702,18 @@ impl VirtualMachine {
             Value::Range(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
-                let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
+                if pairs {
+                    let entries: Vec<Value> = map
+                        .iter()
+                        .map(|(key, value)| Value::new_array(vec![key.to_value(), value.clone()]))
+                        .collect();
 
-                Value::new_array(keys)
+                    Value::new_array(entries)
+                } else {
+                    let keys: Vec<Value> = map.keys().map(MapKey::to_value).collect();
+
+                    Value::new_array(keys)
+                }
             }
             Value::Set(set_ref) => {
                 let set = set_ref.borrow();
@@ -1721,6 +1732,7 @@ impl VirtualMachine {
 
         self.push(iterator_value);
         self.push(int!(0));
+        self.ip += 1;
         Ok(())
     }
 

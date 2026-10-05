@@ -1,0 +1,9 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot destructure Int into 2 names
+
+print("before")
+for (a, b) in [1, 2] {
+    print(a, b)
+}

@@ -1048,14 +1048,29 @@ impl Parser {
     fn for_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        if !self.consume(TokenType::Identifier, "Expecting identifier after 'for'.") {
-            return None;
-        }
-        let identifier = self.previous_token.token.clone();
+        let pattern = if self.check(TokenType::LeftParen) {
+            Pattern::Tuple(self.parse_tuple_pattern()?)
+        } else {
+            if !self.consume(TokenType::Identifier, "Expecting identifier after 'for'.") {
+                return None;
+            }
+            let name = self.previous_token.token.clone();
+            let location = self.current_location();
+            Pattern::Name(Binding {
+                name,
+                id: self.next_id(),
+                location,
+            })
+        };
 
+        let in_subject = if matches!(pattern, Pattern::Tuple(_)) {
+            "tuple pattern"
+        } else {
+            "identifier"
+        };
         if !self.consume(
             TokenType::In,
-            "Expecting 'in' after identifier in for-in loop.",
+            &format!("Expecting 'in' after {} in for-in loop.", in_subject),
         ) {
             return None;
         }
@@ -1064,10 +1079,9 @@ impl Parser {
         let body = Box::new(self.require_block_body()?);
 
         Some(Stmt::ForIn {
-            variable: identifier,
+            pattern,
             collection,
             body,
-            id: self.next_id(),
             location,
         })
     }

@@ -3803,12 +3803,14 @@ fn collect_stmt_ids(stmt: &Stmt, ids: &mut Vec<u32>) {
         }
         Stmt::Struct { id, .. } => ids.push(id.0),
         Stmt::ForIn {
-            id,
+            pattern,
             collection,
             body,
             ..
         } => {
-            ids.push(id.0);
+            for binding in pattern.bindings() {
+                ids.push(binding.id.0);
+            }
             collect_expr_ids(collection, ids);
             collect_stmt_ids(body, ids);
         }
@@ -4140,8 +4142,8 @@ fn test_parse_one_line_for_in() {
     assert!(result.is_ok());
     let stmts = result.unwrap();
     match &stmts[0] {
-        Stmt::ForIn { variable, body, .. } => {
-            assert_eq!(variable, "x");
+        Stmt::ForIn { pattern, body, .. } => {
+            assert_eq!(pattern.bindings()[0].name, "x");
             match body.as_ref() {
                 Stmt::Block { statements, .. } => assert_eq!(statements.len(), 1),
                 _ => panic!("Expected Block body"),
