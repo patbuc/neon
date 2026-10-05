@@ -2007,13 +2007,8 @@ impl<'a> CodeGenerator<'a> {
         self.current().transient_offset = previous_offset;
     }
 
-    /// Compiles `match scrutinee { pattern, pattern -> body ... }`. A single
-    /// hidden local holds the scrutinee, read non-destructively by each
-    /// arm's pattern test; once an arm matches, its body's value overwrites
-    /// that same local via `StoreLocal`, the same trick `generate_if_expr`
-    /// uses for its result - no separate result slot is needed. No arm
-    /// matching raises a runtime error with the scrutinee still in the
-    /// local.
+    /// Compiles `match scrutinee { pattern, pattern -> body ... }`. A hidden
+    /// local holds the scrutinee; the matching arm's value overwrites it.
     fn generate_match_expr(
         &mut self,
         scrutinee: &Expr,
@@ -2030,8 +2025,6 @@ impl<'a> CodeGenerator<'a> {
         for arm in arms {
             self.generate_match_arm_test(hidden_slot, &arm.patterns, arm.location);
             let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
-            // See generate_if_stmt: next_arm_jump lands here with the test
-            // still unpopped, not at the height the arm's body leaves behind.
             let false_path_height = self.current().stack_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
             self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
@@ -2096,9 +2089,8 @@ impl<'a> CodeGenerator<'a> {
 
     /// Leaves a boolean on the stack: whether the value in `hidden_slot`
     /// matches one pattern. A wildcard always matches; a range is tested by
-    /// containment (mirrors `generate_binary_expr`'s `BinaryOp::And`);
-    /// anything else (a literal, a negative number, or - later - an enum
-    /// variant) is tested with `==`.
+    /// containment, and only a number can be in one; anything else is tested
+    /// with `==`.
     fn generate_match_pattern_test(
         &mut self,
         hidden_slot: u32,

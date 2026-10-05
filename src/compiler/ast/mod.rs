@@ -229,12 +229,7 @@ pub enum Expr {
         else_branch: Box<IfExprElse>,
         location: SourceLocation,
     },
-    /// `match scrutinee { pattern, pattern -> body ... }`, valid as both a
-    /// statement and an expression - there's no mandatory catch-all arm, so
-    /// unlike `Expr::If` a single node covers both positions; a bare
-    /// statement reaches this through an ordinary `Stmt::Expression`, with
-    /// its value popped like any other expression statement. No arm
-    /// matching the scrutinee is a runtime error, not a compile error.
+    /// `match scrutinee { pattern, pattern -> body ... }`.
     Match {
         scrutinee: Box<Expr>,
         arms: Vec<MatchArm>,
@@ -250,12 +245,11 @@ pub struct MatchArm {
     pub location: SourceLocation,
 }
 
-/// A single pattern in a match arm. Enum-variant patterns (to come later)
-/// also fit `Expr`, so only the wildcard needs its own case.
+/// A single pattern in a match arm.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchPattern {
-    /// A literal, negative-number, or (later) enum-variant expression,
-    /// matched with `==`; an `Expr::Range` is matched by containment.
+    /// A literal, `Enum.Variant` or range expression; matched with `==`,
+    /// except an `Expr::Range`, which is matched by containment.
     Expr(Expr),
     Wildcard(SourceLocation),
 }

@@ -90,7 +90,14 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   `[key, value]` pairs with `for (k, v) in m { }`. `val`/`var`/`for` also
   destructure a tuple pattern (`val (a, b) = [1, 2]`), `_` skipping a
   position. `break`/`continue` exist.
-- No `switch`/`match`, `do`/`while`, `try`/`catch`, or `throw`.
+- No `switch`, `do`/`while`, `try`/`catch`, or `throw`.
+- `match x { pattern, pattern -> body ... }` is an expression and a statement.
+  A pattern is a number/string/bool/`nil` literal, `Enum.Variant`, an integer
+  range (`1..5`, `1..=5`), or `_`; anything else (a variable, a call) is a
+  compile error. A body is an expression or a `{ }` block. A match on an enum
+  needs every variant or a `_` arm; a repeated pattern or one after `_` is
+  `unreachable pattern`. No matching arm is the runtime error
+  `No match arm for <value>`.
 
 **Operators**
 - Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`) works on variables

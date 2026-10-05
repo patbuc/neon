@@ -1959,8 +1959,7 @@ impl Parser {
         })
     }
 
-    /// A single pattern: `_`, or an expression (a literal, a negative
-    /// number, a range, or - later - an enum variant).
+    /// A single pattern: `_`, or a literal, range or enum variant.
     fn match_pattern(&mut self) -> Option<MatchPattern> {
         if self.check(TokenType::Identifier) && self.current_token.token == "_" {
             let location = self.current_token_location();
