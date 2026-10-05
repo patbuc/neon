@@ -717,6 +717,7 @@ impl SemanticAnalyzer {
                         // Bitwise operations return Number
                         Some(StaticType::Number)
                     }
+                    BinaryOp::NilCoalesce => None,
                 }
             }
 
@@ -1084,9 +1085,10 @@ impl SemanticAnalyzer {
             Expr::GetField {
                 object,
                 field,
+                optional,
                 location,
             } => {
-                self.resolve_get_field(object, field, *location);
+                self.resolve_get_field(object, field, *optional, *location);
             }
             Expr::SetField {
                 object,
@@ -1485,8 +1487,14 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
-        if let Expr::GetField { object, field, .. } = callee {
-            self.resolve_method_call(id, object, field, arguments, location);
+        if let Expr::GetField {
+            object,
+            field,
+            optional,
+            ..
+        } = callee
+        {
+            self.resolve_method_call(id, object, field, *optional, arguments, location);
         } else {
             self.resolve_function_call(id, callee, arguments, location);
         }
@@ -1497,11 +1505,20 @@ impl SemanticAnalyzer {
         id: NodeId,
         object: &Expr,
         method: &str,
+        optional: bool,
         arguments: &[Expr],
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
         if let Expr::Variable { name, .. } = object {
+            if optional && self.is_type_or_namespace_name(name) {
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                self.push_optional_dot_on_type_error(location);
+                return;
+            }
+
             let is_namespace = matches!(
                 self.symbol_table.resolve(name),
                 Some(symbol) if symbol.kind == SymbolKind::Namespace
@@ -1587,9 +1604,16 @@ impl SemanticAnalyzer {
             self.resolve_expr(arg);
         }
 
-        // Instance method call - validate method if we can infer the object's type
+        // Instance method call - validate method if we can infer the object's type.
         if let Some(object_type) = self.infer_expr_type(object) {
-            self.validate_instance_method(object_type.name(), method, arguments.len(), location);
+            if !(optional && object_type == StaticType::Nil) {
+                self.validate_instance_method(
+                    object_type.name(),
+                    method,
+                    arguments.len(),
+                    location,
+                );
+            }
         }
     }
 
@@ -1650,8 +1674,19 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_get_field(&mut self, object: &Expr, field: &str, location: SourceLocation) {
+    fn resolve_get_field(
+        &mut self,
+        object: &Expr,
+        field: &str,
+        optional: bool,
+        location: SourceLocation,
+    ) {
         if let Expr::Variable { name, id, .. } = object {
+            if optional && self.is_type_or_namespace_name(name) {
+                self.push_optional_dot_on_type_error(location);
+                return;
+            }
+
             if let Some(variants) = self.enum_variants(name) {
                 self.resolve_enum_variant_access(*id, name, &variants, field, location);
                 return;
@@ -1791,6 +1826,25 @@ impl SemanticAnalyzer {
             ));
         }
         index
+    }
+
+    /// True when `name` names a namespace (Math, File, ...), an enum, or a
+    /// struct type itself - never nil, so `?.` on it is nonsensical.
+    fn is_type_or_namespace_name(&self, name: &str) -> bool {
+        matches!(
+            self.symbol_table.resolve(name),
+            Some(symbol) if symbol.kind == SymbolKind::Namespace
+        ) || self.enum_variants(name).is_some()
+            || self.is_struct_type(name)
+    }
+
+    fn push_optional_dot_on_type_error(&mut self, location: SourceLocation) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::OptionalDotOnType,
+            "Cannot use '?.' on a type or namespace".to_string(),
+            location,
+        ));
     }
 
     /// True when `name` is a declared struct type, as opposed to a builtin

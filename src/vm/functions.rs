@@ -1141,6 +1141,28 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn op_jump_if_not_nil(&mut self) {
+        let is_nil = matches!(self.peek(0), Value::Nil);
+        let offset = self.operand_u32(1);
+        self.ip += 4;
+        if !is_nil {
+            // Don't pop! The caller needs the value as the `??` result.
+            self.ip += offset as usize;
+        }
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_jump_if_nil(&mut self) {
+        let is_nil = matches!(self.peek(0), Value::Nil);
+        let offset = self.operand_u32(1);
+        self.ip += 4;
+        if is_nil {
+            // Don't pop! That nil is the result of `a?.b`.
+            self.ip += offset as usize;
+        }
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_jump(&mut self) {
         let offset = self.operand_u32(1);
         self.ip += 4 + offset as usize;

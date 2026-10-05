@@ -673,6 +673,7 @@ impl<'a> Printer<'a> {
             Expr::GetField {
                 object,
                 field,
+                optional,
                 location,
             } => {
                 self.print_expr(object);
@@ -680,7 +681,7 @@ impl<'a> Printer<'a> {
                 if location.line > object_line {
                     self.continue_line(object_line, location.line);
                 }
-                self.write(".");
+                self.write(if *optional { "?." } else { "." });
                 self.write(field);
             }
             Expr::SetField {
@@ -918,6 +919,7 @@ fn binary_op_text(op: &BinaryOp) -> &'static str {
         BinaryOp::LessEqual => "<=",
         BinaryOp::And => "&&",
         BinaryOp::Or => "||",
+        BinaryOp::NilCoalesce => "??",
         BinaryOp::BitwiseAnd => "&",
         BinaryOp::BitwiseOr => "|",
         BinaryOp::BitwiseXor => "^",

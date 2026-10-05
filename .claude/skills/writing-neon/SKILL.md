@@ -34,7 +34,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - A newline ends a statement. No semicolons (`val x = 1;` is an error), and
   there's no way to put two statements on one line.
 - A line continues only if it **ends** with a binary operator, except a line
-  that **begins** with `.` (not `..`/`..=`), which continues the previous
+  that **begins** with `.` or `?.` (not `..`/`..=`), which continues the previous
   statement as a method chain; a blank or comment line in between still ends
   it. A line beginning with `+`, `&&`, etc. is still an error. Open `(`, `[`,
   `{` can span lines.
@@ -88,6 +88,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - Only `nil` and `false` are falsy; `0` and `""` are truthy. `&&`/`||`
   return an operand, not a boolean.
 - `==` compares arrays by value.
+- `a ?? b` yields `a` unless `a` is nil, else `b`; only `nil` triggers the fallback
+  (`false ?? x` is `false`). Precedence is between the ternary and `||`:
+  `a ?? b || c` is `a ?? (b || c)`, `c ? a ?? b : d` is `c ? (a ?? b) : d`.
+- `a?.f` / `a?.m(args)` is nil if `a` is nil (call args aren't evaluated), else the field or
+  method call. Not assignable.
 
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.

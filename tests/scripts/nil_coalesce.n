@@ -1,0 +1,29 @@
+// `??` yields the left operand unless it is nil, else evaluates and yields the right
+
+// Expected:
+// 1 false 0
+// []
+// 1
+// 1
+// false
+// 5
+
+print(nil ?? 1, false ?? 1, 0 ?? 1)
+print("[" + ("" ?? 1) + "]")
+
+var count = 0
+fn boom() {
+    count = count + 1
+    return count
+}
+
+nil ?? boom()
+print(count)
+1 ?? boom()
+print(count)
+
+print(nil ?? false ?? 3)
+
+val v = nil ??
+    5
+print(v)

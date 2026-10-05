@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 65] = [
+        const OPCODES: [OpCode; 67] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -67,6 +67,8 @@ impl OpCode {
             OpCode::LessEqualConstant,
             OpCode::Dup,
             OpCode::Dup2,
+            OpCode::JumpIfNotNil,
+            OpCode::JumpIfNil,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -174,4 +176,15 @@ pub(crate) enum OpCode {
     /// Copies the top two values of the stack, pushing the copies in the
     /// same order.
     Dup2,
+
+    /// Peeks the top of stack: if it is not nil, jumps by the 32-bit operand
+    /// without popping. Otherwise pops it and falls through to evaluate the
+    /// right operand of `??`.
+    JumpIfNotNil,
+
+    /// Peeks the top of stack: if it is nil, jumps by the 32-bit operand
+    /// without popping, leaving that nil as the result of `a?.b`. Otherwise
+    /// falls through without popping, leaving the non-nil object on top for
+    /// the field access or method call that follows.
+    JumpIfNil,
 }

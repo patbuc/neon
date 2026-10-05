@@ -216,7 +216,15 @@ impl Scanner {
             }
             ';' => self.make_token(TokenType::Semicolon),
             ':' => self.make_token(TokenType::Colon),
-            '?' => self.make_token(TokenType::Question),
+            '?' => {
+                if self.matches('?') {
+                    self.make_token(TokenType::QuestionQuestion)
+                } else if self.matches('.') {
+                    self.make_token(TokenType::QuestionDot)
+                } else {
+                    self.make_token(TokenType::Question)
+                }
+            }
             '*' => {
                 if self.matches('*') {
                     if self.matches('=') {
@@ -286,7 +294,7 @@ impl Scanner {
                 }
             }
             '\n' => {
-                let suppress = self.next_line_starts_with_single_dot();
+                let suppress = self.next_line_starts_with_dot_access();
                 self.line += 1;
                 self.column = 1;
                 if suppress {
@@ -665,12 +673,16 @@ impl Scanner {
         self.source[self.current + 1]
     }
 
-    fn next_line_starts_with_single_dot(&self) -> bool {
+    fn next_line_starts_with_dot_access(&self) -> bool {
         let mut i = self.current;
         while matches!(self.source.get(i), Some(' ') | Some('\t')) {
             i += 1;
         }
-        self.source.get(i) == Some(&'.') && self.source.get(i + 1) != Some(&'.')
+        match self.source.get(i) {
+            Some('.') => self.source.get(i + 1) != Some(&'.'),
+            Some('?') => self.source.get(i + 1) == Some(&'.'),
+            _ => false,
+        }
     }
 
     fn skip_whitespace(&mut self) {

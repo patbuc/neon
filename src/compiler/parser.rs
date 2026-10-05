@@ -45,6 +45,7 @@ enum Precedence {
     None,
     Assignment,
     Ternary,
+    NilCoalesce,
     Or,
     And,
     Equality,
@@ -67,7 +68,8 @@ impl Precedence {
         match self {
             Precedence::None => Precedence::Assignment,
             Precedence::Assignment => Precedence::Ternary,
-            Precedence::Ternary => Precedence::Or,
+            Precedence::Ternary => Precedence::NilCoalesce,
+            Precedence::NilCoalesce => Precedence::Or,
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
@@ -1010,6 +1012,7 @@ impl Parser {
                 | TokenType::LessEqual
                 | TokenType::AndAnd
                 | TokenType::OrOr
+                | TokenType::QuestionQuestion
                 | TokenType::Ampersand
                 | TokenType::Pipe
                 | TokenType::Caret
@@ -1017,7 +1020,8 @@ impl Parser {
                 | TokenType::GreaterGreater => self.binary(expr),
                 TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
                 TokenType::LeftParen => self.call(expr),
-                TokenType::Dot => self.dot(expr, can_assign),
+                TokenType::Dot => self.dot(expr, can_assign, false),
+                TokenType::QuestionDot => self.dot(expr, can_assign, true),
                 TokenType::LeftBracket => self.index(expr, can_assign),
                 TokenType::Question => self.ternary(expr),
                 _ => {
@@ -1044,7 +1048,10 @@ impl Parser {
 
     fn get_precedence(&self, token_type: &TokenType) -> Precedence {
         match token_type {
-            TokenType::LeftParen | TokenType::Dot | TokenType::LeftBracket => Precedence::Call,
+            TokenType::LeftParen
+            | TokenType::Dot
+            | TokenType::QuestionDot
+            | TokenType::LeftBracket => Precedence::Call,
             TokenType::StarStar => Precedence::Exponent,
             TokenType::Star | TokenType::Slash | TokenType::Percent => Precedence::Factor,
             TokenType::Plus | TokenType::Minus => Precedence::Term,
@@ -1060,6 +1067,7 @@ impl Parser {
             TokenType::Pipe => Precedence::BitwiseOr,
             TokenType::AndAnd => Precedence::And,
             TokenType::OrOr => Precedence::Or,
+            TokenType::QuestionQuestion => Precedence::NilCoalesce,
             TokenType::Question => Precedence::Ternary,
             _ => Precedence::None,
         }
@@ -1290,6 +1298,7 @@ impl Parser {
             TokenType::LessEqual => BinaryOp::LessEqual,
             TokenType::AndAnd => BinaryOp::And,
             TokenType::OrOr => BinaryOp::Or,
+            TokenType::QuestionQuestion => BinaryOp::NilCoalesce,
             TokenType::Ampersand => BinaryOp::BitwiseAnd,
             TokenType::Pipe => BinaryOp::BitwiseOr,
             TokenType::Caret => BinaryOp::BitwiseXor,
@@ -1380,7 +1389,7 @@ impl Parser {
         })
     }
 
-    fn dot(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {
+    fn dot(&mut self, object: Expr, can_assign: bool, optional: bool) -> Option<Expr> {
         let location = self.current_location();
 
         if !self.consume(TokenType::Identifier, "Expect field name after '.'.") {
@@ -1402,6 +1411,7 @@ impl Parser {
             let get_field_expr = Expr::GetField {
                 object: Box::new(object),
                 field,
+                optional,
                 location,
             };
 
@@ -1411,7 +1421,7 @@ impl Parser {
                 id: self.next_id(),
                 location: method_location,
             })
-        } else if can_assign && self.match_token(TokenType::Equal) {
+        } else if !optional && can_assign && self.match_token(TokenType::Equal) {
             self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::SetField {
@@ -1420,7 +1430,10 @@ impl Parser {
                 value,
                 location,
             })
-        } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
+        } else if let Some(operator) = self
+            .compound_assign_op()
+            .filter(|_| can_assign && !optional)
+        {
             self.advance();
             let operator_location = self.current_location();
             self.skip_new_lines();
@@ -1437,6 +1450,7 @@ impl Parser {
             Some(Expr::GetField {
                 object: Box::new(object),
                 field,
+                optional,
                 location,
             })
         }

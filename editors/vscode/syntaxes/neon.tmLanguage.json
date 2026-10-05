@@ -104,6 +104,8 @@
         { "match": "\\|", "name": "keyword.operator.bitwise.neon" },
         { "match": "\\^", "name": "keyword.operator.bitwise.neon" },
         { "match": "~", "name": "keyword.operator.bitwise.neon" },
+        { "match": "\\?\\?", "name": "keyword.operator.nil-coalescing.neon" },
+        { "match": "\\?\\.", "name": "keyword.operator.optional-chaining.neon" },
         { "match": "\\?", "name": "keyword.operator.ternary.neon" },
         { "match": ":", "name": "keyword.operator.colon.neon" }
       ]

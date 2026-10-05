@@ -171,7 +171,7 @@ val x = 1 +
 print(x)  // 3
 ```
 
-A line that begins with `.` (but not `..`/`..=`) is the exception: it
+A line that begins with `.` or `?.` (but not `..`/`..=`) is the exception: it
 continues the previous statement as a method chain. A blank line or a
 comment line in between still ends the statement.
 
@@ -443,6 +443,10 @@ Bitwise operators always give an int; a float operand is truncated first.
 - `..` Range (exclusive)
 - `..=` Range (inclusive)
 - `c ? a : b` Ternary
+- `a ?? b` Nil coalescing: `a` unless `a` is nil, otherwise `b`. Only `nil` triggers the fallback —
+  `false ?? x` is `false`.
+- `a?.f`, `a?.m(args)` Optional chaining: nil if `a` is nil (without evaluating the method's
+  arguments), otherwise the field or method call. Not assignable.
 - `x += e`, `-=`, `*=`, `/=`, `%=`, `**=` Compound assignment
 
 Compound assignment works on variables, fields (`o.n += 1`, `self.n += 1`, `o.inner.n += 1`), and
@@ -450,6 +454,8 @@ indexes (`a[i] *= 2`, `m["k"] += 1`), evaluating the target's object/index once.
 assignment is an expression whose value is the new value. There is no `++`/`--`; use `+= 1`/`-= 1`.
 
 **Operator Precedence:** `||` has lower precedence than `&&`, so `a || b && c` is evaluated as `a || (b && c)`.
+`??` binds looser than `||` but tighter than the ternary, so `a ?? b || c` is `a ?? (b || c)`, and
+`c ? a ?? b : d` is `c ? (a ?? b) : d`.
 
 ### String Interpolation
 

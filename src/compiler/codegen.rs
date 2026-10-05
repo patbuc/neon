@@ -1205,6 +1205,18 @@ impl<'a> CodeGenerator<'a> {
                 // 6. Patch end jump (left was true, skip right evaluation)
                 self.patch_jump(end_jump);
             }
+            BinaryOp::NilCoalesce => {
+                // For `a ?? b`:
+                // 1. Evaluate left operand
+                self.generate_expr(left);
+                // 2. If not nil, jump to end with left result
+                let end_jump = self.emit_jump(OpCode::JumpIfNotNil, location);
+                // 3. Left was nil, pop it and evaluate right
+                self.emit_op_code(OpCode::Pop, location);
+                self.generate_expr(right);
+                // 4. Patch end jump (left was not nil, skip right evaluation)
+                self.patch_jump(end_jump);
+            }
             _ => {
                 self.generate_expr(left);
                 self.generate_binary_op_tail(operator, right, location);
@@ -1270,7 +1282,7 @@ impl<'a> CodeGenerator<'a> {
             BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),
             BinaryOp::LeftShift => self.emit_op_code(OpCode::LeftShift, location),
             BinaryOp::RightShift => self.emit_op_code(OpCode::RightShift, location),
-            BinaryOp::And | BinaryOp::Or => unreachable!(),
+            BinaryOp::And | BinaryOp::Or | BinaryOp::NilCoalesce => unreachable!(),
         }
     }
 
@@ -1346,7 +1358,9 @@ impl<'a> CodeGenerator<'a> {
         }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, location),
-            None => self.generate_instance_method_call_expr(object, method, arguments, location),
+            None => {
+                self.generate_instance_method_call_expr(object, method, arguments, false, location)
+            }
         }
     }
 
@@ -1355,17 +1369,22 @@ impl<'a> CodeGenerator<'a> {
         callee: &Expr,
         method: &str,
         arguments: &[Expr],
+        optional: bool,
         location: SourceLocation,
     ) {
         // Instance method call: arr.push(x), str.len(), etc.
         // Type is unknown at compile time, so dispatch by name at runtime.
         self.generate_expr(callee);
+        let end_jump = optional.then(|| self.emit_jump(OpCode::JumpIfNil, location));
 
         for arg in arguments {
             self.generate_expr(arg);
         }
 
         self.emit_invoke(method, arguments.len() as u8, location);
+        if let Some(end_jump) = end_jump {
+            self.patch_jump(end_jump);
+        }
     }
 
     fn generate_array_literal_expr(&mut self, elements: &[Expr], location: SourceLocation) {
@@ -1476,8 +1495,20 @@ impl<'a> CodeGenerator<'a> {
                 id,
                 location,
             } => {
-                if let Expr::GetField { object, field, .. } = callee.as_ref() {
-                    self.generate_method_call_expr(*id, object, field, arguments, *location);
+                if let Expr::GetField {
+                    object,
+                    field,
+                    optional,
+                    ..
+                } = callee.as_ref()
+                {
+                    if *optional {
+                        self.generate_instance_method_call_expr(
+                            object, field, arguments, true, *location,
+                        );
+                    } else {
+                        self.generate_method_call_expr(*id, object, field, arguments, *location);
+                    }
                 } else {
                     self.generate_call_expr(*id, callee, arguments, *location);
                 }
@@ -1485,8 +1516,17 @@ impl<'a> CodeGenerator<'a> {
             Expr::GetField {
                 object,
                 field,
+                optional,
                 location,
             } => {
+                if *optional {
+                    self.generate_expr(object);
+                    let end_jump = self.emit_jump(OpCode::JumpIfNil, *location);
+                    let symbol = self.resolutions.symbol(field);
+                    self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", *location);
+                    self.patch_jump(end_jump);
+                    return;
+                }
                 if let Expr::Variable { id, .. } = object.as_ref() {
                     if let Some(access) = self.resolutions.enum_variant_access(*id) {
                         self.emit_enum_variant_constant(
