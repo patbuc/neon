@@ -128,6 +128,20 @@ impl VirtualMachine {
         *slot = boolean!(is_false_like!(*slot));
     }
 
+    /// Stack: `[.., field values...]` -> `[.., variant]`.
+    pub(in crate::vm) fn op_enum_construct(&mut self) -> OpResult {
+        let Value::EnumVariant(template) = self.chunk.read_constant(self.operand_u16(1) as usize)
+        else {
+            return Err(self.runtime_error("Enum constructor constant is not an enum variant."));
+        };
+        let fields = self
+            .stack
+            .split_off(self.stack.len() - template.field_symbols.len());
+        self.ip += 2;
+        self.push(Value::EnumVariant(Rc::new(template.with_fields(fields))));
+        Ok(())
+    }
+
     #[inline(always)]
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_is_number(&mut self) {
@@ -212,6 +226,17 @@ impl VirtualMachine {
                     Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
                     Err(NativeCallError::Runtime(e)) => return Err(e),
                 }
+            }
+            Value::EnumVariant(template) if template.is_template() => {
+                let expected = template.field_symbols.len();
+                if arg_count != expected {
+                    return Err(self.call_error(format!(
+                        "Expected {} arguments but got {} for '{}'.",
+                        expected, arg_count, template.variant_name
+                    )));
+                }
+                let fields = self.stack[self.stack.len() - arg_count..].to_vec();
+                Value::EnumVariant(Rc::new(template.with_fields(fields)))
             }
             _ => {
                 return Err(self.call_error("Value is not callable"));
@@ -1366,6 +1391,13 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::EnumVariant(variant) => match variant.field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1391,6 +1423,13 @@ impl VirtualMachine {
 
         let value = match &self.stack[absolute_index] {
             Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
+            Value::EnumVariant(variant) => match variant.field(symbol) {
                 Some(value) => value.copy_or_clone(),
                 None => {
                     let name = self.symbol_name(symbol);
@@ -1425,6 +1464,7 @@ impl VirtualMachine {
                 };
                 drop(std::mem::replace(&mut instance.fields[field_index], value));
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -1447,6 +1487,7 @@ impl VirtualMachine {
                 };
                 instance.fields[index] = value.copy_or_clone();
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -1478,11 +1519,20 @@ impl VirtualMachine {
                 };
                 drop(std::mem::replace(&mut instance.fields[index], value));
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
         self.ip += 2;
         Ok(())
+    }
+
+    fn enum_field_assign_error(&self, symbol: u16) -> RuntimeError {
+        let name = self.symbol_name(symbol);
+        self.runtime_error(format!(
+            "Cannot assign to field '{}' of an enum variant.",
+            name
+        ))
     }
 
     /// Looks up an interned name by symbol id, for use on an error path only.

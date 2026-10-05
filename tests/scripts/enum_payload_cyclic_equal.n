@@ -1,0 +1,14 @@
+// Expected:
+// true
+
+enum S {
+    A(x)
+}
+
+val a = []
+val v = S.A(a)
+a.push(v)
+val b = []
+val w = S.A(b)
+b.push(w)
+print(a == b)

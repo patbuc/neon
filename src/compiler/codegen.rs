@@ -11,7 +11,7 @@ use crate::compiler::ast::{
     Pattern, Stmt, UnaryOp,
 };
 use crate::compiler::global_env::GlobalEnv;
-use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
+use crate::compiler::resolutions::{Capture, DeclId, EnumVariantAccess, Res, Resolutions};
 use crate::{int, number, string};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -543,11 +543,48 @@ impl<'a> CodeGenerator<'a> {
         enum_name: &str,
         variant_name: &str,
         ordinal: u16,
+        fields: &[Rc<str>],
         location: SourceLocation,
     ) {
-        let value =
-            Value::new_enum_variant(enum_name.to_string(), variant_name.to_string(), ordinal);
+        let value = self.enum_variant_value(enum_name, variant_name, ordinal, fields);
         self.emit_constant(value, location);
+    }
+
+    fn enum_variant_value(
+        &self,
+        enum_name: &str,
+        variant_name: &str,
+        ordinal: u16,
+        fields: &[Rc<str>],
+    ) -> Value {
+        if fields.is_empty() {
+            return Value::new_enum_variant(
+                enum_name.to_string(),
+                variant_name.to_string(),
+                ordinal,
+            );
+        }
+        let field_symbols = fields.iter().map(|f| self.resolutions.symbol(f)).collect();
+        Value::new_enum_variant_template(
+            enum_name.to_string(),
+            variant_name.to_string(),
+            ordinal,
+            field_symbols,
+        )
+    }
+
+    /// Emits `EnumConstruct`, popping one value per payload field and
+    /// pushing the variant.
+    fn emit_enum_construct(&mut self, access: &EnumVariantAccess, location: SourceLocation) {
+        let template = self.enum_variant_value(
+            &access.enum_name,
+            &access.variant_name,
+            access.ordinal,
+            &access.fields,
+        );
+        let index = self.add_constant(template);
+        self.emit_index_op(OpCode::EnumConstruct, index, "constants", location);
+        self.adjust_stack_height(1 - access.fields.len() as i32);
     }
 
     fn emit_return(&mut self, location: SourceLocation) {
@@ -1543,12 +1580,20 @@ impl<'a> CodeGenerator<'a> {
         arguments: &[Expr],
         location: SourceLocation,
     ) {
+        if let Some(access) = self.resolutions.enum_construct(id) {
+            for arg in arguments {
+                self.generate_expr(arg);
+            }
+            self.emit_enum_construct(access, location);
+            return;
+        }
         if let Some(access) = self.resolutions.enum_values_access(id) {
             for (ordinal, variant_name) in access.variants.iter().enumerate() {
                 self.emit_enum_variant_constant(
                     &access.enum_name,
                     variant_name,
                     ordinal as u16,
+                    &[],
                     location,
                 );
             }
@@ -1731,6 +1776,7 @@ impl<'a> CodeGenerator<'a> {
                             &access.enum_name,
                             &access.variant_name,
                             access.ordinal,
+                            &access.fields,
                             *location,
                         );
                         return;

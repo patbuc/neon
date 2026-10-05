@@ -1,0 +1,13 @@
+// Expected:
+// false
+// false
+// true
+
+enum Shape {
+    Circle(radius)
+    Square(side)
+}
+
+print(Shape.Circle(2) == Shape.Circle(3))
+print(Shape.Circle(2) == Shape.Square(2))
+print(Shape.Circle(2) != Shape.Circle(3))

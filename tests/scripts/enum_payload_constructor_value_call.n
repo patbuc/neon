@@ -1,0 +1,22 @@
+// Expected:
+// Shape.Circle(1)
+// Shape.Circle(2)
+// 10 20 30
+
+enum Shape {
+    Circle(radius)
+}
+
+val f = Shape.Circle
+print(f(1))
+
+fn make(n) {
+    val before = 10
+    val g = Shape.Circle
+    val shape = g(n)
+    val after = 30
+    print(shape)
+    print(before, 20, after)
+}
+
+make(2)

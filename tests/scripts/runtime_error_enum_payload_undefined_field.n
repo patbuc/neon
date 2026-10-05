@@ -1,0 +1,16 @@
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'radius'.
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+}
+
+fn radius(s) {
+    s.radius
+}
+
+print("before")
+radius(Shape.Rect(3, 4))

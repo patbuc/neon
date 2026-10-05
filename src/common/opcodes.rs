@@ -68,12 +68,13 @@ impl OpCode {
             OpCode::NoMatchArm => -1,
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
+            OpCode::EnumConstruct => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 71] = [
+        const OPCODES: [OpCode; 72] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -143,6 +144,7 @@ impl OpCode {
             OpCode::JumpIfNotNil,
             OpCode::JumpIfNil,
             OpCode::NoMatchArm,
+            OpCode::EnumConstruct,
             OpCode::IsArrayOfLen,
             OpCode::IsNumber,
         ];
@@ -277,6 +279,11 @@ pub(crate) enum OpCode {
     /// for <value>", formatted like `print`. Emitted once, after every
     /// `match` arm has been tested and none matched.
     NoMatchArm,
+
+    /// Builds a payload enum variant from a template constant (a 16-bit
+    /// constant-pool index) and one stack value per declared field.
+    /// Stack: `[.., field values...]` -> `[.., variant]`.
+    EnumConstruct,
 
     /// Replaces the top of stack with whether it is an array of the 16-bit
     /// operand's length: exactly, or at least when the 8-bit operand is 1.

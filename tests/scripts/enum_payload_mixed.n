@@ -1,0 +1,17 @@
+// Expected:
+// Shape.Square
+// 2
+// 3
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+    Square
+}
+
+val s = Shape.Square
+val c = Shape.Circle(2)
+val r = Shape.Rect(3, 4)
+print(s)
+print(c.radius)
+print(r.w)

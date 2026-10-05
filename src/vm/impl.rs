@@ -245,6 +245,7 @@ impl VirtualMachine {
                 OpCode::NoMatchArm => self.op_no_match_arm()?,
                 OpCode::IsArrayOfLen => self.op_is_array_of_len(),
                 OpCode::IsNumber => self.op_is_number(),
+                OpCode::EnumConstruct => self.op_enum_construct()?,
                 OpCode::Jump => self.op_jump(),
                 OpCode::Loop => {
                     self.op_loop();

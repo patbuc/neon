@@ -1,0 +1,12 @@
+// Expected:
+// before
+
+// Expected runtime error: Invalid map key type: nil. Only strings, numbers, booleans, arrays, and enum variants can be used as map keys.
+
+enum Shape {
+    Circle(radius)
+}
+
+print("before")
+val m = {}
+m[Shape.Circle(nil)] = 1

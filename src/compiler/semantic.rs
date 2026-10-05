@@ -331,13 +331,13 @@ impl SemanticAnalyzer {
                     id,
                     location,
                 } => {
-                    self.check_duplicate_variants(name, variants);
+                    self.check_enum_variants(name, variants);
                     self.intern_name(name, *location);
                     self.declare_symbol(
                         *id,
                         name.clone(),
                         SymbolKind::Enum {
-                            variants: variants.iter().map(|v| v.name.clone()).collect(),
+                            variants: variants.clone(),
                         },
                         false,
                         *location,
@@ -409,9 +409,24 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn check_duplicate_variants(&mut self, enum_name: &str, variants: &[EnumVariant]) {
+    fn check_enum_variants(&mut self, enum_name: &str, variants: &[EnumVariant]) {
         let mut seen = HashSet::new();
         for variant in variants {
+            let mut seen_fields = HashSet::new();
+            for field in &variant.fields {
+                self.intern_name(field, variant.location);
+                if !seen_fields.insert(field.as_str()) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::DuplicateField,
+                        format!(
+                            "Duplicate field '{}' in variant '{}.{}'",
+                            field, enum_name, variant.name
+                        ),
+                        variant.location,
+                    ));
+                }
+            }
             if !seen.insert(variant.name.as_str()) {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -969,12 +984,12 @@ impl SemanticAnalyzer {
                         format!("Enum '{}' must be declared at the top level", name),
                         *location,
                     ));
-                    self.check_duplicate_variants(name, variants);
+                    self.check_enum_variants(name, variants);
                     self.declare_symbol(
                         *id,
                         name.clone(),
                         SymbolKind::Enum {
-                            variants: variants.iter().map(|v| v.name.clone()).collect(),
+                            variants: variants.clone(),
                         },
                         false,
                         *location,
@@ -1247,6 +1262,18 @@ impl SemanticAnalyzer {
                         "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, an array pattern, or '_'".to_string(),
                         Self::match_pattern_location(expr),
                     ));
+                } else if let Some(access) = self.match_pattern_enum_variant(expr) {
+                    if !access.fields.is_empty() {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::InvalidMatchPattern,
+                            format!(
+                                "Invalid match pattern: payload variant {}.{} must be matched with its fields",
+                                access.enum_name, access.variant_name
+                            ),
+                            Self::match_pattern_location(expr),
+                        ));
+                    }
                 }
             }
             MatchPattern::Array { elements, .. } => {
@@ -1781,16 +1808,52 @@ impl SemanticAnalyzer {
                     self.resolve_expr(arg);
                 }
                 if method == "values" {
+                    if variants.iter().any(|v| !v.fields.is_empty()) {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::UnknownMethod,
+                            format!("'values()' is not available on enum '{}'", name),
+                            location,
+                        ));
+                        return;
+                    }
                     self.validate_arity("Method", "values", 0, arguments.len(), location);
                     self.resolutions.record_enum_values_access(
                         id,
                         EnumValuesAccess {
                             enum_name: Rc::from(name.as_str()),
-                            variants: variants.iter().map(|v| Rc::from(v.as_str())).collect(),
+                            variants: variants.iter().map(|v| Rc::from(v.name.as_str())).collect(),
                         },
                     );
+                } else if let Some(ordinal) = variants.iter().position(|v| v.name == method) {
+                    let variant = &variants[ordinal];
+                    if variant.fields.is_empty() {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::NotCallable,
+                            format!("'{}' is not a payload variant", method),
+                            location,
+                        ));
+                        return;
+                    }
+                    self.validate_arity(
+                        "Function",
+                        method,
+                        variant.fields.len() as u8,
+                        arguments.len(),
+                        location,
+                    );
+                    self.resolutions
+                        .record_enum_construct(id, EnumVariantAccess::new(name, variant, ordinal));
                 } else {
-                    let candidates = ["values"];
+                    let mut candidates: Vec<&str> = variants
+                        .iter()
+                        .filter(|v| !v.fields.is_empty())
+                        .map(|v| v.name.as_str())
+                        .collect();
+                    if candidates.is_empty() {
+                        candidates.push("values");
+                    }
                     let error_message = unknown_method_error(name, method, &candidates, None);
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
@@ -1945,11 +2008,11 @@ impl SemanticAnalyzer {
         &mut self,
         id: NodeId,
         enum_name: &str,
-        variants: &[String],
+        variants: &[EnumVariant],
         variant: &str,
         location: SourceLocation,
     ) {
-        let Some(ordinal) = variants.iter().position(|v| v == variant) else {
+        let Some(ordinal) = variants.iter().position(|v| v.name == variant) else {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownEnumVariant,
@@ -1960,11 +2023,7 @@ impl SemanticAnalyzer {
         };
         self.resolutions.record_enum_variant_access(
             id,
-            EnumVariantAccess {
-                enum_name: Rc::from(enum_name),
-                variant_name: Rc::from(variant),
-                ordinal: ordinal as u16,
-            },
+            EnumVariantAccess::new(enum_name, &variants[ordinal], ordinal),
         );
     }
 
@@ -2101,7 +2160,7 @@ impl SemanticAnalyzer {
     /// The variants of the enum named `name`, in declaration order, when
     /// `name` resolves (lexically - a local of the same name shadows it) to
     /// an enum.
-    fn enum_variants(&self, name: &str) -> Option<Vec<String>> {
+    fn enum_variants(&self, name: &str) -> Option<Vec<EnumVariant>> {
         match self.symbol_table.resolve(name) {
             Some(Symbol {
                 kind: SymbolKind::Enum { variants },
@@ -2212,7 +2271,7 @@ impl SemanticAnalyzer {
     /// enum, and (absent a wildcard) cover every one of its variants.
     #[allow(clippy::expect_used)]
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
-        let mut enum_identity: Option<(Rc<str>, Vec<String>)> = None;
+        let mut enum_identity: Option<(Rc<str>, Vec<EnumVariant>)> = None;
         for arm in arms {
             for pattern in &arm.patterns {
                 if let MatchPattern::Expr(expr) = pattern {
@@ -2274,8 +2333,8 @@ impl SemanticAnalyzer {
         if !has_wildcard {
             let missing: Vec<&str> = variants
                 .iter()
-                .filter(|v| !covered.contains(v))
-                .map(|v| v.as_str())
+                .filter(|v| !covered.contains(&v.name))
+                .map(|v| v.name.as_str())
                 .collect();
             if !missing.is_empty() {
                 self.push_error(CompilationError::new(

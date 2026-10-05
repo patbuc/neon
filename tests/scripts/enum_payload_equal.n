@@ -1,0 +1,11 @@
+// Expected:
+// true
+// true
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+}
+
+print(Shape.Circle(2) == Shape.Circle(2))
+print(Shape.Rect(1, [2]) == Shape.Rect(1, [2]))

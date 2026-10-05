@@ -1,0 +1,14 @@
+// Expected:
+// Shape.Circle(2)
+// Shape.Rect(1, 2)
+// Shape.Named([a, 1])
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+    Named(label)
+}
+
+print(Shape.Circle(2))
+print(Shape.Rect(1, 2))
+print(Shape.Named(["a", 1]))

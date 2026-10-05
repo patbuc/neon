@@ -1,0 +1,14 @@
+// Expected:
+// 1
+// nil
+
+enum S {
+    A(x)
+}
+
+val m = {}
+val arr = [1]
+m[S.A(arr)] = 1
+arr.push(9)
+print(m[S.A([1])])
+print(m[S.A([1, 9])])

@@ -1,0 +1,16 @@
+// Expected:
+// [S.A(1), S.A(2)]
+// 2
+// true
+
+enum S {
+    A(x)
+}
+
+val m = {}
+m[S.A(1)] = 1
+m[S.A(2)] = 2
+print(m.keys())
+val s = #{S.A(1), S.A(1), S.A(2)}
+print(s.size())
+print(s.contains(S.A(2)))

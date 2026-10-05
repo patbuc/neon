@@ -760,6 +760,34 @@ fn test_parse_enum_duplicate_variant_is_kept_for_semantic_analysis() {
 }
 
 #[test]
+fn test_parse_enum_multiline_variant_fields() {
+    let program = "enum Shape {\n    Rect(\n        w,\n        h\n    )\n}\n";
+    let mut parser = Parser::new(program);
+    let result = parser.parse();
+    assert!(result.is_ok(), "got {:?}", result.err());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Enum { variants, .. } => {
+            assert_eq!(variants.len(), 1);
+            assert_eq!(variants[0].fields.len(), 2);
+        }
+        _ => panic!("Expected Enum statement"),
+    }
+}
+
+#[test]
+fn test_parse_enum_variant_with_256_fields_is_error() {
+    let fields: Vec<String> = (0..256).map(|i| format!("f{i}")).collect();
+    let program = format!("enum E {{\n    V({})\n}}\n", fields.join(", "));
+    assert_compile_error(&program, "Can't have more than 255 fields.");
+}
+
+#[test]
+fn test_parse_enum_variant_empty_field_list_is_error() {
+    assert_compile_error("enum E {\n    A()\n}\n", "Expect field name.");
+}
+
+#[test]
 fn test_parse_impl_block() {
     let program = r#"
         impl Point {

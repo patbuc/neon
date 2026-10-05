@@ -356,6 +356,12 @@ fn test_enum_one_variant_per_line() {
 }
 
 #[test]
+fn test_enum_payload_variants_unchanged() {
+    let src = "enum Shape {\n    Circle(radius)\n    Rect(w, h)\n    Square\n}\n";
+    check(src, src);
+}
+
+#[test]
 fn test_impl_with_two_methods() {
     check(
         "impl Point {\nfn len(self) { return self.x }\nfn origin() { return Point(0, 0) }\n}\n",

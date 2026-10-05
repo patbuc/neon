@@ -1,0 +1,11 @@
+// Expected:
+// 1
+// 2
+
+enum Shape {
+    Circle(size)
+    Square(size)
+}
+
+print(Shape.Circle(1).size)
+print(Shape.Square(2).size)

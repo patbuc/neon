@@ -1,0 +1,15 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot use a self-referencing array as a map key.
+
+enum S {
+    A(x)
+}
+
+print("before")
+val a = []
+val v = S.A(a)
+a.push(v)
+val m = {}
+m[v] = 1
