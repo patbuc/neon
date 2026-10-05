@@ -178,11 +178,9 @@ impl Parser {
 
     /// True when the current token is `fn` and it's immediately followed by
     /// `(`, i.e. a statement-position lambda (`fn(x) { .. }(5)`) rather than
-    /// a named function declaration. Scans ahead on a copy of the scanner
-    /// so the real one isn't advanced.
+    /// a named function declaration.
     fn fn_starts_lambda(&self) -> bool {
-        let mut scanner = self.scanner.clone();
-        scanner.scan_token().token_type == TokenType::LeftParen
+        self.scanner.next_is_left_paren()
     }
 
     fn consume(&mut self, token_type: TokenType, message: &str) -> bool {
