@@ -1128,6 +1128,7 @@ impl<'a> CodeGenerator<'a> {
                 arms,
                 location,
             } => self.generate_match_expr(scrutinee, arms, tail, *location),
+            Expr::Grouping { expr, .. } => self.generate_expr_in_tail(expr, tail),
             _ => self.generate_expr(expr),
         }
     }

@@ -216,9 +216,9 @@ impl VirtualMachine {
     }
 
     /// TailInvoke: `Invoke` followed by `Return`, except that a user-defined
-    /// method takes over the running frame. Returns whether the call left a
-    /// frame running; otherwise its result is on the stack for the caller to
-    /// return.
+    /// method or a closure in an instance field takes over the running frame.
+    /// Returns whether it did; otherwise the callee's result is on the stack
+    /// for the caller to return.
     #[inline(never)]
     pub(in crate::vm) fn op_tail_invoke(&mut self) -> Result<bool, RuntimeError> {
         let method_symbol = self.operand_u16(1);
@@ -245,12 +245,18 @@ impl VirtualMachine {
             }
         }
 
+        if let Value::Instance(inst) = &receiver {
+            let field_value = inst.borrow().field(method_symbol).cloned();
+            if let Some(Value::Closure(closure)) = field_value {
+                self.stack[receiver_index] = Value::Nil;
+                self.reuse_frame(receiver_index, arg_count, closure, false)?;
+                return Ok(true);
+            }
+        }
+
         self.check_frame_limit()?;
-        let depth = self.call_frames.len();
         self.dispatch_invoke(method_symbol, arg_count)?;
-        // A callable instance field can push a frame; the `Return` after
-        // this instruction runs once it finishes.
-        Ok(self.call_frames.len() > depth)
+        Ok(false)
     }
 
     /// Replaces the running frame with a call to `closure` whose callee slot
