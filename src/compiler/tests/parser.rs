@@ -34,7 +34,8 @@ fn test_tuple_pattern_needs_at_least_two_names() {
 
 #[test]
 fn test_match_keyword_cannot_be_val_name() {
-    compile_errors("val match = 1\n");
+    let errors = compile_errors("val match = 1\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -649,6 +650,7 @@ fn test_lambda_expression_statement() {
 fn test_parse_stray_right_brace_after_statement() {
     let errors = compile_errors("print(1) }\n");
     assert!(!errors.is_empty());
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -809,6 +811,7 @@ fn test_block_body_recovers_from_multiple_errors() {
         vec![2, 3, 4, 6],
         "Should report one error per bad statement, in order"
     );
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -818,6 +821,7 @@ fn test_impl_body_recovery_is_brace_depth_aware() {
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -827,6 +831,7 @@ fn test_impl_body_recovery_is_brace_depth_aware_for_set_literals() {
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -835,6 +840,7 @@ fn test_synchronize_stops_at_enclosing_brace_after_same_line_error() {
     let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![1, 2]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -843,6 +849,7 @@ fn test_missing_range_end_does_not_swallow_enclosing_brace() {
     let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -851,6 +858,7 @@ fn test_missing_ternary_branch_does_not_swallow_enclosing_brace() {
     let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -859,6 +867,7 @@ fn test_missing_assignment_value_does_not_swallow_enclosing_brace() {
     let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -867,6 +876,7 @@ fn test_if_branch_error_recovers_to_next_statement() {
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -875,6 +885,7 @@ fn test_while_body_reports_both_bad_statements() {
     let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![3, 5]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -886,6 +897,7 @@ fn test_if_header_error_skips_body() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 8)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -897,6 +909,7 @@ fn test_while_header_error_skips_body() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 9), (5, 11)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -908,6 +921,7 @@ fn test_stray_brace_as_operand_is_not_consumed() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(1, 18), (2, 9)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -919,6 +933,7 @@ fn test_map_literal_close_brace_is_not_mistaken_for_block_end() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 24)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -930,6 +945,7 @@ fn test_nested_call_with_bad_map_value_does_not_swallow_block_end() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 7)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -941,6 +957,7 @@ fn test_multiline_array_element_does_not_swallow_block_end() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 12)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -952,6 +969,7 @@ fn test_multiline_call_argument_does_not_swallow_block_end() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 12)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -963,6 +981,7 @@ fn test_open_call_across_newline_in_block_reports_one_error() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -974,6 +993,7 @@ fn test_open_call_argument_across_newline_in_block_reports_one_error() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -985,6 +1005,7 @@ fn test_open_array_across_newline_in_block_reports_one_error() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -996,6 +1017,7 @@ fn test_open_set_across_newline_in_block_reports_one_error() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -1007,6 +1029,7 @@ fn test_mismatched_closing_delimiter_does_not_swallow_later_statements() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 19), (3, 13), (4, 13)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -1018,6 +1041,7 @@ fn test_stray_paren_in_lambda_argument_does_not_swallow_later_statements() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 24), (3, 13), (5, 1), (5, 1)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -2624,7 +2648,8 @@ fn test_parse_map_missing_value() {
     let program = r#"
         val m = {"key":}
         "#;
-    compile_errors(program);
+    let errors = compile_errors(program);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3020,6 +3045,7 @@ fn test_parse_error_line_after_trailing_comment() {
     let source = "val a = 1 // c\n)\n";
     let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3028,6 +3054,7 @@ fn test_parse_error_position_after_comment_only_line() {
     let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 9);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3036,6 +3063,7 @@ fn test_parse_error_position_after_whitespace_only_line() {
     let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 9);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3302,6 +3330,7 @@ fn test_interpolation_error_recovery_lambda_block() {
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[1].location.line, 4);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3313,24 +3342,28 @@ fn test_interpolation_error_recovery_lambda_block_multiple_statements() {
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[1].location.line, 5);
     assert_eq!(errors[2].location.line, 6);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_interpolation_error_recovery_invalid_escape() {
     let errors = compile_errors("print(\"\\q ${1\n} x\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::InvalidEscapeSequence);
 }
 
 #[test]
 fn test_interpolation_error_recovery_two_interpolations() {
     let errors = compile_errors("print(\"${)\n1} and ${2\n}\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_interpolation_error_recovery_two_interpolations_in_block() {
     let errors = compile_errors("print(\"x ${ a b\n} y ${ a c } z\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -3648,6 +3681,7 @@ fn test_open_call_across_newline_reports_missing_operand() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -3659,6 +3693,7 @@ fn test_open_call_argument_across_newline_reports_missing_operand() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 10)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -3670,6 +3705,7 @@ fn test_open_array_across_newline_reports_missing_operand() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -3681,6 +3717,7 @@ fn test_open_set_across_newline_reports_missing_operand() {
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -3690,6 +3727,7 @@ fn test_missing_initializer_before_close_paren_terminates() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[0].location.column, 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3697,6 +3735,7 @@ fn test_grouping_missing_operand_after_newline_reports_one_error() {
     let program = "val x = (1 +\n)\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3704,6 +3743,8 @@ fn test_nested_call_argument_missing_operand_after_newline_reports_one_error() {
     let program = "print(foo(1,\n  2 +\n))\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
+    assert_eq!(errors[0].location.line, 3);
 }
 
 #[test]
@@ -3711,6 +3752,7 @@ fn test_array_missing_operand_after_newline_reports_one_error() {
     let program = "val x = [1,\n  2 *\n]\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3718,6 +3760,7 @@ fn test_ternary_missing_then_branch_after_newline_reports_one_error() {
     let program = "val x = 1 ?\n: 2\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -3969,9 +4012,11 @@ fn test_leading_dot_after_blank_line() {
 
 #[test]
 fn test_leading_range_dots() {
-    compile_errors("val a = 1\n    ..5\n");
+    let errors = compile_errors("val a = 1\n    ..5\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 
-    compile_errors("val a = 1\n    ..=5\n");
+    let errors = compile_errors("val a = 1\n    ..=5\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -4042,12 +4087,14 @@ fn test_braceless_else_is_compile_error() {
 
 #[test]
 fn test_parenthesized_for_in_is_compile_error() {
-    compile_errors("for (x in xs) {\n}\n");
+    let errors = compile_errors("for (x in xs) {\n}\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_c_style_for_is_compile_error() {
-    compile_errors("for var i = 0; i < 3; i += 1 {\n}\n");
+    let errors = compile_errors("for var i = 0; i < 3; i += 1 {\n}\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
