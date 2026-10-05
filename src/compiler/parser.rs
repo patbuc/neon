@@ -1902,16 +1902,11 @@ impl Parser {
         let location = self.current_location();
 
         let scrutinee = self.without_trailing_block(|parser| parser.expression(false))?;
-        let brace_location = self.current_token_location();
         if !self.consume(TokenType::LeftBrace, "Expect '{' after match expression.") {
             return None;
         }
         let arms = self.match_arms()?;
         if !self.consume(TokenType::RightBrace, "Expect '}' after match arms.") {
-            return None;
-        }
-        if self.continues_expression_after_block() {
-            self.report_trailing_block_in_condition(brace_location);
             return None;
         }
 

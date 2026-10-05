@@ -1,0 +1,13 @@
+// Expected:
+// 5
+// 2
+
+print(1 + match 1 {
+    1 -> 2
+    _ -> 0
+} * 2)
+
+print(match 1 {
+    1 -> "ab"
+    _ -> ""
+}.size())
