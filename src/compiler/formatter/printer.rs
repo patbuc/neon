@@ -1,6 +1,6 @@
 use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
-use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::formatter::source_map::SourceMap;
 use crate::compiler::{Comment, CommentKind, Trivia};
 
@@ -855,6 +855,22 @@ impl<'a> Printer<'a> {
                 self.print_params(location, params);
                 self.write(" ");
                 self.print_body(location, body);
+            }
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.write("if ");
+                self.nested(0, |printer| printer.print_condition(condition));
+                self.write(" ");
+                self.print_stmt(then_branch);
+                self.write(" else ");
+                match else_branch.as_ref() {
+                    IfExprElse::If(expr) => self.print_expr(expr),
+                    IfExprElse::Block(stmt) => self.print_stmt(stmt),
+                }
             }
         }
     }

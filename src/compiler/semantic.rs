@@ -7,7 +7,7 @@ use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
-use crate::compiler::ast::{EnumVariant, Expr, NodeId, Stmt, StructField};
+use crate::compiler::ast::{EnumVariant, Expr, IfExprElse, NodeId, Stmt, StructField};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
@@ -1154,6 +1154,19 @@ impl SemanticAnalyzer {
                 location,
             } => {
                 self.resolve_function_body(*id, params, body, *location, None);
+            }
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.resolve_expr(condition);
+                self.resolve_stmt(then_branch);
+                match else_branch.as_ref() {
+                    IfExprElse::If(expr) => self.resolve_expr(expr),
+                    IfExprElse::Block(stmt) => self.resolve_stmt(stmt),
+                }
             }
         }
     }

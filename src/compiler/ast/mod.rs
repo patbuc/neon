@@ -216,6 +216,25 @@ pub enum Expr {
         id: NodeId,
         location: SourceLocation,
     },
+    /// `if cond { ... } else ...` in expression position. `then_branch` and
+    /// a terminal `else_branch` are always `Stmt::Block`; an `else if`
+    /// chains through `IfExprElse::If`. A branch's value is its last
+    /// expression statement, else `nil`.
+    If {
+        condition: Box<Expr>,
+        then_branch: Box<Stmt>,
+        else_branch: Box<IfExprElse>,
+        location: SourceLocation,
+    },
+}
+
+/// The `else` clause of an if-expression.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IfExprElse {
+    /// `else if ...`; always wraps `Expr::If`.
+    If(Expr),
+    /// A terminal `else { ... }`; always wraps `Stmt::Block`.
+    Block(Stmt),
 }
 
 /// Statement nodes

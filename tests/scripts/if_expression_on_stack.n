@@ -1,0 +1,94 @@
+// Expected:
+// xT
+// 1
+// 3
+// 25
+// 101
+// [1, 2]
+// 9
+// 7
+
+val cond = true
+
+print("x${if cond {
+    val t = "T"
+    (fn() {
+        t
+    })()
+} else {
+    ""
+}}")
+
+struct Box {
+    f
+}
+
+val o = Box(0)
+o.f = if cond {
+    val t2 = 1
+    (fn() {
+        t2
+    })()
+} else {
+    0
+}
+print(o.f)
+
+o.f += if cond {
+    val t3 = 2
+    (fn() {
+        t3
+    })()
+} else {
+    0
+}
+print(o.f)
+
+var a = [10, 20, 30]
+a[1] += if cond {
+    val t4 = 5
+    (fn() {
+        t4
+    })()
+} else {
+    0
+}
+print(a[1])
+
+val x = 100
+print(x + (if cond {
+    val t5 = 1
+    (fn() {
+        t5
+    })()
+} else {
+    0
+}))
+
+print([1, 2, 3, 4, 5].slice(0, if cond {
+    val n = 2
+    (fn() {
+        n
+    })()
+} else {
+    1
+}))
+
+val y = nil
+print(y ?? (if cond {
+    val t6 = 9
+    (fn() {
+        t6
+    })()
+} else {
+    0
+}))
+
+print(cond ? (if cond {
+    val t7 = 7
+    (fn() {
+        t7
+    })()
+} else {
+    0
+}) : 999)

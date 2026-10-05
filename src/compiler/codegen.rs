@@ -6,7 +6,7 @@ use crate::common::errors::{
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
-use crate::compiler::ast::{BinaryOp, Expr, NodeId, Stmt, UnaryOp};
+use crate::compiler::ast::{BinaryOp, Expr, IfExprElse, NodeId, Stmt, UnaryOp};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
 use crate::{int, number, string};
@@ -1793,7 +1793,112 @@ impl<'a> CodeGenerator<'a> {
             } => {
                 self.generate_closure(*id, "anonymous", params, body, *location);
             }
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                location,
+            } => {
+                self.generate_if_expr(condition, then_branch, else_branch, *location);
+            }
         }
+    }
+
+    /// Compiles `if cond { ... } else ...` in expression position: a hidden
+    /// local reserved before the branches holds the result; each branch
+    /// runs in its own nested scope, which is torn down (popping the
+    /// branch's own locals / closing their upvalues) right after storing
+    /// its value into the hidden local. That leaves the hidden local's
+    /// value sitting on top of the stack with nothing above it, so it's
+    /// already the if-expression's value - dropping it from the compiler's
+    /// local bookkeeping (without popping it at runtime) hands it to
+    /// whatever uses the expression next, the same way any other
+    /// expression's value is handed off. Mirrors the hidden locals for-in
+    /// keeps for its iterator state - no new opcode.
+    fn generate_if_expr(
+        &mut self,
+        condition: &Expr,
+        then_branch: &Stmt,
+        else_branch: &IfExprElse,
+        location: SourceLocation,
+    ) {
+        self.current().scope_depth += 1;
+        let hidden_depth = self.current().scope_depth;
+        self.emit_op_code(OpCode::Nil, location);
+        self.current().locals.push(Local::new(hidden_depth, false));
+        let hidden_slot = self.current().stack_height - 1;
+
+        self.generate_expr(condition);
+        let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // See generate_if_stmt: then_jump lands here with the condition
+        // still unpopped, not at the height the then-branch leaves behind.
+        let false_path_height = self.current().stack_height;
+        self.emit_op_code(OpCode::Pop, location); // Pop condition if true
+        self.generate_if_expr_branch(then_branch, hidden_slot);
+        let else_jump = self.emit_jump(OpCode::Jump, location);
+
+        self.patch_jump(then_jump);
+        self.current().stack_height = false_path_height;
+        self.emit_op_code(OpCode::Pop, location); // Pop condition if false
+
+        match else_branch {
+            IfExprElse::If(expr) => {
+                self.generate_expr(expr);
+                self.store_into_hidden_local(hidden_slot, location);
+            }
+            IfExprElse::Block(stmt) => {
+                self.generate_if_expr_branch(stmt, hidden_slot);
+            }
+        }
+        self.patch_jump(else_jump);
+
+        self.current().scope_depth -= 1;
+        self.current().locals.pop();
+    }
+
+    /// Stores the value on top of the stack into the if-expression's hidden
+    /// result local. `StoreLocal` pops it, unlike `SetLocal`.
+    fn store_into_hidden_local(&mut self, slot: u32, location: SourceLocation) {
+        self.emit_index_op(OpCode::StoreLocal, slot, "locals", location);
+    }
+
+    /// Compiles one `{ ... }` branch of an if-expression: its last
+    /// expression statement becomes the branch's value, stored into
+    /// `hidden_slot`; any other kind of last statement (or an empty
+    /// branch) leaves `nil`.
+    #[allow(clippy::expect_used)]
+    fn generate_if_expr_branch(&mut self, branch: &Stmt, hidden_slot: u32) {
+        let Stmt::Block {
+            statements,
+            location: branch_location,
+        } = branch
+        else {
+            unreachable!("if-expression branches are always blocks")
+        };
+        let branch_location = *branch_location;
+
+        self.current().scope_depth += 1;
+        self.hoist_block_functions(statements);
+        // Unlike a plain block's statements, these may run under transient
+        // values the enclosing expression hasn't registered as locals (e.g.
+        // a callee kept alive while its arguments are generated), so
+        // `assert_stack_height`'s locals-count comparison doesn't hold here.
+        match statements.split_last() {
+            Some((last, init)) => {
+                for stmt in init {
+                    self.generate_stmt(stmt);
+                }
+                if let Stmt::Expression { expr, .. } = last {
+                    self.generate_expr(expr);
+                } else {
+                    self.generate_stmt(last);
+                    self.emit_op_code(OpCode::Nil, branch_location);
+                }
+            }
+            None => self.emit_op_code(OpCode::Nil, branch_location),
+        }
+        self.store_into_hidden_local(hidden_slot, branch_location);
+        self.end_scope(branch_location);
     }
 
     /// Pushes the placeholder native callable for a call dispatched by

@@ -3,7 +3,7 @@ use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
 mod resolutions {
-    use crate::compiler::ast::{Expr, NodeId, Stmt};
+    use crate::compiler::ast::{Expr, IfExprElse, NodeId, Stmt};
     use crate::compiler::parser::Parser;
     use crate::compiler::resolutions::{Capture, Res, Resolutions};
     use crate::compiler::semantic::SemanticAnalyzer;
@@ -184,6 +184,19 @@ mod resolutions {
             Expr::Function { body, id, .. } => {
                 idx.fns.push(("<lambda>", *id));
                 index_stmts(body, idx);
+            }
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                index_expr(condition, idx);
+                index_stmt(then_branch, idx);
+                match else_branch.as_ref() {
+                    IfExprElse::If(expr) => index_expr(expr, idx),
+                    IfExprElse::Block(stmt) => index_stmt(stmt, idx),
+                }
             }
             Expr::Number { .. }
             | Expr::Int { .. }
