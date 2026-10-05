@@ -1,0 +1,13 @@
+// Expected:
+// [1, 2, 3]
+// [2, 3, 9]
+
+val source = [1, 2, 3]
+match source {
+    [_, ..rest] -> {
+        rest.push(9)
+        print(source)
+        print(rest)
+    }
+    _ -> print("no")
+}

@@ -1966,6 +1966,27 @@ impl Parser {
         })
     }
 
+    /// An element of an array pattern: a pattern, `..` or `..name`.
+    fn match_array_element(&mut self) -> Option<MatchPattern> {
+        if !self.match_token(TokenType::DotDot) {
+            return self.match_pattern();
+        }
+        let location = self.current_location();
+        let binding = if self.check(TokenType::Identifier) {
+            let name = self.current_token.token.clone();
+            let binding_location = self.current_token_location();
+            self.advance();
+            Some(Binding {
+                name,
+                id: self.next_id(),
+                location: binding_location,
+            })
+        } else {
+            None
+        };
+        Some(MatchPattern::Rest { binding, location })
+    }
+
     /// A single pattern: `_`, a bare name, `[pattern, ...]`, or a literal,
     /// range or enum variant.
     fn match_pattern(&mut self) -> Option<MatchPattern> {
@@ -1974,7 +1995,7 @@ impl Parser {
             let elements = self.parse_comma_separated_list(
                 TokenType::RightBracket,
                 None,
-                Self::match_pattern,
+                Self::match_array_element,
             )?;
             if !self.consume(TokenType::RightBracket, "Expect ']' after array pattern.") {
                 return None;

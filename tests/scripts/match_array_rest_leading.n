@@ -1,0 +1,7 @@
+// Expected:
+// 1 [2, 3]
+
+match [1, 2, 3] {
+    [first, ..rest] -> print("${first} ${rest}")
+    _ -> print("no")
+}

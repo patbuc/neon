@@ -278,8 +278,8 @@ pub(crate) enum OpCode {
     /// `match` arm has been tested and none matched.
     NoMatchArm,
 
-    /// Replaces the top of stack with whether it is an array of exactly
-    /// the 16-bit operand's length.
+    /// Replaces the top of stack with whether it is an array of the 16-bit
+    /// operand's length: exactly, or at least when the 8-bit operand is 1.
     IsArrayOfLen,
 
     /// Replaces the top of stack with whether it is an Int or a Number.

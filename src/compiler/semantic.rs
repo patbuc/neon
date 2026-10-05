@@ -1250,8 +1250,26 @@ impl SemanticAnalyzer {
                 }
             }
             MatchPattern::Array { elements, .. } => {
+                let mut rests = elements
+                    .iter()
+                    .filter(|element| matches!(element, MatchPattern::Rest { .. }));
+                if let Some(second) = rests.nth(1) {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::InvalidMatchPattern,
+                        "Invalid match pattern: an array pattern can have only one rest ('..')"
+                            .to_string(),
+                        Self::pattern_location(second),
+                    ));
+                }
                 for element in elements {
                     self.resolve_match_pattern(element);
+                }
+            }
+            MatchPattern::Rest { binding, location } => {
+                if binding.is_some() {
+                    self.intern_name("slice", *location);
+                    self.intern_name("drop", *location);
                 }
             }
             MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {}
@@ -1260,7 +1278,9 @@ impl SemanticAnalyzer {
 
     fn pattern_location(pattern: &MatchPattern) -> SourceLocation {
         match pattern {
-            MatchPattern::Wildcard(location) | MatchPattern::Array { location, .. } => *location,
+            MatchPattern::Wildcard(location)
+            | MatchPattern::Array { location, .. }
+            | MatchPattern::Rest { location, .. } => *location,
             MatchPattern::Binding(binding) => binding.location,
             MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
         }
@@ -2215,7 +2235,7 @@ impl SemanticAnalyzer {
                     MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
                         has_wildcard |= arm.guard.is_none()
                     }
-                    MatchPattern::Array { .. } => {}
+                    MatchPattern::Array { .. } | MatchPattern::Rest { .. } => {}
                     MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
                         Some(access) if access.enum_name == enum_name => {
                             if arm.guard.is_none()
@@ -2747,7 +2767,7 @@ fn pattern_references_it(pattern: &MatchPattern) -> bool {
     match pattern {
         MatchPattern::Expr(expr) => expr_references_it(expr),
         MatchPattern::Array { elements, .. } => elements.iter().any(pattern_references_it),
-        MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => false,
+        MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. } => false,
     }
 }
 

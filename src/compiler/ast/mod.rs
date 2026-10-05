@@ -257,17 +257,53 @@ pub enum MatchPattern {
     /// A bare name: matches anything and binds it, immutably, for the arm.
     Binding(Binding),
     /// `[p1, p2]`: an array of exactly that length whose elements match
-    /// the sub-patterns. Any other value does not match.
+    /// the sub-patterns. Any other value does not match. With a `Rest`
+    /// element, any array at least that long (without the rest) matches.
     Array {
         elements: Vec<MatchPattern>,
         location: SourceLocation,
     },
+    /// `..` or `..name` inside an array pattern: the elements between the
+    /// ones before and after it. A name binds them as a new array.
+    Rest {
+        binding: Option<Binding>,
+        location: SourceLocation,
+    },
+}
+
+/// One step from an array to a part of it, as followed by an array
+/// pattern's bindings.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PathStep {
+    /// The element at this index; negative counts from the end.
+    Index(i64),
+    /// The elements after the first `before` and before the last `after`.
+    Rest { before: usize, after: usize },
+}
+
+impl PathStep {
+    /// The step to each of an array pattern's `elements`.
+    pub fn for_elements(elements: &[MatchPattern]) -> Vec<PathStep> {
+        let rest_position = elements
+            .iter()
+            .position(|element| matches!(element, MatchPattern::Rest { .. }));
+        (0..elements.len())
+            .map(|index| match rest_position {
+                Some(rest) if index == rest => PathStep::Rest {
+                    before: rest,
+                    after: elements.len() - rest - 1,
+                },
+                Some(rest) if index > rest => PathStep::Index(index as i64 - elements.len() as i64),
+                _ => PathStep::Index(index as i64),
+            })
+            .collect()
+    }
 }
 
 impl MatchPattern {
     /// Every name this pattern binds, in source order, each with the
     /// element indices that lead from the matched value to what it binds.
-    pub fn bindings(&self) -> Vec<(&Binding, Vec<usize>)> {
+    pub fn bindings(&self) -> Vec<(&Binding, Vec<PathStep>)> {
         let mut found = Vec::new();
         self.collect_bindings(&mut Vec::new(), &mut found);
         found
@@ -275,16 +311,21 @@ impl MatchPattern {
 
     fn collect_bindings<'a>(
         &'a self,
-        path: &mut Vec<usize>,
-        found: &mut Vec<(&'a Binding, Vec<usize>)>,
+        path: &mut Vec<PathStep>,
+        found: &mut Vec<(&'a Binding, Vec<PathStep>)>,
     ) {
         match self {
             MatchPattern::Binding(binding) => found.push((binding, path.clone())),
             MatchPattern::Array { elements, .. } => {
-                for (index, element) in elements.iter().enumerate() {
-                    path.push(index);
+                for (step, element) in PathStep::for_elements(elements).into_iter().zip(elements) {
+                    path.push(step);
                     element.collect_bindings(path, found);
                     path.pop();
+                }
+            }
+            MatchPattern::Rest { binding, .. } => {
+                if let Some(binding) = binding {
+                    found.push((binding, path.clone()));
                 }
             }
             MatchPattern::Expr(_) | MatchPattern::Wildcard(_) => {}

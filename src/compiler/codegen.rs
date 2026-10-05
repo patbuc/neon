@@ -7,8 +7,8 @@ use crate::common::errors::{
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, SourceLocation, Value};
 use crate::compiler::ast::{
-    BinaryOp, Binding, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId, Pattern,
-    Stmt, UnaryOp,
+    BinaryOp, Binding, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId, PathStep,
+    Pattern, Stmt, UnaryOp,
 };
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{Capture, DeclId, Res, Resolutions};
@@ -369,6 +369,16 @@ impl<'a> CodeGenerator<'a> {
         if let Some(index) = self.checked_index(index, kind, location) {
             self.emit_op_code(op_code, location);
             self.current_chunk().write_u16(index);
+        }
+    }
+
+    /// Emits `IsArrayOfLen`: exactly `length` elements, or at least that
+    /// many when `at_least`.
+    fn emit_array_length_test(&mut self, length: u32, at_least: bool, location: SourceLocation) {
+        if let Some(length) = self.checked_index(length, "array pattern elements", location) {
+            self.emit_op_code(OpCode::IsArrayOfLen, location);
+            self.current_chunk().write_u16(length);
+            self.current_chunk().write_u8(u8::from(at_least));
         }
     }
 
@@ -2164,12 +2174,31 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Pushes the value `path` leads to from the value in `hidden_slot`:
-    /// the element at each index in turn.
-    fn emit_match_subject(&mut self, hidden_slot: u32, path: &[usize], location: SourceLocation) {
+    /// the element at each index in turn, or for a rest step a new array of
+    /// the elements it covers.
+    fn emit_match_subject(
+        &mut self,
+        hidden_slot: u32,
+        path: &[PathStep],
+        location: SourceLocation,
+    ) {
         self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
-        for &index in path {
-            self.emit_constant(Value::Int(index as i64), location);
-            self.emit_op_code(OpCode::GetIndex, location);
+        for &step in path {
+            match step {
+                PathStep::Index(index) => {
+                    self.emit_constant(Value::Int(index), location);
+                    self.emit_op_code(OpCode::GetIndex, location);
+                }
+                PathStep::Rest { before, after: 0 } => {
+                    self.emit_constant(Value::Int(before as i64), location);
+                    self.emit_invoke("drop", 1, location);
+                }
+                PathStep::Rest { before, after } => {
+                    self.emit_constant(Value::Int(before as i64), location);
+                    self.emit_constant(Value::Int(-(after as i64)), location);
+                    self.emit_invoke("slice", 2, location);
+                }
+            }
         }
     }
 
@@ -2181,12 +2210,12 @@ impl<'a> CodeGenerator<'a> {
     fn generate_match_pattern_test(
         &mut self,
         hidden_slot: u32,
-        path: &[usize],
+        path: &[PathStep],
         pattern: &MatchPattern,
         location: SourceLocation,
     ) {
         match pattern {
-            MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
+            MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. } => {
                 self.emit_op_code(OpCode::True, location)
             }
             MatchPattern::Array {
@@ -2194,24 +2223,26 @@ impl<'a> CodeGenerator<'a> {
                 location: array_location,
             } => {
                 self.emit_match_subject(hidden_slot, path, *array_location);
-                self.emit_index_op(
-                    OpCode::IsArrayOfLen,
-                    elements.len() as u32,
-                    "array pattern elements",
-                    *array_location,
-                );
+                let has_rest = elements
+                    .iter()
+                    .any(|element| matches!(element, MatchPattern::Rest { .. }));
+                let length = elements.len() - usize::from(has_rest);
+                self.emit_array_length_test(length as u32, has_rest, *array_location);
                 let mut fail_jumps = Vec::new();
-                for (index, element) in elements.iter().enumerate() {
+                let steps = PathStep::for_elements(elements);
+                for (step, element) in steps.into_iter().zip(elements) {
                     if matches!(
                         element,
-                        MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
+                        MatchPattern::Wildcard(_)
+                            | MatchPattern::Binding(_)
+                            | MatchPattern::Rest { .. }
                     ) {
                         continue;
                     }
                     fail_jumps.push(self.emit_jump(OpCode::JumpIfFalse, *array_location));
                     self.emit_op_code(OpCode::Pop, *array_location);
                     let mut element_path = path.to_vec();
-                    element_path.push(index);
+                    element_path.push(step);
                     self.generate_match_pattern_test(
                         hidden_slot,
                         &element_path,

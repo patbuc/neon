@@ -3545,6 +3545,14 @@ fn assert_match_error(program: &str, expected: &str) {
 }
 
 #[test]
+fn test_match_array_pattern_with_two_rests_is_compile_error() {
+    assert_match_error(
+        "val r = match [1, 2, 3] {\n    [.., ..] -> 1\n    _ -> 0\n}\n",
+        "only one rest",
+    );
+}
+
+#[test]
 fn test_match_expression_pattern_is_invalid() {
     assert_match_error(
         "val y = 1\nval r = match 1 {\n    y + 1 -> 1\n    _ -> 0\n}\n",

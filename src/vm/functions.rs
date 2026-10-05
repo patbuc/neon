@@ -142,9 +142,13 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_is_array_of_len(&mut self) {
         // [.., value] -> [.., is_array_of_len]
         let length = self.operand_u16(1) as usize;
-        self.ip += 2;
+        let at_least = self.operand_u8(3) != 0;
+        self.ip += 3;
         let slot = self.stack.last_mut().expect("operand is on the stack");
-        let matches = matches!(slot, Value::Array(array) if array.borrow().len() == length);
+        let matches = matches!(slot, Value::Array(array) if {
+            let actual = array.borrow().len();
+            if at_least { actual >= length } else { actual == length }
+        });
         *slot = boolean!(matches);
     }
 

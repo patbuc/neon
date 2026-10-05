@@ -1059,6 +1059,12 @@ impl<'a> Printer<'a> {
             MatchPattern::Expr(expr) => self.print_expr(expr),
             MatchPattern::Wildcard(_) => self.write("_"),
             MatchPattern::Binding(binding) => self.write(&binding.name),
+            MatchPattern::Rest { binding, .. } => {
+                self.write("..");
+                if let Some(binding) = binding {
+                    self.write(&binding.name);
+                }
+            }
             MatchPattern::Array { elements, .. } => {
                 self.write("[");
                 for (i, element) in elements.iter().enumerate() {
