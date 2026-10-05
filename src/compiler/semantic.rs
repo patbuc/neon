@@ -1310,6 +1310,12 @@ impl SemanticAnalyzer {
     fn resolve_variant_pattern(&mut self, target: &Expr, fields: &[MatchPattern]) {
         let location = Self::match_pattern_location(target);
         let Some(access) = self.match_pattern_enum_variant(target) else {
+            if let Expr::GetField { object, .. } = target {
+                if matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+                {
+                    return;
+                }
+            }
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::InvalidMatchPattern,

@@ -3914,3 +3914,32 @@ fn test_match_binding_then_literal_alternatives_is_error() {
         "must bind the same names",
     );
 }
+
+#[test]
+fn test_match_variant_pattern_from_other_enum_is_rejected() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n}\nenum Other {\n    Box(b)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Other.Box(b) -> b\n}\n",
+        "Pattern Other.Box does not belong to enum Shape",
+    );
+}
+
+#[test]
+fn test_match_guarded_variant_pattern_does_not_cover_variant() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) if a > 0 -> a\n    Shape.Rect(w, h) -> w\n}\n",
+        "match on Shape is missing Circle",
+    );
+}
+
+#[test]
+fn test_match_unknown_variant_pattern_reports_only_no_such_variant() {
+    let program = "enum Shape {\n    Circle(r)\n}\nval r = match Shape.Circle(1) {\n    Shape.Nope(a) -> a\n    _ -> 0\n}\n";
+    let errors: Vec<String> = compile_errors(program)
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
+    assert_eq!(
+        errors,
+        vec!["Enum 'Shape' has no variant named 'Nope'".to_string()]
+    );
+}
