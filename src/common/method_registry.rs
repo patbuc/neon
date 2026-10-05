@@ -208,15 +208,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
-        "length",
-        NativeCallable::InstanceMethod {
-            function: stdlib::array_functions::native_array_length,
-            arity: 0,
-            returns: None,
-        },
-    ),
-    (
-        "Array",
         "size",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_size,
@@ -407,15 +398,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Range",
-        "length",
-        NativeCallable::InstanceMethod {
-            function: stdlib::range_functions::native_range_length,
-            arity: 0,
-            returns: None,
-        },
-    ),
-    (
-        "Range",
         "contains",
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_contains,
@@ -568,15 +550,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         },
     ),
     // String instance methods
-    (
-        "String",
-        "len",
-        NativeCallable::InstanceMethod {
-            function: stdlib::string_functions::native_string_size,
-            arity: 0,
-            returns: None,
-        },
-    ),
     (
         "String",
         "size",
@@ -767,15 +740,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "String",
-        "includes",
-        NativeCallable::InstanceMethod {
-            function: stdlib::string_functions::native_string_contains,
-            arity: 1,
-            returns: None,
-        },
-    ),
-    (
-        "String",
         "contains",
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_contains,
@@ -837,15 +801,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_size,
             arity: 0,
-            returns: None,
-        },
-    ),
-    (
-        "Map",
-        "has",
-        NativeCallable::InstanceMethod {
-            function: stdlib::map_functions::native_map_contains,
-            arity: 1,
             returns: None,
         },
     ),
@@ -918,15 +873,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         "remove",
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_remove,
-            arity: 1,
-            returns: None,
-        },
-    ),
-    (
-        "Set",
-        "has",
-        NativeCallable::InstanceMethod {
-            function: stdlib::set_functions::native_set_contains,
             arity: 1,
             returns: None,
         },

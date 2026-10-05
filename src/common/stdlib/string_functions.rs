@@ -8,12 +8,12 @@ use crate::{extract_arg, extract_receiver, extract_string_value};
 pub fn native_string_size(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!(
-            "len() expects no arguments, got {}",
+            "size() expects no arguments, got {}",
             args.len() - 1
         ));
     }
 
-    let string = extract_receiver!(args, String, "len")?;
+    let string = extract_receiver!(args, String, "size")?;
     let len = string.chars().count();
     Ok(Value::Int(len as i64))
 }
@@ -564,13 +564,13 @@ pub fn native_string_last_index_of(args: &[Value]) -> Result<Value, String> {
 pub fn native_string_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
-            "includes() expects 1 argument (substring), got {}",
+            "contains() expects 1 argument (substring), got {}",
             args.len() - 1
         ));
     }
 
-    let string = extract_receiver!(args, String, "includes")?;
-    let substring = extract_string_value!(args, 1, "substring", "includes");
+    let string = extract_receiver!(args, String, "contains")?;
+    let substring = extract_string_value!(args, 1, "substring", "contains");
 
     Ok(Value::Boolean(string.contains(substring)))
 }

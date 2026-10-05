@@ -1,7 +1,7 @@
 // Expected:
 // 831925308
 
-val n = args.length() > 0 ? args[0].toInt() : 2000
+val n = args.size() > 0 ? args[0].toInt() : 2000
 
 var total = 0
 var i = 0

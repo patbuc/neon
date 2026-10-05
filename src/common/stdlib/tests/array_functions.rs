@@ -71,22 +71,8 @@ fn test_array_pop() {
 }
 
 // ============================================================================
-// Array.length() and Array.size() - Success Cases
+// Array.size() - Success Cases
 // ============================================================================
-
-#[test]
-fn test_array_length() {
-    let program = r#"
-        val arr = [1, 2, 3]
-        print(arr.length())
-        print([].length())
-        print(["a", "b"].length())
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("3\n0\n2", vm.get_output());
-}
 
 #[test]
 fn test_array_size() {
@@ -94,11 +80,12 @@ fn test_array_size() {
         val arr = [1, 2, 3]
         print(arr.size())
         print([].size())
+        print(["a", "b"].size())
     "#;
 
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("3\n0", vm.get_output());
+    assert_eq!("3\n0\n2", vm.get_output());
 }
 
 #[test]
@@ -556,7 +543,7 @@ fn test_array_operations_sequence() {
         arr.push(1)
         arr.push(2)
         arr.push(3)
-        print(arr.length())
+        print(arr.size())
         print(arr.contains(2))
         arr.reverse()
         print(arr)
@@ -628,10 +615,10 @@ fn test_array_pop_on_non_array() {
 }
 
 #[test]
-fn test_array_length_wrong_arg_count() {
+fn test_array_size_wrong_arg_count() {
     let program = r#"
         val arr = [1, 2]
-        arr.length(1)
+        arr.size(1)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -642,10 +629,10 @@ fn test_array_length_wrong_arg_count() {
 }
 
 #[test]
-fn test_array_length_on_non_array() {
+fn test_array_size_on_non_array() {
     let program = r#"
         val x = 123
-        x.length()
+        x.size()
     "#;
 
     let mut vm = VirtualMachine::new();

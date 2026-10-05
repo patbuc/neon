@@ -11,7 +11,7 @@ impl String {
     }
 
     fn shoutLen(self) {
-        return self.shout().len()
+        return self.shout().size()
     }
 }
 

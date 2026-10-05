@@ -6,5 +6,5 @@
 val m = {}
 m[[1, 2]] = 3
 print(m[[1, 2]])
-print(m.has([1, 2]))
-print(m.has([2, 1]))
+print(m.contains([1, 2]))
+print(m.contains([2, 1]))

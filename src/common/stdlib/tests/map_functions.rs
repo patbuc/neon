@@ -12,8 +12,8 @@ fn test_map_basic_operations() {
         print(m.get("name"))
         print(m.get("age"))
         print(m.get("missing"))
-        print(m.has("name"))
-        print(m.has("missing"))
+        print(m.contains("name"))
+        print(m.contains("missing"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -71,7 +71,7 @@ fn test_map_remove() {
         print(m.size())
         print(m.remove("b"))
         print(m.size())
-        print(m.has("b"))
+        print(m.contains("b"))
         print(m.remove("b"))
     "#;
 
@@ -85,7 +85,7 @@ fn test_map_keys() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
         val k = m.keys()
-        print(k.length())
+        print(k.size())
         print(k.contains("name"))
         print(k.contains("age"))
         print(k.contains("missing"))
@@ -101,7 +101,7 @@ fn test_map_values() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val v = m.values()
-        print(v.length())
+        print(v.size())
         print(v.contains(1))
         print(v.contains(2))
         print(v.contains(3))
@@ -117,7 +117,7 @@ fn test_map_entries() {
     let program = r#"
         val m = {"a": 1, "b": 2}
         val e = m.entries()
-        print(e.length())
+        print(e.size())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -133,8 +133,8 @@ fn test_map_number_keys() {
         m[2] = "two"
         print(m.get(1))
         print(m.get(2))
-        print(m.has(1))
-        print(m.has(3))
+        print(m.contains(1))
+        print(m.contains(3))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -205,10 +205,10 @@ fn test_map_get_wrong_arg_count() {
 }
 
 #[test]
-fn test_map_has_wrong_arg_count() {
+fn test_map_contains_wrong_arg_count() {
     let program = r#"
         val m = {"a": 1}
-        m.has()
+        m.contains()
     "#;
 
     let mut vm = VirtualMachine::new();

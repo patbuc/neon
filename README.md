@@ -628,7 +628,7 @@ for num in numbers {
 }
 
 // Get length
-print("Length: ${numbers.length()}")
+print("Length: ${numbers.size()}")
 ```
 
 ### Working with Maps
@@ -652,7 +652,7 @@ for key in person {
 }
 
 // Check if key exists
-if person.has("age") {
+if person.contains("age") {
     print("Age: ${person["age"]}")
 }
 
@@ -672,7 +672,7 @@ numbers.add(2)  // Duplicate ignored
 print(numbers.size())  // 3
 
 // Check membership
-if numbers.has(1) {
+if numbers.contains(1) {
     print("Contains 1")
 }
 
@@ -706,7 +706,7 @@ for i in 0..asArray.size() {
 val text = "Hello World"
 
 // String methods
-print(text.len())                      // 11
+print(text.size())                     // 11
 print(text.toUpperCase())              // "HELLO WORLD"
 print(text.toLowerCase())              // "hello world"
 print(text.substring(0, 5))            // "Hello"
@@ -770,7 +770,6 @@ print(Math.mod(-7, 3))     // 2
 
 ### String Methods
 
-- `.len()` - String length (character count)
 - `.substring(start, end)` - Extract substring (supports negative indices)
 - `.replace(old, new)` - Replace all occurrences
 - `.split()` - Split on runs of Unicode whitespace, dropping leading and trailing empties
@@ -789,8 +788,8 @@ print(Math.mod(-7, 3))     // 2
 - `.repeat(n)` - Concatenate the string with itself `n` times (`n` a non-negative integer)
 - `.padStart(len, fill)` / `.padEnd(len, fill)` - Pad with `fill` (cycled, non-empty) until `len` chars long
 - `.lastIndexOf(substring)` - Position of the last occurrence, or `-1`
-- `.includes(substring)` / `.contains(substring)` - Whether `substring` occurs anywhere in the string
-- `.size()` - String length (character count), same as `.len()`
+- `.contains(substring)` - Whether `substring` occurs anywhere in the string
+- `.size()` - String length (character count)
 - `.isEmpty()` - Whether the string has no characters
 
 **Example:**
@@ -806,7 +805,7 @@ print("42".toInt() + 8)               // 50
 
 - `.push(value)` - Add element to end
 - `.pop()` - Remove and return the last element (`nil` if empty)
-- `.size()` / `.length()` - Get array length
+- `.size()` - Get array length
 - `.isEmpty()` - Whether the array has no elements
 - `.contains(value)` - Check if contains value
 - `.indexOf(value)` - Position of the first match, or `-1`
@@ -865,7 +864,7 @@ comparator must return a number.
 
 ### Range Methods
 
-- `.size()` / `.length()` - Number of integers the range covers, computed from its bounds
+- `.size()` - Number of integers the range covers, computed from its bounds
 - `.isEmpty()` - Whether the range covers no integers
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
@@ -887,7 +886,7 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 
 - `.size()` - Number of entries
 - `.isEmpty()` - Whether the map has no entries
-- `.has(key)` / `.contains(key)` - Check if key exists
+- `.contains(key)` - Check if key exists
 - `.get(key)` - Value for `key`, or `nil` if absent
 - `.remove(key)` - Remove `key` and return its value
 - `.keys()` - Get array of keys
@@ -913,7 +912,7 @@ print(map["a"])           // 1
 
 - `.add(value)` - Add element (returns true if added, false if duplicate)
 - `.remove(value)` - Remove element (returns true if removed, false if not found)
-- `.has(value)` / `.contains(value)` - Check if contains value
+- `.contains(value)` - Check if contains value
 - `.size()` - Number of elements
 - `.isEmpty()` - Whether the set has no elements
 - `.clear()` - Remove all elements
@@ -927,7 +926,7 @@ print(map["a"])           // 1
 ```neon
 val set = #{1, 2}
 print(set.size())         // 2
-print(set.has(1))         // true
+print(set.contains(1))    // true
 
 val arr = set.toArray()
 print(arr)                // [1, 2] (order may vary)

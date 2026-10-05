@@ -62,7 +62,7 @@ print("Empty set edge cases")
 val empty = #{}
 print(empty)
 print(empty.size())
-print(empty.has(1))
+print(empty.contains(1))
 empty.remove(99) // removing from empty set
 print(empty.union(empty))
 
@@ -131,9 +131,9 @@ bools.add(true)
 bools.add(false)
 print(bools)
 print(bools.size())
-print(bools.has(true))
-print(bools.has(false))
-print(bools.has(42)) // wrong type
+print(bools.contains(true))
+print(bools.contains(false))
+print(bools.contains(42)) // wrong type
 
 // Test 8: Zero and negative numbers
 print("")
@@ -145,9 +145,9 @@ signed.add(-1)
 signed.add(5)
 signed.add(-5)
 print(signed)
-print(signed.has(0))
-print(signed.has(-1))
-print(signed.has(5))
+print(signed.contains(0))
+print(signed.contains(-1))
+print(signed.contains(5))
 
 // Test 9: Practical example - Converting set to array for iteration
 print("")

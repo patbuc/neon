@@ -8,7 +8,7 @@
 val message = "String Functions Demo"
 print(message)
 
-print(message.len())
+print(message.size())
 
 val first_word = message.substring(0, 6)
 print(first_word)

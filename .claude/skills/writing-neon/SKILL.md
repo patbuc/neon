@@ -107,17 +107,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - Strings cannot be indexed: `s[0]` is a runtime error. Use `s.charAt(0)`.
 - Ranges: `1..10` excludes the end, `1..=10` includes it. They're immutable.
 
-**Sizes and membership use different names per type**
+**Sizes and membership use the same names on every collection**
 
-| Type   | Size                        | Membership       |
-|--------|-----------------------------|------------------|
-| String | `.len()`                    | `.indexOf(s) != -1` |
-| Array  | `.size()` / `.length()`     | `.contains(v)`   |
-| Range  | `.size()` / `.length()`     | `.contains(v)`   |
-| Map    | `.size()`                   | `.has(k)`        |
-| Set    | `.size()`                   | `.has(v)`        |
-
-No property-style `.length`; everything is a method call.
+`.size()`, `.contains(x)`, `.isEmpty()` - String, Array, Range, Map, and Set
+all use these names (Map checks keys, not values). No property-style
+`.length`; everything is a method call.
 
 ## Native methods that exist
 
@@ -128,21 +122,21 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
 - **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
   `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
-- **String:** `len`, `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
+- **String:** `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
-  `lastIndexOf`, `includes`, `contains`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
+  `lastIndexOf`, `contains`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
   `repeat(n)`, `padStart(len, fill)`, `padEnd(len, fill)`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`
-- **Array:** `Array(n, init)`, `push`, `pop`, `size`, `length`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
+- **Array:** `Array(n, init)`, `push`, `pop`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `find(fn)`, `some(fn)`, `every(fn)`,
   `flat()`, `copy()`
-- **Range:** `size`, `length`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
+- **Range:** `size`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
-- **Map:** `get`, `has`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
-- **Set:** `add`, `remove`, `has`, `contains`, `size`, `isEmpty`, `clear`, `union`,
+- **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
+- **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
 - **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;
   errors if it exists)

@@ -42,17 +42,17 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(was_removed))
 }
 
-/// Native implementation of Set.contains(element)
+/// Native implementation of Set.has(element)
 /// Returns true if the set contains the element, false otherwise
 pub fn native_set_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
-            "has() expects 1 argument (element), got {}",
+            "contains() expects 1 argument (element), got {}",
             args.len() - 1
         ));
     }
 
-    let set_ref = extract_receiver!(args, Set, "has")?;
+    let set_ref = extract_receiver!(args, Set, "contains")?;
 
     let key = MapKey::from_value(&args[1], "set element")?;
 

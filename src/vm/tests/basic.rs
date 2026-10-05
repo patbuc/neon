@@ -1279,10 +1279,10 @@ fn test_map_size_method_with_entries() {
 }
 
 #[test]
-fn test_map_has_method_existing_key() {
+fn test_map_contains_method_existing_key() {
     let program = r#"
         val m = {"name": "Alice", "age": 30}
-        print(m.has("name"))
+        print(m.contains("name"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1292,10 +1292,10 @@ fn test_map_has_method_existing_key() {
 }
 
 #[test]
-fn test_map_has_method_nonexistent_key() {
+fn test_map_contains_method_nonexistent_key() {
     let program = r#"
         val m = {"name": "Alice"}
-        print(m.has("missing"))
+        print(m.contains("missing"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1305,10 +1305,10 @@ fn test_map_has_method_nonexistent_key() {
 }
 
 #[test]
-fn test_map_has_method_boolean_key() {
+fn test_map_contains_method_boolean_key() {
     let program = r#"
         val m = {true: "yes", false: "no"}
-        print(m.has(true))
+        print(m.contains(true))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1435,7 +1435,7 @@ fn test_map_entries_method_with_entries() {
 fn test_map_chained_operations() {
     let program = r#"
         val m = {"a": 1, "b": 2, "c": 3}
-        print(m.has("a"))
+        print(m.contains("a"))
         print(m.get("b"))
         val old = m.remove("c")
         print(old)
@@ -1471,7 +1471,7 @@ fn test_map_method_after_modification() {
         m["b"] = 2
         m["c"] = 3
         print(m.size())
-        print(m.has("b"))
+        print(m.contains("b"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1486,7 +1486,7 @@ fn test_map_remove_then_size() {
         val m = {"x": 10, "y": 20, "z": 30}
         m.remove("y")
         print(m.size())
-        print(m.has("y"))
+        print(m.contains("y"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1720,10 +1720,10 @@ fn test_map_multiple_removes() {
         print(m.size())
         m.remove("c")
         print(m.size())
-        print(m.has("a"))
-        print(m.has("b"))
-        print(m.has("c"))
-        print(m.has("d"))
+        print(m.contains("a"))
+        print(m.contains("b"))
+        print(m.contains("c"))
+        print(m.contains("d"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -1786,9 +1786,9 @@ fn test_map_chaining_operations() {
         val size2 = m.size()
         print(size1)
         print(size2)
-        print(m.has("a"))
-        print(m.has("b"))
-        print(m.has("c"))
+        print(m.contains("a"))
+        print(m.contains("b"))
+        print(m.contains("c"))
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2029,14 +2029,14 @@ fn test_array_pop_empty() {
 }
 
 #[test]
-fn test_array_length() {
+fn test_array_size() {
     let program = r#"
         val arr1 = []
         val arr2 = [1]
         val arr3 = [1, 2, 3]
-        print(arr1.length())
-        print(arr2.length())
-        print(arr3.length())
+        print(arr1.size())
+        print(arr2.size())
+        print(arr3.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2046,14 +2046,14 @@ fn test_array_length() {
 }
 
 #[test]
-fn test_array_length_after_push() {
+fn test_array_size_after_push() {
     let program = r#"
         var arr = [1, 2]
-        print(arr.length())
+        print(arr.size())
         arr.push(3)
-        print(arr.length())
+        print(arr.size())
         arr.push(4)
-        print(arr.length())
+        print(arr.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2063,14 +2063,14 @@ fn test_array_length_after_push() {
 }
 
 #[test]
-fn test_array_length_after_pop() {
+fn test_array_size_after_pop() {
     let program = r#"
         var arr = [1, 2, 3, 4]
-        print(arr.length())
+        print(arr.size())
         arr.pop()
-        print(arr.length())
+        print(arr.size())
         arr.pop()
-        print(arr.length())
+        print(arr.size())
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -2277,7 +2277,7 @@ fn test_array_in_loop() {
     let program = r#"
         var arr = [1, 2, 3]
         var i = 0
-        while (i < arr.length()) {
+        while (i < arr.size()) {
             print(arr[i])
             i = i + 1
         }
@@ -2295,7 +2295,7 @@ fn test_array_accumulation() {
         val arr = [1, 2, 3, 4, 5]
         var sum = 0
         var i = 0
-        while (i < arr.length()) {
+        while (i < arr.size()) {
             sum = sum + arr[i]
             i = i + 1
         }
@@ -2312,21 +2312,21 @@ fn test_array_accumulation() {
 fn test_array_push_pop_lifecycle() {
     let program = r#"
         var arr = []
-        print(arr.length())
+        print(arr.size())
 
         arr.push(1)
         arr.push(2)
         arr.push(3)
-        print(arr.length())
+        print(arr.size())
         print(arr)
 
         arr.pop()
-        print(arr.length())
+        print(arr.size())
         print(arr)
 
         arr.pop()
         arr.pop()
-        print(arr.length())
+        print(arr.size())
         print(arr)
         "#;
 
@@ -2418,7 +2418,7 @@ fn test_array_modification_in_function() {
     let program = r#"
         fn double_elements(arr) {
             var i = 0
-            while (i < arr.length()) {
+            while (i < arr.size()) {
                 arr[i] = arr[i] * 2
                 i = i + 1
             }
@@ -2444,7 +2444,7 @@ fn test_array_chained_operations() {
         arr.push(5)
         val last = arr.pop()
         print(last)
-        print(arr.length())
+        print(arr.size())
         print(arr)
         "#;
 
@@ -2483,15 +2483,15 @@ fn test_array_with_struct_values() {
 fn test_array_empty_to_full_lifecycle() {
     let program = r#"
         var arr = []
-        print(arr.length())
+        print(arr.size())
 
         arr.push(10)
-        print(arr.length())
+        print(arr.size())
         print(arr[0])
 
         arr.push(20)
         arr.push(30)
-        print(arr.length())
+        print(arr.size())
 
         arr[1] = 99
         print(arr)
@@ -2499,7 +2499,7 @@ fn test_array_empty_to_full_lifecycle() {
         arr.pop()
         arr.pop()
         arr.pop()
-        print(arr.length())
+        print(arr.size())
         print(arr)
         "#;
 
@@ -2520,7 +2520,7 @@ fn test_array_large_size() {
             arr.push(i)
             i = i + 1
         }
-        print(arr.length())
+        print(arr.size())
         print(arr[0])
         print(arr[255])
         print(arr[256])
@@ -2545,7 +2545,7 @@ fn test_array_literal_large_size() {
     let program = format!(
         r#"
         var arr = {}
-        print(arr.length())
+        print(arr.size())
         print(arr[0])
         print(arr[255])
         print(arr[256])

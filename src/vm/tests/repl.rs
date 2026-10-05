@@ -359,7 +359,7 @@ fn failed_line_forgets_an_assigned_global_type() {
     );
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("print(x.len())".to_string())
+        vm.interpret_line("print(x.size())".to_string())
     );
     assert_eq!("ab\n2", vm.get_output());
 }

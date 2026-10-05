@@ -46,13 +46,13 @@ pub fn native_map_is_empty(args: &[Value]) -> Result<Value, String> {
 pub fn native_map_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
-            "has() expects 1 argument (key), got {}",
+            "contains() expects 1 argument (key), got {}",
             args.len() - 1
         ));
     }
 
     // Extract the map
-    let map_ref = extract_receiver!(args, Map, "has")?;
+    let map_ref = extract_receiver!(args, Map, "contains")?;
 
     let key = MapKey::from_value(&args[1], "map key")?;
 

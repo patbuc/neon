@@ -20,7 +20,7 @@ print(empty.values())
 print(empty.entries())
 
 // Check for non-existent key
-print(empty.has("anything"))
+print(empty.contains("anything"))
 
 // Access non-existent key
 print(empty["missing"])

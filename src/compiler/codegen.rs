@@ -1372,7 +1372,7 @@ impl<'a> CodeGenerator<'a> {
         optional: bool,
         location: SourceLocation,
     ) {
-        // Instance method call: arr.push(x), str.len(), etc.
+        // Instance method call: arr.push(x), str.size(), etc.
         // Type is unknown at compile time, so dispatch by name at runtime.
         self.generate_expr(callee);
         let end_jump = optional.then(|| self.emit_jump(OpCode::JumpIfNil, location));

@@ -2135,10 +2135,28 @@ fn builtin_index(symbol: &Symbol) -> Option<u32> {
     }
 }
 
+/// Methods removed in favor of a unified name, checked before the
+/// edit-distance suggestion below since the names are too dissimilar for it
+/// to find on its own (e.g. `len` / `size`).
+const RENAMED_METHODS: &[(&str, &str)] = &[
+    ("len", "size"),
+    ("length", "size"),
+    ("includes", "contains"),
+    ("has", "contains"),
+];
+
 /// Builds the "unknown method" error message for `type_name`, suggesting
 /// the closest match among `candidates` when one exists.
 fn unknown_method_error(type_name: &str, method: &str, candidates: &[&str]) -> String {
-    if let Some(suggestion) =
+    if let Some((_, new_name)) = RENAMED_METHODS
+        .iter()
+        .find(|(old, new)| *old == method && candidates.contains(new))
+    {
+        format!(
+            "Type '{}' has no method named '{}'. Did you mean '{}'?",
+            type_name, method, new_name
+        )
+    } else if let Some(suggestion) =
         crate::common::string_similarity::find_closest_match(method, candidates)
     {
         format!(

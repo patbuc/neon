@@ -45,21 +45,6 @@ pub fn native_array_pop(args: &[Value]) -> Result<Value, String> {
     Ok(array.pop().unwrap_or(Value::Nil))
 }
 
-/// Native implementation of Array.length()
-/// Returns the number of elements in the array
-pub fn native_array_length(args: &[Value]) -> Result<Value, String> {
-    if args.len() != 1 {
-        return Err(format!(
-            "length() expects no arguments, got {}",
-            args.len() - 1
-        ));
-    }
-
-    let array_ref = extract_receiver!(args, Array, "length")?;
-    let array = array_ref.borrow();
-    Ok(Value::Int(array.len() as i64))
-}
-
 /// Native implementation of Array.size()
 /// Returns the number of elements in the array
 pub fn native_array_size(args: &[Value]) -> Result<Value, String> {

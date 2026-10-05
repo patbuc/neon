@@ -20,12 +20,12 @@ fn test_set_add() {
 }
 
 #[test]
-fn test_set_has() {
+fn test_set_contains() {
     let program = r#"
         val s = #{1, 2, 3}
-        print(s.has(2))
-        print(s.has(5))
-        print(s.has("hello"))
+        print(s.contains(2))
+        print(s.contains(5))
+        print(s.contains("hello"))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -46,26 +46,13 @@ fn test_set_is_empty() {
 }
 
 #[test]
-fn test_set_contains() {
-    let program = r#"
-        val s = #{1, 2, 3}
-        print(s.contains(2))
-        print(s.contains(5))
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("true\nfalse", vm.get_output());
-}
-
-#[test]
 fn test_set_remove() {
     let program = r#"
         val s = #{1, 2, 3}
         print(s.size())
         print(s.remove(2))
         print(s.size())
-        print(s.has(2))
+        print(s.contains(2))
         print(s.remove(2))
     "#;
 
@@ -96,7 +83,7 @@ fn test_set_clear() {
         print(s.size())
         s.clear()
         print(s.size())
-        print(s.has(1))
+        print(s.contains(1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -109,7 +96,7 @@ fn test_set_to_array() {
     let program = r#"
         val s = #{3, 1, 2}
         val arr = s.toArray()
-        print(arr.length())
+        print(arr.size())
         print(arr.contains(1))
         print(arr.contains(2))
         print(arr.contains(3))
@@ -127,9 +114,9 @@ fn test_set_union() {
         val s2 = #{3, 4, 5}
         val result = s1.union(s2)
         print(result.size())
-        print(result.has(1))
-        print(result.has(3))
-        print(result.has(5))
+        print(result.contains(1))
+        print(result.contains(3))
+        print(result.contains(5))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -144,10 +131,10 @@ fn test_set_intersection() {
         val s2 = #{2, 3, 4}
         val result = s1.intersection(s2)
         print(result.size())
-        print(result.has(2))
-        print(result.has(3))
-        print(result.has(1))
-        print(result.has(4))
+        print(result.contains(2))
+        print(result.contains(3))
+        print(result.contains(1))
+        print(result.contains(4))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -162,9 +149,9 @@ fn test_set_difference() {
         val s2 = #{3, 4, 5}
         val result = s1.difference(s2)
         print(result.size())
-        print(result.has(1))
-        print(result.has(2))
-        print(result.has(3))
+        print(result.contains(1))
+        print(result.contains(2))
+        print(result.contains(3))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -195,9 +182,9 @@ fn test_set_different_types() {
     let program = r#"
         val s = #{1, "hello", true}
         print(s.size())
-        print(s.has(1))
-        print(s.has("hello"))
-        print(s.has(true))
+        print(s.contains(1))
+        print(s.contains("hello"))
+        print(s.contains(true))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -211,7 +198,7 @@ fn test_set_to_array_mutation_isolated() {
         val s = #{[1, 2]}
         val arr = s.toArray()
         arr[0].push(9)
-        print(s.has([1, 2]))
+        print(s.contains([1, 2]))
         print(s.toArray()[0])
     "#;
 
@@ -227,7 +214,7 @@ fn test_set_for_in_array_element_fresh_copy() {
         for e in s {
             e.push(9)
         }
-        print(s.has([1, 2]))
+        print(s.contains([1, 2]))
         print(s.toArray()[0])
     "#;
 
@@ -255,10 +242,10 @@ fn test_set_add_wrong_arg_count() {
 }
 
 #[test]
-fn test_set_has_wrong_arg_count() {
+fn test_set_contains_wrong_arg_count() {
     let program = r#"
         val s = #{1, 2}
-        s.has()
+        s.contains()
     "#;
 
     let mut vm = VirtualMachine::new();

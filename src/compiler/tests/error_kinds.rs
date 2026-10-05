@@ -151,7 +151,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         )],
         CompilationErrorKind::NativeMethodConflict => vec![
             (
-                "impl String {\n    fn len(self) { return 1 }\n}\n".to_string(),
+                "impl String {\n    fn size(self) { return 1 }\n}\n".to_string(),
                 None,
             ),
             (

@@ -1,4 +1,4 @@
-// set.01.n - Basic set operations (creation, add, remove, has, size, clear)
+// set.01.n - Basic set operations (creation, add, remove, contains, size, clear)
 
 // Expected:
 // Creating empty set
@@ -12,7 +12,7 @@
 // #{1, 2, 3}
 // 3
 //
-// Testing has()
+// Testing contains()
 // true
 // true
 // false
@@ -56,12 +56,12 @@ print(numbers.add(3))
 print(numbers)
 print(numbers.size())
 
-// Test 3: Testing has() method
+// Test 3: Testing contains() method
 print("")
-print("Testing has()")
-print(numbers.has(1))
-print(numbers.has(3))
-print(numbers.has(99))
+print("Testing contains()")
+print(numbers.contains(1))
+print(numbers.contains(3))
+print(numbers.contains(99))
 
 // Test 4: Adding duplicate element
 print("")
@@ -87,9 +87,9 @@ mixed.add(1)
 mixed.add("hello")
 mixed.add(true)
 print(mixed)
-print(mixed.has(1))
-print(mixed.has("hello"))
-print(mixed.has(true))
+print(mixed.contains(1))
+print(mixed.contains("hello"))
+print(mixed.contains(true))
 
 // Test 7: Clearing a set
 print("")
@@ -97,4 +97,4 @@ print("Clearing set")
 numbers.clear()
 print(numbers)
 print(numbers.size())
-print(numbers.has(1))
+print(numbers.contains(1))

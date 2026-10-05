@@ -1306,7 +1306,7 @@ fn test_parse_nested_if_within_else_if() {
 #[test]
 fn test_parse_method_call_no_args() {
     let program = r#"
-        val result = str.len()
+        val result = str.size()
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
@@ -1334,11 +1334,11 @@ fn test_parse_method_call_no_args() {
                 Expr::Call {
                     callee, arguments, ..
                 } => {
-                    // Should be Call { callee: GetField { object: Variable("str"), field: "len" }, arguments: [] }
+                    // Should be Call { callee: GetField { object: Variable("str"), field: "size" }, arguments: [] }
                     assert_eq!(arguments.len(), 0);
                     match callee.as_ref() {
                         Expr::GetField { object, field, .. } => {
-                            assert_eq!(field, "len");
+                            assert_eq!(field, "size");
                             match object.as_ref() {
                                 Expr::Variable { name, .. } => assert_eq!(name, "str"),
                                 _ => panic!("Expected Variable as object"),
@@ -1471,7 +1471,7 @@ fn test_parse_method_call_multiple_args() {
 #[test]
 fn test_parse_chained_method_calls() {
     let program = r#"
-        val result = str.substring(0, 5).len()
+        val result = str.substring(0, 5).size()
         "#;
     let mut parser = Parser::new(program);
     let result = parser.parse();
@@ -1495,17 +1495,17 @@ fn test_parse_chained_method_calls() {
             initializer: Some(expr),
             ..
         } => {
-            // Outer method call should be .len()
+            // Outer method call should be .size()
             match expr {
                 Expr::Call {
                     callee, arguments, ..
                 } => {
                     assert_eq!(arguments.len(), 0);
 
-                    // Outer call should be GetField with field "len"
+                    // Outer call should be GetField with field "size"
                     match callee.as_ref() {
                         Expr::GetField { object, field, .. } => {
-                            assert_eq!(field, "len");
+                            assert_eq!(field, "size");
 
                             // Inner object should be a Call to .substring(0, 5)
                             match object.as_ref() {

@@ -7,24 +7,6 @@ use crate::string;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
-// String.len() - Success Cases
-// ============================================================================
-
-#[test]
-fn test_string_len() {
-    let program = r#"
-        print("hello".len())
-        print("hello 🌍".len())
-        print("".len())
-        print("12345".len())
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("5\n7\n0\n5", vm.get_output());
-}
-
-// ============================================================================
 // String.size() / isEmpty() / contains() - Success Cases
 // ============================================================================
 
@@ -34,11 +16,12 @@ fn test_string_size() {
         print("hello".size())
         print("hello 🌍".size())
         print("".size())
+        print("12345".size())
     "#;
 
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("5\n7\n0", vm.get_output());
+    assert_eq!("5\n7\n0\n5", vm.get_output());
 }
 
 #[test]
@@ -869,25 +852,13 @@ fn test_string_last_index_of_wrong_arg_count() {
 }
 
 // ============================================================================
-// String.includes() - Success Cases
+// String.contains() - Error Cases
 // ============================================================================
 
 #[test]
-fn test_string_includes() {
+fn test_string_contains_wrong_arg_count() {
     let program = r#"
-        print("hello".includes("ell"))
-        print("hello".includes("x"))
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("true\nfalse", vm.get_output());
-}
-
-#[test]
-fn test_string_includes_wrong_arg_count() {
-    let program = r#"
-        "hello".includes()
+        "hello".contains()
     "#;
 
     let mut vm = VirtualMachine::new();

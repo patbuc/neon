@@ -1,7 +1,7 @@
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
-// Range.size() / Range.length()
+// Range.size()
 // ============================================================================
 
 #[test]
@@ -19,10 +19,10 @@ fn test_range_size() {
 }
 
 #[test]
-fn test_range_length_matches_size() {
+fn test_range_size_negative_bounds() {
     let program = r#"
-        print((-3..3).length())
-        print((-3..=3).length())
+        print((-3..3).size())
+        print((-3..=3).size())
     "#;
 
     let mut vm = VirtualMachine::new();

@@ -5,13 +5,13 @@
 // 0
 
 val str1 = "hello"
-print(str1.len())
+print(str1.size())
 
 val str2 = "hello world"
-print(str2.len())
+print(str2.size())
 
 val str3 = "hello 🌍"
-print(str3.len())
+print(str3.size())
 
 val str4 = ""
-print(str4.len())
+print(str4.size())
