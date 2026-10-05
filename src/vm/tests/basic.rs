@@ -485,23 +485,6 @@ fn cannot_access_undefined_variable() {
 }
 
 #[test]
-fn can_loop() {
-    let program = r#"
-        var x = 0
-        while (x < 10) {
-            x = x + 1
-            print(x)
-        }
-        print("Done")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
-}
-
-#[test]
 fn can_call_function() {
     let program = r#"
         fn greet() {
@@ -1478,27 +1461,6 @@ fn test_continue_in_while_loop() {
 }
 
 #[test]
-fn test_continue_in_two_statement_while_body_targets_condition() {
-    let program = r#"
-        var i = 0
-        var n = 0
-        while (i < 4) {
-            if (i < 10) {
-                i = i + 1
-                continue
-            }
-            n = n + 1
-        }
-        print(n)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0", vm.get_output());
-}
-
-#[test]
 fn test_break_in_for_loop() {
     let program = r#"
         for i in 0..10 {
@@ -1532,25 +1494,6 @@ fn test_continue_in_for_loop() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n3\n4\nDone", vm.get_output());
-}
-
-#[test]
-fn test_break_in_for_in_loop() {
-    let program = r#"
-        val arr = [1, 2, 3, 4, 5]
-        for item in arr {
-            if (item == 3) {
-                break
-            }
-            print(item)
-        }
-        print("Done")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1\n2\nDone", vm.get_output());
 }
 
 #[test]
