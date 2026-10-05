@@ -640,183 +640,49 @@ fn can_use_struct() {
 // =============================================================================
 
 #[test]
-fn test_logical_and_true_true() {
-    let program = r#"
-        print(true && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_true_false() {
-    let program = r#"
-        print(true && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_false_true() {
-    let program = r#"
-        print(false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_false_false() {
-    let program = r#"
-        print(false && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_true_true() {
-    let program = r#"
-        print(true || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_true_false() {
-    let program = r#"
-        print(true || false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_false_true() {
-    let program = r#"
-        print(false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_false_false() {
-    let program = r#"
-        print(false || false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_operators_with_comparisons() {
-    let program = r#"
-        print(5 > 3 && 10 < 20)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_operators_with_variables() {
-    let program = r#"
-        val x = true
-        val y = false
-        print(x && y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_with_variables() {
-    let program = r#"
-        val x = true
-        val y = false
-        print(x || y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_or_and() {
-    let program = r#"
-        print(false || true && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Should parse as: false || (true && false)
-    // true && false = false
-    // false || false = false
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_and_or() {
-    let program = r#"
-        print(true && false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Should parse as: (true && false) || true
-    // true && false = false
-    // false || true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_with_parens() {
-    let program = r#"
-        print((false || true) && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (false || true) = true
-    // true && false = false
-    assert_eq!("false", vm.get_output());
+fn test_logical_operators() {
+    let cases = [
+        ("print(true && true)", "true"),
+        ("print(true && false)", "false"),
+        ("print(false && true)", "false"),
+        ("print(false && false)", "false"),
+        ("print(true || true)", "true"),
+        ("print(true || false)", "true"),
+        ("print(false || true)", "true"),
+        ("print(false || false)", "false"),
+        ("print(5 > 3 && 10 < 20)", "true"),
+        ("val x = 5\nprint(x == 5 && x > 0)", "true"),
+        ("val x = true\nval y = false\nprint(x && y)\nprint(x || y)", "false\ntrue"),
+        ("print(false || true && false)", "false"),
+        ("print(true && false || true)", "true"),
+        ("print((false || true) && false)", "false"),
+        ("print(true && true && true)", "true"),
+        ("print(true && false && true)", "false"),
+        ("print(false || false || true)", "true"),
+        ("print(!false && true)", "true"),
+        (
+            "val a = true\nval b = false\nval c = true\nprint((a || b) && c)",
+            "true",
+        ),
+        (
+            "val a = true\nval b = false\nval c = true\nval d = false\nprint((a && b) || (c && !d))",
+            "true",
+        ),
+        (
+            "val x = 5\nval y = 10\nif (x > 0 && y > 0) { print(\"Both positive\") }",
+            "Both positive",
+        ),
+        (
+            "var x = 0\nvar y = 3\nwhile (x < 3 && y > 0) {\nx = x + 1\ny = y - 1\n}\nprint(x)\nprint(y)",
+            "3\n0",
+        ),
+    ];
+    for (program, expected) in cases {
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+        assert_eq!(InterpretResult::Ok, result, "{program}");
+        assert_eq!(expected, vm.get_output(), "{program}");
+    }
 }
 
 #[test]
@@ -851,141 +717,6 @@ fn test_logical_or_short_circuit() {
     assert_eq!(InterpretResult::Ok, result);
     // x should still be 10 because the right side of || should not evaluate
     assert_eq!("Should reach here\n10", vm.get_output());
-}
-
-#[test]
-fn test_logical_complex_expression() {
-    let program = r#"
-        val a = true
-        val b = false
-        val c = true
-        print((a || b) && c)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (true || false) = true
-    // true && true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_with_not() {
-    let program = r#"
-        print(!false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // !false = true
-    // true && true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_and() {
-    let program = r#"
-        print(true && true && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_and_with_false() {
-    let program = r#"
-        print(true && false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_or() {
-    let program = r#"
-        print(false || false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_in_if_statement() {
-    let program = r#"
-        val x = 5
-        val y = 10
-        if (x > 0 && y > 0) {
-            print("Both positive")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Both positive", vm.get_output());
-}
-
-#[test]
-fn test_logical_in_while_loop() {
-    let program = r#"
-        var x = 0
-        var y = 3
-        while (x < 3 && y > 0) {
-            x = x + 1
-            y = y - 1
-        }
-        print(x)
-        print(y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n0", vm.get_output());
-}
-
-#[test]
-fn test_logical_with_equality() {
-    let program = r#"
-        val x = 5
-        print(x == 5 && x > 0)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_all_operators_combined() {
-    let program = r#"
-        val a = true
-        val b = false
-        val c = true
-        val d = false
-        print((a && b) || (c && !d))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (true && false) = false
-    // !false = true
-    // (true && true) = true
-    // false || true = true
-    assert_eq!("true", vm.get_output());
 }
 
 // =============================================================================
