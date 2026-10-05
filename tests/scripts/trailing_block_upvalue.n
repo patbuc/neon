@@ -1,0 +1,20 @@
+// Expected:
+// 1
+// 2
+
+fn keep(f) = f
+
+fn make() {
+    var n = 0
+    val m = {
+        "inc": keep {
+            n += 1
+            n
+        },
+    }
+    m
+}
+
+val m = make()
+print(m["inc"]())
+print(m["inc"]())

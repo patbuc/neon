@@ -262,7 +262,7 @@ pub fn native_range_with_index(args: &[Value]) -> Result<Value, String> {
     array_functions::native_array_with_index(&materialize(args, "withIndex")?)
 }
 
-/// Native implementation of Range.reduce(fn, initial)
+/// Native implementation of Range.reduce(initial, fn)
 pub fn native_range_reduce(
     vm: &mut dyn NativeContext,
     args: &[Value],

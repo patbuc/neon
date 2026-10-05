@@ -591,6 +591,39 @@ fn test_parse_lambda_as_call_argument() {
 }
 
 #[test]
+fn test_parse_call_with_trailing_block_lambda() {
+    let mut parser = Parser::new("f(1) { x -> x }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => {
+            assert_eq!(arguments.len(), 2);
+            match &arguments[1] {
+                Expr::Function { params, .. } => {
+                    assert_eq!(params, &vec!["x".to_string()]);
+                }
+                _ => panic!("Expected Function expression as last argument"),
+            }
+        }
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
+fn test_only_one_trailing_block_per_call() {
+    let mut parser = Parser::new("print(f { 1 } { 2 })\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors[0].message.contains("trailing block"));
+}
+
+#[test]
 fn test_lambda_expression_statement() {
     let mut parser = Parser::new("fn(x) { return x }\n");
     let result = parser.parse();
@@ -4359,4 +4392,105 @@ fn test_if_expression_without_else_is_a_compile_error() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].message, "if expression requires else");
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_if_condition() {
+    let mut parser = Parser::new("if [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_while_condition() {
+    let mut parser = Parser::new("while [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_for_in_collection() {
+    let mut parser = Parser::new("for x in [1, 2].map { it } {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_if_expression_condition() {
+    let mut parser = Parser::new("val v = if xs.filter { it > 1 }.isEmpty() { 1 } else { 2 }\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_else_if_condition() {
+    let mut parser = Parser::new(
+        "if false {\n  val x = 1\n} else if [1].filter { it > 0 }.isEmpty() {\n  val y = 1\n}\n",
+    );
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_allowed_in_call_args_within_condition() {
+    let mut parser =
+        Parser::new("fn id(x) = x\nif id([1].filter { it > 0 }.isEmpty()) {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok(), "{:?}", result.unwrap_err());
+}
+
+#[test]
+fn test_trailing_block_allowed_in_index_within_condition() {
+    let mut parser = Parser::new("if [[1].filter { it > 0 }.isEmpty()][0] {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok(), "{:?}", result.unwrap_err());
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_condition_before_and_and() {
+    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() && true {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_condition_before_equal_equal() {
+    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() == true {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
 }

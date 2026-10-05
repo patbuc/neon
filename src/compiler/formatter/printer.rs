@@ -234,13 +234,27 @@ impl<'a> Printer<'a> {
         open_line: u32,
         close_line: u32,
         spans: &[(u32, u32)],
-        mut print_item: impl FnMut(&mut Self, usize),
+        print_item: impl FnMut(&mut Self, usize),
     ) {
         if spans.is_empty() && !self.has_comment_before(close_line) {
             self.write("{}");
             return;
         }
         self.write("{");
+        self.braced_body(open_line, close_line, spans, print_item);
+        self.write("}");
+    }
+
+    /// The line-broken items between an already-written `{` and `}`: one
+    /// item per line, shared by `braced_lines` and a trailing block's own
+    /// brace printing.
+    fn braced_body(
+        &mut self,
+        open_line: u32,
+        close_line: u32,
+        spans: &[(u32, u32)],
+        mut print_item: impl FnMut(&mut Self, usize),
+    ) {
         self.nested(1, |printer| {
             let mut prev = open_line;
             for (i, &(first, last)) in spans.iter().enumerate() {
@@ -260,7 +274,6 @@ impl<'a> Printer<'a> {
             };
             printer.line_break(prev, close_line, gap);
         });
-        self.write("}");
     }
 
     /// A bracketed, comma-separated list: call args, params, array/map/set
@@ -547,6 +560,67 @@ impl<'a> Printer<'a> {
         self.print_stmts_braced(fn_tokens.body_open, fn_tokens.body_close, body);
     }
 
+    /// A trailing-block lambda's `{ params -> body }`, between its own
+    /// already-located brace tokens. A block whose source `{`...`}` is on
+    /// one line and whose body is a single statement prints on one line
+    /// too; an empty body always collapses to `{}` (or `{ params -> }`),
+    /// like `braced_lines`; anything else stays multi-line.
+    fn print_trailing_block(
+        &mut self,
+        params: &[String],
+        body: &[Stmt],
+        open: usize,
+        close: usize,
+    ) {
+        let open_line = self.map.line(open);
+        let close_line = self.map.line(close);
+
+        if body.is_empty() && !self.has_comment_before(close_line) {
+            self.write("{");
+            self.print_trailing_block_params(params);
+            if !params.is_empty() {
+                self.write(" ");
+            }
+            self.write("}");
+            return;
+        }
+
+        if open_line == close_line {
+            if let [stmt] = body {
+                self.write("{");
+                self.print_trailing_block_params(params);
+                self.write(" ");
+                self.print_stmt(stmt);
+                self.write(" }");
+                return;
+            }
+        }
+
+        self.write("{");
+        self.print_trailing_block_params(params);
+        let spans: Vec<(u32, u32)> = body
+            .iter()
+            .map(|stmt| {
+                (
+                    self.map.stmt_first_line(stmt),
+                    self.map.stmt_last_line(stmt),
+                )
+            })
+            .collect();
+        self.braced_body(open_line, close_line, &spans, |printer, i| {
+            printer.print_stmt(&body[i]);
+        });
+        self.write("}");
+    }
+
+    fn print_trailing_block_params(&mut self, params: &[String]) {
+        if !params.is_empty() {
+            self.write(" ");
+            self.write(&params.join(", "));
+            self.write(" ->");
+        }
+    }
+
     // --- Expressions ------------------------------------------------
 
     /// Strips every layer of `(expr)` grouping around an if/while condition
@@ -558,13 +632,51 @@ impl<'a> Printer<'a> {
                 location,
             } => {
                 let close_line = self.map.line(self.map.at(location));
-                if self.has_comment_before(close_line) {
+                if self.has_comment_before(close_line) || self.has_top_level_trailing_block(inner) {
                     self.print_expr(expr);
                 } else {
                     self.print_condition(inner);
                 }
             }
             _ => self.print_expr(expr),
+        }
+    }
+
+    /// Whether `expr` contains a trailing-block call reachable without
+    /// crossing its own `(...)` or `[...]`.
+    fn has_top_level_trailing_block(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                let is_trailing_block = matches!(
+                    arguments.last(),
+                    Some(Expr::Function { location, .. }) if self.map.is_block_lambda(location)
+                );
+                is_trailing_block || self.has_top_level_trailing_block(callee)
+            }
+            Expr::GetField { object, .. } | Expr::SetField { object, .. } => {
+                self.has_top_level_trailing_block(object)
+            }
+            Expr::Index { object, .. } => self.has_top_level_trailing_block(object),
+            Expr::Binary { left, right, .. } => {
+                self.has_top_level_trailing_block(left) || self.has_top_level_trailing_block(right)
+            }
+            Expr::Unary { operand, .. } => self.has_top_level_trailing_block(operand),
+            Expr::Range { start, end, .. } => {
+                self.has_top_level_trailing_block(start) || self.has_top_level_trailing_block(end)
+            }
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                self.has_top_level_trailing_block(condition)
+                    || self.has_top_level_trailing_block(then_expr)
+                    || self.has_top_level_trailing_block(else_expr)
+            }
+            _ => false,
         }
     }
 
@@ -654,21 +766,45 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.print_expr(callee);
-                let open = self.map.at(location);
-                let close = self.map.partner(open);
-                let spans: Vec<(u32, u32)> = arguments
-                    .iter()
-                    .map(|arg| (self.map.first_line(arg), self.map.last_line(arg)))
-                    .collect();
-                let brackets = Brackets {
-                    open: "(",
-                    close: ")",
-                    open_line: self.map.line(open),
-                    close_line: self.map.line(close),
+
+                let trailing_block = match arguments.last() {
+                    Some(Expr::Function {
+                        location: fn_location,
+                        ..
+                    }) if self.map.is_block_lambda(fn_location) => Some(fn_location),
+                    _ => None,
                 };
-                self.bracket_list(brackets, &spans, |printer, i| {
-                    printer.print_expr(&arguments[i])
-                });
+                let regular_args = match trailing_block {
+                    Some(_) => &arguments[..arguments.len() - 1],
+                    None => arguments.as_slice(),
+                };
+
+                if trailing_block.is_none() || !regular_args.is_empty() {
+                    let open = self.map.at(location);
+                    let close = self.map.partner(open);
+                    let spans: Vec<(u32, u32)> = regular_args
+                        .iter()
+                        .map(|arg| (self.map.first_line(arg), self.map.last_line(arg)))
+                        .collect();
+                    let brackets = Brackets {
+                        open: "(",
+                        close: ")",
+                        open_line: self.map.line(open),
+                        close_line: self.map.line(close),
+                    };
+                    self.bracket_list(brackets, &spans, |printer, i| {
+                        printer.print_expr(&regular_args[i])
+                    });
+                }
+
+                if let (Some(fn_location), Some(Expr::Function { params, body, .. })) =
+                    (trailing_block, arguments.last())
+                {
+                    self.write(" ");
+                    let open = self.map.at(fn_location);
+                    let close = self.map.partner(open);
+                    self.print_trailing_block(params, body, open, close);
+                }
             }
             Expr::GetField {
                 object,

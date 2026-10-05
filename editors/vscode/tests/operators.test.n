@@ -65,3 +65,5 @@
 //         ^^ keyword.operator.nil-coalescing.neon
   var r = a?.b
 //         ^^ keyword.operator.optional-chaining.neon
+  xs.map { a -> a }
+//           ^^ keyword.operator.arrow.neon

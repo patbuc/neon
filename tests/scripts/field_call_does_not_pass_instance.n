@@ -8,12 +8,8 @@ struct S {
     f
 }
 
-val sum = S(fn(a, b) {
-    return a + b
-})
+val sum = S { a, b -> a + b }
 print(sum.f(1, 2))
 
-val constant = S(fn() {
-    return 7
-})
+val constant = S { 7 }
 print(constant.f())

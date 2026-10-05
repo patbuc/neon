@@ -1,0 +1,8 @@
+// Expected:
+// ok
+
+if fn() {
+    return [1].map { it }.size()
+}() > 0 {
+    print("ok")
+}

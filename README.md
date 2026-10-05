@@ -291,6 +291,58 @@ fn(x) {
 }(5)  // 5
 ```
 
+#### Trailing Blocks
+
+When a function literal is a call's last (or only) argument, it can be
+written as a block right after the call instead of `fn(...) { ... }`. Any
+other arguments stay inside the parentheses, and the block takes the
+function's place as the last one; a call with no other arguments can drop
+the parentheses entirely:
+
+```neon
+print([1, 2, 3].map { it * 2 })                   // [2, 4, 6]
+print([1, 2, 3].reduce(0) { acc, x -> acc + x })  // 6
+twice { print("hi") }
+```
+
+Named parameters go in a `name, name ->` header before the body, just like a
+lambda's parameter list:
+
+```neon
+print(["a", "bb", "ccc"].sortBy { s -> s.size() })
+```
+
+A block with no `->` header takes an implicit parameter named `it`, but only
+when its body actually reads or assigns a free `it`; a block that never
+mentions `it` takes zero parameters instead, same as `fn() { ... }`:
+
+```neon
+print([1, 2, 3].map { it * 2 })   // it is the element
+twice { print("hi") }             // no parameters at all
+```
+
+A block that declares its own `it` — as a parameter or a `val it`/`var it` —
+doesn't get the implicit one, and nested blocks each bind their own `it`
+independently of any outer one. A `for it in ...` loop variable only exists
+inside that loop's body; the block's `it` is unaffected outside it:
+
+```neon
+print([[1, 2], [3]].map { it.map { it * 10 } })   // inner it shadows the outer one
+```
+
+`return` inside a trailing block returns from the block itself, same as any
+other lambda, not from the function the block was passed into.
+
+Trailing blocks aren't allowed in an `if`/`while` condition or a `for ... in`
+collection — Neon can't tell the block apart from the statement body that
+follows. Parenthesize the call instead:
+
+```neon
+if ([1, 2, 3].filter { it > 1 }.isEmpty()) {
+    print("empty")
+}
+```
+
 #### Hoisting
 
 Every top-level `fn`, `struct`, `val`, and `var` is visible throughout the
@@ -878,7 +930,7 @@ for ch in "abc" {
   error); `.min()`/`.max()` return the chosen element unchanged
 - `.map(fn)` - New array with `fn` applied to each element
 - `.filter(fn)` - New array of the elements for which `fn` is truthy
-- `.reduce(fn, initial)` - Fold the array from the left, calling `fn(accumulator, element)`
+- `.reduce(initial, fn)` - Fold the array from the left, calling `fn(accumulator, element)`
 - `.forEach(fn)` - Call `fn` with each element in order; returns `nil`
 - `.flatMap(fn)` - New array concatenating the arrays `fn` returns for each element; a `fn`
   returning a non-array is a runtime error
@@ -908,7 +960,7 @@ print(arr.size())          // 4
 print(arr.contains(2))     // true
 print(arr.map(fn(x) { return x * 2 }))          // [2, 4, 6, 8]
 print(arr.filter(fn(x) { return x % 2 == 0 }))  // [2, 4]
-print(arr.reduce(fn(acc, x) { return acc + x }, 0))  // 10
+print(arr.reduce(0, fn(acc, x) { return acc + x }))  // 10
 
 val nums = [3, 1, 2]
 print(nums.sort())                              // [1, 2, 3], same array as nums
@@ -941,7 +993,7 @@ comparator must return a number.
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
-- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()` - Same as the Array methods, applied to the range's elements
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(initial, fn)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
 

@@ -17,6 +17,7 @@ pub(crate) enum TokenType {
     DotDotEqual,
     Minus,
     MinusEqual,
+    Arrow,
     Plus,
     PlusEqual,
     Percent,

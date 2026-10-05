@@ -104,6 +104,13 @@ impl SourceMap {
         self.end_lines[token]
     }
 
+    /// True when an `Expr::Function`'s location is a trailing block's `{`
+    /// rather than a `fn` keyword - it has no separate parameter parens,
+    /// and its params (if any) live inline before the first statement.
+    pub(crate) fn is_block_lambda(&self, location: &SourceLocation) -> bool {
+        self.kinds[self.at(location)] == TokenType::LeftBrace
+    }
+
     #[allow(clippy::expect_used)]
     pub(crate) fn partner(&self, token: usize) -> usize {
         self.partners[token].expect("token has a matching bracket")
@@ -150,11 +157,21 @@ impl SourceMap {
             | Expr::Variable { location, .. }
             | Expr::Grouping { location, .. } => self.at(location),
             Expr::StringInterpolation { location, .. }
-            | Expr::Call { location, .. }
             | Expr::MapLiteral { location, .. }
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Index { location, .. } => self.partner(self.at(location)),
+            Expr::Call {
+                arguments,
+                location,
+                ..
+            } => match arguments.last() {
+                Some(Expr::Function {
+                    location: fn_location,
+                    ..
+                }) if self.is_block_lambda(fn_location) => self.partner(self.at(fn_location)),
+                _ => self.partner(self.at(location)),
+            },
             Expr::GetField { location, .. } => self.at(location) + 1,
             Expr::Assign { value, .. }
             | Expr::CompoundAssign { value, .. }
@@ -166,6 +183,9 @@ impl SourceMap {
             Expr::Range { end, .. } => self.last_token(end),
             Expr::Unary { operand, .. } => self.last_token(operand),
             Expr::Conditional { else_expr, .. } => self.last_token(else_expr),
+            Expr::Function { location, .. } if self.is_block_lambda(location) => {
+                self.partner(self.at(location))
+            }
             Expr::Function { location, .. } => self.fn_tokens(location).body_close,
             Expr::If { else_branch, .. } => match else_branch.as_ref() {
                 IfExprElse::If(expr) => self.last_token(expr),

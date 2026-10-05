@@ -29,12 +29,8 @@
 // [[0, 1], [1, 2], [2, 3]]
 
 val arr = [1, 2, 3, 4, 5]
-print(arr.forEach(fn(x) {
-    print(x)
-}))
-print(arr.flatMap(fn(x) {
-    return [x, x]
-}))
+print(arr.forEach { print(it) })
+print(arr.flatMap { [it, it] })
 print(arr.take(2))
 print(arr.drop(2))
 print(arr.first())
@@ -44,12 +40,8 @@ print(arr.zip(["a", "b"]))
 print(arr.withIndex().take(3))
 
 val rng = 1..=5
-print(rng.forEach(fn(x) {
-    print(x)
-}))
-print(rng.flatMap(fn(x) {
-    return [x, x]
-}))
+print(rng.forEach { print(it) })
+print(rng.flatMap { [it, it] })
 print(rng.take(2))
 print(rng.drop(2))
 print(rng.first())

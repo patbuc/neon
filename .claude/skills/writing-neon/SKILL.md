@@ -50,6 +50,16 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   skip the braces with `fn name(a, b) = expr` (lambdas can't use `= expr`). A
   statement starting with `fn(` is always a lambda, not a declaration, so it
   can be called right away: `fn(x) { print(x) }(5)`.
+- A function literal that's a call's last argument can be written as a
+  trailing block instead: `xs.map { it * 2 }`, `xs.reduce(0) { acc, x -> acc + x }`,
+  `twice { print("hi") }`. Named params use a `name, name ->` header; with no
+  header, the block gets an implicit `it` parameter only if its body reads a
+  free `it` (a block with its own `it` — a parameter or `val`/`var it` —
+  doesn't; nested blocks each bind their own `it`; a `for it in ...` loop
+  variable only exists inside that loop's body); a block that mentions no
+  `it` takes zero params. `return` inside returns from the block. Not
+  allowed in `if`/`while` conditions or a `for ... in` collection —
+  parenthesize the call instead.
 - Struct fields are listed one per line, no commas or types:
   `struct Point {` / `x` / `y` / `}`. Construct with `Point(1, 2)`.
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
@@ -144,7 +154,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Boolean:** `toString`
 - **Array:** `Array(n, init)`, `push`, `pop`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
-  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `forEach(fn)`, `flatMap(fn)`,
+  `map(fn)`, `filter(fn)`, `reduce(initial, fn)`, `forEach(fn)`, `flatMap(fn)`,
   `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`, `take(n)`, `drop(n)`,
   `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`, `sortBy(fn)`,
   `minBy(fn)`, `maxBy(fn)`, `groupBy(fn)`, `tally()`
