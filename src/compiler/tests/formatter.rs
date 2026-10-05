@@ -396,6 +396,21 @@ fn test_empty_trailing_block_stays_empty() {
 }
 
 #[test]
+fn test_trailing_block_empty_body_with_params_stays_one_line() {
+    check("f { a -> }\n", "f { a -> }\n");
+}
+
+#[test]
+fn test_trailing_block_with_return_stays_one_line() {
+    check("[1].map { return it }\n", "[1].map { return it }\n");
+}
+
+#[test]
+fn test_trailing_block_with_val_stays_one_line() {
+    check("call { val y = 1 }\n", "call { val y = 1 }\n");
+}
+
+#[test]
 fn test_map_literal_one_entry_per_line_stays() {
     check(
         "val m = {\n    \"a\": 1,\n    \"b\": 2,\n}\n",

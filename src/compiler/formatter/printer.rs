@@ -562,9 +562,9 @@ impl<'a> Printer<'a> {
 
     /// A trailing-block lambda's `{ params -> body }`, between its own
     /// already-located brace tokens. A block whose source `{`...`}` is on
-    /// one line and whose body is a single expression statement prints on
-    /// one line too; an empty body always collapses to `{}`, like
-    /// `braced_lines`; anything else stays multi-line.
+    /// one line and whose body is a single statement prints on one line
+    /// too; an empty body always collapses to `{}` (or `{ params -> }`),
+    /// like `braced_lines`; anything else stays multi-line.
     fn print_trailing_block(
         &mut self,
         params: &[String],
@@ -578,16 +578,19 @@ impl<'a> Printer<'a> {
         if body.is_empty() && !self.has_comment_before(close_line) {
             self.write("{");
             self.print_trailing_block_params(params);
+            if !params.is_empty() {
+                self.write(" ");
+            }
             self.write("}");
             return;
         }
 
         if open_line == close_line {
-            if let [Stmt::Expression { expr, .. }] = body {
+            if let [stmt] = body {
                 self.write("{");
                 self.print_trailing_block_params(params);
                 self.write(" ");
-                self.print_expr(expr);
+                self.print_stmt(stmt);
                 self.write(" }");
                 return;
             }
