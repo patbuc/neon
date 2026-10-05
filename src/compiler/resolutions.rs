@@ -1,4 +1,4 @@
-use crate::compiler::ast::NodeId;
+use crate::compiler::ast::{EnumVariant, NodeId};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -90,6 +90,23 @@ pub struct EnumVariantAccess {
     pub enum_name: Rc<str>,
     pub variant_name: Rc<str>,
     pub ordinal: u16,
+    /// Payload field names; empty for a unit variant.
+    pub fields: Vec<Rc<str>>,
+}
+
+impl EnumVariantAccess {
+    pub(crate) fn new(enum_name: &str, variant: &EnumVariant, ordinal: usize) -> Self {
+        EnumVariantAccess {
+            enum_name: Rc::from(enum_name),
+            variant_name: Rc::from(variant.name.as_str()),
+            ordinal: ordinal as u16,
+            fields: variant
+                .fields
+                .iter()
+                .map(|f| Rc::from(f.as_str()))
+                .collect(),
+        }
+    }
 }
 
 /// A `Color.values()` call: codegen loads each variant constant in
@@ -115,6 +132,8 @@ pub struct Resolutions {
     enum_variant_accesses: HashMap<NodeId, EnumVariantAccess>,
     /// Keyed by the `Expr::Call` node of a `Color.values()` call.
     enum_values_accesses: HashMap<NodeId, EnumValuesAccess>,
+    /// Keyed by the `Expr::Call` node of a `Shape.Circle(2)` constructor call.
+    enum_constructs: HashMap<NodeId, EnumVariantAccess>,
 }
 
 impl Resolutions {
@@ -235,6 +254,16 @@ impl Resolutions {
     /// to as the object of a `GetField`, if any.
     pub fn enum_variant_access(&self, id: NodeId) -> Option<&EnumVariantAccess> {
         self.enum_variant_accesses.get(&id)
+    }
+
+    pub(crate) fn record_enum_construct(&mut self, id: NodeId, access: EnumVariantAccess) {
+        self.enum_constructs.insert(id, access);
+    }
+
+    /// The payload variant constructor call `id` (an `Expr::Call` node)
+    /// resolves to, if any.
+    pub fn enum_construct(&self, id: NodeId) -> Option<&EnumVariantAccess> {
+        self.enum_constructs.get(&id)
     }
 
     pub(crate) fn record_enum_values_access(&mut self, id: NodeId, access: EnumValuesAccess) {

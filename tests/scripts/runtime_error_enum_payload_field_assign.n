@@ -1,0 +1,15 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot assign to field 'radius' of an enum variant.
+
+enum Shape {
+    Circle(radius)
+}
+
+fn grow(s) {
+    s.radius = 3
+}
+
+print("before")
+grow(Shape.Circle(2))

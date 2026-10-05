@@ -543,6 +543,19 @@ pub struct ObjEnumVariant {
     pub enum_name: String,
     pub variant_name: String,
     pub ordinal: u16,
+    /// Symbol ids of the payload field names, in declaration order; empty
+    /// for a unit variant.
+    pub field_symbols: Rc<[u16]>,
+    /// The payload values, parallel to `field_symbols`. Empty on the
+    /// constant-pool template a constructor call copies from.
+    pub fields: Vec<Value>,
+}
+
+impl ObjEnumVariant {
+    pub(crate) fn field(&self, symbol: u16) -> Option<&Value> {
+        let index = self.field_symbols.iter().position(|&s| s == symbol)?;
+        self.fields.get(index)
+    }
 }
 
 impl Value {
@@ -590,6 +603,25 @@ impl Value {
             enum_name,
             variant_name,
             ordinal,
+            field_symbols: Rc::from([]),
+            fields: Vec::new(),
+        }))
+    }
+
+    /// A payload variant's constant-pool template: it declares the fields
+    /// but holds no values yet.
+    pub(crate) fn new_enum_variant_template(
+        enum_name: String,
+        variant_name: String,
+        ordinal: u16,
+        field_symbols: Vec<u16>,
+    ) -> Self {
+        Value::EnumVariant(Rc::new(ObjEnumVariant {
+            enum_name,
+            variant_name,
+            ordinal,
+            field_symbols: Rc::from(field_symbols),
+            fields: Vec::new(),
         }))
     }
 

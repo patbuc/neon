@@ -3426,6 +3426,59 @@ fn test_optional_dot_on_namespace_is_compile_error() {
 }
 
 #[test]
+fn test_enum_payload_constructor_wrong_arity_is_compile_error() {
+    let errors = compile_errors("enum Shape {\n    Rect(w, h)\n}\nprint(Shape.Rect(1))\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(
+        errors[0].message.contains("Expected 2 arguments but got 1"),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_enum_unit_variant_call_is_compile_error() {
+    let errors = compile_errors("enum Shape {\n    Square\n}\nprint(Shape.Square())\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(
+        errors[0]
+            .message
+            .contains("'Square' is not a payload variant"),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_enum_payload_duplicate_field_is_compile_error() {
+    let errors = compile_errors("enum Shape {\n    Rect(w, w)\n}\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 2);
+    assert!(
+        errors[0].message.contains("Duplicate field 'w'"),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_enum_values_with_payload_variant_is_compile_error() {
+    let errors =
+        compile_errors("enum Shape {\n    Circle(radius)\n    Square\n}\nprint(Shape.values())\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].location.line, 5);
+    assert!(
+        errors[0]
+            .message
+            .contains("'values()' is not available on enum 'Shape'"),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
 fn test_optional_dot_on_enum_static_call_is_compile_error() {
     let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
     assert!(

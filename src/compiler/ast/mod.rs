@@ -11,10 +11,12 @@ pub struct StructField {
     pub location: SourceLocation,
 }
 
-/// An enum variant and the location of its name.
+/// An enum variant, its payload field names (empty for a unit variant), and
+/// the location of its name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumVariant {
     pub name: String,
+    pub fields: Vec<String>,
     pub location: SourceLocation,
 }
 

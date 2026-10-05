@@ -1,4 +1,5 @@
 use crate::common::SourceLocation;
+use crate::compiler::ast::EnumVariant;
 use crate::compiler::resolutions::DeclId;
 use std::collections::{HashMap, HashSet};
 
@@ -13,8 +14,8 @@ pub enum SymbolKind {
     Function { arity: u8 },
     /// Struct with field names
     Struct { fields: Vec<String> },
-    /// Plain enum with variant names, in declaration order
-    Enum { variants: Vec<String> },
+    /// Enum with its variants, in declaration order
+    Enum { variants: Vec<EnumVariant> },
     /// Function parameter
     Parameter,
     /// Built-in namespace (e.g. Math, File); usable only as `Name.method(...)`

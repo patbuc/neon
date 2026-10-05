@@ -6,7 +6,7 @@ use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
 };
-use crate::common::{ObjClosure, Upvalue};
+use crate::common::{ObjClosure, ObjEnumVariant, Upvalue};
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -126,6 +126,26 @@ impl VirtualMachine {
         // [.., operand] -> [.., result]
         let slot = self.stack.last_mut().expect("operand is on the stack");
         *slot = boolean!(is_false_like!(*slot));
+    }
+
+    /// Stack: `[.., field values...]` -> `[.., variant]`.
+    pub(in crate::vm) fn op_enum_construct(&mut self) -> OpResult {
+        let Value::EnumVariant(template) = self.chunk.read_constant(self.operand_u16(1) as usize)
+        else {
+            return Err(self.runtime_error("Enum constructor constant is not an enum variant."));
+        };
+        let fields = self
+            .stack
+            .split_off(self.stack.len() - template.field_symbols.len());
+        self.ip += 2;
+        self.push(Value::EnumVariant(Rc::new(ObjEnumVariant {
+            enum_name: template.enum_name.clone(),
+            variant_name: template.variant_name.clone(),
+            ordinal: template.ordinal,
+            field_symbols: Rc::clone(&template.field_symbols),
+            fields,
+        })));
+        Ok(())
     }
 
     #[inline(always)]
@@ -1366,6 +1386,13 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::EnumVariant(variant) => match variant.field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1391,6 +1418,13 @@ impl VirtualMachine {
 
         let value = match &self.stack[absolute_index] {
             Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
+                Some(value) => value.copy_or_clone(),
+                None => {
+                    let name = self.symbol_name(symbol);
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
+            },
+            Value::EnumVariant(variant) => match variant.field(symbol) {
                 Some(value) => value.copy_or_clone(),
                 None => {
                     let name = self.symbol_name(symbol);
@@ -1425,6 +1459,7 @@ impl VirtualMachine {
                 };
                 drop(std::mem::replace(&mut instance.fields[field_index], value));
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -1447,6 +1482,7 @@ impl VirtualMachine {
                 };
                 instance.fields[index] = value.copy_or_clone();
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
@@ -1478,11 +1514,20 @@ impl VirtualMachine {
                 };
                 drop(std::mem::replace(&mut instance.fields[index], value));
             }
+            Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
         self.ip += 2;
         Ok(())
+    }
+
+    fn enum_field_assign_error(&self, symbol: u16) -> RuntimeError {
+        let name = self.symbol_name(symbol);
+        self.runtime_error(format!(
+            "Cannot assign to field '{}' of an enum variant.",
+            name
+        ))
     }
 
     /// Looks up an interned name by symbol id, for use on an error path only.

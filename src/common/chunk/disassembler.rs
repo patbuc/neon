@@ -91,6 +91,7 @@ impl Chunk {
                 offset + 4
             }
             OpCode::IsNumber => self.simple_instruction(OpCode::IsNumber, offset, out),
+            OpCode::EnumConstruct => self.constant_instruction(OpCode::EnumConstruct, offset, out),
             OpCode::Jump => self.jump_instruction(instruction, offset, out),
             OpCode::Loop => self.loop_instruction(offset, out),
             OpCode::Call => self.call_instruction(offset, out),

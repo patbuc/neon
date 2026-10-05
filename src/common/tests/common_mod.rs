@@ -695,11 +695,12 @@ fn map_key_cross_kind_ord() {
     let string_key = MapKey::String(Rc::new("a".to_string()));
     let number_key = MapKey::Int(1);
     let bool_key = MapKey::Boolean(true);
-    let enum_key = MapKey::EnumVariant(Rc::new(ObjEnumVariant {
-        enum_name: "Color".to_string(),
-        variant_name: "Red".to_string(),
-        ordinal: 0,
-    }));
+    let Value::EnumVariant(red) =
+        Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0)
+    else {
+        unreachable!()
+    };
+    let enum_key = MapKey::EnumVariant(red);
     let array_key = MapKey::Array(vec![].into());
 
     assert!(string_key < number_key);

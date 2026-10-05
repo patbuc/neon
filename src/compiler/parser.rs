@@ -805,9 +805,27 @@ impl Parser {
                 if !self.consume(TokenType::Identifier, "Expect variant name.") {
                     break;
                 }
+                let name = self.previous_token.token.clone();
+                let location = self.current_location();
+                let mut fields = Vec::new();
+                if self.match_token(TokenType::LeftParen) {
+                    loop {
+                        if !self.consume(TokenType::Identifier, "Expect field name.") {
+                            return None;
+                        }
+                        fields.push(self.previous_token.token.clone());
+                        if !self.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                    if !self.consume(TokenType::RightParen, "Expect ')' after variant fields.") {
+                        return None;
+                    }
+                }
                 variants.push(EnumVariant {
-                    name: self.previous_token.token.clone(),
-                    location: self.current_location(),
+                    name,
+                    fields,
+                    location,
                 });
                 self.skip_new_lines();
                 if self.check(TokenType::RightBrace) {

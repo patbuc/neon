@@ -455,9 +455,9 @@ impl<'a> Printer<'a> {
                 location,
                 ..
             } => {
-                let names: Vec<(&str, u32)> = fields
+                let names: Vec<(String, u32)> = fields
                     .iter()
-                    .map(|field| (field.name.as_str(), field.location.line))
+                    .map(|field| (field.name.clone(), field.location.line))
                     .collect();
                 self.print_named_braces("struct ", name, location, &names);
             }
@@ -467,9 +467,16 @@ impl<'a> Printer<'a> {
                 location,
                 ..
             } => {
-                let names: Vec<(&str, u32)> = variants
+                let names: Vec<(String, u32)> = variants
                     .iter()
-                    .map(|variant| (variant.name.as_str(), variant.location.line))
+                    .map(|variant| {
+                        let text = if variant.fields.is_empty() {
+                            variant.name.clone()
+                        } else {
+                            format!("{}({})", variant.name, variant.fields.join(", "))
+                        };
+                        (text, variant.location.line)
+                    })
                     .collect();
                 self.print_named_braces("enum ", name, location, &names);
             }
@@ -535,7 +542,7 @@ impl<'a> Printer<'a> {
         keyword: &str,
         name: &str,
         location: &SourceLocation,
-        items: &[(&str, u32)],
+        items: &[(String, u32)],
     ) {
         self.write(keyword);
         self.write(name);
@@ -547,7 +554,7 @@ impl<'a> Printer<'a> {
             self.map.line(close),
             &spans,
             |printer, i| {
-                printer.write(items[i].0);
+                printer.write(&items[i].0);
             },
         );
     }
