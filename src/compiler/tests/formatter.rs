@@ -367,6 +367,35 @@ fn test_lambda_call_arg_already_broken_stays_broken() {
 }
 
 #[test]
+fn test_trailing_block_one_line_stays_one_line() {
+    check(
+        "print([1, 2].map { it * 2 })\n",
+        "print([1, 2].map { it * 2 })\n",
+    );
+}
+
+#[test]
+fn test_trailing_block_with_params_one_line_stays_one_line() {
+    check(
+        "[1, 2].reduce(0) { acc, x -> acc + x }\n",
+        "[1, 2].reduce(0) { acc, x -> acc + x }\n",
+    );
+}
+
+#[test]
+fn test_trailing_block_multi_line_stays_multi_line() {
+    check(
+        "xs.forEach {\n    print(it)\n}\n",
+        "xs.forEach {\n    print(it)\n}\n",
+    );
+}
+
+#[test]
+fn test_empty_trailing_block_stays_empty() {
+    check("call {}\n", "call {}\n");
+}
+
+#[test]
 fn test_map_literal_one_entry_per_line_stays() {
     check(
         "val m = {\n    \"a\": 1,\n    \"b\": 2,\n}\n",

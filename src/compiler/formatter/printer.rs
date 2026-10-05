@@ -234,13 +234,27 @@ impl<'a> Printer<'a> {
         open_line: u32,
         close_line: u32,
         spans: &[(u32, u32)],
-        mut print_item: impl FnMut(&mut Self, usize),
+        print_item: impl FnMut(&mut Self, usize),
     ) {
         if spans.is_empty() && !self.has_comment_before(close_line) {
             self.write("{}");
             return;
         }
         self.write("{");
+        self.braced_body(open_line, close_line, spans, print_item);
+        self.write("}");
+    }
+
+    /// The line-broken items between an already-written `{` and `}`: one
+    /// item per line, shared by `braced_lines` and a trailing block's own
+    /// brace printing.
+    fn braced_body(
+        &mut self,
+        open_line: u32,
+        close_line: u32,
+        spans: &[(u32, u32)],
+        mut print_item: impl FnMut(&mut Self, usize),
+    ) {
         self.nested(1, |printer| {
             let mut prev = open_line;
             for (i, &(first, last)) in spans.iter().enumerate() {
@@ -260,7 +274,6 @@ impl<'a> Printer<'a> {
             };
             printer.line_break(prev, close_line, gap);
         });
-        self.write("}");
     }
 
     /// A bracketed, comma-separated list: call args, params, array/map/set
@@ -548,7 +561,10 @@ impl<'a> Printer<'a> {
     }
 
     /// A trailing-block lambda's `{ params -> body }`, between its own
-    /// already-located brace tokens. Always multi-line for now.
+    /// already-located brace tokens. A block whose source `{`...`}` is on
+    /// one line and whose body is a single expression statement prints on
+    /// one line too; an empty body always collapses to `{}`, like
+    /// `braced_lines`; anything else stays multi-line.
     fn print_trailing_block(
         &mut self,
         params: &[String],
@@ -556,14 +572,29 @@ impl<'a> Printer<'a> {
         open: usize,
         close: usize,
     ) {
-        self.write("{");
-        if !params.is_empty() {
-            self.write(" ");
-            self.write(&params.join(", "));
-            self.write(" ->");
-        }
         let open_line = self.map.line(open);
         let close_line = self.map.line(close);
+
+        if body.is_empty() && !self.has_comment_before(close_line) {
+            self.write("{");
+            self.print_trailing_block_params(params);
+            self.write("}");
+            return;
+        }
+
+        if open_line == close_line {
+            if let [Stmt::Expression { expr, .. }] = body {
+                self.write("{");
+                self.print_trailing_block_params(params);
+                self.write(" ");
+                self.print_expr(expr);
+                self.write(" }");
+                return;
+            }
+        }
+
+        self.write("{");
+        self.print_trailing_block_params(params);
         let spans: Vec<(u32, u32)> = body
             .iter()
             .map(|stmt| {
@@ -573,26 +604,18 @@ impl<'a> Printer<'a> {
                 )
             })
             .collect();
-        self.nested(1, |printer| {
-            let mut prev = open_line;
-            for (i, &(first, last)) in spans.iter().enumerate() {
-                let gap = if i == 0 {
-                    Gap::AfterOpen
-                } else {
-                    Gap::BetweenItems
-                };
-                printer.line_break(prev, first, gap);
-                printer.print_stmt(&body[i]);
-                prev = last;
-            }
-            let gap = if spans.is_empty() {
-                Gap::Empty
-            } else {
-                Gap::BeforeClose
-            };
-            printer.line_break(prev, close_line, gap);
+        self.braced_body(open_line, close_line, &spans, |printer, i| {
+            printer.print_stmt(&body[i]);
         });
         self.write("}");
+    }
+
+    fn print_trailing_block_params(&mut self, params: &[String]) {
+        if !params.is_empty() {
+            self.write(" ");
+            self.write(&params.join(", "));
+            self.write(" ->");
+        }
     }
 
     // --- Expressions ------------------------------------------------
