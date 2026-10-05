@@ -93,9 +93,12 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - No `switch`, `do`/`while`, `try`/`catch`, or `throw`.
 - `match x { pattern, pattern -> body ... }` is an expression and a statement.
   A pattern is a number/string/bool/`nil` literal, `Enum.Variant`, an integer
-  range (`1..5`, `1..=5`), or `_`; anything else (a variable, a call) is a
-  compile error. A body is an expression or a `{ }` block. A match on an enum
-  needs every variant or a `_` arm; a repeated pattern or one after `_` is
+  range (`1..5`, `1..=5`), `_`, or a bare name that binds the value
+  (immutable, arm-scoped, always shadows; comma alternatives must bind the
+  same names); anything else (a call) is a compile error. A guard,
+  `n if n > 0 -> body`, runs after the pattern, sees bindings, and falls
+  through when false. A body is an expression or a `{ }` block. A match on an enum
+  needs every variant or a `_`/unguarded binding arm; guarded arms never count; a repeated pattern or one after `_` is
   `unreachable pattern`. No matching arm is the runtime error
   `No match arm for <value>`.
 

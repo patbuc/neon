@@ -546,6 +546,12 @@ val name = match Color.Green {
     Color.Blue -> "blue"
 }
 print(name)  // green
+
+val size = match 42 {
+    n if n < 10 -> "small"
+    n -> "big " + n.toString()
+}
+print(size)  // big 42
 ```
 
 `match` is an expression, and also a statement. It tries the arms top to
@@ -554,11 +560,19 @@ arm's value.
 
 - A pattern is a number, string, `true`/`false` or `nil` literal (a leading
   `-` is fine), an `Enum.Variant`, an integer range (`400..500`,
-  `1..=5`), or `_`, which matches anything. Anything else, such as a
-  variable or a call, is a compile error (`Invalid match pattern`).
+  `1..=5`), `_`, which matches anything, or a bare name, which matches
+  anything and binds it (see below). Anything else, such as a call, is a
+  compile error (`Invalid match pattern`).
 - An arm lists one or more patterns separated by commas and runs if any of
   them matches. A range pattern only matches a number; any other value falls
   through to the next arm.
+- A bare name binds the matched value to a new immutable name, visible in
+  the arm's guard and body only. It always shadows an outer name of the
+  same name. Unguarded, it counts like `_` for coverage. Comma alternatives
+  must bind the same names.
+- A guard, `pattern if condition -> body`, runs after the pattern matches
+  and sees its bindings. If it is false the match falls through to the next
+  arm. A guarded arm never counts toward coverage.
 - An arm's body is an expression, or a `{ ... }` block whose value is its
   last expression statement.
 - A match whose patterns include an enum variant is an enum match: every
