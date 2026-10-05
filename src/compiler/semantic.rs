@@ -1293,6 +1293,10 @@ impl SemanticAnalyzer {
                     self.resolve_match_pattern(element);
                 }
             }
+            MatchPattern::Variant { target, fields } => {
+                self.resolve_expr(target);
+                self.resolve_variant_pattern(target, fields);
+            }
             MatchPattern::Rest { binding, location } => {
                 if binding.is_some() {
                     self.intern_name("slice", *location);
@@ -1303,13 +1307,70 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn resolve_variant_pattern(&mut self, target: &Expr, fields: &[MatchPattern]) {
+        let location = Self::match_pattern_location(target);
+        let Some(access) = self.match_pattern_enum_variant(target) else {
+            if let Expr::GetField { object, .. } = target {
+                if matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+                {
+                    return;
+                }
+            }
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::InvalidMatchPattern,
+                "Invalid match pattern: only an enum variant can take a field list".to_string(),
+                location,
+            ));
+            return;
+        };
+        let message = if access.fields.is_empty() {
+            Some(format!(
+                "Invalid match pattern: unit variant {}.{} takes no parentheses",
+                access.enum_name, access.variant_name
+            ))
+        } else if access.fields.len() != fields.len() {
+            Some(format!(
+                "Invalid match pattern: {}.{} has {} fields but the pattern has {}",
+                access.enum_name,
+                access.variant_name,
+                access.fields.len(),
+                fields.len()
+            ))
+        } else {
+            None
+        };
+        if let Some(message) = message {
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::InvalidMatchPattern,
+                message,
+                location,
+            ));
+        }
+        for field in fields {
+            if let MatchPattern::Rest { location, .. } = field {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::InvalidMatchPattern,
+                    "Invalid match pattern: a variant pattern cannot have a rest ('..')"
+                        .to_string(),
+                    *location,
+                ));
+            }
+            self.resolve_match_pattern(field);
+        }
+    }
+
     fn pattern_location(pattern: &MatchPattern) -> SourceLocation {
         match pattern {
             MatchPattern::Wildcard(location)
             | MatchPattern::Array { location, .. }
             | MatchPattern::Rest { location, .. } => *location,
             MatchPattern::Binding(binding) => binding.location,
-            MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
+            MatchPattern::Expr(expr) | MatchPattern::Variant { target: expr, .. } => {
+                Self::match_pattern_location(expr)
+            }
         }
     }
 
@@ -2182,6 +2243,19 @@ impl SemanticAnalyzer {
         self.resolutions.enum_variant_access(*id).cloned()
     }
 
+    /// The variant a pattern names, as `Enum.Variant` or `Enum.Variant(..)`,
+    /// and whether it matches every value of that variant.
+    fn match_pattern_variant(&self, pattern: &MatchPattern) -> Option<(EnumVariantAccess, bool)> {
+        match pattern {
+            MatchPattern::Expr(expr) => Some((self.match_pattern_enum_variant(expr)?, true)),
+            MatchPattern::Variant { target, fields } => Some((
+                self.match_pattern_enum_variant(target)?,
+                fields.iter().all(MatchPattern::is_irrefutable),
+            )),
+            _ => None,
+        }
+    }
+
     /// The location of the first token of a match pattern expression.
     fn match_pattern_location(expr: &Expr) -> SourceLocation {
         match expr {
@@ -2267,21 +2341,19 @@ impl SemanticAnalyzer {
     }
 
     /// An enum match - one whose patterns include at least one
-    /// `Enum.Variant` - must have every non-wildcard pattern belong to that
+    /// `Enum.Variant` or `Enum.Variant(..)` - must have every non-wildcard pattern belong to that
     /// enum, and (absent a wildcard) cover every one of its variants.
     #[allow(clippy::expect_used)]
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
         let mut enum_identity: Option<(Rc<str>, Vec<EnumVariant>)> = None;
         for arm in arms {
             for pattern in &arm.patterns {
-                if let MatchPattern::Expr(expr) = pattern {
-                    if let Some(access) = self.match_pattern_enum_variant(expr) {
-                        let variants = self
-                            .enum_variants(&access.enum_name)
-                            .expect("a resolved enum variant access names a declared enum");
-                        enum_identity = Some((access.enum_name, variants));
-                        break;
-                    }
+                if let Some((access, _)) = self.match_pattern_variant(pattern) {
+                    let variants = self
+                        .enum_variants(&access.enum_name)
+                        .expect("a resolved enum variant access names a declared enum");
+                    enum_identity = Some((access.enum_name, variants));
+                    break;
                 }
             }
             if enum_identity.is_some() {
@@ -2302,31 +2374,41 @@ impl SemanticAnalyzer {
                     has_wildcard |= arm.guard.is_none();
                     continue;
                 }
-                let MatchPattern::Expr(expr) = pattern else {
-                    continue;
-                };
-                match self.match_pattern_enum_variant(expr) {
-                    Some(access) if access.enum_name == enum_name => {
-                        if arm.guard.is_none()
-                            && !covered.contains(&access.variant_name.to_string())
-                        {
-                            covered.push(access.variant_name.to_string());
-                        }
-                    }
-                    _ if !self.is_valid_match_pattern(expr) => {}
-                    _ => {
+                if let Some((access, matches_all)) = self.match_pattern_variant(pattern) {
+                    if access.enum_name != enum_name {
                         self.push_error(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::PatternNotInEnum,
                             format!(
-                                "Pattern {} does not belong to enum {}",
-                                Self::match_pattern_display(expr),
-                                enum_name
+                                "Pattern {}.{} does not belong to enum {}",
+                                access.enum_name, access.variant_name, enum_name
                             ),
-                            Self::match_pattern_location(expr),
+                            Self::pattern_location(pattern),
                         ));
+                    } else if matches_all
+                        && arm.guard.is_none()
+                        && !covered.contains(&access.variant_name.to_string())
+                    {
+                        covered.push(access.variant_name.to_string());
                     }
+                    continue;
                 }
+                let MatchPattern::Expr(expr) = pattern else {
+                    continue;
+                };
+                if !self.is_valid_match_pattern(expr) {
+                    continue;
+                }
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::PatternNotInEnum,
+                    format!(
+                        "Pattern {} does not belong to enum {}",
+                        Self::match_pattern_display(expr),
+                        enum_name
+                    ),
+                    Self::match_pattern_location(expr),
+                ));
             }
         }
 
@@ -2416,8 +2498,16 @@ impl SemanticAnalyzer {
             let seen_before_arm = seen.len();
             let mut arm_wildcard = seen_wildcard;
             for pattern in &arm.patterns {
+                let mut covers = true;
                 let key = match pattern {
                     MatchPattern::Expr(expr) => self.match_pattern_key(expr),
+                    MatchPattern::Variant { .. } => {
+                        self.match_pattern_variant(pattern)
+                            .map(|(access, matches_all)| {
+                                covers = matches_all;
+                                MatchPatternKey::Enum(access.enum_name, access.variant_name)
+                            })
+                    }
                     _ => None,
                 };
                 let location = Self::pattern_location(pattern);
@@ -2429,7 +2519,7 @@ impl SemanticAnalyzer {
                         "unreachable pattern".to_string(),
                         location,
                     ));
-                } else if let Some(key) = key {
+                } else if let Some(key) = key.filter(|_| covers) {
                     seen.push(key);
                 }
                 if pattern.is_irrefutable() {
@@ -2832,6 +2922,7 @@ fn pattern_references_it(pattern: &MatchPattern) -> bool {
     match pattern {
         MatchPattern::Expr(expr) => expr_references_it(expr),
         MatchPattern::Array { elements, .. } => elements.iter().any(pattern_references_it),
+        MatchPattern::Variant { fields, .. } => fields.iter().any(pattern_references_it),
         MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. } => false,
     }
 }

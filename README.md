@@ -547,6 +547,20 @@ val name = match Color.Green {
 }
 print(name)  // green
 
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+}
+
+fn area(s) {
+    return match s {
+        Shape.Circle(r) -> r * r * 3
+        Shape.Rect(w, 0) -> 0
+        Shape.Rect(w, h) -> w * h
+    }
+}
+print(area(Shape.Rect(2, 5)))  // 10
+
 val size = match 42 {
     n if n < 10 -> "small"
     n -> "big " + n.toString()
@@ -559,7 +573,7 @@ bottom and runs the first one with a matching pattern; its value is the
 arm's value.
 
 - A pattern is a number, string, `true`/`false` or `nil` literal (a leading
-  `-` is fine), an `Enum.Variant`, an integer range (`400..500`,
+  `-` is fine), an `Enum.Variant` or `Enum.Variant(patterns)`, an integer range (`400..500`,
   `1..=5`), `_`, which matches anything, or a bare name, which matches
   anything and binds it (see below). Anything else, such as a call, is a
   compile error (`Invalid match pattern`).
@@ -578,6 +592,13 @@ arm's value.
   variant patterns. One `..` anywhere matches any number of elements, and
   `..rest` binds them to a new array (a copy). A non-array never matches.
   Array patterns never count toward coverage.
+- A variant pattern, `Shape.Rect(w, 0)`, matches a payload variant and its
+  fields by position against any sub-pattern (literal, `_`, binding, range,
+  array or nested variant). The count must equal the variant's field count.
+  A payload variant is written with parentheses and a unit variant without,
+  and `..` is not allowed inside. Unguarded, a variant pattern whose
+  sub-patterns are all bindings or `_` covers its variant; one with a
+  refutable sub-pattern covers nothing.
 - An arm's body is an expression, or a `{ ... }` block whose value is its
   last expression statement.
 - A match whose patterns include an enum variant is an enum match: every
@@ -792,6 +813,7 @@ print(Shape.Circle(2) == Shape.Circle(2)) // true
   pass around, e.g. `[1, 2].map(Shape.Circle)`. A payload variant prints as
   `Shape.Rect(1, 2)` and is equal to another of the same variant with equal
   fields. `Shape.values()` on an enum with payload variants is a compile error.
+  `match` destructures them with `Shape.Rect(w, h)` patterns (see Match).
 - Enums don't support `impl` blocks or explicit variant values.
 
 ## Code Examples

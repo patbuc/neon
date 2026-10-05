@@ -1072,6 +1072,17 @@ impl<'a> Printer<'a> {
                     self.write(&binding.name);
                 }
             }
+            MatchPattern::Variant { target, fields } => {
+                self.print_expr(target);
+                self.write("(");
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.print_match_pattern(field);
+                }
+                self.write(")");
+            }
             MatchPattern::Array { elements, .. } => {
                 self.write("[");
                 for (i, element) in elements.iter().enumerate() {

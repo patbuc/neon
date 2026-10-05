@@ -151,6 +151,21 @@ impl VirtualMachine {
         *slot = boolean!(is_number);
     }
 
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_is_variant(&mut self) -> OpResult {
+        // [.., value] -> [.., is_variant]
+        let Value::EnumVariant(template) = self.chunk.read_constant(self.operand_u16(1) as usize)
+        else {
+            return Err(self.runtime_error("Variant pattern constant is not an enum variant."));
+        };
+        self.ip += 2;
+        let slot = self.stack.last_mut().expect("operand is on the stack");
+        let matches = matches!(slot, Value::EnumVariant(variant)
+            if variant.ordinal == template.ordinal && variant.enum_name == template.enum_name);
+        *slot = boolean!(matches);
+        Ok(())
+    }
+
     #[inline(always)]
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_is_array_of_len(&mut self) {

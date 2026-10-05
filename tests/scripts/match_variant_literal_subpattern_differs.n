@@ -1,0 +1,18 @@
+// Expected:
+// other
+// 2
+
+enum Shape {
+    Circle(radius)
+}
+
+print(match Shape.Circle(2) {
+    Shape.Circle(1) -> "unit"
+    _ -> "other"
+})
+
+print(match Shape.Circle(2) {
+    Shape.Circle(1) -> "unit"
+    Shape.Circle(r) -> r
+    _ -> "other"
+})

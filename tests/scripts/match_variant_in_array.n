@@ -1,0 +1,17 @@
+// Expected:
+// 5
+// other
+
+enum Shape {
+    Circle(radius)
+}
+
+print(match [1, Shape.Circle(4)] {
+    [a, Shape.Circle(r)] -> a + r
+    _ -> "other"
+})
+
+print(match [1, 2] {
+    [a, Shape.Circle(r)] -> a + r
+    _ -> "other"
+})

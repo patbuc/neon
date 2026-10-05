@@ -265,6 +265,13 @@ pub enum MatchPattern {
         elements: Vec<MatchPattern>,
         location: SourceLocation,
     },
+    /// `Enum.Variant(p1, p2)`: that variant, whose fields match the
+    /// sub-patterns by position. Any other value does not match. `target`
+    /// is the `Enum.Variant` access, never a call.
+    Variant {
+        target: Expr,
+        fields: Vec<MatchPattern>,
+    },
     /// `..` or `..name` inside an array pattern: the elements between the
     /// ones before and after it. A name binds them as a new array.
     Rest {
@@ -273,14 +280,17 @@ pub enum MatchPattern {
     },
 }
 
-/// One step from an array to a part of it, as followed by an array
-/// pattern's bindings.
+/// One step from a value to a part of it, as followed by an array or
+/// variant pattern's bindings.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathStep {
     /// The element at this index; negative counts from the end.
     Index(i64),
     /// The elements after the first `before` and before the last `after`.
     Rest { before: usize, after: usize },
+    /// The field at this position of a variant pattern's variant; `variant`
+    /// is the node id the semantic pass resolved `Enum.Variant` under.
+    Field { variant: NodeId, index: usize },
 }
 
 impl PathStep {
@@ -312,7 +322,7 @@ impl MatchPattern {
     }
 
     /// Every name this pattern binds, in source order, each with the
-    /// element indices that lead from the matched value to what it binds.
+    /// steps that lead from the matched value to what it binds.
     pub fn bindings(&self) -> Vec<(&Binding, Vec<PathStep>)> {
         let mut found = Vec::new();
         self.collect_bindings(&mut Vec::new(), &mut found);
@@ -330,6 +340,22 @@ impl MatchPattern {
                 for (step, element) in PathStep::for_elements(elements).into_iter().zip(elements) {
                     path.push(step);
                     element.collect_bindings(path, found);
+                    path.pop();
+                }
+            }
+            MatchPattern::Variant { target, fields } => {
+                let Expr::GetField { object, .. } = target else {
+                    return;
+                };
+                let Expr::Variable { id, .. } = object.as_ref() else {
+                    return;
+                };
+                for (index, field) in fields.iter().enumerate() {
+                    path.push(PathStep::Field {
+                        variant: *id,
+                        index,
+                    });
+                    field.collect_bindings(path, found);
                     path.pop();
                 }
             }

@@ -1,0 +1,17 @@
+// Expected:
+// unit
+// other
+
+enum Shape {
+    Circle(radius)
+}
+
+fn name(s) {
+    match s {
+        Shape.Circle(1) -> "unit"
+        _ -> "other"
+    }
+}
+
+print(name(Shape.Circle(1)))
+print(name(Shape.Circle(1.5)))

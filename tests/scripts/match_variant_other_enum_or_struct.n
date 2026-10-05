@@ -1,0 +1,25 @@
+// Expected:
+// other enum
+// struct
+
+enum Shape {
+    Circle(radius)
+}
+
+enum Other {
+    Circle(radius)
+}
+
+struct C {
+    radius
+}
+
+print(match Other.Circle(3) {
+    Shape.Circle(r) -> "shape"
+    _ -> "other enum"
+})
+
+print(match C(3) {
+    Shape.Circle(r) -> "shape"
+    _ -> "struct"
+})

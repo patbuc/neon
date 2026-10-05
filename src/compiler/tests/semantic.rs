@@ -3674,6 +3674,66 @@ fn test_match_bare_payload_variant_is_invalid() {
 }
 
 #[test]
+fn test_match_variant_pattern_wrong_subpattern_count_is_compile_error() {
+    assert_match_error(
+        "enum Shape {\n    Rect(w, h)\n}\nval r = match Shape.Rect(1, 2) {\n    Shape.Rect(a) -> a\n    _ -> 0\n}\n",
+        "Shape.Rect has 2 fields but the pattern has 1",
+    );
+}
+
+#[test]
+fn test_match_variant_pattern_rest_is_compile_error() {
+    assert_match_error(
+        "enum Shape {\n    Rect(w, h)\n}\nval r = match Shape.Rect(1, 2) {\n    Shape.Rect(a, ..) -> a\n    _ -> 0\n}\n",
+        "a variant pattern cannot have a rest ('..')",
+    );
+}
+
+#[test]
+fn test_match_parentheses_on_unit_variant_pattern_is_compile_error() {
+    assert_match_error(
+        "enum Shape {\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Dot() -> 1\n    _ -> 0\n}\n",
+        "unit variant Shape.Dot takes no parentheses",
+    );
+}
+
+#[test]
+fn test_match_variant_patterns_with_bindings_cover_every_variant() {
+    let program = "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Shape.Rect(w, _) -> w\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
+fn test_match_variant_pattern_with_literal_subpattern_is_not_exhaustive() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Shape.Rect(w, 0) -> w\n}\n",
+        "match on Shape is missing Rect",
+    );
+}
+
+#[test]
+fn test_match_repeated_irrefutable_variant_pattern_is_unreachable() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Circle(a) -> a\n    Shape.Circle(b) -> b\n    Shape.Dot -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_refutable_variant_pattern_after_irrefutable_one_is_unreachable() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Circle(r) -> r\n    Shape.Circle(1) -> 99\n    Shape.Dot -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_irrefutable_variant_pattern_after_refutable_one_is_reachable() {
+    let program = "enum Shape {\n    Circle(r)\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Circle(1) -> 99\n    Shape.Circle(r) -> r\n    Shape.Dot -> 0\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
 fn test_match_literal_patterns_are_valid() {
     let program = "enum Color {\n    Red\n}\nval r = match 1 {\n    -1 -> 1\n    2.5 -> 2\n    \"s\" -> 3\n    true -> 4\n    nil -> 5\n    10..20 -> 6\n    -5..=-1 -> 7\n    _ -> 0\n}\nval c = match Color.Red {\n    Color.Red -> 1\n}\n";
     assert_eq!(match_errors(program), Vec::<String>::new());
@@ -3866,5 +3926,34 @@ fn test_match_binding_then_literal_alternatives_is_error() {
     assert_match_error(
         "val r = match 1 {\n    n, 1 -> n\n}\n",
         "must bind the same names",
+    );
+}
+
+#[test]
+fn test_match_variant_pattern_from_other_enum_is_rejected() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n}\nenum Other {\n    Box(b)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) -> a\n    Other.Box(b) -> b\n}\n",
+        "Pattern Other.Box does not belong to enum Shape",
+    );
+}
+
+#[test]
+fn test_match_guarded_variant_pattern_does_not_cover_variant() {
+    assert_match_error(
+        "enum Shape {\n    Circle(r)\n    Rect(w, h)\n}\nval r = match Shape.Circle(1) {\n    Shape.Circle(a) if a > 0 -> a\n    Shape.Rect(w, h) -> w\n}\n",
+        "match on Shape is missing Circle",
+    );
+}
+
+#[test]
+fn test_match_unknown_variant_pattern_reports_only_no_such_variant() {
+    let program = "enum Shape {\n    Circle(r)\n}\nval r = match Shape.Circle(1) {\n    Shape.Nope(a) -> a\n    _ -> 0\n}\n";
+    let errors: Vec<String> = compile_errors(program)
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
+    assert_eq!(
+        errors,
+        vec!["Enum 'Shape' has no variant named 'Nope'".to_string()]
     );
 }
