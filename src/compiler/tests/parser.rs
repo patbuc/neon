@@ -4268,3 +4268,59 @@ fn test_c_style_for_is_compile_error() {
     let result = parser.parse();
     assert!(result.is_err(), "C-style for should be removed");
 }
+
+// `??` is assumed to mirror how `||` is represented: `Expr::Binary` with
+// `operator: BinaryOp::NilCoalesce`, not a dedicated `Expr::NilCoalesce` node.
+
+#[test]
+fn test_parse_nil_coalesce_binds_looser_than_or() {
+    let mut parser = Parser::new("a ?? b || c\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Binary {
+                operator: BinaryOp::NilCoalesce,
+                left,
+                right,
+                ..
+            } => {
+                match left.as_ref() {
+                    Expr::Variable { name, .. } => assert_eq!(name, "a"),
+                    _ => panic!("Expected Variable as left operand of ??"),
+                }
+                match right.as_ref() {
+                    Expr::Binary {
+                        operator: BinaryOp::Or,
+                        ..
+                    } => {}
+                    _ => panic!("Expected `b || c` as right operand of ??"),
+                }
+            }
+            _ => panic!("Expected Binary NilCoalesce expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}
+
+#[test]
+fn test_parse_nil_coalesce_binds_tighter_than_ternary() {
+    let mut parser = Parser::new("a ?? b ? 1 : 2\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Conditional { condition, .. } => match condition.as_ref() {
+                Expr::Binary {
+                    operator: BinaryOp::NilCoalesce,
+                    ..
+                } => {}
+                _ => panic!("Expected `a ?? b` as the ternary condition"),
+            },
+            _ => panic!("Expected Conditional expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}

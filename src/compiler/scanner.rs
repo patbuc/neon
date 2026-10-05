@@ -216,7 +216,13 @@ impl Scanner {
             }
             ';' => self.make_token(TokenType::Semicolon),
             ':' => self.make_token(TokenType::Colon),
-            '?' => self.make_token(TokenType::Question),
+            '?' => {
+                if self.matches('?') {
+                    self.make_token(TokenType::QuestionQuestion)
+                } else {
+                    self.make_token(TokenType::Question)
+                }
+            }
             '*' => {
                 if self.matches('*') {
                     if self.matches('=') {

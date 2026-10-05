@@ -918,6 +918,7 @@ fn binary_op_text(op: &BinaryOp) -> &'static str {
         BinaryOp::LessEqual => "<=",
         BinaryOp::And => "&&",
         BinaryOp::Or => "||",
+        BinaryOp::NilCoalesce => "??",
         BinaryOp::BitwiseAnd => "&",
         BinaryOp::BitwiseOr => "|",
         BinaryOp::BitwiseXor => "^",

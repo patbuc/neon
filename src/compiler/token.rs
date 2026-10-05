@@ -23,6 +23,7 @@ pub(crate) enum TokenType {
     Semicolon,
     Colon,
     Question,
+    QuestionQuestion,
     NewLine,
     Slash,
     SlashEqual,

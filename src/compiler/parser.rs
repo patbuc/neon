@@ -45,6 +45,7 @@ enum Precedence {
     None,
     Assignment,
     Ternary,
+    NilCoalesce,
     Or,
     And,
     Equality,
@@ -67,7 +68,8 @@ impl Precedence {
         match self {
             Precedence::None => Precedence::Assignment,
             Precedence::Assignment => Precedence::Ternary,
-            Precedence::Ternary => Precedence::Or,
+            Precedence::Ternary => Precedence::NilCoalesce,
+            Precedence::NilCoalesce => Precedence::Or,
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
             Precedence::Equality => Precedence::Comparison,
@@ -1010,6 +1012,7 @@ impl Parser {
                 | TokenType::LessEqual
                 | TokenType::AndAnd
                 | TokenType::OrOr
+                | TokenType::QuestionQuestion
                 | TokenType::Ampersand
                 | TokenType::Pipe
                 | TokenType::Caret
@@ -1060,6 +1063,7 @@ impl Parser {
             TokenType::Pipe => Precedence::BitwiseOr,
             TokenType::AndAnd => Precedence::And,
             TokenType::OrOr => Precedence::Or,
+            TokenType::QuestionQuestion => Precedence::NilCoalesce,
             TokenType::Question => Precedence::Ternary,
             _ => Precedence::None,
         }
@@ -1290,6 +1294,7 @@ impl Parser {
             TokenType::LessEqual => BinaryOp::LessEqual,
             TokenType::AndAnd => BinaryOp::And,
             TokenType::OrOr => BinaryOp::Or,
+            TokenType::QuestionQuestion => BinaryOp::NilCoalesce,
             TokenType::Ampersand => BinaryOp::BitwiseAnd,
             TokenType::Pipe => BinaryOp::BitwiseOr,
             TokenType::Caret => BinaryOp::BitwiseXor,

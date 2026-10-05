@@ -1169,7 +1169,7 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
             | OpCode::LessEqualConstant => 2,
-            OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 4,
+            OpCode::JumpIfFalse | OpCode::JumpIfNotNil | OpCode::Jump | OpCode::Loop => 4,
             OpCode::GetLocalField | OpCode::StoreLocalField => 4,
             OpCode::Closure => {
                 // 2-byte constant index, then a 1-byte upvalue count and
@@ -2045,4 +2045,16 @@ fn test_index_compound_assign_emits_dup2() {
     let ops = op_codes(&function_chunk);
 
     assert!(ops.contains(&OpCode::Dup2));
+}
+
+#[test]
+fn test_nil_coalesce_emits_jump_if_not_nil() {
+    let program = r#"
+    val a = nil
+    val b = 1
+    a ?? b
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let disassembly = disassemble_program(&chunk);
+    assert!(disassembly.contains("JumpIfNotNil"));
 }

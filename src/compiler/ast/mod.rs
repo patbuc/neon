@@ -38,6 +38,7 @@ pub enum BinaryOp {
     // Logical
     And,
     Or,
+    NilCoalesce,
     // Bitwise
     BitwiseAnd,
     BitwiseOr,

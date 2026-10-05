@@ -1205,6 +1205,18 @@ impl<'a> CodeGenerator<'a> {
                 // 6. Patch end jump (left was true, skip right evaluation)
                 self.patch_jump(end_jump);
             }
+            BinaryOp::NilCoalesce => {
+                // For `a ?? b`:
+                // 1. Evaluate left operand
+                self.generate_expr(left);
+                // 2. If not nil, jump to end with left result
+                let end_jump = self.emit_jump(OpCode::JumpIfNotNil, location);
+                // 3. Left was nil, pop it and evaluate right
+                self.emit_op_code(OpCode::Pop, location);
+                self.generate_expr(right);
+                // 4. Patch end jump (left was not nil, skip right evaluation)
+                self.patch_jump(end_jump);
+            }
             _ => {
                 self.generate_expr(left);
                 self.generate_binary_op_tail(operator, right, location);
@@ -1270,7 +1282,7 @@ impl<'a> CodeGenerator<'a> {
             BinaryOp::BitwiseXor => self.emit_op_code(OpCode::BitwiseXor, location),
             BinaryOp::LeftShift => self.emit_op_code(OpCode::LeftShift, location),
             BinaryOp::RightShift => self.emit_op_code(OpCode::RightShift, location),
-            BinaryOp::And | BinaryOp::Or => unreachable!(),
+            BinaryOp::And | BinaryOp::Or | BinaryOp::NilCoalesce => unreachable!(),
         }
     }
 
