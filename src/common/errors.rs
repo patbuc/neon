@@ -81,6 +81,7 @@ compilation_error_kinds! {
     NonExhaustiveMatch => "E0047",
     PatternNotInEnum => "E0048",
     UnreachablePattern => "E0049",
+    InvalidMatchPattern => "E0050",
 }
 
 #[derive(Debug, Clone, PartialEq)]

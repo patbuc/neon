@@ -256,6 +256,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             Some("unreachable pattern"),
         )],
+        CompilationErrorKind::InvalidMatchPattern => vec![(
+            "val y = 1\nval r = match 1 {\n    y -> 1\n    _ -> 0\n}\n".to_string(),
+            Some("Invalid match pattern"),
+        )],
         CompilationErrorKind::UnplaceableComment => vec![
             (
                 "if (a) {\n} // c\nelse {\n}\n".to_string(),

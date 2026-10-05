@@ -19,16 +19,24 @@ use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-/// Comparable identity of a match pattern, for finding duplicates. Numbers
-/// are unified to `f64` so `1` and `1.0` compare equal like `==` does.
+/// Comparable identity of a match pattern, for finding duplicates. A float
+/// that is a whole number in `i64` range is stored as `Int`, so `1` and
+/// `1.0` compare equal like `==` does while large ints stay distinct.
 #[derive(Clone, PartialEq)]
 enum MatchPatternKey {
-    Number(f64),
+    Int(i64),
+    Float(f64),
     Str(String),
     Bool(bool),
     Nil,
-    Range(f64, f64, bool),
+    Range(i64, i64, bool),
     Enum(Rc<str>, Rc<str>),
+}
+
+/// The value of a number-literal match pattern.
+enum PatternNumber {
+    Int(i64),
+    Float(f64),
 }
 
 /// A method's call signature: the rule that decides whether it's callable
@@ -1211,6 +1219,14 @@ impl SemanticAnalyzer {
                     for pattern in &arm.patterns {
                         if let MatchPattern::Expr(expr) = pattern {
                             self.resolve_expr(expr);
+                            if !self.is_valid_match_pattern(expr) {
+                                self.push_error(CompilationError::new(
+                                    CompilationPhase::Semantic,
+                                    CompilationErrorKind::InvalidMatchPattern,
+                                    "Invalid match pattern: expected a literal, an integer range, an enum variant, or '_'".to_string(),
+                                    Self::match_pattern_location(expr),
+                                ));
+                            }
                         }
                     }
                     match &arm.body {
@@ -2013,24 +2029,56 @@ impl SemanticAnalyzer {
         self.resolutions.enum_variant_access(*id).cloned()
     }
 
-    /// The location of a match pattern expression, for pointing an error at
-    /// the pattern as written.
+    /// The location of the first token of a match pattern expression.
     fn match_pattern_location(expr: &Expr) -> SourceLocation {
         match expr {
+            Expr::Binary { left, .. } => Self::match_pattern_location(left),
+            Expr::Call { callee, .. } => Self::match_pattern_location(callee),
+            Expr::GetField { object, .. }
+            | Expr::SetField { object, .. }
+            | Expr::CompoundAssignField { object, .. }
+            | Expr::Index { object, .. }
+            | Expr::IndexAssign { object, .. }
+            | Expr::CompoundAssignIndex { object, .. } => Self::match_pattern_location(object),
+            Expr::Range { start, .. } => Self::match_pattern_location(start),
+            Expr::Conditional { condition, .. } => Self::match_pattern_location(condition),
             Expr::Number { location, .. }
             | Expr::Int { location, .. }
             | Expr::String { location, .. }
+            | Expr::StringInterpolation { location, .. }
             | Expr::Boolean { location, .. }
             | Expr::Nil { location }
+            | Expr::Variable { location, .. }
+            | Expr::Assign { location, .. }
+            | Expr::CompoundAssign { location, .. }
             | Expr::Unary { location, .. }
-            | Expr::Range { location, .. }
-            | Expr::GetField { location, .. } => *location,
-            _ => SourceLocation::default(),
+            | Expr::Grouping { location, .. }
+            | Expr::MapLiteral { location, .. }
+            | Expr::ArrayLiteral { location, .. }
+            | Expr::SetLiteral { location, .. }
+            | Expr::Function { location, .. }
+            | Expr::If { location, .. }
+            | Expr::Match { location, .. } => *location,
+        }
+    }
+
+    /// Whether `expr` is a pattern a match arm accepts: a number, string,
+    /// bool or nil literal, `Enum.Variant`, or a range of integer literals.
+    fn is_valid_match_pattern(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::String { .. } | Expr::Boolean { .. } | Expr::Nil { .. } => true,
+            Expr::Range { start, end, .. } => {
+                Self::match_pattern_int(start).is_some() && Self::match_pattern_int(end).is_some()
+            }
+            Expr::GetField { object, .. } => {
+                matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+            }
+            _ => Self::match_pattern_number(expr).is_some(),
         }
     }
 
     /// How a match pattern prints in an error message: its source spelling
-    /// for a literal or negative number, `Enum.Variant` for an enum
+    /// for a literal, negative number or range, `Enum.Variant` for an enum
     /// variant.
     fn match_pattern_display(expr: &Expr) -> String {
         match expr {
@@ -2043,6 +2091,17 @@ impl SemanticAnalyzer {
                 operand,
                 ..
             } => format!("-{}", Self::match_pattern_display(operand)),
+            Expr::Range {
+                start,
+                end,
+                inclusive,
+                ..
+            } => format!(
+                "{}{}{}",
+                Self::match_pattern_display(start),
+                if *inclusive { "..=" } else { ".." },
+                Self::match_pattern_display(end)
+            ),
             Expr::GetField { object, field, .. } => {
                 if let Expr::Variable { name, .. } = object.as_ref() {
                     format!("{}.{}", name, field)
@@ -2057,13 +2116,16 @@ impl SemanticAnalyzer {
     /// An enum match - one whose patterns include at least one
     /// `Enum.Variant` - must have every non-wildcard pattern belong to that
     /// enum, and (absent a wildcard) cover every one of its variants.
+    #[allow(clippy::expect_used)]
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
         let mut enum_identity: Option<(Rc<str>, Vec<String>)> = None;
         for arm in arms {
             for pattern in &arm.patterns {
                 if let MatchPattern::Expr(expr) = pattern {
                     if let Some(access) = self.match_pattern_enum_variant(expr) {
-                        let variants = self.enum_variants(&access.enum_name).unwrap_or_default();
+                        let variants = self
+                            .enum_variants(&access.enum_name)
+                            .expect("a resolved enum variant access names a declared enum");
                         enum_identity = Some((access.enum_name, variants));
                         break;
                     }
@@ -2091,6 +2153,7 @@ impl SemanticAnalyzer {
                                 covered.push(access.variant_name.to_string());
                             }
                         }
+                        _ if !self.is_valid_match_pattern(expr) => {}
                         _ => {
                             self.push_error(CompilationError::new(
                                 CompilationPhase::Semantic,
@@ -2125,28 +2188,46 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// The numeric value of a literal or negative-number match pattern,
-    /// unified across `Number` and `Int` so `1` and `1.0` compare equal
-    /// like `==` does.
-    fn match_pattern_number(expr: &Expr) -> Option<f64> {
+    /// The value of a number literal match pattern, optionally negated.
+    fn match_pattern_number(expr: &Expr) -> Option<PatternNumber> {
         match expr {
-            Expr::Number { value, .. } => Some(*value),
-            Expr::Int { value, .. } => Some(*value as f64),
+            Expr::Int { value, .. } => Some(PatternNumber::Int(*value)),
+            Expr::Number { value, .. } => Some(PatternNumber::Float(*value)),
             Expr::Unary {
                 operator: UnaryOp::Negate,
                 operand,
                 ..
-            } => Self::match_pattern_number(operand).map(|value| -value),
+            } => match operand.as_ref() {
+                Expr::Int { value, .. } => Some(PatternNumber::Int(-value)),
+                Expr::Number { value, .. } => Some(PatternNumber::Float(-value)),
+                _ => None,
+            },
             _ => None,
         }
     }
 
+    fn match_pattern_int(expr: &Expr) -> Option<i64> {
+        match Self::match_pattern_number(expr)? {
+            PatternNumber::Int(value) => Some(value),
+            PatternNumber::Float(_) => None,
+        }
+    }
+
     /// A comparable identity for a match pattern expression, used to find
-    /// duplicate patterns. `None` for a pattern kind duplicate-detection
-    /// doesn't cover.
+    /// duplicate patterns. `None` for an invalid pattern.
     fn match_pattern_key(&self, expr: &Expr) -> Option<MatchPatternKey> {
-        if let Some(number) = Self::match_pattern_number(expr) {
-            return Some(MatchPatternKey::Number(number));
+        match Self::match_pattern_number(expr) {
+            Some(PatternNumber::Int(value)) => return Some(MatchPatternKey::Int(value)),
+            Some(PatternNumber::Float(value)) => {
+                let whole_in_range = value.fract() == 0.0
+                    && (-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&value);
+                return Some(if whole_in_range {
+                    MatchPatternKey::Int(value as i64)
+                } else {
+                    MatchPatternKey::Float(value)
+                });
+            }
+            None => {}
         }
         match expr {
             Expr::String { value, .. } => Some(MatchPatternKey::Str(value.clone())),
@@ -2158,8 +2239,8 @@ impl SemanticAnalyzer {
                 inclusive,
                 ..
             } => {
-                let start = Self::match_pattern_number(start)?;
-                let end = Self::match_pattern_number(end)?;
+                let start = Self::match_pattern_int(start)?;
+                let end = Self::match_pattern_int(end)?;
                 Some(MatchPatternKey::Range(start, end, *inclusive))
             }
             _ => self
