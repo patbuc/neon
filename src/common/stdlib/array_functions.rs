@@ -109,6 +109,19 @@ fn sort_rank(value: &Value) -> u8 {
     }
 }
 
+/// Default ascending order shared by `sort()`'s no-comparator path,
+/// `sortBy`, `minBy`, and `maxBy`: numbers compare by value, strings compare
+/// lexically, anything else falls back to `sort_rank`.
+fn default_order(a: &Value, b: &Value) -> std::cmp::Ordering {
+    match (Numeric::from_value(a), Numeric::from_value(b)) {
+        (Some(na), Some(nb)) => compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal),
+        _ => match (a, b) {
+            (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+            _ => sort_rank(a).cmp(&sort_rank(b)),
+        },
+    }
+}
+
 /// Native implementation of Array.sort() / Array.sort(comparator)
 /// Sorts in place (default order, or by calling the comparator on each
 /// pair) and returns the same array.
@@ -125,17 +138,7 @@ pub fn native_array_sort(
 
     match args.get(1) {
         None => {
-            array_ref.borrow_mut().sort_by(|a, b| {
-                match (Numeric::from_value(a), Numeric::from_value(b)) {
-                    (Some(na), Some(nb)) => {
-                        compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal)
-                    }
-                    _ => match (a, b) {
-                        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-                        _ => sort_rank(a).cmp(&sort_rank(b)),
-                    },
-                }
-            });
+            array_ref.borrow_mut().sort_by(default_order);
         }
         Some(comparator) => {
             let comparator = comparator.clone();
@@ -217,18 +220,6 @@ fn compute_and_validate_keys(
     Ok(keys)
 }
 
-/// Orders two keys produced by `compute_and_validate_keys` (already known to
-/// be all numbers or all strings).
-fn compare_keys(a: &Value, b: &Value) -> std::cmp::Ordering {
-    match (Numeric::from_value(a), Numeric::from_value(b)) {
-        (Some(na), Some(nb)) => compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal),
-        _ => match (a, b) {
-            (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-            _ => std::cmp::Ordering::Equal,
-        },
-    }
-}
-
 /// Native implementation of Array.sortBy(fn)
 /// Returns a new array sorted ascending by fn's key for each element
 /// (stable); the receiver is unchanged. Keys must be all numbers or all
@@ -251,7 +242,7 @@ pub fn native_array_sort_by(
     let keys = compute_and_validate_keys(vm, &elements, &callback, "sortBy")?;
 
     let mut indexed: Vec<(usize, Value)> = elements.into_iter().enumerate().collect();
-    indexed.sort_by(|a, b| compare_keys(&keys[a.0], &keys[b.0]));
+    indexed.sort_by(|a, b| default_order(&keys[a.0], &keys[b.0]));
     let sorted = indexed.into_iter().map(|(_, value)| value).collect();
 
     Ok(Value::new_array(sorted))
@@ -273,7 +264,7 @@ fn extremum_by(
     let keys = compute_and_validate_keys(vm, &elements, callback, method)?;
     let mut best = 0;
     for i in 1..elements.len() {
-        if compare_keys(&keys[i], &keys[best]) == wanted {
+        if default_order(&keys[i], &keys[best]) == wanted {
             best = i;
         }
     }
