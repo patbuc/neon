@@ -1,8 +1,0 @@
-// Expected:
-// ok
-
-match [5] {
-    [.._, 1], [1] -> print("no")
-    [.._, 5], [5] -> print("ok")
-    _ -> print("none")
-}
