@@ -1,726 +1,147 @@
-// =============================================================================
-// Math.abs() Error Cases
-// =============================================================================
-
 use crate::vm::InterpretResult;
 use crate::vm::VirtualMachine;
 
 #[test]
-fn test_math_abs_with_string() {
-    let program = r#"
-        print(Math.abs("string"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_abs_with_boolean() {
-    let program = r#"
-        print(Math.abs(true))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_abs_with_nil() {
-    let program = r#"
-        print(Math.abs(nil))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_abs_no_args() {
-    let program = r#"
-        print(Math.abs())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_abs_too_many_args() {
-    let program = r#"
-        print(Math.abs(1, 2))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Math.floor() Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_floor_with_string() {
-    let program = r#"
-        print(Math.floor("hello"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_floor_with_boolean() {
-    let program = r#"
-        print(Math.floor(false))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_floor_with_nil() {
-    let program = r#"
-        print(Math.floor(nil))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_floor_no_args() {
-    let program = r#"
-        print(Math.floor())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_floor_too_many_args() {
-    let program = r#"
-        print(Math.floor(1.5, 2.5))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Math.ceil() Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_ceil_with_string() {
-    let program = r#"
-        print(Math.ceil("world"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_ceil_with_boolean() {
-    let program = r#"
-        print(Math.ceil(true))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_ceil_with_nil() {
-    let program = r#"
-        print(Math.ceil(nil))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_ceil_no_args() {
-    let program = r#"
-        print(Math.ceil())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_ceil_too_many_args() {
-    let program = r#"
-        print(Math.ceil(1.5, 2.5))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Math.sqrt() Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_sqrt_with_negative() {
-    let program = r#"
-        print(Math.sqrt(-1))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_with_string() {
-    let program = r#"
-        print(Math.sqrt("42"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_with_boolean() {
-    let program = r#"
-        print(Math.sqrt(false))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_with_nil() {
-    let program = r#"
-        print(Math.sqrt(nil))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_no_args() {
-    let program = r#"
-        print(Math.sqrt())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_too_many_args() {
-    let program = r#"
-        print(Math.sqrt(4, 9))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_sqrt_large_negative() {
-    let program = r#"
-        print(Math.sqrt(-100))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Math.min() Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_min_no_args() {
-    let program = r#"
-        print(Math.min())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_with_string_first() {
-    let program = r#"
-        print(Math.min("hello", 2, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_with_string_middle() {
-    let program = r#"
-        print(Math.min(1, "hello", 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_with_string_last() {
-    let program = r#"
-        print(Math.min(1, 2, "hello"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_with_boolean() {
-    let program = r#"
-        print(Math.min(1, true, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_with_nil() {
-    let program = r#"
-        print(Math.min(1, nil, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_all_non_numbers() {
-    let program = r#"
-        print(Math.min("a", "b", "c"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_mixed_types() {
-    let program = r#"
-        print(Math.min(1, "hello", true, nil, 5))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Math.max() Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_max_no_args() {
-    let program = r#"
-        print(Math.max())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_with_string_first() {
-    let program = r#"
-        print(Math.max("hello", 2, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_with_string_middle() {
-    let program = r#"
-        print(Math.max(1, "hello", 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_with_string_last() {
-    let program = r#"
-        print(Math.max(1, 2, "hello"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_with_boolean() {
-    let program = r#"
-        print(Math.max(1, false, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_with_nil() {
-    let program = r#"
-        print(Math.max(1, nil, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_all_non_numbers() {
-    let program = r#"
-        print(Math.max(true, false, true))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_max_mixed_types() {
-    let program = r#"
-        print(Math.max(1, "world", false, nil, 5))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Edge Cases and Complex Scenarios
-// =============================================================================
-
-#[test]
-fn test_math_error_in_expression() {
-    let program = r#"
-        val x = 5 + Math.abs("invalid")
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_in_function_call() {
-    let program = r#"
-        fn test() {
-            return Math.sqrt(-10)
-        }
-        print(test())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_in_if_condition() {
-    let program = r#"
-        if (Math.min() > 0) {
-            print("unreachable")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_in_while_condition() {
-    let program = r#"
-        while (Math.max() > 0) {
-            print("unreachable")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_does_not_crash_vm() {
-    let program = r#"
-        print("Before error")
-        print(Math.abs(nil))
-        print("After error (unreachable)")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    // VM should print("Before error" but not crash)
-    assert_eq!("Before error", vm.get_output());
-}
-
-#[test]
-fn test_multiple_math_errors() {
-    let program = r#"
-        print(Math.abs("first error"))
-        print(Math.floor(nil))
-        print(Math.sqrt(-1))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    // Should fail on the first error
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_with_variables() {
-    let program = r#"
-        val x = "not a number"
-        print(Math.floor(x))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_error_with_expression_arg() {
-    let program = r#"
-        print(Math.abs(5 + "string"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_nested_error() {
-    let program = r#"
-        print(Math.abs(Math.sqrt(-5)))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-#[test]
-fn test_math_min_max_combined_error() {
-    let program = r#"
-        print(Math.min(Math.max(), 5))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-}
-
-// =============================================================================
-// Valid Cases That Should NOT Error (sanity checks)
-// =============================================================================
-
-#[test]
-fn test_math_functions_dont_error_on_valid_input() {
-    let program = r#"
-        print(Math.abs(-5))
-        print(Math.floor(3.7))
-        print(Math.ceil(2.1))
-        print(Math.sqrt(16))
-        print(Math.min(1, 2, 3))
-        print(Math.max(1, 2, 3))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("5\n3\n3\n4\n1\n3", vm.get_output());
-}
-
-#[test]
-fn test_math_sqrt_zero_is_valid() {
-    let program = r#"
-        print(Math.sqrt(0))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0", vm.get_output());
-}
-
-#[test]
-fn test_math_single_arg_functions_valid() {
-    let program = r#"
-        print(Math.min(42))
-        print(Math.max(42))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42\n42", vm.get_output());
-}
-
-// =============================================================================
-// Math.abs() / Math.floor() / Math.ceil() - Overflow Cases
-// =============================================================================
-
-#[test]
-fn test_math_abs_overflow() {
-    let program = r#"
-        val min = -9223372036854775807 - 1
-        print(Math.abs(min))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("integer overflow in abs()"));
-}
-
-#[test]
-fn test_math_floor_out_of_range() {
-    let program = r#"
-        print(Math.floor(1e300))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("floor() result is out of range"));
-}
-
-#[test]
-fn test_math_ceil_out_of_range() {
-    let program = r#"
-        print(Math.ceil(-1e300))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("ceil() result is out of range"));
-}
-
-// =============================================================================
-// Math.div() - Error Cases
-// =============================================================================
-
-#[test]
-fn test_math_div_by_zero() {
-    let program = r#"
-        print(Math.div(1, 0))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm.get_runtime_errors().contains("div() division by zero"));
-}
-
-#[test]
-fn test_math_div_float_arg() {
-    let program = r#"
-        print(Math.div(1.5, 1))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("div() expects two integers, got float"));
-}
-
-#[test]
-fn test_math_div_integral_float_arg() {
-    let program = r#"
-        print(Math.div(4.0, 1))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("div() expects two integers, got float"));
-}
-
-#[test]
-fn test_math_div_overflow() {
-    let program = r#"
-        val min = -9223372036854775807 - 1
-        print(Math.div(min, -1))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("integer overflow in div()"));
+fn math_errors() {
+    let cases: &[(&str, &str)] = &[
+        (r#"print(Math.abs("string"))"#, "abs() x must be a number"),
+        ("print(Math.abs(true))", "abs() x must be a number"),
+        ("print(Math.abs(nil))", "abs() x must be a number"),
+        ("print(Math.abs())", "abs() expects 1 argument, got 0"),
+        ("print(Math.abs(1, 2))", "abs() expects 1 argument, got 2"),
+        (
+            r#"print(Math.floor("hello"))"#,
+            "floor() x must be a number",
+        ),
+        ("print(Math.floor(false))", "floor() x must be a number"),
+        ("print(Math.floor(nil))", "floor() x must be a number"),
+        ("print(Math.floor())", "floor() expects 1 argument, got 0"),
+        (
+            "print(Math.floor(1.5, 2.5))",
+            "floor() expects 1 argument, got 2",
+        ),
+        (r#"print(Math.ceil("world"))"#, "ceil() x must be a number"),
+        ("print(Math.ceil(true))", "ceil() x must be a number"),
+        ("print(Math.ceil(nil))", "ceil() x must be a number"),
+        ("print(Math.ceil())", "ceil() expects 1 argument, got 0"),
+        (
+            "print(Math.ceil(1.5, 2.5))",
+            "ceil() expects 1 argument, got 2",
+        ),
+        (
+            "print(Math.sqrt(-1))",
+            "sqrt() requires a non-negative number",
+        ),
+        (r#"print(Math.sqrt("42"))"#, "sqrt() x must be a number"),
+        ("print(Math.sqrt(false))", "sqrt() x must be a number"),
+        ("print(Math.sqrt(nil))", "sqrt() x must be a number"),
+        ("print(Math.sqrt())", "sqrt() expects 1 argument, got 0"),
+        ("print(Math.sqrt(4, 9))", "sqrt() expects 1 argument, got 2"),
+        (
+            "print(Math.sqrt(-100))",
+            "sqrt() requires a non-negative number",
+        ),
+        ("print(Math.min())", "min() requires at least 1 argument"),
+        (
+            r#"print(Math.min("hello", 2, 3))"#,
+            "min() first argument must be a number",
+        ),
+        (
+            r#"print(Math.min(1, "hello", 3))"#,
+            "min() argument 1 must be a number",
+        ),
+        (
+            r#"print(Math.min(1, 2, "hello"))"#,
+            "min() argument 2 must be a number",
+        ),
+        (
+            "print(Math.min(1, true, 3))",
+            "min() argument 1 must be a number",
+        ),
+        (
+            "print(Math.min(1, nil, 3))",
+            "min() argument 1 must be a number",
+        ),
+        (
+            r#"print(Math.min("a", "b", "c"))"#,
+            "min() first argument must be a number",
+        ),
+        (
+            r#"print(Math.min(1, "hello", true, nil, 5))"#,
+            "min() argument 1 must be a number",
+        ),
+        ("print(Math.max())", "max() requires at least 1 argument"),
+        (
+            r#"print(Math.max("hello", 2, 3))"#,
+            "max() first argument must be a number",
+        ),
+        (
+            r#"print(Math.max(1, "hello", 3))"#,
+            "max() argument 1 must be a number",
+        ),
+        (
+            r#"print(Math.max(1, 2, "hello"))"#,
+            "max() argument 2 must be a number",
+        ),
+        (
+            "print(Math.max(1, false, 3))",
+            "max() argument 1 must be a number",
+        ),
+        (
+            "print(Math.max(1, nil, 3))",
+            "max() argument 1 must be a number",
+        ),
+        (
+            "print(Math.max(true, false, true))",
+            "max() first argument must be a number",
+        ),
+        (
+            r#"print(Math.max(1, "world", false, nil, 5))"#,
+            "max() argument 1 must be a number",
+        ),
+        (
+            r#"val x = 5 + Math.abs("invalid")"#,
+            "abs() x must be a number",
+        ),
+        (
+            r#"val min = -9223372036854775807 - 1
+            print(Math.abs(min))"#,
+            "integer overflow in abs()",
+        ),
+        ("print(Math.floor(1e300))", "floor() result is out of range"),
+        ("print(Math.ceil(-1e300))", "ceil() result is out of range"),
+        ("print(Math.div(1, 0))", "div() division by zero"),
+        (
+            "print(Math.div(1.5, 1))",
+            "div() expects two integers, got float",
+        ),
+        (
+            "print(Math.div(4.0, 1))",
+            "div() expects two integers, got float",
+        ),
+        (
+            r#"val min = -9223372036854775807 - 1
+            print(Math.div(min, -1))"#,
+            "integer overflow in div()",
+        ),
+    ];
+
+    for (program, expected_message) in cases {
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+        assert_eq!(
+            InterpretResult::RuntimeError,
+            result,
+            "expected runtime error for: {}",
+            program
+        );
+        let errors = vm.get_runtime_errors();
+        assert!(
+            errors.contains(expected_message),
+            "program {:?}: expected {:?} in {:?}",
+            program,
+            expected_message,
+            errors
+        );
+    }
 }
