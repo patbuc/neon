@@ -4,6 +4,6 @@
 // Expected runtime error: sort() comparator must return a number, got string
 
 print("before")
-[1, 2].sort(fn(a, b) {
-    return "nope"
-})
+[1, 2].sort { a, b ->
+    "nope"
+}

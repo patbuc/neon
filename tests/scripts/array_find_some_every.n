@@ -7,36 +7,28 @@
 // [1, 2]
 // [1, 2]
 
-print([1, 2, 3].find(fn(x) {
-    return x > 1
-}))
-print([1, 2, 3].find(fn(x) {
-    return x > 10
-}))
-print([].some(fn(x) {
-    return true
-}))
-print([].every(fn(x) {
-    return false
-}))
+print([1, 2, 3].find { it > 1 })
+print([1, 2, 3].find { it > 10 })
+print([].some { x -> true })
+print([].every { x -> false })
 
 val someCalls = []
-[1, 2, 3].some(fn(x) {
-    someCalls.push(x)
-    return x >= 2
-})
+[1, 2, 3].some {
+    someCalls.push(it)
+    it >= 2
+}
 print(someCalls)
 
 val everyCalls = []
-[1, 2, 3].every(fn(x) {
-    everyCalls.push(x)
-    return x < 2
-})
+[1, 2, 3].every {
+    everyCalls.push(it)
+    it < 2
+}
 print(everyCalls)
 
 val findCalls = []
-[1, 2, 3].find(fn(x) {
-    findCalls.push(x)
-    return x >= 2
-})
+[1, 2, 3].find {
+    findCalls.push(it)
+    it >= 2
+}
 print(findCalls)

@@ -8,14 +8,14 @@
 val groups = [[1, 2], [3, 4]]
 for g in groups {
     print(g)
-    print(g.map(fn(x) {
+    print(g.map { x ->
         for y in [x, x * 10] {
             if y == x {
                 continue
             }
             return y
         }
-        return nil
-    }))
+        nil
+    })
 }
 print("done")

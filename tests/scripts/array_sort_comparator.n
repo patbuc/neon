@@ -11,14 +11,8 @@ print(b)
 b.push(4)
 print(a)
 
-print([3, 1, 2].sort(fn(x, y) {
-    return y - x
-}))
+print([3, 1, 2].sort { x, y -> y - x })
 
 val pairs = [[1, "a"], [1, "b"], [0, "c"], [1, "d"]]
-print(pairs.sort(fn(x, y) {
-    return 0
-}))
-print(pairs.sort(fn(x, y) {
-    return x[0] - y[0]
-}))
+print(pairs.sort { x, y -> 0 })
+print(pairs.sort { x, y -> x[0] - y[0] })
