@@ -1,0 +1,8 @@
+// Expected:
+// 5
+
+val n = 10
+val r = match 5 {
+    n -> n
+}
+print(r)

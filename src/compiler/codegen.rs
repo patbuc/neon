@@ -2027,7 +2027,7 @@ impl<'a> CodeGenerator<'a> {
             let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
             let false_path_height = self.current().stack_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
-            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+            self.generate_match_arm_body(arm, hidden_slot);
             end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
 
             self.patch_jump(next_arm_jump);
@@ -2044,6 +2044,20 @@ impl<'a> CodeGenerator<'a> {
 
         self.current().scope_depth -= 1;
         self.current().locals.pop();
+    }
+
+    /// Runs the arm's body, with a bound name (if the arm binds one) as a
+    /// local copy of the scrutinee that lives only for the body.
+    fn generate_match_arm_body(&mut self, arm: &MatchArm, hidden_slot: u32) {
+        let Some(MatchPattern::Binding(binding)) = arm.patterns.first() else {
+            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+            return;
+        };
+        self.current().scope_depth += 1;
+        self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", arm.location);
+        self.bind_decl_local(self.resolutions.decl(binding.id), arm.location);
+        self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+        self.end_scope(arm.location);
     }
 
     /// Stores an arm's body value into `hidden_slot`, the same way an
@@ -2098,7 +2112,9 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         match pattern {
-            MatchPattern::Wildcard(_) => self.emit_op_code(OpCode::True, location),
+            MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
+                self.emit_op_code(OpCode::True, location)
+            }
             MatchPattern::Expr(Expr::Range {
                 start,
                 end,

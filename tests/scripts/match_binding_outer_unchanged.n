@@ -1,0 +1,9 @@
+// Expected:
+// 2
+// 1
+
+var x = 1
+match 2 {
+    x -> print(x)
+}
+print(x)

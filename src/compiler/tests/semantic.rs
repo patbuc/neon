@@ -3545,14 +3545,6 @@ fn assert_match_error(program: &str, expected: &str) {
 }
 
 #[test]
-fn test_match_variable_pattern_is_invalid() {
-    assert_match_error(
-        "val y = 1\nval r = match 1 {\n    y -> 1\n    _ -> 0\n}\n",
-        "Invalid match pattern",
-    );
-}
-
-#[test]
 fn test_match_expression_pattern_is_invalid() {
     assert_match_error(
         "val y = 1\nval r = match 1 {\n    y + 1 -> 1\n    _ -> 0\n}\n",
@@ -3661,5 +3653,45 @@ fn test_match_second_wildcard_is_unreachable() {
     assert_match_error(
         "val r = match 3 {\n    _ -> \"a\"\n    _ -> \"b\"\n}\n",
         "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_binding_is_immutable() {
+    assert_match_error(
+        "val r = match 1 {\n    n -> {\n        n = 2\n        n\n    }\n}\n",
+        "Cannot assign to immutable",
+    );
+}
+
+#[test]
+fn test_match_arm_after_binding_is_unreachable() {
+    assert_match_error(
+        "val r = match 1 {\n    n -> n\n    2 -> 0\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_binding_covers_every_enum_variant() {
+    let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    other -> 0\n}\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(
+        result.is_ok(),
+        "expected no errors, got {:#?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_alternatives_binding_different_names_is_error() {
+    assert_match_error(
+        "val r = match 1 {\n    a, b -> 1\n}\n",
+        "must bind the same names",
     );
 }

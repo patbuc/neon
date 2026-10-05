@@ -1,0 +1,8 @@
+// Expected:
+// 8
+
+val r = match 7 {
+    1 -> 0
+    n -> n + 1
+}
+print(r)

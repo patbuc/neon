@@ -1062,6 +1062,7 @@ impl<'a> Printer<'a> {
             match pattern {
                 MatchPattern::Expr(expr) => self.print_expr(expr),
                 MatchPattern::Wildcard(_) => self.write("_"),
+                MatchPattern::Binding(binding) => self.write(&binding.name),
             }
         }
         self.write(" -> ");

@@ -252,6 +252,8 @@ pub enum MatchPattern {
     /// except an `Expr::Range`, which is matched by containment.
     Expr(Expr),
     Wildcard(SourceLocation),
+    /// A bare name: matches anything and binds it, immutably, for the arm.
+    Binding(Binding),
 }
 
 /// The body of a match arm: `-> expr` or `-> { ... }`.
