@@ -3426,15 +3426,43 @@ fn test_optional_dot_on_namespace_is_compile_error() {
 }
 
 #[test]
-fn test_enum_payload_constructor_wrong_arity_is_compile_error() {
+fn test_enum_payload_constructor_too_few_arguments_is_compile_error() {
     let errors = compile_errors("enum Shape {\n    Rect(w, h)\n}\nprint(Shape.Rect(1))\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::TooFewArguments);
     assert_eq!(errors[0].location.line, 4);
     assert!(
-        errors[0].message.contains("Expected 2 arguments but got 1"),
+        errors[0]
+            .message
+            .contains("Function 'Rect' expects 2 arguments but got 1"),
         "got {:#?}",
         errors
     );
+}
+
+#[test]
+fn test_enum_payload_constructor_too_many_arguments_is_compile_error() {
+    let errors = compile_errors("enum Shape {\n    Rect(w, h)\n}\nprint(Shape.Rect(1, 2, 3))\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::TooManyArguments);
+    assert_eq!(errors[0].location.line, 4);
+    assert!(
+        errors[0]
+            .message
+            .contains("Function 'Rect' expects 2 arguments but got 3"),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
+fn test_enum_payload_unknown_variant_suggests_variants_not_values() {
+    let errors =
+        compile_errors("enum Shape {\n    Circle(radius)\n    Square\n}\nprint(Shape.Circel(2))\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
+    assert!(!errors[0].message.contains("values"), "got {:#?}", errors);
+    assert!(errors[0].message.contains("Circle"), "got {:#?}", errors);
 }
 
 #[test]

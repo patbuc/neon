@@ -1824,28 +1824,24 @@ impl SemanticAnalyzer {
                         ));
                         return;
                     }
-                    if arguments.len() != variant.fields.len() {
-                        let kind = if arguments.len() < variant.fields.len() {
-                            CompilationErrorKind::TooFewArguments
-                        } else {
-                            CompilationErrorKind::TooManyArguments
-                        };
-                        self.push_error(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            kind,
-                            format!(
-                                "Expected {} arguments but got {}",
-                                variant.fields.len(),
-                                arguments.len()
-                            ),
-                            location,
-                        ));
-                        return;
-                    }
+                    self.validate_arity(
+                        "Function",
+                        method,
+                        u8::try_from(variant.fields.len()).unwrap_or(u8::MAX),
+                        arguments.len(),
+                        location,
+                    );
                     self.resolutions
                         .record_enum_construct(id, EnumVariantAccess::new(name, variant, ordinal));
                 } else {
-                    let candidates = ["values"];
+                    let mut candidates: Vec<&str> = variants
+                        .iter()
+                        .filter(|v| !v.fields.is_empty())
+                        .map(|v| v.name.as_str())
+                        .collect();
+                    if candidates.is_empty() {
+                        candidates.push("values");
+                    }
                     let error_message = unknown_method_error(name, method, &candidates, None);
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,

@@ -809,15 +809,13 @@ impl Parser {
                 let location = self.current_location();
                 let mut fields = Vec::new();
                 if self.match_token(TokenType::LeftParen) {
-                    loop {
-                        if !self.consume(TokenType::Identifier, "Expect field name.") {
-                            return None;
-                        }
-                        fields.push(self.previous_token.token.clone());
-                        if !self.match_token(TokenType::Comma) {
-                            break;
-                        }
-                    }
+                    fields =
+                        self.parse_comma_separated_list(TokenType::RightParen, None, |parser| {
+                            if !parser.consume(TokenType::Identifier, "Expect field name.") {
+                                return None;
+                            }
+                            Some(parser.previous_token.token.clone())
+                        })?;
                     if !self.consume(TokenType::RightParen, "Expect ')' after variant fields.") {
                         return None;
                     }
