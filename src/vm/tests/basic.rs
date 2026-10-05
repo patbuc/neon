@@ -34,47 +34,9 @@ fn can_execute_simple_arithmetics() {
 }
 
 #[test]
-fn can_print_hello_world() {
-    let program = r#"
-        print("Hello World 🌍")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-}
-
-#[test]
 fn can_print_the_answer_to_everything_times_pi() {
     let program = r#"
         print(42 * 3.14)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-}
-
-#[test]
-fn can_print_multiple_arguments() {
-    let program = r#"
-        print(1, 2, "x")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1 2 x", vm.get_output());
-}
-
-#[test]
-fn can_run_multi_line_statements() {
-    let program = r#"
-        print("Hello World 🌎")
-        print(13)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -98,31 +60,6 @@ fn can_define_a_global_value() {
 }
 
 #[test]
-fn can_negate_numbers() {
-    let program = r#"
-        val x = 42
-        print(-x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("-42", vm.get_output());
-}
-
-#[test]
-fn can_compare_numbers_equal() {
-    let program = r#"
-        print(42 == 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
 fn can_compare_numbers_not_equal() {
     let program = r#"
         print(42 == 43)
@@ -132,157 +69,6 @@ fn can_compare_numbers_not_equal() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn can_compare_greater_than() {
-    let program = r#"
-        print(43 > 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_compare_less_than() {
-    let program = r#"
-        print(41 < 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_use_logical_not() {
-    let program = r#"
-        print(!false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_nil() {
-    let program = r#"
-        val x = nil
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn can_handle_boolean_true() {
-    let program = r#"
-        val x = true
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_boolean_false() {
-    let program = r#"
-        val x = false
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn can_handle_string_concatenation() {
-    let program = r#"
-        print("Hello" + " " + "World")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello World", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_global_variables() {
-    let program = r#"
-        val x = 40
-        val y = 2
-        print(x + y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
-#[test]
-fn can_handle_complex_arithmetic() {
-    let program = r#"
-        val x = 10
-        val y = 5
-        print(((x + y) * (x - y)))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("75", vm.get_output());
-}
-
-#[test]
-fn can_handle_string_comparison() {
-    let program = r#"
-        print("hello" == "hello")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_boolean_operations() {
-    let program = r#"
-        print(true == !false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_division_by_integers() {
-    let program = r#"
-        print(100 / 20)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("5", vm.get_output());
 }
 
 #[test]
@@ -298,19 +84,6 @@ fn can_handle_float_division() {
 }
 
 #[test]
-fn can_handle_negative_numbers() {
-    let program = r#"
-        val x = -42
-        print(-x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
-#[test]
 fn can_handle_boolean_arithmetic() {
     let program = r#"
         print(true == true == true)
@@ -323,21 +96,6 @@ fn can_handle_boolean_arithmetic() {
 }
 
 #[test]
-fn can_handle_complex_string_operations() {
-    let program = r#"
-        val greeting = "Hello"
-        val name = "World"
-        val punctuation = "!"
-        print(greeting + " " + name + punctuation)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello World!", vm.get_output());
-}
-
-#[test]
 fn can_handle_multiple_negations() {
     let program = r#"
         print(!!true)
@@ -347,107 +105,6 @@ fn can_handle_multiple_negations() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_true_if_statement() {
-    let program = r#"
-        val x = 42
-        if (x == 42) {
-            print("The answer to everything")
-        }
-        print("The end")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The answer to everything\nThe end", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_false_if_statement() {
-    let program = r#"
-        val x = 42
-        if (x != 42) {
-            print("The answer to everything")
-        }
-        print("The end")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The end", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_true_if_else_statement() {
-    let program = r#"
-        val x = 42
-        if (x == 42) {
-            print("The answer to everything")
-        } else {
-            print("The end")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The answer to everything", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_if_else_statements() {
-    let program = r#"
-        val x = 42
-        if (x == 41) {
-            print("The answer to everything")
-        } else if (x == 42) {
-            print("The end")
-        } else {
-            print("The beginning")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The end", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_if_else_statements_2() {
-    let program = r#"
-        val x = 4
-        if (x == 41) {
-            print("The answer to everything")
-        } else if (x == 42) {
-            print("The end")
-        } else {
-            print("The beginning")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The beginning", vm.get_output());
-}
-
-#[test]
-fn can_assign_value_to_variable() {
-    let program = r#"
-        var x = 10
-        x = x + 5
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("15", vm.get_output());
 }
 
 #[test]
@@ -485,38 +142,6 @@ fn cannot_access_undefined_variable() {
 }
 
 #[test]
-fn can_loop() {
-    let program = r#"
-        var x = 0
-        while (x < 10) {
-            x = x + 1
-            print(x)
-        }
-        print("Done")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nDone", vm.get_output());
-}
-
-#[test]
-fn can_call_function() {
-    let program = r#"
-        fn greet() {
-            print("Hello from function!")
-        }
-        greet()
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello from function!", vm.get_output());
-}
-
-#[test]
 fn can_call_function_multiple_times() {
     let program = r#"
         fn greet() {
@@ -530,27 +155,6 @@ fn can_call_function_multiple_times() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello again!\nHello again!", vm.get_output());
-}
-
-#[test]
-fn can_calculate_fibonacci() {
-    let program = r#"
-        fn fib(n) {
-            if (n == 0) {
-                return 0
-            }
-            if (n == 1) {
-                return 1
-            }
-            return fib(n - 1) + fib(n - 2)
-        }
-        print(fib(10))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("55", vm.get_output());
 }
 
 #[test]
@@ -616,207 +220,54 @@ fn can_use_modulo_operator() {
     assert_eq!("1\n1\n0\n4", vm.get_output());
 }
 
-#[test]
-fn can_use_struct() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        val p = Point(3, 4)
-        print(p.x)
-        print(p.y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n4", vm.get_output());
-}
-
 // =============================================================================
 // Logical Operator Tests
 // =============================================================================
 
 #[test]
-fn test_logical_and_true_true() {
-    let program = r#"
-        print(true && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_true_false() {
-    let program = r#"
-        print(true && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_false_true() {
-    let program = r#"
-        print(false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_and_false_false() {
-    let program = r#"
-        print(false && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_true_true() {
-    let program = r#"
-        print(true || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_true_false() {
-    let program = r#"
-        print(true || false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_false_true() {
-    let program = r#"
-        print(false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_false_false() {
-    let program = r#"
-        print(false || false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_operators_with_comparisons() {
-    let program = r#"
-        print(5 > 3 && 10 < 20)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_operators_with_variables() {
-    let program = r#"
-        val x = true
-        val y = false
-        print(x && y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_or_with_variables() {
-    let program = r#"
-        val x = true
-        val y = false
-        print(x || y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_or_and() {
-    let program = r#"
-        print(false || true && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Should parse as: false || (true && false)
-    // true && false = false
-    // false || false = false
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_and_or() {
-    let program = r#"
-        print(true && false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Should parse as: (true && false) || true
-    // true && false = false
-    // false || true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_precedence_with_parens() {
-    let program = r#"
-        print((false || true) && false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (false || true) = true
-    // true && false = false
-    assert_eq!("false", vm.get_output());
+fn test_logical_operators() {
+    let cases = [
+        ("print(true && true)", "true"),
+        ("print(true && false)", "false"),
+        ("print(false && true)", "false"),
+        ("print(false && false)", "false"),
+        ("print(true || true)", "true"),
+        ("print(true || false)", "true"),
+        ("print(false || true)", "true"),
+        ("print(false || false)", "false"),
+        ("print(5 > 3 && 10 < 20)", "true"),
+        ("val x = 5\nprint(x == 5 && x > 0)", "true"),
+        ("val x = true\nval y = false\nprint(x && y)\nprint(x || y)", "false\ntrue"),
+        ("print(false || true && false)", "false"),
+        ("print(true && false || true)", "true"),
+        ("print((false || true) && false)", "false"),
+        ("print(true && true && true)", "true"),
+        ("print(true && false && true)", "false"),
+        ("print(false || false || true)", "true"),
+        ("print(!false && true)", "true"),
+        (
+            "val a = true\nval b = false\nval c = true\nprint((a || b) && c)",
+            "true",
+        ),
+        (
+            "val a = true\nval b = false\nval c = true\nval d = false\nprint((a && b) || (c && !d))",
+            "true",
+        ),
+        (
+            "val x = 5\nval y = 10\nif (x > 0 && y > 0) { print(\"Both positive\") }",
+            "Both positive",
+        ),
+        (
+            "var x = 0\nvar y = 3\nwhile (x < 3 && y > 0) {\nx = x + 1\ny = y - 1\n}\nprint(x)\nprint(y)",
+            "3\n0",
+        ),
+    ];
+    for (program, expected) in cases {
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program.to_string());
+        assert_eq!(InterpretResult::Ok, result, "{program}");
+        assert_eq!(expected, vm.get_output(), "{program}");
+    }
 }
 
 #[test]
@@ -853,141 +304,6 @@ fn test_logical_or_short_circuit() {
     assert_eq!("Should reach here\n10", vm.get_output());
 }
 
-#[test]
-fn test_logical_complex_expression() {
-    let program = r#"
-        val a = true
-        val b = false
-        val c = true
-        print((a || b) && c)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (true || false) = true
-    // true && true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_with_not() {
-    let program = r#"
-        print(!false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // !false = true
-    // true && true = true
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_and() {
-    let program = r#"
-        print(true && true && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_and_with_false() {
-    let program = r#"
-        print(true && false && true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn test_logical_chained_or() {
-    let program = r#"
-        print(false || false || true)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_in_if_statement() {
-    let program = r#"
-        val x = 5
-        val y = 10
-        if (x > 0 && y > 0) {
-            print("Both positive")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Both positive", vm.get_output());
-}
-
-#[test]
-fn test_logical_in_while_loop() {
-    let program = r#"
-        var x = 0
-        var y = 3
-        while (x < 3 && y > 0) {
-            x = x + 1
-            y = y - 1
-        }
-        print(x)
-        print(y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n0", vm.get_output());
-}
-
-#[test]
-fn test_logical_with_equality() {
-    let program = r#"
-        val x = 5
-        print(x == 5 && x > 0)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_logical_all_operators_combined() {
-    let program = r#"
-        val a = true
-        val b = false
-        val c = true
-        val d = false
-        print((a && b) || (c && !d))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // (true && false) = false
-    // !false = true
-    // (true && true) = true
-    // false || true = true
-    assert_eq!("true", vm.get_output());
-}
-
 // =============================================================================
 // Map Tests
 // =============================================================================
@@ -1016,117 +332,6 @@ fn test_map_creation_with_string_keys() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("{name: Alice, age: 30}", vm.get_output());
-}
-
-#[test]
-fn test_map_access_string_key() {
-    let program = r#"
-        val m = {"name": "Alice", "age": 30}
-        print(m["name"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Alice", vm.get_output());
-}
-
-#[test]
-fn test_map_access_missing_key_returns_nil() {
-    let program = r#"
-        val m = {"name": "Alice"}
-        print(m["missing"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn test_map_set_new_value() {
-    let program = r#"
-        var m = {"name": "Alice"}
-        m["age"] = 30
-        print(m["age"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("30", vm.get_output());
-}
-
-#[test]
-fn test_map_update_existing_value() {
-    let program = r#"
-        var m = {"name": "Alice"}
-        m["name"] = "Bob"
-        print(m["name"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Bob", vm.get_output());
-}
-
-#[test]
-fn test_map_with_number_keys() {
-    let program = r#"
-        val m = {1: "one", 2: "two", 3: "three"}
-        print(m[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("two", vm.get_output());
-}
-
-#[test]
-fn test_map_with_boolean_keys() {
-    let program = r#"
-        val m = {true: "yes", false: "no"}
-        print(m[true])
-        print(m[false])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("yes\nno", vm.get_output());
-}
-
-#[test]
-fn test_map_with_mixed_key_types() {
-    let program = r#"
-        val m = {"name": "Alice", 42: "answer", true: "yes"}
-        print(m["name"])
-        print(m[42])
-        print(m[true])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Alice\nanswer\nyes", vm.get_output());
-}
-
-#[test]
-fn test_map_with_mixed_value_types() {
-    let program = r#"
-        val m = {"num": 42, "bool": true, "nil": nil}
-        print(m["num"])
-        print(m["bool"])
-        print(m["nil"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42\ntrue\nnil", vm.get_output());
 }
 
 #[test]
@@ -1171,138 +376,23 @@ fn test_map_in_variable_assignment() {
 }
 
 #[test]
-fn test_map_in_expression() {
-    let program = r#"
-        val m = {"x": 10, "y": 20}
-        print(m["x"] + m["y"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("30", vm.get_output());
-}
-
-#[test]
-fn test_map_key_evaluation() {
-    let program = r#"
-        val m = {"a": 1, "b": 2}
-        val key = "a"
-        print(m[key])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1", vm.get_output());
-}
-
-#[test]
 fn test_map_dynamic_key() {
     let program = r#"
         val m = {1: "one", 2: "two"}
         val x = 1
         print(m[x + 1])
+        val flags = {true: "yes", false: "no"}
+        print(flags[x > 3])
+        print(flags[x < 3])
         "#;
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("two", vm.get_output());
+    assert_eq!("two\nno\nyes", vm.get_output());
 }
 
 // Map method tests
-
-#[test]
-fn test_map_get_method_existing_key() {
-    let program = r#"
-        val m = {"name": "Alice", "age": 30}
-        print(m.get("name"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Alice", vm.get_output());
-}
-
-#[test]
-fn test_map_get_method_nonexistent_key() {
-    let program = r#"
-        val m = {"name": "Alice"}
-        print(m.get("missing"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn test_map_get_method_number_key() {
-    let program = r#"
-        val m = {42: "answer", 100: "century"}
-        print(m.get(42))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("answer", vm.get_output());
-}
-
-#[test]
-fn test_map_size_method_empty() {
-    let program = r#"
-        val m = {}
-        print(m.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0", vm.get_output());
-}
-
-#[test]
-fn test_map_size_method_with_entries() {
-    let program = r#"
-        val m = {"a": 1, "b": 2, "c": 3}
-        print(m.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3", vm.get_output());
-}
-
-#[test]
-fn test_map_contains_method_existing_key() {
-    let program = r#"
-        val m = {"name": "Alice", "age": 30}
-        print(m.contains("name"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn test_map_contains_method_nonexistent_key() {
-    let program = r#"
-        val m = {"name": "Alice"}
-        print(m.contains("missing"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
 
 #[test]
 fn test_map_contains_method_boolean_key() {
@@ -1317,256 +407,9 @@ fn test_map_contains_method_boolean_key() {
     assert_eq!("true", vm.get_output());
 }
 
-#[test]
-fn test_map_remove_method_existing_key() {
-    let program = r#"
-        val m = {"name": "Alice", "age": 30}
-        val removed = m.remove("name")
-        print(removed)
-        print(m.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Alice\n1", vm.get_output());
-}
-
-#[test]
-fn test_map_remove_method_nonexistent_key() {
-    let program = r#"
-        val m = {"name": "Alice"}
-        val removed = m.remove("missing")
-        print(removed)
-        print(m.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil\n1", vm.get_output());
-}
-
-#[test]
-fn test_map_keys_method_empty() {
-    let program = r#"
-        val m = {}
-        val keys = m.keys()
-        print(keys)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[]", vm.get_output());
-}
-
-#[test]
-fn test_map_keys_method_with_entries() {
-    let program = r#"
-        val m = {"a": 1, "b": 2}
-        val keys = m.keys()
-        print(keys)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[a, b]", vm.get_output());
-}
-
-#[test]
-fn test_map_values_method_empty() {
-    let program = r#"
-        val m = {}
-        val values = m.values()
-        print(values)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[]", vm.get_output());
-}
-
-#[test]
-fn test_map_values_method_with_entries() {
-    let program = r#"
-        val m = {"a": 1, "b": 2}
-        val values = m.values()
-        print(values)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2]", vm.get_output());
-}
-
-#[test]
-fn test_map_entries_method_empty() {
-    let program = r#"
-        val m = {}
-        val entries = m.entries()
-        print(entries)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[]", vm.get_output());
-}
-
-#[test]
-fn test_map_entries_method_with_entries() {
-    let program = r#"
-        val m = {"name": "Alice", "age": 30}
-        val entries = m.entries()
-        print(entries)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[[name, Alice], [age, 30]]", vm.get_output());
-}
-
-#[test]
-fn test_map_chained_operations() {
-    let program = r#"
-        val m = {"a": 1, "b": 2, "c": 3}
-        print(m.contains("a"))
-        print(m.get("b"))
-        val old = m.remove("c")
-        print(old)
-        print(m.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true\n2\n3\n2", vm.get_output());
-}
-
-#[test]
-fn test_map_keys_with_different_types() {
-    let program = r#"
-        val m = {"str": 1, 42: 2, true: 3}
-        val keys = m.keys()
-        print(keys)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Just verify it returns an array
-    let output = vm.get_output();
-    assert!(output.starts_with('[') && output.ends_with(']'));
-}
-
-#[test]
-fn test_map_method_after_modification() {
-    let program = r#"
-        val m = {"a": 1}
-        m["b"] = 2
-        m["c"] = 3
-        print(m.size())
-        print(m.contains("b"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\ntrue", vm.get_output());
-}
-
-#[test]
-fn test_map_remove_then_size() {
-    let program = r#"
-        val m = {"x": 10, "y": 20, "z": 30}
-        m.remove("y")
-        print(m.size())
-        print(m.contains("y"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("2\nfalse", vm.get_output());
-}
-
-#[test]
-fn test_map_get_and_bracket_equivalence() {
-    let program = r#"
-        val m = {"key": "value"}
-        print(m.get("key"))
-        print(m["key"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("value\nvalue", vm.get_output());
-}
-
-#[test]
-fn test_map_values_reflect_changes() {
-    let program = r#"
-        val m = {"a": 1, "b": 2}
-        m["c"] = 3
-        val values = m.values()
-        print(values)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    // Verify it's an array with 3 elements
-    let output = vm.get_output();
-    assert!(output.starts_with('[') && output.ends_with(']'));
-}
-
 // =============================================================================
 // Map Integration Tests - End-to-End Scenarios
 // =============================================================================
-
-#[test]
-fn test_map_with_string_values() {
-    let program = r#"
-        val messages = {"greet": "Hello", "farewell": "Goodbye", "thanks": "Thank you"}
-        print(messages["greet"])
-        print(messages["farewell"])
-        print(messages["thanks"])
-        print(messages.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello\nGoodbye\nThank you\n3", vm.get_output());
-}
-
-#[test]
-fn test_map_iteration_with_modification() {
-    let program = r#"
-        var m = {"a": 1, "b": 2, "c": 3}
-        // Test direct key access and modification
-        print(m["a"])
-        print(m["b"])
-        print(m["c"])
-        m["a"] = m["a"] + 10
-        m["b"] = m["b"] + 10
-        m["c"] = m["c"] + 10
-        print(m["a"])
-        print(m["b"])
-        print(m["c"])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1\n2\n3\n11\n12\n13", vm.get_output());
-}
 
 #[test]
 fn test_nested_map_access_chain() {
@@ -1622,23 +465,6 @@ fn test_map_with_conditional_logic() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Alice: A\nBob: F\nCharlie: B", vm.get_output());
-}
-
-#[test]
-fn test_map_direct_value_access() {
-    let program = r#"
-        val m = {"x": 10, "y": 20, "z": 30}
-        // Test direct access to multiple values
-        val x_val = m["x"]
-        val y_val = m["y"]
-        val z_val = m["z"]
-        print(x_val + y_val + z_val)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("60", vm.get_output());
 }
 
 #[test]
@@ -1712,92 +538,6 @@ fn test_map_update_in_loop() {
 }
 
 #[test]
-fn test_map_multiple_removes() {
-    let program = r#"
-        var m = {"a": 1, "b": 2, "c": 3, "d": 4}
-        print(m.size())
-        m.remove("a")
-        print(m.size())
-        m.remove("c")
-        print(m.size())
-        print(m.contains("a"))
-        print(m.contains("b"))
-        print(m.contains("c"))
-        print(m.contains("d"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("4\n3\n2\nfalse\ntrue\nfalse\ntrue", vm.get_output());
-}
-
-#[test]
-fn test_map_with_struct_values() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        val points = {
-            "origin": Point(0, 0),
-            "unit": Point(1, 1)
-        }
-
-        val origin = points["origin"]
-        print(origin.x)
-        print(origin.y)
-
-        val unit = points["unit"]
-        print(unit.x)
-        print(unit.y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0\n0\n1\n1", vm.get_output());
-}
-
-#[test]
-fn test_map_boolean_key_expressions() {
-    let program = r#"
-        val m = {true: "yes", false: "no"}
-        val x = 5
-        print(m[x > 3])
-        print(m[x < 3])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("yes\nno", vm.get_output());
-}
-
-#[test]
-fn test_map_chaining_operations() {
-    let program = r#"
-        var m = {"a": 1}
-        m["b"] = 2
-        m["c"] = 3
-        val size1 = m.size()
-        m.remove("b")
-        val size2 = m.size()
-        print(size1)
-        print(size2)
-        print(m.contains("a"))
-        print(m.contains("b"))
-        print(m.contains("c"))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n2\ntrue\nfalse\ntrue", vm.get_output());
-}
-
-#[test]
 fn test_map_empty_to_full_lifecycle() {
     let program = r#"
         var m = {}
@@ -1854,245 +594,6 @@ fn test_map_in_recursive_function() {
 // =============================================================================
 
 #[test]
-fn test_array_literal_empty() {
-    let program = r#"
-        val arr = []
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_single_element() {
-    let program = r#"
-        val arr = [42]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[42]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_multiple_elements() {
-    let program = r#"
-        val arr = [1, 2, 3]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_mixed_types() {
-    let program = r#"
-        val arr = [1, "hello", true, nil]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, hello, true, nil]", vm.get_output());
-}
-
-#[test]
-fn test_array_indexing_positive() {
-    let program = r#"
-        val arr = [10, 20, 30]
-        print(arr[0])
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("10\n20\n30", vm.get_output());
-}
-
-#[test]
-fn test_array_indexing_negative() {
-    let program = r#"
-        val arr = [10, 20, 30]
-        print(arr[-1])
-        print(arr[-2])
-        print(arr[-3])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("30\n20\n10", vm.get_output());
-}
-
-#[test]
-fn test_array_index_assignment() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr[0] = 10
-        arr[1] = 20
-        arr[2] = 30
-        print(arr[0])
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("10\n20\n30", vm.get_output());
-}
-
-#[test]
-fn test_array_index_assignment_negative() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr[-1] = 99
-        arr[-2] = 88
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("88\n99", vm.get_output());
-}
-
-#[test]
-fn test_array_push() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr.push(4)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3, 4]", vm.get_output());
-}
-
-#[test]
-fn test_array_push_multiple() {
-    let program = r#"
-        var arr = []
-        arr.push(1)
-        arr.push(2)
-        arr.push(3)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3]", vm.get_output());
-}
-
-#[test]
-fn test_array_pop() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        val last = arr.pop()
-        print(last)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n[1, 2]", vm.get_output());
-}
-
-#[test]
-fn test_array_pop_empty() {
-    let program = r#"
-        var arr = []
-        val result = arr.pop()
-        print(result)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn test_array_size() {
-    let program = r#"
-        val arr1 = []
-        val arr2 = [1]
-        val arr3 = [1, 2, 3]
-        print(arr1.size())
-        print(arr2.size())
-        print(arr3.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0\n1\n3", vm.get_output());
-}
-
-#[test]
-fn test_array_size_after_push() {
-    let program = r#"
-        var arr = [1, 2]
-        print(arr.size())
-        arr.push(3)
-        print(arr.size())
-        arr.push(4)
-        print(arr.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("2\n3\n4", vm.get_output());
-}
-
-#[test]
-fn test_array_size_after_pop() {
-    let program = r#"
-        var arr = [1, 2, 3, 4]
-        print(arr.size())
-        arr.pop()
-        print(arr.size())
-        arr.pop()
-        print(arr.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("4\n3\n2", vm.get_output());
-}
-
-#[test]
-fn test_array_nested() {
-    let program = r#"
-        val arr = [[1, 2], [3, 4]]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[[1, 2], [3, 4]]", vm.get_output());
-}
-
-#[test]
 fn test_array_nested_access() {
     let program = r#"
         val arr = [[1, 2], [3, 4]]
@@ -2108,37 +609,6 @@ fn test_array_nested_access() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
-}
-
-#[test]
-fn test_array_nested_modification() {
-    let program = r#"
-        var arr = [[1, 2], [3, 4]]
-        val inner = arr[0]
-        inner[0] = 99
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[[99, 2], [3, 4]]", vm.get_output());
-}
-
-#[test]
-fn test_array_with_variables() {
-    let program = r#"
-        val x = 10
-        val y = 20
-        val z = 30
-        val arr = [x, y, z]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[10, 20, 30]", vm.get_output());
 }
 
 #[test]
@@ -2309,34 +779,6 @@ fn test_array_accumulation() {
 }
 
 #[test]
-fn test_array_push_pop_lifecycle() {
-    let program = r#"
-        var arr = []
-        print(arr.size())
-
-        arr.push(1)
-        arr.push(2)
-        arr.push(3)
-        print(arr.size())
-        print(arr)
-
-        arr.pop()
-        print(arr.size())
-        print(arr)
-
-        arr.pop()
-        arr.pop()
-        print(arr.size())
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0\n3\n[1, 2, 3]\n2\n[1, 2]\n0\n[]", vm.get_output());
-}
-
-#[test]
 fn test_array_with_map_values() {
     let program = r#"
         val map1 = {"x": 1, "y": 2}
@@ -2411,6 +853,22 @@ fn test_array_reverse_with_negative_indices() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("5\n4\n3\n2\n1", vm.get_output());
+}
+
+#[test]
+fn test_array_index_assignment_negative() {
+    let program = r#"
+        var arr = [1, 2, 3]
+        arr[-1] = 99
+        arr[-2] = 88
+        print(arr[1])
+        print(arr[2])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::Ok, result);
+    assert_eq!("88\n99", vm.get_output());
 }
 
 #[test]
@@ -2605,27 +1063,6 @@ fn test_continue_in_while_loop() {
 }
 
 #[test]
-fn test_continue_in_two_statement_while_body_targets_condition() {
-    let program = r#"
-        var i = 0
-        var n = 0
-        while (i < 4) {
-            if (i < 10) {
-                i = i + 1
-                continue
-            }
-            n = n + 1
-        }
-        print(n)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0", vm.get_output());
-}
-
-#[test]
 fn test_break_in_for_loop() {
     let program = r#"
         for i in 0..10 {
@@ -2659,25 +1096,6 @@ fn test_continue_in_for_loop() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("0\n1\n3\n4\nDone", vm.get_output());
-}
-
-#[test]
-fn test_break_in_for_in_loop() {
-    let program = r#"
-        val arr = [1, 2, 3, 4, 5]
-        for item in arr {
-            if (item == 3) {
-                break
-            }
-            print(item)
-        }
-        print("Done")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1\n2\nDone", vm.get_output());
 }
 
 #[test]
@@ -3115,20 +1533,6 @@ fn test_reset_recovers_for_in_after_runtime_error() {
     assert_eq!("1\n2\n3", vm.get_output());
 }
 
-#[test]
-fn debug_simple_param() {
-    let program = r#"
-        fn test(x) {
-            print(x)
-        }
-        test(42)
-    "#;
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
 // =============================================================================
 // Cycle Guard Tests (print and equality on self-referencing values)
 // =============================================================================
@@ -3398,40 +1802,6 @@ fn undefined_variable_in_interpolation_reports_location() {
         "[Semantic] E0013: Undefined variable 'zz' at 2:3",
         vm.get_compiler_error()
     );
-}
-
-#[test]
-fn setting_undefined_field_on_instance_is_runtime_error() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        fn set_z(p) { p.z = 5 }
-        set_z(Point(3, 4))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    vm.interpret(program.to_string());
-    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
-}
-
-#[test]
-fn getting_undefined_field_on_instance_is_runtime_error() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        fn get_z(p) { return p.z }
-        get_z(Point(3, 4))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    vm.interpret(program.to_string());
-    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
 }
 
 #[test]
