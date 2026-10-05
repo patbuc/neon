@@ -1283,6 +1283,14 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Pops the scrutinee value and raises "No match arm for <value>",
+    /// formatted like `print`. Emitted after every `match` arm has been
+    /// tested and none matched.
+    pub(in crate::vm) fn op_no_match_arm(&mut self) -> OpResult {
+        let value = self.pop();
+        Err(self.runtime_error(format!("No match arm for {value}")))
+    }
+
     /// Peeks the top of the stack and errors unless it holds an Array of
     /// exactly `n` elements, read from the 16-bit operand; otherwise a
     /// no-op.

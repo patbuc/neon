@@ -37,6 +37,13 @@ fn test_tuple_pattern_needs_at_least_two_names() {
 }
 
 #[test]
+fn test_match_keyword_cannot_be_val_name() {
+    let mut parser = Parser::new("val match = 1\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+}
+
+#[test]
 fn test_parse_binary_expression() {
     let mut parser = Parser::new("1 + 2\n");
     let result = parser.parse();

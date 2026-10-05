@@ -8,7 +8,8 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, NodeId, Pattern, Stmt, StructField,
+    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArmBody, MatchPattern, NodeId,
+    Pattern, Stmt, StructField,
 };
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
@@ -1186,6 +1187,22 @@ impl SemanticAnalyzer {
                 match else_branch.as_ref() {
                     IfExprElse::If(expr) => self.resolve_expr(expr),
                     IfExprElse::Block(stmt) => self.resolve_stmt(stmt),
+                }
+            }
+            Expr::Match {
+                scrutinee, arms, ..
+            } => {
+                self.resolve_expr(scrutinee);
+                for arm in arms {
+                    for pattern in &arm.patterns {
+                        if let MatchPattern::Expr(expr) = pattern {
+                            self.resolve_expr(expr);
+                        }
+                    }
+                    match &arm.body {
+                        MatchArmBody::Expr(expr) => self.resolve_expr(expr),
+                        MatchArmBody::Block(stmt) => self.resolve_stmt(stmt),
+                    }
                 }
             }
         }
@@ -2429,6 +2446,20 @@ fn expr_references_it(expr: &Expr) -> bool {
                     IfExprElse::If(expr) => expr_references_it(expr),
                     IfExprElse::Block(stmt) => stmt_references_it(stmt),
                 }
+        }
+        Expr::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_references_it(scrutinee)
+                || arms.iter().any(|arm| {
+                    arm.patterns.iter().any(|pattern| match pattern {
+                        MatchPattern::Expr(expr) => expr_references_it(expr),
+                        MatchPattern::Wildcard => false,
+                    }) || match &arm.body {
+                        MatchArmBody::Expr(expr) => expr_references_it(expr),
+                        MatchArmBody::Block(stmt) => stmt_references_it(stmt),
+                    }
+                })
         }
     }
 }

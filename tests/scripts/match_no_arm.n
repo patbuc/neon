@@ -1,0 +1,9 @@
+// Expected:
+// before
+
+// Expected runtime error: No match arm for 7
+
+print("before")
+match 7 {
+    1 -> "a"
+}

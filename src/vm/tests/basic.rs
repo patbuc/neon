@@ -3067,6 +3067,31 @@ fn test_while_continue_from_block_does_not_grow_stack() {
 }
 
 #[test]
+fn test_statement_position_match_in_loop_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            var i = 0
+            while (i < {iterations}) {{
+                match i % 2 {{
+                    0 -> print("even")
+                    _ -> print("odd")
+                }}
+                i = i + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(InterpretResult::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
 fn test_reset_recovers_for_in_after_runtime_error() {
     let mut vm = VirtualMachine::new();
 

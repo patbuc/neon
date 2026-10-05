@@ -132,7 +132,8 @@ impl SourceMap {
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Function { location, .. }
-            | Expr::If { location, .. } => self.at(location),
+            | Expr::If { location, .. }
+            | Expr::Match { location, .. } => self.at(location),
             Expr::Binary { left, .. } => self.first_token(left),
             Expr::Range { start, .. } => self.first_token(start),
             Expr::Call { callee, .. } => self.first_token(callee),
@@ -191,7 +192,16 @@ impl SourceMap {
                 IfExprElse::If(expr) => self.last_token(expr),
                 IfExprElse::Block(stmt) => self.stmt_last_token(stmt),
             },
+            Expr::Match { scrutinee, .. } => self.match_arms_braces(scrutinee).1,
         }
+    }
+
+    /// The `{` `}` pair of a match expression's arm list, directly
+    /// following its scrutinee - the grammar requires the `{` on the same
+    /// line, with nothing in between.
+    pub(crate) fn match_arms_braces(&self, scrutinee: &Expr) -> (usize, usize) {
+        let open = self.last_token(scrutinee) + 1;
+        (open, self.partner(open))
     }
 
     pub(crate) fn first_line(&self, expr: &Expr) -> u32 {

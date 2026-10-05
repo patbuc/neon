@@ -1,0 +1,44 @@
+// Expected:
+// ok
+// client error
+// other
+// two
+// yes
+// t
+// isnil
+// neg
+
+fn label(code) = match code {
+    200, 201 -> "ok"
+    400..500 -> "client error"
+    _ -> "other"
+}
+
+print(label(200))
+print(label(404))
+print(label(-1))
+
+print(match 2.0 {
+    2 -> "two"
+    _ -> "no"
+})
+
+print(match "foo" {
+    "foo" -> "yes"
+    _ -> "no"
+})
+
+print(match true {
+    true -> "t"
+    _ -> "f"
+})
+
+print(match nil {
+    nil -> "isnil"
+    _ -> "no"
+})
+
+print(match -3 {
+    -5..=-1 -> "neg"
+    _ -> "other"
+})

@@ -3,7 +3,7 @@ use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 
 mod resolutions {
-    use crate::compiler::ast::{Expr, IfExprElse, NodeId, Stmt};
+    use crate::compiler::ast::{Expr, IfExprElse, MatchArmBody, MatchPattern, NodeId, Stmt};
     use crate::compiler::parser::Parser;
     use crate::compiler::resolutions::{Capture, Res, Resolutions};
     use crate::compiler::semantic::SemanticAnalyzer;
@@ -197,6 +197,22 @@ mod resolutions {
                 match else_branch.as_ref() {
                     IfExprElse::If(expr) => index_expr(expr, idx),
                     IfExprElse::Block(stmt) => index_stmt(stmt, idx),
+                }
+            }
+            Expr::Match {
+                scrutinee, arms, ..
+            } => {
+                index_expr(scrutinee, idx);
+                for arm in arms {
+                    for pattern in &arm.patterns {
+                        if let MatchPattern::Expr(expr) = pattern {
+                            index_expr(expr, idx);
+                        }
+                    }
+                    match &arm.body {
+                        MatchArmBody::Expr(expr) => index_expr(expr, idx),
+                        MatchArmBody::Block(stmt) => index_stmt(stmt, idx),
+                    }
                 }
             }
             Expr::Number { .. }
