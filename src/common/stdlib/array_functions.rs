@@ -203,9 +203,7 @@ fn merge_by(
 }
 
 /// Calls `callback` with each element to produce its sort/min/max key, then
-/// checks the keys are all numbers or all strings. Shared by sortBy, minBy
-/// and maxBy, which only differ in `method`'s name (for the error message)
-/// and in what they do with the keyed elements.
+/// checks the keys are all numbers or all strings.
 fn compute_and_validate_keys(
     vm: &mut dyn NativeContext,
     elements: &[Value],
@@ -219,7 +217,7 @@ fn compute_and_validate_keys(
 
     let all_numbers = keys.iter().all(|k| Numeric::from_value(k).is_some());
     let all_strings = keys.iter().all(|k| matches!(k, Value::String(_)));
-    if !keys.is_empty() && !all_numbers && !all_strings {
+    if !all_numbers && !all_strings {
         return Err(format!("{}() keys must be all numbers or all strings", method).into());
     }
 
@@ -352,18 +350,17 @@ pub fn native_array_group_by(
     let callback = args[1].clone();
     let elements: Vec<Value> = array_ref.borrow().clone();
 
-    let mut groups: IndexMap<MapKey, Value> = IndexMap::new();
+    let mut groups: IndexMap<MapKey, Vec<Value>> = IndexMap::new();
     for element in elements {
         let key_value = vm.call_value(callback.clone(), std::slice::from_ref(&element))?;
         let key = MapKey::from_value(&key_value, "map key")?;
-        let group = groups
-            .entry(key)
-            .or_insert_with(|| Value::new_array(Vec::new()));
-        if let Value::Array(group) = group {
-            group.borrow_mut().push(element);
-        }
+        groups.entry(key).or_default().push(element);
     }
 
+    let groups = groups
+        .into_iter()
+        .map(|(key, group)| (key, Value::new_array(group)))
+        .collect();
     Ok(Value::new_map(groups))
 }
 
@@ -381,15 +378,16 @@ pub fn native_array_tally(args: &[Value]) -> Result<Value, String> {
     let array_ref = extract_receiver!(args, Array, "tally")?;
     let elements: Vec<Value> = array_ref.borrow().clone();
 
-    let mut counts: IndexMap<MapKey, Value> = IndexMap::new();
+    let mut counts: IndexMap<MapKey, i64> = IndexMap::new();
     for element in elements {
         let key = MapKey::from_value(&element, "map key")?;
-        let count = counts.entry(key).or_insert(Value::Int(0));
-        if let Value::Int(n) = count {
-            *n += 1;
-        }
+        *counts.entry(key).or_insert(0) += 1;
     }
 
+    let counts = counts
+        .into_iter()
+        .map(|(key, count)| (key, Value::Int(count)))
+        .collect();
     Ok(Value::new_map(counts))
 }
 
