@@ -313,8 +313,8 @@ print(["a", "bb", "ccc"].sortBy { s -> s.size() })
 ```
 
 A block with no `->` header takes an implicit parameter named `it`, but only
-when its body actually reads a free `it`; a block that never mentions `it`
-takes zero parameters instead, same as `fn() { ... }`:
+when its body actually reads or assigns a free `it`; a block that never
+mentions `it` takes zero parameters instead, same as `fn() { ... }`:
 
 ```neon
 print([1, 2, 3].map { it * 2 })   // it is the element
@@ -326,9 +326,7 @@ a `for it in ...` — doesn't get the implicit one, and nested blocks each
 bind their own `it` independently of any outer one:
 
 ```neon
-print([[1, 2], [3]].map { row ->
-    row.map { it * 10 }   // inner it is row's element, not the outer map's
-})
+print([[1, 2], [3]].map { it.map { it * 10 } })   // inner it shadows the outer one
 ```
 
 `return` inside a trailing block returns from the block itself, same as any

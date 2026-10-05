@@ -690,7 +690,7 @@ impl Scanner {
     /// block's parameter header: one or more identifiers separated by
     /// commas followed by `->`. Used right after a trailing block's `{` to
     /// tell a parameter header apart from a body that happens to start
-    /// with an identifier expression, without cloning the scanner.
+    /// with an identifier expression.
     pub(in crate::compiler) fn looks_like_block_lambda_params(&self, offset: usize) -> bool {
         let mut i = offset;
         loop {

@@ -643,10 +643,7 @@ impl<'a> Printer<'a> {
     }
 
     /// Whether `expr` contains a trailing-block call reachable without
-    /// crossing its own `(...)` or `[...]` — stripping the condition's
-    /// grouping parens around such an expression would leave the trailing
-    /// block's `}` directly against the condition's own `{`, or against a
-    /// following `.`, which the parser then rejects as ambiguous.
+    /// crossing its own `(...)` or `[...]`.
     fn has_top_level_trailing_block(&self, expr: &Expr) -> bool {
         match expr {
             Expr::Call {
