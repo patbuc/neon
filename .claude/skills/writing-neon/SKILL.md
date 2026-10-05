@@ -106,8 +106,12 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   (immutable, arm-scoped, always shadows; comma alternatives must bind the
   same names); an array pattern `[a, 1, _]` matches an array of exactly that
   length (`..` matches any number of elements, `..rest` binds a copy; never
-  counts for coverage); a variant pattern `Shape.Rect(w, 0)` matches that variant and its fields by position
-  against any sub-pattern (count must equal the field count; write a payload variant with parentheses, a unit variant without; no `..` inside); unguarded with only bindings/`_` it covers its variant, a refutable sub-pattern covers nothing; anything else (a call) is a compile error. A guard,
+  counts for coverage); a variant pattern `Shape.Rect(w, 0)` matches that
+  variant and its fields by position against any sub-pattern (count must
+  equal the field count; write a payload variant with parentheses, a unit
+  variant without; no `..` inside); unguarded with only bindings/`_` it
+  covers its variant, a refutable sub-pattern covers nothing; anything else
+  (a call) is a compile error. A guard,
   `n if n > 0 -> body`, runs after the pattern, sees bindings, and falls
   through when false. A body is an expression or a `{ }` block. A match on an enum
   needs every variant or a `_`/unguarded binding arm; guarded arms never count; a repeated pattern or one after `_` is

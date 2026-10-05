@@ -2259,7 +2259,8 @@ impl<'a> CodeGenerator<'a> {
     /// from `hidden_slot` matches one pattern. A wildcard always matches; a
     /// range is tested by containment, and only a number can be in one; an
     /// array pattern needs an array of exactly its length whose elements
-    /// match; anything else is tested with `==`.
+    /// match; a variant pattern needs that variant with matching fields;
+    /// anything else is tested with `==`.
     fn generate_match_pattern_test(
         &mut self,
         hidden_slot: u32,

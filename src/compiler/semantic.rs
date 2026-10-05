@@ -2341,7 +2341,7 @@ impl SemanticAnalyzer {
     }
 
     /// An enum match - one whose patterns include at least one
-    /// `Enum.Variant` - must have every non-wildcard pattern belong to that
+    /// `Enum.Variant` or `Enum.Variant(..)` - must have every non-wildcard pattern belong to that
     /// enum, and (absent a wildcard) cover every one of its variants.
     #[allow(clippy::expect_used)]
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
@@ -2374,52 +2374,41 @@ impl SemanticAnalyzer {
                     has_wildcard |= arm.guard.is_none();
                     continue;
                 }
-                if let MatchPattern::Variant { .. } = pattern {
-                    if let Some((access, matches_all)) = self.match_pattern_variant(pattern) {
-                        if access.enum_name != enum_name {
-                            self.push_error(CompilationError::new(
-                                CompilationPhase::Semantic,
-                                CompilationErrorKind::PatternNotInEnum,
-                                format!(
-                                    "Pattern {}.{} does not belong to enum {}",
-                                    access.enum_name, access.variant_name, enum_name
-                                ),
-                                Self::pattern_location(pattern),
-                            ));
-                        } else if matches_all
-                            && arm.guard.is_none()
-                            && !covered.contains(&access.variant_name.to_string())
-                        {
-                            covered.push(access.variant_name.to_string());
-                        }
+                if let Some((access, matches_all)) = self.match_pattern_variant(pattern) {
+                    if access.enum_name != enum_name {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::PatternNotInEnum,
+                            format!(
+                                "Pattern {}.{} does not belong to enum {}",
+                                access.enum_name, access.variant_name, enum_name
+                            ),
+                            Self::pattern_location(pattern),
+                        ));
+                    } else if matches_all
+                        && arm.guard.is_none()
+                        && !covered.contains(&access.variant_name.to_string())
+                    {
+                        covered.push(access.variant_name.to_string());
                     }
                     continue;
                 }
                 let MatchPattern::Expr(expr) = pattern else {
                     continue;
                 };
-                match self.match_pattern_enum_variant(expr) {
-                    Some(access) if access.enum_name == enum_name => {
-                        if arm.guard.is_none()
-                            && !covered.contains(&access.variant_name.to_string())
-                        {
-                            covered.push(access.variant_name.to_string());
-                        }
-                    }
-                    _ if !self.is_valid_match_pattern(expr) => {}
-                    _ => {
-                        self.push_error(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::PatternNotInEnum,
-                            format!(
-                                "Pattern {} does not belong to enum {}",
-                                Self::match_pattern_display(expr),
-                                enum_name
-                            ),
-                            Self::match_pattern_location(expr),
-                        ));
-                    }
+                if !self.is_valid_match_pattern(expr) {
+                    continue;
                 }
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::PatternNotInEnum,
+                    format!(
+                        "Pattern {} does not belong to enum {}",
+                        Self::match_pattern_display(expr),
+                        enum_name
+                    ),
+                    Self::match_pattern_location(expr),
+                ));
             }
         }
 

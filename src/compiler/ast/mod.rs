@@ -280,8 +280,8 @@ pub enum MatchPattern {
     },
 }
 
-/// One step from an array to a part of it, as followed by an array
-/// pattern's bindings.
+/// One step from a value to a part of it, as followed by an array or
+/// variant pattern's bindings.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathStep {
     /// The element at this index; negative counts from the end.
@@ -322,7 +322,7 @@ impl MatchPattern {
     }
 
     /// Every name this pattern binds, in source order, each with the
-    /// element indices that lead from the matched value to what it binds.
+    /// steps that lead from the matched value to what it binds.
     pub fn bindings(&self) -> Vec<(&Binding, Vec<PathStep>)> {
         let mut found = Vec::new();
         self.collect_bindings(&mut Vec::new(), &mut found);
