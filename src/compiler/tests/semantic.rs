@@ -3873,8 +3873,7 @@ fn test_impl_on_enum_is_compile_error() {
 }
 
 /// `?.` on a namespace, enum, or struct type name is nonsensical (none of
-/// those are ever nil), so it should be a compile error rather than the
-/// codegen panic ("no resolution recorded") it causes today.
+/// those are ever nil), so it should be a compile error.
 fn compile_to_errors(source: &str) -> Vec<crate::common::errors::CompilationError> {
     let mut compiler = crate::compiler::Compiler::new();
     compiler.compile(source);

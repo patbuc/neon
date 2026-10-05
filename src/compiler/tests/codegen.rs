@@ -1169,7 +1169,11 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
             | OpCode::LessEqualConstant => 2,
-            OpCode::JumpIfFalse | OpCode::JumpIfNotNil | OpCode::Jump | OpCode::Loop => 4,
+            OpCode::JumpIfFalse
+            | OpCode::JumpIfNotNil
+            | OpCode::JumpIfNil
+            | OpCode::Jump
+            | OpCode::Loop => 4,
             OpCode::GetLocalField | OpCode::StoreLocalField => 4,
             OpCode::Closure => {
                 // 2-byte constant index, then a 1-byte upvalue count and
