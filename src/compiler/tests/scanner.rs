@@ -645,32 +645,20 @@ fn trivia_records_crlf_blank_line() {
 
 #[test]
 fn can_scan_all_keywords() {
-    let keywords = [
-        ("break", TokenType::Break),
-        ("continue", TokenType::Continue),
-        ("else", TokenType::Else),
-        ("if", TokenType::If),
-        ("in", TokenType::In),
-        ("impl", TokenType::Impl),
-        ("nil", TokenType::Nil),
-        ("return", TokenType::Return),
-        ("struct", TokenType::Struct),
-        ("val", TokenType::Val),
-        ("var", TokenType::Var),
-        ("while", TokenType::While),
-        ("false", TokenType::False),
-        ("for", TokenType::For),
-        ("fn", TokenType::Fn),
-        ("true", TokenType::True),
-    ];
+    for (keyword, _) in KEYWORDS {
+        let tokens = collect_tokens(Scanner::new(keyword));
 
-    for (src, expected) in keywords {
-        let scanner = Scanner::new(src);
-        let tokens = collect_tokens(scanner);
-
-        assert_eq!(
-            tokens[0].token_type, expected,
-            "{src} should scan as {expected:?}"
+        assert_eq!(tokens.len(), 2, "{keyword} should scan as one token");
+        assert_eq!(tokens[0].token, *keyword, "{keyword} lexeme");
+        assert_ne!(
+            tokens[0].token_type,
+            TokenType::Identifier,
+            "{keyword} should scan as a keyword"
+        );
+        assert!(
+            format!("{:?}", tokens[0].token_type).eq_ignore_ascii_case(keyword),
+            "{keyword} scanned as {:?}",
+            tokens[0].token_type
         );
     }
 }
