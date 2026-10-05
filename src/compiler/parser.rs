@@ -1632,7 +1632,9 @@ impl Parser {
     /// `val double = fn(x) { return x * 2 }`. A statement beginning with
     /// `fn` is always the named declaration (`fn_declaration`); this
     /// parselet only runs where `fn` appears as a prefix inside an
-    /// expression.
+    /// expression. The body is parsed with trailing blocks re-enabled: its
+    /// own `{ ... }` already delimits it, so a condition's
+    /// `without_trailing_block` must not leak into it.
     fn lambda(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
@@ -1649,7 +1651,7 @@ impl Parser {
             return None;
         }
 
-        let body = self.parse_block_body()?;
+        let body = self.with_trailing_block_allowed(Self::parse_block_body)?;
         let end_location = self.current_location();
         let id = self.next_id();
         self.end_locations.insert(id, end_location);
