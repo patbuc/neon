@@ -71,6 +71,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   expression). `else` is required in expression position — omitting it is a
   compile error (`if expression requires else`). The ternary (`c ? a : b`)
   stays the shorter form for one-liners.
+- A branch ending in an `if`/`else` *statement* also yields `nil` — the
+  parser can't tell it apart from a nested if-expression. Bind it to a
+  `val` first (`val sign = if n > 100 { "big" } else { "small" }`) and use
+  that as the branch's last statement instead.
 - `for x in coll { }` is the only `for`; no C-style `for`. Count with a range
   instead: `for i in 0..n { }`. For-in over a map gives keys. `break`/
   `continue` exist.

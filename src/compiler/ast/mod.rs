@@ -218,8 +218,7 @@ pub enum Expr {
     },
     /// `if cond { ... } else ...` in expression position. `then_branch` and
     /// a terminal `else_branch` are always `Stmt::Block`; an `else if`
-    /// chains through `IfExprElse::If`. A branch's value is its last
-    /// expression statement, else `nil`.
+    /// chains through `IfExprElse::If`.
     If {
         condition: Box<Expr>,
         then_branch: Box<Stmt>,

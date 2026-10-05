@@ -1802,31 +1802,15 @@ impl<'a> CodeGenerator<'a> {
                 else_expr,
                 location,
             } => {
-                // Generate condition
                 self.generate_expr(condition);
-
-                // Jump to else branch if condition is false
                 let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
-
-                // Pop the condition value (it's still on the stack)
                 self.emit_op_code(OpCode::Pop, *location);
-
-                // Generate then expression (leaves value on stack)
                 self.generate_expr(then_expr);
-
-                // Jump over else branch
                 let end_jump = self.emit_jump(OpCode::Jump, *location);
 
-                // Patch the else jump to here
                 self.patch_jump(else_jump);
-
-                // Pop the condition value for the else path
                 self.emit_op_code(OpCode::Pop, *location);
-
-                // Generate else expression (leaves value on stack)
                 self.generate_expr(else_expr);
-
-                // Patch the end jump to here
                 self.patch_jump(end_jump);
             }
             Expr::Function {
@@ -1888,7 +1872,8 @@ impl<'a> CodeGenerator<'a> {
         match else_branch {
             IfExprElse::If(expr) => {
                 self.generate_expr(expr);
-                self.store_into_hidden_local(hidden_slot, location);
+                // StoreLocal pops the value, unlike SetLocal.
+                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
             }
             IfExprElse::Block(stmt) => {
                 self.generate_if_expr_branch(stmt, hidden_slot);
@@ -1900,17 +1885,10 @@ impl<'a> CodeGenerator<'a> {
         self.current().locals.pop();
     }
 
-    /// Stores the value on top of the stack into the if-expression's hidden
-    /// result local. `StoreLocal` pops it, unlike `SetLocal`.
-    fn store_into_hidden_local(&mut self, slot: u32, location: SourceLocation) {
-        self.emit_index_op(OpCode::StoreLocal, slot, "locals", location);
-    }
-
     /// Compiles one `{ ... }` branch of an if-expression: its last
     /// expression statement becomes the branch's value, stored into
     /// `hidden_slot`; any other kind of last statement (or an empty
     /// branch) leaves `nil`.
-    #[allow(clippy::expect_used)]
     fn generate_if_expr_branch(&mut self, branch: &Stmt, hidden_slot: u32) {
         let Stmt::Block {
             statements,
@@ -1934,19 +1912,16 @@ impl<'a> CodeGenerator<'a> {
                 }
                 if let Stmt::Expression { expr, .. } = last {
                     self.generate_expr(expr);
-                    self.store_into_hidden_local(hidden_slot, branch_location);
                 } else {
                     self.generate_stmt(last);
                     self.assert_stack_height();
                     self.emit_op_code(OpCode::Nil, branch_location);
-                    self.store_into_hidden_local(hidden_slot, branch_location);
                 }
             }
-            None => {
-                self.emit_op_code(OpCode::Nil, branch_location);
-                self.store_into_hidden_local(hidden_slot, branch_location);
-            }
+            None => self.emit_op_code(OpCode::Nil, branch_location),
         }
+        // StoreLocal pops the value, unlike SetLocal.
+        self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", branch_location);
         self.end_scope(branch_location);
         self.current().transient_offset = previous_offset;
     }

@@ -409,7 +409,6 @@ impl Parser {
                         | TokenType::Val
                         | TokenType::Var
                         | TokenType::For
-                        | TokenType::If
                         | TokenType::While
                         | TokenType::Return => {
                             self.nesting_depth = depth;
@@ -831,14 +830,24 @@ impl Parser {
         })
     }
 
-    /// Requires the next token to start a `{ ... }` block, as the body of an
-    /// `if`, `while`, or `for ... in`.
-    fn require_block_body(&mut self) -> Option<Stmt> {
-        if !self.check(TokenType::LeftBrace) {
+    /// Reports "Expect '{' after condition" unless the current token starts
+    /// a block, shared by `require_block_body` and `if_expr_block`.
+    fn require_left_brace(&mut self) -> bool {
+        if self.check(TokenType::LeftBrace) {
+            true
+        } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
                 "Expect '{' after condition".to_string(),
             );
+            false
+        }
+    }
+
+    /// Requires the next token to start a `{ ... }` block, as the body of an
+    /// `if`, `while`, or `for ... in`.
+    fn require_block_body(&mut self) -> Option<Stmt> {
+        if !self.require_left_brace() {
             return None;
         }
         self.statement()
@@ -1536,9 +1545,9 @@ impl Parser {
     }
 
     /// Parses `if cond { ... } else if cond { ... } else { ... }` in
-    /// expression position. An `else` is required - a missing one is a
-    /// compile error for now. Reuses `Stmt::Block` for each branch so the
-    /// formatter's existing brace-location lookups apply unchanged.
+    /// expression position; `else` is required. Reuses `Stmt::Block` for
+    /// each branch so the formatter's brace-location lookups apply
+    /// unchanged.
     fn if_expression(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
@@ -1556,7 +1565,7 @@ impl Parser {
         } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
-                "Expect '{' or 'if' after 'else'.".to_string(),
+                "Expect '{' or 'if' after 'else'".to_string(),
             );
             return None;
         };
@@ -1573,11 +1582,7 @@ impl Parser {
     /// without requiring a statement terminator after the closing brace -
     /// the branch sits inside a larger expression, which may continue past it.
     fn if_expr_block(&mut self) -> Option<Stmt> {
-        if !self.check(TokenType::LeftBrace) {
-            self.report_error_at_current(
-                CompilationErrorKind::ExpectedToken,
-                "Expect '{' after condition".to_string(),
-            );
+        if !self.require_left_brace() {
             return None;
         }
         self.advance();

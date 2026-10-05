@@ -384,6 +384,21 @@ print(label)  // pos
 
 For a one-liner, the ternary (`c ? a : b`) is still the shorter choice.
 
+A branch ending in an `if`/`else` *statement* yields `nil`, the same as any
+other non-expression last statement — the parser can't tell it apart from a
+nested if-expression. Bind it to a `val` first and use that instead:
+
+```neon
+val n = 5
+val label = if n > 0 {
+    val sign = if n > 100 { "big" } else { "small" }
+    sign
+} else {
+    "non-positive"
+}
+print(label)  // small
+```
+
 **While Loops:**
 
 ```neon
