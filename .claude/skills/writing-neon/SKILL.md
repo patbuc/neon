@@ -135,10 +135,12 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `forEach(fn)`, `flatMap(fn)`,
   `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`, `take(n)`, `drop(n)`,
-  `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`
+  `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`, `sortBy(fn)`,
+  `minBy(fn)`, `maxBy(fn)`, `groupBy(fn)`, `tally()`
 - **Range:** `size`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`, `forEach`, `flatMap`,
-  `take`, `drop`, `first`, `last`, `chunked`, `zip`, `withIndex`
+  `take`, `drop`, `first`, `last`, `chunked`, `zip`, `withIndex`, `sortBy`, `minBy`, `maxBy`,
+  `groupBy`, `tally`
 - **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`

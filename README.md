@@ -820,6 +820,14 @@ for ch in "abc" {
 - `.contains(value)` - Check if contains value
 - `.indexOf(value)` - Position of the first match, or `-1`
 - `.sort()` / `.sort(cmp)` / `.reverse()` - Sort (returns the same array) / reverse in place
+- `.sortBy(fn)` - New array sorted ascending by `fn`'s key for each element (stable); the receiver
+  is unchanged. Keys must be all numbers or all strings
+- `.minBy(fn)` / `.maxBy(fn)` - First element with the smallest / largest key from `fn`, or `nil` on
+  an empty array. Keys must be all numbers or all strings
+- `.groupBy(fn)` - Map from each element's key (from `fn`) to an array of the elements that produced
+  it, in first-key insertion order. Keys must be valid map keys
+- `.tally()` - Map from each distinct element to how many times it occurs, in first-occurrence order.
+  Elements must be valid map keys
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
 - `.sum()`, `.min()`, `.max()` - Sum, minimum, maximum of the elements. `.sum()` is an int if every
@@ -890,7 +898,7 @@ comparator must return a number.
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
-- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()` - Same as the Array methods, applied to the range's elements
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
 

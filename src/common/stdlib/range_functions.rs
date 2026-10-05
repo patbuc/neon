@@ -270,6 +270,43 @@ pub fn native_range_reduce(
     array_functions::native_array_reduce(vm, &materialize(args, "reduce")?)
 }
 
+/// Native implementation of Range.sortBy(fn)
+pub fn native_range_sort_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_sort_by(vm, &materialize(args, "sortBy")?)
+}
+
+/// Native implementation of Range.minBy(fn)
+pub fn native_range_min_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_min_by(vm, &materialize(args, "minBy")?)
+}
+
+/// Native implementation of Range.maxBy(fn)
+pub fn native_range_max_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_max_by(vm, &materialize(args, "maxBy")?)
+}
+
+/// Native implementation of Range.groupBy(fn)
+pub fn native_range_group_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_group_by(vm, &materialize(args, "groupBy")?)
+}
+
+/// Native implementation of Range.tally()
+pub fn native_range_tally(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_tally(&materialize(args, "tally")?)
+}
+
 fn immutable_error(method: &str) -> String {
     format!(
         "{}() cannot be called on a range: ranges are immutable",

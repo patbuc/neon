@@ -1,7 +1,8 @@
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
-use crate::common::{compare_numeric, NativeCallError, Numeric, Value};
+use crate::common::{compare_numeric, MapKey, NativeCallError, Numeric, Value};
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
+use indexmap::IndexMap;
 
 /// Native implementation of Array.push(value)
 /// Adds an element to the end of the array and returns nil
@@ -108,6 +109,25 @@ fn sort_rank(value: &Value) -> u8 {
     }
 }
 
+/// Orders two `Numeric`s with NaN sorting after every other number, so the
+/// result is a total order even when one side is an unordered float.
+fn compare_numeric_nan_last(a: Numeric, b: Numeric) -> std::cmp::Ordering {
+    compare_numeric(a, b).unwrap_or_else(|| a.as_f64().is_nan().cmp(&b.as_f64().is_nan()))
+}
+
+/// Default ascending order shared by `sort()`'s no-comparator path,
+/// `sortBy`, `minBy`, and `maxBy`: numbers compare by value (NaN last),
+/// strings compare lexically, anything else falls back to `sort_rank`.
+fn default_order(a: &Value, b: &Value) -> std::cmp::Ordering {
+    match (Numeric::from_value(a), Numeric::from_value(b)) {
+        (Some(na), Some(nb)) => compare_numeric_nan_last(na, nb),
+        _ => match (a, b) {
+            (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+            _ => sort_rank(a).cmp(&sort_rank(b)),
+        },
+    }
+}
+
 /// Native implementation of Array.sort() / Array.sort(comparator)
 /// Sorts in place (default order, or by calling the comparator on each
 /// pair) and returns the same array.
@@ -124,17 +144,7 @@ pub fn native_array_sort(
 
     match args.get(1) {
         None => {
-            array_ref.borrow_mut().sort_by(|a, b| {
-                match (Numeric::from_value(a), Numeric::from_value(b)) {
-                    (Some(na), Some(nb)) => {
-                        compare_numeric(na, nb).unwrap_or(std::cmp::Ordering::Equal)
-                    }
-                    _ => match (a, b) {
-                        (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
-                        _ => sort_rank(a).cmp(&sort_rank(b)),
-                    },
-                }
-            });
+            array_ref.borrow_mut().sort_by(default_order);
         }
         Some(comparator) => {
             let comparator = comparator.clone();
@@ -190,6 +200,195 @@ fn merge_by(
     result.extend(right);
 
     Ok(result)
+}
+
+/// Calls `callback` with each element to produce its sort/min/max key, then
+/// checks the keys are all numbers or all strings.
+fn compute_and_validate_keys(
+    vm: &mut dyn NativeContext,
+    elements: &[Value],
+    callback: &Value,
+    method: &str,
+) -> Result<Vec<Value>, NativeCallError> {
+    let mut keys = Vec::with_capacity(elements.len());
+    for element in elements {
+        keys.push(vm.call_value(callback.clone(), std::slice::from_ref(element))?);
+    }
+
+    let all_numbers = keys.iter().all(|k| Numeric::from_value(k).is_some());
+    let all_strings = keys.iter().all(|k| matches!(k, Value::String(_)));
+    if !all_numbers && !all_strings {
+        return Err(format!("{}() keys must be all numbers or all strings", method).into());
+    }
+
+    Ok(keys)
+}
+
+/// Native implementation of Array.sortBy(fn)
+/// Returns a new array sorted ascending by fn's key for each element
+/// (stable); the receiver is unchanged. Keys must be all numbers or all
+/// strings.
+pub fn native_array_sort_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "sortBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "sortBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+    let keys = compute_and_validate_keys(vm, &elements, &callback, "sortBy")?;
+
+    let mut indexed: Vec<(usize, Value)> = elements.into_iter().enumerate().collect();
+    indexed.sort_by(|a, b| default_order(&keys[a.0], &keys[b.0]));
+    let sorted = indexed.into_iter().map(|(_, value)| value).collect();
+
+    Ok(Value::new_array(sorted))
+}
+
+/// Finds the element whose key (from fn) compares as `wanted` against every
+/// other key; `None` on an empty array. Shared by minBy and maxBy.
+fn extremum_by(
+    vm: &mut dyn NativeContext,
+    elements: Vec<Value>,
+    callback: &Value,
+    method: &str,
+    wanted: std::cmp::Ordering,
+) -> Result<Option<Value>, NativeCallError> {
+    if elements.is_empty() {
+        return Ok(None);
+    }
+
+    let keys = compute_and_validate_keys(vm, &elements, callback, method)?;
+    let mut best = 0;
+    for i in 1..elements.len() {
+        if default_order(&keys[i], &keys[best]) == wanted {
+            best = i;
+        }
+    }
+
+    Ok(Some(elements[best].clone()))
+}
+
+/// Native implementation of Array.minBy(fn)
+/// Returns the first element with the smallest key from fn, or nil on an
+/// empty array. Keys must be all numbers or all strings.
+pub fn native_array_min_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "minBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "minBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(
+        extremum_by(vm, elements, &callback, "minBy", std::cmp::Ordering::Less)?
+            .unwrap_or(Value::Nil),
+    )
+}
+
+/// Native implementation of Array.maxBy(fn)
+/// Returns the first element with the largest key from fn, or nil on an
+/// empty array. Keys must be all numbers or all strings.
+pub fn native_array_max_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "maxBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "maxBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    Ok(extremum_by(
+        vm,
+        elements,
+        &callback,
+        "maxBy",
+        std::cmp::Ordering::Greater,
+    )?
+    .unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.groupBy(fn)
+/// Returns a map from each element's key (from fn) to an array of the
+/// elements that produced it, in first-key insertion order. Keys must be
+/// valid map keys.
+pub fn native_array_group_by(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "groupBy() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "groupBy")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut groups: IndexMap<MapKey, Vec<Value>> = IndexMap::new();
+    for element in elements {
+        let key_value = vm.call_value(callback.clone(), std::slice::from_ref(&element))?;
+        let key = MapKey::from_value(&key_value, "map key")?;
+        groups.entry(key).or_default().push(element);
+    }
+
+    let groups = groups
+        .into_iter()
+        .map(|(key, group)| (key, Value::new_array(group)))
+        .collect();
+    Ok(Value::new_map(groups))
+}
+
+/// Native implementation of Array.tally()
+/// Returns a map from each distinct element to how many times it occurs, in
+/// first-occurrence order. Elements must be valid map keys.
+pub fn native_array_tally(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "tally() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "tally")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut counts: IndexMap<MapKey, i64> = IndexMap::new();
+    for element in elements {
+        let key = MapKey::from_value(&element, "map key")?;
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    let counts = counts
+        .into_iter()
+        .map(|(key, count)| (key, Value::Int(count)))
+        .collect();
+    Ok(Value::new_map(counts))
 }
 
 /// Converts a comparator's return value to the signed number `sort()` needs.
