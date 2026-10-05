@@ -96,6 +96,22 @@ fn test_string_replace() {
 }
 
 // ============================================================================
+// String.chars() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_chars() {
+    let program = r#"
+        print("abc".chars())
+        print("".chars())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[a, b, c]\n[]", vm.get_output());
+}
+
+// ============================================================================
 // String.split() - Success Cases
 // ============================================================================
 
@@ -255,23 +271,6 @@ fn test_string_index_of() {
 }
 
 // ============================================================================
-// String.charAt() - Success Cases
-// ============================================================================
-
-#[test]
-fn test_string_char_at() {
-    let program = r#"
-        print("hello".charAt(0))
-        print("hello".charAt(4))
-        print("hello".charAt(-1))
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("h\no\no", vm.get_output());
-}
-
-// ============================================================================
 // String.charCodeAt() - Success Cases
 // ============================================================================
 
@@ -399,19 +398,6 @@ fn test_string_to_bool_invalid() {
 }
 
 #[test]
-fn test_string_char_at_out_of_bounds() {
-    let program = r#"
-        "hello".charAt(10)
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(
-        InterpretResult::RuntimeError,
-        vm.interpret(program.to_string())
-    );
-}
-
-#[test]
 fn test_string_substring_wrong_arg_count() {
     let program = r#"
         "hello".substring(0)
@@ -480,19 +466,6 @@ fn test_string_ends_with_wrong_arg_count() {
 fn test_string_index_of_wrong_arg_count() {
     let program = r#"
         "hello".indexOf()
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(
-        InterpretResult::RuntimeError,
-        vm.interpret(program.to_string())
-    );
-}
-
-#[test]
-fn test_string_char_at_wrong_arg_count() {
-    let program = r#"
-        "hello".charAt()
     "#;
 
     let mut vm = VirtualMachine::new();

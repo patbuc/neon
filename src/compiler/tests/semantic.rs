@@ -1086,6 +1086,24 @@ val x = "abc".len()
 }
 
 #[test]
+fn test_string_char_at_removed() {
+    let program = r#"
+val x = "abc".charAt(0)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| e
+        .message
+        .starts_with("Type 'String' has no method named 'charAt'")));
+}
+
+#[test]
 fn test_string_includes_suggests_contains() {
     let program = r#"
 val x = "abc".includes("a")
@@ -3604,7 +3622,7 @@ fn test_native_method_return_types_are_inferred() {
         (r#"val m = {"a": 1}\nm.values().bogus()"#, "Array"),
         (r#"val s = #{1}\ns.toArray().bogus()"#, "Array"),
         (r#""a,b".split(",").bogus()"#, "Array"),
-        (r#""ab".charAt(0).bogus()"#, "String"),
+        (r#""ab".chars().bogus()"#, "Array"),
         (r#""ab".toUpperCase().bogus()"#, "String"),
         (r#""AB".toLowerCase().bogus()"#, "String"),
         (r#""  ab  ".trim().bogus()"#, "String"),

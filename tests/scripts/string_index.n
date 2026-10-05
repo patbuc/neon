@@ -1,0 +1,12 @@
+// Expected:
+// é
+// c
+// o
+// true
+
+print("héllo"[1])
+print("abc"[-1])
+
+val s = "héllo"
+print(s[s.size() - 1])
+print(s.substring(1, 2) == s[1])
