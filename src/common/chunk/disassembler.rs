@@ -80,6 +80,11 @@ impl Chunk {
             OpCode::JumpIfNotNil => self.jump_instruction(instruction, offset, out),
             OpCode::JumpIfNil => self.jump_instruction(instruction, offset, out),
             OpCode::NoMatchArm => self.simple_instruction(OpCode::NoMatchArm, offset, out),
+            OpCode::IsArrayOfLen => {
+                let length = self.read_u16(offset + 1);
+                let _ = writeln!(out, "IsArrayOfLen (length: {})", length);
+                offset + 3
+            }
             OpCode::IsNumber => self.simple_instruction(OpCode::IsNumber, offset, out),
             OpCode::Jump => self.jump_instruction(instruction, offset, out),
             OpCode::Loop => self.loop_instruction(offset, out),

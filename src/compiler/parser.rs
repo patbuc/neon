@@ -1966,8 +1966,21 @@ impl Parser {
         })
     }
 
-    /// A single pattern: `_`, a bare name, or a literal, range or enum variant.
+    /// A single pattern: `_`, a bare name, `[pattern, ...]`, or a literal,
+    /// range or enum variant.
     fn match_pattern(&mut self) -> Option<MatchPattern> {
+        if self.match_token(TokenType::LeftBracket) {
+            let location = self.current_location();
+            let elements = self.parse_comma_separated_list(
+                TokenType::RightBracket,
+                None,
+                Self::match_pattern,
+            )?;
+            if !self.consume(TokenType::RightBracket, "Expect ']' after array pattern.") {
+                return None;
+            }
+            return Some(MatchPattern::Array { elements, location });
+        }
         if self.check(TokenType::Identifier) && self.current_token.token == "_" {
             let location = self.current_token_location();
             self.advance();

@@ -1,0 +1,13 @@
+// Expected:
+// 6
+// other
+
+print(match [1, [2, 3]] {
+    [a, [b, c]] -> a + b + c
+    _ -> "other"
+})
+
+print(match [1, 2] {
+    [a, [b, c]] -> a + b + c
+    _ -> "other"
+})

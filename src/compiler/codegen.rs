@@ -2023,15 +2023,31 @@ impl<'a> CodeGenerator<'a> {
 
         let mut end_jumps = Vec::new();
         for arm in arms {
-            self.generate_match_arm_test(hidden_slot, &arm.patterns, arm.location);
+            self.current().scope_depth += 1;
+            let slots = self.bind_match_arm_placeholders(arm);
+            self.generate_match_arm_test(hidden_slot, &arm.patterns, &slots, arm.location);
             let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
             let false_path_height = self.current().stack_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
-            let guard_failed_jump = self.generate_match_arm_body(arm, hidden_slot, &mut end_jumps);
+            let guard_false = self.generate_match_arm_body(arm, hidden_slot);
+            self.current().scope_depth -= 1;
+            let captured = self.discard_locals_above_current_depth();
+            self.emit_scope_exit(&captured, arm.location);
+            end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
+
+            let mut guard_failed_jump = None;
+            if let Some((jump, guard_height)) = guard_false {
+                self.patch_jump(jump);
+                self.current().stack_height = guard_height;
+                self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if false
+                self.emit_scope_exit(&captured, arm.location);
+                guard_failed_jump = Some(self.emit_jump(OpCode::Jump, arm.location));
+            }
 
             self.patch_jump(next_arm_jump);
             self.current().stack_height = false_path_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if false
+            self.emit_scope_exit(&captured, arm.location);
             if let Some(jump) = guard_failed_jump {
                 self.patch_jump(jump);
             }
@@ -2048,29 +2064,24 @@ impl<'a> CodeGenerator<'a> {
         self.current().locals.pop();
     }
 
-    /// Runs the arm's body, with a bound name (if the arm binds one) as a
-    /// local copy of the scrutinee that lives only for the guard and body.
-    fn generate_match_arm_body(
-        &mut self,
-        arm: &MatchArm,
-        hidden_slot: u32,
-        end_jumps: &mut Vec<u32>,
-    ) -> Option<u32> {
-        let binding = match arm.patterns.first() {
-            Some(MatchPattern::Binding(binding)) => Some(binding),
-            _ => None,
-        };
-        if binding.is_none() && arm.guard.is_none() {
-            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
-            end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
-            return None;
+    /// Pushes a nil local for each name the arm binds, so the test can fill
+    /// in whichever alternative matched. Returns each name with its slot.
+    fn bind_match_arm_placeholders(&mut self, arm: &MatchArm) -> Vec<(String, u32)> {
+        let mut slots = Vec::new();
+        for (binding, _) in arm.patterns[0].bindings() {
+            self.emit_op_code(OpCode::Nil, binding.location);
+            let decl = self.resolutions.decl(binding.id);
+            self.bind_decl_local(decl, binding.location);
+            slots.push((binding.name.clone(), self.decl_slot(decl)));
         }
-        self.current().scope_depth += 1;
-        if let Some(binding) = binding {
-            self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", arm.location);
-            self.bind_decl_local(self.resolutions.decl(binding.id), arm.location);
-        }
-        let guard_false_jump = arm.guard.as_ref().map(|guard| {
+        slots
+    }
+
+    /// Runs the arm's guard and body inside the arm's binding scope.
+    /// Returns the jump taken when the guard is false and the stack height
+    /// it is taken at.
+    fn generate_match_arm_body(&mut self, arm: &MatchArm, hidden_slot: u32) -> Option<(u32, u32)> {
+        let guard_false = arm.guard.as_ref().map(|guard| {
             self.generate_expr(guard);
             let jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
             let guard_height = self.current().stack_height;
@@ -2078,17 +2089,7 @@ impl<'a> CodeGenerator<'a> {
             (jump, guard_height)
         });
         self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
-        self.current().scope_depth -= 1;
-        let captured = self.discard_locals_above_current_depth();
-        self.emit_scope_exit(&captured, arm.location);
-        end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
-
-        let (jump, guard_height) = guard_false_jump?;
-        self.patch_jump(jump);
-        self.current().stack_height = guard_height;
-        self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if false
-        self.emit_scope_exit(&captured, arm.location);
-        Some(self.emit_jump(OpCode::Jump, arm.location))
+        guard_false
     }
 
     /// Stores an arm's body value into `hidden_slot`, the same way an
@@ -2111,34 +2112,76 @@ impl<'a> CodeGenerator<'a> {
 
     /// Leaves a boolean on the stack: whether the value in `hidden_slot`
     /// matches any of `patterns`, tested left to right with `||`'s
-    /// short-circuit (mirrors `generate_binary_expr`'s `BinaryOp::Or`).
+    /// short-circuit (mirrors `generate_binary_expr`'s `BinaryOp::Or`). The
+    /// matching alternative stores what it binds into `slots`.
     fn generate_match_arm_test(
         &mut self,
         hidden_slot: u32,
         patterns: &[MatchPattern],
+        slots: &[(String, u32)],
         location: SourceLocation,
     ) {
         let Some((first, rest)) = patterns.split_first() else {
             unreachable!("a match arm always has at least one pattern")
         };
-        self.generate_match_pattern_test(hidden_slot, first, location);
+        self.generate_match_alternative(hidden_slot, first, slots, location);
         for pattern in rest {
             let else_jump = self.emit_jump(OpCode::JumpIfFalse, location);
             let end_jump = self.emit_jump(OpCode::Jump, location);
             self.patch_jump(else_jump);
             self.emit_op_code(OpCode::Pop, location);
-            self.generate_match_pattern_test(hidden_slot, pattern, location);
+            self.generate_match_alternative(hidden_slot, pattern, slots, location);
             self.patch_jump(end_jump);
         }
     }
 
     /// Leaves a boolean on the stack: whether the value in `hidden_slot`
-    /// matches one pattern. A wildcard always matches; a range is tested by
-    /// containment, and only a number can be in one; anything else is tested
-    /// with `==`.
+    /// matches `pattern`. When it does, the names the pattern binds are
+    /// stored into their `slots` first.
+    fn generate_match_alternative(
+        &mut self,
+        hidden_slot: u32,
+        pattern: &MatchPattern,
+        slots: &[(String, u32)],
+        location: SourceLocation,
+    ) {
+        self.generate_match_pattern_test(hidden_slot, &[], pattern, location);
+        let bindings = pattern.bindings();
+        if bindings.is_empty() {
+            return;
+        }
+        let no_match_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        self.emit_op_code(OpCode::Pop, location); // Pop the test result
+        for (binding, path) in bindings {
+            let Some((_, slot)) = slots.iter().find(|(name, _)| *name == binding.name) else {
+                unreachable!("an alternative binds the names the arm declared")
+            };
+            self.emit_match_subject(hidden_slot, &path, binding.location);
+            self.emit_index_op(OpCode::StoreLocal, *slot, "locals", binding.location);
+        }
+        self.emit_op_code(OpCode::True, location);
+        self.patch_jump(no_match_jump);
+    }
+
+    /// Pushes the value `path` leads to from the value in `hidden_slot`:
+    /// the element at each index in turn.
+    fn emit_match_subject(&mut self, hidden_slot: u32, path: &[usize], location: SourceLocation) {
+        self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+        for &index in path {
+            self.emit_constant(Value::Int(index as i64), location);
+            self.emit_op_code(OpCode::GetIndex, location);
+        }
+    }
+
+    /// Leaves a boolean on the stack: whether the value `path` leads to
+    /// from `hidden_slot` matches one pattern. A wildcard always matches; a
+    /// range is tested by containment, and only a number can be in one; an
+    /// array pattern needs an array of exactly its length whose elements
+    /// match; anything else is tested with `==`.
     fn generate_match_pattern_test(
         &mut self,
         hidden_slot: u32,
+        path: &[usize],
         pattern: &MatchPattern,
         location: SourceLocation,
     ) {
@@ -2146,22 +2189,56 @@ impl<'a> CodeGenerator<'a> {
             MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
                 self.emit_op_code(OpCode::True, location)
             }
+            MatchPattern::Array {
+                elements,
+                location: array_location,
+            } => {
+                self.emit_match_subject(hidden_slot, path, *array_location);
+                self.emit_index_op(
+                    OpCode::IsArrayOfLen,
+                    elements.len() as u32,
+                    "array pattern elements",
+                    *array_location,
+                );
+                let mut fail_jumps = Vec::new();
+                for (index, element) in elements.iter().enumerate() {
+                    if matches!(
+                        element,
+                        MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
+                    ) {
+                        continue;
+                    }
+                    fail_jumps.push(self.emit_jump(OpCode::JumpIfFalse, *array_location));
+                    self.emit_op_code(OpCode::Pop, *array_location);
+                    let mut element_path = path.to_vec();
+                    element_path.push(index);
+                    self.generate_match_pattern_test(
+                        hidden_slot,
+                        &element_path,
+                        element,
+                        *array_location,
+                    );
+                }
+                for jump in fail_jumps {
+                    self.patch_jump(jump);
+                }
+            }
             MatchPattern::Expr(Expr::Range {
                 start,
                 end,
                 inclusive,
                 location: range_location,
             }) => {
-                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.emit_match_subject(hidden_slot, path, *range_location);
                 self.emit_op_code(OpCode::IsNumber, *range_location);
                 let not_number_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
                 self.emit_op_code(OpCode::Pop, *range_location);
-                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.emit_match_subject(hidden_slot, path, *range_location);
                 self.generate_expr(start);
                 self.emit_op_code(OpCode::GreaterEqual, *range_location);
                 let end_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
                 self.emit_op_code(OpCode::Pop, *range_location);
-                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.emit_match_subject(hidden_slot, path, *range_location);
                 self.generate_expr(end);
                 let op_code = if *inclusive {
                     OpCode::LessEqual
@@ -2173,7 +2250,7 @@ impl<'a> CodeGenerator<'a> {
                 self.patch_jump(not_number_jump);
             }
             MatchPattern::Expr(expr) => {
-                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+                self.emit_match_subject(hidden_slot, path, location);
                 self.generate_expr(expr);
                 self.emit_op_code(OpCode::Equal, location);
             }

@@ -256,6 +256,40 @@ pub enum MatchPattern {
     Wildcard(SourceLocation),
     /// A bare name: matches anything and binds it, immutably, for the arm.
     Binding(Binding),
+    /// `[p1, p2]`: an array of exactly that length whose elements match
+    /// the sub-patterns. Any other value does not match.
+    Array {
+        elements: Vec<MatchPattern>,
+        location: SourceLocation,
+    },
+}
+
+impl MatchPattern {
+    /// Every name this pattern binds, in source order, each with the
+    /// element indices that lead from the matched value to what it binds.
+    pub fn bindings(&self) -> Vec<(&Binding, Vec<usize>)> {
+        let mut found = Vec::new();
+        self.collect_bindings(&mut Vec::new(), &mut found);
+        found
+    }
+
+    fn collect_bindings<'a>(
+        &'a self,
+        path: &mut Vec<usize>,
+        found: &mut Vec<(&'a Binding, Vec<usize>)>,
+    ) {
+        match self {
+            MatchPattern::Binding(binding) => found.push((binding, path.clone())),
+            MatchPattern::Array { elements, .. } => {
+                for (index, element) in elements.iter().enumerate() {
+                    path.push(index);
+                    element.collect_bindings(path, found);
+                    path.pop();
+                }
+            }
+            MatchPattern::Expr(_) | MatchPattern::Wildcard(_) => {}
+        }
+    }
 }
 
 /// The body of a match arm: `-> expr` or `-> { ... }`.

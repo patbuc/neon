@@ -1,0 +1,13 @@
+// Expected:
+// 3
+// 0 7
+
+print(match [1, 2] {
+    [a, b] -> a + b
+    _ -> -1
+})
+
+match [0, 7] {
+    [_, y] if y > 5 -> print("0 ${y}")
+    _ -> print("no")
+}

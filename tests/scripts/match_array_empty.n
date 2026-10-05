@@ -1,0 +1,13 @@
+// Expected:
+// empty
+// other
+
+print(match [] {
+    [] -> "empty"
+    _ -> "other"
+})
+
+print(match [1] {
+    [] -> "empty"
+    _ -> "other"
+})
