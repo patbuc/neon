@@ -1155,6 +1155,14 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_index_assignment(object, index, value);
             }
+            Expr::CompoundAssignIndex {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                self.resolve_compound_assign_index(object, index, value);
+            }
             Expr::Range { start, end, .. } => {
                 self.resolve_range_expr(start, end);
             }
@@ -1809,6 +1817,12 @@ impl SemanticAnalyzer {
 
     fn resolve_index_assignment(&mut self, object: &Expr, index: &Expr, value: &Expr) {
         // Resolve the object, index, and value expressions
+        self.resolve_expr(object);
+        self.resolve_expr(index);
+        self.resolve_expr(value);
+    }
+
+    fn resolve_compound_assign_index(&mut self, object: &Expr, index: &Expr, value: &Expr) {
         self.resolve_expr(object);
         self.resolve_expr(index);
         self.resolve_expr(value);

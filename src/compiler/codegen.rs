@@ -685,6 +685,24 @@ impl<'a> CodeGenerator<'a> {
         symbol
     }
 
+    /// Generates `object; index; Dup2; GetIndex; value; operator`, leaving
+    /// `[.., object, index, result]` on the stack so the caller can finish
+    /// with `SetIndex`; `object` and `index` each evaluate exactly once.
+    fn generate_index_compound_assign_value(
+        &mut self,
+        object: &Expr,
+        index: &Expr,
+        operator: &BinaryOp,
+        value: &Expr,
+        location: SourceLocation,
+    ) {
+        self.generate_expr(object);
+        self.generate_expr(index);
+        self.emit_op_code(OpCode::Dup2, location);
+        self.emit_op_code(OpCode::GetIndex, location);
+        self.generate_binary_op_tail(operator, value, location);
+    }
+
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
         match expr {
             Expr::Assign {
@@ -1618,6 +1636,18 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(object);
                 self.generate_expr(index);
                 self.generate_expr(value);
+                self.emit_op_code(OpCode::SetIndex, *location);
+            }
+            Expr::CompoundAssignIndex {
+                object,
+                index,
+                operator,
+                value,
+                location,
+            } => {
+                self.generate_index_compound_assign_value(
+                    object, index, operator, value, *location,
+                );
                 self.emit_op_code(OpCode::SetIndex, *location);
             }
             Expr::Range {

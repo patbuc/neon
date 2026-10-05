@@ -156,6 +156,12 @@ mod resolutions {
                 index,
                 value,
                 ..
+            }
+            | Expr::CompoundAssignIndex {
+                object,
+                index,
+                value,
+                ..
             } => {
                 index_expr(object, idx);
                 index_expr(index, idx);

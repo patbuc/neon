@@ -1,7 +1,7 @@
 impl OpCode {
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 64] = [
+        const OPCODES: [OpCode; 65] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -66,6 +66,7 @@ impl OpCode {
             OpCode::LessConstant,
             OpCode::LessEqualConstant,
             OpCode::Dup,
+            OpCode::Dup2,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -170,4 +171,7 @@ pub(crate) enum OpCode {
 
     /// Copies the top of the stack, pushing the copy.
     Dup,
+    /// Copies the top two values of the stack, pushing the copies in the
+    /// same order.
+    Dup2,
 }

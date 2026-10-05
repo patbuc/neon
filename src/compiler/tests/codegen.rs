@@ -1341,7 +1341,10 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::Multiply
             | OpCode::Less
             | OpCode::CloseUpvalue
-            | OpCode::Dup => 0,
+            | OpCode::Dup
+            | OpCode::Dup2
+            | OpCode::GetIndex
+            | OpCode::SetIndex => 0,
             OpCode::Call => 1,
             OpCode::Invoke => 3,
             OpCode::CreateArray => 2,
@@ -2215,4 +2218,28 @@ fn test_field_compound_assign_emits_dup() {
     let ops = op_codes(&function_chunk);
 
     assert!(ops.contains(&OpCode::Dup));
+}
+
+#[test]
+fn test_index_compound_assign_emits_dup2() {
+    let program = r#"
+    fn f() {
+        val a = [0]
+        a[0] += 1
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let function_chunk = chunk
+        .constants
+        .values
+        .iter()
+        .find_map(|v| match v {
+            Value::Function(function) => Some(function.chunk.clone()),
+            _ => None,
+        })
+        .expect("expected f's Function constant");
+    let ops = op_codes(&function_chunk);
+
+    assert!(ops.contains(&OpCode::Dup2));
 }

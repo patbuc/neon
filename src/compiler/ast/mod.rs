@@ -184,6 +184,15 @@ pub enum Expr {
         value: Box<Expr>,
         location: SourceLocation,
     },
+    /// `object[index] op= value`; the VM's `Dup2` opcode evaluates `object`
+    /// and `index` once for both the read and the write.
+    CompoundAssignIndex {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        operator: BinaryOp,
+        value: Box<Expr>,
+        location: SourceLocation,
+    },
     Range {
         start: Box<Expr>,
         end: Box<Expr>,

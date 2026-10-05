@@ -796,6 +796,22 @@ impl<'a> Printer<'a> {
                 self.write_space_or_continuation(index_last_line, self.map.first_line(value));
                 self.print_expr(value);
             }
+            Expr::CompoundAssignIndex {
+                object,
+                index,
+                operator,
+                value,
+                ..
+            } => {
+                self.print_expr(object);
+                self.write("[");
+                self.print_expr(index);
+                self.write("] ");
+                self.write(&compound_op_text(operator));
+                let index_last_line = self.map.last_line(index);
+                self.write_space_or_continuation(index_last_line, self.map.first_line(value));
+                self.print_expr(value);
+            }
             Expr::Range {
                 start,
                 end,

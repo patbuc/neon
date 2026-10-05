@@ -132,7 +132,8 @@ impl SourceMap {
             | Expr::SetField { object, .. }
             | Expr::CompoundAssignField { object, .. }
             | Expr::Index { object, .. }
-            | Expr::IndexAssign { object, .. } => self.first_token(object),
+            | Expr::IndexAssign { object, .. }
+            | Expr::CompoundAssignIndex { object, .. } => self.first_token(object),
             Expr::PostfixIncrement { operand, .. } | Expr::PostfixDecrement { operand, .. } => {
                 self.first_token(operand)
             }
@@ -163,7 +164,8 @@ impl SourceMap {
             | Expr::CompoundAssign { value, .. }
             | Expr::SetField { value, .. }
             | Expr::CompoundAssignField { value, .. }
-            | Expr::IndexAssign { value, .. } => self.last_token(value),
+            | Expr::IndexAssign { value, .. }
+            | Expr::CompoundAssignIndex { value, .. } => self.last_token(value),
             Expr::Binary { right, .. } => self.last_token(right),
             Expr::Range { end, .. } => self.last_token(end),
             Expr::Unary { operand, .. } => self.last_token(operand),

@@ -1868,14 +1868,20 @@ fn test_parse_compound_assignment_to_field() {
 }
 
 #[test]
-fn test_parse_compound_assignment_to_index_is_invalid_target() {
+fn test_parse_compound_assignment_to_index() {
     let mut parser = Parser::new("a[0] += 1\n");
     let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
-    assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 6);
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::CompoundAssignIndex { operator, .. } => {
+                assert_eq!(*operator, BinaryOp::Add);
+            }
+            _ => panic!("Expected CompoundAssignIndex expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }
 
 #[test]
@@ -1899,14 +1905,20 @@ fn test_parse_compound_assignment_power_to_field() {
 }
 
 #[test]
-fn test_parse_compound_assignment_power_to_index_is_invalid_target() {
+fn test_parse_compound_assignment_power_to_index() {
     let mut parser = Parser::new("a[0] **= 2\n");
     let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
-    assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 6);
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::CompoundAssignIndex { operator, .. } => {
+                assert_eq!(*operator, BinaryOp::Exponent);
+            }
+            _ => panic!("Expected CompoundAssignIndex expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }
 
 #[test]

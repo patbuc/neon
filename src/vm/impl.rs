@@ -291,6 +291,12 @@ impl VirtualMachine {
                 OpCode::LessConstant => self.op_compare_constant(Comparison::Less)?,
                 OpCode::LessEqualConstant => self.op_compare_constant(Comparison::LessEqual)?,
                 OpCode::Dup => self.push(self.peek(0).copy_or_clone()),
+                OpCode::Dup2 => {
+                    let second = self.peek(1).copy_or_clone();
+                    let top = self.peek(0).copy_or_clone();
+                    self.push(second);
+                    self.push(top);
+                }
             }
             self.ip += 1;
         }
