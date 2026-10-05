@@ -1,3 +1,4 @@
+use super::helpers::assert_compile_error;
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
@@ -27,13 +28,8 @@ fn test_parse_val_declaration() {
 
 #[test]
 fn test_tuple_pattern_needs_at_least_two_names() {
-    let mut parser = Parser::new("val (a) = [1]\n");
-    let result = parser.parse();
-    let errors = result.expect_err("expected a compile error");
+    let errors = assert_compile_error("val (a) = [1]\n", "Tuple pattern needs at least two names");
     assert_eq!(1, errors.len());
-    assert!(errors[0]
-        .message
-        .contains("Tuple pattern needs at least two names"));
 }
 
 #[test]
@@ -634,11 +630,7 @@ fn test_parse_call_with_trailing_block_lambda() {
 
 #[test]
 fn test_only_one_trailing_block_per_call() {
-    let mut parser = Parser::new("print(f { 1 } { 2 })\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("trailing block"));
+    assert_compile_error("print(f { 1 } { 2 })\n", "trailing block");
 }
 
 #[test]
@@ -810,12 +802,8 @@ fn test_parse_impl_block_rejects_non_fn_item() {
             val x = 1
         }
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "method declaration");
     assert_eq!(errors.len(), 1, "Should report exactly one error");
-    assert!(errors[0].message.contains("method declaration"));
 }
 
 #[test]
@@ -1981,11 +1969,7 @@ fn test_parse_compound_assignment_power_to_index() {
 
 #[test]
 fn test_parse_compound_assignment_to_grouping_is_invalid_target() {
-    let mut parser = Parser::new("(x) += 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
+    let errors = assert_compile_error("(x) += 1\n", "Invalid assignment target");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 5);
 }
@@ -2719,13 +2703,8 @@ fn test_parse_map_missing_colon() {
     let program = r#"
         val m = {"key" 42}
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "':'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("':'"));
 }
 
 #[test]
@@ -2733,13 +2712,8 @@ fn test_parse_braces_without_colon_is_error() {
     let program = r#"
         val s = {1, 2}
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Expect ':' after map key.");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Expect ':' after map key."));
 }
 
 #[test]
@@ -2758,12 +2732,7 @@ fn test_parse_map_missing_closing_brace() {
     let program = r#"
         val m = {"key": 42
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("'}'"));
+    assert_compile_error(program, "'}'");
 }
 
 #[test]
@@ -2771,12 +2740,7 @@ fn test_parse_index_missing_closing_bracket() {
     let program = r#"
         val x = m["key"
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("']'"));
+    assert_compile_error(program, "']'");
 }
 
 // ===== Integration Tests =====
@@ -3139,13 +3103,8 @@ fn test_parse_array_with_expressions() {
 #[test]
 fn test_parse_array_missing_closing_bracket() {
     let program = "val arr = [1, 2, 3\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "']'");
     assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("']'"));
 }
 
 #[test]
@@ -3193,41 +3152,23 @@ fn test_parse_error_position_after_whitespace_only_line() {
 
 #[test]
 fn test_parse_error_position_expect_expression() {
-    let source = "val b = )\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("val b = )\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 9);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
 fn test_parse_error_position_expect_expression_before_brace() {
-    let source = "print(1) }\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("print(1) }\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 10);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
 fn test_parse_error_position_expect_expression_at_line_end() {
-    let source = "val b =\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("val b =\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 7);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
