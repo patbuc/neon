@@ -207,6 +207,36 @@ fn can_scan_compound_assignment_operators() {
 }
 
 #[test]
+fn can_scan_question_dot_vs_ternary_with_space() {
+    let scanner = Scanner::new("x ? .y");
+    let x: Vec<Token> = collect_tokens(scanner);
+    let types: Vec<&TokenType> = x.iter().map(|t| &t.token_type).collect();
+    assert_eq!(
+        types,
+        vec![
+            &TokenType::Identifier,
+            &TokenType::Question,
+            &TokenType::Dot,
+            &TokenType::Identifier,
+            &TokenType::Eof,
+        ]
+    );
+
+    let scanner = Scanner::new("x?.y");
+    let x: Vec<Token> = collect_tokens(scanner);
+    let types: Vec<&TokenType> = x.iter().map(|t| &t.token_type).collect();
+    assert_eq!(
+        types,
+        vec![
+            &TokenType::Identifier,
+            &TokenType::QuestionDot,
+            &TokenType::Identifier,
+            &TokenType::Eof,
+        ]
+    );
+}
+
+#[test]
 fn can_scan_hexadecimal_lowercase() {
     let scanner = Scanner::new("0xff");
     let tokens = collect_tokens(scanner);
