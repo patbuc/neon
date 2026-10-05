@@ -282,6 +282,15 @@ print(apply(double, 3))               // 6
 print(apply(fn(x) { return x + 1 }, 3))  // 4
 ```
 
+A statement starting with `fn(` is a lambda expression, not a named function
+declaration, so it can be called immediately:
+
+```neon
+fn(x) {
+    print(x)
+}(5)  // 5
+```
+
 #### Hoisting
 
 Every top-level `fn`, `struct`, `val`, and `var` is visible throughout the
@@ -355,6 +364,25 @@ if x > 10 {
     print("5 or less")
 }
 ```
+
+`if`/`else` is also an expression: its value is the branch's last expression
+statement, or `nil` if the branch's last statement isn't an expression. In
+expression position `else` is required — a missing one is a compile error
+(`if expression requires else`):
+
+```neon
+val n = 5
+val label = if n > 0 {
+    "pos"
+} else if n < 0 {
+    "neg"
+} else {
+    "zero"
+}
+print(label)  // pos
+```
+
+For a one-liner, the ternary (`c ? a : b`) is still the shorter choice.
 
 **While Loops:**
 
