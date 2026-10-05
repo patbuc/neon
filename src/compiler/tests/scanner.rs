@@ -246,28 +246,28 @@ fn can_scan_question_dot_vs_ternary_with_space() {
 #[test]
 fn scans_number_literals() {
     let cases = [
-        ("0xff", "0xff"),
-        ("0XFF", "0XFF"),
-        ("0xAbCdEf", "0xAbCdEf"),
-        ("0b1010", "0b1010"),
-        ("0B11110000", "0B11110000"),
-        ("0o755", "0o755"),
-        ("0O77", "0O77"),
-        ("1_000_000", "1_000_000"),
-        ("0xFF_FF", "0xFF_FF"),
-        ("0b1111_0000", "0b1111_0000"),
-        ("0o7_5_5", "0o7_5_5"),
-        ("1_234.567_89", "1_234.567_89"),
-        ("1.5e3", "1.5e3"),
-        ("1e3", "1e3"),
-        ("2E+2", "2E+2"),
-        ("1.5e-3", "1.5e-3"),
-        ("1_0e1_0", "1_0e1_0"),
-        ("0xE", "0xE"),
-        ("0xE1", "0xE1"),
+        "0xff",
+        "0XFF",
+        "0xAbCdEf",
+        "0b1010",
+        "0B11110000",
+        "0o755",
+        "0O77",
+        "1_000_000",
+        "0xFF_FF",
+        "0b1111_0000",
+        "0o7_5_5",
+        "1_234.567_89",
+        "1.5e3",
+        "1e3",
+        "2E+2",
+        "1.5e-3",
+        "1_0e1_0",
+        "0xE",
+        "0xE1",
     ];
-    for (source, lexeme) in cases {
-        assert_first_token(source, TokenType::Number, lexeme);
+    for source in cases {
+        assert_first_token(source, TokenType::Number, source);
     }
 }
 
@@ -275,31 +275,45 @@ fn scans_number_literals() {
 fn rejects_malformed_input() {
     let invalid_number = CompilationErrorKind::InvalidNumberLiteral;
     let cases = [
-        ("1e", invalid_number, "Missing digits in number exponent"),
-        ("1e+", invalid_number, "Missing digits in number exponent"),
-        ("1e_5", invalid_number, "Missing digits in number exponent"),
-        ("0b123", invalid_number, "Invalid digit in binary literal"),
+        ("1e", 0, invalid_number, "Missing digits in number exponent"),
+        (
+            "1e+",
+            0,
+            invalid_number,
+            "Missing digits in number exponent",
+        ),
+        (
+            "1e_5",
+            0,
+            invalid_number,
+            "Missing digits in number exponent",
+        ),
+        (
+            "0b123",
+            0,
+            invalid_number,
+            "Invalid digit in binary literal",
+        ),
         (
             "0b2",
+            0,
             invalid_number,
             "Invalid digit in binary literal (only 0 and 1 allowed)",
         ),
-        ("0o89", invalid_number, "Invalid digit in octal literal"),
-        ("0x", invalid_number, "requires at least one digit"),
-        ("0b", invalid_number, "requires at least one digit"),
-        ("123_", invalid_number, "underscore"),
+        ("0o89", 0, invalid_number, "Invalid digit in octal literal"),
+        ("0x", 0, invalid_number, "requires at least one digit"),
+        ("0b", 0, invalid_number, "requires at least one digit"),
+        ("123_", 0, invalid_number, "underscore"),
         (
             "val s = # {1}",
+            3,
             CompilationErrorKind::UnexpectedCharacter,
             "Unexpected character",
         ),
     ];
-    for (source, kind, message) in cases {
+    for (source, index, kind, message) in cases {
         let tokens = collect_tokens(Scanner::new(source));
-        let error = tokens
-            .iter()
-            .find(|token| matches!(token.token_type, TokenType::Error(_)))
-            .unwrap_or_else(|| panic!("source {source:?}: no error token"));
+        let error = &tokens[index];
         assert_eq!(
             error.token_type,
             TokenType::Error(kind),
