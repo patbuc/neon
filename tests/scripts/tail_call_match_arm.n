@@ -1,0 +1,11 @@
+// Expected:
+// 1500000
+
+fn count(n, acc) {
+    match n {
+        0 -> acc
+        _ -> count(n - 1, acc + 1)
+    }
+}
+
+print(count(1500000, 0))
