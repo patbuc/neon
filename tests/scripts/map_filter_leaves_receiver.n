@@ -1,0 +1,10 @@
+// Expected:
+// {b: 2, a: 1, c: 3}
+// 3
+
+val m = {"b": 2, "a": 1, "c": 3}
+m.filter(fn(k, v) {
+    v > 1
+})
+print(m)
+print(m.size())

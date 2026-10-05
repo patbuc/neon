@@ -1,0 +1,7 @@
+// Expected:
+// true
+
+val m = {}
+print(m.every(fn(k, v) {
+    false
+}))

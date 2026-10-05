@@ -1,0 +1,11 @@
+// Expected:
+// false
+// [b, a]
+
+val calls = []
+val m = {"b": 2, "a": 1, "c": 3}
+print(m.every(fn(k, v) {
+    calls.push(k)
+    v > 1
+}))
+print(calls)

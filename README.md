@@ -1172,6 +1172,12 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 - `.keys()` - Get array of keys
 - `.values()` - Get array of values
 - `.entries()` - Get array of [key, value] pairs
+- `.forEach(fn)` - Call `fn(key, value)` for each entry in insertion order
+- `.map(fn)` - Array of `fn(key, value)` for each entry
+- `.filter(fn)` - New map of the entries for which `fn(key, value)` is truthy
+- `.mapValues(fn)` - New map with the same keys and `fn(key, value)` as each value
+- `.some(fn)` - Whether `fn(key, value)` is truthy for any entry; stops at the first
+- `.every(fn)` - Whether `fn(key, value)` is truthy for every entry; stops at the first that isn't
 - `[key]` - Direct index access to get/set values
 
 A key can be a string, number, boolean, enum variant, or array (same rule for set elements). An

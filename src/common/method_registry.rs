@@ -1110,6 +1110,60 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    (
+        "Map",
+        "forEach",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_for_each,
+            arity: 1,
+            returns: Some(StaticType::Nil),
+        },
+    ),
+    (
+        "Map",
+        "map",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Map",
+        "filter",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_filter,
+            arity: 1,
+            returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Map",
+        "mapValues",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_map_values,
+            arity: 1,
+            returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Map",
+        "some",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_some,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Map",
+        "every",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::map_functions::native_map_every,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
     // Set instance methods
     (
         "Set",

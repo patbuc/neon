@@ -190,7 +190,8 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`, `forEach`, `flatMap`,
   `take`, `drop`, `first`, `last`, `chunked`, `zip`, `withIndex`, `sortBy`, `minBy`, `maxBy`,
   `groupBy`, `tally`
-- **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
+- **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`,
+  `forEach(fn)`, `map(fn)`, `filter(fn)`, `mapValues(fn)`, `some(fn)`, `every(fn)`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
 - **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;

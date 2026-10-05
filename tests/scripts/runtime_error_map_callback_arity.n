@@ -1,0 +1,10 @@
+// Expected:
+// before
+
+// Expected runtime error: Expected 1 arguments but got 2 for 'anonymous'.
+
+print("before")
+val m = {"a": 1}
+m.forEach(fn(x) {
+    x
+})
