@@ -791,6 +791,7 @@ print(Math.mod(-7, 3))     // 2
 - `.padStart(len, fill)` / `.padEnd(len, fill)` - Pad with `fill` (cycled, non-empty) until `len` chars long
 - `.lastIndexOf(substring)` - Position of the last occurrence, or `-1`
 - `.contains(substring)` - Whether `substring` occurs anywhere in the string
+- `.chars()` - Array of the string's characters, each a one-character string
 
 **Example:**
 ```neon

@@ -125,7 +125,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **String:** `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
   `lastIndexOf`, `contains`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
-  `repeat(n)`, `padStart(len, fill)`, `padEnd(len, fill)`,
+  `repeat(n)`, `padStart(len, fill)`, `padEnd(len, fill)`, `chars()`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`

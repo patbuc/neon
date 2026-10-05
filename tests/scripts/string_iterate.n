@@ -1,0 +1,21 @@
+// Expected:
+// a
+// b
+// c
+// h
+// é
+// l
+// l
+// o
+
+for ch in "abc" {
+    print(ch)
+}
+
+for ch in "héllo" {
+    print(ch)
+}
+
+for ch in "" {
+    print(ch)
+}

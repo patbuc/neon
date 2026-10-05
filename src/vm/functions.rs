@@ -1699,9 +1699,10 @@ impl VirtualMachine {
 
                 Value::new_array(elements)
             }
+            Value::String(s) => crate::common::stdlib::string_functions::string_chars_array(s),
             _ => {
                 return Err(self.runtime_error(format!(
-                    "Cannot iterate over type: {}. Only arrays, maps, sets, and ranges are iterable.",
+                    "Cannot iterate over type: {}. Only arrays, maps, sets, ranges, and strings are iterable.",
                     collection
                 )));
             }

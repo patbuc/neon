@@ -597,6 +597,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "String",
+        "chars",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_chars,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "String",
         "toInt",
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_to_int,

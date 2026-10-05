@@ -574,3 +574,24 @@ pub fn native_string_contains(args: &[Value]) -> Result<Value, String> {
 
     Ok(Value::Boolean(string.contains(substring)))
 }
+
+/// Native implementation of String.chars()
+/// Returns an array of the string's Unicode-scalar characters, each a one-character string
+pub fn native_string_chars(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "chars() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "chars")?;
+    Ok(string_chars_array(string))
+}
+
+/// Converts a string into an array of one-character strings, one per Unicode scalar value.
+/// Shared by String.chars() and the for-in iterator over strings.
+pub fn string_chars_array(string: &str) -> Value {
+    let chars: Vec<Value> = string.chars().map(|c| string!(c.to_string())).collect();
+    Value::new_array(chars)
+}

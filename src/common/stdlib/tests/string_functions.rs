@@ -96,6 +96,22 @@ fn test_string_replace() {
 }
 
 // ============================================================================
+// String.chars() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_chars() {
+    let program = r#"
+        print("abc".chars())
+        print("".chars())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[a, b, c]\n[]", vm.get_output());
+}
+
+// ============================================================================
 // String.split() - Success Cases
 // ============================================================================
 
