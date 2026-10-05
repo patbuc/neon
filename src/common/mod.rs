@@ -98,14 +98,33 @@ pub enum MapKey {
 }
 
 /// A variant frozen as a key: its identity plus every field converted to
-/// key form. A unit variant has no fields.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// key form. A unit variant has no fields. Compared and hashed by
+/// `enum_name`, `ordinal`, and `fields`, which determine the rest.
+#[derive(Debug, Clone)]
 pub struct EnumKey {
-    enum_name: String,
-    variant_name: String,
+    enum_name: Rc<str>,
+    variant_name: Rc<str>,
     ordinal: u16,
     field_symbols: Rc<[u16]>,
     fields: Vec<MapKey>,
+}
+
+impl PartialEq for EnumKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ordinal == other.ordinal
+            && self.enum_name == other.enum_name
+            && self.fields == other.fields
+    }
+}
+
+impl Eq for EnumKey {}
+
+impl std::hash::Hash for EnumKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.enum_name.hash(state);
+        self.ordinal.hash(state);
+        self.fields.hash(state);
+    }
 }
 
 pub type SetKey = MapKey;
@@ -146,8 +165,8 @@ impl MapKey {
                     .map(|field| MapKey::from_value_with_seen(field, kind, seen))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(MapKey::EnumVariant(Rc::new(EnumKey {
-                    enum_name: variant.enum_name.clone(),
-                    variant_name: variant.variant_name.clone(),
+                    enum_name: Rc::clone(&variant.enum_name),
+                    variant_name: Rc::clone(&variant.variant_name),
                     ordinal: variant.ordinal,
                     field_symbols: Rc::clone(&variant.field_symbols),
                     fields,
@@ -171,8 +190,8 @@ impl MapKey {
             MapKey::Boolean(b) => Value::Boolean(*b),
             MapKey::Array(items) => Value::new_array(items.iter().map(MapKey::to_value).collect()),
             MapKey::EnumVariant(key) => Value::EnumVariant(Rc::new(ObjEnumVariant {
-                enum_name: key.enum_name.clone(),
-                variant_name: key.variant_name.clone(),
+                enum_name: Rc::clone(&key.enum_name),
+                variant_name: Rc::clone(&key.variant_name),
                 ordinal: key.ordinal,
                 field_symbols: Rc::clone(&key.field_symbols),
                 fields: key.fields.iter().map(MapKey::to_value).collect(),
@@ -590,8 +609,8 @@ impl ObjStruct {
 
 #[derive(Debug, Clone)]
 pub struct ObjEnumVariant {
-    pub enum_name: String,
-    pub variant_name: String,
+    pub enum_name: Rc<str>,
+    pub variant_name: Rc<str>,
     pub ordinal: u16,
     /// Symbol ids of the payload field names, in declaration order; empty
     /// for a unit variant.
@@ -615,8 +634,8 @@ impl ObjEnumVariant {
 
     pub(crate) fn with_fields(&self, fields: Vec<Value>) -> ObjEnumVariant {
         ObjEnumVariant {
-            enum_name: self.enum_name.clone(),
-            variant_name: self.variant_name.clone(),
+            enum_name: Rc::clone(&self.enum_name),
+            variant_name: Rc::clone(&self.variant_name),
             ordinal: self.ordinal,
             field_symbols: Rc::clone(&self.field_symbols),
             fields,
@@ -666,8 +685,8 @@ impl Value {
 
     pub(crate) fn new_enum_variant(enum_name: String, variant_name: String, ordinal: u16) -> Self {
         Value::EnumVariant(Rc::new(ObjEnumVariant {
-            enum_name,
-            variant_name,
+            enum_name: Rc::from(enum_name),
+            variant_name: Rc::from(variant_name),
             ordinal,
             field_symbols: Rc::from([]),
             fields: Vec::new(),
@@ -683,8 +702,8 @@ impl Value {
         field_symbols: Vec<u16>,
     ) -> Self {
         Value::EnumVariant(Rc::new(ObjEnumVariant {
-            enum_name,
-            variant_name,
+            enum_name: Rc::from(enum_name),
+            variant_name: Rc::from(variant_name),
             ordinal,
             field_symbols: Rc::from(field_symbols),
             fields: Vec::new(),
