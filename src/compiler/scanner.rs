@@ -683,8 +683,7 @@ impl Scanner {
 
     /// True when, skipping spaces and tabs, the next character is `(` -
     /// used right after scanning `fn` to tell a statement-position lambda
-    /// (`fn(x) { .. }(5)`) apart from a named function declaration, without
-    /// cloning the scanner to look ahead a whole token.
+    /// (`fn(x) { .. }(5)`) apart from a named function declaration.
     pub(in crate::compiler) fn next_is_left_paren(&self) -> bool {
         let mut i = self.current;
         while matches!(self.source.get(i), Some(' ') | Some('\t')) {

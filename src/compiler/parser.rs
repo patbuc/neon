@@ -1658,13 +1658,11 @@ impl Parser {
     /// Parses a trailing block's body, already past its opening `{`: an
     /// optional `name, name -> ` parameter header, then statements up to
     /// the closing `}`. Produces the same `Expr::Function` node as `fn(...)
-    /// { ... }`, so upvalues and arity work unchanged.
+    /// { ... }`, so name resolution treats it identically.
     fn block_lambda(&mut self) -> Option<Expr> {
         let location = self.current_location();
-        let implicit_it = !self
-            .scanner
-            .looks_like_block_lambda_params(self.current_token.offset);
         let params = self.parse_block_lambda_params()?;
+        let implicit_it = params.is_empty();
         let body = self.parse_block_body()?;
         let end_location = self.current_location();
         let id = self.next_id();

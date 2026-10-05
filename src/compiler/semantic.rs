@@ -1282,7 +1282,7 @@ impl SemanticAnalyzer {
 
         // A trailing block without a `->` header gets a single `it`
         // parameter when its own body - not a nested block's - mentions it.
-        if implicit_it && params.is_empty() && block_references_it(body) {
+        if implicit_it && block_references_it(body) {
             let decl_id =
                 self.define_symbol("it".to_string(), SymbolKind::Parameter, false, location);
             self.function_frames
