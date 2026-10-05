@@ -936,7 +936,7 @@ fn test_match_array_patterns_unchanged() {
 
 #[test]
 fn test_match_variant_patterns_unchanged() {
-    let source = "val x = match c {\n    Shape.Circle(r) -> r\n    Shape.Rect(1, _) -> 1\n    [Shape.Circle(a), Shape.Rect(b, ..)] -> a + b\n    Shape.Group(Shape.Circle(r)) -> r\n    _ -> 0\n}\n";
+    let source = "val x = match c {\n    Shape.Circle(r) -> r\n    Shape.Rect(1, _) -> 1\n    [Shape.Circle(a), Shape.Rect(b, _)] -> a + b\n    Shape.Group(Shape.Circle(r)) -> r\n    _ -> 0\n}\n";
     check(source, source);
 }
 

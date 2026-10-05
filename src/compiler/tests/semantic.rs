@@ -3682,6 +3682,14 @@ fn test_match_variant_pattern_wrong_subpattern_count_is_compile_error() {
 }
 
 #[test]
+fn test_match_variant_pattern_rest_is_compile_error() {
+    assert_match_error(
+        "enum Shape {\n    Rect(w, h)\n}\nval r = match Shape.Rect(1, 2) {\n    Shape.Rect(a, ..) -> a\n    _ -> 0\n}\n",
+        "a variant pattern cannot have a rest ('..')",
+    );
+}
+
+#[test]
 fn test_match_parentheses_on_unit_variant_pattern_is_compile_error() {
     assert_match_error(
         "enum Shape {\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Dot() -> 1\n    _ -> 0\n}\n",
