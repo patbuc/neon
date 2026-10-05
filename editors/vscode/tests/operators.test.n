@@ -61,3 +61,7 @@
   var r = a?b:c
 //         ^ keyword.operator.ternary.neon
 //           ^ keyword.operator.colon.neon
+  var r = a??b
+//         ^^ keyword.operator.nil-coalescing.neon
+  var r = a?.b
+//         ^^ keyword.operator.optional-chaining.neon
