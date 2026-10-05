@@ -2222,9 +2222,10 @@ fn owns_it(params: &[String], implicit_it: bool) -> bool {
 
 /// Whether a trailing block's own body - not a nested block's or function's,
 /// each of which binds its own `it` if it owns the name - mentions `it` as
-/// a free variable. A statement that declares `it` itself (`val`/`var`,
-/// `fn it`, `for it in ...`) shadows any outer `it` from that point on, so
-/// statements after it in the same scope are not scanned.
+/// a free variable. A statement that declares `it` itself (`val`/`var` or
+/// `fn it`) shadows any outer `it` from that point on, so statements after
+/// it in the same scope are not scanned. A `for it in ...` loop variable
+/// only exists inside the loop's body, so it doesn't shadow anything here.
 fn block_references_it(body: &[Stmt]) -> bool {
     for stmt in body {
         if stmt_references_it(stmt) {
@@ -2240,7 +2241,6 @@ fn block_references_it(body: &[Stmt]) -> bool {
 fn stmt_declares_it(stmt: &Stmt) -> bool {
     match stmt {
         Stmt::Val { name, .. } | Stmt::Var { name, .. } | Stmt::Fn { name, .. } => name == "it",
-        Stmt::ForIn { variable, .. } => variable == "it",
         _ => false,
     }
 }

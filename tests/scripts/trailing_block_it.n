@@ -10,6 +10,8 @@
 // 3
 // 1
 // 2
+// 9
+// 1
 
 print([1, 2, 3].map {
     it * 2
@@ -49,4 +51,11 @@ call {
     for it in [1, 2] {
         print(it)
     }
+}
+
+[1].forEach {
+    for it in [9] {
+        print(it)
+    }
+    print(it)
 }

@@ -321,9 +321,10 @@ print([1, 2, 3].map { it * 2 })   // it is the element
 twice { print("hi") }             // no parameters at all
 ```
 
-A block that declares its own `it` — as a parameter, a `val it`/`var it`, or
-a `for it in ...` — doesn't get the implicit one, and nested blocks each
-bind their own `it` independently of any outer one:
+A block that declares its own `it` — as a parameter or a `val it`/`var it` —
+doesn't get the implicit one, and nested blocks each bind their own `it`
+independently of any outer one. A `for it in ...` loop variable only exists
+inside that loop's body; the block's `it` is unaffected outside it:
 
 ```neon
 print([[1, 2], [3]].map { it.map { it * 10 } })   // inner it shadows the outer one
