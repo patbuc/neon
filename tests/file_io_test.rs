@@ -115,7 +115,7 @@ fn test_file_read_basic() {
     assert_eq!(InterpretResult::Ok, result, "VM interpretation failed");
 
     let output = vm.get_output();
-    assert_eq!("Hello, World!", output.trim(), "File content mismatch");
+    assert_eq!("Hello, World!", output, "File content mismatch");
 
     cleanup_test_file(&test_file);
 }
@@ -140,7 +140,7 @@ fn test_file_read_multiline() {
     assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
-    assert_eq!(test_content, output.trim());
+    assert_eq!(test_content, output);
 
     cleanup_test_file(&test_file);
 }
