@@ -176,13 +176,6 @@ impl Parser {
         self.current_token.token_type == token_type
     }
 
-    /// True when the current token is `fn` and it's immediately followed by
-    /// `(`, i.e. a statement-position lambda (`fn(x) { .. }(5)`) rather than
-    /// a named function declaration.
-    fn fn_starts_lambda(&self) -> bool {
-        self.scanner.next_is_left_paren()
-    }
-
     fn consume(&mut self, token_type: TokenType, message: &str) -> bool {
         if self.current_token.token_type == token_type {
             self.advance();
@@ -458,7 +451,7 @@ impl Parser {
             self.val_declaration()
         } else if self.match_token(TokenType::Var) {
             self.var_declaration()
-        } else if self.check(TokenType::Fn) && !self.fn_starts_lambda() {
+        } else if self.check(TokenType::Fn) && !self.scanner.next_is_left_paren() {
             self.advance();
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {

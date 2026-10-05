@@ -965,15 +965,9 @@ impl<'a> CodeGenerator<'a> {
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
-    // Pops every value down to the loop's entry height, not just its
-    // registered locals: a break/continue inside an if-expression branch
-    // can also have to unwind transient values the branch doesn't track as
-    // locals (e.g. an array literal's earlier elements), interleaved with
-    // locals in a way this function can't individually place. CloseUpvalue
-    // only acts on a slot it finds still open when it pops it, so using it
-    // for every one of these pops (rather than only the ones known to be
-    // captured locals) is harmless for the rest and still closes every
-    // captured local in the range, whatever the interleaving.
+    // Pops everything down to the loop's entry height, not just registered
+    // locals, since a break/continue inside an if-expression branch can also
+    // leave transient values interleaved with them.
     fn emit_loop_exit_pops(
         &mut self,
         depth: u32,
