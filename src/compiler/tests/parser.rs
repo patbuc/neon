@@ -2621,7 +2621,7 @@ fn test_parse_index_with_expression_key() {
     }
 }
 
-// ===== Postfix Increment/Decrement Removal Tests =====
+// ===== Postfix Increment/Decrement Tests =====
 
 #[test]
 fn test_parse_postfix_increment_is_compile_error() {
