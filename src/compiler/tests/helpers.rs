@@ -30,13 +30,15 @@ pub fn disassemble(chunk: &Chunk) -> String {
     out
 }
 
-pub fn assert_compile_error(source: &str, expected: &str) -> Vec<CompilationError> {
-    let errors = match compile(source) {
-        Ok(_) => {
-            panic!("expected a compile error containing {expected:?}, but this compiled:\n{source}")
-        }
+pub fn compile_errors(source: &str) -> Vec<CompilationError> {
+    match compile(source) {
+        Ok(_) => panic!("expected a compile error, but this compiled:\n{source}"),
         Err(errors) => errors,
-    };
+    }
+}
+
+pub fn assert_compile_error(source: &str, expected: &str) -> Vec<CompilationError> {
+    let errors = compile_errors(source);
     assert!(
         errors
             .first()
