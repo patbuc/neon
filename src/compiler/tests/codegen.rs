@@ -37,66 +37,6 @@ fn compile_program(source: &str) -> Result<Chunk, String> {
 }
 
 #[test]
-fn test_simple_number() {
-    let chunk = compile_program("42\n").unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_val_declaration() {
-    let chunk = compile_program("val x = 5\n").unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_binary_expression() {
-    let chunk = compile_program("1 + 2\n").unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_variable_reference() {
-    let chunk = compile_program("val x = 5\nprint(x)\n").unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_function() {
-    let program = r#"
-    fn add(a, b) {
-        return a + b
-    }
-    val result = add(1, 2)
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_if_statement() {
-    let program = r#"
-    val x = 10
-    if (x > 5) {
-        print(x)
-    }
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_while_loop() {
-    let program = r#"
-    var i = 0
-    while (i < 10) {
-        i = i + 1
-    }
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
 fn test_end_to_end_execution() {
     use crate::vm::VirtualMachine;
 
@@ -174,8 +114,6 @@ fn test_end_to_end_forward_reference() {
 
 #[test]
 fn test_else_if_bytecode_simple() {
-    use crate::common::opcodes::OpCode;
-
     // Test simple else-if chain bytecode generation
     let program = r#"
     val x = 5
@@ -201,44 +139,9 @@ fn test_else_if_bytecode_simple() {
     // 8. Jump (skip else)
     // 9. Else-branch code
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 2 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -255,8 +158,6 @@ fn test_else_if_bytecode_simple() {
 
 #[test]
 fn test_else_if_bytecode_multiple_branches() {
-    use crate::common::opcodes::OpCode;
-
     // Test multiple else-if branches
     let program = r#"
     val x = 10
@@ -274,44 +175,9 @@ fn test_else_if_bytecode_multiple_branches() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 4 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -328,8 +194,6 @@ fn test_else_if_bytecode_multiple_branches() {
 
 #[test]
 fn test_else_if_bytecode_without_final_else() {
-    use crate::common::opcodes::OpCode;
-
     // Test else-if chain without final else
     let program = r#"
     val x = 7
@@ -341,44 +205,9 @@ fn test_else_if_bytecode_without_final_else() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 2 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -405,35 +234,22 @@ fn test_else_if_bytecode_jump_offsets() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    // Verify the bytecode compiles and has instructions
-    assert!(
-        chunk.instruction_count() > 0,
-        "Bytecode should not be empty"
-    );
+    let jumps: Vec<(usize, usize)> = instructions(&chunk)
+        .into_iter()
+        .filter(|(_, op)| matches!(op, OpCode::JumpIfFalse | OpCode::Jump))
+        .map(|(pos, _)| (pos, pos + 5 + chunk.read_u32(pos + 1) as usize))
+        .collect();
+    assert_eq!(jumps.len(), 4);
 
-    // Walk through bytecode to find and verify jump instructions
-    let mut i = 0;
-    let mut jumps = Vec::new();
-
-    while i < chunk.instruction_count() {
-        let op = crate::common::opcodes::OpCode::from_u8(chunk.read_u8(i)).unwrap();
-        match op {
-            crate::common::opcodes::OpCode::JumpIfFalse | crate::common::opcodes::OpCode::Jump => {
-                // Read the 4-byte offset
-                let offset = chunk.read_u32(i + 1);
-                let target = i + 5 + offset as usize;
-                jumps.push((i, op, target));
-                i += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            _ => i += 1,
-        }
-    }
-
-    // Verify jumps are pointing to valid locations within bytecode
-    for (pos, _op, target) in &jumps {
+    // Every jump must land on an instruction start or the end of the chunk
+    let starts: Vec<usize> = instructions(&chunk)
+        .into_iter()
+        .map(|(pos, _)| pos)
+        .collect();
+    for (pos, target) in &jumps {
         assert!(
-            *target <= chunk.instruction_count(),
-            "Jump at position {} targets invalid offset {}",
+            starts.contains(target) || *target == chunk.instruction_count(),
+            "Jump at position {} targets {}, not an instruction start",
             pos,
             target
         );
@@ -468,241 +284,9 @@ fn test_else_if_end_to_end_execution() {
     assert_eq!(result, crate::vm::InterpretResult::Ok);
 }
 
-#[test]
-fn test_map_literal_empty() {
-    let program = r#"
-    val m = {}
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_literal_single_entry() {
-    let program = r#"
-    val m = {"name": "Alice"}
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_literal_multiple_entries() {
-    let program = r#"
-    val person = {
-        "name": "Bob",
-        "age": 30,
-        "city": "New York"
-    }
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_index_access() {
-    let program = r#"
-    val m = {"key": "value"}
-    val result = m["key"]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_index_assignment() {
-    let program = r#"
-    var m = {"x": 10}
-    m["x"] = 20
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_dynamic_key_access() {
-    let program = r#"
-    val m = {"a": 1, "b": 2}
-    val key = "a"
-    val value = m[key]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_nested_operations() {
-    let program = r#"
-    val outer = {"inner": {"value": 42}}
-    val result = outer["inner"]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_with_expressions_as_keys() {
-    let program = r#"
-    val key1 = "first"
-    val key2 = "second"
-    val m = {key1: 100, key2: 200}
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_map_with_number_keys() {
-    let program = r#"
-    val m = {1: "one", 2: "two", 3: "three"}
-    val value = m[2]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
 // =============================================================================
 // Array Literal Tests
 // =============================================================================
-
-#[test]
-fn test_array_literal_empty() {
-    let program = r#"
-    val arr = []
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_literal_single_element() {
-    let program = r#"
-    val arr = [42]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_literal_multiple_elements() {
-    let program = r#"
-    val arr = [1, 2, 3, 4, 5]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_literal_mixed_types() {
-    let program = r#"
-    val arr = [1, "hello", true, nil]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_index_access() {
-    let program = r#"
-    val arr = [1, 2, 3]
-    val result = arr[0]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_index_assignment() {
-    let program = r#"
-    var arr = [1, 2, 3]
-    arr[0] = 99
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_negative_indexing() {
-    let program = r#"
-    val arr = [1, 2, 3]
-    val last = arr[-1]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_nested() {
-    let program = r#"
-    val arr = [[1, 2], [3, 4]]
-    val inner = arr[0]
-    val value = inner[1]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_with_expressions() {
-    let program = r#"
-    val arr = [1 + 1, 2 * 3, 10 - 5]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_dynamic_index() {
-    let program = r#"
-    val arr = [10, 20, 30]
-    val i = 1
-    val value = arr[i]
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_method_push() {
-    let program = r#"
-    var arr = [1, 2, 3]
-    arr.push(4)
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_method_pop() {
-    let program = r#"
-    var arr = [1, 2, 3]
-    val last = arr.pop()
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_method_size() {
-    let program = r#"
-    val arr = [1, 2, 3]
-    val len = arr.size()
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
-
-#[test]
-fn test_array_in_map() {
-    let program = r#"
-    val m = {
-        "numbers": [1, 2, 3],
-        "data": [4, 5, 6]
-    }
-    "#;
-    let chunk = compile_program(program).unwrap();
-    assert!(chunk.instruction_count() > 0);
-}
 
 #[test]
 fn test_array_literal_too_large() {
@@ -1124,10 +708,9 @@ fn test_set_literal_too_large() {
 }
 
 /// Walks a chunk's bytecode, stepping over each instruction's operand bytes,
-/// and returns just the opcodes in order. Only knows the operand width of
-/// the opcodes the `>=`/`<=` fixture below emits; panics by name on any
-/// other opcode rather than guessing its width.
-fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
+/// and returns each instruction's offset and opcode in order. Panics by name
+/// on an opcode whose operand width it does not know rather than guessing.
+fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
     let mut ops = Vec::new();
     let mut offset = 0;
     while offset < chunk.instruction_count() {
@@ -1135,6 +718,7 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
         let operand_bytes = match op {
             OpCode::Return
             | OpCode::Nil
+            | OpCode::Equal
             | OpCode::Greater
             | OpCode::GreaterEqual
             | OpCode::LessEqual
@@ -1181,12 +765,16 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
                 let upvalue_count = chunk.read_u8(offset + 3) as usize;
                 3 + upvalue_count * 3
             }
-            _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
+            _ => panic!("instructions: unhandled opcode {op:?}, add its operand width"),
         };
+        ops.push((offset, op));
         offset += 1 + operand_bytes;
-        ops.push(op);
     }
     ops
+}
+
+fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
+    instructions(chunk).into_iter().map(|(_, op)| op).collect()
 }
 
 #[test]

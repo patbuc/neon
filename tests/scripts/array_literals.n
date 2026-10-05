@@ -1,0 +1,44 @@
+// Expected:
+// 0
+// [42]
+// [1, hello, true, nil]
+// 4
+// 6
+// 5
+// 20
+// [99, 2, 3]
+// 3
+// 3
+// 2
+
+val empty = []
+print(empty.size())
+
+val single = [42]
+print(single)
+
+val mixed = [1, "hello", true, nil]
+print(mixed)
+
+val nested = [[1, 2], [3, 4]]
+val inner = nested[1]
+print(inner[1])
+
+val computed = [1 + 1, 2 * 3, 10 - 5]
+print(computed[1])
+print(computed[2])
+
+val values = [10, 20, 30]
+val i = 1
+print(values[i])
+
+var items = [1, 2, 3]
+items[0] = 99
+print(items)
+
+val data = {"numbers": [1, 2, 3], "more": [4, 5, 6]}
+print(data["numbers"].size())
+
+var stack = [1, 2, 3]
+print(stack.pop())
+print(stack.size())
