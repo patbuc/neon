@@ -149,10 +149,16 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
-        CompilationErrorKind::NativeMethodConflict => vec![(
-            "impl String {\n    fn len(self) { return 1 }\n}\n".to_string(),
-            None,
-        )],
+        CompilationErrorKind::NativeMethodConflict => vec![
+            (
+                "impl String {\n    fn len(self) { return 1 }\n}\n".to_string(),
+                None,
+            ),
+            (
+                "impl Map {\n    fn isEmpty(self) { return true }\n}\n".to_string(),
+                None,
+            ),
+        ],
         CompilationErrorKind::MethodFieldConflict => vec![(
             "struct S { x }\nimpl S {\n    fn x(self) { return 1 }\n}\n".to_string(),
             None,

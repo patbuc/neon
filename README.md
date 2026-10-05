@@ -789,7 +789,9 @@ print(Math.mod(-7, 3))     // 2
 - `.repeat(n)` - Concatenate the string with itself `n` times (`n` a non-negative integer)
 - `.padStart(len, fill)` / `.padEnd(len, fill)` - Pad with `fill` (cycled, non-empty) until `len` chars long
 - `.lastIndexOf(substring)` - Position of the last occurrence, or `-1`
-- `.includes(substring)` - Whether `substring` occurs anywhere in the string
+- `.includes(substring)` / `.contains(substring)` - Whether `substring` occurs anywhere in the string
+- `.size()` - String length (character count), same as `.len()`
+- `.isEmpty()` - Whether the string has no characters
 
 **Example:**
 ```neon
@@ -805,6 +807,7 @@ print("42".toInt() + 8)               // 50
 - `.push(value)` - Add element to end
 - `.pop()` - Remove and return the last element (`nil` if empty)
 - `.size()` / `.length()` - Get array length
+- `.isEmpty()` - Whether the array has no elements
 - `.contains(value)` - Check if contains value
 - `.indexOf(value)` - Position of the first match, or `-1`
 - `.sort()` / `.sort(cmp)` / `.reverse()` - Sort (returns the same array) / reverse in place
@@ -863,6 +866,7 @@ comparator must return a number.
 ### Range Methods
 
 - `.size()` / `.length()` - Number of integers the range covers, computed from its bounds
+- `.isEmpty()` - Whether the range covers no integers
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
@@ -882,7 +886,8 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 ### Map Methods
 
 - `.size()` - Number of entries
-- `.has(key)` - Check if key exists
+- `.isEmpty()` - Whether the map has no entries
+- `.has(key)` / `.contains(key)` - Check if key exists
 - `.get(key)` - Value for `key`, or `nil` if absent
 - `.remove(key)` - Remove `key` and return its value
 - `.keys()` - Get array of keys
@@ -908,8 +913,9 @@ print(map["a"])           // 1
 
 - `.add(value)` - Add element (returns true if added, false if duplicate)
 - `.remove(value)` - Remove element (returns true if removed, false if not found)
-- `.has(value)` - Check if contains value
+- `.has(value)` / `.contains(value)` - Check if contains value
 - `.size()` - Number of elements
+- `.isEmpty()` - Whether the set has no elements
 - `.clear()` - Remove all elements
 - `.union(other)` - Set union
 - `.intersection(other)` - Set intersection
@@ -953,6 +959,7 @@ print(Stdin.readLines())   // [a, b]
   priorities pop in insertion order
 - `.peek()` - Same as `.pop()` but leaves the queue unchanged
 - `.size()` - Number of entries
+- `.isEmpty()` - Whether the queue has no entries
 
 **Example:**
 ```neon

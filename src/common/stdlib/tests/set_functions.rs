@@ -34,6 +34,31 @@ fn test_set_has() {
 }
 
 #[test]
+fn test_set_is_empty() {
+    let program = r#"
+        print(#{}.isEmpty())
+        print(#{1}.isEmpty())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn test_set_contains() {
+    let program = r#"
+        val s = #{1, 2, 3}
+        print(s.contains(2))
+        print(s.contains(5))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
 fn test_set_remove() {
     let program = r#"
         val s = #{1, 2, 3}

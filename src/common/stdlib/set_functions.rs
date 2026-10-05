@@ -73,6 +73,18 @@ pub fn native_set_size(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(set.len() as i64))
 }
 
+/// Native implementation of Set.isEmpty()
+/// Returns true if the set has no elements
+pub fn native_set_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("isEmpty() expects no arguments".to_string());
+    }
+
+    let set_ref = extract_receiver!(args, Set, "isEmpty")?;
+    let set = set_ref.borrow();
+    Ok(Value::Boolean(set.is_empty()))
+}
+
 /// Native implementation of Set.clear()
 /// Removes all elements from the set, returns nil
 pub fn native_set_clear(args: &[Value]) -> Result<Value, String> {

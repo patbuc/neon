@@ -18,6 +18,20 @@ pub fn native_string_len(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(len as i64))
 }
 
+/// Native implementation of String.isEmpty()
+/// Returns true if the string has no characters
+pub fn native_string_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "isEmpty() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let string = extract_receiver!(args, String, "isEmpty")?;
+    Ok(Value::Boolean(string.is_empty()))
+}
+
 /// Native implementation of String.substring(start, end)
 /// Returns a substring from start (inclusive) to end (exclusive)
 /// Handles negative indices and bounds checking

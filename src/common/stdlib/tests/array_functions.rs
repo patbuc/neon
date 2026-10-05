@@ -101,6 +101,18 @@ fn test_array_size() {
     assert_eq!("3\n0", vm.get_output());
 }
 
+#[test]
+fn test_array_is_empty() {
+    let program = r#"
+        print([].isEmpty())
+        print([1].isEmpty())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
 // ============================================================================
 // Array.contains() - Success Cases
 // ============================================================================

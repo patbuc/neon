@@ -235,6 +235,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
         "sort",
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_sort,
@@ -416,6 +425,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Range",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Range",
         "toArray",
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_to_array,
@@ -557,6 +575,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::string_functions::native_string_len,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "String",
+        "size",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_len,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "String",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -738,6 +774,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    (
+        "String",
+        "contains",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_includes,
+            arity: 1,
+            returns: None,
+        },
+    ),
     // Number instance methods
     (
         "Number",
@@ -806,6 +851,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Map",
+        "contains",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_has,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Map",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Map",
         "remove",
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_remove,
@@ -870,11 +933,29 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Set",
+        "contains",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_has,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Set",
         "size",
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_size,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "Set",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -1012,6 +1093,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::priority_queue_functions::native_priority_queue_size,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "PriorityQueue",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     // Stdin static methods

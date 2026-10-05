@@ -25,6 +25,48 @@ fn test_string_len() {
 }
 
 // ============================================================================
+// String.size() / isEmpty() / contains() - Success Cases
+// ============================================================================
+
+#[test]
+fn test_string_size() {
+    let program = r#"
+        print("hello".size())
+        print("hello 🌍".size())
+        print("".size())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("5\n7\n0", vm.get_output());
+}
+
+#[test]
+fn test_string_is_empty() {
+    let program = r#"
+        print("".isEmpty())
+        print("abc".isEmpty())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn test_string_contains() {
+    let program = r#"
+        print("hello world".contains("world"))
+        print("hello world".contains("xyz"))
+        print("".contains(""))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse\ntrue", vm.get_output());
+}
+
+// ============================================================================
 // String.substring() - Success Cases
 // ============================================================================
 

@@ -75,6 +75,21 @@ pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(elements.len() as i64))
 }
 
+/// Native implementation of Array.isEmpty()
+/// Returns true if the array has no elements
+pub fn native_array_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "isEmpty() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "isEmpty")?;
+    let elements = array_ref.borrow();
+    Ok(Value::Boolean(elements.is_empty()))
+}
+
 /// Native implementation of Array.contains(element)
 /// Returns true if the array contains the specified element
 pub fn native_array_contains(args: &[Value]) -> Result<Value, String> {

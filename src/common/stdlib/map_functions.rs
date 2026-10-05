@@ -31,6 +31,18 @@ pub fn native_map_size(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(map.len() as i64))
 }
 
+pub fn native_map_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("isEmpty() expects no arguments".to_string());
+    }
+
+    // Extract the map
+    let map_ref = extract_receiver!(args, Map, "isEmpty")?;
+
+    let map = map_ref.borrow();
+    Ok(Value::Boolean(map.is_empty()))
+}
+
 pub fn native_map_has(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(

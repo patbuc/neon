@@ -22,6 +22,31 @@ fn test_map_basic_operations() {
 }
 
 #[test]
+fn test_map_is_empty() {
+    let program = r#"
+        print({}.isEmpty())
+        print({"a": 1}.isEmpty())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
+fn test_map_contains() {
+    let program = r#"
+        val m = {"name": "Alice", "age": 30}
+        print(m.contains("name"))
+        print(m.contains("missing"))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
 fn test_map_subscript_assignment() {
     let program = r#"
         val m = {}

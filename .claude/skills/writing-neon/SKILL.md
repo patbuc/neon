@@ -128,27 +128,27 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
 - **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
   `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
-- **String:** `len`, `substring(start, end)`, `replace(old, new)`,
+- **String:** `len`, `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
-  `lastIndexOf`, `includes`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
+  `lastIndexOf`, `includes`, `contains`, `charAt`, `charCodeAt(index)`, `String.fromCharCode(n)`,
   `repeat(n)`, `padStart(len, fill)`, `padEnd(len, fill)`,
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`
-- **Array:** `Array(n, init)`, `push`, `pop`, `size`, `length`, `contains`, `sort()` / `sort(cmp)`,
+- **Array:** `Array(n, init)`, `push`, `pop`, `size`, `length`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `find(fn)`, `some(fn)`, `every(fn)`,
   `flat()`, `copy()`
-- **Range:** `size`, `length`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
+- **Range:** `size`, `length`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
-- **Map:** `get`, `has`, `remove`, `size`, `keys`, `values`, `entries`
-- **Set:** `add`, `remove`, `has`, `size`, `clear`, `union`,
+- **Map:** `get`, `has`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
+- **Set:** `add`, `remove`, `has`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
 - **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;
   errors if it exists)
 - **Stdin:** `Stdin.read()`, `Stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
-- **PriorityQueue:** `PriorityQueue()`, `push(priority, value)`, `pop`, `peek`, `size` - min-heap
-  where priority must be a number; equal priorities pop in insertion order
+- **PriorityQueue:** `PriorityQueue()`, `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
+  min-heap where priority must be a number; equal priorities pop in insertion order
 
 The source of truth is `src/common/method_registry.rs`; if it disagrees
 with this list, trust the registry.
