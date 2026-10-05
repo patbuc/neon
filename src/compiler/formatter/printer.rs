@@ -708,6 +708,7 @@ impl<'a> Printer<'a> {
                 operator,
                 value,
                 location,
+                ..
             } => {
                 self.print_expr(object);
                 let object_line = self.map.last_line(object);

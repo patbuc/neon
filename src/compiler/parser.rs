@@ -1422,6 +1422,7 @@ impl Parser {
             })
         } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
             self.advance();
+            let operator_location = self.current_location();
             self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::CompoundAssignField {
@@ -1430,6 +1431,7 @@ impl Parser {
                 operator,
                 value,
                 location,
+                operator_location,
             })
         } else {
             Some(Expr::GetField {
@@ -1529,6 +1531,7 @@ impl Parser {
             })
         } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
             self.advance();
+            let operator_location = self.current_location();
             self.skip_new_lines();
             let value = Box::new(self.expression(false)?);
             Some(Expr::CompoundAssignIndex {
@@ -1537,6 +1540,7 @@ impl Parser {
                 operator,
                 value,
                 location,
+                operator_location,
             })
         } else {
             Some(Expr::Index {

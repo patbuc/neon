@@ -1480,6 +1480,25 @@ fn store_local_field_non_instance_location() {
 }
 
 #[test]
+fn compound_assignment_reports_operator_location_like_long_form() {
+    let index_program = "var m = {}\nm[\"missing\"] += 1\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(index_program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(Some((2, 14)), error.location);
+
+    let field_program = "struct O { n }\nval o = O(nil)\no.n += 1\n";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(field_program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(Some((3, 5)), error.location);
+}
+
+#[test]
 fn store_field_unknown_field_location() {
     let program = "struct P { x }\nfn set(q) {\n  var p = q\n  p.z = 1\n}\nset(P(1))";
 

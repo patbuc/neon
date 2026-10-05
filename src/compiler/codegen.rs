@@ -676,12 +676,13 @@ impl<'a> CodeGenerator<'a> {
         operator: &BinaryOp,
         value: &Expr,
         location: SourceLocation,
+        operator_location: SourceLocation,
     ) -> u16 {
         self.generate_expr(object);
         self.emit_op_code(OpCode::Dup, location);
         let symbol = self.resolutions.symbol(field);
         self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", location);
-        self.generate_binary_op_tail(operator, value, location);
+        self.generate_binary_op_tail(operator, value, operator_location);
         symbol
     }
 
@@ -695,12 +696,13 @@ impl<'a> CodeGenerator<'a> {
         operator: &BinaryOp,
         value: &Expr,
         location: SourceLocation,
+        operator_location: SourceLocation,
     ) {
         self.generate_expr(object);
         self.generate_expr(index);
         self.emit_op_code(OpCode::Dup2, location);
         self.emit_op_code(OpCode::GetIndex, location);
-        self.generate_binary_op_tail(operator, value, location);
+        self.generate_binary_op_tail(operator, value, operator_location);
     }
 
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
@@ -755,9 +757,15 @@ impl<'a> CodeGenerator<'a> {
                 operator,
                 value,
                 location,
+                operator_location,
             } => {
                 let symbol = self.generate_field_compound_assign_value(
-                    object, field, operator, value, *location,
+                    object,
+                    field,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
                 );
                 self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
             }
@@ -1520,9 +1528,15 @@ impl<'a> CodeGenerator<'a> {
                 operator,
                 value,
                 location,
+                operator_location,
             } => {
                 let symbol = self.generate_field_compound_assign_value(
-                    object, field, operator, value, *location,
+                    object,
+                    field,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
                 );
                 self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
             }
@@ -1609,9 +1623,15 @@ impl<'a> CodeGenerator<'a> {
                 operator,
                 value,
                 location,
+                operator_location,
             } => {
                 self.generate_index_compound_assign_value(
-                    object, index, operator, value, *location,
+                    object,
+                    index,
+                    operator,
+                    value,
+                    *location,
+                    *operator_location,
                 );
                 self.emit_op_code(OpCode::SetIndex, *location);
             }

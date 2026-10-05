@@ -149,13 +149,16 @@ pub enum Expr {
         location: SourceLocation,
     },
     /// `object.field op= value`; the VM's `Dup` opcode evaluates `object`
-    /// once for both the read and the write.
+    /// once for both the read and the write. `operator_location` is the
+    /// `op=` token, used to report arithmetic errors at the operator like
+    /// the desugared long form does.
     CompoundAssignField {
         object: Box<Expr>,
         field: String,
         operator: BinaryOp,
         value: Box<Expr>,
         location: SourceLocation,
+        operator_location: SourceLocation,
     },
     Grouping {
         expr: Box<Expr>,
@@ -184,14 +187,13 @@ pub enum Expr {
         value: Box<Expr>,
         location: SourceLocation,
     },
-    /// `object[index] op= value`; the VM's `Dup2` opcode evaluates `object`
-    /// and `index` once for both the read and the write.
     CompoundAssignIndex {
         object: Box<Expr>,
         index: Box<Expr>,
         operator: BinaryOp,
         value: Box<Expr>,
         location: SourceLocation,
+        operator_location: SourceLocation,
     },
     Range {
         start: Box<Expr>,
