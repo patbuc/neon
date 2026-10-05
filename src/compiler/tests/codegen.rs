@@ -141,44 +141,9 @@ fn test_else_if_bytecode_simple() {
     // 8. Jump (skip else)
     // 9. Else-branch code
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 2 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -214,44 +179,9 @@ fn test_else_if_bytecode_multiple_branches() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 4 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -281,44 +211,9 @@ fn test_else_if_bytecode_without_final_else() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    let mut jump_if_false_count = 0;
-    let mut jump_count = 0;
-
-    let mut offset = 0;
-    while offset < chunk.instruction_count() {
-        let op = OpCode::from_u8(chunk.read_u8(offset)).unwrap();
-        match op {
-            OpCode::JumpIfFalse => {
-                jump_if_false_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Jump => {
-                jump_count += 1;
-                offset += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            OpCode::Constant
-            | OpCode::SetLocal
-            | OpCode::GetLocal
-            | OpCode::GetGlobal
-            | OpCode::SetGlobal
-            | OpCode::GetField
-            | OpCode::SetField
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => {
-                offset += 3; // OpCode (1 byte) + u16 operand
-            }
-            OpCode::Call => {
-                offset += 2; // OpCode (1 byte) + 1-byte argument count
-            }
-            _ => {
-                offset += 1; // Simple instructions
-            }
-        }
-    }
+    let ops = op_codes(&chunk);
+    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
     // We should have 2 JumpIfFalse (one for each condition)
     assert_eq!(
@@ -332,6 +227,8 @@ fn test_else_if_bytecode_without_final_else() {
 
 #[test]
 fn test_else_if_bytecode_jump_offsets() {
+    use crate::common::opcodes::OpCode;
+
     // Test that jump offsets are correctly calculated
     let program = r#"
     val x = 5
@@ -345,32 +242,15 @@ fn test_else_if_bytecode_jump_offsets() {
     "#;
     let chunk = compile_program(program).unwrap();
 
-    // Verify the bytecode compiles and has instructions
-    assert!(
-        chunk.instruction_count() > 0,
-        "Bytecode should not be empty"
-    );
-
-    // Walk through bytecode to find and verify jump instructions
-    let mut i = 0;
-    let mut jumps = Vec::new();
-
-    while i < chunk.instruction_count() {
-        let op = crate::common::opcodes::OpCode::from_u8(chunk.read_u8(i)).unwrap();
-        match op {
-            crate::common::opcodes::OpCode::JumpIfFalse | crate::common::opcodes::OpCode::Jump => {
-                // Read the 4-byte offset
-                let offset = chunk.read_u32(i + 1);
-                let target = i + 5 + offset as usize;
-                jumps.push((i, op, target));
-                i += 5; // OpCode (1 byte) + offset (4 bytes)
-            }
-            _ => i += 1,
-        }
-    }
+    let jumps: Vec<(usize, usize)> = instructions(&chunk)
+        .into_iter()
+        .filter(|(_, op)| matches!(op, OpCode::JumpIfFalse | OpCode::Jump))
+        .map(|(pos, _)| (pos, pos + 5 + chunk.read_u32(pos + 1) as usize))
+        .collect();
+    assert_eq!(jumps.len(), 4);
 
     // Verify jumps are pointing to valid locations within bytecode
-    for (pos, _op, target) in &jumps {
+    for (pos, target) in &jumps {
         assert!(
             *target <= chunk.instruction_count(),
             "Jump at position {} targets invalid offset {}",
@@ -832,10 +712,9 @@ fn test_set_literal_too_large() {
 }
 
 /// Walks a chunk's bytecode, stepping over each instruction's operand bytes,
-/// and returns just the opcodes in order. Only knows the operand width of
-/// the opcodes the `>=`/`<=` fixture below emits; panics by name on any
-/// other opcode rather than guessing its width.
-fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
+/// and returns each instruction's offset and opcode in order. Panics by name
+/// on an opcode whose operand width it does not know rather than guessing.
+fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
     let mut ops = Vec::new();
     let mut offset = 0;
     while offset < chunk.instruction_count() {
@@ -843,6 +722,7 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
         let operand_bytes = match op {
             OpCode::Return
             | OpCode::Nil
+            | OpCode::Equal
             | OpCode::Greater
             | OpCode::GreaterEqual
             | OpCode::LessEqual
@@ -891,10 +771,14 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             }
             _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
         };
+        ops.push((offset, op));
         offset += 1 + operand_bytes;
-        ops.push(op);
     }
     ops
+}
+
+fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
+    instructions(chunk).into_iter().map(|(_, op)| op).collect()
 }
 
 #[test]
