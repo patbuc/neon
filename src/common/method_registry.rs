@@ -334,6 +334,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "forEach",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_for_each,
+            arity: 1,
+            returns: Some(StaticType::Nil),
+        },
+    ),
+    (
+        "Array",
+        "flatMap",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_flat_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
         "find",
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_find,
@@ -373,6 +391,69 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         "copy",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_copy,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "take",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_take,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "drop",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_drop,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "first",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_first,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "last",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_last,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "chunked",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_chunked,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "zip",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_zip,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "withIndex",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_with_index,
             arity: 0,
             returns: Some(StaticType::Array),
         },
@@ -511,6 +592,87 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::range_functions::native_range_reduce,
             arity: 2,
             returns: None,
+        },
+    ),
+    (
+        "Range",
+        "forEach",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_for_each,
+            arity: 1,
+            returns: Some(StaticType::Nil),
+        },
+    ),
+    (
+        "Range",
+        "flatMap",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_flat_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "take",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_take,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "drop",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_drop,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "first",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_first,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "last",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_last,
+            arity: 0,
+            returns: None,
+        },
+    ),
+    (
+        "Range",
+        "chunked",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_chunked,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "zip",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_zip,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "withIndex",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_with_index,
+            arity: 0,
+            returns: Some(StaticType::Array),
         },
     ),
     (

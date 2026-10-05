@@ -480,6 +480,78 @@ pub fn native_array_map(
     Ok(Value::new_array(mapped))
 }
 
+/// Native implementation of Array.forEach(fn)
+/// Calls fn with each element in order. Returns nil.
+pub fn native_array_for_each(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "forEach() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "forEach")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    for element in elements {
+        vm.call_value(callback.clone(), &[element])?;
+    }
+
+    Ok(Value::Nil)
+}
+
+/// Native implementation of Array.flatMap(fn)
+/// Maps fn over the elements and concatenates the resulting arrays.
+pub fn native_array_flat_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "flatMap() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "flatMap")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut flattened = Vec::with_capacity(elements.len());
+    for element in elements {
+        let mapped = vm.call_value(callback.clone(), &[element])?;
+        match mapped {
+            Value::Array(mapped_ref) => flattened.extend(mapped_ref.borrow().iter().cloned()),
+            other => {
+                return Err(format!(
+                    "flatMap() callback must return an array, got {}",
+                    type_name_for_error(&other)
+                )
+                .into())
+            }
+        }
+    }
+
+    Ok(Value::new_array(flattened))
+}
+
+/// Renders a value's type the way Neon spells it elsewhere (`Int`,
+/// `String`, ...) rather than `type_name()`'s lowercase runtime label.
+pub(crate) fn type_name_for_error(value: &Value) -> String {
+    if matches!(value, Value::Int(_)) {
+        "Int".to_string()
+    } else {
+        let lower = value.type_name();
+        lower[..1].to_uppercase() + &lower[1..]
+    }
+}
+
 /// Native implementation of Array.filter(fn)
 /// Returns a new array of the elements for which fn is truthy.
 pub fn native_array_filter(
@@ -657,6 +729,164 @@ pub fn native_array_copy(args: &[Value]) -> Result<Value, String> {
     let elements: Vec<Value> = array_ref.borrow().clone();
 
     Ok(Value::new_array(elements))
+}
+
+/// Native implementation of Array.take(n)
+/// Returns a new array of the first n elements, clamped to the array's length.
+pub fn native_array_take(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "take() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "take")?;
+    let n = extract_integer_arg(args, 1, "n", "take")?;
+    if n < 0 {
+        return Err(format!("take() n must be non-negative, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let end = usize::try_from(n).unwrap_or(usize::MAX).min(array.len());
+    Ok(Value::new_array(array[..end].to_vec()))
+}
+
+/// Native implementation of Array.drop(n)
+/// Returns a new array with the first n elements removed, clamped to the
+/// array's length.
+pub fn native_array_drop(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "drop() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "drop")?;
+    let n = extract_integer_arg(args, 1, "n", "drop")?;
+    if n < 0 {
+        return Err(format!("drop() n must be non-negative, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let start = usize::try_from(n).unwrap_or(usize::MAX).min(array.len());
+    Ok(Value::new_array(array[start..].to_vec()))
+}
+
+/// Native implementation of Array.first()
+/// Returns the first element, or nil if the array is empty.
+pub fn native_array_first(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "first() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "first")?;
+    let array = array_ref.borrow();
+    Ok(array.first().cloned().unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.last()
+/// Returns the last element, or nil if the array is empty.
+pub fn native_array_last(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "last() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "last")?;
+    let array = array_ref.borrow();
+    Ok(array.last().cloned().unwrap_or(Value::Nil))
+}
+
+/// Native implementation of Array.chunked(n)
+/// Splits the array into arrays of n elements each; the last chunk may be
+/// shorter.
+pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "chunked() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "chunked")?;
+    let n = extract_integer_arg(args, 1, "n", "chunked")?;
+    if n < 1 {
+        return Err(format!("chunked() n must be >= 1, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let chunks: Vec<Value> = array
+        .chunks(usize::try_from(n).unwrap_or(usize::MAX))
+        .map(|chunk| Value::new_array(chunk.to_vec()))
+        .collect();
+    Ok(Value::new_array(chunks))
+}
+
+/// The elements of an array or range value, for methods that accept either.
+/// A range only yields up to `limit` elements, so a huge range isn't
+/// materialized when the caller needs just a few of them.
+fn elements_of(value: &Value, limit: usize) -> Option<Vec<Value>> {
+    match value {
+        Value::Array(arr) => Some(arr.borrow().clone()),
+        Value::Range(range) => Some(range.elements_upto(limit)),
+        _ => None,
+    }
+}
+
+/// Native implementation of Array.zip(other)
+/// Pairs each element with the element at the same position in other (an
+/// array or range), stopping at the shorter length.
+pub fn native_array_zip(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "zip() expects 1 argument (other), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "zip")?;
+    let array = array_ref.borrow();
+    let other = elements_of(&args[1], array.len()).ok_or_else(|| {
+        format!(
+            "zip() other must be an array or range, got {}",
+            type_name_for_error(&args[1])
+        )
+    })?;
+
+    let len = array.len().min(other.len());
+    let pairs = array[..len]
+        .iter()
+        .zip(other[..len].iter())
+        .map(|(a, b)| Value::new_array(vec![a.clone(), b.clone()]))
+        .collect();
+    Ok(Value::new_array(pairs))
+}
+
+/// Native implementation of Array.withIndex()
+/// Returns `[[0, element0], [1, element1], ...]`.
+pub fn native_array_with_index(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "withIndex() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "withIndex")?;
+    let array = array_ref.borrow();
+    let pairs = array
+        .iter()
+        .enumerate()
+        .map(|(i, element)| Value::new_array(vec![Value::Int(i as i64), element.clone()]))
+        .collect();
+    Ok(Value::new_array(pairs))
 }
 
 const MAX_ARRAY_LEN: usize = 100_000_000;

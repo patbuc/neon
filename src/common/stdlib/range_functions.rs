@@ -1,20 +1,15 @@
 use crate::common::stdlib::array_functions;
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
-use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
+use crate::common::{f64_fits_i64, NativeCallError, Value};
 use crate::extract_receiver;
-
-/// The range's elements as `Int` values, in order.
-fn elements(range: &ObjRange) -> Vec<Value> {
-    (0..range.len()).map(|i| Value::Int(range.get(i))).collect()
-}
 
 /// Rebuilds `args` as `[array, rest...]`, so a materializing method can
 /// delegate to the existing Array implementation instead of duplicating it.
 fn materialize(args: &[Value], method: &str) -> Result<Vec<Value>, String> {
     let range = extract_receiver!(args, Range, method)?;
     let mut new_args = Vec::with_capacity(args.len());
-    new_args.push(Value::new_array(elements(range)));
+    new_args.push(Value::new_array(range.elements_upto(usize::MAX)));
     new_args.extend_from_slice(&args[1..]);
     Ok(new_args)
 }
@@ -78,7 +73,7 @@ pub fn native_range_to_array(args: &[Value]) -> Result<Value, String> {
     }
 
     let range = extract_receiver!(args, Range, "toArray")?;
-    Ok(Value::new_array(elements(range)))
+    Ok(Value::new_array(range.elements_upto(usize::MAX)))
 }
 
 /// Native implementation of Range.step(k)
@@ -150,6 +145,121 @@ pub fn native_range_filter(
     args: &[Value],
 ) -> Result<Value, NativeCallError> {
     array_functions::native_array_filter(vm, &materialize(args, "filter")?)
+}
+
+/// Native implementation of Range.forEach(fn)
+pub fn native_range_for_each(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_for_each(vm, &materialize(args, "forEach")?)
+}
+
+/// Native implementation of Range.flatMap(fn)
+pub fn native_range_flat_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_flat_map(vm, &materialize(args, "flatMap")?)
+}
+
+/// Native implementation of Range.take(n)
+/// Returns a new array of the first n elements, without materializing the
+/// whole range first.
+pub fn native_range_take(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "take() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "take")?;
+    let n = extract_integer_arg(args, 1, "n", "take")?;
+    if n < 0 {
+        return Err(format!("take() n must be non-negative, got {}", n));
+    }
+
+    let len = usize::try_from(n).unwrap_or(usize::MAX);
+    Ok(Value::new_array(range.elements_upto(len)))
+}
+
+/// Native implementation of Range.drop(n)
+pub fn native_range_drop(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_drop(&materialize(args, "drop")?)
+}
+
+/// Native implementation of Range.first()
+/// Returns the range's first value, or nil if it's empty.
+pub fn native_range_first(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "first() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "first")?;
+    if range.len() == 0 {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::Int(range.get(0)))
+}
+
+/// Native implementation of Range.last()
+/// Returns the range's last value, or nil if it's empty.
+pub fn native_range_last(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "last() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "last")?;
+    let len = range.len();
+    if len == 0 {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::Int(range.get(len - 1)))
+}
+
+/// Native implementation of Range.chunked(n)
+pub fn native_range_chunked(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_chunked(&materialize(args, "chunked")?)
+}
+
+/// Native implementation of Range.zip(other)
+/// Only materializes as many receiver elements as `other` can supply, so a
+/// huge range zipped with a short array or range doesn't get built in full.
+pub fn native_range_zip(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "zip() expects 1 argument (other), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "zip")?;
+    let other_len = match &args[1] {
+        Value::Array(arr) => arr.borrow().len(),
+        Value::Range(other) => usize::try_from(other.len()).unwrap_or(usize::MAX),
+        other => {
+            return Err(format!(
+                "zip() other must be an array or range, got {}",
+                array_functions::type_name_for_error(other)
+            ))
+        }
+    };
+
+    let limit = other_len.min(usize::try_from(range.len()).unwrap_or(usize::MAX));
+    let receiver = Value::new_array(range.elements_upto(limit));
+    array_functions::native_array_zip(&[receiver, args[1].clone()])
+}
+
+/// Native implementation of Range.withIndex()
+pub fn native_range_with_index(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_with_index(&materialize(args, "withIndex")?)
 }
 
 /// Native implementation of Range.reduce(fn, initial)
