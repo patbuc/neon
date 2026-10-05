@@ -615,6 +615,15 @@ fn test_parse_call_with_trailing_block_lambda() {
 }
 
 #[test]
+fn test_only_one_trailing_block_per_call() {
+    let mut parser = Parser::new("print(f { 1 } { 2 })\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors[0].message.contains("trailing block"));
+}
+
+#[test]
 fn test_lambda_expression_statement() {
     let mut parser = Parser::new("fn(x) { return x }\n");
     let result = parser.parse();

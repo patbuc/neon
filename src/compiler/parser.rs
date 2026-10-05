@@ -1107,8 +1107,10 @@ impl Parser {
             }
         }?;
 
+        let mut has_trailing_block = false;
         loop {
             while precedence <= self.get_precedence(&self.current_token.token_type) {
+                has_trailing_block = false;
                 self.advance();
                 expr = match self.previous_token.token_type {
                     TokenType::Plus
@@ -1152,8 +1154,16 @@ impl Parser {
             {
                 break;
             }
+            if has_trailing_block {
+                self.report_error_at_current(
+                    CompilationErrorKind::ExpectedToken,
+                    "A call accepts only one trailing block".to_string(),
+                );
+                return None;
+            }
             self.advance();
             expr = self.trailing_block(expr)?;
+            has_trailing_block = true;
         }
 
         if can_assign && (self.check(TokenType::Equal) || self.compound_assign_op().is_some()) {
