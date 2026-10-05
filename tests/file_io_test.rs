@@ -20,6 +20,16 @@ fn create_test_file(name: &str, content: &str) -> PathBuf {
     file_path
 }
 
+fn assert_runtime_error(source: &str, expected_message: &str) {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(source.to_string())
+    );
+    let message = vm.get_runtime_error().map(|e| e.message.clone());
+    assert_eq!(Some(expected_message.to_string()), message);
+}
+
 /// Helper function to clean up a test file
 fn cleanup_test_file(path: &PathBuf) {
     let _ = fs::remove_file(path);
@@ -46,6 +56,47 @@ fn test_file_constructor_from_neon() {
 }
 
 #[test]
+fn test_file_constructor_relative_and_absolute_paths() {
+    let absolute = std::env::temp_dir().join("neon_test_constructor_absolute.txt");
+    let source = format!(
+        r#"
+        var relative = File("../data/input.txt")
+        var absolute = File("{}")
+        print("File created")
+    "#,
+        absolute.to_str().unwrap()
+    );
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(source));
+    assert_eq!("File created", vm.get_output());
+}
+
+#[test]
+fn test_file_constructor_wrong_arg_count() {
+    for source in [r#"var f = File()"#, r#"var f = File("a.txt", "b.txt")"#] {
+        let mut vm = VirtualMachine::new();
+        assert_eq!(
+            InterpretResult::CompileError,
+            vm.interpret(source.to_string()),
+            "{}",
+            source
+        );
+    }
+}
+
+#[test]
+fn test_file_constructor_invalid_type() {
+    for source in [
+        "var f = File(42)",
+        "var f = File(true)",
+        "var f = File(nil)",
+    ] {
+        assert_runtime_error(source, "File() path must be a string");
+    }
+}
+
+#[test]
 fn test_file_read_basic() {
     let test_file = create_test_file("read_basic.txt", "Hello, World!");
     let file_path = test_file.to_str().unwrap();
@@ -64,7 +115,7 @@ fn test_file_read_basic() {
     assert_eq!(InterpretResult::Ok, result, "VM interpretation failed");
 
     let output = vm.get_output();
-    assert_eq!("Hello, World!", output.trim(), "File content mismatch");
+    assert_eq!("Hello, World!", output, "File content mismatch");
 
     cleanup_test_file(&test_file);
 }
@@ -89,7 +140,7 @@ fn test_file_read_multiline() {
     assert_eq!(InterpretResult::Ok, result);
 
     let output = vm.get_output();
-    assert_eq!(test_content, output.trim());
+    assert_eq!(test_content, output);
 
     cleanup_test_file(&test_file);
 }
@@ -114,9 +165,7 @@ fn test_file_read_empty_file() {
     let result = vm.interpret(source);
     assert_eq!(InterpretResult::Ok, result);
 
-    let output = vm.get_output();
-    assert!(output.contains("start"));
-    assert!(output.contains("end"));
+    assert_eq!("start\n\nend", vm.get_output());
 
     cleanup_test_file(&test_file);
 }
@@ -148,16 +197,14 @@ fn test_file_read_unicode() {
 
 #[test]
 fn test_file_read_not_found() {
-    let mut vm = VirtualMachine::new();
-    let source = r#"
+    assert_runtime_error(
+        r#"
         var f = File("/nonexistent/path/to/file.txt")
         var content = f.read()
         print(content)
-    "#;
-
-    let result = vm.interpret(source.to_string());
-    // Should result in a runtime error
-    assert_eq!(InterpretResult::RuntimeError, result);
+    "#,
+        "File not found: /nonexistent/path/to/file.txt",
+    );
 }
 
 #[test]
@@ -274,8 +321,7 @@ fn test_file_read_lines_empty_file() {
     let result = vm.interpret(source);
     assert_eq!(InterpretResult::Ok, result);
 
-    let output = vm.get_output();
-    assert!(output.contains("0"), "Empty file should return empty array");
+    assert_eq!("0", vm.get_output());
 
     cleanup_test_file(&test_file);
 }
@@ -299,25 +345,21 @@ fn test_file_read_lines_single_line_no_newline() {
     let result = vm.interpret(source);
     assert_eq!(InterpretResult::Ok, result);
 
-    let output = vm.get_output();
-    assert!(output.contains("1"));
-    assert!(output.contains("Single line"));
+    assert_eq!("1\nSingle line", vm.get_output());
 
     cleanup_test_file(&test_file);
 }
 
 #[test]
 fn test_file_read_lines_not_found() {
-    let mut vm = VirtualMachine::new();
-    let source = r#"
+    assert_runtime_error(
+        r#"
         var f = File("/nonexistent/path/to/file.txt")
         var lines = f.readLines()
         print(lines)
-    "#;
-
-    let result = vm.interpret(source.to_string());
-    // Should result in a runtime error
-    assert_eq!(InterpretResult::RuntimeError, result);
+    "#,
+        "File not found: /nonexistent/path/to/file.txt",
+    );
 }
 
 #[test]
@@ -357,23 +399,15 @@ fn test_file_write_multiline() {
     let temp_dir = std::env::temp_dir();
     let test_file = temp_dir.join("neon_test_write_multiline.txt");
     let file_path = test_file.to_str().unwrap();
-    let temp_content = "Line 1\nLine 2\nLine 3";
 
     // Ensure file doesn't exist
     let _ = fs::remove_file(&test_file);
-
-    // Create the file with actual newlines via Rust first
-    {
-        let mut file = fs::File::create(&test_file).unwrap();
-        file.write_all(temp_content.as_bytes()).unwrap();
-    }
 
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
         var f = File("{}")
-        var content = f.read()
-        print(content)
+        f.write("Line 1\nLine 2\nLine 3")
     "#,
         file_path
     );
@@ -381,9 +415,8 @@ fn test_file_write_multiline() {
     let result = vm.interpret(source);
     assert_eq!(InterpretResult::Ok, result);
 
-    // Verify we read it correctly
-    let output = vm.get_output();
-    assert_eq!(temp_content, output.trim());
+    let content = fs::read_to_string(&test_file).expect("Failed to read written file");
+    assert_eq!("Line 1\nLine 2\nLine 3", content);
 
     cleanup_test_file(&test_file);
 }
@@ -418,23 +451,21 @@ fn test_file_write_empty_content() {
 }
 
 #[test]
-fn test_file_write_file_already_exists() {
+fn test_file_write_refuses_to_overwrite_existing_file() {
     let test_file = create_test_file("write_exists.txt", "Existing content");
     let file_path = test_file.to_str().unwrap();
 
-    let mut vm = VirtualMachine::new();
-    let source = format!(
-        r#"
+    assert_runtime_error(
+        &format!(
+            r#"
         var f = File("{}")
         f.write("New content")
          print("This should not print")
     "#,
-        file_path
+            file_path
+        ),
+        &format!("File already exists: {}", file_path),
     );
-
-    let result = vm.interpret(source);
-    // Should result in a runtime error because file exists
-    assert_eq!(InterpretResult::RuntimeError, result);
 
     // Verify the original content was not changed
     let content = fs::read_to_string(&test_file).expect("Failed to read file");
@@ -708,4 +739,80 @@ fn test_file_practical_example_process_lines() {
     assert!(output.contains("Found: 2"));
 
     cleanup_test_file(&test_file);
+}
+
+#[test]
+fn test_file_write_wrong_arg_count() {
+    let test_file = std::env::temp_dir().join("neon_test_write_wrong_args.txt");
+    let _ = fs::remove_file(&test_file);
+
+    assert_runtime_error(
+        &format!(
+            r#"
+        var f = File("{}")
+        f.write()
+    "#,
+            test_file.to_str().unwrap()
+        ),
+        "write() expects 1 argument, got 0",
+    );
+    assert!(!test_file.exists());
+}
+
+#[test]
+fn test_file_read_wrong_arg_count() {
+    let test_file = create_test_file("read_wrong_args.txt", "test");
+
+    assert_runtime_error(
+        &format!(
+            r#"
+        var f = File("{}")
+        f.read("unexpected")
+    "#,
+            test_file.to_str().unwrap()
+        ),
+        "read() expects 0 arguments (only receiver), got 1",
+    );
+
+    cleanup_test_file(&test_file);
+}
+
+#[test]
+fn test_file_read_lines_wrong_arg_count() {
+    let test_file = create_test_file("readlines_wrong_args.txt", "test");
+
+    assert_runtime_error(
+        &format!(
+            r#"
+        var f = File("{}")
+        f.readLines("unexpected")
+    "#,
+            test_file.to_str().unwrap()
+        ),
+        "readLines() expects 0 arguments (only receiver), got 1",
+    );
+
+    cleanup_test_file(&test_file);
+}
+
+#[test]
+fn test_impl_on_file_user_method() {
+    // File(path) only wraps a path, so this exercises impl-on-builtin
+    // dispatch without touching the filesystem.
+    let path = std::env::temp_dir().join("neon_test_impl_on_file_unused.txt");
+    let source = format!(
+        r#"
+        impl File {{
+            fn describe(self) {{
+                return "a file"
+            }}
+        }}
+        print(File("{}").describe())
+    "#,
+        path.to_str().unwrap()
+    );
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(source));
+    assert_eq!("a file", vm.get_output());
 }
