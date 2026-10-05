@@ -4350,3 +4350,13 @@ fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
 }
+
+#[test]
+fn test_if_expression_without_else_is_a_compile_error() {
+    let mut parser = Parser::new("val x = if c { 1 }\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1, "Should report exactly one error");
+    assert_eq!(errors[0].message, "if expression requires else");
+}

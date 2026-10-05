@@ -1547,7 +1547,7 @@ impl Parser {
         let condition = self.expression(false)?;
         let then_branch = Box::new(self.if_expr_block()?);
 
-        if !self.consume(TokenType::Else, "Expect 'else' after if-expression branch.") {
+        if !self.consume(TokenType::Else, "if expression requires else") {
             return None;
         }
 
