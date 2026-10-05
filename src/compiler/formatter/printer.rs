@@ -827,14 +827,6 @@ impl<'a> Printer<'a> {
                 }
                 self.print_expr(end);
             }
-            Expr::PostfixIncrement { operand, .. } => {
-                self.print_expr(operand);
-                self.write("++");
-            }
-            Expr::PostfixDecrement { operand, .. } => {
-                self.print_expr(operand);
-                self.write("--");
-            }
             Expr::Conditional {
                 condition,
                 then_expr,

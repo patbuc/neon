@@ -810,33 +810,6 @@ impl SemanticAnalyzer {
         self.resolutions.record_use(id, res);
     }
 
-    /// Helper method to check if a variable exists and is mutable, recording
-    /// its resolution under `id` either way.
-    fn check_variable_mutability(&mut self, id: NodeId, name: &str, location: SourceLocation) {
-        let Some(symbol) = self.symbol_table.resolve(name) else {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedVariable,
-                format!("Undefined variable '{}'", name),
-                location,
-            ));
-            return;
-        };
-        let use_ = SymbolUse::from(symbol);
-        self.check_top_level_forward_use(use_, name, location);
-
-        if !use_.is_mutable {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::ImmutableAssignment,
-                format!("Cannot modify immutable variable '{}'", name),
-                location,
-            ));
-        }
-
-        self.record_symbol_use(id, use_);
-    }
-
     /// Compile error for a script-level (function level 0) direct use of a
     /// top-level val/var whose declaration statement hasn't resolved yet. A
     /// name shadowed by a block local never reaches here, since
@@ -1161,12 +1134,6 @@ impl SemanticAnalyzer {
             }
             Expr::Range { start, end, .. } => {
                 self.resolve_range_expr(start, end);
-            }
-            Expr::PostfixIncrement { operand, location } => {
-                self.resolve_postfix(operand, *location, "Increment");
-            }
-            Expr::PostfixDecrement { operand, location } => {
-                self.resolve_postfix(operand, *location, "Decrement");
             }
             Expr::Conditional {
                 condition,
@@ -1794,24 +1761,6 @@ impl SemanticAnalyzer {
         // Resolve the start and end expressions
         self.resolve_expr(start);
         self.resolve_expr(end);
-    }
-
-    fn resolve_postfix(&mut self, operand: &Expr, location: SourceLocation, operator: &str) {
-        // Postfix operators can only be applied to simple variables
-        match operand {
-            Expr::Variable { name, id, .. } => {
-                // Check if variable exists and is mutable
-                self.check_variable_mutability(*id, name, location);
-            }
-            _ => {
-                self.push_error(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::InvalidIncrementTarget,
-                    format!("{operator} operator can only be applied to variables"),
-                    location,
-                ));
-            }
-        }
     }
 
     // Validation helper methods

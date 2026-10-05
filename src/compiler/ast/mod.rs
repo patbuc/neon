@@ -199,14 +199,6 @@ pub enum Expr {
         inclusive: bool,
         location: SourceLocation,
     },
-    PostfixIncrement {
-        operand: Box<Expr>,
-        location: SourceLocation,
-    },
-    PostfixDecrement {
-        operand: Box<Expr>,
-        location: SourceLocation,
-    },
     Conditional {
         condition: Box<Expr>,
         then_expr: Box<Expr>,

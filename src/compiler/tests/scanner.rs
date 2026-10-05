@@ -147,33 +147,37 @@ fn can_scan_complex_logical_expression() {
 }
 
 #[test]
-fn can_scan_plusplus_operator() {
+fn plus_plus_scans_as_two_plus_tokens() {
     let script = "x++";
 
     let scanner = Scanner::new(script);
     let x: Vec<Token> = collect_tokens(scanner);
 
-    assert_eq!(x.len(), 3);
+    assert_eq!(x.len(), 4);
     assert_eq!(x[0].token_type, TokenType::Identifier);
     assert_eq!(x[0].token, "x");
-    assert_eq!(x[1].token_type, TokenType::PlusPlus);
-    assert_eq!(x[1].token, "++");
-    assert_eq!(x[2].token_type, TokenType::Eof);
+    assert_eq!(x[1].token_type, TokenType::Plus);
+    assert_eq!(x[1].token, "+");
+    assert_eq!(x[2].token_type, TokenType::Plus);
+    assert_eq!(x[2].token, "+");
+    assert_eq!(x[3].token_type, TokenType::Eof);
 }
 
 #[test]
-fn can_scan_minusminus_operator() {
+fn minus_minus_scans_as_two_minus_tokens() {
     let script = "x--";
 
     let scanner = Scanner::new(script);
     let x: Vec<Token> = collect_tokens(scanner);
 
-    assert_eq!(x.len(), 3);
+    assert_eq!(x.len(), 4);
     assert_eq!(x[0].token_type, TokenType::Identifier);
     assert_eq!(x[0].token, "x");
-    assert_eq!(x[1].token_type, TokenType::MinusMinus);
-    assert_eq!(x[1].token, "--");
-    assert_eq!(x[2].token_type, TokenType::Eof);
+    assert_eq!(x[1].token_type, TokenType::Minus);
+    assert_eq!(x[1].token, "-");
+    assert_eq!(x[2].token_type, TokenType::Minus);
+    assert_eq!(x[2].token, "-");
+    assert_eq!(x[3].token_type, TokenType::Eof);
 }
 
 #[test]

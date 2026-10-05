@@ -194,18 +194,14 @@ impl Scanner {
                 }
             }
             '-' => {
-                if self.matches('-') {
-                    self.make_token(TokenType::MinusMinus)
-                } else if self.matches('=') {
+                if self.matches('=') {
                     self.make_token(TokenType::MinusEqual)
                 } else {
                     self.make_token(TokenType::Minus)
                 }
             }
             '+' => {
-                if self.matches('+') {
-                    self.make_token(TokenType::PlusPlus)
-                } else if self.matches('=') {
+                if self.matches('=') {
                     self.make_token(TokenType::PlusEqual)
                 } else {
                     self.make_token(TokenType::Plus)

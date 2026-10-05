@@ -87,8 +87,6 @@
         { "match": "\\.\\.", "name": "keyword.operator.range.neon" },
         { "match": "\\*\\*=", "name": "keyword.operator.assignment.neon" },
         { "match": "\\*\\*", "name": "keyword.operator.exponentiation.neon" },
-        { "match": "\\+\\+", "name": "keyword.operator.increment.neon" },
-        { "match": "--", "name": "keyword.operator.decrement.neon" },
         { "match": "<<", "name": "keyword.operator.bitwise.neon" },
         { "match": ">>", "name": "keyword.operator.bitwise.neon" },
         { "match": "&&", "name": "keyword.operator.logical.neon" },

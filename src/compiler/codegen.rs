@@ -1389,41 +1389,6 @@ impl<'a> CodeGenerator<'a> {
         self.current_chunk().write_u16(elements.len() as u16);
     }
 
-    fn generate_postfix_operation(
-        &mut self,
-        operand: &Expr,
-        operation: OpCode,
-        location: SourceLocation,
-    ) {
-        let Expr::Variable { id, .. } = operand else {
-            unreachable!("semantic pass guarantees a postfix operand is a variable")
-        };
-
-        // Load old value (will be the return value)
-        self.emit_variable_get(*id, location);
-
-        // Load old value again (for modification)
-        self.emit_variable_get(*id, location);
-
-        // Push 1 and perform operation (add or subtract)
-        self.emit_constant(int!(1), location);
-        self.emit_op_code(operation, location);
-
-        // Store new value
-        self.emit_variable_set(*id, location);
-
-        // Pop the new value, leaving old value on stack
-        self.emit_op_code(OpCode::Pop, location);
-    }
-
-    fn generate_postfix_increment_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Add, location);
-    }
-
-    fn generate_postfix_decrement_expr(&mut self, operand: &Expr, location: SourceLocation) {
-        self.generate_postfix_operation(operand, OpCode::Subtract, location);
-    }
-
     fn generate_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Number {
@@ -1661,12 +1626,6 @@ impl<'a> CodeGenerator<'a> {
                 self.emit_op_code(OpCode::CreateRange, *location);
                 self.current_chunk()
                     .write_u8(if *inclusive { 1 } else { 0 });
-            }
-            Expr::PostfixIncrement { operand, location } => {
-                self.generate_postfix_increment_expr(operand, *location);
-            }
-            Expr::PostfixDecrement { operand, location } => {
-                self.generate_postfix_decrement_expr(operand, *location);
             }
             Expr::Conditional {
                 condition,

@@ -96,11 +96,6 @@ fn test_double_negate_keeps_separating_space() {
 }
 
 #[test]
-fn test_postfix_increment() {
-    check("x ++\n", "x++\n");
-}
-
-#[test]
 fn test_range_unchanged() {
     check("1 .. 5\n", "1..5\n");
     check("1 ..= 5\n", "1..=5\n");

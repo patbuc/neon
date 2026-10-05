@@ -6,10 +6,6 @@
 //         ^^^ keyword.operator.range.neon
   var r = a**b
 //         ^^ keyword.operator.exponentiation.neon
-  a++
-// ^^ keyword.operator.increment.neon
-  a--
-// ^^ keyword.operator.decrement.neon
   var r = a<<b
 //         ^^ keyword.operator.bitwise.neon
   var r = a>>b
