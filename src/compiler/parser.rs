@@ -1976,6 +1976,12 @@ impl Parser {
             let name = self.current_token.token.clone();
             let binding_location = self.current_token_location();
             self.advance();
+            if name == "_" {
+                return Some(MatchPattern::Rest {
+                    binding: None,
+                    location,
+                });
+            }
             Some(Binding {
                 name,
                 id: self.next_id(),
