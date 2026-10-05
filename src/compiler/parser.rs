@@ -809,13 +809,24 @@ impl Parser {
                 let location = self.current_location();
                 let mut fields = Vec::new();
                 if self.match_token(TokenType::LeftParen) {
-                    fields =
-                        self.parse_comma_separated_list(TokenType::RightParen, None, |parser| {
+                    fields = self.parse_comma_separated_list(
+                        TokenType::RightParen,
+                        Some((
+                            crate::common::constants::MAX_FUNCTION_PARAMS,
+                            CompilationErrorKind::TooManyParameters,
+                            "Can't have more than 255 fields.",
+                        )),
+                        |parser| {
                             if !parser.consume(TokenType::Identifier, "Expect field name.") {
                                 return None;
                             }
                             Some(parser.previous_token.token.clone())
-                        })?;
+                        },
+                    )?;
+                    if fields.is_empty() {
+                        self.consume(TokenType::Identifier, "Expect field name.");
+                        return None;
+                    }
                     if !self.consume(TokenType::RightParen, "Expect ')' after variant fields.") {
                         return None;
                     }

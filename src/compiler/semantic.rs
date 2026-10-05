@@ -1827,7 +1827,7 @@ impl SemanticAnalyzer {
                     self.validate_arity(
                         "Function",
                         method,
-                        u8::try_from(variant.fields.len()).unwrap_or(u8::MAX),
+                        variant.fields.len() as u8,
                         arguments.len(),
                         location,
                     );
