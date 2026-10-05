@@ -178,6 +178,17 @@ fn test_range_sum_keeps_int_variant() {
     assert_eq!("6", vm.get_output());
 }
 
+#[test]
+fn test_range_reduce() {
+    let program = r#"
+        print((1..4).reduce(0, fn(acc, x) { return acc + x }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("6", vm.get_output());
+}
+
 // ============================================================================
 // Error Cases
 // ============================================================================

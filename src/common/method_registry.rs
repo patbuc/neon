@@ -24,7 +24,7 @@ pub(crate) enum NativeCallable {
         returns: Option<StaticType>,
     },
     /// Instance method that calls back into Neon code, so it needs the VM:
-    /// arr.map(fn), arr.filter(fn), arr.reduce(fn, initial)
+    /// arr.map(fn), arr.filter(fn), arr.reduce(initial, fn)
     InstanceMethodWithVm {
         function: NativeFnWithVm,
         #[allow(dead_code)]

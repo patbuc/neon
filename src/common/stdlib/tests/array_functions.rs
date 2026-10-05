@@ -896,13 +896,28 @@ fn test_array_filter_wrong_arg_count() {
 fn test_array_reduce_with_closure() {
     let program = r#"
         val factor = 10
-        val result = [1, 2, 3].reduce(fn(acc, x) { return acc + x * factor }, 0)
+        val result = [1, 2, 3].reduce(0, fn(acc, x) { return acc + x * factor })
         print(result)
     "#;
 
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("60", vm.get_output());
+}
+
+#[test]
+fn test_array_reduce_old_arg_order_is_runtime_error() {
+    let program = r#"
+        print([1, 2].reduce(fn(a, x) { return a + x }, 0))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(errors.contains("Value is not callable"), "{}", errors);
 }
 
 #[test]

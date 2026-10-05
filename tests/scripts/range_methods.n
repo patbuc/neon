@@ -25,6 +25,6 @@ print((1..4).max())
 print((1..4).filter(fn(x) {
     return x > 1
 }))
-print((1..4).reduce(fn(acc, x) {
+print((1..4).reduce(0, fn(acc, x) {
     return acc + x
-}, 0))
+}))

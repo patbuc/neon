@@ -780,7 +780,7 @@ pub fn native_array_filter(
     Ok(Value::new_array(kept))
 }
 
-/// Native implementation of Array.reduce(fn, initial)
+/// Native implementation of Array.reduce(initial, fn)
 /// Folds the array from the left, calling fn(accumulator, element).
 pub fn native_array_reduce(
     vm: &mut dyn NativeContext,
@@ -788,15 +788,15 @@ pub fn native_array_reduce(
 ) -> Result<Value, NativeCallError> {
     if args.len() != 3 {
         return Err(format!(
-            "reduce() expects 2 arguments (function, initial value), got {}",
+            "reduce() expects 2 arguments (initial value, function), got {}",
             args.len() - 1
         )
         .into());
     }
 
     let array_ref = extract_receiver!(args, Array, "reduce")?;
-    let callback = args[1].clone();
-    let mut accumulator = args[2].clone();
+    let mut accumulator = args[1].clone();
+    let callback = args[2].clone();
     let elements: Vec<Value> = array_ref.borrow().clone();
 
     for element in elements {

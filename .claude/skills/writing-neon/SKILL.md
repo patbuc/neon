@@ -144,7 +144,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Boolean:** `toString`
 - **Array:** `Array(n, init)`, `push`, `pop`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
-  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `forEach(fn)`, `flatMap(fn)`,
+  `map(fn)`, `filter(fn)`, `reduce(initial, fn)`, `forEach(fn)`, `flatMap(fn)`,
   `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`, `take(n)`, `drop(n)`,
   `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`, `sortBy(fn)`,
   `minBy(fn)`, `maxBy(fn)`, `groupBy(fn)`, `tally()`
