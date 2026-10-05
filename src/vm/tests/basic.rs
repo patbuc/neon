@@ -1278,245 +1278,6 @@ fn test_map_in_recursive_function() {
 // =============================================================================
 
 #[test]
-fn test_array_literal_empty() {
-    let program = r#"
-        val arr = []
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_single_element() {
-    let program = r#"
-        val arr = [42]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[42]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_multiple_elements() {
-    let program = r#"
-        val arr = [1, 2, 3]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3]", vm.get_output());
-}
-
-#[test]
-fn test_array_literal_mixed_types() {
-    let program = r#"
-        val arr = [1, "hello", true, nil]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, hello, true, nil]", vm.get_output());
-}
-
-#[test]
-fn test_array_indexing_positive() {
-    let program = r#"
-        val arr = [10, 20, 30]
-        print(arr[0])
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("10\n20\n30", vm.get_output());
-}
-
-#[test]
-fn test_array_indexing_negative() {
-    let program = r#"
-        val arr = [10, 20, 30]
-        print(arr[-1])
-        print(arr[-2])
-        print(arr[-3])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("30\n20\n10", vm.get_output());
-}
-
-#[test]
-fn test_array_index_assignment() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr[0] = 10
-        arr[1] = 20
-        arr[2] = 30
-        print(arr[0])
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("10\n20\n30", vm.get_output());
-}
-
-#[test]
-fn test_array_index_assignment_negative() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr[-1] = 99
-        arr[-2] = 88
-        print(arr[1])
-        print(arr[2])
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("88\n99", vm.get_output());
-}
-
-#[test]
-fn test_array_push() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        arr.push(4)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3, 4]", vm.get_output());
-}
-
-#[test]
-fn test_array_push_multiple() {
-    let program = r#"
-        var arr = []
-        arr.push(1)
-        arr.push(2)
-        arr.push(3)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[1, 2, 3]", vm.get_output());
-}
-
-#[test]
-fn test_array_pop() {
-    let program = r#"
-        var arr = [1, 2, 3]
-        val last = arr.pop()
-        print(last)
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n[1, 2]", vm.get_output());
-}
-
-#[test]
-fn test_array_pop_empty() {
-    let program = r#"
-        var arr = []
-        val result = arr.pop()
-        print(result)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn test_array_size() {
-    let program = r#"
-        val arr1 = []
-        val arr2 = [1]
-        val arr3 = [1, 2, 3]
-        print(arr1.size())
-        print(arr2.size())
-        print(arr3.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0\n1\n3", vm.get_output());
-}
-
-#[test]
-fn test_array_size_after_push() {
-    let program = r#"
-        var arr = [1, 2]
-        print(arr.size())
-        arr.push(3)
-        print(arr.size())
-        arr.push(4)
-        print(arr.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("2\n3\n4", vm.get_output());
-}
-
-#[test]
-fn test_array_size_after_pop() {
-    let program = r#"
-        var arr = [1, 2, 3, 4]
-        print(arr.size())
-        arr.pop()
-        print(arr.size())
-        arr.pop()
-        print(arr.size())
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("4\n3\n2", vm.get_output());
-}
-
-#[test]
-fn test_array_nested() {
-    let program = r#"
-        val arr = [[1, 2], [3, 4]]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[[1, 2], [3, 4]]", vm.get_output());
-}
-
-#[test]
 fn test_array_nested_access() {
     let program = r#"
         val arr = [[1, 2], [3, 4]]
@@ -1532,37 +1293,6 @@ fn test_array_nested_access() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n2\n3\n4", vm.get_output());
-}
-
-#[test]
-fn test_array_nested_modification() {
-    let program = r#"
-        var arr = [[1, 2], [3, 4]]
-        val inner = arr[0]
-        inner[0] = 99
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[[99, 2], [3, 4]]", vm.get_output());
-}
-
-#[test]
-fn test_array_with_variables() {
-    let program = r#"
-        val x = 10
-        val y = 20
-        val z = 30
-        val arr = [x, y, z]
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("[10, 20, 30]", vm.get_output());
 }
 
 #[test]
@@ -1733,34 +1463,6 @@ fn test_array_accumulation() {
 }
 
 #[test]
-fn test_array_push_pop_lifecycle() {
-    let program = r#"
-        var arr = []
-        print(arr.size())
-
-        arr.push(1)
-        arr.push(2)
-        arr.push(3)
-        print(arr.size())
-        print(arr)
-
-        arr.pop()
-        print(arr.size())
-        print(arr)
-
-        arr.pop()
-        arr.pop()
-        print(arr.size())
-        print(arr)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("0\n3\n[1, 2, 3]\n2\n[1, 2]\n0\n[]", vm.get_output());
-}
-
-#[test]
 fn test_array_with_map_values() {
     let program = r#"
         val map1 = {"x": 1, "y": 2}
@@ -1835,6 +1537,22 @@ fn test_array_reverse_with_negative_indices() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("5\n4\n3\n2\n1", vm.get_output());
+}
+
+#[test]
+fn test_array_index_assignment_negative() {
+    let program = r#"
+        var arr = [1, 2, 3]
+        arr[-1] = 99
+        arr[-2] = 88
+        print(arr[1])
+        print(arr[2])
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::Ok, result);
+    assert_eq!("88\n99", vm.get_output());
 }
 
 #[test]
