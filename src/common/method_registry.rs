@@ -221,7 +221,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -402,7 +402,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -744,7 +744,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     // Number instance methods
@@ -810,7 +810,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::map_functions::native_map_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -883,7 +883,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::set_functions::native_set_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (

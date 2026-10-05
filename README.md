@@ -770,6 +770,8 @@ print(Math.mod(-7, 3))     // 2
 
 ### String Methods
 
+- `.size()` - String length (character count)
+- `.isEmpty()` - Whether the string has no characters
 - `.substring(start, end)` - Extract substring (supports negative indices)
 - `.replace(old, new)` - Replace all occurrences
 - `.split()` - Split on runs of Unicode whitespace, dropping leading and trailing empties
@@ -789,8 +791,6 @@ print(Math.mod(-7, 3))     // 2
 - `.padStart(len, fill)` / `.padEnd(len, fill)` - Pad with `fill` (cycled, non-empty) until `len` chars long
 - `.lastIndexOf(substring)` - Position of the last occurrence, or `-1`
 - `.contains(substring)` - Whether `substring` occurs anywhere in the string
-- `.size()` - String length (character count)
-- `.isEmpty()` - Whether the string has no characters
 
 **Example:**
 ```neon
