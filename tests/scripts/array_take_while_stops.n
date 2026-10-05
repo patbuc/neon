@@ -1,0 +1,11 @@
+// Expected:
+// [1, 2]
+// 3
+
+var calls = 0
+val r = [1, 2, 3, 1, 1].takeWhile { x ->
+    calls += 1
+    x < 3
+}
+print(r)
+print(calls)

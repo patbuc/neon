@@ -302,6 +302,30 @@ pub fn native_range_group_by(
     array_functions::native_array_group_by(vm, &materialize(args, "groupBy")?)
 }
 
+/// Native implementation of Range.takeWhile(fn)
+pub fn native_range_take_while(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_take_while(vm, &materialize(args, "takeWhile")?)
+}
+
+/// Native implementation of Range.dropWhile(fn)
+pub fn native_range_drop_while(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_drop_while(vm, &materialize(args, "dropWhile")?)
+}
+
+/// Native implementation of Range.partition(fn)
+pub fn native_range_partition(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_partition(vm, &materialize(args, "partition")?)
+}
+
 /// Native implementation of Range.tally()
 pub fn native_range_tally(args: &[Value]) -> Result<Value, String> {
     array_functions::native_array_tally(&materialize(args, "tally")?)

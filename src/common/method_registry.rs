@@ -280,6 +280,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "takeWhile",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_take_while,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "dropWhile",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_drop_while,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "partition",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_partition,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
         "tally",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_tally,
@@ -691,6 +718,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::range_functions::native_range_group_by,
             arity: 1,
             returns: Some(StaticType::Map),
+        },
+    ),
+    (
+        "Range",
+        "takeWhile",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_take_while,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "dropWhile",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_drop_while,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "partition",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_partition,
+            arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (

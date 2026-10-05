@@ -1078,6 +1078,9 @@ for ch in "abc" {
 - `.groupBy(fn)` - Map from each element's key (from `fn`) to an array of the elements that produced
   it, in first-key insertion order. Keys must be valid map keys
 - `.tally()` - Map from each distinct element to how many times it occurs, in first-occurrence order.
+- `.takeWhile(fn)` - New array of the leading elements for which `fn` is truthy, stopping at the first that isn't
+- `.dropWhile(fn)` - New array of the elements from the first one for which `fn` is falsy onwards
+- `.partition(fn)` - `[matching, nonMatching]`: two new arrays split by whether `fn` is truthy
   Elements must be valid map keys
 - `.slice(start, end)` - New array of the elements from `start` up to `end` (supports negative indices)
 - `.join(delimiter)` - Join the elements into a string
@@ -1149,7 +1152,7 @@ comparator must return a number.
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
-- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(initial, fn)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()` - Same as the Array methods, applied to the range's elements
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(initial, fn)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()`, `.takeWhile(fn)`, `.dropWhile(fn)`, `.partition(fn)` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
 
