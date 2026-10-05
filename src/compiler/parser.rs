@@ -139,44 +139,56 @@ impl Parser {
         result
     }
 
-    /// After a condition/collection parsed with `without_trailing_block`,
-    /// checks whether the `{` it stopped in front of was meant as a
-    /// trailing-block lambda rather than the statement's own body: true if
-    /// the current token is `{` and, scanning ahead to its matching `}`,
-    /// that closing brace is immediately followed on the same line by `{`
-    /// or `.` (another trailing block, or a method call on its result).
-    /// Reports the error at that `{` and returns whether it did.
-    fn reject_trailing_block_in_condition(&mut self) -> bool {
-        if !self.check(TokenType::LeftBrace) {
-            return false;
-        }
-        let mut lookahead = Scanner::new(&self.scanner.remainder());
-        let mut depth = 1;
-        let is_trailing_block = loop {
-            let token = lookahead.scan_token();
-            match token.token_type {
-                TokenType::LeftBrace => depth += 1,
-                TokenType::RightBrace => {
-                    depth -= 1;
-                    if depth == 0 {
-                        let next = lookahead.scan_token();
-                        break next.line == token.line
-                            && matches!(next.token_type, TokenType::LeftBrace | TokenType::Dot);
-                    }
-                }
-                TokenType::Eof => break false,
-                _ => {}
-            }
-        };
-        if !is_trailing_block {
-            return false;
-        }
-        self.report_error_at_current(
+    /// True when the token right after a just-parsed `{ ... }` body, on the
+    /// same line as its closing `}` (the current `previous_token`), would
+    /// continue an expression: `{` (another trailing block), `.`/`?.` (a
+    /// method call on its result), a binary operator, or `?`/`??`/`(`. Used
+    /// right after parsing a condition/collection's `{` body (parsed with
+    /// `without_trailing_block` stopped in front of it) to tell whether that
+    /// `{` was actually the statement's own body or a trailing-block lambda
+    /// belonging to the condition.
+    fn continues_expression_after_block(&self) -> bool {
+        self.current_token.line == self.previous_token.line
+            && matches!(
+                self.current_token.token_type,
+                TokenType::LeftBrace
+                    | TokenType::Dot
+                    | TokenType::QuestionDot
+                    | TokenType::LeftParen
+                    | TokenType::Question
+                    | TokenType::QuestionQuestion
+                    | TokenType::Plus
+                    | TokenType::Minus
+                    | TokenType::Star
+                    | TokenType::StarStar
+                    | TokenType::Slash
+                    | TokenType::Percent
+                    | TokenType::EqualEqual
+                    | TokenType::BangEqual
+                    | TokenType::Greater
+                    | TokenType::GreaterEqual
+                    | TokenType::Less
+                    | TokenType::LessEqual
+                    | TokenType::AndAnd
+                    | TokenType::OrOr
+                    | TokenType::Ampersand
+                    | TokenType::Pipe
+                    | TokenType::Caret
+                    | TokenType::LessLess
+                    | TokenType::GreaterGreater
+                    | TokenType::DotDot
+                    | TokenType::DotDotEqual
+            )
+    }
+
+    /// Reports the "trailing block in a condition" error at `brace_location`.
+    fn report_trailing_block_in_condition(&mut self, brace_location: SourceLocation) {
+        self.report_error(
             CompilationErrorKind::ExpectedToken,
+            brace_location,
             "Trailing block is not allowed in a condition; wrap the call in parentheses"
                 .to_string(),
         );
-        true
     }
 
     fn next_id(&mut self) -> NodeId {
@@ -914,13 +926,24 @@ impl Parser {
     /// Requires the next token to start a `{ ... }` block, as the body of an
     /// `if`, `while`, or `for ... in`.
     fn require_block_body(&mut self) -> Option<Stmt> {
-        if self.reject_trailing_block_in_condition() {
-            return None;
-        }
         if !self.require_left_brace() {
             return None;
         }
-        self.statement()
+        let brace_location = self.current_token_location();
+        self.advance();
+        let location = self.current_location();
+        let statements = self.parse_block_body()?;
+        if self.continues_expression_after_block() {
+            self.report_trailing_block_in_condition(brace_location);
+            return None;
+        }
+        if !self.check(TokenType::Else) {
+            self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
+        }
+        Some(Stmt::Block {
+            statements,
+            location,
+        })
     }
 
     /// Requires an `else` to be followed by a block or another `if`.
@@ -1711,10 +1734,12 @@ impl Parser {
         let location = self.current_location();
 
         let condition = self.without_trailing_block(|parser| parser.expression(false))?;
-        if self.reject_trailing_block_in_condition() {
+        let brace_location = self.current_token_location();
+        let then_branch = Box::new(self.if_expr_block()?);
+        if self.continues_expression_after_block() {
+            self.report_trailing_block_in_condition(brace_location);
             return None;
         }
-        let then_branch = Box::new(self.if_expr_block()?);
 
         if !self.consume(TokenType::Else, "if expression requires else") {
             return None;

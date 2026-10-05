@@ -4420,3 +4420,68 @@ fn test_trailing_block_not_allowed_in_for_in_collection() {
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
     );
 }
+
+#[test]
+fn test_trailing_block_not_allowed_in_if_expression_condition() {
+    let mut parser = Parser::new("val v = if xs.filter { it > 1 }.isEmpty() { 1 } else { 2 }\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_else_if_condition() {
+    let mut parser = Parser::new(
+        "if false {\n  val x = 1\n} else if [1].filter { it > 0 }.isEmpty() {\n  val y = 1\n}\n",
+    );
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_allowed_in_call_args_within_condition() {
+    let mut parser =
+        Parser::new("fn id(x) = x\nif id([1].filter { it > 0 }.isEmpty()) {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok(), "{:?}", result.unwrap_err());
+}
+
+#[test]
+fn test_trailing_block_allowed_in_index_within_condition() {
+    let mut parser = Parser::new("if [[1].filter { it > 0 }.isEmpty()][0] {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_ok(), "{:?}", result.unwrap_err());
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_condition_before_and_and() {
+    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() && true {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_condition_before_equal_equal() {
+    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() == true {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
