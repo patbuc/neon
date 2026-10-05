@@ -28,5 +28,5 @@ person["city"] = "NYC"
 print(person.size()) // 3
 
 // Check key existence
-print(person.has("city")) // true
-print(person.has("country")) // false
+print(person.contains("city")) // true
+print(person.contains("country")) // false

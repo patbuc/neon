@@ -39,7 +39,7 @@ fn offset_momentum(bodies) {
 }
 
 fn advance(bodies, dt) {
-    val count = bodies.length()
+    val count = bodies.size()
     var i = 0
     while i < count {
         val bi = bodies[i]
@@ -73,7 +73,7 @@ fn advance(bodies, dt) {
 
 fn energy(bodies) {
     var e = 0
-    val count = bodies.length()
+    val count = bodies.size()
     var i = 0
     while i < count {
         val bi = bodies[i]
@@ -93,7 +93,7 @@ fn energy(bodies) {
     return e
 }
 
-val n = args.length() > 0 ? args[0].toInt() : 200
+val n = args.size() > 0 ? args[0].toInt() : 200
 
 val bodies = make_bodies()
 offset_momentum(bodies)

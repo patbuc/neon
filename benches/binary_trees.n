@@ -30,7 +30,7 @@ fn pow2(k) {
     return result
 }
 
-val n = args.length() > 0 ? args[0].toInt() : 8
+val n = args.size() > 0 ? args[0].toInt() : 8
 
 val min_depth = 4
 val max_depth = n > min_depth + 2 ? n : min_depth + 2

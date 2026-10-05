@@ -132,7 +132,7 @@ fn test_file_read_lines() {
         r#"
         val f = File("{}")
         val lines = f.readLines()
-        print(lines.length())
+        print(lines.size())
         print(lines[0])
         print(lines[1])
         print(lines[2])
@@ -159,7 +159,7 @@ fn test_file_read_lines_empty() {
         r#"
         val f = File("{}")
         val lines = f.readLines()
-        print(lines.length())
+        print(lines.size())
     "#,
         test_path
     );
@@ -183,7 +183,7 @@ fn test_file_read_lines_single() {
         r#"
         val f = File("{}")
         val lines = f.readLines()
-        print(lines.length())
+        print(lines.size())
         print(lines[0])
     "#,
         test_path

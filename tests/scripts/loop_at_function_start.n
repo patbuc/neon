@@ -6,7 +6,7 @@
 // 3
 
 fn shrink(xs) {
-    while xs.length() > 1 {
+    while xs.size() > 1 {
         xs.pop()
     }
     return xs

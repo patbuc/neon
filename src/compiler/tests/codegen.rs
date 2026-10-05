@@ -683,10 +683,10 @@ fn test_array_method_pop() {
 }
 
 #[test]
-fn test_array_method_length() {
+fn test_array_method_size() {
     let program = r#"
     val arr = [1, 2, 3]
-    val len = arr.length()
+    val len = arr.size()
     "#;
     let chunk = compile_program(program).unwrap();
     assert!(chunk.instruction_count() > 0);

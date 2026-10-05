@@ -1,0 +1,59 @@
+// Expected:
+// 3
+// 1
+// 2
+// 1
+// 1
+// 0
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// false
+// true
+// false
+
+print("abc".size())
+print([1].size())
+print((1..3).size())
+print({"a": 1}.size())
+print(#{1}.size())
+val pq = PriorityQueue()
+print(pq.size())
+
+print("".isEmpty())
+print("abc".isEmpty())
+print([].isEmpty())
+print([1].isEmpty())
+print((1..1).isEmpty())
+print((1..3).isEmpty())
+print({}.isEmpty())
+print({"a": 1}.isEmpty())
+print(#{}.isEmpty())
+print(#{1}.isEmpty())
+print(PriorityQueue().isEmpty())
+
+print("abc".contains("b"))
+print("abc".contains("z"))
+print([1, 2, 3].contains(2))
+print([1, 2, 3].contains(9))
+print((1..3).contains(2))
+print((1..3).contains(9))
+print({"a": 1}.contains("a"))
+print({"a": 1}.contains("z"))
+print(#{1, 2}.contains(1))
+print(#{1, 2}.contains(9))

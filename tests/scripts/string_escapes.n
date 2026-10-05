@@ -14,7 +14,7 @@ print("say \"hi\"")
 print("a\nb")
 print("backslash: " + "\\")
 print("\t" == "\u{9}")
-print("\u{1F600}".len() == 1)
+print("\u{1F600}".size() == 1)
 
 var x = 1
 print("\${x}")

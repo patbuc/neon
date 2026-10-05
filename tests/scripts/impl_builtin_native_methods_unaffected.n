@@ -16,7 +16,7 @@ impl Array {
 
 val arr = [3, 1, 2]
 arr.sort()
-print(arr.length())
+print(arr.size())
 print(arr.contains(2))
 print(arr)
 print(arr.second())

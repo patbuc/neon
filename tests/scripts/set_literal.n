@@ -23,7 +23,7 @@ print(nums)
 val empty = #{}
 print(empty.size())
 print(empty.add(1))
-print(empty.has(1))
+print(empty.contains(1))
 print(empty)
 print(empty.remove(1))
 print(empty)
@@ -32,7 +32,7 @@ val m = {}
 print(m)
 print(m.size())
 m["x"] = 3
-print(m.has("x"))
+print(m.contains("x"))
 print(m["x"])
 
 val multiline = #{

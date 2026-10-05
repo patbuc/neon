@@ -1015,7 +1015,7 @@ fn apply(g, v) {
 #[test]
 fn test_valid_method_on_array_literal() {
     let program = r#"
-val x = [1, 2, 3].length()
+val x = [1, 2, 3].size()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1052,7 +1052,7 @@ val x = [1, 2, 3].invalidMethod()
 #[test]
 fn test_typo_on_method_name_suggests_correction() {
     let program = r#"
-val x = [1, 2, 3].lenght()
+val x = [1, 2, 3].szie()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1064,7 +1064,155 @@ val x = [1, 2, 3].lenght()
     let errors = result.unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.message.contains("Did you mean 'length'")));
+        .any(|e| e.message.contains("Did you mean 'size'")));
+}
+
+#[test]
+fn test_string_len_suggests_size() {
+    let program = r#"
+val x = "abc".len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| { e.message == "Type 'String' has no method named 'len'. Did you mean 'size'?" }));
+}
+
+#[test]
+fn test_string_includes_suggests_contains() {
+    let program = r#"
+val x = "abc".includes("a")
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| {
+        e.message == "Type 'String' has no method named 'includes'. Did you mean 'contains'?"
+    }));
+}
+
+#[test]
+fn test_array_length_suggests_size() {
+    let program = r#"
+val x = [1].length()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| {
+        e.message == "Type 'Array' has no method named 'length'. Did you mean 'size'?"
+    }));
+}
+
+#[test]
+fn test_range_length_suggests_size() {
+    let program = r#"
+val x = (1..3).length()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| {
+        e.message == "Type 'Range' has no method named 'length'. Did you mean 'size'?"
+    }));
+}
+
+#[test]
+fn test_map_has_suggests_contains() {
+    let program = r#"
+val x = {"a": 1}.has("a")
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| {
+        e.message == "Type 'Map' has no method named 'has'. Did you mean 'contains'?"
+    }));
+}
+
+#[test]
+fn test_set_has_suggests_contains() {
+    let program = r#"
+val x = #{1}.has(1)
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors.iter().any(|e| {
+        e.message == "Type 'Set' has no method named 'has'. Did you mean 'contains'?"
+    }));
+}
+
+#[test]
+fn test_struct_with_size_method_len_does_not_suggest_size() {
+    let program = r#"
+struct S { a }
+impl S {
+    fn size(self) = 1
+}
+S(1).len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'size'")));
+}
+
+#[test]
+fn test_number_len_does_not_suggest_size() {
+    let program = r#"
+val x = 5.len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'size'")));
 }
 
 #[test]
@@ -1089,7 +1237,7 @@ val x = [1, 2, 3].notAMethod()
 fn test_method_on_tracked_variable_validates_correctly() {
     let program = r#"
 val arr = [1, 2, 3]
-val len = arr.length()
+val len = arr.size()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1127,7 +1275,7 @@ val result = arr.badMethod()
 #[test]
 fn test_valid_method_on_string_literal() {
     let program = r#"
-val x = "hello".len()
+val x = "hello".size()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1241,7 +1389,7 @@ val result = #{1, 2, 3}.invalidMethod()
 fn test_method_chaining_with_type_inference() {
     let program = r#"
 val m = {"a": 1, "b": 2}
-val len = m.keys().length()
+val len = m.keys().size()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1280,7 +1428,7 @@ val result = m.keys().invalidMethod()
 fn test_string_split_returns_array() {
     let program = r#"
 val parts = "a,b,c".split(",")
-val len = parts.length()
+val len = parts.size()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1402,13 +1550,13 @@ fn test_integration_complex_valid_program() {
     let program = r#"
 fn analyzeText(input) {
     // String operations
-    val length = input.len()
+    val length = input.size()
     val parts = input.split(" ")
-    val partCount = parts.length()
+    val partCount = parts.size()
 
     // Array operations
     val words = ["hello", "world", "neon"]
-    val wordCount = words.length()
+    val wordCount = words.size()
     words.push("lang")
     val last = words.pop()
 
@@ -1420,13 +1568,13 @@ fn analyzeText(input) {
 
     // Set operations
     val uniqueNums = #{1, 2, 3, 4, 5}
-    val hasTwo = uniqueNums.has(2)
+    val hasTwo = uniqueNums.contains(2)
     val asArray = uniqueNums.toArray()
     val setSize = uniqueNums.size()
 
     // Method chaining
     val result = "hello world".split(" ")
-    val chainedLength = result.length()
+    val chainedLength = result.size()
 
     return chainedLength
 }
@@ -1460,7 +1608,7 @@ print(output)
 fn test_integration_edge_case_empty_strings() {
     let program = r#"
 val empty = ""
-val length = empty.len()
+val length = empty.size()
 val replaced = empty.replace(",", ";")
 val parts = empty.split(",")
 "#;
@@ -1571,8 +1719,8 @@ fn test_integration_no_false_positives_all_builtin_array_methods() {
     // Verify no false positives: all valid array methods should pass
     let program = r#"
 val arr = [1, 2, 3, 4, 5]
-val len = arr.length()
-val sz = arr.size()
+val len = arr.size()
+val sz = arr.isEmpty()
 val pushed = arr.push(6)
 val popped = arr.pop()
 val hasThree = arr.contains(3)
@@ -1600,13 +1748,14 @@ fn test_integration_no_false_positives_all_builtin_string_methods() {
     // Verify no false positives: all valid string methods should pass
     let program = r#"
 val text = "Hello World"
-val length = text.len()
+val length = text.size()
 val sub = text.substring(0, 5)
 val parts = text.split(" ")
 val replaced = text.replace("Hello", "Hi")
 val asInt = "123".toInt()
 val asFloat = "3.14".toFloat()
 val asBool = "true".toBool()
+val empty = text.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1634,10 +1783,11 @@ val m = {"a": 1, "b": 2, "c": 3}
 val keys = m.keys()
 val values = m.values()
 val entries = m.entries()
-val hasKey = m.has("a")
+val hasKey = m.contains("a")
 val size = m.size()
 val value = m.get("a")
 val removed = m.remove("b")
+val empty = m.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1662,7 +1812,7 @@ fn test_integration_no_false_positives_all_builtin_set_methods() {
     // Verify no false positives: all valid set methods should pass
     let program = r#"
 val s = #{1, 2, 3, 4, 5}
-val hasItem = s.has(3)
+val hasItem = s.contains(3)
 val arr = s.toArray()
 val size = s.size()
 val added = s.add(6)
@@ -1673,6 +1823,7 @@ val unionSet = s.union(s2)
 val intersectSet = s.intersection(s2)
 val diffSet = s.difference(s2)
 val isSub = s.isSubset(s2)
+val empty = s.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1698,13 +1849,13 @@ fn test_integration_mixed_valid_and_invalid_methods() {
     let program = r#"
 fn processData() {
     val text = "hello world"
-    val textLen = text.len()           // valid
+    val textLen = text.size()           // valid
     val upper = text.toUpper()         // invalid: not implemented
 
     val numbers = [1, 2, 3, 4, 5]
     val last = numbers.pop()           // valid
     val filtered = numbers.filtr()     // invalid: typo
-    val length = numbers.length()      // valid
+    val length = numbers.size()        // valid
 
     return upper
 }
@@ -1746,14 +1897,8 @@ fn processData() {
     assert!(
         !errors
             .iter()
-            .any(|e| e.message.contains("has no method named 'len'")),
-        "Should not error on valid 'len' method"
-    );
-    assert!(
-        !errors
-            .iter()
-            .any(|e| e.message.contains("has no method named 'length'")),
-        "Should not error on valid 'length' method"
+            .any(|e| e.message.contains("has no method named 'size'")),
+        "Should not error on valid 'size' method"
     );
     assert!(
         !errors
@@ -1768,7 +1913,7 @@ fn test_integration_error_messages_are_actionable() {
     // Verify that error messages provide actionable guidance
     let program = r#"
 val arr = [1, 2, 3]
-val result = arr.lenght()  // typo: should be 'length'
+val result = arr.szie()  // typo: should be 'size'
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1790,13 +1935,13 @@ val result = arr.lenght()  // typo: should be 'length'
 
     // 2. Mention the invalid method name
     assert!(
-        error_msg.contains("lenght"),
-        "Error should mention the invalid method 'lenght'"
+        error_msg.contains("szie"),
+        "Error should mention the invalid method 'szie'"
     );
 
     // 3. Provide a suggestion
     assert!(
-        error_msg.contains("Did you mean") || error_msg.contains("length"),
+        error_msg.contains("Did you mean") || error_msg.contains("size"),
         "Error should provide a suggestion"
     );
 }
@@ -1806,7 +1951,7 @@ fn test_integration_nested_method_calls_in_conditions() {
     // Test method validation in conditional expressions
     let program = r#"
 fn checkData(items) {
-    if (items.length() > 0) {
+    if (items.size() > 0) {
         val hasTwo = items.contains(2)
         return true
     }
@@ -1839,9 +1984,9 @@ fn test_integration_method_calls_in_loops() {
     let program = r#"
 val items = ["a", "b", "c"]
 var i = 0
-while (i < items.length()) {
+while (i < items.size()) {
     val item = items[i]
-    val itemLen = item.len()
+    val itemLen = item.size()
     print(itemLen)
     i = i + 1
 }
@@ -3287,7 +3432,7 @@ fn test_duplicate_field_on_reserved_struct_name_reports_both() {
 fn test_impl_method_shadowing_native_method_is_compile_error() {
     let program = r#"
 impl String {
-    fn len(self) {
+    fn size(self) {
         return 0
     }
 }
@@ -3302,7 +3447,7 @@ impl String {
     let errors = result.unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.message.contains("len") && e.message.contains("native")));
+        .any(|e| e.message.contains("size") && e.message.contains("native")));
 }
 
 #[test]
@@ -3352,7 +3497,7 @@ fn test_self_in_builtin_impl_is_typed_as_that_builtin_type() {
     let program = r#"
 impl String {
     fn shoutLen(self) {
-        return self.lenn()
+        return self.sizee()
     }
 }
 "#;
@@ -3366,7 +3511,7 @@ impl String {
     let errors = result.unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.message.contains("Did you mean 'len'")));
+        .any(|e| e.message.contains("Did you mean 'size'")));
 }
 
 #[test]

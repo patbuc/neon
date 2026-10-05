@@ -20,6 +20,20 @@ fn test_priority_queue_empty() {
 }
 
 #[test]
+fn test_priority_queue_is_empty() {
+    let program = r#"
+        val pq = PriorityQueue()
+        print(pq.isEmpty())
+        pq.push(1, "a")
+        print(pq.isEmpty())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("true\nfalse", vm.get_output());
+}
+
+#[test]
 fn test_priority_queue_mixed_int_float_priorities() {
     let program = r#"
         val pq = PriorityQueue()

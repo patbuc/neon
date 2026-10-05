@@ -54,7 +54,7 @@ naming the benchmark if the Neon and Python checksums differ.
 To add a pair: write `benches/<name>.n` and `benches/<name>.py` implementing the same algorithm like for like (the
 Python side uses plain loops/classes, not numpy), then add `"<name>": SIZE` to `BENCHMARKS` in `benches/run.py`.
 Both scripts read the problem size from the first argument with a small inline default, e.g.
-`args.length() > 0 ? args[0].toInt() : 15` in Neon and `int(sys.argv[1]) if len(sys.argv) > 1 else 15` in Python, and
+`args.size() > 0 ? args[0].toInt() : 15` in Neon and `int(sys.argv[1]) if len(sys.argv) > 1 else 15` in Python, and
 each prints one integer checksum line. Keep the inline default small — `cargo test` runs the `.n` file at that
 default in a debug build, and it must stay fast — and give it a `// Expected:` block at that default size. Pick the
 `SIZE` registered in `BENCHMARKS` separately, so a release build of Neon takes roughly 200-1000 ms at that size.

@@ -27,13 +27,13 @@ impl String {
 }
 
 impl Map {
-    fn isEmpty(self) {
+    fn isBlank(self) {
         return self.size() == 0
     }
 }
 
 impl Set {
-    fn isEmpty(self) {
+    fn isBlank(self) {
         return self.size() == 0
     }
 }
@@ -52,8 +52,8 @@ impl Boolean {
 
 print([1, 2, 3].second())
 print("shout".shout())
-print({}.isEmpty())
-print(#{}.isEmpty())
+print({}.isBlank())
+print(#{}.isBlank())
 print(4.double())
 print(true.negate())
 

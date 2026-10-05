@@ -33,18 +33,18 @@ pub fn native_range_size(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(range.len()))
 }
 
-/// Native implementation of Range.length()
-/// Returns the number of integers the range covers
-pub fn native_range_length(args: &[Value]) -> Result<Value, String> {
+/// Native implementation of Range.isEmpty()
+/// Returns true if the range covers no integers
+pub fn native_range_is_empty(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
         return Err(format!(
-            "length() expects no arguments, got {}",
+            "isEmpty() expects no arguments, got {}",
             args.len() - 1
         ));
     }
 
-    let range = extract_receiver!(args, Range, "length")?;
-    Ok(Value::Int(range.len()))
+    let range = extract_receiver!(args, Range, "isEmpty")?;
+    Ok(Value::Boolean(range.len() == 0))
 }
 
 /// Native implementation of Range.contains(element)

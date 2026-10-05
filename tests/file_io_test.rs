@@ -688,7 +688,7 @@ fn test_file_practical_example_process_lines() {
         var count = 0
 
         for line in lines {{
-            if (line.len() > 5) {{
+            if (line.size() > 5) {{
                 print(line)
                 count = count + 1
             }}

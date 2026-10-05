@@ -44,15 +44,15 @@ pub fn native_set_remove(args: &[Value]) -> Result<Value, String> {
 
 /// Native implementation of Set.has(element)
 /// Returns true if the set contains the element, false otherwise
-pub fn native_set_has(args: &[Value]) -> Result<Value, String> {
+pub fn native_set_contains(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(
-            "has() expects 1 argument (element), got {}",
+            "contains() expects 1 argument (element), got {}",
             args.len() - 1
         ));
     }
 
-    let set_ref = extract_receiver!(args, Set, "has")?;
+    let set_ref = extract_receiver!(args, Set, "contains")?;
 
     let key = MapKey::from_value(&args[1], "set element")?;
 
@@ -71,6 +71,18 @@ pub fn native_set_size(args: &[Value]) -> Result<Value, String> {
     let set_ref = extract_receiver!(args, Set, "size")?;
     let set = set_ref.borrow();
     Ok(Value::Int(set.len() as i64))
+}
+
+/// Native implementation of Set.isEmpty()
+/// Returns true if the set has no elements
+pub fn native_set_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("isEmpty() expects no arguments".to_string());
+    }
+
+    let set_ref = extract_receiver!(args, Set, "isEmpty")?;
+    let set = set_ref.borrow();
+    Ok(Value::Boolean(set.is_empty()))
 }
 
 /// Native implementation of Set.clear()

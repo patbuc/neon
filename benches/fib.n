@@ -1,7 +1,7 @@
 // Expected:
 // 610
 
-val n = args.length() > 0 ? args[0].toInt() : 15
+val n = args.size() > 0 ? args[0].toInt() : 15
 
 fn fib(n) {
     if n <= 1 {

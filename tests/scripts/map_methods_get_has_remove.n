@@ -1,4 +1,4 @@
-// neon.28.n - Map methods (get, has, remove)
+// neon.28.n - Map methods (get, contains, remove)
 
 // Expected:
 // Alice
@@ -16,9 +16,9 @@ val person = {"name": "Alice", "age": 30}
 print(person.get("name")) // Alice
 print(person.get("missing")) // nil
 
-// Map has method
-print(person.has("name")) // true
-print(person.has("missing")) // false
+// Map contains method
+print(person.contains("name")) // true
+print(person.contains("missing")) // false
 
 // Map remove method
 val removed = person.remove("age")
@@ -26,6 +26,6 @@ print(removed) // 30
 print(person.size()) // 1
 
 // Verify key was removed
-print(person.has("name")) // true
-print(person.has("age")) // false
+print(person.contains("name")) // true
+print(person.contains("age")) // false
 print(person.size()) // 1

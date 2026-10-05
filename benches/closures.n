@@ -1,7 +1,7 @@
 // Expected:
 // 829580
 
-val n = args.length() > 0 ? args[0].toInt() : 500
+val n = args.size() > 0 ? args[0].toInt() : 500
 
 fn make_counter(start) {
     var value = start

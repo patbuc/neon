@@ -80,3 +80,16 @@ pub fn native_priority_queue_size(args: &[Value]) -> Result<Value, String> {
     let pq = extract_receiver!(args, PriorityQueue, "size")?;
     Ok(Value::Int(pq.borrow().len() as i64))
 }
+
+/// Native implementation of PriorityQueue.isEmpty().
+pub fn native_priority_queue_is_empty(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "isEmpty() expects 0 arguments (only receiver), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let pq = extract_receiver!(args, PriorityQueue, "isEmpty")?;
+    Ok(Value::Boolean(pq.borrow().len() == 0))
+}

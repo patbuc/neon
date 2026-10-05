@@ -1,7 +1,7 @@
 // Expected:
 // 1085
 
-val n = args.length() > 0 ? args[0].toInt() : 100
+val n = args.size() > 0 ? args[0].toInt() : 100
 
 val is_prime = []
 var i = 0

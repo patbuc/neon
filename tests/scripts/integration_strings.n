@@ -8,9 +8,9 @@
 val greeting = "Hello"
 val name = "World"
 print(greeting + " " + name)
-print("Length: " + greeting.len().toString())
+print("Length: " + greeting.size().toString())
 
 val s = "Hello World"
-print(s.len())
+print(s.size())
 print(s.toUpperCase())
 print(s.toLowerCase())

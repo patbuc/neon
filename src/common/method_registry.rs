@@ -16,7 +16,7 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
-    /// Instance method (receiver as first arg): arr.push(x), str.len()
+    /// Instance method (receiver as first arg): arr.push(x), str.size()
     InstanceMethod {
         function: NativeFn,
         #[allow(dead_code)]
@@ -208,15 +208,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
-        "length",
-        NativeCallable::InstanceMethod {
-            function: stdlib::array_functions::native_array_length,
-            arity: 0,
-            returns: None,
-        },
-    ),
-    (
-        "Array",
         "size",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_size,
@@ -230,7 +221,16 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -398,20 +398,20 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Range",
-        "length",
-        NativeCallable::InstanceMethod {
-            function: stdlib::range_functions::native_range_length,
-            arity: 0,
-            returns: None,
-        },
-    ),
-    (
-        "Range",
         "contains",
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Range",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -552,11 +552,20 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     // String instance methods
     (
         "String",
-        "len",
+        "size",
         NativeCallable::InstanceMethod {
-            function: stdlib::string_functions::native_string_len,
+            function: stdlib::string_functions::native_string_size,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "String",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::string_functions::native_string_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -731,11 +740,11 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "String",
-        "includes",
+        "contains",
         NativeCallable::InstanceMethod {
-            function: stdlib::string_functions::native_string_includes,
+            function: stdlib::string_functions::native_string_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     // Number instance methods
@@ -797,11 +806,20 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Map",
-        "has",
+        "contains",
         NativeCallable::InstanceMethod {
-            function: stdlib::map_functions::native_map_has,
+            function: stdlib::map_functions::native_map_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Map",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::map_functions::native_map_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -861,11 +879,11 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Set",
-        "has",
+        "contains",
         NativeCallable::InstanceMethod {
-            function: stdlib::set_functions::native_set_has,
+            function: stdlib::set_functions::native_set_contains,
             arity: 1,
-            returns: None,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -875,6 +893,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::set_functions::native_set_size,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "Set",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::set_functions::native_set_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     (
@@ -1012,6 +1039,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::priority_queue_functions::native_priority_queue_size,
             arity: 0,
             returns: None,
+        },
+    ),
+    (
+        "PriorityQueue",
+        "isEmpty",
+        NativeCallable::InstanceMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_is_empty,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     // Stdin static methods
