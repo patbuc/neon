@@ -22,7 +22,7 @@ grep -rl "#{" tests/scripts/
 
 Then run what you wrote: `cargo run -q -- file.n`. `cargo run -q -- --check file.n` compiles without
 running, and a PostToolUse hook runs it automatically after an edit, feeding compile errors back — it
-won't catch runtime-only errors (e.g. `s[0]` on a string), so still run the script.
+won't catch runtime-only errors (e.g. `"n=" + 3`), so still run the script.
 
 New or edited scripts under `tests/scripts/` and `benches/` must also pass `cargo run -- fmt --check
 file.n`; the same hook runs it after the compile check and blocks on an unformatted file, so just run
@@ -37,7 +37,12 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   that **begins** with `.` or `?.` (not `..`/`..=`), which continues the previous
   statement as a method chain; a blank or comment line in between still ends
   it. A line beginning with `+`, `&&`, etc. is still an error. Open `(`, `[`,
-  `{` can span lines.
+  `{` can span lines. For example:
+  ```neon
+  val ys = [1, 2, 3]
+      .map { it * 2 }
+      .filter { it > 2 }
+  ```
 - Comments are `//` only; no `/* */`.
 
 **Declarations**
@@ -152,7 +157,7 @@ all use these names (Map checks keys, not values). No property-style
 
 ## Native methods that exist
 
-This is the full list. Anything not here, like `forEach` or `keys` on
+This is the full list. Anything not here, like `keys` on
 arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 
