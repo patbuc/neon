@@ -935,6 +935,12 @@ fn test_match_array_patterns_unchanged() {
 }
 
 #[test]
+fn test_match_variant_patterns_unchanged() {
+    let source = "val x = match c {\n    Shape.Circle(r) -> r\n    Shape.Rect(1, _) -> 1\n    [Shape.Circle(a), Shape.Rect(b, ..)] -> a + b\n    Shape.Group(Shape.Circle(r)) -> r\n    _ -> 0\n}\n";
+    check(source, source);
+}
+
+#[test]
 fn test_match_underscore_rest_formats_as_bare_rest() {
     check(
         "val x = match c {\n    [.._, 1] -> 1\n    _ -> 0\n}\n",

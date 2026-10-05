@@ -1293,6 +1293,10 @@ impl SemanticAnalyzer {
                     self.resolve_match_pattern(element);
                 }
             }
+            MatchPattern::Variant { target, fields } => {
+                self.resolve_expr(target);
+                self.resolve_variant_pattern(target, fields);
+            }
             MatchPattern::Rest { binding, location } => {
                 if binding.is_some() {
                     self.intern_name("slice", *location);
@@ -1303,13 +1307,64 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn resolve_variant_pattern(&mut self, target: &Expr, fields: &[MatchPattern]) {
+        let location = Self::match_pattern_location(target);
+        let Some(access) = self.match_pattern_enum_variant(target) else {
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::InvalidMatchPattern,
+                "Invalid match pattern: only an enum variant can take a field list".to_string(),
+                location,
+            ));
+            return;
+        };
+        let message = if access.fields.is_empty() {
+            Some(format!(
+                "Invalid match pattern: unit variant {}.{} takes no parentheses",
+                access.enum_name, access.variant_name
+            ))
+        } else if access.fields.len() != fields.len() {
+            Some(format!(
+                "Invalid match pattern: {}.{} has {} fields but the pattern has {}",
+                access.enum_name,
+                access.variant_name,
+                access.fields.len(),
+                fields.len()
+            ))
+        } else {
+            None
+        };
+        if let Some(message) = message {
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::InvalidMatchPattern,
+                message,
+                location,
+            ));
+        }
+        for field in fields {
+            if let MatchPattern::Rest { location, .. } = field {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::InvalidMatchPattern,
+                    "Invalid match pattern: a variant pattern cannot have a rest ('..')"
+                        .to_string(),
+                    *location,
+                ));
+            }
+            self.resolve_match_pattern(field);
+        }
+    }
+
     fn pattern_location(pattern: &MatchPattern) -> SourceLocation {
         match pattern {
             MatchPattern::Wildcard(location)
             | MatchPattern::Array { location, .. }
             | MatchPattern::Rest { location, .. } => *location,
             MatchPattern::Binding(binding) => binding.location,
-            MatchPattern::Expr(expr) => Self::match_pattern_location(expr),
+            MatchPattern::Expr(expr) | MatchPattern::Variant { target: expr, .. } => {
+                Self::match_pattern_location(expr)
+            }
         }
     }
 
@@ -2832,6 +2887,7 @@ fn pattern_references_it(pattern: &MatchPattern) -> bool {
     match pattern {
         MatchPattern::Expr(expr) => expr_references_it(expr),
         MatchPattern::Array { elements, .. } => elements.iter().any(pattern_references_it),
+        MatchPattern::Variant { fields, .. } => fields.iter().any(pattern_references_it),
         MatchPattern::Wildcard(_) | MatchPattern::Binding(_) | MatchPattern::Rest { .. } => false,
     }
 }

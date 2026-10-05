@@ -2220,8 +2220,8 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Pushes the value `path` leads to from the value in `hidden_slot`:
-    /// the element at each index in turn, or for a rest step a new array of
-    /// the elements it covers.
+    /// the element at each index in turn, for a rest step a new array of
+    /// the elements it covers, and for a field step that variant field.
     fn emit_match_subject(
         &mut self,
         hidden_slot: u32,
@@ -2243,6 +2243,13 @@ impl<'a> CodeGenerator<'a> {
                     self.emit_constant(Value::Int(before as i64), location);
                     self.emit_constant(Value::Int(-(after as i64)), location);
                     self.emit_invoke("slice", 2, location);
+                }
+                PathStep::Field { variant, index } => {
+                    let Some(access) = self.resolutions.enum_variant_access(variant) else {
+                        unreachable!("a variant pattern resolves to an enum variant")
+                    };
+                    let symbol = self.resolutions.symbol(&access.fields[index]);
+                    self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", location);
                 }
             }
         }
@@ -2274,26 +2281,44 @@ impl<'a> CodeGenerator<'a> {
                     .any(|element| matches!(element, MatchPattern::Rest { .. }));
                 let length = elements.len() - usize::from(has_rest);
                 self.emit_array_length_test(length as u32, has_rest, *array_location);
-                let mut fail_jumps = Vec::new();
                 let steps = PathStep::for_elements(elements);
-                for (step, element) in steps.into_iter().zip(elements) {
-                    if element.is_irrefutable() {
-                        continue;
-                    }
-                    fail_jumps.push(self.emit_jump(OpCode::JumpIfFalse, *array_location));
-                    self.emit_op_code(OpCode::Pop, *array_location);
-                    let mut element_path = path.to_vec();
-                    element_path.push(step);
-                    self.generate_match_pattern_test(
-                        hidden_slot,
-                        &element_path,
-                        element,
-                        *array_location,
-                    );
-                }
-                for jump in fail_jumps {
-                    self.patch_jump(jump);
-                }
+                self.generate_match_element_tests(
+                    hidden_slot,
+                    path,
+                    &steps,
+                    elements,
+                    *array_location,
+                );
+            }
+            MatchPattern::Variant { target, fields } => {
+                let Expr::GetField {
+                    object, location, ..
+                } = target
+                else {
+                    unreachable!("a variant pattern's target is an enum variant access")
+                };
+                let Expr::Variable { id, .. } = object.as_ref() else {
+                    unreachable!("a variant pattern's target is an enum variant access")
+                };
+                let Some(access) = self.resolutions.enum_variant_access(*id).cloned() else {
+                    unreachable!("a variant pattern resolves to an enum variant")
+                };
+                self.emit_match_subject(hidden_slot, path, *location);
+                let template = self.enum_variant_value(
+                    &access.enum_name,
+                    &access.variant_name,
+                    access.ordinal,
+                    &access.fields,
+                );
+                let index = self.add_constant(template);
+                self.emit_index_op(OpCode::IsVariant, index, "constants", *location);
+                let steps: Vec<PathStep> = (0..fields.len())
+                    .map(|index| PathStep::Field {
+                        variant: *id,
+                        index,
+                    })
+                    .collect();
+                self.generate_match_element_tests(hidden_slot, path, &steps, fields, *location);
             }
             MatchPattern::Expr(Expr::Range {
                 start,
@@ -2326,6 +2351,33 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(expr);
                 self.emit_op_code(OpCode::Equal, location);
             }
+        }
+    }
+
+    /// Continues a container test already on the stack: for each refutable
+    /// element, in turn, short-circuits on a false result and otherwise
+    /// replaces it with whether the element at its step matches.
+    fn generate_match_element_tests(
+        &mut self,
+        hidden_slot: u32,
+        path: &[PathStep],
+        steps: &[PathStep],
+        elements: &[MatchPattern],
+        location: SourceLocation,
+    ) {
+        let mut fail_jumps = Vec::new();
+        for (step, element) in steps.iter().zip(elements) {
+            if element.is_irrefutable() {
+                continue;
+            }
+            fail_jumps.push(self.emit_jump(OpCode::JumpIfFalse, location));
+            self.emit_op_code(OpCode::Pop, location);
+            let mut element_path = path.to_vec();
+            element_path.push(*step);
+            self.generate_match_pattern_test(hidden_slot, &element_path, element, location);
+        }
+        for jump in fail_jumps {
+            self.patch_jump(jump);
         }
     }
 

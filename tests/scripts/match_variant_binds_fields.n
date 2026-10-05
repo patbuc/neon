@@ -1,0 +1,20 @@
+// Expected:
+// 7
+// 12
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+    Dot
+}
+
+fn size(s) {
+    match s {
+        Shape.Circle(r) -> r + 5
+        Shape.Rect(w, h) -> w * h
+        _ -> 0
+    }
+}
+
+print(size(Shape.Circle(2)))
+print(size(Shape.Rect(3, 4)))

@@ -45,6 +45,12 @@ pub struct Parser {
     /// `{` directly after it starts the statement's own body, not a
     /// trailing-block lambda.
     suppress_trailing_block: bool,
+    /// True while parsing a match pattern's expression, where `Enum.Variant(`
+    /// opens a list of sub-patterns instead of call arguments.
+    in_match_pattern: bool,
+    /// The sub-patterns `dot` parsed for a variant pattern, awaiting
+    /// `match_pattern`.
+    variant_pattern_fields: Option<Vec<MatchPattern>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -110,6 +116,8 @@ impl Parser {
             recursion_depth: 0,
             end_locations: HashMap::new(),
             suppress_trailing_block: false,
+            in_match_pattern: false,
+            variant_pattern_fields: None,
         }
     }
 
@@ -1662,6 +1670,32 @@ impl Parser {
         }
         let field = self.previous_token.token.clone();
 
+        if self.in_match_pattern
+            && !optional
+            && matches!(object, Expr::Variable { .. })
+            && self.match_token(TokenType::LeftParen)
+        {
+            self.in_match_pattern = false;
+            let fields = self.parse_comma_separated_list(
+                TokenType::RightParen,
+                None,
+                Self::match_array_element,
+            )?;
+            if !self.consume(
+                TokenType::RightParen,
+                "Expect ')' after variant pattern fields.",
+            ) {
+                return None;
+            }
+            self.variant_pattern_fields = Some(fields);
+            return Some(Expr::GetField {
+                object: Box::new(object),
+                field,
+                optional,
+                location,
+            });
+        }
+
         // Check if this is a method call: obj.method(args)
         if self.check(TokenType::LeftParen) {
             self.advance(); // consume '('
@@ -2021,7 +2055,7 @@ impl Parser {
     }
 
     /// A single pattern: `_`, a bare name, `[pattern, ...]`, or a literal,
-    /// range or enum variant.
+    /// range, enum variant or `Enum.Variant(pattern, ...)`.
     fn match_pattern(&mut self) -> Option<MatchPattern> {
         if self.match_token(TokenType::LeftBracket) {
             let location = self.current_location();
@@ -2040,11 +2074,17 @@ impl Parser {
             self.advance();
             return Some(MatchPattern::Wildcard(location));
         }
-        match self.expression(false)? {
+        self.in_match_pattern = true;
+        let expr = self.expression(false);
+        self.in_match_pattern = false;
+        match expr? {
             Expr::Variable { name, id, location } => {
                 Some(MatchPattern::Binding(Binding { name, id, location }))
             }
-            expr => Some(MatchPattern::Expr(expr)),
+            target => match self.variant_pattern_fields.take() {
+                Some(fields) => Some(MatchPattern::Variant { target, fields }),
+                None => Some(MatchPattern::Expr(target)),
+            },
         }
     }
 

@@ -265,6 +265,13 @@ pub enum MatchPattern {
         elements: Vec<MatchPattern>,
         location: SourceLocation,
     },
+    /// `Enum.Variant(p1, p2)`: that variant, whose fields match the
+    /// sub-patterns by position. Any other value does not match. `target`
+    /// is the `Enum.Variant` access, never a call.
+    Variant {
+        target: Expr,
+        fields: Vec<MatchPattern>,
+    },
     /// `..` or `..name` inside an array pattern: the elements between the
     /// ones before and after it. A name binds them as a new array.
     Rest {
@@ -281,6 +288,9 @@ pub enum PathStep {
     Index(i64),
     /// The elements after the first `before` and before the last `after`.
     Rest { before: usize, after: usize },
+    /// The field at this position of a variant pattern's variant; `variant`
+    /// is the node id the semantic pass resolved `Enum.Variant` under.
+    Field { variant: NodeId, index: usize },
 }
 
 impl PathStep {
@@ -330,6 +340,22 @@ impl MatchPattern {
                 for (step, element) in PathStep::for_elements(elements).into_iter().zip(elements) {
                     path.push(step);
                     element.collect_bindings(path, found);
+                    path.pop();
+                }
+            }
+            MatchPattern::Variant { target, fields } => {
+                let Expr::GetField { object, .. } = target else {
+                    return;
+                };
+                let Expr::Variable { id, .. } = object.as_ref() else {
+                    return;
+                };
+                for (index, field) in fields.iter().enumerate() {
+                    path.push(PathStep::Field {
+                        variant: *id,
+                        index,
+                    });
+                    field.collect_bindings(path, found);
                     path.pop();
                 }
             }

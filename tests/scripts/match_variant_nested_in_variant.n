@@ -1,0 +1,18 @@
+// Expected:
+// 9
+// other
+
+enum Shape {
+    Circle(radius)
+    Group(inner)
+}
+
+print(match Shape.Group(Shape.Circle(9)) {
+    Shape.Group(Shape.Circle(r)) -> r
+    _ -> "other"
+})
+
+print(match Shape.Group(3) {
+    Shape.Group(Shape.Circle(r)) -> r
+    _ -> "other"
+})
