@@ -1090,6 +1090,7 @@ impl SemanticAnalyzer {
                 object,
                 field,
                 location,
+                ..
             } => {
                 self.resolve_get_field(object, field, *location);
             }
@@ -1490,8 +1491,14 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
-        if let Expr::GetField { object, field, .. } = callee {
-            self.resolve_method_call(id, object, field, arguments, location);
+        if let Expr::GetField {
+            object,
+            field,
+            optional,
+            ..
+        } = callee
+        {
+            self.resolve_method_call(id, object, field, *optional, arguments, location);
         } else {
             self.resolve_function_call(id, callee, arguments, location);
         }
@@ -1502,6 +1509,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         object: &Expr,
         method: &str,
+        optional: bool,
         arguments: &[Expr],
         location: SourceLocation,
     ) {
@@ -1592,9 +1600,17 @@ impl SemanticAnalyzer {
             self.resolve_expr(arg);
         }
 
-        // Instance method call - validate method if we can infer the object's type
+        // Instance method call - validate method if we can infer the object's type.
+        // A nil receiver through `?.` is never an error: it short-circuits to nil.
         if let Some(object_type) = self.infer_expr_type(object) {
-            self.validate_instance_method(object_type.name(), method, arguments.len(), location);
+            if !(optional && object_type == StaticType::Nil) {
+                self.validate_instance_method(
+                    object_type.name(),
+                    method,
+                    arguments.len(),
+                    location,
+                );
+            }
         }
     }
 

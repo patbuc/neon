@@ -4324,3 +4324,42 @@ fn test_parse_nil_coalesce_binds_tighter_than_ternary() {
         _ => panic!("Expected Expression statement"),
     }
 }
+
+#[test]
+fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
+    let mut parser = Parser::new("u?.name = 1\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.message.contains("Invalid assignment target")));
+}
+
+#[test]
+fn test_parse_ternary_with_question_mark_followed_by_space_is_still_ternary() {
+    let mut parser = Parser::new("x ? u.name : 1\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::Conditional {
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                match then_expr.as_ref() {
+                    Expr::GetField { field, .. } => assert_eq!(field, "name"),
+                    _ => panic!("Expected GetField as then branch"),
+                }
+                match else_expr.as_ref() {
+                    Expr::Int { .. } => {}
+                    _ => panic!("Expected Int as else branch"),
+                }
+            }
+            _ => panic!("Expected Conditional expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
+}

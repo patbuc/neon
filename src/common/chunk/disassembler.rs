@@ -78,6 +78,7 @@ impl Chunk {
             OpCode::SetGlobal => self.variable_instruction(OpCode::SetGlobal, offset, out),
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset, out),
             OpCode::JumpIfNotNil => self.jump_instruction(instruction, offset, out),
+            OpCode::JumpIfNil => self.jump_instruction(instruction, offset, out),
             OpCode::Jump => self.jump_instruction(instruction, offset, out),
             OpCode::Loop => self.loop_instruction(offset, out),
             OpCode::Call => self.call_instruction(offset, out),

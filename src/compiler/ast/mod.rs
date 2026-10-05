@@ -141,6 +141,8 @@ pub enum Expr {
     GetField {
         object: Box<Expr>,
         field: String,
+        /// `true` for `a?.b`: yields nil without erroring if `object` is nil.
+        optional: bool,
         location: SourceLocation,
     },
     SetField {

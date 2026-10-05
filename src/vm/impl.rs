@@ -241,6 +241,7 @@ impl VirtualMachine {
                 OpCode::SetGlobal => self.op_set_global()?,
                 OpCode::JumpIfFalse => self.op_jump_if_false(),
                 OpCode::JumpIfNotNil => self.op_jump_if_not_nil(),
+                OpCode::JumpIfNil => self.op_jump_if_nil(),
                 OpCode::Jump => self.op_jump(),
                 OpCode::Loop => {
                     self.op_loop();

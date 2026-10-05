@@ -673,6 +673,7 @@ impl<'a> Printer<'a> {
             Expr::GetField {
                 object,
                 field,
+                optional,
                 location,
             } => {
                 self.print_expr(object);
@@ -680,7 +681,7 @@ impl<'a> Printer<'a> {
                 if location.line > object_line {
                     self.continue_line(object_line, location.line);
                 }
-                self.write(".");
+                self.write(if *optional { "?." } else { "." });
                 self.write(field);
             }
             Expr::SetField {

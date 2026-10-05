@@ -1488,8 +1488,24 @@ impl<'a> CodeGenerator<'a> {
                 id,
                 location,
             } => {
-                if let Expr::GetField { object, field, .. } = callee.as_ref() {
-                    self.generate_method_call_expr(*id, object, field, arguments, *location);
+                if let Expr::GetField {
+                    object,
+                    field,
+                    optional,
+                    ..
+                } = callee.as_ref()
+                {
+                    if *optional {
+                        self.generate_expr(object);
+                        let end_jump = self.emit_jump(OpCode::JumpIfNil, *location);
+                        for arg in arguments {
+                            self.generate_expr(arg);
+                        }
+                        self.emit_invoke(field, arguments.len() as u8, *location);
+                        self.patch_jump(end_jump);
+                    } else {
+                        self.generate_method_call_expr(*id, object, field, arguments, *location);
+                    }
                 } else {
                     self.generate_call_expr(*id, callee, arguments, *location);
                 }
@@ -1497,8 +1513,17 @@ impl<'a> CodeGenerator<'a> {
             Expr::GetField {
                 object,
                 field,
+                optional,
                 location,
             } => {
+                if *optional {
+                    self.generate_expr(object);
+                    let end_jump = self.emit_jump(OpCode::JumpIfNil, *location);
+                    let symbol = self.resolutions.symbol(field);
+                    self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", *location);
+                    self.patch_jump(end_jump);
+                    return;
+                }
                 if let Expr::Variable { id, .. } = object.as_ref() {
                     if let Some(access) = self.resolutions.enum_variant_access(*id) {
                         self.emit_enum_variant_constant(

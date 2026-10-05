@@ -1,0 +1,12 @@
+// Expected:
+// before
+
+// Expected runtime error: Only instances have fields.
+
+struct Box {
+    b
+}
+
+val a = Box(nil)
+print("before")
+print(a?.b.c)

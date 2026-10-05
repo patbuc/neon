@@ -219,6 +219,8 @@ impl Scanner {
             '?' => {
                 if self.matches('?') {
                     self.make_token(TokenType::QuestionQuestion)
+                } else if self.matches('.') {
+                    self.make_token(TokenType::QuestionDot)
                 } else {
                     self.make_token(TokenType::Question)
                 }

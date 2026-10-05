@@ -1,0 +1,29 @@
+// Expected:
+// nil nil
+// false
+// A hi A
+// true
+
+struct User {
+    name
+}
+
+impl User {
+    fn greet(self, x) {
+        return "hi " + self.name
+    }
+}
+
+var boomCalled = false
+fn boom() {
+    boomCalled = true
+    return 1
+}
+
+val u = nil
+print(u?.name, u?.greet(boom()))
+print(boomCalled)
+
+val u2 = User("A")
+print(u2?.name, u2?.greet(boom()))
+print(boomCalled)
