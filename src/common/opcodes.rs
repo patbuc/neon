@@ -1,4 +1,72 @@
 impl OpCode {
+    /// Net operand-stack effect of this opcode on its own: how many values
+    /// it pushes minus how many it pops. `Call`, `Invoke`, `CreateArray`,
+    /// `CreateMap`, and `CreateSet` consume a count that is only known at
+    /// the emit site (argument count or element count), so their entry here
+    /// is 0 and codegen applies the rest of their effect itself right after
+    /// emitting them.
+    pub(crate) fn stack_effect(self) -> i32 {
+        match self {
+            OpCode::Return => -1,
+            OpCode::Constant => 1,
+            OpCode::Negate => 0,
+            OpCode::Add
+            | OpCode::Subtract
+            | OpCode::Multiply
+            | OpCode::Divide
+            | OpCode::Modulo
+            | OpCode::Exponent => -1,
+            OpCode::Nil | OpCode::True | OpCode::False => 1,
+            OpCode::Equal
+            | OpCode::Greater
+            | OpCode::GreaterEqual
+            | OpCode::Less
+            | OpCode::LessEqual => -1,
+            OpCode::Not => 0,
+            OpCode::Pop => -1,
+            OpCode::SetLocal => 0,
+            OpCode::GetLocal => 1,
+            OpCode::JumpIfFalse | OpCode::Jump | OpCode::Loop => 0,
+            OpCode::Call | OpCode::Invoke => 0,
+            OpCode::GetBuiltin | OpCode::GetGlobal => 1,
+            OpCode::SetGlobal => 0,
+            OpCode::GetField => 0,
+            OpCode::SetField => -1,
+            OpCode::GetLocalField => 1,
+            OpCode::CreateMap | OpCode::CreateArray | OpCode::CreateSet => 0,
+            OpCode::GetIndex => -1,
+            OpCode::SetIndex => -2,
+            OpCode::GetIterator => 1,
+            OpCode::IteratorNext | OpCode::IteratorDone => 1,
+            OpCode::CreateRange => -1,
+            OpCode::ToString => 0,
+            OpCode::BitwiseAnd
+            | OpCode::BitwiseOr
+            | OpCode::BitwiseXor
+            | OpCode::LeftShift
+            | OpCode::RightShift => -1,
+            OpCode::BitwiseNot => 0,
+            OpCode::Closure => 1,
+            OpCode::GetUpvalue => 1,
+            OpCode::SetUpvalue => 0,
+            OpCode::CloseUpvalue => -1,
+            OpCode::DefineMethod => -1,
+            OpCode::CheckInitialized => 0,
+            OpCode::StoreLocal => -1,
+            OpCode::StoreField => -2,
+            OpCode::StoreLocalField => -1,
+            OpCode::AddConstant
+            | OpCode::SubtractConstant
+            | OpCode::GreaterConstant
+            | OpCode::GreaterEqualConstant
+            | OpCode::LessConstant
+            | OpCode::LessEqualConstant => 0,
+            OpCode::Dup => 1,
+            OpCode::Dup2 => 2,
+            OpCode::JumpIfNotNil | OpCode::JumpIfNil => 0,
+        }
+    }
+
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
         const OPCODES: [OpCode; 67] = [

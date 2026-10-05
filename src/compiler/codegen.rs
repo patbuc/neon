@@ -55,6 +55,10 @@ struct FunctionCompiler {
     loop_contexts: Vec<LoopContext>,
     reported_overflows: HashSet<&'static str>,
     constant_keys: HashMap<ConstantKey, u32>,
+    /// Operand-stack height, tracked by applying each emitted opcode's
+    /// `stack_effect`. Equal to `locals.len()` at every statement boundary,
+    /// checked by `assert_stack_height`.
+    stack_height: u32,
 }
 
 impl FunctionCompiler {
@@ -68,6 +72,7 @@ impl FunctionCompiler {
             loop_contexts: Vec::new(),
             reported_overflows: HashSet::new(),
             constant_keys: HashMap::new(),
+            stack_height: 0,
         }
     }
 
@@ -142,6 +147,9 @@ impl<'a> CodeGenerator<'a> {
         for _ in 0..env.slot_count {
             script.locals.push(Local::new(0, false));
         }
+        // These globals are already on the stack from an earlier REPL line,
+        // not pushed by any opcode this compile emits.
+        script.stack_height = env.slot_count;
     }
 
     pub(crate) fn into_decl_slots(self) -> HashMap<DeclId, u32> {
@@ -245,6 +253,7 @@ impl<'a> CodeGenerator<'a> {
 
         for stmt in statements {
             self.generate_stmt(stmt);
+            self.assert_stack_height();
         }
 
         // Emit final return
@@ -277,6 +286,36 @@ impl<'a> CodeGenerator<'a> {
     fn emit_op_code(&mut self, op_code: OpCode, location: SourceLocation) {
         self.current_chunk()
             .write_op_code(op_code, location.line, location.column);
+        self.adjust_stack_height(op_code.stack_effect());
+    }
+
+    /// Applies `delta` to the current function's tracked operand-stack
+    /// height. Called from `emit_op_code` for every opcode's own effect,
+    /// and separately for the handful of opcodes (`Call`, `Invoke`,
+    /// `CreateArray`, `CreateMap`, `CreateSet`) whose effect depends on a
+    /// count known only at the emit site.
+    fn adjust_stack_height(&mut self, delta: i32) {
+        let compiler = self.current();
+        compiler.stack_height = (compiler.stack_height as i32 + delta) as u32;
+    }
+
+    /// Verifies the tracked stack height still matches the live locals
+    /// (hidden for-in locals are locals too), so a wrong stack-effect entry
+    /// fails loudly instead of silently corrupting a later local's slot.
+    fn assert_stack_height(&mut self) {
+        // A reported error (e.g. a count or index too large for its operand
+        // width) can leave a statement's bytecode incomplete, since the
+        // whole chunk is discarded once any error is recorded; only check
+        // the invariant while the generated code is still meant to be real.
+        if !self.errors.is_empty() {
+            return;
+        }
+        let compiler = self.current();
+        debug_assert_eq!(
+            compiler.stack_height,
+            compiler.locals.len() as u32,
+            "stack height drifted from the live locals count"
+        );
     }
 
     /// Verifies `index` fits the u16 operand width, reporting at most one
@@ -362,7 +401,7 @@ impl<'a> CodeGenerator<'a> {
         let depth = self.current().scope_depth;
         let local = Local::new(depth, is_captured);
         self.current().locals.push(local);
-        let slot = (self.current().locals.len() - 1) as u32;
+        let slot = self.current().stack_height - 1;
         self.decl_slots.insert(decl, slot);
     }
 
@@ -594,9 +633,12 @@ impl<'a> CodeGenerator<'a> {
         // Enter function scope
         self.current().scope_depth += 1;
 
-        // Define parameters as local variables in the function scope
+        // Define parameters as local variables in the function scope. The
+        // caller already pushed them onto the stack before Call/Invoke ran,
+        // so no opcode in this chunk accounts for them; do it here instead.
         let resolutions = self.resolutions;
         for &decl in &resolutions.function(id).params {
+            self.current().stack_height += 1;
             self.bind_local(decl);
         }
 
@@ -610,6 +652,7 @@ impl<'a> CodeGenerator<'a> {
             Some((last, init)) => {
                 for stmt in init {
                     self.generate_stmt(stmt);
+                    self.assert_stack_height();
                 }
                 if let Stmt::Expression { expr, .. } = last {
                     self.generate_expr(expr);
@@ -781,6 +824,7 @@ impl<'a> CodeGenerator<'a> {
         self.hoist_block_functions(statements);
         for stmt in statements {
             self.generate_stmt(stmt);
+            self.assert_stack_height();
         }
         self.end_scope(location);
     }
@@ -827,6 +871,11 @@ impl<'a> CodeGenerator<'a> {
         self.generate_expr(condition);
 
         let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // then_jump's target below is reached only via the false path, with
+        // the condition still unpopped at this height. then_branch's own
+        // height doesn't apply there (its end is reached by a jump, or not
+        // at all when it always exits), so save this to restore there.
+        let false_path_height = self.current().stack_height;
         self.emit_op_code(OpCode::Pop, location); // Pop condition if true (not jumping)
         self.generate_stmt(then_branch);
         let else_jump = if Self::always_exits(then_branch) {
@@ -834,7 +883,9 @@ impl<'a> CodeGenerator<'a> {
         } else {
             Some(self.emit_jump(OpCode::Jump, location))
         };
+
         self.patch_jump(then_jump);
+        self.current().stack_height = false_path_height;
         self.emit_op_code(OpCode::Pop, location); // Pop condition if false (jumped here)
 
         if let Some(else_stmt) = else_branch {
@@ -861,6 +912,12 @@ impl<'a> CodeGenerator<'a> {
         self.generate_expr(condition);
 
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // exit_jump, when taken, lands after the Loop below with the
+        // condition still unpopped at this height. Loop is a back-edge, not
+        // a fallthrough, so save this now and restore it after Loop: the
+        // body's own height (reached by the true path, through the pop
+        // below) is not what the exit lands with.
+        let exit_height = self.current().stack_height;
         self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the true case
 
         self.generate_stmt(body);
@@ -876,6 +933,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         self.emit_loop(loop_start, location);
+        self.current().stack_height = exit_height;
 
         self.patch_jump(exit_jump);
         self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the false case (exiting loop)
@@ -914,6 +972,12 @@ impl<'a> CodeGenerator<'a> {
         self.emit_loop_exit_pops(depth, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
+        // The pops above tracked height down to the loop's depth, matching
+        // the real stack once this jump is taken. But locals above that
+        // depth are still in scope here (break/continue doesn't remove
+        // them), so resync to keep height matching locals for whatever
+        // code follows in this block, reachable or not.
+        self.current().stack_height = self.current().locals.len() as u32;
         let context = self
             .current()
             .loop_contexts
@@ -967,7 +1031,7 @@ impl<'a> CodeGenerator<'a> {
         let hidden_depth = self.current().scope_depth;
         self.current().locals.push(Local::new(hidden_depth, false));
         self.current().locals.push(Local::new(hidden_depth, false));
-        let iterator_slot = (self.current().locals.len() - 2) as u32;
+        let iterator_slot = self.current().stack_height - 2;
 
         // Enter a nested scope for the loop variable and body, so break and
         // continue never pop the hidden iterator slots.
@@ -991,6 +1055,10 @@ impl<'a> CodeGenerator<'a> {
 
         // JumpIfFalse exits when false (done/no more elements)
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // See generate_while_stmt: exit_jump lands after the Loop below,
+        // which is a back-edge rather than a fallthrough, at this height
+        // (the IteratorDone result still unpopped) rather than the body's.
+        let exit_height = self.current().stack_height;
 
         // Pop the true value (has more elements, continuing loop)
         self.emit_op_code(OpCode::Pop, location);
@@ -1031,6 +1099,7 @@ impl<'a> CodeGenerator<'a> {
 
         // Jump back to loop start (will push next value)
         self.emit_loop(loop_start, location);
+        self.current().stack_height = exit_height;
 
         // Patch the exit jump
         self.patch_jump(exit_jump);
@@ -1352,8 +1421,7 @@ impl<'a> CodeGenerator<'a> {
                     location,
                 );
             }
-            self.emit_op_code(OpCode::CreateArray, location);
-            self.current_chunk().write_u16(access.variants.len() as u16);
+            self.emit_create_array(access.variants.len() as u16, location);
             return;
         }
         match self.resolutions.native(id) {
@@ -1412,8 +1480,7 @@ impl<'a> CodeGenerator<'a> {
         }
 
         // Emit CreateArray with the count of elements
-        self.emit_op_code(OpCode::CreateArray, location);
-        self.current_chunk().write_u16(elements.len() as u16);
+        self.emit_create_array(elements.len() as u16, location);
     }
 
     fn generate_expr(&mut self, expr: &Expr) {
@@ -1606,8 +1673,7 @@ impl<'a> CodeGenerator<'a> {
                     self.generate_expr(key);
                     self.generate_expr(value);
                 }
-                self.emit_op_code(OpCode::CreateMap, *location);
-                self.current_chunk().write_u16(entries.len() as u16);
+                self.emit_create_map(entries.len() as u16, *location);
             }
             Expr::ArrayLiteral { elements, location } => {
                 self.generate_array_literal_expr(elements, *location);
@@ -1634,8 +1700,7 @@ impl<'a> CodeGenerator<'a> {
                 for element in elements {
                     self.generate_expr(element);
                 }
-                self.emit_op_code(OpCode::CreateSet, *location);
-                self.current_chunk().write_u16(elements.len() as u16);
+                self.emit_create_set(elements.len() as u16, *location);
             }
             Expr::Index {
                 object,
@@ -1747,6 +1812,8 @@ impl<'a> CodeGenerator<'a> {
     fn emit_call(&mut self, argc: u8, location: SourceLocation) {
         self.emit_op_code(OpCode::Call, location);
         self.current_chunk().write_u8(argc);
+        // Pops the callable and all argc arguments, pushes one result.
+        self.adjust_stack_height(-(argc as i32));
     }
 
     /// Emits `Invoke`: a method call dispatched by name at runtime. The
@@ -1756,6 +1823,29 @@ impl<'a> CodeGenerator<'a> {
         self.emit_op_code(OpCode::Invoke, location);
         self.current_chunk().write_u16(symbol);
         self.current_chunk().write_u8(argc);
+        // Pops the receiver and all argc arguments, pushes one result.
+        self.adjust_stack_height(-(argc as i32));
+    }
+
+    /// Emits `CreateArray`, popping `count` elements and pushing the array.
+    fn emit_create_array(&mut self, count: u16, location: SourceLocation) {
+        self.emit_op_code(OpCode::CreateArray, location);
+        self.current_chunk().write_u16(count);
+        self.adjust_stack_height(1 - count as i32);
+    }
+
+    /// Emits `CreateMap`, popping `count` key/value pairs and pushing the map.
+    fn emit_create_map(&mut self, count: u16, location: SourceLocation) {
+        self.emit_op_code(OpCode::CreateMap, location);
+        self.current_chunk().write_u16(count);
+        self.adjust_stack_height(1 - 2 * count as i32);
+    }
+
+    /// Emits `CreateSet`, popping `count` elements and pushing the set.
+    fn emit_create_set(&mut self, count: u16, location: SourceLocation) {
+        self.emit_op_code(OpCode::CreateSet, location);
+        self.current_chunk().write_u16(count);
+        self.adjust_stack_height(1 - count as i32);
     }
 
     /// Emits `DefineMethod`, popping the closure left on top of the stack by
