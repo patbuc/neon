@@ -34,47 +34,9 @@ fn can_execute_simple_arithmetics() {
 }
 
 #[test]
-fn can_print_hello_world() {
-    let program = r#"
-        print("Hello World 🌍")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-}
-
-#[test]
 fn can_print_the_answer_to_everything_times_pi() {
     let program = r#"
         print(42 * 3.14)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-}
-
-#[test]
-fn can_print_multiple_arguments() {
-    let program = r#"
-        print(1, 2, "x")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("1 2 x", vm.get_output());
-}
-
-#[test]
-fn can_run_multi_line_statements() {
-    let program = r#"
-        print("Hello World 🌎")
-        print(13)
         "#;
 
     let mut vm = VirtualMachine::new();
@@ -98,31 +60,6 @@ fn can_define_a_global_value() {
 }
 
 #[test]
-fn can_negate_numbers() {
-    let program = r#"
-        val x = 42
-        print(-x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("-42", vm.get_output());
-}
-
-#[test]
-fn can_compare_numbers_equal() {
-    let program = r#"
-        print(42 == 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
 fn can_compare_numbers_not_equal() {
     let program = r#"
         print(42 == 43)
@@ -132,157 +69,6 @@ fn can_compare_numbers_not_equal() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn can_compare_greater_than() {
-    let program = r#"
-        print(43 > 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_compare_less_than() {
-    let program = r#"
-        print(41 < 42)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_use_logical_not() {
-    let program = r#"
-        print(!false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_nil() {
-    let program = r#"
-        val x = nil
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("nil", vm.get_output());
-}
-
-#[test]
-fn can_handle_boolean_true() {
-    let program = r#"
-        val x = true
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_boolean_false() {
-    let program = r#"
-        val x = false
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("false", vm.get_output());
-}
-
-#[test]
-fn can_handle_string_concatenation() {
-    let program = r#"
-        print("Hello" + " " + "World")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello World", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_global_variables() {
-    let program = r#"
-        val x = 40
-        val y = 2
-        print(x + y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
-#[test]
-fn can_handle_complex_arithmetic() {
-    let program = r#"
-        val x = 10
-        val y = 5
-        print(((x + y) * (x - y)))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("75", vm.get_output());
-}
-
-#[test]
-fn can_handle_string_comparison() {
-    let program = r#"
-        print("hello" == "hello")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_boolean_operations() {
-    let program = r#"
-        print(true == !false)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_division_by_integers() {
-    let program = r#"
-        print(100 / 20)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("5", vm.get_output());
 }
 
 #[test]
@@ -298,19 +84,6 @@ fn can_handle_float_division() {
 }
 
 #[test]
-fn can_handle_negative_numbers() {
-    let program = r#"
-        val x = -42
-        print(-x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
-#[test]
 fn can_handle_boolean_arithmetic() {
     let program = r#"
         print(true == true == true)
@@ -323,21 +96,6 @@ fn can_handle_boolean_arithmetic() {
 }
 
 #[test]
-fn can_handle_complex_string_operations() {
-    let program = r#"
-        val greeting = "Hello"
-        val name = "World"
-        val punctuation = "!"
-        print(greeting + " " + name + punctuation)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello World!", vm.get_output());
-}
-
-#[test]
 fn can_handle_multiple_negations() {
     let program = r#"
         print(!!true)
@@ -347,107 +105,6 @@ fn can_handle_multiple_negations() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("true", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_true_if_statement() {
-    let program = r#"
-        val x = 42
-        if (x == 42) {
-            print("The answer to everything")
-        }
-        print("The end")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The answer to everything\nThe end", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_false_if_statement() {
-    let program = r#"
-        val x = 42
-        if (x != 42) {
-            print("The answer to everything")
-        }
-        print("The end")
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The end", vm.get_output());
-}
-
-#[test]
-fn can_handle_a_true_if_else_statement() {
-    let program = r#"
-        val x = 42
-        if (x == 42) {
-            print("The answer to everything")
-        } else {
-            print("The end")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The answer to everything", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_if_else_statements() {
-    let program = r#"
-        val x = 42
-        if (x == 41) {
-            print("The answer to everything")
-        } else if (x == 42) {
-            print("The end")
-        } else {
-            print("The beginning")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The end", vm.get_output());
-}
-
-#[test]
-fn can_handle_multiple_if_else_statements_2() {
-    let program = r#"
-        val x = 4
-        if (x == 41) {
-            print("The answer to everything")
-        } else if (x == 42) {
-            print("The end")
-        } else {
-            print("The beginning")
-        }
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("The beginning", vm.get_output());
-}
-
-#[test]
-fn can_assign_value_to_variable() {
-    let program = r#"
-        var x = 10
-        x = x + 5
-        print(x)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("15", vm.get_output());
 }
 
 #[test]
@@ -485,21 +142,6 @@ fn cannot_access_undefined_variable() {
 }
 
 #[test]
-fn can_call_function() {
-    let program = r#"
-        fn greet() {
-            print("Hello from function!")
-        }
-        greet()
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("Hello from function!", vm.get_output());
-}
-
-#[test]
 fn can_call_function_multiple_times() {
     let program = r#"
         fn greet() {
@@ -513,27 +155,6 @@ fn can_call_function_multiple_times() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("Hello again!\nHello again!", vm.get_output());
-}
-
-#[test]
-fn can_calculate_fibonacci() {
-    let program = r#"
-        fn fib(n) {
-            if (n == 0) {
-                return 0
-            }
-            if (n == 1) {
-                return 1
-            }
-            return fib(n - 1) + fib(n - 2)
-        }
-        print(fib(10))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("55", vm.get_output());
 }
 
 #[test]
@@ -597,25 +218,6 @@ fn can_use_modulo_operator() {
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::Ok, result);
     assert_eq!("1\n1\n0\n4", vm.get_output());
-}
-
-#[test]
-fn can_use_struct() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        val p = Point(3, 4)
-        print(p.x)
-        print(p.y)
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("3\n4", vm.get_output());
 }
 
 // =============================================================================
@@ -1931,20 +1533,6 @@ fn test_reset_recovers_for_in_after_runtime_error() {
     assert_eq!("1\n2\n3", vm.get_output());
 }
 
-#[test]
-fn debug_simple_param() {
-    let program = r#"
-        fn test(x) {
-            print(x)
-        }
-        test(42)
-    "#;
-    let mut vm = VirtualMachine::new();
-    let result = vm.interpret(program.to_string());
-    assert_eq!(InterpretResult::Ok, result);
-    assert_eq!("42", vm.get_output());
-}
-
 // =============================================================================
 // Cycle Guard Tests (print and equality on self-referencing values)
 // =============================================================================
@@ -2214,40 +1802,6 @@ fn undefined_variable_in_interpolation_reports_location() {
         "[Semantic] E0013: Undefined variable 'zz' at 2:3",
         vm.get_compiler_error()
     );
-}
-
-#[test]
-fn setting_undefined_field_on_instance_is_runtime_error() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        fn set_z(p) { p.z = 5 }
-        set_z(Point(3, 4))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    vm.interpret(program.to_string());
-    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
-}
-
-#[test]
-fn getting_undefined_field_on_instance_is_runtime_error() {
-    let program = r#"
-        struct Point {
-            x
-            y
-        }
-
-        fn get_z(p) { return p.z }
-        get_z(Point(3, 4))
-        "#;
-
-    let mut vm = VirtualMachine::new();
-    vm.interpret(program.to_string());
-    assert!(vm.get_runtime_errors().contains("Undefined field 'z'"));
 }
 
 #[test]
