@@ -1,11 +1,5 @@
-use crate::common::errors::{CompilationError, CompilationErrorKind};
-use crate::compiler::Compiler;
-
-fn compile_to_errors(source: &str) -> Vec<CompilationError> {
-    let mut compiler = Compiler::new();
-    compiler.compile(source);
-    compiler.get_structured_errors()
-}
+use super::helpers::compile_errors;
+use crate::common::errors::CompilationErrorKind;
 
 fn source_overflowing_a_codegen_limit() -> String {
     let mut body = String::new();
@@ -280,7 +274,7 @@ fn every_error_kind_is_produced_by_some_input() {
             let errors = if kind == CompilationErrorKind::UnplaceableComment {
                 crate::compiler::format(&source).err().unwrap_or_default()
             } else {
-                compile_to_errors(&source)
+                compile_errors(&source)
             };
             assert!(
                 errors
@@ -320,7 +314,7 @@ fn all_codes_are_unique_and_well_formed() {
 
 #[test]
 fn too_many_symbols_reported_once_per_compile() {
-    let errors = compile_to_errors(&source_many_too_many_symbols());
+    let errors = compile_errors(&source_many_too_many_symbols());
     let count = errors
         .iter()
         .filter(|e| e.kind == CompilationErrorKind::TooManySymbols)

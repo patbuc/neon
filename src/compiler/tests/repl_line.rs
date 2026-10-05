@@ -1,19 +1,7 @@
+use super::helpers::disassemble;
 use crate::common::errors::CompilationErrorKind;
-use crate::common::{Chunk, Value};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::Compiler;
-
-/// Disassembles `chunk` and every function nested in its constant pool, so
-/// an assertion can look for an opcode anywhere in the compiled line.
-fn disassemble_program(chunk: &Chunk) -> String {
-    let mut out = chunk.disassemble();
-    for constant in &chunk.constants.values {
-        if let Value::Function(function) = constant {
-            out.push_str(&disassemble_program(&function.chunk));
-        }
-    }
-    out
-}
 
 #[test]
 fn global_read_across_lines() {
@@ -61,7 +49,7 @@ fn function_reads_earlier_global() {
         .compile_line("fn get() { return x }\n", &env)
         .unwrap();
 
-    let disassembly = disassemble_program(&chunk);
+    let disassembly = disassemble(&chunk);
     assert!(
         disassembly.contains("GetGlobal 00"),
         "expected a GetGlobal to slot 0:\n{}",

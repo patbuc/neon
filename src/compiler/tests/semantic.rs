@@ -1,3 +1,4 @@
+use super::helpers::{assert_compile_error, compile_errors};
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
@@ -744,48 +745,22 @@ fn outer() {
 #[test]
 fn test_undefined_variable() {
     let program = "print(x)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Undefined variable 'x'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Undefined variable 'x'"));
 }
 
 #[test]
 fn test_tuple_pattern_underscore_declares_nothing() {
     let program = "val (p, _) = [1, 2]\nprint(_)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Undefined variable '_'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Undefined variable '_'"));
 }
 
 #[test]
 fn test_tuple_pattern_duplicate_name_is_duplicate_declaration() {
     let program = "val (a, a) = [1, 2]\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Symbol 'a' already defined in this scope");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Symbol 'a' already defined in this scope"));
 }
 
 #[test]
@@ -803,29 +778,14 @@ fn test_defined_variable() {
 #[test]
 fn test_assign_to_immutable() {
     let program = "val x = 5\nx = 10\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot assign to immutable");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Cannot assign to immutable"));
 }
 
 #[test]
 fn test_compound_assign_to_immutable() {
     let program = "val x = 1\nx += 1\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .contains("Cannot assign to immutable variable 'x'")));
@@ -834,46 +794,21 @@ fn test_compound_assign_to_immutable() {
 #[test]
 fn test_compound_assign_to_undefined_variable() {
     let program = "y += 1\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Undefined variable 'y'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Undefined variable 'y'"));
 }
 
 #[test]
 fn test_compound_assign_before_declaration() {
     let program = "g += 1\nvar g = 0\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot use 'g' before its declaration");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Cannot use 'g' before its declaration"));
 }
 
 #[test]
 fn test_compound_assign_both_sides_undefined() {
     let program = "y += z\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 2);
     assert!(errors
         .iter()
@@ -886,29 +821,14 @@ fn test_compound_assign_both_sides_undefined() {
 #[test]
 fn test_implicit_it_undefined_without_it_in_scope() {
     let program = "[1].map { x -> it }\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Undefined variable 'it'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Undefined variable 'it'"));
 }
 
 #[test]
 fn test_compound_assign_self_reference_before_declaration() {
     let program = "g += g\nvar g = 0\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     // The two uses of 'g' are at different columns, so both are distinct
     // diagnostics - only an identical (same message and location) repeat
     // is deduplicated.
@@ -964,14 +884,7 @@ fn add(a, b) {
 }
 val x = add(1, 2, 3)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("expects 2 arguments but got 3")));
@@ -1022,14 +935,7 @@ fn test_duplicate_declaration() {
 val x = 10
 val x = 20
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("already defined")));
 }
 
@@ -1113,14 +1019,7 @@ fn test_invalid_method_on_array_literal() {
     let program = r#"
 val x = [1, 2, 3].invalidMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'invalidMethod'")));
@@ -1131,14 +1030,7 @@ fn test_typo_on_method_name_suggests_correction() {
     let program = r#"
 val x = [1, 2, 3].szie()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'size'")));
@@ -1149,14 +1041,7 @@ fn test_string_len_suggests_size() {
     let program = r#"
 val x = "abc".len()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| { e.message == "Type 'String' has no method named 'len'. Did you mean 'size'?" }));
@@ -1167,14 +1052,7 @@ fn test_string_char_at_removed() {
     let program = r#"
 val x = "abc".charAt(0)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .starts_with("Type 'String' has no method named 'charAt'")));
@@ -1185,14 +1063,7 @@ fn test_string_includes_suggests_contains() {
     let program = r#"
 val x = "abc".includes("a")
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| {
         e.message == "Type 'String' has no method named 'includes'. Did you mean 'contains'?"
     }));
@@ -1203,14 +1074,7 @@ fn test_array_length_suggests_size() {
     let program = r#"
 val x = [1].length()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| {
         e.message == "Type 'Array' has no method named 'length'. Did you mean 'size'?"
     }));
@@ -1221,14 +1085,7 @@ fn test_range_length_suggests_size() {
     let program = r#"
 val x = (1..3).length()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| {
         e.message == "Type 'Range' has no method named 'length'. Did you mean 'size'?"
     }));
@@ -1239,14 +1096,7 @@ fn test_map_has_suggests_contains() {
     let program = r#"
 val x = {"a": 1}.has("a")
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| {
         e.message == "Type 'Map' has no method named 'has'. Did you mean 'contains'?"
     }));
@@ -1257,14 +1107,7 @@ fn test_set_has_suggests_contains() {
     let program = r#"
 val x = #{1}.has(1)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| {
         e.message == "Type 'Set' has no method named 'has'. Did you mean 'contains'?"
     }));
@@ -1279,14 +1122,8 @@ impl S {
 }
 S(1).len()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
     assert!(!errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'size'")));
@@ -1297,14 +1134,8 @@ fn test_number_len_does_not_suggest_size() {
     let program = r#"
 val x = 5.len()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
+    assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
     assert!(!errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'size'")));
@@ -1315,14 +1146,7 @@ fn test_non_existent_method_shows_available_methods() {
     let program = r#"
 val x = [1, 2, 3].notAMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Available methods:")));
@@ -1354,14 +1178,7 @@ fn test_invalid_method_on_tracked_variable() {
 val arr = [1, 2, 3]
 val result = arr.badMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'badMethod'")));
@@ -1391,14 +1208,7 @@ fn test_invalid_method_on_string_literal() {
     let program = r#"
 val x = "hello".invalidMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'invalidMethod'")));
@@ -1429,14 +1239,7 @@ fn test_invalid_method_on_map_literal() {
     let program = r#"
 val result = {"a": 1}.wrongMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'wrongMethod'")));
@@ -1467,14 +1270,7 @@ fn test_invalid_method_on_set_literal() {
     let program = r#"
 val result = #{1, 2, 3}.invalidMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'invalidMethod'")));
@@ -1506,14 +1302,7 @@ fn test_invalid_method_in_chain() {
 val m = {"a": 1, "b": 2}
 val result = m.keys().invalidMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'invalidMethod'")));
@@ -1545,14 +1334,7 @@ fn test_multiple_method_validation_errors() {
 val a = [1, 2, 3].badMethod()
 val b = "hello".wrongMethod()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     // Should have at least 2 errors
     assert!(errors.len() >= 2);
     assert!(errors.iter().any(|e| e.message.contains("badMethod")));
@@ -1603,14 +1385,7 @@ fn processData(data) {
 
 val result = processData(42)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
 
     // Should have at least 4 errors (one for each invalid method)
     assert!(
@@ -1733,14 +1508,7 @@ fn test_integration_edge_case_special_characters_in_method_names() {
 val arr = [1, 2, 3]
 val result = arr.with_underscore()  // Invalid method with underscore
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(
         errors.iter().any(|e| e.message.contains("with_underscore")),
         "Should report error for invalid method 'with_underscore'"
@@ -1955,14 +1723,7 @@ fn processData() {
     return upper
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
 
     // Debug: print(all errors)
     eprintln!("Errors found:");
@@ -2010,14 +1771,7 @@ fn test_integration_error_messages_are_actionable() {
 val arr = [1, 2, 3]
 val result = arr.szie()  // typo: should be 'size'
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
 
     let error_msg = &errors[0].message;
 
@@ -2112,18 +1866,8 @@ fn test_break_outside_loop() {
         break
         print(x)
         "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot use 'break' outside of a loop");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Cannot use 'break' outside of a loop"));
 }
 
 #[test]
@@ -2133,18 +1877,8 @@ fn test_continue_outside_loop() {
         continue
         print(x)
         "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot use 'continue' outside of a loop");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Cannot use 'continue' outside of a loop"));
 }
 
 #[test]
@@ -2299,18 +2033,8 @@ fn test_break_outside_function_in_loop() {
             test()
         }
         "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot use 'break' outside of a loop");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Cannot use 'break' outside of a loop"));
 }
 
 #[test]
@@ -2323,18 +2047,8 @@ fn test_continue_outside_function_in_loop() {
             test()
         }
         "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Cannot use 'continue' outside of a loop");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0]
-        .message
-        .contains("Cannot use 'continue' outside of a loop"));
 }
 
 // =============================================================================
@@ -2432,14 +2146,7 @@ while (true) {
     f()
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
@@ -2455,14 +2162,7 @@ while (true) {
     f()
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .contains("Cannot use 'continue' outside of a loop")));
@@ -2475,14 +2175,7 @@ while (true) {
 #[test]
 fn test_math_as_value_is_namespace_error() {
     let program = "val m = Math\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message == "'Math' is a namespace, not a value"));
@@ -2491,14 +2184,7 @@ fn test_math_as_value_is_namespace_error() {
 #[test]
 fn test_file_as_value_is_namespace_error() {
     let program = "val f = File\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message == "'File' is a namespace, not a value"));
@@ -2507,14 +2193,7 @@ fn test_file_as_value_is_namespace_error() {
 #[test]
 fn test_print_math_is_namespace_error() {
     let program = "print(Math)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message == "'Math' is a namespace, not a value"));
@@ -2547,14 +2226,7 @@ fn test_file_constructor_call_still_works() {
 #[test]
 fn test_file_constructor_wrong_arity() {
     let program = "val f = File(\"x.txt\", \"y.txt\")\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("expects 1 arguments but got 2")));
@@ -2563,14 +2235,7 @@ fn test_file_constructor_wrong_arity() {
 #[test]
 fn test_calling_math_namespace_is_not_a_function_error() {
     let program = "val m = Math(1)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message == "'Math' is not a function"));
@@ -2586,14 +2251,7 @@ while (true) {
     f()
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
@@ -2609,14 +2267,7 @@ while (true) {
     f()
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .contains("Cannot use 'continue' outside of a loop")));
@@ -2792,14 +2443,7 @@ struct P {
 val p = P(1)
 print(p.y)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("no field named 'y'")));
@@ -2815,14 +2459,7 @@ struct P {
 val p = P(1, 2)
 p.z = 3
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("no field named 'z'")));
@@ -2864,14 +2501,7 @@ struct S {
 }
 S.f(1)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("has no method named 'f'")));
@@ -2995,14 +2625,7 @@ struct P {
 }
 val p = P(1, 2, 3)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("expects 2 arguments but got 3")));
@@ -3040,14 +2663,7 @@ fn add(a, b) {
 }
 val x = add(1)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::TooFewArguments
@@ -3062,14 +2678,7 @@ fn add(a, b) {
 }
 val x = add(1, 2, 3)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::TooManyArguments));
@@ -3086,14 +2695,7 @@ impl Ghost {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(1, errors.len(), "{:?}", errors);
     assert!(errors[0].message.contains("Ghost"));
 }
@@ -3110,14 +2712,7 @@ impl Circle {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("radius")));
 }
 
@@ -3137,14 +2732,7 @@ impl Point {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("len")));
 }
 
@@ -3166,14 +2754,7 @@ impl Point {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("len")));
 }
 
@@ -3191,14 +2772,7 @@ fn wrapper() {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("top level")));
 }
 
@@ -3216,28 +2790,14 @@ if (true) {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("top level")));
 }
 
 #[test]
 fn test_struct_inside_fn_is_compile_error() {
     let program = "fn f() {\n    struct P { x }\n    return P(1)\n}\nprint(f().x)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert!(errors[0].message.contains("'P'"));
@@ -3247,14 +2807,7 @@ fn test_struct_inside_fn_is_compile_error() {
 #[test]
 fn test_struct_inside_block_is_compile_error() {
     let program = "if (true) {\n    struct P { x }\n    print(P(1).x)\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert!(errors[0].message.contains("'P'"));
@@ -3264,14 +2817,7 @@ fn test_struct_inside_block_is_compile_error() {
 #[test]
 fn test_duplicate_struct_field_is_compile_error() {
     let program = "struct A {\n    x\n    x\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateField);
     assert_eq!(errors[0].location.line, 3);
@@ -3295,14 +2841,7 @@ impl Point {
 val p = Point(1, 2)
 p.len(5)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("len")));
 }
 
@@ -3321,14 +2860,7 @@ impl Point {
 val p = Point(1, 2)
 p.lne()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("Did you mean")));
 }
 
@@ -3345,14 +2877,7 @@ impl Point {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("nofield")));
 }
 
@@ -3370,14 +2895,7 @@ impl Point {
 }
 Point.len()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("len") && e.message.contains("instance")));
@@ -3398,14 +2916,7 @@ impl Point {
 val p = Point(1, 2)
 p.origin()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("origin") && e.message.contains("static")));
@@ -3426,14 +2937,7 @@ impl Point {
 val p = Point(1, 2)
 p.len()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("len") && e.message.contains("static")));
@@ -3453,14 +2957,7 @@ impl Point {
 }
 Point.make(1)
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("make") && e.message.contains("expects 2 arguments")));
@@ -3473,14 +2970,7 @@ struct String {
     v
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("String")));
 }
 
@@ -3491,28 +2981,14 @@ struct Array {
     v
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("Array")));
 }
 
 #[test]
 fn test_duplicate_field_on_reserved_struct_name_reports_both() {
     let program = "struct Array { x x }\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::DuplicateField));
@@ -3532,14 +3008,7 @@ impl String {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("size") && e.message.contains("native")));
@@ -3552,14 +3021,7 @@ impl Foo {
     fn bar(self) {}
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("Foo")));
 }
 
@@ -3573,14 +3035,7 @@ impl Array {
 }
 val x = [1, 2].secnd()
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'second'")));
@@ -3596,14 +3051,7 @@ impl String {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Did you mean 'size'")));
@@ -3618,14 +3066,7 @@ impl Array {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e.message.contains("make")
         && e.message.contains("self")
         && e.message
@@ -3642,14 +3083,7 @@ impl Map {
 }
 val x = Map.second({})
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .contains("Static methods are only supported on structs")));
@@ -3658,14 +3092,7 @@ val x = Map.second({})
 #[test]
 fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
     let program = "val args = 5\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
@@ -3674,14 +3101,7 @@ fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
 #[test]
 fn test_assign_to_builtin_at_top_level() {
     let program = "args = 5\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment));
@@ -3713,21 +3133,7 @@ fn test_native_method_return_types_are_inferred() {
 
     for (source, expected_type) in cases {
         let source = source.replace("\\n", "\n");
-        let mut parser = Parser::new(&source);
-        let ast = parser
-            .parse()
-            .unwrap_or_else(|_| panic!("parse error in: {}", source));
-
-        let mut analyzer = SemanticAnalyzer::new();
-        let result = analyzer.analyze(&ast);
-
-        let errors = match result {
-            Err(errors) => errors,
-            Ok(_) => panic!(
-                "expected an unknown-method error for: {} (return type {})",
-                source, expected_type
-            ),
-        };
+        let errors = compile_errors(&source);
         let expected = format!("Type '{}' has no method named 'bogus'", expected_type);
         assert!(
             errors.iter().any(|e| e.message.contains(&expected)),
@@ -3774,14 +3180,7 @@ impl Array {
     }
 }
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors.iter().any(|e| e
         .message
         .contains("Type 'Array' has no method named 'bogus'")));
@@ -3795,14 +3194,7 @@ fn forward_use_inside_top_level_block_is_compile_error() {
 }
 val b = 1
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'b' before its declaration")));
@@ -3830,14 +3222,7 @@ fn top_level_compound_assignment_before_declaration_is_compile_error() {
 x += 1
 var x = 1
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
@@ -3849,14 +3234,7 @@ fn top_level_assignment_before_declaration_is_compile_error() {
 x = 5
 var x = 1
 "#;
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
@@ -3916,14 +3294,7 @@ fn use_obj(obj) {
 #[test]
 fn test_enum_duplicate_variant_is_compile_error() {
     let program = "enum Color {\n    Red\n    Red\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 3);
     assert!(errors[0].message.contains("'Color'"));
@@ -3933,14 +3304,7 @@ fn test_enum_duplicate_variant_is_compile_error() {
 #[test]
 fn test_enum_unknown_variant_is_compile_error() {
     let program = "enum Color {\n    Red\n    Green\n}\nprint(Color.Purple)\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 5);
     assert_eq!(errors[0].kind, CompilationErrorKind::UnknownEnumVariant);
@@ -3950,14 +3314,7 @@ fn test_enum_unknown_variant_is_compile_error() {
 #[test]
 fn test_enum_as_value_is_compile_error() {
     let program = "enum Color {\n    Red\n}\nval x = Color\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 4);
     assert_eq!(errors[0].kind, CompilationErrorKind::EnumAsValue);
@@ -3967,14 +3324,7 @@ fn test_enum_as_value_is_compile_error() {
 #[test]
 fn test_enum_inside_fn_is_compile_error() {
     let program = "fn f() {\n    enum Color {\n        Red\n    }\n    return 1\n}\nf()\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert!(errors[0].message.contains("'Color'"));
@@ -3984,14 +3334,7 @@ fn test_enum_inside_fn_is_compile_error() {
 #[test]
 fn test_enum_inside_block_is_compile_error() {
     let program = "if (true) {\n    enum Color {\n        Red\n    }\n    print(Color.Red)\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert!(errors[0].message.contains("'Color'"));
@@ -4001,14 +3344,7 @@ fn test_enum_inside_block_is_compile_error() {
 #[test]
 fn test_enum_name_clash_with_struct_is_duplicate_symbol() {
     let program = "enum Color {\n    Red\n}\nstruct Color {\n    x\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
     assert_eq!(errors[0].location.line, 4);
@@ -4017,14 +3353,7 @@ fn test_enum_name_clash_with_struct_is_duplicate_symbol() {
 #[test]
 fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
     let program = "enum Color {\n    Red\n}\nfn Color() {\n    return 1\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
     assert_eq!(errors[0].location.line, 4);
@@ -4045,14 +3374,7 @@ fn test_enum_name_shadowed_by_local_resolves_as_struct_field() {
 #[test]
 fn test_enum_name_clash_with_val_is_duplicate_symbol() {
     let program = "enum Color {\n    Red\n}\nval Color = 1\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
     assert_eq!(errors[0].location.line, 4);
@@ -4061,14 +3383,7 @@ fn test_enum_name_clash_with_val_is_duplicate_symbol() {
 #[test]
 fn test_enum_variant_assignment_is_compile_error() {
     let program = "enum Color {\n    Red\n}\nColor.Red = 1\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::ImmutableAssignment);
     assert_eq!(errors[0].location.line, 4);
@@ -4078,14 +3393,7 @@ fn test_enum_variant_assignment_is_compile_error() {
 #[test]
 fn test_enum_unknown_static_method_is_compile_error() {
     let program = "enum Color {\n    Red\n}\nprint(Color.names())\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
     assert_eq!(errors[0].location.line, 4);
@@ -4098,14 +3406,7 @@ fn test_enum_unknown_static_method_is_compile_error() {
 fn test_impl_on_enum_is_compile_error() {
     let program =
         "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) {\n        return 1\n    }\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::ImplOnEnum);
     assert_eq!(errors[0].location.line, 4);
@@ -4114,15 +3415,9 @@ fn test_impl_on_enum_is_compile_error() {
 
 /// `?.` on a namespace, enum, or struct type name is nonsensical (none of
 /// those are ever nil), so it should be a compile error.
-fn compile_to_errors(source: &str) -> Vec<crate::common::errors::CompilationError> {
-    let mut compiler = crate::compiler::Compiler::new();
-    compiler.compile(source);
-    compiler.get_structured_errors()
-}
-
 #[test]
 fn test_optional_dot_on_namespace_is_compile_error() {
-    let errors = compile_to_errors("Math?.abs(-3)\n");
+    let errors = compile_errors("Math?.abs(-3)\n");
     assert!(
         errors.iter().any(|e| e.message.contains("'?.'")),
         "expected a '?.' compile error, got {:#?}",
@@ -4132,7 +3427,7 @@ fn test_optional_dot_on_namespace_is_compile_error() {
 
 #[test]
 fn test_optional_dot_on_enum_static_call_is_compile_error() {
-    let errors = compile_to_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
+    let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
     assert!(
         errors.iter().any(|e| e.message.contains("'?.'")),
         "expected a '?.' compile error, got {:#?}",
@@ -4142,7 +3437,7 @@ fn test_optional_dot_on_enum_static_call_is_compile_error() {
 
 #[test]
 fn test_optional_dot_on_enum_variant_is_compile_error() {
-    let errors = compile_to_errors("enum Color {\n    Red\n    Green\n}\nColor?.Red\n");
+    let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.Red\n");
     assert!(
         errors.iter().any(|e| e.message.contains("'?.'")),
         "expected a '?.' compile error, got {:#?}",
@@ -4152,7 +3447,7 @@ fn test_optional_dot_on_enum_variant_is_compile_error() {
 
 #[test]
 fn test_optional_dot_on_struct_type_name_is_compile_error() {
-    let errors = compile_to_errors("struct P {\n    x\n}\nP?.x\n");
+    let errors = compile_errors("struct P {\n    x\n}\nP?.x\n");
     assert!(
         errors.iter().any(|e| e.message.contains("'?.'")),
         "expected a '?.' compile error, got {:#?}",
@@ -4168,14 +3463,7 @@ fn test_optional_dot_on_struct_type_name_is_compile_error() {
 fn test_match_missing_enum_variant_is_compile_error() {
     let program =
         "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(
         errors
             .iter()
@@ -4194,14 +3482,7 @@ fn test_match_missing_enum_variant_is_compile_error() {
 #[test]
 fn test_match_pattern_not_belonging_to_enum_is_compile_error() {
     let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    3 -> 2\n    _ -> 0\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(
         errors.iter().any(|e| e
             .message
@@ -4215,14 +3496,7 @@ fn test_match_pattern_not_belonging_to_enum_is_compile_error() {
 fn test_match_duplicate_pattern_is_unreachable() {
     let program =
         "val x = 1\nval y = match x {\n    1 -> \"a\"\n    1 -> \"b\"\n    _ -> \"c\"\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let error = errors
         .iter()
         .find(|e| e.message.contains("unreachable pattern"))
@@ -4234,14 +3508,7 @@ fn test_match_duplicate_pattern_is_unreachable() {
 #[test]
 fn test_match_duplicate_pattern_within_single_arm_is_unreachable() {
     let program = "val x = 1\nval y = match x {\n    1, 1 -> \"a\"\n    _ -> \"c\"\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert!(
         errors
             .iter()
@@ -4265,7 +3532,10 @@ fn match_errors(program: &str) -> Vec<String> {
 }
 
 fn assert_match_error(program: &str, expected: &str) {
-    let errors = match_errors(program);
+    let errors: Vec<String> = compile_errors(program)
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
     assert!(
         errors.iter().any(|m| m.contains(expected)),
         "expected {:?}, got {:#?}",
@@ -4370,9 +3640,7 @@ fn test_match_range_pattern_in_enum_match_is_displayed() {
 #[test]
 fn test_match_duplicate_enum_variant_points_at_pattern_start() {
     let program = "enum Color {\n    Red\n}\nval x = match Color.Red {\n    Color.Red -> 1\n    Color.Red -> 2\n}\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-    let errors = SemanticAnalyzer::new().analyze(&ast).unwrap_err();
+    let errors = compile_errors(program);
     let error = errors
         .iter()
         .find(|e| e.message.contains("unreachable pattern"))

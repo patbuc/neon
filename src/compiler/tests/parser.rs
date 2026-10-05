@@ -1,3 +1,4 @@
+use super::helpers::{assert_compile_error, compile_errors};
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::ast::{BinaryOp, Expr, InterpolationPart, Stmt, UnaryOp};
 use crate::compiler::parser::Parser;
@@ -27,20 +28,14 @@ fn test_parse_val_declaration() {
 
 #[test]
 fn test_tuple_pattern_needs_at_least_two_names() {
-    let mut parser = Parser::new("val (a) = [1]\n");
-    let result = parser.parse();
-    let errors = result.expect_err("expected a compile error");
+    let errors = assert_compile_error("val (a) = [1]\n", "Tuple pattern needs at least two names");
     assert_eq!(1, errors.len());
-    assert!(errors[0]
-        .message
-        .contains("Tuple pattern needs at least two names"));
 }
 
 #[test]
 fn test_match_keyword_cannot_be_val_name() {
-    let mut parser = Parser::new("val match = 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
+    let errors = compile_errors("val match = 1\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -52,9 +47,7 @@ fn test_parse_binary_expression() {
 
 #[test]
 fn test_decimal_literal_past_i64_max_is_compile_error() {
-    let mut parser = Parser::new("9223372036854775808\n");
-    let result = parser.parse();
-    let errors = result.expect_err("expected a compile error");
+    let errors = compile_errors("9223372036854775808\n");
     assert_eq!(1, errors.len());
     assert_eq!(CompilationErrorKind::NumberLiteralTooLarge, errors[0].kind);
 }
@@ -634,11 +627,7 @@ fn test_parse_call_with_trailing_block_lambda() {
 
 #[test]
 fn test_only_one_trailing_block_per_call() {
-    let mut parser = Parser::new("print(f { 1 } { 2 })\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("trailing block"));
+    assert_compile_error("print(f { 1 } { 2 })\n", "trailing block");
 }
 
 #[test]
@@ -659,11 +648,9 @@ fn test_lambda_expression_statement() {
 
 #[test]
 fn test_parse_stray_right_brace_after_statement() {
-    let mut parser = Parser::new("print(1) }\n");
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail on a stray '}}' at top level");
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(1) }\n");
     assert!(!errors.is_empty());
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -810,299 +797,251 @@ fn test_parse_impl_block_rejects_non_fn_item() {
             val x = 1
         }
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "method declaration");
     assert_eq!(errors.len(), 1, "Should report exactly one error");
-    assert!(errors[0].message.contains("method declaration"));
 }
 
 #[test]
 fn test_block_body_recovers_from_multiple_errors() {
     let program = "fn f() {\n    val x = \n    val y = \n    val z = 3 +\n}\nval w = \n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail with multiple errors");
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(
         lines,
         vec![2, 3, 4, 6],
         "Should report one error per bad statement, in order"
     );
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware() {
     let program =
         "struct P { x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware_for_set_literals() {
     let program =
         "struct P { x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err(), "Should fail on a non-fn item in impl body");
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_synchronize_stops_at_enclosing_brace_after_same_line_error() {
     let program = "fn f() { val x = ) }\nval w = \n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![1, 2]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_missing_range_end_does_not_swallow_enclosing_brace() {
     let program = "fn f() {\n    val x = 1 ..\n}\nval w = \n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_missing_ternary_branch_does_not_swallow_enclosing_brace() {
     let program = "fn f() {\n    val t = true ?\n}\nval w = \n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_missing_assignment_value_does_not_swallow_enclosing_brace() {
     let program = "fn f() {\n    x =\n}\nval w = \n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![2, 4]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_if_branch_error_recovers_to_next_statement() {
     let program = "fn f() {\n    if (true) { val a = ) } else { val b = 2 }\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_while_body_reports_both_bad_statements() {
     let program = "fn f() {\n  while (true) {\n    val x = +\n  }\n  val y = +\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let lines: Vec<u32> = errors.iter().map(|e| e.location.line).collect();
     assert_eq!(lines, vec![3, 5]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_if_header_error_skips_body() {
     let program = "fn f() {\n    if ) { val a = ) } else { val b = + }\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 8)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_while_header_error_skips_body() {
     let program = "fn f() {\n  while ) {\n    val x = +\n  }\n  val y = +\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 9), (5, 11)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_stray_brace_as_operand_is_not_consumed() {
     let program = "fn f() { val x = }\nval w = )\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(1, 18), (2, 9)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_map_literal_close_brace_is_not_mistaken_for_block_end() {
     let program = "fn f() {\n    val m = { \"a\": 1 + }\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 24)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_nested_call_with_bad_map_value_does_not_swallow_block_end() {
     let program = "fn f() {\n    x = foo(1, {\n \"b\": ) })\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 7)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_multiline_array_element_does_not_swallow_block_end() {
     let program = "fn f() {\n    val x = [1,\n        2 +,\n        3]\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 12)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_multiline_call_argument_does_not_swallow_block_end() {
     let program = "fn f() {\n    print(1,\n        2 +,\n        3)\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 12)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_open_call_across_newline_in_block_reports_one_error() {
     let program = "fn f() {\n    print(1\n    x = )\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_call_argument_across_newline_in_block_reports_one_error() {
     let program = "fn f() {\n    print(1\n    print(2 +)\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_array_across_newline_in_block_reports_one_error() {
     let program = "fn f() {\n    [1, 2\n    x = )\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_set_across_newline_in_block_reports_one_error() {
     let program = "fn f() {\n    #{1\n    x = )\n    }\n    val y = 1\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(3, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_mismatched_closing_delimiter_does_not_swallow_later_statements() {
     let program = "fn f() {\n    val a = (1 + 2]\n    val b = +\n    val c = +\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 19), (3, 13), (4, 13)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_stray_paren_in_lambda_argument_does_not_swallow_later_statements() {
     let program = "fn f() {\n    foo(fn() { val a = )\n    val b = +\n}\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 24), (3, 13), (5, 1), (5, 1)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -1868,10 +1807,7 @@ fn test_parse_exponent_right_operand_accepts_unary_minus() {
 
 #[test]
 fn test_parse_assignment_to_expression_is_invalid_target() {
-    let mut parser = Parser::new("1 + x = 5\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("1 + x = 5\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -1881,10 +1817,7 @@ fn test_parse_assignment_to_expression_is_invalid_target() {
 
 #[test]
 fn test_parse_assignment_to_field_of_expression_is_invalid_target() {
-    let mut parser = Parser::new("1 + a.b = 5\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("1 + a.b = 5\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -1894,10 +1827,7 @@ fn test_parse_assignment_to_field_of_expression_is_invalid_target() {
 
 #[test]
 fn test_parse_assignment_to_index_of_expression_is_invalid_target() {
-    let mut parser = Parser::new("1 + a[0] = 5\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("1 + a[0] = 5\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -1981,21 +1911,14 @@ fn test_parse_compound_assignment_power_to_index() {
 
 #[test]
 fn test_parse_compound_assignment_to_grouping_is_invalid_target() {
-    let mut parser = Parser::new("(x) += 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
+    let errors = assert_compile_error("(x) += 1\n", "Invalid assignment target");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 5);
 }
 
 #[test]
 fn test_parse_assignment_to_call_expression_is_invalid_target() {
-    let mut parser = Parser::new("f() = 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("f() = 1\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -2003,10 +1926,7 @@ fn test_parse_assignment_to_call_expression_is_invalid_target() {
 
 #[test]
 fn test_parse_assignment_to_grouping_is_invalid_target() {
-    let mut parser = Parser::new("(x) = 3\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("(x) = 3\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -2014,10 +1934,7 @@ fn test_parse_assignment_to_grouping_is_invalid_target() {
 
 #[test]
 fn test_parse_compound_assignment_to_optional_field_is_invalid_target() {
-    let mut parser = Parser::new("a?.b += 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("a?.b += 1\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -2695,20 +2612,14 @@ fn test_parse_index_with_expression_key() {
 #[test]
 fn test_parse_postfix_increment_is_compile_error() {
     let program = "var i = 0\ni++\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    let errors = result.expect_err("expected a compile error");
+    let errors = compile_errors(program);
     assert_eq!(CompilationErrorKind::ExpectedExpression, errors[0].kind);
 }
 
 #[test]
 fn test_parse_postfix_decrement_is_compile_error() {
     let program = "var i = 0\ni--\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    let errors = result.expect_err("expected a compile error");
+    let errors = compile_errors(program);
     assert_eq!(CompilationErrorKind::ExpectedExpression, errors[0].kind);
 }
 
@@ -2719,13 +2630,8 @@ fn test_parse_map_missing_colon() {
     let program = r#"
         val m = {"key" 42}
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "':'");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("':'"));
 }
 
 #[test]
@@ -2733,13 +2639,8 @@ fn test_parse_braces_without_colon_is_error() {
     let program = r#"
         val s = {1, 2}
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "Expect ':' after map key.");
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].message.contains("Expect ':' after map key."));
 }
 
 #[test]
@@ -2747,10 +2648,8 @@ fn test_parse_map_missing_value() {
     let program = r#"
         val m = {"key":}
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
+    let errors = compile_errors(program);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -2758,12 +2657,7 @@ fn test_parse_map_missing_closing_brace() {
     let program = r#"
         val m = {"key": 42
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("'}'"));
+    assert_compile_error(program, "'}'");
 }
 
 #[test]
@@ -2771,12 +2665,7 @@ fn test_parse_index_missing_closing_bracket() {
     let program = r#"
         val x = m["key"
         "#;
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("']'"));
+    assert_compile_error(program, "']'");
 }
 
 // ===== Integration Tests =====
@@ -3139,13 +3028,8 @@ fn test_parse_array_with_expressions() {
 #[test]
 fn test_parse_array_missing_closing_bracket() {
     let program = "val arr = [1, 2, 3\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error(program, "']'");
     assert!(!errors.is_empty());
-    assert!(errors[0].message.contains("']'"));
 }
 
 #[test]
@@ -3159,84 +3043,53 @@ fn test_parse_val_with_fn_prefixed_identifier() {
 #[test]
 fn test_parse_error_line_after_trailing_comment() {
     let source = "val a = 1 // c\n)\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 2);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_parse_error_position_after_comment_only_line() {
     let source = "val a = 1\n// c\nval b = )\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 9);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_parse_error_position_after_whitespace_only_line() {
     let source = "val a = 1\n  \nval b = )\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(source);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 9);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_parse_error_position_expect_expression() {
-    let source = "val b = )\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("val b = )\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 9);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
 fn test_parse_error_position_expect_expression_before_brace() {
-    let source = "print(1) }\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("print(1) }\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 10);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
 fn test_parse_error_position_expect_expression_at_line_end() {
-    let source = "val b =\n";
-    let mut parser = Parser::new(source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = assert_compile_error("val b =\n", "Expect expression");
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 7);
-    assert!(errors[0].message.contains("Expect expression"));
 }
 
 #[test]
 fn test_hex_overflow() {
-    let mut parser = Parser::new("0xFFFFFFFFFFFFFFFFFFFF\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("0xFFFFFFFFFFFFFFFFFFFF\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
@@ -3246,11 +3099,7 @@ fn test_hex_overflow() {
 #[test]
 fn test_binary_overflow() {
     let source = format!("0b{}\n", "1".repeat(70));
-    let mut parser = Parser::new(&source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(&source);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
@@ -3260,11 +3109,7 @@ fn test_binary_overflow() {
 #[test]
 fn test_octal_overflow() {
     let source = format!("0o{}\n", "7".repeat(24));
-    let mut parser = Parser::new(&source);
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(&source);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
@@ -3273,11 +3118,7 @@ fn test_octal_overflow() {
 
 #[test]
 fn test_val_overflow_initializer() {
-    let mut parser = Parser::new("val a = 0xFFFFFFFFFFFFFFFFFFFF\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("val a = 0xFFFFFFFFFFFFFFFFFFFF\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Integer literal is too large");
     assert_eq!(errors[0].location.line, 1);
@@ -3286,11 +3127,7 @@ fn test_val_overflow_initializer() {
 
 #[test]
 fn test_interpolation_syntax_error() {
-    let mut parser = Parser::new("print(\"a${)}b\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"a${)}b\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
@@ -3299,11 +3136,7 @@ fn test_interpolation_syntax_error() {
 
 #[test]
 fn test_interpolation_leftover_tokens() {
-    let mut parser = Parser::new("print(\"x${a b c}y\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"x${a b c}y\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -3315,11 +3148,7 @@ fn test_interpolation_leftover_tokens() {
 
 #[test]
 fn test_interpolation_empty_expression() {
-    let mut parser = Parser::new("print(\"a${}b\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"a${}b\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
@@ -3328,11 +3157,7 @@ fn test_interpolation_empty_expression() {
 
 #[test]
 fn test_interpolation_unclosed_placeholder() {
-    let mut parser = Parser::new("print(\"${a} ${b\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${a} ${b\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -3344,11 +3169,7 @@ fn test_interpolation_unclosed_placeholder() {
 
 #[test]
 fn test_interpolation_error_in_second_placeholder() {
-    let mut parser = Parser::new("print(\"${1} x ${)}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${1} x ${)}\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
@@ -3357,11 +3178,7 @@ fn test_interpolation_error_in_second_placeholder() {
 
 #[test]
 fn test_interpolation_non_ascii_prefix() {
-    let mut parser = Parser::new("print(\"caf\u{e9}${)}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"caf\u{e9}${)}\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
@@ -3441,11 +3258,7 @@ fn test_interpolation_escaped_dollar() {
 
 #[test]
 fn test_interpolation_error_position_after_escape() {
-    let mut parser = Parser::new("print(\"\\n${)}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"\\n${)}\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 1);
@@ -3454,11 +3267,7 @@ fn test_interpolation_error_position_after_escape() {
 
 #[test]
 fn test_interpolation_unclosed_at_eof() {
-    let mut parser = Parser::new("print(\"${\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -3494,11 +3303,7 @@ fn test_interpolation_nested_quotes() {
 
 #[test]
 fn test_interpolation_error_line() {
-    let mut parser = Parser::new("print(\"${\n)}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${\n)}\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
     assert_eq!(errors[0].location.line, 2);
@@ -3507,90 +3312,63 @@ fn test_interpolation_error_line() {
 
 #[test]
 fn test_interpolation_error_recovery() {
-    let mut parser = Parser::new("print(\"${)\n}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${)\n}\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
 }
 
 #[test]
 fn test_interpolation_error_recovery_in_block() {
-    let mut parser = Parser::new("fn f() {\n  print(\"${)\n  }\")\n  print(1)\n}\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("fn f() {\n  print(\"${)\n  }\")\n  print(1)\n}\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Expect expression");
 }
 
 #[test]
 fn test_interpolation_error_recovery_lambda_block() {
-    let mut parser = Parser::new("print(\"${ fn() {\n  return )\n}() }\")\nprint(2 +)\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${ fn() {\n  return )\n}() }\")\nprint(2 +)\n");
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[1].location.line, 4);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_interpolation_error_recovery_lambda_block_multiple_statements() {
-    let mut parser = Parser::new(
+    let errors = compile_errors(
         "print(\"${ fn() {\n  val x = )\n  print(1 +)\n}() }\")\nprint(2 +)\nprint(3 +)\n",
     );
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
     assert_eq!(errors.len(), 3);
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[1].location.line, 5);
     assert_eq!(errors[2].location.line, 6);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_interpolation_error_recovery_invalid_escape() {
-    let mut parser = Parser::new("print(\"\\q ${1\n} x\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"\\q ${1\n} x\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::InvalidEscapeSequence);
 }
 
 #[test]
 fn test_interpolation_error_recovery_two_interpolations() {
-    let mut parser = Parser::new("print(\"${)\n1} and ${2\n}\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"${)\n1} and ${2\n}\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_interpolation_error_recovery_two_interpolations_in_block() {
-    let mut parser = Parser::new("print(\"x ${ a b\n} y ${ a c } z\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"x ${ a b\n} y ${ a c } z\")\n");
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_invalid_escape() {
-    let mut parser = Parser::new("print(\"\\q\")\n");
-    let result = parser.parse();
-
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("print(\"\\q\")\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "Invalid escape sequence");
     assert_eq!(errors[0].location.line, 1);
@@ -3897,109 +3675,92 @@ fn test_node_ids_are_unique() {
 #[test]
 fn test_open_call_across_newline_reports_missing_operand() {
     let program = "print(1\nx = )\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_call_argument_across_newline_reports_missing_operand() {
     let program = "print(1\nprint(2 +)\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 10)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_array_across_newline_reports_missing_operand() {
     let program = "[1, 2\nx = )\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_open_set_across_newline_reports_missing_operand() {
     let program = "#{1\nx = )\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     let locations: Vec<(u32, u32)> = errors
         .iter()
         .map(|e| (e.location.line, e.location.column))
         .collect();
     assert_eq!(locations, vec![(2, 1), (2, 5)]);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_missing_initializer_before_close_paren_terminates() {
     let program = "val x =\n)\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
     assert_eq!(errors[0].location.column, 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_grouping_missing_operand_after_newline_reports_one_error() {
     let program = "val x = (1 +\n)\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_nested_call_argument_missing_operand_after_newline_reports_one_error() {
     let program = "print(foo(1,\n  2 +\n))\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
+    assert_eq!(errors[0].location.line, 3);
 }
 
 #[test]
 fn test_array_missing_operand_after_newline_reports_one_error() {
     let program = "val x = [1,\n  2 *\n]\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
 fn test_ternary_missing_then_branch_after_newline_reports_one_error() {
     let program = "val x = 1 ?\n: 2\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -4234,10 +3995,7 @@ fn test_parse_fn_with_expression_then_return_on_next_line() {
 #[test]
 fn test_leading_dot_after_comment_line() {
     let program = "val r = [1, 2]\n    // note\n    .map(fn(x) { return x })\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 5);
@@ -4246,10 +4004,7 @@ fn test_leading_dot_after_comment_line() {
 #[test]
 fn test_leading_dot_after_blank_line() {
     let program = "val r = [1, 2]\n\n    .map(fn(x) { return x })\n";
-    let mut parser = Parser::new(program);
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors(program);
     assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
     assert_eq!(errors[0].location.line, 3);
     assert_eq!(errors[0].location.column, 5);
@@ -4257,11 +4012,11 @@ fn test_leading_dot_after_blank_line() {
 
 #[test]
 fn test_leading_range_dots() {
-    let mut parser = Parser::new("val a = 1\n    ..5\n");
-    assert!(parser.parse().is_err());
+    let errors = compile_errors("val a = 1\n    ..5\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 
-    let mut parser = Parser::new("val a = 1\n    ..=5\n");
-    assert!(parser.parse().is_err());
+    let errors = compile_errors("val a = 1\n    ..=5\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedExpression);
 }
 
 #[test]
@@ -4315,9 +4070,7 @@ fn test_braceless_body_is_compile_error() {
         "for x in xs print(x)\n",
     ];
     for program in programs {
-        let mut parser = Parser::new(program);
-        let result = parser.parse();
-        let errors = result.expect_err("expected a compile error");
+        let errors = compile_errors(program);
         assert!(!errors.is_empty());
         assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
         assert_eq!(errors[0].message, "Expect '{' after condition");
@@ -4326,9 +4079,7 @@ fn test_braceless_body_is_compile_error() {
 
 #[test]
 fn test_braceless_else_is_compile_error() {
-    let mut parser = Parser::new("if x { } else print(x)\n");
-    let result = parser.parse();
-    let errors = result.expect_err("expected a compile error");
+    let errors = compile_errors("if x { } else print(x)\n");
     assert!(!errors.is_empty());
     assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
     assert_eq!(errors[0].message, "Expect '{' or 'if' after 'else'");
@@ -4336,16 +4087,14 @@ fn test_braceless_else_is_compile_error() {
 
 #[test]
 fn test_parenthesized_for_in_is_compile_error() {
-    let mut parser = Parser::new("for (x in xs) {\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err(), "parenthesized for-in should be removed");
+    let errors = compile_errors("for (x in xs) {\n}\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
 fn test_c_style_for_is_compile_error() {
-    let mut parser = Parser::new("for var i = 0; i < 3; i += 1 {\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err(), "C-style for should be removed");
+    let errors = compile_errors("for var i = 0; i < 3; i += 1 {\n}\n");
+    assert_eq!(errors[0].kind, CompilationErrorKind::ExpectedToken);
 }
 
 #[test]
@@ -4403,10 +4152,7 @@ fn test_parse_nil_coalesce_binds_tighter_than_ternary() {
 
 #[test]
 fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
-    let mut parser = Parser::new("u?.name = 1\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("u?.name = 1\n");
     assert!(errors
         .iter()
         .any(|e| e.message.contains("Invalid assignment target")));
@@ -4414,20 +4160,14 @@ fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
 
 #[test]
 fn test_if_expression_without_else_is_a_compile_error() {
-    let mut parser = Parser::new("val x = if c { 1 }\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("val x = if c { 1 }\n");
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].message, "if expression requires else");
 }
 
 #[test]
 fn test_trailing_block_not_allowed_in_if_condition() {
-    let mut parser = Parser::new("if [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("if [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4436,10 +4176,7 @@ fn test_trailing_block_not_allowed_in_if_condition() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_while_condition() {
-    let mut parser = Parser::new("while [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("while [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4448,10 +4185,7 @@ fn test_trailing_block_not_allowed_in_while_condition() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_for_in_collection() {
-    let mut parser = Parser::new("for x in [1, 2].map { it } {\n  val y = 1\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("for x in [1, 2].map { it } {\n  val y = 1\n}\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4460,10 +4194,7 @@ fn test_trailing_block_not_allowed_in_for_in_collection() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_if_expression_condition() {
-    let mut parser = Parser::new("val v = if xs.filter { it > 1 }.isEmpty() { 1 } else { 2 }\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("val v = if xs.filter { it > 1 }.isEmpty() { 1 } else { 2 }\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4472,12 +4203,9 @@ fn test_trailing_block_not_allowed_in_if_expression_condition() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_else_if_condition() {
-    let mut parser = Parser::new(
+    let errors = compile_errors(
         "if false {\n  val x = 1\n} else if [1].filter { it > 0 }.isEmpty() {\n  val y = 1\n}\n",
     );
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4501,10 +4229,7 @@ fn test_trailing_block_allowed_in_index_within_condition() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_condition_before_and_and() {
-    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() && true {\n  val y = 1\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("if [1].filter { it > 0 }.isEmpty() && true {\n  val y = 1\n}\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
@@ -4513,10 +4238,7 @@ fn test_trailing_block_not_allowed_in_condition_before_and_and() {
 
 #[test]
 fn test_trailing_block_not_allowed_in_condition_before_equal_equal() {
-    let mut parser = Parser::new("if [1].filter { it > 0 }.isEmpty() == true {\n  val y = 1\n}\n");
-    let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
+    let errors = compile_errors("if [1].filter { it > 0 }.isEmpty() == true {\n  val y = 1\n}\n");
     assert_eq!(
         errors[0].message,
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
