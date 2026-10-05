@@ -765,6 +765,17 @@ print(Color.Red == Color.Green) // false
 for c in Color.values() {
     print(c)
 }
+
+enum Shape {
+    Circle(radius)
+    Rect(w, h)
+    Square
+}
+
+val r = Shape.Rect(1, 2)
+print(r)                      // Shape.Rect(1, 2)
+print(r.w)                    // 1
+print(Shape.Circle(2) == Shape.Circle(2)) // true
 ```
 
 - An enum must be declared at the top level. Access to a variant is always
@@ -775,7 +786,13 @@ for c in Color.values() {
   different enum.
 - `Color.values()` returns a fresh array of every variant, in declaration
   order, each time it's called.
-- Enums don't support payloads, `impl` blocks, or explicit variant values.
+- A variant can carry named payload fields: `Circle(radius)`, `Rect(w, h)`.
+  `Shape.Circle(2)` constructs one positionally, and `s.radius` reads a field
+  (fields are immutable). A bare `Shape.Circle` is a constructor value you can
+  pass around, e.g. `[1, 2].map(Shape.Circle)`. A payload variant prints as
+  `Shape.Rect(1, 2)` and is equal to another of the same variant with equal
+  fields. `Shape.values()` on an enum with payload variants is a compile error.
+- Enums don't support `impl` blocks or explicit variant values.
 
 ## Code Examples
 
@@ -1117,6 +1134,7 @@ print(r.map(fn(x) { return x * 2 }))  // [2, 4, 6]
 - `[key]` - Direct index access to get/set values
 
 A key can be a string, number, boolean, enum variant, or array (same rule for set elements). An
+enum variant with payload fields is a valid key only if each field is itself a valid key. An
 array key is copied into a frozen value when it's inserted — comparisons go by content, and
 mutating the original array afterwards doesn't change the stored key. Every element of an array
 key must itself be a valid key, and a self-referencing array is a runtime error.

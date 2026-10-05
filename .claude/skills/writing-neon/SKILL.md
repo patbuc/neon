@@ -69,7 +69,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   no commas: `enum Color {` / `Red` / `Green` / `}`. Top level only. Access is
   always qualified (`Color.Red`); a bare `Color` is a compile error.
   `Color.values()` returns a fresh array of every variant in declaration
-  order. No payloads, `impl` blocks, or explicit variant values.
+  order (a compile error if any variant has a payload). A variant can take named
+  payload fields: `Rect(w, h)`; construct with `Shape.Rect(1, 2)` (a bare
+  `Shape.Rect` is a constructor value), read with `s.w` (immutable). Prints
+  `Shape.Rect(1, 2)`; equality is structural. No `impl` blocks or explicit
+  variant values.
 
 **Control flow**
 - Conditions are paren-free: `if x {`, `while x {`. Parentheses around a
@@ -131,7 +135,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.
-- Map keys (and set elements) can be strings, numbers, booleans, enum variants, or arrays. An
+- Map keys (and set elements) can be strings, numbers, booleans, enum variants (payload fields must be valid keys too), or arrays. An
   array key is compared by value and frozen at insertion: `m[[1, 2]] = 3` then mutating the
   original array doesn't change the stored key, and `m.keys()`/`entries()`/for-in/`Set.toArray()`
   return a fresh array each time. Every element of an array key must itself be a valid key
