@@ -834,10 +834,15 @@ pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
 }
 
 /// The elements of an array or range value, for methods that accept either.
-fn elements_of(value: &Value) -> Option<Vec<Value>> {
+/// A range only yields up to `limit` elements, so a huge range isn't
+/// materialized when the caller needs just a few of them.
+fn elements_of(value: &Value, limit: usize) -> Option<Vec<Value>> {
     match value {
         Value::Array(arr) => Some(arr.borrow().clone()),
-        Value::Range(range) => Some((0..range.len()).map(|i| Value::Int(range.get(i))).collect()),
+        Value::Range(range) => {
+            let end = limit.min(usize::try_from(range.len()).unwrap_or(usize::MAX));
+            Some((0..end).map(|i| Value::Int(range.get(i as i64))).collect())
+        }
         _ => None,
     }
 }
@@ -854,14 +859,14 @@ pub fn native_array_zip(args: &[Value]) -> Result<Value, String> {
     }
 
     let array_ref = extract_receiver!(args, Array, "zip")?;
-    let other = elements_of(&args[1]).ok_or_else(|| {
+    let array = array_ref.borrow();
+    let other = elements_of(&args[1], array.len()).ok_or_else(|| {
         format!(
             "zip() other must be an array or range, got {}",
             type_name_for_error(&args[1])
         )
     })?;
 
-    let array = array_ref.borrow();
     let len = array.len().min(other.len());
     let pairs = array[..len]
         .iter()

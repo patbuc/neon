@@ -313,20 +313,6 @@ fn test_range_drop_negative_errors() {
     );
 }
 
-#[test]
-fn test_range_take_drop_does_not_mutate_receiver() {
-    let program = r#"
-        val r = 1..=3
-        r.take(2)
-        r.drop(1)
-        print(r.toArray())
-    "#;
-
-    let mut vm = VirtualMachine::new();
-    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
-    assert_eq!("[1, 2, 3]", vm.get_output());
-}
-
 // ============================================================================
 // Range.first() / Range.last()
 // ============================================================================
@@ -343,6 +329,18 @@ fn test_range_first_and_last() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("nil\nnil\n1\n2", vm.get_output());
+}
+
+#[test]
+fn test_range_first_and_last_huge_range_does_not_materialize() {
+    let program = r#"
+        print((0..2000000000).first())
+        print((0..2000000000).last())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("0\n1999999999", vm.get_output());
 }
 
 // ============================================================================

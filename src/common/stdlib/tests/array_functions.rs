@@ -1211,6 +1211,69 @@ fn test_array_flat_map_non_array_return_errors() {
     );
 }
 
+#[test]
+fn test_array_for_each_callback_mutating_receiver_iterates_snapshot() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        arr.forEach(fn(x) { arr.push(x) })
+        print(arr)
+        print(arr.size())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3, 1, 2, 3]\n6", vm.get_output());
+}
+
+#[test]
+fn test_array_flat_map_callback_mutating_receiver_iterates_snapshot() {
+    let program = r#"
+        val arr = [1, 2, 3]
+        val result = arr.flatMap(fn(x) {
+            arr.push(x)
+            return [x]
+        })
+        print(result)
+        print(arr.size())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 2, 3]\n6", vm.get_output());
+}
+
+#[test]
+fn test_array_for_each_callback_error_propagates() {
+    let program = r#"
+        [1, 2].forEach(fn(x) {
+            val y = nil
+            return y.missing
+        })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
+#[test]
+fn test_array_flat_map_callback_error_propagates() {
+    let program = r#"
+        [1, 2].flatMap(fn(x) {
+            val y = nil
+            return y.missing
+        })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+}
+
 // ============================================================================
 // Array.take() / Array.drop()
 // ============================================================================
@@ -1268,6 +1331,25 @@ fn test_array_drop_negative_errors() {
 }
 
 #[test]
+fn test_array_take_non_integer_errors() {
+    let program = r#"
+        [1, 2, 3].take(1.5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("take() n must be an integer, got 1.5"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
 fn test_array_take_drop_does_not_mutate_receiver() {
     let program = r#"
         val arr = [1, 2, 3]
@@ -1315,6 +1397,25 @@ fn test_array_chunked() {
 }
 
 #[test]
+fn test_array_chunked_non_integer_errors() {
+    let program = r#"
+        [1, 2, 3].chunked("x")
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("chunked() n must be an integer"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
 fn test_array_chunked_zero_errors() {
     let program = r#"
         [1, 2, 3].chunked(0)
@@ -1347,6 +1448,28 @@ fn test_array_zip() {
     let mut vm = VirtualMachine::new();
     assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
     assert_eq!("[[1, a], [2, b]]\n[[1, 1], [2, 2]]", vm.get_output());
+}
+
+#[test]
+fn test_array_zip_range_other() {
+    let program = r#"
+        print([1, 2, 3].zip(10..20))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 10], [2, 11], [3, 12]]", vm.get_output());
+}
+
+#[test]
+fn test_array_zip_huge_range_other_does_not_materialize() {
+    let program = r#"
+        print([1, 2].zip(0..10000000000))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 0], [2, 1]]", vm.get_output());
 }
 
 #[test]

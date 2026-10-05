@@ -169,8 +169,27 @@ pub fn native_range_flat_map(
 }
 
 /// Native implementation of Range.take(n)
+/// Returns a new array of the first n elements, without materializing the
+/// whole range first.
 pub fn native_range_take(args: &[Value]) -> Result<Value, String> {
-    array_functions::native_array_take(&materialize(args, "take")?)
+    if args.len() != 2 {
+        return Err(format!(
+            "take() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "take")?;
+    let n = extract_integer_arg(args, 1, "n", "take")?;
+    if n < 0 {
+        return Err(format!("take() n must be non-negative, got {}", n));
+    }
+
+    let len = usize::try_from(n)
+        .unwrap_or(usize::MAX)
+        .min(usize::try_from(range.len()).unwrap_or(usize::MAX));
+    let values = (0..len).map(|i| Value::Int(range.get(i as i64))).collect();
+    Ok(Value::new_array(values))
 }
 
 /// Native implementation of Range.drop(n)
@@ -179,13 +198,38 @@ pub fn native_range_drop(args: &[Value]) -> Result<Value, String> {
 }
 
 /// Native implementation of Range.first()
+/// Returns the range's first value, or nil if it's empty.
 pub fn native_range_first(args: &[Value]) -> Result<Value, String> {
-    array_functions::native_array_first(&materialize(args, "first")?)
+    if args.len() != 1 {
+        return Err(format!(
+            "first() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "first")?;
+    if range.len() == 0 {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::Int(range.get(0)))
 }
 
 /// Native implementation of Range.last()
+/// Returns the range's last value, or nil if it's empty.
 pub fn native_range_last(args: &[Value]) -> Result<Value, String> {
-    array_functions::native_array_last(&materialize(args, "last")?)
+    if args.len() != 1 {
+        return Err(format!(
+            "last() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "last")?;
+    let len = range.len();
+    if len == 0 {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::Int(range.get(len - 1)))
 }
 
 /// Native implementation of Range.chunked(n)
