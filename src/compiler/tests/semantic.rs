@@ -835,6 +835,21 @@ fn test_compound_assign_both_sides_undefined() {
 }
 
 #[test]
+fn test_implicit_it_undefined_without_it_in_scope() {
+    let program = "[1].map { x -> it }\n";
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("Undefined variable 'it'"));
+}
+
+#[test]
 fn test_compound_assign_self_reference_before_declaration() {
     let program = "g += g\nvar g = 0\n";
     let mut parser = Parser::new(program);

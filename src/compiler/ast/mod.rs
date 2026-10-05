@@ -215,6 +215,10 @@ pub enum Expr {
         body: Vec<Stmt>,
         id: NodeId,
         location: SourceLocation,
+        /// True for a trailing block parsed without a `name, name ->`
+        /// header: the semantic pass gives it a synthesized `it` parameter
+        /// when its body references `it` as a free variable.
+        implicit_it: bool,
     },
     /// `if cond { ... } else ...` in expression position. `then_branch` and
     /// a terminal `else_branch` are always `Stmt::Block`; an `else if`

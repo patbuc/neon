@@ -1,0 +1,37 @@
+// Expected:
+// [2, 4, 6]
+// [2, 3]
+// 1
+// 2
+// 3
+// [[10, 20], [30]]
+// [101, 102, 103]
+// [6]
+
+print([1, 2, 3].map {
+    it * 2
+})
+print([1, 2, 3].filter {
+    it > 1
+})
+[1, 2, 3].forEach {
+    print(it)
+}
+
+print([[1, 2], [3]].map {
+    it.map {
+        it * 10
+    }
+})
+
+print([1, 2, 3].map {
+    val doubled = [10, 20].map {
+        it * 2
+    }
+    it + 100
+})
+
+val it = 5
+print([1].map { x ->
+    x + it
+})

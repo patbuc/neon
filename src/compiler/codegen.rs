@@ -224,13 +224,13 @@ impl<'a> CodeGenerator<'a> {
         for stmt in statements {
             if let Stmt::Fn {
                 name,
-                params,
                 body,
                 id,
                 location,
+                ..
             } = stmt
             {
-                self.generate_closure(*id, name, params, body, *location);
+                self.generate_closure(*id, name, body, *location);
                 let slot = self.decl_slot(self.resolutions.decl(*id));
                 self.emit_index_op(OpCode::SetLocal, slot, "locals", *location);
                 self.emit_op_code(OpCode::Pop, *location);
@@ -253,7 +253,7 @@ impl<'a> CodeGenerator<'a> {
                         location,
                     } = method
                     {
-                        self.generate_closure(*id, name, params, body, *location);
+                        self.generate_closure(*id, name, body, *location);
                         let takes_self = params.first().map(String::as_str) == Some("self");
                         self.emit_define_method(type_name, name, takes_self, *location);
                     }
@@ -589,7 +589,6 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         id: NodeId,
         name: &str,
-        params: &[String],
         body: &[Stmt],
         location: SourceLocation,
     ) {
@@ -598,7 +597,7 @@ impl<'a> CodeGenerator<'a> {
             return;
         }
 
-        self.generate_closure(id, name, params, body, location);
+        self.generate_closure(id, name, body, location);
 
         let slot = self.decl_slot(self.resolutions.decl(id));
         self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
@@ -631,7 +630,6 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         id: NodeId,
         name: &str,
-        params: &[String],
         body: &[Stmt],
         location: SourceLocation,
     ) {
@@ -679,8 +677,8 @@ impl<'a> CodeGenerator<'a> {
             .functions
             .pop()
             .expect("this function pushed a function compiler above");
-        let function_value =
-            Value::new_function(name.to_string(), params.len() as u8, compiler.chunk);
+        let arity = resolutions.function(id).params.len();
+        let function_value = Value::new_function(name.to_string(), arity as u8, compiler.chunk);
 
         // Wrap the function in a closure.
         let const_index = self.current_chunk().add_constant(function_value);
@@ -1179,12 +1177,12 @@ impl<'a> CodeGenerator<'a> {
             }
             Stmt::Fn {
                 name,
-                params,
                 body,
                 id,
                 location,
+                ..
             } => {
-                self.generate_fn_stmt(*id, name, params, body, *location);
+                self.generate_fn_stmt(*id, name, body, *location);
             }
             Stmt::Struct { .. } => {
                 // Struct was already defined, nothing to do here
@@ -1808,12 +1806,9 @@ impl<'a> CodeGenerator<'a> {
                 self.patch_jump(end_jump);
             }
             Expr::Function {
-                params,
-                body,
-                id,
-                location,
+                body, id, location, ..
             } => {
-                self.generate_closure(*id, "anonymous", params, body, *location);
+                self.generate_closure(*id, "anonymous", body, *location);
             }
             Expr::If {
                 condition,

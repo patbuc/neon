@@ -1582,6 +1582,7 @@ impl Parser {
             body,
             id,
             location,
+            implicit_it: false,
         })
     }
 
@@ -1617,6 +1618,9 @@ impl Parser {
     /// { ... }`, so upvalues and arity work unchanged.
     fn block_lambda(&mut self) -> Option<Expr> {
         let location = self.current_location();
+        let implicit_it = !self
+            .scanner
+            .looks_like_block_lambda_params(self.current_token.offset);
         let params = self.parse_block_lambda_params()?;
         let body = self.parse_block_body()?;
         let end_location = self.current_location();
@@ -1627,6 +1631,7 @@ impl Parser {
             body,
             id,
             location,
+            implicit_it,
         })
     }
 

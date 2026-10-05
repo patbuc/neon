@@ -7,7 +7,9 @@ use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
-use crate::compiler::ast::{EnumVariant, Expr, IfExprElse, NodeId, Stmt, StructField};
+use crate::compiler::ast::{
+    EnumVariant, Expr, IfExprElse, InterpolationPart, NodeId, Stmt, StructField,
+};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
@@ -977,6 +979,7 @@ impl SemanticAnalyzer {
                                 body,
                                 *location,
                                 Some(type_name),
+                                false,
                             );
                         }
                     }
@@ -1152,8 +1155,9 @@ impl SemanticAnalyzer {
                 body,
                 id,
                 location,
+                implicit_it,
             } => {
-                self.resolve_function_body(*id, params, body, *location, None);
+                self.resolve_function_body(*id, params, body, *location, None, *implicit_it);
             }
             Expr::If {
                 condition,
@@ -1224,7 +1228,7 @@ impl SemanticAnalyzer {
             self.pending_block_fns.remove(&decl_id);
         }
 
-        self.resolve_function_body(id, params, body, location, None);
+        self.resolve_function_body(id, params, body, location, None, false);
     }
 
     /// Pre-declares a statement list's own `fn` names before resolving any
@@ -1265,6 +1269,7 @@ impl SemanticAnalyzer {
         body: &[Stmt],
         location: SourceLocation,
         self_type: Option<&str>,
+        implicit_it: bool,
     ) {
         // Enter function scope
         self.enter_scope();
@@ -1274,6 +1279,18 @@ impl SemanticAnalyzer {
         // inside the function body see themselves as inside that loop.
         let saved_loop_depth = self.loop_depth;
         self.loop_depth = 0;
+
+        // A trailing block without a `->` header gets a single `it`
+        // parameter when its own body - not a nested block's - mentions it.
+        if implicit_it && params.is_empty() && block_references_it(body) {
+            let decl_id =
+                self.define_symbol("it".to_string(), SymbolKind::Parameter, false, location);
+            self.function_frames
+                .last_mut()
+                .expect("just pushed")
+                .params
+                .push(decl_id);
+        }
 
         // Define parameters in function scope. Their type is unknown and
         // explicitly shadows any outer type recorded for the same name,
@@ -2194,6 +2211,134 @@ fn unknown_method_error(
             method,
             candidates.join(", ")
         )
+    }
+}
+
+/// True when `params`/`implicit_it` make a function own the name `it` in
+/// its own scope, hiding any enclosing block's `it` from its body.
+fn owns_it(params: &[String], implicit_it: bool) -> bool {
+    implicit_it || params.iter().any(|param| param == "it")
+}
+
+/// Whether a trailing block's own body - not a nested block's or function's,
+/// each of which binds its own `it` if it owns the name - mentions `it` as
+/// a free variable.
+fn block_references_it(body: &[Stmt]) -> bool {
+    body.iter().any(stmt_references_it)
+}
+
+fn stmt_references_it(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Val { initializer, .. } | Stmt::Var { initializer, .. } => {
+            initializer.as_ref().is_some_and(expr_references_it)
+        }
+        Stmt::Fn { params, body, .. } => {
+            !owns_it(params, false) && body.iter().any(stmt_references_it)
+        }
+        Stmt::Struct { .. } | Stmt::Enum { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+            false
+        }
+        Stmt::Impl { methods, .. } => methods.iter().any(stmt_references_it),
+        Stmt::Expression { expr, .. } => expr_references_it(expr),
+        Stmt::Block { statements, .. } => statements.iter().any(stmt_references_it),
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_references_it(condition)
+                || stmt_references_it(then_branch)
+                || else_branch.as_deref().is_some_and(stmt_references_it)
+        }
+        Stmt::While {
+            condition, body, ..
+        } => expr_references_it(condition) || stmt_references_it(body),
+        Stmt::Return { value, .. } => value.as_ref().is_some_and(expr_references_it),
+        Stmt::ForIn {
+            collection, body, ..
+        } => expr_references_it(collection) || stmt_references_it(body),
+    }
+}
+
+fn expr_references_it(expr: &Expr) -> bool {
+    match expr {
+        Expr::Variable { name, .. } => name == "it",
+        Expr::Number { .. }
+        | Expr::Int { .. }
+        | Expr::String { .. }
+        | Expr::Boolean { .. }
+        | Expr::Nil { .. } => false,
+        Expr::StringInterpolation { parts, .. } => parts.iter().any(|part| match part {
+            InterpolationPart::Literal { .. } => false,
+            InterpolationPart::Expression(expr) => expr_references_it(expr),
+        }),
+        Expr::Assign { name, value, .. } => name == "it" || expr_references_it(value),
+        Expr::CompoundAssign { name, value, .. } => name == "it" || expr_references_it(value),
+        Expr::Binary { left, right, .. } => expr_references_it(left) || expr_references_it(right),
+        Expr::Unary { operand, .. } => expr_references_it(operand),
+        Expr::Call {
+            callee, arguments, ..
+        } => expr_references_it(callee) || arguments.iter().any(expr_references_it),
+        Expr::GetField { object, .. } => expr_references_it(object),
+        Expr::SetField { object, value, .. } => {
+            expr_references_it(object) || expr_references_it(value)
+        }
+        Expr::CompoundAssignField { object, value, .. } => {
+            expr_references_it(object) || expr_references_it(value)
+        }
+        Expr::Grouping { expr, .. } => expr_references_it(expr),
+        Expr::MapLiteral { entries, .. } => entries
+            .iter()
+            .any(|(key, value)| expr_references_it(key) || expr_references_it(value)),
+        Expr::ArrayLiteral { elements, .. } | Expr::SetLiteral { elements, .. } => {
+            elements.iter().any(expr_references_it)
+        }
+        Expr::Index { object, index, .. } => {
+            expr_references_it(object) || expr_references_it(index)
+        }
+        Expr::IndexAssign {
+            object,
+            index,
+            value,
+            ..
+        }
+        | Expr::CompoundAssignIndex {
+            object,
+            index,
+            value,
+            ..
+        } => expr_references_it(object) || expr_references_it(index) || expr_references_it(value),
+        Expr::Range { start, end, .. } => expr_references_it(start) || expr_references_it(end),
+        Expr::Conditional {
+            condition,
+            then_expr,
+            else_expr,
+            ..
+        } => {
+            expr_references_it(condition)
+                || expr_references_it(then_expr)
+                || expr_references_it(else_expr)
+        }
+        Expr::Function {
+            params,
+            body,
+            implicit_it,
+            ..
+        } => !owns_it(params, *implicit_it) && body.iter().any(stmt_references_it),
+        Expr::If {
+            condition,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_references_it(condition)
+                || stmt_references_it(then_branch)
+                || match else_branch.as_ref() {
+                    IfExprElse::If(expr) => expr_references_it(expr),
+                    IfExprElse::Block(stmt) => stmt_references_it(stmt),
+                }
+        }
     }
 }
 
