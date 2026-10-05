@@ -71,9 +71,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 
 **Operators**
 - Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`) works on variables
-  only (local, global, captured); `o.n += 1` and `a[0] += 1` are compile
-  errors, write `o.n = o.n + 1`. No bitwise compound operators. `i++` and
-  `i--` exist as statements; prefix `++i` does not.
+  (local, global, captured), fields (`o.n += 1`, `self.n += 1`), and indexes
+  (`a[0] += 1`, `m["k"] += 1`), evaluating the target's object/index once. It's
+  an expression whose value is the new value. No bitwise compound operators.
+  There is no `++`/`--`; use `+= 1`/`-= 1`.
 - `/` is always float division (`7 / 2` is `3.5`), even on two ints. Integer floor division is
   `Math.div(a, b)`, not `Math.floor(a / b)` — that round-trips through `f64` and loses precision
   past 2^53.

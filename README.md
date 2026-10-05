@@ -443,10 +443,11 @@ Bitwise operators always give an int; a float operand is truncated first.
 - `..` Range (exclusive)
 - `..=` Range (inclusive)
 - `c ? a : b` Ternary
-- `x++` / `x--` Increment / decrement a variable
-- `x += e`, `-=`, `*=`, `/=`, `%=`, `**=` Compound assignment on a variable
+- `x += e`, `-=`, `*=`, `/=`, `%=`, `**=` Compound assignment
 
-Compound assignment works on variables only, not fields or indexes; write `o.n = o.n + 1`.
+Compound assignment works on variables, fields (`o.n += 1`, `self.n += 1`, `o.inner.n += 1`), and
+indexes (`a[i] *= 2`, `m["k"] += 1`), evaluating the target's object/index once. A compound
+assignment is an expression whose value is the new value. There is no `++`/`--`; use `+= 1`/`-= 1`.
 
 **Operator Precedence:** `||` has lower precedence than `&&`, so `a || b && c` is evaluated as `a || (b && c)`.
 
