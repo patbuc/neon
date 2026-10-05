@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791165329533,
+  "lastUpdate": 1791180480039,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -12035,6 +12035,183 @@ window.BENCHMARK_DATA = {
           {
             "name": "strings neon/python",
             "value": 1.08349229671892,
+            "unit": "ratio"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d702c0da0733700e5f75cdf714ded46f8106cb72",
+          "message": "Merge pull request #434 from patbuc/398-unify-size-contains\n\n398: Unify size and membership names: size, contains, isEmpty",
+          "timestamp": "2026-10-05T08:06:41+02:00",
+          "tree_id": "c9e42aabe5bf640b9b70d7092d052e2aef6e7c19",
+          "url": "https://github.com/patbuc/neon/commit/d702c0da0733700e5f75cdf714ded46f8106cb72"
+        },
+        "date": 1791180479031,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 272.62424079999903,
+            "range": "± 5.058",
+            "unit": "ms"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 177.52171239999655,
+            "range": "± 0.448",
+            "unit": "ms"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.5357233609019891,
+            "unit": "ratio"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 311.43410420000066,
+            "range": "± 2.086",
+            "unit": "ms"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 502.9218109999988,
+            "range": "± 21.841",
+            "unit": "ms"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.6192495481171355,
+            "unit": "ratio"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 264.5792116000024,
+            "range": "± 0.58",
+            "unit": "ms"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 302.7569028000073,
+            "range": "± 5.818",
+            "unit": "ms"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.8738998488657944,
+            "unit": "ratio"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 144.67212880000204,
+            "range": "± 0.585",
+            "unit": "ms"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 190.33712039999955,
+            "range": "± 5.926",
+            "unit": "ms"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.760083626861481,
+            "unit": "ratio"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 129.05204779999622,
+            "range": "± 0.997",
+            "unit": "ms"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 90.45982740000227,
+            "range": "± 1.687",
+            "unit": "ms"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 1.4266227507747045,
+            "unit": "ratio"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 322.24475820000293,
+            "range": "± 6.661",
+            "unit": "ms"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 431.8812995999991,
+            "range": "± 1.01",
+            "unit": "ms"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.746141957288867,
+            "unit": "ratio"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 467.5312246000004,
+            "range": "± 1.435",
+            "unit": "ms"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 446.0097695999991,
+            "range": "± 15.911",
+            "unit": "ms"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 1.0482533264222051,
+            "unit": "ratio"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 228.4045710000015,
+            "range": "± 1.634",
+            "unit": "ms"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 253.3861504000015,
+            "range": "± 3.338",
+            "unit": "ms"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.9014090574383664,
+            "unit": "ratio"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 198.01684920000184,
+            "range": "± 0.281",
+            "unit": "ms"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 247.43434959999888,
+            "range": "± 12.114",
+            "unit": "ms"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.8002803552542922,
             "unit": "ratio"
           }
         ]
