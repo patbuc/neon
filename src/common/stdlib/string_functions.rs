@@ -303,46 +303,9 @@ pub fn native_string_index_of(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(-1))
 }
 
-/// Native implementation of String.charAt(index)
-/// Returns the character at the given index as a string of length 1
-pub fn native_string_char_at(args: &[Value]) -> Result<Value, String> {
-    if args.len() != 2 {
-        return Err(format!(
-            "charAt() expects 1 argument (index), got {}",
-            args.len() - 1
-        ));
-    }
-
-    // Extract the string
-    let string = extract_receiver!(args, String, "charAt")?;
-
-    // Extract index
-    let index_arg = extract_arg!(args, 1, Number, "index", "charAt")?;
-
-    // Handle negative indices and bounds checking
-    let chars: Vec<char> = string.chars().collect();
-    let str_len = chars.len() as i32;
-
-    let index = if index_arg < 0.0 {
-        (str_len + index_arg as i32).max(0) as usize
-    } else {
-        index_arg as usize
-    };
-
-    if index >= chars.len() {
-        return Err(format!(
-            "charAt() index {} out of bounds (string length: {})",
-            index_arg,
-            chars.len()
-        ));
-    }
-
-    Ok(string!(chars[index].to_string()))
-}
-
 /// Native implementation of String.charCodeAt(index)
 /// Returns the Unicode code point of the character at index, indexed by
-/// `char` exactly like charAt.
+/// `char` like string indexing (`s[i]`).
 pub fn native_string_char_code_at(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(format!(

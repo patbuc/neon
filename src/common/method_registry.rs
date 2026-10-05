@@ -669,15 +669,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "String",
-        "charAt",
-        NativeCallable::InstanceMethod {
-            function: stdlib::string_functions::native_string_char_at,
-            arity: 1,
-            returns: Some(StaticType::String),
-        },
-    ),
-    (
-        "String",
         "charCodeAt",
         NativeCallable::InstanceMethod {
             function: stdlib::string_functions::native_string_char_code_at,

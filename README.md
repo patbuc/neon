@@ -784,7 +784,6 @@ print(Math.mod(-7, 3))     // 2
 - `.trim()` - Remove leading and trailing whitespace
 - `.startsWith(prefix)` / `.endsWith(suffix)` - Check prefix / suffix
 - `.indexOf(substring)` - Position of the first occurrence, or `-1`
-- `.charAt(index)` - Character at `index` (strings can't be indexed with `[]`)
 - `.charCodeAt(index)` - Unicode code point of the character at `index`
 - `String.fromCharCode(n)` - One-character string for the Unicode code point `n`
 - `.repeat(n)` - Concatenate the string with itself `n` times (`n` a non-negative integer)
