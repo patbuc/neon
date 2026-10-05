@@ -1,0 +1,7 @@
+// Expected:
+// false
+
+val m = {}
+print(m.some(fn(k, v) {
+    true
+}))

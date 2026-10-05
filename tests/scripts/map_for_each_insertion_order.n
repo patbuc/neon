@@ -1,0 +1,9 @@
+// Expected:
+// b=2
+// a=1
+// c=3
+
+val m = {"b": 2, "a": 1, "c": 3}
+m.forEach(fn(k, v) {
+    print("${k}=${v}")
+})

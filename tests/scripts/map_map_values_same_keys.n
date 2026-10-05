@@ -1,0 +1,7 @@
+// Expected:
+// {b: 4, a: 2, c: 6}
+
+val m = {"b": 2, "a": 1, "c": 3}
+print(m.mapValues(fn(k, v) {
+    v * 2
+}))

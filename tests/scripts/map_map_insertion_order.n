@@ -1,0 +1,7 @@
+// Expected:
+// [b2, a1, c3]
+
+val m = {"b": 2, "a": 1, "c": 3}
+print(m.map(fn(k, v) {
+    k + v.toString()
+}))

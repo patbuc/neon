@@ -1,5 +1,7 @@
-use crate::common::{MapKey, Value};
-use crate::extract_receiver;
+use crate::common::NativeContext;
+use crate::common::{MapKey, NativeCallError, Value};
+use crate::{extract_receiver, is_false_like};
+use indexmap::IndexMap;
 
 pub fn native_map_get(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
@@ -122,4 +124,118 @@ pub fn native_map_entries(args: &[Value]) -> Result<Value, String> {
         .map(|(key, value)| Value::new_array(vec![key.to_value(), value.clone()]))
         .collect();
     Ok(Value::new_array(entries))
+}
+
+fn snapshot_entries(
+    args: &[Value],
+    name: &str,
+) -> Result<(Vec<(MapKey, Value)>, Value), NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "{}() expects 1 argument (function), got {}",
+            name,
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let map_ref = extract_receiver!(args, Map, name)?;
+    let entries = map_ref
+        .borrow()
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    Ok((entries, args[1].clone()))
+}
+
+/// Native implementation of Map.forEach(fn)
+/// Calls fn with (key, value) for each entry in insertion order. Returns nil.
+pub fn native_map_for_each(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "forEach")?;
+    for (key, value) in entries {
+        vm.call_value(callback.clone(), &[key.to_value(), value])?;
+    }
+    Ok(Value::Nil)
+}
+
+/// Native implementation of Map.map(fn)
+/// Returns an array of fn(key, value) for each entry in insertion order.
+pub fn native_map_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "map")?;
+    let mut mapped = Vec::with_capacity(entries.len());
+    for (key, value) in entries {
+        mapped.push(vm.call_value(callback.clone(), &[key.to_value(), value])?);
+    }
+    Ok(Value::new_array(mapped))
+}
+
+/// Native implementation of Map.filter(fn)
+/// Returns a new map of the entries for which fn(key, value) is truthy.
+pub fn native_map_filter(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "filter")?;
+    let mut kept = IndexMap::new();
+    for (key, value) in entries {
+        let result = vm.call_value(callback.clone(), &[key.to_value(), value.clone()])?;
+        if !is_false_like!(result) {
+            kept.insert(key, value);
+        }
+    }
+    Ok(Value::new_map(kept))
+}
+
+/// Native implementation of Map.mapValues(fn)
+/// Returns a new map with the same keys and fn(key, value) as each value.
+pub fn native_map_map_values(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "mapValues")?;
+    let mut mapped = IndexMap::with_capacity(entries.len());
+    for (key, value) in entries {
+        let new_value = vm.call_value(callback.clone(), &[key.to_value(), value])?;
+        mapped.insert(key, new_value);
+    }
+    Ok(Value::new_map(mapped))
+}
+
+/// Native implementation of Map.some(fn)
+/// True if fn(key, value) is truthy for any entry, stopping at the first.
+pub fn native_map_some(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "some")?;
+    for (key, value) in entries {
+        let result = vm.call_value(callback.clone(), &[key.to_value(), value])?;
+        if !is_false_like!(result) {
+            return Ok(Value::Boolean(true));
+        }
+    }
+    Ok(Value::Boolean(false))
+}
+
+/// Native implementation of Map.every(fn)
+/// True if fn(key, value) is truthy for every entry, stopping at the first
+/// that isn't. True on an empty map.
+pub fn native_map_every(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    let (entries, callback) = snapshot_entries(args, "every")?;
+    for (key, value) in entries {
+        let result = vm.call_value(callback.clone(), &[key.to_value(), value])?;
+        if is_false_like!(result) {
+            return Ok(Value::Boolean(false));
+        }
+    }
+    Ok(Value::Boolean(true))
 }
