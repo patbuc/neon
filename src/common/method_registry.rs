@@ -334,6 +334,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "forEach",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_for_each,
+            arity: 1,
+            returns: Some(StaticType::Nil),
+        },
+    ),
+    (
+        "Array",
+        "flatMap",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_flat_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
         "find",
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::array_functions::native_array_find,
@@ -511,6 +529,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::range_functions::native_range_reduce,
             arity: 2,
             returns: None,
+        },
+    ),
+    (
+        "Range",
+        "forEach",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_for_each,
+            arity: 1,
+            returns: Some(StaticType::Nil),
+        },
+    ),
+    (
+        "Range",
+        "flatMap",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_flat_map,
+            arity: 1,
+            returns: Some(StaticType::Array),
         },
     ),
     (

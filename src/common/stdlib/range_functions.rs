@@ -152,6 +152,22 @@ pub fn native_range_filter(
     array_functions::native_array_filter(vm, &materialize(args, "filter")?)
 }
 
+/// Native implementation of Range.forEach(fn)
+pub fn native_range_for_each(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_for_each(vm, &materialize(args, "forEach")?)
+}
+
+/// Native implementation of Range.flatMap(fn)
+pub fn native_range_flat_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_flat_map(vm, &materialize(args, "flatMap")?)
+}
+
 /// Native implementation of Range.reduce(fn, initial)
 pub fn native_range_reduce(
     vm: &mut dyn NativeContext,

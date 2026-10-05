@@ -133,10 +133,10 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
 - **Boolean:** `toString`
 - **Array:** `Array(n, init)`, `push`, `pop`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
-  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `find(fn)`, `some(fn)`, `every(fn)`,
-  `flat()`, `copy()`
+  `map(fn)`, `filter(fn)`, `reduce(fn, initial)`, `forEach(fn)`, `flatMap(fn)`,
+  `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`
 - **Range:** `size`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
-  `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`
+  `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`, `forEach`, `flatMap`
 - **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`

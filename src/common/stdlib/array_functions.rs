@@ -480,6 +480,74 @@ pub fn native_array_map(
     Ok(Value::new_array(mapped))
 }
 
+/// Native implementation of Array.forEach(fn)
+/// Calls fn with each element in order. Returns nil.
+pub fn native_array_for_each(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "forEach() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "forEach")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    for element in elements {
+        vm.call_value(callback.clone(), &[element])?;
+    }
+
+    Ok(Value::Nil)
+}
+
+/// Native implementation of Array.flatMap(fn)
+/// Maps fn over the elements and concatenates the resulting arrays.
+pub fn native_array_flat_map(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "flatMap() expects 1 argument (function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "flatMap")?;
+    let callback = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut flattened = Vec::with_capacity(elements.len());
+    for element in elements {
+        let mapped = vm.call_value(callback.clone(), &[element])?;
+        match mapped {
+            Value::Array(mapped_ref) => flattened.extend(mapped_ref.borrow().iter().cloned()),
+            other => return Err(flat_map_type_error(&other)),
+        }
+    }
+
+    Ok(Value::new_array(flattened))
+}
+
+/// Builds the "flatMap() callback must return an array" error, naming the
+/// value's type the way Neon spells it elsewhere (`Int`, `String`, ...)
+/// rather than `type_name()`'s lowercase runtime label.
+fn flat_map_type_error(value: &Value) -> NativeCallError {
+    let name = if matches!(value, Value::Int(_)) {
+        "Int".to_string()
+    } else {
+        let lower = value.type_name();
+        lower[..1].to_uppercase() + &lower[1..]
+    };
+    format!("flatMap() callback must return an array, got {}", name).into()
+}
+
 /// Native implementation of Array.filter(fn)
 /// Returns a new array of the elements for which fn is truthy.
 pub fn native_array_filter(

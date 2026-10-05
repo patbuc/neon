@@ -211,3 +211,48 @@ fn test_range_slice_wrong_arg_count() {
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("slice()"), "{}", errors);
 }
+
+// ============================================================================
+// Range.forEach(fn) / Range.flatMap(fn)
+// ============================================================================
+
+#[test]
+fn test_range_for_each_prints_each_and_returns_nil() {
+    let program = r#"
+        print((1..=3).forEach(fn(x) { print(x) }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("1\n2\n3\nnil", vm.get_output());
+}
+
+#[test]
+fn test_range_flat_map() {
+    let program = r#"
+        print((1..3).flatMap(fn(x) { return [x, x] }))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[1, 1, 2, 2]", vm.get_output());
+}
+
+#[test]
+fn test_range_flat_map_non_array_return_errors() {
+    let program = r#"
+        (1..3).flatMap(fn(x) { return 3 })
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("flatMap() callback must return an array, got Int"),
+        "{}",
+        errors
+    );
+}
