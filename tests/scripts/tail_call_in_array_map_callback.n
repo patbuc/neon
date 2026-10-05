@@ -1,0 +1,13 @@
+// Expected:
+// [1500000, 1500001, 1500002]
+// after
+
+fn count(n, acc) = n == 0 ? acc : count(n - 1, acc + 1)
+
+fn helper(x) {
+    return count(1500000, x)
+}
+
+val result = [0, 1, 2].map { x -> helper(x) }
+print(result)
+print("after")

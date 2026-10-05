@@ -1,0 +1,22 @@
+// Expected:
+// 5
+// 1
+// 5
+
+fn absolute(x) = Math.abs(x)
+
+fn size(s) {
+    return s.size()
+}
+
+fn outer(x) {
+    return absolute(x)
+}
+
+fn outermost(x) {
+    return outer(x)
+}
+
+print(outermost(-5))
+print(size("a"))
+print(size("hello"))

@@ -1,9 +1,9 @@
 impl OpCode {
     /// Net operand-stack effect of this opcode on its own: how many values
-    /// it pushes minus how many it pops. `Call`, `TailCall`, `Invoke`,
+    /// it pushes minus how many it pops. `Call`, `TailCall`, `Invoke`, `TailInvoke`,
     /// `CreateArray`, `CreateMap`, and `CreateSet` consume a count that is
     /// only known at the emit site (argument count or element count), so
-    /// their entry here is 0 (-1 for `TailCall`, which also returns) and
+    /// their entry here is 0 (-1 for `TailCall` and `TailInvoke`, which also returns) and
     /// codegen applies the rest of their effect itself right after emitting
     /// them.
     pub(crate) fn stack_effect(self) -> i32 {
@@ -70,14 +70,14 @@ impl OpCode {
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
             OpCode::IsVariant => 0,
-            OpCode::TailCall => -1,
+            OpCode::TailCall | OpCode::TailInvoke => -1,
             OpCode::EnumConstruct => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 74] = [
+        const OPCODES: [OpCode; 75] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -151,6 +151,7 @@ impl OpCode {
             OpCode::IsArrayOfLen,
             OpCode::IsVariant,
             OpCode::TailCall,
+            OpCode::TailInvoke,
             OpCode::IsNumber,
         ];
         OPCODES.get(value as usize).copied()
@@ -302,6 +303,12 @@ pub(crate) enum OpCode {
     /// count, like `Call` followed by `Return`. A closure callee reuses the
     /// running frame instead of pushing a new one.
     TailCall,
+
+    /// A method call in tail position: `[receiver, args...]` with a 16-bit
+    /// method symbol and an 8-bit argument count, like `Invoke` followed by
+    /// `Return`. A user-defined method reuses the running frame instead of
+    /// pushing a new one.
+    TailInvoke,
 
     /// Replaces the top of stack with whether it is an Int or a Number.
     IsNumber,

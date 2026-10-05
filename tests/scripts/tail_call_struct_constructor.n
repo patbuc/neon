@@ -1,0 +1,20 @@
+// Expected:
+// 1
+// 2
+
+struct Point {
+    x
+    y
+}
+
+fn make(x, y) {
+    return Point(x, y)
+}
+
+fn wrap(x, y) {
+    return make(x, y)
+}
+
+val p = wrap(1, 2)
+print(p.x)
+print(p.y)

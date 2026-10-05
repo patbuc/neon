@@ -1092,6 +1092,25 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_call_expr(*id, callee, arguments, OpCode::TailCall, *location);
                 self.adjust_stack_height(1);
             }
+            Expr::Call {
+                callee,
+                arguments,
+                id,
+                location,
+            } if tail && in_function && self.is_instance_method_call(*id, callee) => {
+                let Expr::GetField { object, field, .. } = callee.as_ref() else {
+                    unreachable!("is_instance_method_call matched a GetField callee");
+                };
+                self.generate_instance_method_call_expr(
+                    object,
+                    field,
+                    arguments,
+                    false,
+                    OpCode::TailInvoke,
+                    *location,
+                );
+                self.adjust_stack_height(1);
+            }
             Expr::Conditional {
                 condition,
                 then_expr,
@@ -1111,6 +1130,21 @@ impl<'a> CodeGenerator<'a> {
             } => self.generate_match_expr(scrutinee, arms, tail, *location),
             _ => self.generate_expr(expr),
         }
+    }
+
+    /// Whether the call compiles to a runtime-dispatched `Invoke`: a
+    /// non-optional `obj.m(..)` that is not an enum construction, an enum
+    /// `values()` call, or a native call resolved at compile time.
+    fn is_instance_method_call(&self, id: NodeId, callee: &Expr) -> bool {
+        matches!(
+            callee,
+            Expr::GetField {
+                optional: false,
+                ..
+            }
+        ) && self.resolutions.enum_construct(id).is_none()
+            && self.resolutions.enum_values_access(id).is_none()
+            && self.resolutions.native(id).is_none()
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
@@ -1643,9 +1677,14 @@ impl<'a> CodeGenerator<'a> {
         }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
-            None => {
-                self.generate_instance_method_call_expr(object, method, arguments, false, location)
-            }
+            None => self.generate_instance_method_call_expr(
+                object,
+                method,
+                arguments,
+                false,
+                OpCode::Invoke,
+                location,
+            ),
         }
     }
 
@@ -1655,6 +1694,7 @@ impl<'a> CodeGenerator<'a> {
         method: &str,
         arguments: &[Expr],
         optional: bool,
+        invoke_op: OpCode,
         location: SourceLocation,
     ) {
         // Instance method call: arr.push(x), str.size(), etc.
@@ -1666,7 +1706,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_invoke(method, arguments.len() as u8, location);
+        self.emit_invoke(invoke_op, method, arguments.len() as u8, location);
         if let Some(end_jump) = end_jump {
             self.patch_jump(end_jump);
         }
@@ -1788,7 +1828,12 @@ impl<'a> CodeGenerator<'a> {
                 {
                     if *optional {
                         self.generate_instance_method_call_expr(
-                            object, field, arguments, true, *location,
+                            object,
+                            field,
+                            arguments,
+                            true,
+                            OpCode::Invoke,
+                            *location,
                         );
                     } else {
                         self.generate_method_call_expr(*id, object, field, arguments, *location);
@@ -2297,12 +2342,12 @@ impl<'a> CodeGenerator<'a> {
                 }
                 PathStep::Rest { before, after: 0 } => {
                     self.emit_constant(Value::Int(before as i64), location);
-                    self.emit_invoke("drop", 1, location);
+                    self.emit_invoke(OpCode::Invoke, "drop", 1, location);
                 }
                 PathStep::Rest { before, after } => {
                     self.emit_constant(Value::Int(before as i64), location);
                     self.emit_constant(Value::Int(-(after as i64)), location);
-                    self.emit_invoke("slice", 2, location);
+                    self.emit_invoke(OpCode::Invoke, "slice", 2, location);
                 }
                 PathStep::Field { variant, index } => {
                     let Some(access) = self.resolutions.enum_variant_access(variant) else {
@@ -2462,11 +2507,17 @@ impl<'a> CodeGenerator<'a> {
         self.adjust_stack_height(-(argc as i32));
     }
 
-    /// Emits `Invoke`: a method call dispatched by name at runtime. The
-    /// stack must already hold `[receiver, args...]`.
-    fn emit_invoke(&mut self, method_name: &str, argc: u8, location: SourceLocation) {
+    /// Emits `Invoke` or `TailInvoke`: a method call dispatched by name at
+    /// runtime. The stack must already hold `[receiver, args...]`.
+    fn emit_invoke(
+        &mut self,
+        op_code: OpCode,
+        method_name: &str,
+        argc: u8,
+        location: SourceLocation,
+    ) {
         let symbol = self.resolutions.symbol(method_name);
-        self.emit_op_code(OpCode::Invoke, location);
+        self.emit_op_code(op_code, location);
         self.current_chunk().write_u16(symbol);
         self.current_chunk().write_u8(argc);
         // Pops the receiver and all argc arguments, pushes one result.

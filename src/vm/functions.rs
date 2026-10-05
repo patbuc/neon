@@ -199,7 +199,6 @@ impl VirtualMachine {
     /// TailCall: `Call` followed by `Return`, except that a closure callee
     /// takes over the running frame. Returns whether it did; otherwise the
     /// callee's result is on the stack for the caller to return.
-    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_tail_call(&mut self) -> Result<bool, RuntimeError> {
         let arg_count = self.operand_u8(1) as usize;
         self.ip += 2; // Skip TailCall opcode and arg_count byte
@@ -212,9 +211,61 @@ impl VirtualMachine {
             return Ok(false);
         };
 
+        self.reuse_frame(callable_index, arg_count, closure, false)?;
+        Ok(true)
+    }
+
+    /// TailInvoke: `Invoke` followed by `Return`, except that a user-defined
+    /// method takes over the running frame. Returns whether the call left a
+    /// frame running; otherwise its result is on the stack for the caller to
+    /// return.
+    #[inline(never)]
+    pub(in crate::vm) fn op_tail_invoke(&mut self) -> Result<bool, RuntimeError> {
+        let method_symbol = self.operand_u16(1);
+        let arg_count = self.operand_u8(3) as usize;
+        self.ip += 4; // Skip TailInvoke opcode, method_symbol and arg_count byte
+
+        let receiver_index = self.stack.len() - arg_count - 1;
+        let receiver = self.stack[receiver_index].clone();
+        if let Some(type_name) = self.get_type_name(&receiver) {
+            let is_static_call = matches!(receiver, Value::Struct(_));
+            match self.dispatch_user_method(
+                &type_name,
+                is_static_call,
+                receiver_index,
+                arg_count,
+                method_symbol,
+            ) {
+                MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                    self.reuse_frame(receiver_index, arg_count, closure, exclude_self)?;
+                    return Ok(true);
+                }
+                MethodDispatch::Mismatch(e) => return Err(e),
+                MethodDispatch::NotFound => {}
+            }
+        }
+
+        self.check_frame_limit()?;
+        let depth = self.call_frames.len();
+        self.dispatch_invoke(method_symbol, arg_count)?;
+        // A callable instance field can push a frame; the `Return` after
+        // this instruction runs once it finishes.
+        Ok(self.call_frames.len() > depth)
+    }
+
+    /// Replaces the running frame with a call to `closure` whose callee slot
+    /// is `callable_index`, followed by its `arg_count` arguments.
+    #[allow(clippy::expect_used)]
+    fn reuse_frame(
+        &mut self,
+        callable_index: usize,
+        arg_count: usize,
+        closure: Rc<ObjClosure>,
+        exclude_self: bool,
+    ) -> OpResult {
         let arity = closure.function.arity;
         if arg_count != arity as usize {
-            return Err(self.arity_error(arg_count, arity, false, &closure.function.name));
+            return Err(self.arity_error(arg_count, arity, exclude_self, &closure.function.name));
         }
 
         // [.., frame slots..., callee, args...] -> [.., callee, args...]
@@ -228,7 +279,7 @@ impl VirtualMachine {
             .last_mut()
             .expect("a tail call runs inside a function's frame")
             .closure = closure;
-        Ok(true)
+        Ok(())
     }
 
     /// Invoke: a method call dispatched by name at runtime. Stack before:

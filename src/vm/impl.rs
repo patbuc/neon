@@ -260,8 +260,13 @@ impl VirtualMachine {
                     self.op_invoke()?;
                     continue;
                 }
-                OpCode::TailCall => {
-                    if !self.op_tail_call()? {
+                OpCode::TailCall | OpCode::TailInvoke => {
+                    let kept_frame = if op_code == OpCode::TailCall {
+                        self.op_tail_call()?
+                    } else {
+                        self.op_tail_invoke()?
+                    };
+                    if !kept_frame {
                         self.op_return();
                         if self.call_frames.len() == target_depth {
                             return Ok(());
