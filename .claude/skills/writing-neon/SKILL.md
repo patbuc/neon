@@ -34,7 +34,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - A newline ends a statement. No semicolons (`val x = 1;` is an error), and
   there's no way to put two statements on one line.
 - A line continues only if it **ends** with a binary operator, except a line
-  that **begins** with `.` (not `..`/`..=`), which continues the previous
+  that **begins** with `.` or `?.` (not `..`/`..=`), which continues the previous
   statement as a method chain; a blank or comment line in between still ends
   it. A line beginning with `+`, `&&`, etc. is still an error. Open `(`, `[`,
   `{` can span lines.

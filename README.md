@@ -171,7 +171,7 @@ val x = 1 +
 print(x)  // 3
 ```
 
-A line that begins with `.` (but not `..`/`..=`) is the exception: it
+A line that begins with `.` or `?.` (but not `..`/`..=`) is the exception: it
 continues the previous statement as a method chain. A blank line or a
 comment line in between still ends the statement.
 
