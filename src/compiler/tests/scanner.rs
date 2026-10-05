@@ -32,6 +32,13 @@ fn collect_tokens(mut scanner: Scanner) -> Vec<Token> {
     tokens
 }
 
+fn assert_first_token(source: &str, token_type: TokenType, lexeme: &str) {
+    let tokens = collect_tokens(Scanner::new(source));
+    assert_eq!(tokens[0].token_type, token_type, "source {source:?}");
+    assert_eq!(tokens[0].token, lexeme, "source {source:?}");
+    assert_eq!(tokens.len(), 2, "source {source:?}");
+}
+
 #[test]
 fn can_scan_simple_statement() {
     let script = "var a = 1;";
@@ -237,261 +244,87 @@ fn can_scan_question_dot_vs_ternary_with_space() {
 }
 
 #[test]
-fn can_scan_hexadecimal_lowercase() {
-    let scanner = Scanner::new("0xff");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0xff");
-}
-
-#[test]
-fn can_scan_hexadecimal_uppercase() {
-    let scanner = Scanner::new("0XFF");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0XFF");
-}
-
-#[test]
-fn can_scan_hexadecimal_mixed_case() {
-    let scanner = Scanner::new("0xAbCdEf");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0xAbCdEf");
-}
-
-#[test]
-fn can_scan_binary_literal() {
-    let scanner = Scanner::new("0b1010");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0b1010");
-}
-
-#[test]
-fn can_scan_binary_uppercase() {
-    let scanner = Scanner::new("0B11110000");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0B11110000");
-}
-
-#[test]
-fn can_scan_octal_literal() {
-    let scanner = Scanner::new("0o755");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0o755");
-}
-
-#[test]
-fn can_scan_octal_uppercase() {
-    let scanner = Scanner::new("0O77");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0O77");
-}
-
-#[test]
-fn can_scan_decimal_with_underscores() {
-    let scanner = Scanner::new("1_000_000");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "1_000_000");
-}
-
-#[test]
-fn can_scan_hex_with_underscores() {
-    let scanner = Scanner::new("0xFF_FF");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0xFF_FF");
-}
-
-#[test]
-fn can_scan_binary_with_underscores() {
-    let scanner = Scanner::new("0b1111_0000");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0b1111_0000");
-}
-
-#[test]
-fn can_scan_octal_with_underscores() {
-    let scanner = Scanner::new("0o7_5_5");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "0o7_5_5");
-}
-
-#[test]
-fn can_scan_float_with_underscores() {
-    let scanner = Scanner::new("1_234.567_89");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens.len(), 2);
-    assert_eq!(tokens[0].token_type, TokenType::Number);
-    assert_eq!(tokens[0].token, "1_234.567_89");
-}
-
-#[test]
-fn can_scan_exponent_literals() {
-    for source in ["1.5e3", "1e3", "2E+2", "1.5e-3", "1_0e1_0"] {
-        let scanner = Scanner::new(source);
-        let tokens = collect_tokens(scanner);
-
-        assert_eq!(tokens[0].token_type, TokenType::Number);
-        assert_eq!(tokens[0].token, source);
+fn scans_number_literals() {
+    let cases = [
+        "0xff",
+        "0XFF",
+        "0xAbCdEf",
+        "0b1010",
+        "0B11110000",
+        "0o755",
+        "0O77",
+        "1_000_000",
+        "0xFF_FF",
+        "0b1111_0000",
+        "0o7_5_5",
+        "1_234.567_89",
+        "1.5e3",
+        "1e3",
+        "2E+2",
+        "1.5e-3",
+        "1_0e1_0",
+        "0xE",
+        "0xE1",
+    ];
+    for source in cases {
+        assert_first_token(source, TokenType::Number, source);
     }
 }
 
 #[test]
-fn rejects_exponent_with_no_digits() {
-    let scanner = Scanner::new("1e");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0]
-        .token
-        .contains("Missing digits in number exponent"));
-}
-
-#[test]
-fn rejects_exponent_with_only_sign() {
-    let scanner = Scanner::new("1e+");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0]
-        .token
-        .contains("Missing digits in number exponent"));
-}
-
-#[test]
-fn rejects_exponent_with_leading_underscore() {
-    let scanner = Scanner::new("1e_5");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0]
-        .token
-        .contains("Missing digits in number exponent"));
-}
-
-#[test]
-fn hex_literal_with_e_digit_still_scans() {
-    for source in ["0xE", "0xE1"] {
-        let scanner = Scanner::new(source);
-        let tokens = collect_tokens(scanner);
-
-        assert_eq!(tokens[0].token_type, TokenType::Number);
-        assert_eq!(tokens[0].token, source);
+fn rejects_malformed_input() {
+    let invalid_number = CompilationErrorKind::InvalidNumberLiteral;
+    let cases = [
+        ("1e", 0, invalid_number, "Missing digits in number exponent"),
+        (
+            "1e+",
+            0,
+            invalid_number,
+            "Missing digits in number exponent",
+        ),
+        (
+            "1e_5",
+            0,
+            invalid_number,
+            "Missing digits in number exponent",
+        ),
+        (
+            "0b123",
+            0,
+            invalid_number,
+            "Invalid digit in binary literal",
+        ),
+        (
+            "0b2",
+            0,
+            invalid_number,
+            "Invalid digit in binary literal (only 0 and 1 allowed)",
+        ),
+        ("0o89", 0, invalid_number, "Invalid digit in octal literal"),
+        ("0x", 0, invalid_number, "requires at least one digit"),
+        ("0b", 0, invalid_number, "requires at least one digit"),
+        ("123_", 0, invalid_number, "underscore"),
+        (
+            "val s = # {1}",
+            3,
+            CompilationErrorKind::UnexpectedCharacter,
+            "Unexpected character",
+        ),
+    ];
+    for (source, index, kind, message) in cases {
+        let tokens = collect_tokens(Scanner::new(source));
+        let error = &tokens[index];
+        assert_eq!(
+            error.token_type,
+            TokenType::Error(kind),
+            "source {source:?}"
+        );
+        assert!(
+            error.token.contains(message),
+            "source {source:?}: {:?} does not contain {message:?}",
+            error.token
+        );
     }
-}
-
-#[test]
-fn rejects_invalid_binary_digit() {
-    let scanner = Scanner::new("0b123");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0].token.contains("Invalid digit in binary literal"));
-}
-
-#[test]
-fn rejects_invalid_leading_binary_digit() {
-    let scanner = Scanner::new("0b2");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0]
-        .token
-        .contains("Invalid digit in binary literal (only 0 and 1 allowed)"));
-}
-
-#[test]
-fn rejects_invalid_octal_digit() {
-    let scanner = Scanner::new("0o89");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0].token.contains("Invalid digit in octal literal"));
-}
-
-#[test]
-fn rejects_empty_hex_literal() {
-    let scanner = Scanner::new("0x");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0].token.contains("requires at least one digit"));
-}
-
-#[test]
-fn rejects_empty_binary_literal() {
-    let scanner = Scanner::new("0b");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0].token.contains("requires at least one digit"));
-}
-
-#[test]
-fn rejects_trailing_underscore_in_decimal() {
-    let scanner = Scanner::new("123_");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[0].token_type,
-        TokenType::Error(CompilationErrorKind::InvalidNumberLiteral)
-    );
-    assert!(tokens[0].token.contains("underscore"));
 }
 
 #[test]
@@ -508,18 +341,6 @@ fn can_scan_hash_left_brace() {
     assert_eq!(x[1].column, 3);
     assert_eq!(x[2].token_type, TokenType::RightBrace);
     assert_eq!(x[3].token_type, TokenType::Eof);
-}
-
-#[test]
-fn rejects_bare_hash() {
-    let scanner = Scanner::new("val s = # {1}");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(
-        tokens[3].token_type,
-        TokenType::Error(CompilationErrorKind::UnexpectedCharacter)
-    );
-    assert!(tokens[3].token.contains("Unexpected character"));
 }
 
 #[test]
@@ -645,32 +466,20 @@ fn trivia_records_crlf_blank_line() {
 
 #[test]
 fn can_scan_all_keywords() {
-    let keywords = [
-        ("break", TokenType::Break),
-        ("continue", TokenType::Continue),
-        ("else", TokenType::Else),
-        ("if", TokenType::If),
-        ("in", TokenType::In),
-        ("impl", TokenType::Impl),
-        ("nil", TokenType::Nil),
-        ("return", TokenType::Return),
-        ("struct", TokenType::Struct),
-        ("val", TokenType::Val),
-        ("var", TokenType::Var),
-        ("while", TokenType::While),
-        ("false", TokenType::False),
-        ("for", TokenType::For),
-        ("fn", TokenType::Fn),
-        ("true", TokenType::True),
-    ];
+    for (keyword, _) in KEYWORDS {
+        let tokens = collect_tokens(Scanner::new(keyword));
 
-    for (src, expected) in keywords {
-        let scanner = Scanner::new(src);
-        let tokens = collect_tokens(scanner);
-
-        assert_eq!(
-            tokens[0].token_type, expected,
-            "{src} should scan as {expected:?}"
+        assert_eq!(tokens.len(), 2, "{keyword} should scan as one token");
+        assert_eq!(tokens[0].token, *keyword, "{keyword} lexeme");
+        assert_ne!(
+            tokens[0].token_type,
+            TokenType::Identifier,
+            "{keyword} should scan as a keyword"
+        );
+        assert!(
+            format!("{:?}", tokens[0].token_type).eq_ignore_ascii_case(keyword),
+            "{keyword} scanned as {:?}",
+            tokens[0].token_type
         );
     }
 }
@@ -768,93 +577,22 @@ fn unterminated_multiline_string_reports_start_line_and_column() {
 }
 
 #[test]
-fn string_escape_newline() {
-    let scanner = Scanner::new("\"a\\nb\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "a\nb");
-}
-
-#[test]
-fn string_escape_tab() {
-    let scanner = Scanner::new("\"a\\tb\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "a\tb");
-}
-
-#[test]
-fn string_escape_carriage_return() {
-    let scanner = Scanner::new("\"a\\rb\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "a\rb");
-}
-
-#[test]
-fn string_escape_backslash() {
-    let scanner = Scanner::new("\"a\\\\b\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "a\\b");
-}
-
-#[test]
-fn string_escape_double_quote() {
-    let scanner = Scanner::new("\"a\\\"b\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "a\"b");
-}
-
-#[test]
-fn string_escape_dollar() {
-    let scanner = Scanner::new("\"cost: \\$5\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "cost: $5");
-}
-
-#[test]
-fn unicode_escape_emoji() {
-    let scanner = Scanner::new("\"\\u{1F600}\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "\u{1F600}");
-}
-
-#[test]
-fn unicode_escape_short() {
-    let scanner = Scanner::new("\"\\u{41}\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "A");
-}
-
-#[test]
-fn unicode_escape_six_hex_digits() {
-    let scanner = Scanner::new("\"\\u{00004A}\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "J");
-}
-
-#[test]
-fn escaped_dollar_brace() {
-    let scanner = Scanner::new("\"\\${x}\"");
-    let tokens = collect_tokens(scanner);
-
-    assert_eq!(tokens[0].token_type, TokenType::String);
-    assert_eq!(tokens[0].token, "${x}");
+fn valid_escapes_scan_to_their_characters() {
+    let cases = [
+        ("\"a\\nb\"", "a\nb"),
+        ("\"a\\tb\"", "a\tb"),
+        ("\"a\\rb\"", "a\rb"),
+        ("\"a\\\\b\"", "a\\b"),
+        ("\"a\\\"b\"", "a\"b"),
+        ("\"cost: \\$5\"", "cost: $5"),
+        ("\"\\u{1F600}\"", "\u{1F600}"),
+        ("\"\\u{41}\"", "A"),
+        ("\"\\u{00004A}\"", "J"),
+        ("\"\\${x}\"", "${x}"),
+    ];
+    for (source, lexeme) in cases {
+        assert_first_token(source, TokenType::String, lexeme);
+    }
 }
 
 #[test]
