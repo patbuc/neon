@@ -194,7 +194,9 @@ impl Scanner {
                 }
             }
             '-' => {
-                if self.matches('=') {
+                if self.matches('>') {
+                    self.make_token(TokenType::Arrow)
+                } else if self.matches('=') {
                     self.make_token(TokenType::MinusEqual)
                 } else {
                     self.make_token(TokenType::Minus)
@@ -683,6 +685,38 @@ impl Scanner {
             i += 1;
         }
         self.source.get(i) == Some(&'(')
+    }
+
+    /// True when, starting at `offset`, the upcoming tokens are a trailing
+    /// block's parameter header: one or more identifiers separated by
+    /// commas followed by `->`. Used right after a trailing block's `{` to
+    /// tell a parameter header apart from a body that happens to start
+    /// with an identifier expression, without cloning the scanner.
+    pub(in crate::compiler) fn looks_like_block_lambda_params(&self, offset: usize) -> bool {
+        let mut i = offset;
+        loop {
+            while matches!(self.source.get(i), Some(' ') | Some('\t')) {
+                i += 1;
+            }
+            if !matches!(self.source.get(i), Some(&c) if Scanner::is_alpha(c)) {
+                return false;
+            }
+            while matches!(self.source.get(i), Some(&c) if Scanner::is_alpha(c) || Scanner::is_digit(c))
+            {
+                i += 1;
+            }
+            while matches!(self.source.get(i), Some(' ') | Some('\t')) {
+                i += 1;
+            }
+            match self.source.get(i) {
+                Some(',') => {
+                    i += 1;
+                    continue;
+                }
+                Some('-') if self.source.get(i + 1) == Some(&'>') => return true,
+                _ => return false,
+            }
+        }
     }
 
     fn next_line_starts_with_dot_access(&self) -> bool {

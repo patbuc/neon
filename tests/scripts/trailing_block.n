@@ -1,0 +1,62 @@
+// Expected:
+// 6
+// [3, 2, 1]
+// [2, 4, 6]
+// hi
+// hi
+// 1
+// {}
+// a
+// a
+// block
+// 2
+// 2
+
+print([1, 2, 3].reduce(0) { acc, x ->
+    acc + x
+})
+
+val sorted = [3, 1, 2].sort { a, b ->
+    b - a
+}
+print(sorted)
+
+print([1, 2, 3].map { x ->
+    x * 2
+})
+
+fn twice(f) {
+    f()
+    f()
+}
+twice {
+    print("hi")
+}
+
+fn call(f) = f()
+val m = call {
+    1
+}
+print(m)
+
+fn id(x) = x
+print(id({}))
+
+twice(fn() {
+    print("a")
+})
+{
+    print("block")
+}
+
+var counter = 0
+twice {
+    counter = counter + 1
+}
+print(counter)
+
+fn keep(f) = f
+val stored = {"g": keep { x ->
+    x + 1
+}}
+print(stored["g"](1))

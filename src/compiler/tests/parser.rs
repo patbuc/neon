@@ -591,6 +591,30 @@ fn test_parse_lambda_as_call_argument() {
 }
 
 #[test]
+fn test_parse_call_with_trailing_block_lambda() {
+    let mut parser = Parser::new("f(1) { x -> x }\n");
+    let result = parser.parse();
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Expression {
+            expr: Expr::Call { arguments, .. },
+            ..
+        } => {
+            assert_eq!(arguments.len(), 2);
+            match &arguments[1] {
+                Expr::Function { params, .. } => {
+                    assert_eq!(params, &vec!["x".to_string()]);
+                }
+                _ => panic!("Expected Function expression as last argument"),
+            }
+        }
+        _ => panic!("Expected Expression statement wrapping a Call"),
+    }
+}
+
+#[test]
 fn test_lambda_expression_statement() {
     let mut parser = Parser::new("fn(x) { return x }\n");
     let result = parser.parse();

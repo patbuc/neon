@@ -40,6 +40,10 @@ pub struct Parser {
     /// Closing-brace location of each `fn` declaration/method and lambda
     /// body, keyed by its `NodeId`.
     end_locations: HashMap<NodeId, SourceLocation>,
+    /// True while parsing an `if`/`while`/`for ... in` condition, where a
+    /// `{` directly after it starts the statement's own body, not a
+    /// trailing-block lambda.
+    suppress_trailing_block: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -104,7 +108,35 @@ impl Parser {
             pending_interpolation_depth: 0,
             recursion_depth: 0,
             end_locations: HashMap::new(),
+            suppress_trailing_block: false,
         }
+    }
+
+    /// Runs `parse` with trailing-block lambdas disabled, for a condition
+    /// or collection expression directly followed by the statement's own
+    /// `{`.
+    fn without_trailing_block<T>(
+        &mut self,
+        parse: impl FnOnce(&mut Self) -> Option<T>,
+    ) -> Option<T> {
+        let previous = self.suppress_trailing_block;
+        self.suppress_trailing_block = true;
+        let result = parse(self);
+        self.suppress_trailing_block = previous;
+        result
+    }
+
+    /// Runs `parse` with trailing-block lambdas re-enabled, for a
+    /// sub-expression delimited by its own bracket or paren.
+    fn with_trailing_block_allowed<T>(
+        &mut self,
+        parse: impl FnOnce(&mut Self) -> Option<T>,
+    ) -> Option<T> {
+        let previous = self.suppress_trailing_block;
+        self.suppress_trailing_block = false;
+        let result = parse(self);
+        self.suppress_trailing_block = previous;
+        result
     }
 
     fn next_id(&mut self) -> NodeId {
@@ -211,34 +243,36 @@ impl Parser {
     where
         F: FnMut(&mut Self) -> Option<T>,
     {
-        let mut items = Vec::new();
+        self.with_trailing_block_allowed(move |parser| {
+            let mut items = Vec::new();
 
-        self.skip_new_lines();
-        if !self.check(closing_token.clone()) {
-            loop {
-                // Check max count if specified
-                if let Some((max, kind, max_count_error)) = max_count {
-                    if items.len() >= max {
-                        self.report_error_at_current(kind, max_count_error.to_string());
+            parser.skip_new_lines();
+            if !parser.check(closing_token.clone()) {
+                loop {
+                    // Check max count if specified
+                    if let Some((max, kind, max_count_error)) = max_count {
+                        if items.len() >= max {
+                            parser.report_error_at_current(kind, max_count_error.to_string());
+                        }
+                    }
+
+                    // Parse element using provided closure
+                    items.push(parse_element(parser)?);
+                    parser.skip_new_lines();
+                    if !parser.match_token(TokenType::Comma) {
+                        break;
+                    }
+                    parser.skip_new_lines();
+
+                    // Support trailing comma
+                    if parser.check(closing_token.clone()) {
+                        break;
                     }
                 }
-
-                // Parse element using provided closure
-                items.push(parse_element(self)?);
-                self.skip_new_lines();
-                if !self.match_token(TokenType::Comma) {
-                    break;
-                }
-                self.skip_new_lines();
-
-                // Support trailing comma
-                if self.check(closing_token.clone()) {
-                    break;
-                }
             }
-        }
-        self.skip_new_lines();
-        Some(items)
+            parser.skip_new_lines();
+            Some(items)
+        })
     }
 
     fn parse_expression_list(
@@ -792,7 +826,7 @@ impl Parser {
     fn if_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        let condition = self.expression(false)?;
+        let condition = self.without_trailing_block(|parser| parser.expression(false))?;
 
         let then_branch = Box::new(self.require_block_body()?);
         let else_branch = if self.match_token(TokenType::Else) {
@@ -812,7 +846,7 @@ impl Parser {
     fn while_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        let condition = self.expression(false)?;
+        let condition = self.without_trailing_block(|parser| parser.expression(false))?;
 
         let body = Box::new(self.require_block_body()?);
 
@@ -874,7 +908,7 @@ impl Parser {
             return None;
         }
 
-        let collection = self.expression(false)?;
+        let collection = self.without_trailing_block(|parser| parser.expression(false))?;
         let body = Box::new(self.require_block_body()?);
 
         Some(Stmt::ForIn {
@@ -1007,39 +1041,53 @@ impl Parser {
             }
         }?;
 
-        while precedence <= self.get_precedence(&self.current_token.token_type) {
+        loop {
+            while precedence <= self.get_precedence(&self.current_token.token_type) {
+                self.advance();
+                expr = match self.previous_token.token_type {
+                    TokenType::Plus
+                    | TokenType::Minus
+                    | TokenType::Star
+                    | TokenType::StarStar
+                    | TokenType::Slash
+                    | TokenType::Percent
+                    | TokenType::EqualEqual
+                    | TokenType::BangEqual
+                    | TokenType::Greater
+                    | TokenType::GreaterEqual
+                    | TokenType::Less
+                    | TokenType::LessEqual
+                    | TokenType::AndAnd
+                    | TokenType::OrOr
+                    | TokenType::QuestionQuestion
+                    | TokenType::Ampersand
+                    | TokenType::Pipe
+                    | TokenType::Caret
+                    | TokenType::LessLess
+                    | TokenType::GreaterGreater => self.binary(expr),
+                    TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
+                    TokenType::LeftParen => self.call(expr),
+                    TokenType::Dot => self.dot(expr, can_assign, false),
+                    TokenType::QuestionDot => self.dot(expr, can_assign, true),
+                    TokenType::LeftBracket => self.index(expr, can_assign),
+                    TokenType::Question => self.ternary(expr),
+                    _ => {
+                        return Some(expr);
+                    }
+                }?;
+            }
+
+            if self.suppress_trailing_block
+                || !self.check(TokenType::LeftBrace)
+                || !matches!(
+                    expr,
+                    Expr::Call { .. } | Expr::Variable { .. } | Expr::GetField { .. }
+                )
+            {
+                break;
+            }
             self.advance();
-            expr = match self.previous_token.token_type {
-                TokenType::Plus
-                | TokenType::Minus
-                | TokenType::Star
-                | TokenType::StarStar
-                | TokenType::Slash
-                | TokenType::Percent
-                | TokenType::EqualEqual
-                | TokenType::BangEqual
-                | TokenType::Greater
-                | TokenType::GreaterEqual
-                | TokenType::Less
-                | TokenType::LessEqual
-                | TokenType::AndAnd
-                | TokenType::OrOr
-                | TokenType::QuestionQuestion
-                | TokenType::Ampersand
-                | TokenType::Pipe
-                | TokenType::Caret
-                | TokenType::LessLess
-                | TokenType::GreaterGreater => self.binary(expr),
-                TokenType::DotDot | TokenType::DotDotEqual => self.range(expr),
-                TokenType::LeftParen => self.call(expr),
-                TokenType::Dot => self.dot(expr, can_assign, false),
-                TokenType::QuestionDot => self.dot(expr, can_assign, true),
-                TokenType::LeftBracket => self.index(expr, can_assign),
-                TokenType::Question => self.ternary(expr),
-                _ => {
-                    return Some(expr);
-                }
-            }?;
+            expr = self.trailing_block(expr)?;
         }
 
         if can_assign && (self.check(TokenType::Equal) || self.compound_assign_op().is_some()) {
@@ -1227,7 +1275,7 @@ impl Parser {
     }
 
     fn grouping(&mut self) -> Option<Expr> {
-        let expr = Box::new(self.expression(true)?);
+        let expr = Box::new(self.with_trailing_block_allowed(|parser| parser.expression(true))?);
         if !self.consume(TokenType::RightParen, "Expect ')' after expression") {
             return None;
         }
@@ -1537,6 +1585,78 @@ impl Parser {
         })
     }
 
+    /// Appends a trailing-block lambda, already past its opening `{`, as
+    /// the last argument of `callee`: `f(args) { params -> body }`,
+    /// `o.m { body }`, or a bare `f { body }` (a zero-argument call).
+    fn trailing_block(&mut self, callee: Expr) -> Option<Expr> {
+        let location = self.current_location();
+        let lambda = self.block_lambda()?;
+
+        let (call_callee, mut arguments, call_location) = match callee {
+            Expr::Call {
+                callee,
+                arguments,
+                location,
+                ..
+            } => (callee, arguments, location),
+            other => (Box::new(other), Vec::new(), location),
+        };
+        arguments.push(lambda);
+
+        Some(Expr::Call {
+            callee: call_callee,
+            arguments,
+            id: self.next_id(),
+            location: call_location,
+        })
+    }
+
+    /// Parses a trailing block's body, already past its opening `{`: an
+    /// optional `name, name -> ` parameter header, then statements up to
+    /// the closing `}`. Produces the same `Expr::Function` node as `fn(...)
+    /// { ... }`, so upvalues and arity work unchanged.
+    fn block_lambda(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        let params = self.parse_block_lambda_params()?;
+        let body = self.parse_block_body()?;
+        let end_location = self.current_location();
+        let id = self.next_id();
+        self.end_locations.insert(id, end_location);
+        Some(Expr::Function {
+            params,
+            body,
+            id,
+            location,
+        })
+    }
+
+    /// Parses the optional `name, name ->` header of a trailing block,
+    /// looked ahead for with `looks_like_block_lambda_params` so a body
+    /// that happens to start with an identifier isn't mistaken for one.
+    fn parse_block_lambda_params(&mut self) -> Option<Vec<String>> {
+        if !self
+            .scanner
+            .looks_like_block_lambda_params(self.current_token.offset)
+        {
+            return Some(Vec::new());
+        }
+
+        let mut params = Vec::new();
+        loop {
+            if !self.consume(TokenType::Identifier, "Expect parameter name.") {
+                return None;
+            }
+            params.push(self.previous_token.token.clone());
+            if !self.match_token(TokenType::Comma) {
+                break;
+            }
+        }
+        if !self.consume(TokenType::Arrow, "Expect '->' after block parameters.") {
+            return None;
+        }
+        Some(params)
+    }
+
     /// Parses `if cond { ... } else if cond { ... } else { ... }` in
     /// expression position; `else` is required. Reuses `Stmt::Block` for
     /// each branch so the formatter's brace-location lookups apply
@@ -1544,7 +1664,7 @@ impl Parser {
     fn if_expression(&mut self) -> Option<Expr> {
         let location = self.current_location();
 
-        let condition = self.expression(false)?;
+        let condition = self.without_trailing_block(|parser| parser.expression(false))?;
         let then_branch = Box::new(self.if_expr_block()?);
 
         if !self.consume(TokenType::Else, "if expression requires else") {
@@ -1590,7 +1710,7 @@ impl Parser {
     fn index(&mut self, object: Expr, can_assign: bool) -> Option<Expr> {
         let location = self.current_location();
 
-        let index = Box::new(self.expression(false)?);
+        let index = Box::new(self.with_trailing_block_allowed(|parser| parser.expression(false))?);
 
         if !self.consume(TokenType::RightBracket, "Expect ']' after index.") {
             return None;
