@@ -2114,6 +2114,10 @@ impl<'a> CodeGenerator<'a> {
                 location: range_location,
             }) => {
                 self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
+                self.emit_op_code(OpCode::IsNumber, *range_location);
+                let not_number_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
+                self.emit_op_code(OpCode::Pop, *range_location);
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", *range_location);
                 self.generate_expr(start);
                 self.emit_op_code(OpCode::GreaterEqual, *range_location);
                 let end_jump = self.emit_jump(OpCode::JumpIfFalse, *range_location);
@@ -2127,6 +2131,7 @@ impl<'a> CodeGenerator<'a> {
                 };
                 self.emit_op_code(op_code, *range_location);
                 self.patch_jump(end_jump);
+                self.patch_jump(not_number_jump);
             }
             MatchPattern::Expr(expr) => {
                 self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);

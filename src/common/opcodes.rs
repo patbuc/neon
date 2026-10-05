@@ -66,12 +66,13 @@ impl OpCode {
             OpCode::Dup2 => 2,
             OpCode::JumpIfNotNil | OpCode::JumpIfNil => 0,
             OpCode::NoMatchArm => -1,
+            OpCode::IsNumber => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 69] = [
+        const OPCODES: [OpCode; 70] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -141,6 +142,7 @@ impl OpCode {
             OpCode::JumpIfNotNil,
             OpCode::JumpIfNil,
             OpCode::NoMatchArm,
+            OpCode::IsNumber,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -273,4 +275,7 @@ pub(crate) enum OpCode {
     /// for <value>", formatted like `print`. Emitted once, after every
     /// `match` arm has been tested and none matched.
     NoMatchArm,
+
+    /// Replaces the top of stack with whether it is an Int or a Number.
+    IsNumber,
 }
