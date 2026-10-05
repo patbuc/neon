@@ -1552,7 +1552,7 @@ impl SemanticAnalyzer {
                     );
                 } else {
                     let candidates = ["values"];
-                    let error_message = unknown_method_error(name, method, &candidates);
+                    let error_message = unknown_method_error(name, method, &candidates, None);
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::UnknownMethod,
@@ -1949,7 +1949,7 @@ impl SemanticAnalyzer {
             .unwrap_or_default();
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
 
-        let error_message = unknown_method_error(struct_name, method, &candidate_refs);
+        let error_message = unknown_method_error(struct_name, method, &candidate_refs, None);
 
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
@@ -2007,7 +2007,8 @@ impl SemanticAnalyzer {
             candidates.extend(user_methods.keys().cloned());
         }
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
-        let error_message = unknown_method_error(object_type, method, &candidate_refs);
+        let renamed = renamed_method_suggestion(method, &candidate_refs);
+        let error_message = unknown_method_error(object_type, method, &candidate_refs, renamed);
 
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
@@ -2137,7 +2138,10 @@ fn builtin_index(symbol: &Symbol) -> Option<u32> {
 
 /// Methods removed in favor of a unified name, checked before the
 /// edit-distance suggestion below since the names are too dissimilar for it
-/// to find on its own (e.g. `len` / `size`).
+/// to find on its own (e.g. `len` / `size`). Only applies to builtin
+/// receivers: a user struct's own methods were never renamed, so a struct
+/// method coincidentally named `size` shouldn't make `len` look like a typo
+/// for it.
 const RENAMED_METHODS: &[(&str, &str)] = &[
     ("len", "size"),
     ("length", "size"),
@@ -2145,20 +2149,27 @@ const RENAMED_METHODS: &[(&str, &str)] = &[
     ("has", "contains"),
 ];
 
-/// Builds the "unknown method" error message for `type_name`, suggesting
-/// the closest match among `candidates` when one exists.
-fn unknown_method_error(type_name: &str, method: &str, candidates: &[&str]) -> String {
-    if let Some((_, new_name)) = RENAMED_METHODS
+/// The unified name `method` was renamed to, if any, provided it's among
+/// `candidates`.
+fn renamed_method_suggestion<'a>(method: &str, candidates: &[&'a str]) -> Option<&'a str> {
+    RENAMED_METHODS
         .iter()
         .find(|(old, new)| *old == method && candidates.contains(new))
-    {
-        format!(
-            "Type '{}' has no method named '{}'. Did you mean '{}'?",
-            type_name, method, new_name
-        )
-    } else if let Some(suggestion) =
-        crate::common::string_similarity::find_closest_match(method, candidates)
-    {
+        .map(|(_, new)| *new)
+}
+
+/// Builds the "unknown method" error message for `type_name`, suggesting
+/// `renamed` or else the closest match among `candidates` when one exists.
+fn unknown_method_error(
+    type_name: &str,
+    method: &str,
+    candidates: &[&str],
+    renamed: Option<&str>,
+) -> String {
+    let suggestion = renamed
+        .or_else(|| crate::common::string_similarity::find_closest_match(method, candidates));
+
+    if let Some(suggestion) = suggestion {
         format!(
             "Type '{}' has no method named '{}'. Did you mean '{}'?",
             type_name, method, suggestion

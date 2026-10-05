@@ -1176,6 +1176,46 @@ val x = #{1}.has(1)
 }
 
 #[test]
+fn test_struct_with_size_method_len_does_not_suggest_size() {
+    let program = r#"
+struct S { a }
+impl S {
+    fn size(self) = 1
+}
+S(1).len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'size'")));
+}
+
+#[test]
+fn test_number_len_does_not_suggest_size() {
+    let program = r#"
+val x = 5.len()
+"#;
+    let mut parser = Parser::new(program);
+    let ast = parser.parse().unwrap();
+
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(&ast);
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert!(!errors
+        .iter()
+        .any(|e| e.message.contains("Did you mean 'size'")));
+}
+
+#[test]
 fn test_non_existent_method_shows_available_methods() {
     let program = r#"
 val x = [1, 2, 3].notAMethod()
@@ -1680,7 +1720,7 @@ fn test_integration_no_false_positives_all_builtin_array_methods() {
     let program = r#"
 val arr = [1, 2, 3, 4, 5]
 val len = arr.size()
-val sz = arr.size()
+val sz = arr.isEmpty()
 val pushed = arr.push(6)
 val popped = arr.pop()
 val hasThree = arr.contains(3)
@@ -1715,6 +1755,7 @@ val replaced = text.replace("Hello", "Hi")
 val asInt = "123".toInt()
 val asFloat = "3.14".toFloat()
 val asBool = "true".toBool()
+val empty = text.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1746,6 +1787,7 @@ val hasKey = m.contains("a")
 val size = m.size()
 val value = m.get("a")
 val removed = m.remove("b")
+val empty = m.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
@@ -1781,6 +1823,7 @@ val unionSet = s.union(s2)
 val intersectSet = s.intersection(s2)
 val diffSet = s.difference(s2)
 val isSub = s.isSubset(s2)
+val empty = s.isEmpty()
 "#;
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
