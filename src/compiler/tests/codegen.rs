@@ -1,3 +1,4 @@
+use super::helpers::{assert_compile_error, compile, disassemble, run};
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
@@ -5,64 +6,19 @@ use crate::compiler::parser::Parser;
 use crate::compiler::semantic::SemanticAnalyzer;
 use std::rc::Rc;
 
-fn disassemble_program(chunk: &Chunk) -> String {
-    let mut out = chunk.disassemble();
-    for constant in &chunk.constants.values {
-        if let Value::Function(function) = constant {
-            out.push_str(&disassemble_program(&function.chunk));
-        }
-    }
-    out
-}
-
-fn compile_program(source: &str) -> Result<Chunk, String> {
-    // Parse
-    let mut parser = Parser::new(source);
-    let ast = parser
-        .parse()
-        .map_err(|e| format!("Parse error: {:?}", e))?;
-    let eof_location = parser.eof_location();
-
-    // Semantic analysis
-    let mut analyzer = SemanticAnalyzer::new();
-    let resolutions = analyzer
-        .analyze(&ast)
-        .map_err(|e| format!("Semantic error: {:?}", e))?;
-
-    // Code generation
-    let mut codegen = CodeGenerator::new(&resolutions, parser.end_locations());
-    codegen
-        .generate(&ast, eof_location)
-        .map_err(|e| format!("Codegen error: {:?}", e))
-}
-
 #[test]
 fn test_end_to_end_execution() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     val x = 10
     val y = 20
     val sum = x + y
     print(sum)
     "#;
-    let chunk = compile_program(program).unwrap();
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "30");
-    }
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
+    assert_eq!(run(program), "30");
 }
 
 #[test]
 fn test_end_to_end_function() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     fn add(a, b) {
         return a + b
@@ -70,23 +26,11 @@ fn test_end_to_end_function() {
     val result = add(15, 27)
     print(result)
     "#;
-    let chunk = compile_program(program).unwrap();
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "42");
-    }
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
+    assert_eq!(run(program), "42");
 }
 
 #[test]
 fn test_end_to_end_forward_reference() {
-    use crate::vm::VirtualMachine;
-
     // This tests that forward function references work!
     let program = r#"
     fn foo() {
@@ -99,17 +43,7 @@ fn test_end_to_end_forward_reference() {
 
     print(foo())
     "#;
-    let chunk = compile_program(program).unwrap();
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "99");
-    }
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
+    assert_eq!(run(program), "99");
 }
 
 #[test]
@@ -125,7 +59,7 @@ fn test_else_if_bytecode_simple() {
         print(3)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     // Verify that bytecode contains the expected jump instructions
     // Pattern should be:
@@ -173,7 +107,7 @@ fn test_else_if_bytecode_multiple_branches() {
         print(5)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
     let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
@@ -203,7 +137,7 @@ fn test_else_if_bytecode_without_final_else() {
         print(7)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
     let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
@@ -232,7 +166,7 @@ fn test_else_if_bytecode_jump_offsets() {
         print(3)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let jumps: Vec<(usize, usize)> = instructions(&chunk)
         .into_iter()
@@ -258,8 +192,6 @@ fn test_else_if_bytecode_jump_offsets() {
 
 #[test]
 fn test_else_if_end_to_end_execution() {
-    use crate::vm::VirtualMachine;
-
     // Test that else-if chains execute correctly
     let program = r#"
     val x = 15
@@ -271,17 +203,7 @@ fn test_else_if_end_to_end_execution() {
         print(30)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "20");
-    }
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
+    assert_eq!(run(program), "20");
 }
 
 // =============================================================================
@@ -298,12 +220,9 @@ fn test_array_literal_too_large() {
     let array_literal = format!("[{}]", elements.join(", "));
     let program = format!("val arr = {}", array_literal);
 
-    let result = compile_program(&program);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.contains("array literal too large"));
-    assert!(err.contains("70000"));
-    assert!(err.contains("65535"));
+    let errors = assert_compile_error(&program, "array literal too large");
+    assert!(errors[0].message.contains("70000"));
+    assert!(errors[0].message.contains("65535"));
 }
 
 #[test]
@@ -317,11 +236,8 @@ fn test_function_constant_pool_too_large() {
     }
     let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
 
-    let result = compile_program(&program);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.contains("constants"));
-    assert!(err.contains("65535"));
+    let errors = assert_compile_error(&program, "constants");
+    assert!(errors[0].message.contains("65535"));
 }
 
 #[test]
@@ -334,7 +250,7 @@ fn test_function_constant_pool_at_limit_compiles() {
     }
     let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
 
-    assert!(compile_program(&program).is_ok());
+    assert!(compile(&program).is_ok());
 }
 
 #[test]
@@ -347,8 +263,12 @@ fn test_function_constant_pool_overflow_reports_once() {
     }
     let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
 
-    let err = compile_program(&program).unwrap_err();
-    assert_eq!(err.matches("too many constants").count(), 1, "{}", err);
+    let errors = compile(&program).unwrap_err();
+    let count = errors
+        .iter()
+        .filter(|e| e.message.contains("too many constants"))
+        .count();
+    assert_eq!(count, 1, "{:#?}", errors);
 }
 
 #[test]
@@ -364,8 +284,12 @@ fn test_nested_functions_each_report_their_own_constant_overflow() {
         "fn outer() {{\n{body}\n    fn inner() {{\n{body}\n    }}\n    inner()\n}}\nouter()\n"
     );
 
-    let err = compile_program(&program).unwrap_err();
-    assert_eq!(err.matches("too many constants").count(), 2, "{}", err);
+    let errors = compile(&program).unwrap_err();
+    let count = errors
+        .iter()
+        .filter(|e| e.message.contains("too many constants"))
+        .count();
+    assert_eq!(count, 2, "{:#?}", errors);
 }
 
 #[test]
@@ -378,9 +302,8 @@ fn test_function_too_many_locals() {
     }
     let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
 
-    let err = compile_program(&program).unwrap_err();
-    assert!(err.contains("too many locals"));
-    assert!(err.contains("65535"));
+    let errors = assert_compile_error(&program, "too many locals");
+    assert!(errors[0].message.contains("65535"));
 }
 
 #[test]
@@ -392,7 +315,7 @@ fn test_function_locals_at_limit_compiles() {
     }
     let program = format!("fn f() {{\n{}\n}}\nf()\n", body);
 
-    assert!(compile_program(&program).is_ok());
+    assert!(compile(&program).is_ok());
 }
 
 // =============================================================================
@@ -422,7 +345,7 @@ fn count_ints(chunk: &Chunk, n: i64) -> usize {
 #[test]
 fn test_repeated_string_literal_dedups() {
     let program = "print(\"hi\")\n".repeat(10);
-    let chunk = compile_program(&program).unwrap();
+    let chunk = compile(&program).unwrap();
     assert_eq!(count_strings(&chunk, "hi"), 1);
 }
 
@@ -456,7 +379,7 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
     }
     make()
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
     assert_no_string_constant_anywhere(&chunk, "value");
     assert_no_string_constant_anywhere(&chunk, "m");
     assert_no_string_constant_anywhere(&chunk, "P");
@@ -471,8 +394,8 @@ fn test_local_field_read_emits_get_local_field() {
     }
     get(P(1))
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("GetLocalField"));
     assert!(!disassembly.contains("GetField"));
 }
@@ -487,8 +410,8 @@ fn test_global_field_read_still_emits_get_field() {
     }
     get()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("GetField"));
     assert!(!disassembly.contains("GetLocalField"));
 }
@@ -503,8 +426,8 @@ fn test_upvalue_field_read_still_emits_get_field() {
     }
     make()()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("GetField"));
     assert!(!disassembly.contains("GetLocalField"));
 }
@@ -519,8 +442,8 @@ fn test_non_local_object_field_read_still_emits_get_field() {
     }
     get()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("GetField"));
     assert!(!disassembly.contains("GetLocalField"));
 }
@@ -535,8 +458,8 @@ fn test_checked_local_field_read_still_emits_get_field() {
     }
     get()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("CheckInitialized"));
     assert!(disassembly.contains("GetField"));
     assert!(!disassembly.contains("GetLocalField"));
@@ -552,8 +475,8 @@ fn test_local_assignment_statement_emits_store_local() {
     }
     f()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("StoreLocal"));
 }
 
@@ -566,8 +489,8 @@ fn test_local_assignment_expression_still_emits_set_local() {
     }
     f()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("SetLocal"));
     assert!(!disassembly.contains("StoreLocal"));
 }
@@ -581,8 +504,8 @@ fn test_global_assignment_statement_still_emits_set_global_and_pop() {
     }
     set()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("SetGlobal"));
     assert!(!disassembly.contains("StoreLocal"));
 }
@@ -598,8 +521,8 @@ fn test_val_local_field_store_emits_store_local_field() {
     }
     set()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("StoreLocalField"));
     assert!(!disassembly.contains("StoreField"));
 }
@@ -615,8 +538,8 @@ fn test_var_local_field_store_still_emits_store_field() {
     }
     set()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("StoreField"));
     assert!(!disassembly.contains("StoreLocalField"));
 }
@@ -632,8 +555,8 @@ fn test_checked_local_field_store_still_emits_store_field() {
     }
     get()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("CheckInitialized"));
     assert!(disassembly.contains("StoreField"));
     assert!(!disassembly.contains("StoreLocalField"));
@@ -649,8 +572,8 @@ fn test_field_assignment_expression_still_emits_set_field() {
     }
     set()
     "#;
-    let chunk = compile_program(program).unwrap();
-    let disassembly = disassemble_program(&chunk);
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("SetField"));
     assert!(!disassembly.contains("StoreField"));
     assert!(!disassembly.contains("StoreLocalField"));
@@ -659,7 +582,7 @@ fn test_field_assignment_expression_still_emits_set_field() {
 #[test]
 fn test_repeated_number_literal_dedups() {
     let program = "1\n".repeat(10);
-    let chunk = compile_program(&program).unwrap();
+    let chunk = compile(&program).unwrap();
     assert_eq!(count_ints(&chunk, 1), 1);
 }
 
@@ -685,12 +608,9 @@ fn test_map_literal_too_large() {
     let entries: Vec<String> = (0..70000).map(|i| format!("{}: {}", i, i)).collect();
     let program = format!("val m = {{{}}}", entries.join(", "));
 
-    let result = compile_program(&program);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.contains("map literal too large"));
-    assert!(err.contains("70000"));
-    assert!(err.contains("65535"));
+    let errors = assert_compile_error(&program, "map literal too large");
+    assert!(errors[0].message.contains("70000"));
+    assert!(errors[0].message.contains("65535"));
 }
 
 #[test]
@@ -699,12 +619,9 @@ fn test_set_literal_too_large() {
     let elements: Vec<String> = (0..70000).map(|i| i.to_string()).collect();
     let program = format!("val s = #{{{}}}", elements.join(", "));
 
-    let result = compile_program(&program);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.contains("set literal too large"));
-    assert!(err.contains("70000"));
-    assert!(err.contains("65535"));
+    let errors = assert_compile_error(&program, "set literal too large");
+    assert!(errors[0].message.contains("70000"));
+    assert!(errors[0].message.contains("65535"));
 }
 
 /// Walks a chunk's bytecode, stepping over each instruction's operand bytes,
@@ -780,7 +697,7 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
 #[test]
 fn test_greater_equal_less_equal_opcodes() {
     let program = "val a = 1\nval b = 2\nprint(a >= b)\nprint(a <= b)\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
 
@@ -816,7 +733,7 @@ fn test_greater_equal_less_equal_opcodes() {
 #[test]
 fn test_number_literal_right_operand_fuses_into_constant_opcode() {
     let program = "val a = 1\nval b = a - 1\nval c = a <= 1\nval d = a >= 1\nval e = a < 1\nval f = a > 1\nval g = a + 1\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
     let fused = [
@@ -844,7 +761,7 @@ fn test_number_literal_right_operand_fuses_into_constant_opcode() {
 #[test]
 fn test_number_literal_left_operand_keeps_generic_opcode() {
     let program = "val a = 1\nval b = 1 - a\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
     assert!(ops.contains(&OpCode::Subtract));
@@ -854,7 +771,7 @@ fn test_number_literal_left_operand_keeps_generic_opcode() {
 #[test]
 fn test_non_number_literal_right_operand_keeps_generic_opcode() {
     let program = "val a = \"x\"\nval b = a + \"y\"\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
     assert!(ops.contains(&OpCode::Add));
@@ -867,23 +784,11 @@ fn test_non_number_literal_right_operand_keeps_generic_opcode() {
 
 #[test]
 fn test_top_level_fn_named_print_shadows_native() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     fn print(x) {}
     print("native")
     "#;
-    let chunk = compile_program(program).unwrap();
-
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "");
-    }
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
+    assert_eq!(run(program), "");
 }
 
 #[test]
@@ -895,7 +800,7 @@ fn test_native_call_labels() {
     File("x")
     Math.abs(1)
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let labels: Vec<String> = chunk
         .constants
@@ -913,7 +818,7 @@ fn test_native_call_labels() {
 #[test]
 fn test_method_call_loads_receiver_then_invoke() {
     let program = "val a = [1]\na.size()\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
 
@@ -926,8 +831,6 @@ fn test_method_call_loads_receiver_then_invoke() {
 
 #[test]
 fn test_while_break_continue_bytecode() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     var i = 0
     while (i < 10) {
@@ -937,7 +840,7 @@ fn test_while_break_continue_bytecode() {
         print(i)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '<uninitialized>'
@@ -976,28 +879,19 @@ fn test_while_break_continue_bytecode() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "1\n3\n4");
-    }
+    assert_eq!(run(program), "1\n3\n4");
 }
 
 #[test]
 fn test_for_in_bytecode() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     for x in [10, 20, 30] {
         print(x)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '10'
@@ -1023,22 +917,13 @@ fn test_for_in_bytecode() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "10\n20\n30");
-    }
+    assert_eq!(run(program), "10\n20\n30");
 }
 
 #[test]
 fn test_closure_capturing_block_local_with_break_bytecode() {
-    use crate::vm::VirtualMachine;
-
     let program = r#"
     var captured = nil
     var i = 0
@@ -1052,7 +937,7 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
     }
     print(captured())
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 Constant 00 '<uninitialized>'
@@ -1097,16 +982,9 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 === </function_anonymous> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 
-    let mut vm = VirtualMachine::new();
-    let result = vm.run_chunk(chunk);
-
-    assert_eq!(result, crate::vm::InterpretResult::Ok);
-    #[cfg(any(test, debug_assertions))]
-    {
-        assert_eq!(vm.get_output(), "10");
-    }
+    assert_eq!(run(program), "10");
 }
 
 #[test]
@@ -1114,7 +992,7 @@ fn implicit_return_uses_closing_brace_line() {
     use crate::common::Value;
 
     let program = "fn f(x) {\n    print(x)\n}\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let function_chunk = chunk
         .constants
@@ -1141,7 +1019,7 @@ fn test_if_break_skips_jump() {
         print(1)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1163,7 +1041,7 @@ fn test_if_break_skips_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1174,7 +1052,7 @@ fn test_if_continue_skips_jump() {
         print(1)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1196,7 +1074,7 @@ fn test_if_continue_skips_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1209,7 +1087,7 @@ fn test_if_return_skips_jump() {
     }
     f()
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 Nil
@@ -1239,7 +1117,7 @@ fn test_if_return_skips_jump() {
 === </function_f> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1249,7 +1127,7 @@ fn test_if_fallthrough_emits_jump() {
         print(1)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1266,7 +1144,7 @@ fn test_if_fallthrough_emits_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1278,7 +1156,7 @@ fn test_if_else_fallthrough_emits_jump() {
         print(2)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1299,7 +1177,7 @@ fn test_if_else_fallthrough_emits_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1313,7 +1191,7 @@ fn test_if_block_ending_in_break_skips_jump() {
         print(2)
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1339,7 +1217,7 @@ fn test_if_block_ending_in_break_skips_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1349,7 +1227,7 @@ fn test_if_break_with_else_skips_jump() {
         if (true) { break } else { print(2) }
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1371,7 +1249,7 @@ fn test_if_break_with_else_skips_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1381,7 +1259,7 @@ fn test_if_nested_exit_emits_jump() {
         if (true) { if (true) { break } }
     }
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
@@ -1404,12 +1282,12 @@ fn test_if_nested_exit_emits_jump() {
 === </main> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
 fn nested_function_chunk_shares_symbol_table_with_script() {
-    let chunk = compile_program("fn f() { return 1 }\nf()\n").unwrap();
+    let chunk = compile("fn f() { return 1 }\nf()\n").unwrap();
     let function_chunk = chunk
         .constants
         .values
@@ -1426,7 +1304,7 @@ fn nested_function_chunk_shares_symbol_table_with_script() {
 #[test]
 fn test_val_and_var_locals_skip_self_copy_setlocal() {
     let program = "fn f() {\n    val a = 1\n    var b = 2\n    return a + b\n}\nf()\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      1 Nil
@@ -1451,7 +1329,7 @@ fn test_val_and_var_locals_skip_self_copy_setlocal() {
 === </function_f> ===
 "#;
 
-    assert_eq!(disassemble_program(&chunk), expected);
+    assert_eq!(disassemble(&chunk), expected);
 }
 
 #[test]
@@ -1566,19 +1444,16 @@ p = p + q
 print(p)
 "#;
 
-    let compound_chunk = compile_program(compound).unwrap();
-    let desugared_chunk = compile_program(desugared).unwrap();
+    let compound_chunk = compile(compound).unwrap();
+    let desugared_chunk = compile(desugared).unwrap();
 
-    assert_eq!(
-        disassemble_program(&compound_chunk),
-        disassemble_program(&desugared_chunk)
-    );
+    assert_eq!(disassemble(&compound_chunk), disassemble(&desugared_chunk));
 }
 
 #[test]
 fn test_tail_expression_returns_directly() {
     let program = "fn sq(x) {\n    x * x\n}\nprint(sq(3))\n";
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
 
     let Value::Function(function) = &chunk.constants.values[0] else {
         panic!("expected sq's chunk to be the first constant");
@@ -1600,7 +1475,7 @@ fn test_field_compound_assign_emits_dup() {
     }
     f()
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
     let function_chunk = chunk
         .constants
         .values
@@ -1624,7 +1499,7 @@ fn test_index_compound_assign_emits_dup2() {
     }
     f()
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
     let function_chunk = chunk
         .constants
         .values
@@ -1646,7 +1521,7 @@ fn test_nil_coalesce_emits_jump_if_not_nil() {
     val b = 1
     a ?? b
     "#;
-    let chunk = compile_program(program).unwrap();
+    let chunk = compile(program).unwrap();
     let ops = op_codes(&chunk);
 
     let jump_index = ops

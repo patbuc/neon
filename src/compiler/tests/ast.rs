@@ -1,13 +1,5 @@
-use crate::common::SourceLocation;
+use super::helpers::dummy_location;
 use crate::compiler::ast::{BinaryOp, Binding, Expr, NodeId, Pattern, Stmt};
-
-fn dummy_location() -> SourceLocation {
-    SourceLocation {
-        offset: 0,
-        line: 1,
-        column: 1,
-    }
-}
 
 #[test]
 fn test_expr_binary() {

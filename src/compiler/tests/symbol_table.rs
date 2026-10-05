@@ -1,14 +1,6 @@
-use crate::common::SourceLocation;
+use super::helpers::dummy_location;
 use crate::compiler::resolutions::DeclId;
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
-
-fn dummy_location() -> SourceLocation {
-    SourceLocation {
-        offset: 0,
-        line: 1,
-        column: 1,
-    }
-}
 
 #[test]
 fn test_symbol_creation() {

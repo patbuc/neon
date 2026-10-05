@@ -1,10 +1,8 @@
+use super::helpers::compile;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
-use crate::compiler::Compiler;
 
 fn compile_to_errors(source: &str) -> Vec<CompilationError> {
-    let mut compiler = Compiler::new();
-    compiler.compile(source);
-    compiler.get_structured_errors()
+    compile(source).err().unwrap_or_default()
 }
 
 fn source_overflowing_a_codegen_limit() -> String {
