@@ -543,7 +543,7 @@ pub fn native_array_flat_map(
 
 /// Renders a value's type the way Neon spells it elsewhere (`Int`,
 /// `String`, ...) rather than `type_name()`'s lowercase runtime label.
-fn type_name_for_error(value: &Value) -> String {
+pub(crate) fn type_name_for_error(value: &Value) -> String {
     if matches!(value, Value::Int(_)) {
         "Int".to_string()
     } else {

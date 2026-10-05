@@ -230,8 +230,31 @@ pub fn native_range_chunked(args: &[Value]) -> Result<Value, String> {
 }
 
 /// Native implementation of Range.zip(other)
+/// Only materializes as many receiver elements as `other` can supply, so a
+/// huge range zipped with a short array or range doesn't get built in full.
 pub fn native_range_zip(args: &[Value]) -> Result<Value, String> {
-    array_functions::native_array_zip(&materialize(args, "zip")?)
+    if args.len() != 2 {
+        return Err(format!(
+            "zip() expects 1 argument (other), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let range = extract_receiver!(args, Range, "zip")?;
+    let other_len = match &args[1] {
+        Value::Array(arr) => arr.borrow().len(),
+        Value::Range(other) => usize::try_from(other.len()).unwrap_or(usize::MAX),
+        other => {
+            return Err(format!(
+                "zip() other must be an array or range, got {}",
+                array_functions::type_name_for_error(other)
+            ))
+        }
+    };
+
+    let limit = other_len.min(usize::try_from(range.len()).unwrap_or(usize::MAX));
+    let receiver = Value::new_array(range.elements_upto(limit));
+    array_functions::native_array_zip(&[receiver, args[1].clone()])
 }
 
 /// Native implementation of Range.withIndex()

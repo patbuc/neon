@@ -413,6 +413,17 @@ fn test_range_zip_other_wrong_type_errors() {
 }
 
 #[test]
+fn test_range_zip_huge_receiver_does_not_materialize() {
+    let program = r#"
+        print((0..2000000000).zip([1]))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[0, 1]]", vm.get_output());
+}
+
+#[test]
 fn test_range_with_index() {
     let program = r#"
         print((1..=2).withIndex())
