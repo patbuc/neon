@@ -2498,15 +2498,14 @@ impl SemanticAnalyzer {
             let seen_before_arm = seen.len();
             let mut arm_wildcard = seen_wildcard;
             for pattern in &arm.patterns {
+                let mut covers = true;
                 let key = match pattern {
                     MatchPattern::Expr(expr) => self.match_pattern_key(expr),
                     MatchPattern::Variant { .. } => {
                         self.match_pattern_variant(pattern)
-                            .and_then(|(access, matches_all)| {
-                                matches_all.then_some(MatchPatternKey::Enum(
-                                    access.enum_name,
-                                    access.variant_name,
-                                ))
+                            .map(|(access, matches_all)| {
+                                covers = matches_all;
+                                MatchPatternKey::Enum(access.enum_name, access.variant_name)
                             })
                     }
                     _ => None,
@@ -2520,7 +2519,7 @@ impl SemanticAnalyzer {
                         "unreachable pattern".to_string(),
                         location,
                     ));
-                } else if let Some(key) = key {
+                } else if let Some(key) = key.filter(|_| covers) {
                     seen.push(key);
                 }
                 if pattern.is_irrefutable() {
