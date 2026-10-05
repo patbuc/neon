@@ -1,0 +1,9 @@
+// Expected:
+// [Shape.Circle(1), Shape.Square]
+
+enum Shape {
+    Circle(radius)
+    Square
+}
+
+print(#{Shape.Square, Shape.Circle(1)}.toArray())

@@ -1,0 +1,12 @@
+// Expected:
+// before
+
+// Expected runtime error: Expected 1 arguments but got 2 for 'Circle'.
+
+enum Shape {
+    Circle(radius)
+}
+
+print("before")
+val f = Shape.Circle
+f(1, 2)

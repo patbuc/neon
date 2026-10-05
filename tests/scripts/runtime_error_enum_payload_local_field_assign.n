@@ -1,0 +1,16 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot assign to field 'radius' of an enum variant.
+
+enum Shape {
+    Circle(radius)
+}
+
+fn grow() {
+    val c = Shape.Circle(2)
+    c.radius = 3
+}
+
+print("before")
+grow()
