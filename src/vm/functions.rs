@@ -235,7 +235,7 @@ impl VirtualMachine {
                         expected, arg_count, template.variant_name
                     )));
                 }
-                let fields = self.stack.split_off(self.stack.len() - arg_count);
+                let fields = self.stack[self.stack.len() - arg_count..].to_vec();
                 Value::EnumVariant(Rc::new(template.with_fields(fields)))
             }
             _ => {
