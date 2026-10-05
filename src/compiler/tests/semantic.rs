@@ -130,7 +130,8 @@ mod resolutions {
                 }
             }
             Expr::GetField { object, .. } => index_expr(object, idx),
-            Expr::SetField { object, value, .. } => {
+            Expr::SetField { object, value, .. }
+            | Expr::CompoundAssignField { object, value, .. } => {
                 index_expr(object, idx);
                 index_expr(value, idx);
             }

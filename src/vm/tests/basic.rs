@@ -2881,6 +2881,32 @@ fn test_loop_body_local_does_not_grow_stack() {
 }
 
 #[test]
+fn test_field_compound_assign_does_not_grow_stack() {
+    fn stack_len_after_loop(iterations: i64) -> usize {
+        let program = format!(
+            r#"
+            struct Box {{
+                n
+            }}
+            val o = Box(0)
+            var i = 0
+            while (i < {iterations}) {{
+                o.n += 1
+                i = i + 1
+            }}
+            "#
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(InterpretResult::Ok, result);
+        vm.stack.len()
+    }
+
+    assert_eq!(stack_len_after_loop(0), stack_len_after_loop(1000));
+}
+
+#[test]
 fn test_for_in_break_does_not_grow_stack() {
     fn stack_len_after_loop(iterations: i64) -> usize {
         let program = format!(

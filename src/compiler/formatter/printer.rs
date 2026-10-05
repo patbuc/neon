@@ -702,6 +702,26 @@ impl<'a> Printer<'a> {
                 self.write_space_or_continuation(dot_line, self.map.first_line(value));
                 self.print_expr(value);
             }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+            } => {
+                self.print_expr(object);
+                let object_line = self.map.last_line(object);
+                if location.line > object_line {
+                    self.continue_line(object_line, location.line);
+                }
+                self.write(".");
+                self.write(field);
+                self.write(" ");
+                self.write(&compound_op_text(operator));
+                let dot_line = self.map.line(self.map.at(location));
+                self.write_space_or_continuation(dot_line, self.map.first_line(value));
+                self.print_expr(value);
+            }
             Expr::Grouping {
                 expr: inner,
                 location,

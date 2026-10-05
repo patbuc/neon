@@ -1123,6 +1123,15 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_set_field(object, field, value, *location);
             }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                value,
+                location,
+                ..
+            } => {
+                self.resolve_compound_assign_field(object, field, value, *location);
+            }
             Expr::Grouping { expr, .. } => {
                 self.resolve_expr(expr);
             }
@@ -1715,6 +1724,34 @@ impl SemanticAnalyzer {
     }
 
     fn resolve_set_field(
+        &mut self,
+        object: &Expr,
+        field: &str,
+        value: &Expr,
+        location: SourceLocation,
+    ) {
+        if let Expr::Variable { name, .. } = object {
+            if self.enum_variants(name).is_some() {
+                self.resolve_expr(value);
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::ImmutableAssignment,
+                    format!("Cannot assign to enum variant '{}.{}'", name, field),
+                    location,
+                ));
+                return;
+            }
+        }
+
+        self.intern_name(field, location);
+        self.resolve_expr(object);
+        self.resolve_expr(value);
+        if let Some(object_type) = self.infer_expr_type(object) {
+            self.validate_struct_field(object_type.name(), field, location);
+        }
+    }
+
+    fn resolve_compound_assign_field(
         &mut self,
         object: &Expr,
         field: &str,

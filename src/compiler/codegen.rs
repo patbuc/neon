@@ -664,6 +664,27 @@ impl<'a> CodeGenerator<'a> {
         self.generate_binary_op_tail(operator, value, location);
     }
 
+    /// Generates `object; Dup; GetField field; value; operator`, leaving
+    /// `[.., instance, result]` on the stack so the caller can finish with
+    /// `SetField` (expression position) or `StoreField` (statement
+    /// position); `object` evaluates exactly once. Returns the field's
+    /// symbol id.
+    fn generate_field_compound_assign_value(
+        &mut self,
+        object: &Expr,
+        field: &str,
+        operator: &BinaryOp,
+        value: &Expr,
+        location: SourceLocation,
+    ) -> u16 {
+        self.generate_expr(object);
+        self.emit_op_code(OpCode::Dup, location);
+        let symbol = self.resolutions.symbol(field);
+        self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", location);
+        self.generate_binary_op_tail(operator, value, location);
+        symbol
+    }
+
     fn generate_expression_stmt(&mut self, expr: &Expr, location: SourceLocation) {
         match expr {
             Expr::Assign {
@@ -708,6 +729,18 @@ impl<'a> CodeGenerator<'a> {
                 }
                 self.generate_expr(object);
                 self.generate_expr(value);
+                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+            }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+            } => {
+                let symbol = self.generate_field_compound_assign_value(
+                    object, field, operator, value, *location,
+                );
                 self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
             }
             _ => {
@@ -1496,6 +1529,18 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_expr(object);
                 self.generate_expr(value);
                 let symbol = self.resolutions.symbol(field);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+            }
+            Expr::CompoundAssignField {
+                object,
+                field,
+                operator,
+                value,
+                location,
+            } => {
+                let symbol = self.generate_field_compound_assign_value(
+                    object, field, operator, value, *location,
+                );
                 self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
             }
             Expr::Grouping { expr, .. } => {

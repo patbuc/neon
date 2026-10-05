@@ -290,6 +290,7 @@ impl VirtualMachine {
                 }
                 OpCode::LessConstant => self.op_compare_constant(Comparison::Less)?,
                 OpCode::LessEqualConstant => self.op_compare_constant(Comparison::LessEqual)?,
+                OpCode::Dup => self.push(self.peek(0).copy_or_clone()),
             }
             self.ip += 1;
         }

@@ -1,0 +1,53 @@
+// Expected:
+// 2
+// 6
+// 3
+// 9
+// 81
+// 6
+// 42
+
+struct Box {
+    f
+}
+
+struct Nested {
+    inner
+}
+
+val o = Box(10)
+o.f += 5
+o.f -= 3
+o.f *= 2
+o.f /= 4
+o.f %= 4
+print(o.f)
+
+val o2 = Box(2)
+o2.f *= 1 + 2
+print(o2.f)
+
+val o3 = Box(1)
+print(o3.f += 2)
+
+struct Power {
+    n
+}
+
+impl Power {
+    fn square(self) {
+        self.n **= 2
+        return self.n
+    }
+}
+
+val p = Power(3)
+print(p.square())
+print(p.square())
+
+val n = Nested(Box(4))
+n.inner.f += 2
+print(n.inner.f)
+
+val n2 = Nested(Box(40))
+print(n2.inner.f += 2)

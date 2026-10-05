@@ -1848,14 +1848,23 @@ fn test_parse_assignment_to_index_of_expression_is_invalid_target() {
 }
 
 #[test]
-fn test_parse_compound_assignment_to_field_is_invalid_target() {
+fn test_parse_compound_assignment_to_field() {
     let mut parser = Parser::new("o.n += 1\n");
     let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
-    assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 5);
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::CompoundAssignField {
+                field, operator, ..
+            } => {
+                assert_eq!(field, "n");
+                assert_eq!(*operator, BinaryOp::Add);
+            }
+            _ => panic!("Expected CompoundAssignField expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }
 
 #[test]
@@ -1870,14 +1879,23 @@ fn test_parse_compound_assignment_to_index_is_invalid_target() {
 }
 
 #[test]
-fn test_parse_compound_assignment_power_to_field_is_invalid_target() {
+fn test_parse_compound_assignment_power_to_field() {
     let mut parser = Parser::new("o.n **= 2\n");
     let result = parser.parse();
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert!(errors[0].message.contains("Invalid assignment target"));
-    assert_eq!(errors[0].location.line, 1);
-    assert_eq!(errors[0].location.column, 5);
+    assert!(result.is_ok());
+    let stmts = result.unwrap();
+    match &stmts[0] {
+        Stmt::Expression { expr, .. } => match expr {
+            Expr::CompoundAssignField {
+                field, operator, ..
+            } => {
+                assert_eq!(field, "n");
+                assert_eq!(*operator, BinaryOp::Exponent);
+            }
+            _ => panic!("Expected CompoundAssignField expression"),
+        },
+        _ => panic!("Expected Expression statement"),
+    }
 }
 
 #[test]

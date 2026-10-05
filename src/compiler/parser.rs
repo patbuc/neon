@@ -1425,6 +1425,17 @@ impl Parser {
                 value,
                 location,
             })
+        } else if let Some(operator) = self.compound_assign_op().filter(|_| can_assign) {
+            self.advance();
+            self.skip_new_lines();
+            let value = Box::new(self.expression(false)?);
+            Some(Expr::CompoundAssignField {
+                object: Box::new(object),
+                field,
+                operator,
+                value,
+                location,
+            })
         } else {
             Some(Expr::GetField {
                 object: Box::new(object),

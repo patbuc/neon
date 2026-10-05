@@ -1340,7 +1340,8 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
             | OpCode::Subtract
             | OpCode::Multiply
             | OpCode::Less
-            | OpCode::CloseUpvalue => 0,
+            | OpCode::CloseUpvalue
+            | OpCode::Dup => 0,
             OpCode::Call => 1,
             OpCode::Invoke => 3,
             OpCode::CreateArray => 2,
@@ -2187,4 +2188,31 @@ fn test_tail_expression_returns_directly() {
     let ops = op_codes(&function.chunk);
 
     assert_eq!(&ops[ops.len() - 2..], &[OpCode::Multiply, OpCode::Return]);
+}
+
+#[test]
+fn test_field_compound_assign_emits_dup() {
+    let program = r#"
+    struct Box {
+        n
+    }
+    fn f() {
+        val o = Box(0)
+        o.n += 1
+    }
+    f()
+    "#;
+    let chunk = compile_program(program).unwrap();
+    let function_chunk = chunk
+        .constants
+        .values
+        .iter()
+        .find_map(|v| match v {
+            Value::Function(function) => Some(function.chunk.clone()),
+            _ => None,
+        })
+        .expect("expected f's Function constant");
+    let ops = op_codes(&function_chunk);
+
+    assert!(ops.contains(&OpCode::Dup));
 }

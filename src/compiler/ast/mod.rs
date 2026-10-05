@@ -148,6 +148,15 @@ pub enum Expr {
         value: Box<Expr>,
         location: SourceLocation,
     },
+    /// `object.field op= value`; the VM's `Dup` opcode evaluates `object`
+    /// once for both the read and the write.
+    CompoundAssignField {
+        object: Box<Expr>,
+        field: String,
+        operator: BinaryOp,
+        value: Box<Expr>,
+        location: SourceLocation,
+    },
     Grouping {
         expr: Box<Expr>,
         location: SourceLocation,
