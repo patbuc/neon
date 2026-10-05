@@ -114,8 +114,6 @@ fn test_end_to_end_forward_reference() {
 
 #[test]
 fn test_else_if_bytecode_simple() {
-    use crate::common::opcodes::OpCode;
-
     // Test simple else-if chain bytecode generation
     let program = r#"
     val x = 5
@@ -160,8 +158,6 @@ fn test_else_if_bytecode_simple() {
 
 #[test]
 fn test_else_if_bytecode_multiple_branches() {
-    use crate::common::opcodes::OpCode;
-
     // Test multiple else-if branches
     let program = r#"
     val x = 10
@@ -198,8 +194,6 @@ fn test_else_if_bytecode_multiple_branches() {
 
 #[test]
 fn test_else_if_bytecode_without_final_else() {
-    use crate::common::opcodes::OpCode;
-
     // Test else-if chain without final else
     let program = r#"
     val x = 7
@@ -227,8 +221,6 @@ fn test_else_if_bytecode_without_final_else() {
 
 #[test]
 fn test_else_if_bytecode_jump_offsets() {
-    use crate::common::opcodes::OpCode;
-
     // Test that jump offsets are correctly calculated
     let program = r#"
     val x = 5
@@ -249,11 +241,15 @@ fn test_else_if_bytecode_jump_offsets() {
         .collect();
     assert_eq!(jumps.len(), 4);
 
-    // Verify jumps are pointing to valid locations within bytecode
+    // Every jump must land on an instruction start or the end of the chunk
+    let starts: Vec<usize> = instructions(&chunk)
+        .into_iter()
+        .map(|(pos, _)| pos)
+        .collect();
     for (pos, target) in &jumps {
         assert!(
-            *target <= chunk.instruction_count(),
-            "Jump at position {} targets invalid offset {}",
+            starts.contains(target) || *target == chunk.instruction_count(),
+            "Jump at position {} targets {}, not an instruction start",
             pos,
             target
         );
@@ -769,7 +765,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
                 let upvalue_count = chunk.read_u8(offset + 3) as usize;
                 3 + upvalue_count * 3
             }
-            _ => panic!("op_codes: unhandled opcode {op:?}, add its operand width"),
+            _ => panic!("instructions: unhandled opcode {op:?}, add its operand width"),
         };
         ops.push((offset, op));
         offset += 1 + operand_bytes;
