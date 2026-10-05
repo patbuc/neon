@@ -1262,6 +1262,18 @@ impl SemanticAnalyzer {
                         "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, an array pattern, or '_'".to_string(),
                         Self::match_pattern_location(expr),
                     ));
+                } else if let Some(access) = self.match_pattern_enum_variant(expr) {
+                    if !access.fields.is_empty() {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::InvalidMatchPattern,
+                            format!(
+                                "Invalid match pattern: payload variant {}.{} must be matched with its fields",
+                                access.enum_name, access.variant_name
+                            ),
+                            Self::match_pattern_location(expr),
+                        ));
+                    }
                 }
             }
             MatchPattern::Array { elements, .. } => {

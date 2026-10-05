@@ -3666,6 +3666,14 @@ fn test_match_call_pattern_is_invalid() {
 }
 
 #[test]
+fn test_match_bare_payload_variant_is_invalid() {
+    assert_match_error(
+        "enum Shape {\n    Circle(radius)\n    Dot\n}\nval r = match Shape.Dot {\n    Shape.Circle -> 1\n    Shape.Dot -> 2\n}\n",
+        "payload variant Shape.Circle must be matched with its fields",
+    );
+}
+
+#[test]
 fn test_match_literal_patterns_are_valid() {
     let program = "enum Color {\n    Red\n}\nval r = match 1 {\n    -1 -> 1\n    2.5 -> 2\n    \"s\" -> 3\n    true -> 4\n    nil -> 5\n    10..20 -> 6\n    -5..=-1 -> 7\n    _ -> 0\n}\nval c = match Color.Red {\n    Color.Red -> 1\n}\n";
     assert_eq!(match_errors(program), Vec::<String>::new());
