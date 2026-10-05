@@ -1065,6 +1065,10 @@ impl<'a> Printer<'a> {
                 MatchPattern::Binding(binding) => self.write(&binding.name),
             }
         }
+        if let Some(guard) = &arm.guard {
+            self.write(" if ");
+            self.print_expr(guard);
+        }
         self.write(" -> ");
         match &arm.body {
             MatchArmBody::Expr(expr) => self.print_expr(expr),

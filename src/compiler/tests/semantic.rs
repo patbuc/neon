@@ -3695,3 +3695,15 @@ fn test_match_alternatives_binding_different_names_is_error() {
         "must bind the same names",
     );
 }
+
+#[test]
+fn test_match_arm_after_guarded_binding_is_reachable() {
+    let program = "val x = 1\nval y = match x {\n    n if n > 5 -> 1\n    _ -> 0\n}\n";
+    assert_eq!(match_errors(program), Vec::<String>::new());
+}
+
+#[test]
+fn test_match_guarded_arm_does_not_count_toward_exhaustiveness() {
+    let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    Color.Green if false -> 2\n}\n";
+    assert_match_error(program, "match on Color is missing Green");
+}

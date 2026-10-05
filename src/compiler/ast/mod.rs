@@ -241,6 +241,8 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchArm {
     pub patterns: Vec<MatchPattern>,
+    /// `if cond` after the patterns; the arm is skipped when it is false.
+    pub guard: Option<Expr>,
     pub body: MatchArmBody,
     pub location: SourceLocation,
 }

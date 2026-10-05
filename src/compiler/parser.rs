@@ -1935,6 +1935,12 @@ impl Parser {
             patterns.push(self.match_pattern()?);
         }
 
+        let guard = if self.match_token(TokenType::If) {
+            Some(self.expression(false)?)
+        } else {
+            None
+        };
+
         if !self.consume(TokenType::Arrow, "Expect '->' after match pattern.") {
             return None;
         }
@@ -1954,6 +1960,7 @@ impl Parser {
 
         Some(MatchArm {
             patterns,
+            guard,
             body,
             location,
         })

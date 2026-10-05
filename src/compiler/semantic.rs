@@ -1231,6 +1231,9 @@ impl SemanticAnalyzer {
                             }
                         }
                     }
+                    if let Some(guard) = &arm.guard {
+                        self.resolve_expr(guard);
+                    }
                     match &arm.body {
                         MatchArmBody::Expr(expr) => self.resolve_expr(expr),
                         MatchArmBody::Block(stmt) => self.resolve_stmt(stmt),
@@ -2181,10 +2184,14 @@ impl SemanticAnalyzer {
         for arm in arms {
             for pattern in &arm.patterns {
                 match pattern {
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => has_wildcard = true,
+                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => {
+                        has_wildcard |= arm.guard.is_none()
+                    }
                     MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
                         Some(access) if access.enum_name == enum_name => {
-                            if !covered.contains(&access.variant_name.to_string()) {
+                            if arm.guard.is_none()
+                                && !covered.contains(&access.variant_name.to_string())
+                            {
                                 covered.push(access.variant_name.to_string());
                             }
                         }
@@ -2306,13 +2313,15 @@ impl SemanticAnalyzer {
                         "unreachable pattern".to_string(),
                         location,
                     ));
-                } else if let Some(key) = key {
+                } else if let Some(key) = key.filter(|_| arm.guard.is_none()) {
                     seen.push(key);
                 }
-                if matches!(
-                    pattern,
-                    MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
-                ) {
+                if arm.guard.is_none()
+                    && matches!(
+                        pattern,
+                        MatchPattern::Wildcard(_) | MatchPattern::Binding(_)
+                    )
+                {
                     seen_wildcard = true;
                 }
             }
@@ -2789,10 +2798,11 @@ fn expr_references_it(expr: &Expr) -> bool {
                     arm.patterns.iter().any(|pattern| match pattern {
                         MatchPattern::Expr(expr) => expr_references_it(expr),
                         MatchPattern::Wildcard(_) | MatchPattern::Binding(_) => false,
-                    }) || match &arm.body {
-                        MatchArmBody::Expr(expr) => expr_references_it(expr),
-                        MatchArmBody::Block(stmt) => stmt_references_it(stmt),
-                    }
+                    }) || arm.guard.as_ref().is_some_and(expr_references_it)
+                        || match &arm.body {
+                            MatchArmBody::Expr(expr) => expr_references_it(expr),
+                            MatchArmBody::Block(stmt) => stmt_references_it(stmt),
+                        }
                 })
         }
     }

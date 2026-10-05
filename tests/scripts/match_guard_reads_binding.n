@@ -1,0 +1,13 @@
+// Expected:
+// small
+// big
+
+fn size(v) {
+    return match v {
+        n if n < 10 -> "small"
+        n -> "big"
+    }
+}
+
+print(size(3))
+print(size(30))

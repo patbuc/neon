@@ -2027,12 +2027,14 @@ impl<'a> CodeGenerator<'a> {
             let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
             let false_path_height = self.current().stack_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
-            self.generate_match_arm_body(arm, hidden_slot);
-            end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
+            let guard_failed_jump = self.generate_match_arm_body(arm, hidden_slot, &mut end_jumps);
 
             self.patch_jump(next_arm_jump);
             self.current().stack_height = false_path_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if false
+            if let Some(jump) = guard_failed_jump {
+                self.patch_jump(jump);
+            }
         }
 
         self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
@@ -2047,17 +2049,49 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Runs the arm's body, with a bound name (if the arm binds one) as a
-    /// local copy of the scrutinee that lives only for the body.
-    fn generate_match_arm_body(&mut self, arm: &MatchArm, hidden_slot: u32) {
-        let Some(MatchPattern::Binding(binding)) = arm.patterns.first() else {
-            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
-            return;
+    /// local copy of the scrutinee that lives only for the guard and body.
+    /// The jump to the end of the match is added to `end_jumps`. A guarded
+    /// arm returns the jump taken when the guard is false, after the
+    /// binding is popped; the caller patches it to the next arm.
+    fn generate_match_arm_body(
+        &mut self,
+        arm: &MatchArm,
+        hidden_slot: u32,
+        end_jumps: &mut Vec<u32>,
+    ) -> Option<u32> {
+        let binding = match arm.patterns.first() {
+            Some(MatchPattern::Binding(binding)) => Some(binding),
+            _ => None,
         };
+        if binding.is_none() && arm.guard.is_none() {
+            self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+            end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
+            return None;
+        }
         self.current().scope_depth += 1;
-        self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", arm.location);
-        self.bind_decl_local(self.resolutions.decl(binding.id), arm.location);
+        if let Some(binding) = binding {
+            self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", arm.location);
+            self.bind_decl_local(self.resolutions.decl(binding.id), arm.location);
+        }
+        let guard_false_jump = arm.guard.as_ref().map(|guard| {
+            self.generate_expr(guard);
+            let jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
+            let guard_height = self.current().stack_height;
+            self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if true
+            (jump, guard_height)
+        });
         self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
-        self.end_scope(arm.location);
+        self.current().scope_depth -= 1;
+        let captured = self.discard_locals_above_current_depth();
+        self.emit_scope_exit(&captured, arm.location);
+        end_jumps.push(self.emit_jump(OpCode::Jump, arm.location));
+
+        let (jump, guard_height) = guard_false_jump?;
+        self.patch_jump(jump);
+        self.current().stack_height = guard_height;
+        self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if false
+        self.emit_scope_exit(&captured, arm.location);
+        Some(self.emit_jump(OpCode::Jump, arm.location))
     }
 
     /// Stores an arm's body value into `hidden_slot`, the same way an
