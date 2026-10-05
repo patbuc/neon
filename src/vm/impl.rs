@@ -260,6 +260,20 @@ impl VirtualMachine {
                     self.op_invoke()?;
                     continue;
                 }
+                OpCode::TailCall | OpCode::TailInvoke => {
+                    let kept_frame = if op_code == OpCode::TailCall {
+                        self.op_tail_call()?
+                    } else {
+                        self.op_tail_invoke()?
+                    };
+                    if !kept_frame {
+                        self.op_return();
+                        if self.call_frames.len() == target_depth {
+                            return Ok(());
+                        }
+                    }
+                    continue;
+                }
                 OpCode::GetField => self.op_get_field()?,
                 OpCode::SetField => self.op_set_field()?,
                 OpCode::GetLocalField => self.op_get_local_field()?,

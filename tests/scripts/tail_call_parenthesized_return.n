@@ -1,0 +1,11 @@
+// Expected:
+// 0
+
+fn count(n) {
+    if n == 0 {
+        return 0
+    }
+    return (count(n - 1))
+}
+
+print(count(1500000))

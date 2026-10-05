@@ -1,0 +1,13 @@
+// Expected:
+// done
+
+struct Loop {
+    step
+}
+
+val l = Loop(nil)
+l.step = fn(n) {
+    n == 0 ? "done" : l.step(n - 1)
+}
+
+print(l.step(1500000))

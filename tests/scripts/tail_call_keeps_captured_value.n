@@ -1,0 +1,19 @@
+// Expected:
+// 3
+// 2
+// 1
+
+fn collect(n, fns) {
+    if n == 0 {
+        return fns
+    }
+    fns.push(fn() {
+        n
+    })
+    return collect(n - 1, fns)
+}
+
+val fns = collect(3, [])
+for f in fns {
+    print(f())
+}

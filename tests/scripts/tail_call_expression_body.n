@@ -1,0 +1,6 @@
+// Expected:
+// 1500000
+
+fn count(n, acc) = n == 0 ? acc : count(n - 1, acc + 1)
+
+print(count(1500000, 0))

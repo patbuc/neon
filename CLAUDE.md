@@ -181,6 +181,8 @@ enforces these edges in `cargo test`.
 - Call frame stack for function calls (`src/vm/functions.rs`)
 - The running frame's `ip` and chunk live in `VirtualMachine.ip`/`chunk`; `CallFrame.ip` is only current for the
   frames below the top (`push_frame`/`pop_frame` save and restore it)
+- `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
+  recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
 - Separate builtin values storage (e.g., Math namespace)
 
 **Bytecode Format** (`src/common/chunk/`)
@@ -193,7 +195,8 @@ enforces these edges in `cargo test`.
 **Opcodes** (`src/common/opcodes.rs`)
 
 - Instruction set definition as `#[repr(u8)]` enum
-- Stack manipulation, arithmetic, control flow, function calls
+- Stack manipulation, arithmetic, control flow, function calls (`Call`/`Invoke` and their tail variants
+  `TailCall`/`TailInvoke`)
 - Index operands (constants, locals, globals, upvalues, builtins, and symbol ids for field/method/type
   names) are a fixed 16 bits; jump/loop offsets are 32 bits
 

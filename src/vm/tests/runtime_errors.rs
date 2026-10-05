@@ -366,14 +366,14 @@ fn bad_operand_type_errors() {
 
 #[test]
 fn unbounded_recursion_reports_stack_overflow_at_the_call_site() {
-    let program = "fn f(n) { return f(n + 1) }\nf(0)";
+    let program = "fn f(n) { return 1 + f(n + 1) }\nf(0)";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let errors = vm.get_runtime_errors();
     assert!(errors.contains("Stack overflow"), "{}", errors);
-    assert!(errors.contains("[1:19]"), "{}", errors);
+    assert!(errors.contains("[1:23]"), "{}", errors);
 }
 
 #[test]
@@ -411,7 +411,7 @@ fn native_callback_wrong_arity_reports_exactly_one_error() {
 #[test]
 fn native_callback_stack_overflow_reports_exactly_one_error() {
     let program = r#"
-        fn recurse(n) { return recurse(n + 1) }
+        fn recurse(n) { return 1 + recurse(n + 1) }
         print([1].map(recurse))
         "#;
 
@@ -861,7 +861,7 @@ fn check_initialized_on_normal_value_passes_through() {
 
 #[test]
 fn nested_call_error_reports_frames_innermost_first() {
-    let program = "fn outer() { return inner() }\nfn inner() { return 1 + true }\nouter()";
+    let program = "fn outer() { return 1 + inner() }\nfn inner() { return 1 + true }\nouter()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -894,7 +894,7 @@ fn nested_call_error_reports_frames_innermost_first() {
 fn error_after_a_nested_call_returns_reports_every_frame_correctly() {
     // inner() returns normally before middle()'s error, so this also
     // covers pop_frame restoring the caller's chunk correctly on return.
-    let program = "fn inner() { return 1 }\nfn middle() {\n    val a = inner()\n    return a + true\n}\nfn outer() { return middle() }\nouter()";
+    let program = "fn inner() { return 1 }\nfn middle() {\n    val a = inner()\n    return a + true\n}\nfn outer() { return 1 + middle() }\nouter()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -917,6 +917,36 @@ fn error_after_a_nested_call_returns_reports_every_frame_correctly() {
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(7),
+            },
+        ],
+        error.frames
+    );
+}
+
+#[test]
+fn self_tail_recursive_function_appears_once_in_trace() {
+    let program = r#"
+        fn f(n) {
+            if (n == 0) { return 1 + true }
+            return f(n - 1)
+        }
+        f(5)
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+
+    assert_eq!(
+        vec![
+            TraceFrame {
+                function: "f".to_string(),
+                line: Some(3),
+            },
+            TraceFrame {
+                function: "<script>".to_string(),
+                line: Some(6),
             },
         ],
         error.frames
@@ -951,7 +981,7 @@ fn native_callback_error_trace_has_no_native_frame() {
 
 #[test]
 fn unbounded_recursion_trace_is_capped() {
-    let program = "fn f(n) { return f(n + 1) }\nf(0)";
+    let program = "fn f(n) { return 1 + f(n + 1) }\nf(0)";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -979,7 +1009,7 @@ fn trace_at_exactly_twenty_one_frames_is_not_collapsed() {
     let program = r#"
         fn f(n) {
             if (n == 0) { return 1 + true }
-            return f(n - 1)
+            return 1 + f(n - 1)
         }
         f(19)
         "#;
@@ -1007,7 +1037,7 @@ fn trace_at_twenty_two_frames_is_collapsed() {
     let program = r#"
         fn f(n) {
             if (n == 0) { return 1 + true }
-            return f(n - 1)
+            return 1 + f(n - 1)
         }
         f(20)
         "#;
@@ -1411,7 +1441,7 @@ fn error_after_native_callback_returns_reports_the_caller_location() {
 
 #[test]
 fn native_callback_error_from_a_nested_function_reports_every_frame() {
-    let program = "fn boom(x) { return x + true }\nfn run() {\n    return [1].map(boom)\n}\nfn start() {\n    return run()\n}\nstart()";
+    let program = "fn boom(x) { return x + true }\nfn run() {\n    return [1].map(boom)\n}\nfn start() {\n    return 1 + run()\n}\nstart()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());

@@ -1,0 +1,17 @@
+// Expected:
+// 1125000750000
+
+struct Counter {
+    base
+}
+
+impl Counter {
+    fn sum(self, n, acc) {
+        if n == 0 {
+            return acc + self.base
+        }
+        return self.sum(n - 1, acc + n)
+    }
+}
+
+print(Counter(0).sum(1500000, 0))

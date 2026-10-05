@@ -1,0 +1,13 @@
+// Expected:
+// 1500000
+// 1500000
+
+fn count(n, acc, first) {
+    if n == 0 {
+        return acc
+    }
+    first ? count(n - 1, acc + 1, first) : count(n - 1, acc + 1, first)
+}
+
+print(count(1500000, 0, true))
+print(count(1500000, 0, false))

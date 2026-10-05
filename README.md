@@ -302,6 +302,25 @@ fn(x) {
 }(5)  // 5
 ```
 
+#### Tail Calls
+
+A call in tail position reuses the caller's frame, so tail recursion isn't limited by the
+call-depth limit (1,000,000 frames). Tail position is the operand of `return` and a function's
+last expression (including `fn f() = expr`). When an `if`/`else` expression, a `match` or a
+ternary is in tail position, so are its branches and arms. Parentheses don't change tail
+position. Method calls count too, including a closure stored in a field. Operands of `&&`, `||` and `??` and script-level code are not tail
+positions. A tail call to a native function, a struct constructor or a native method behaves
+like a call followed by a return.
+
+```neon
+fn count(n, limit) = n >= limit ? n : count(n + 1, limit)
+
+print(count(0, 2000000))  // 2000000
+```
+
+A frame replaced by a tail call is gone, so the stack trace of a runtime error lists only the
+frames still live.
+
 #### Trailing Blocks
 
 When a function literal is a call's last (or only) argument, it can be

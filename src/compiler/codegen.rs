@@ -776,7 +776,7 @@ impl<'a> CodeGenerator<'a> {
                     self.assert_stack_height();
                 }
                 if let Stmt::Expression { expr, .. } = last {
-                    self.generate_expr(expr);
+                    self.generate_expr_in_tail(expr, true);
                     self.emit_op_code(OpCode::Return, end_location);
                 } else {
                     self.generate_stmt(last);
@@ -1069,10 +1069,60 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_return_stmt(&mut self, value: &Option<Expr>, location: SourceLocation) {
         match value {
-            Some(value) => self.generate_expr(value),
+            Some(value) => self.generate_expr_in_tail(value, true),
             None => self.emit_op_code(OpCode::Nil, location),
         }
         self.emit_op_code(OpCode::Return, location);
+    }
+
+    /// Compiles `expr`; when `tail` is set, the value is the function's
+    /// return value, so a call here reuses the caller's frame and the
+    /// branches of a conditional, if, or match are tail positions too.
+    fn generate_expr_in_tail(&mut self, expr: &Expr, tail: bool) {
+        let in_function = self.functions.len() > 1;
+        match expr {
+            Expr::Call {
+                callee,
+                arguments,
+                id,
+                location,
+            } if tail && in_function => match callee.as_ref() {
+                Expr::GetField {
+                    object,
+                    field,
+                    optional: false,
+                    ..
+                } => self.generate_method_call_expr(
+                    *id,
+                    object,
+                    field,
+                    arguments,
+                    OpCode::TailInvoke,
+                    *location,
+                ),
+                Expr::GetField { .. } => self.generate_expr(expr),
+                _ => self.generate_call_expr(*id, callee, arguments, OpCode::TailCall, *location),
+            },
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                location,
+            } => self.generate_conditional_expr(condition, then_expr, else_expr, tail, *location),
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+                location,
+            } => self.generate_if_expr(condition, then_branch, else_branch, tail, *location),
+            Expr::Match {
+                scrutinee,
+                arms,
+                location,
+            } => self.generate_match_expr(scrutinee, arms, tail, *location),
+            Expr::Grouping { expr, .. } => self.generate_expr_in_tail(expr, tail),
+            _ => self.generate_expr(expr),
+        }
     }
 
     // Leaves the locals in place; end_scope still owns them on fall-through.
@@ -1528,19 +1578,21 @@ impl<'a> CodeGenerator<'a> {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         let Some(index) = self.resolutions.native(id) else {
-            self.generate_regular_call_expr(callee, arguments, location);
+            self.generate_regular_call_expr(callee, arguments, call_op, location);
             return;
         };
-        self.generate_native_call_expr(index, arguments, location);
+        self.generate_native_call_expr(index, arguments, call_op, location);
     }
 
     fn generate_regular_call_expr(
         &mut self,
         callee: &Expr,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         // Unified calling convention: [callable, args...]
@@ -1550,7 +1602,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_call(arguments.len() as u8, location);
+        self.emit_call(call_op, arguments.len() as u8, location);
     }
 
     /// Emits a call dispatched by registry index, known at compile time: a
@@ -1560,6 +1612,7 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         index: usize,
         arguments: &[Expr],
+        call_op: OpCode,
         location: SourceLocation,
     ) {
         let label = crate::common::method_registry::native_label(index);
@@ -1569,7 +1622,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_call(arguments.len() as u8, location);
+        self.emit_call(call_op, arguments.len() as u8, location);
     }
 
     fn generate_method_call_expr(
@@ -1578,6 +1631,7 @@ impl<'a> CodeGenerator<'a> {
         object: &Expr,
         method: &str,
         arguments: &[Expr],
+        invoke_op: OpCode,
         location: SourceLocation,
     ) {
         if let Some(access) = self.resolutions.enum_construct(id) {
@@ -1601,10 +1655,10 @@ impl<'a> CodeGenerator<'a> {
             return;
         }
         match self.resolutions.native(id) {
-            Some(index) => self.generate_native_call_expr(index, arguments, location),
-            None => {
-                self.generate_instance_method_call_expr(object, method, arguments, false, location)
-            }
+            Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
+            None => self.generate_instance_method_call_expr(
+                object, method, arguments, false, invoke_op, location,
+            ),
         }
     }
 
@@ -1614,6 +1668,7 @@ impl<'a> CodeGenerator<'a> {
         method: &str,
         arguments: &[Expr],
         optional: bool,
+        invoke_op: OpCode,
         location: SourceLocation,
     ) {
         // Instance method call: arr.push(x), str.size(), etc.
@@ -1625,7 +1680,7 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
 
-        self.emit_invoke(method, arguments.len() as u8, location);
+        self.emit_invoke(invoke_op, method, arguments.len() as u8, location);
         if let Some(end_jump) = end_jump {
             self.patch_jump(end_jump);
         }
@@ -1747,13 +1802,25 @@ impl<'a> CodeGenerator<'a> {
                 {
                     if *optional {
                         self.generate_instance_method_call_expr(
-                            object, field, arguments, true, *location,
+                            object,
+                            field,
+                            arguments,
+                            true,
+                            OpCode::Invoke,
+                            *location,
                         );
                     } else {
-                        self.generate_method_call_expr(*id, object, field, arguments, *location);
+                        self.generate_method_call_expr(
+                            *id,
+                            object,
+                            field,
+                            arguments,
+                            OpCode::Invoke,
+                            *location,
+                        );
                     }
                 } else {
-                    self.generate_call_expr(*id, callee, arguments, *location);
+                    self.generate_call_expr(*id, callee, arguments, OpCode::Call, *location);
                 }
             }
             Expr::GetField {
@@ -1935,16 +2002,7 @@ impl<'a> CodeGenerator<'a> {
                 else_expr,
                 location,
             } => {
-                self.generate_expr(condition);
-                let else_jump = self.emit_jump(OpCode::JumpIfFalse, *location);
-                self.emit_op_code(OpCode::Pop, *location);
-                self.generate_expr(then_expr);
-                let end_jump = self.emit_jump(OpCode::Jump, *location);
-
-                self.patch_jump(else_jump);
-                self.emit_op_code(OpCode::Pop, *location);
-                self.generate_expr(else_expr);
-                self.patch_jump(end_jump);
+                self.generate_conditional_expr(condition, then_expr, else_expr, false, *location);
             }
             Expr::Function {
                 body, id, location, ..
@@ -1957,16 +2015,36 @@ impl<'a> CodeGenerator<'a> {
                 else_branch,
                 location,
             } => {
-                self.generate_if_expr(condition, then_branch, else_branch, *location);
+                self.generate_if_expr(condition, then_branch, else_branch, false, *location);
             }
             Expr::Match {
                 scrutinee,
                 arms,
                 location,
             } => {
-                self.generate_match_expr(scrutinee, arms, *location);
+                self.generate_match_expr(scrutinee, arms, false, *location);
             }
         }
+    }
+
+    fn generate_conditional_expr(
+        &mut self,
+        condition: &Expr,
+        then_expr: &Expr,
+        else_expr: &Expr,
+        tail: bool,
+        location: SourceLocation,
+    ) {
+        self.generate_expr(condition);
+        let else_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        self.emit_op_code(OpCode::Pop, location);
+        self.generate_expr_in_tail(then_expr, tail);
+        let end_jump = self.emit_jump(OpCode::Jump, location);
+
+        self.patch_jump(else_jump);
+        self.emit_op_code(OpCode::Pop, location);
+        self.generate_expr_in_tail(else_expr, tail);
+        self.patch_jump(end_jump);
     }
 
     /// Compiles `if cond { ... } else ...` in expression position: a hidden
@@ -1985,6 +2063,7 @@ impl<'a> CodeGenerator<'a> {
         condition: &Expr,
         then_branch: &Stmt,
         else_branch: &IfExprElse,
+        tail: bool,
         location: SourceLocation,
     ) {
         self.current().scope_depth += 1;
@@ -1999,7 +2078,7 @@ impl<'a> CodeGenerator<'a> {
         // still unpopped, not at the height the then-branch leaves behind.
         let false_path_height = self.current().stack_height;
         self.emit_op_code(OpCode::Pop, location); // Pop condition if true
-        self.generate_if_expr_branch(then_branch, hidden_slot);
+        self.generate_if_expr_branch(then_branch, hidden_slot, tail);
         let else_jump = self.emit_jump(OpCode::Jump, location);
 
         self.patch_jump(then_jump);
@@ -2008,12 +2087,12 @@ impl<'a> CodeGenerator<'a> {
 
         match else_branch {
             IfExprElse::If(expr) => {
-                self.generate_expr(expr);
+                self.generate_expr_in_tail(expr, tail);
                 // StoreLocal pops the value, unlike SetLocal.
                 self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
             }
             IfExprElse::Block(stmt) => {
-                self.generate_if_expr_branch(stmt, hidden_slot);
+                self.generate_if_expr_branch(stmt, hidden_slot, tail);
             }
         }
         self.patch_jump(else_jump);
@@ -2026,7 +2105,7 @@ impl<'a> CodeGenerator<'a> {
     /// expression statement becomes the branch's value, stored into
     /// `hidden_slot`; any other kind of last statement (or an empty
     /// branch) leaves `nil`.
-    fn generate_if_expr_branch(&mut self, branch: &Stmt, hidden_slot: u32) {
+    fn generate_if_expr_branch(&mut self, branch: &Stmt, hidden_slot: u32, tail: bool) {
         let Stmt::Block {
             statements,
             location: branch_location,
@@ -2048,7 +2127,7 @@ impl<'a> CodeGenerator<'a> {
                     self.assert_stack_height();
                 }
                 if let Stmt::Expression { expr, .. } = last {
-                    self.generate_expr(expr);
+                    self.generate_expr_in_tail(expr, tail);
                 } else {
                     self.generate_stmt(last);
                     self.assert_stack_height();
@@ -2069,6 +2148,7 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         scrutinee: &Expr,
         arms: &[MatchArm],
+        tail: bool,
         location: SourceLocation,
     ) {
         self.current().scope_depth += 1;
@@ -2085,7 +2165,7 @@ impl<'a> CodeGenerator<'a> {
             let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
             let false_path_height = self.current().stack_height;
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
-            let guard_false = self.generate_match_arm_body(arm, hidden_slot);
+            let guard_false = self.generate_match_arm_body(arm, hidden_slot, tail);
             self.current().scope_depth -= 1;
             let captured = self.discard_locals_above_current_depth();
             self.emit_scope_exit(&captured, arm.location);
@@ -2136,7 +2216,12 @@ impl<'a> CodeGenerator<'a> {
     /// Runs the arm's guard and body inside the arm's binding scope.
     /// Returns the jump taken when the guard is false and the stack height
     /// it is taken at.
-    fn generate_match_arm_body(&mut self, arm: &MatchArm, hidden_slot: u32) -> Option<(u32, u32)> {
+    fn generate_match_arm_body(
+        &mut self,
+        arm: &MatchArm,
+        hidden_slot: u32,
+        tail: bool,
+    ) -> Option<(u32, u32)> {
         let guard_false = arm.guard.as_ref().map(|guard| {
             self.generate_expr(guard);
             let jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
@@ -2144,7 +2229,7 @@ impl<'a> CodeGenerator<'a> {
             self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if true
             (jump, guard_height)
         });
-        self.generate_match_arm_value(&arm.body, hidden_slot, arm.location);
+        self.generate_match_arm_value(&arm.body, hidden_slot, tail, arm.location);
         guard_false
     }
 
@@ -2154,15 +2239,16 @@ impl<'a> CodeGenerator<'a> {
         &mut self,
         body: &MatchArmBody,
         hidden_slot: u32,
+        tail: bool,
         location: SourceLocation,
     ) {
         match body {
             MatchArmBody::Expr(expr) => {
-                self.generate_expr(expr);
+                self.generate_expr_in_tail(expr, tail);
                 // StoreLocal pops the value, unlike SetLocal.
                 self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
             }
-            MatchArmBody::Block(stmt) => self.generate_if_expr_branch(stmt, hidden_slot),
+            MatchArmBody::Block(stmt) => self.generate_if_expr_branch(stmt, hidden_slot, tail),
         }
     }
 
@@ -2237,12 +2323,12 @@ impl<'a> CodeGenerator<'a> {
                 }
                 PathStep::Rest { before, after: 0 } => {
                     self.emit_constant(Value::Int(before as i64), location);
-                    self.emit_invoke("drop", 1, location);
+                    self.emit_invoke(OpCode::Invoke, "drop", 1, location);
                 }
                 PathStep::Rest { before, after } => {
                     self.emit_constant(Value::Int(before as i64), location);
                     self.emit_constant(Value::Int(-(after as i64)), location);
-                    self.emit_invoke("slice", 2, location);
+                    self.emit_invoke(OpCode::Invoke, "slice", 2, location);
                 }
                 PathStep::Field { variant, index } => {
                     let Some(access) = self.resolutions.enum_variant_access(variant) else {
@@ -2395,18 +2481,24 @@ impl<'a> CodeGenerator<'a> {
         self.emit_constant(callable, location);
     }
 
-    fn emit_call(&mut self, argc: u8, location: SourceLocation) {
-        self.emit_op_code(OpCode::Call, location);
+    fn emit_call(&mut self, call_op: OpCode, argc: u8, location: SourceLocation) {
+        self.emit_op_code(call_op, location);
         self.current_chunk().write_u8(argc);
         // Pops the callable and all argc arguments, pushes one result.
         self.adjust_stack_height(-(argc as i32));
     }
 
-    /// Emits `Invoke`: a method call dispatched by name at runtime. The
-    /// stack must already hold `[receiver, args...]`.
-    fn emit_invoke(&mut self, method_name: &str, argc: u8, location: SourceLocation) {
+    /// Emits `Invoke` or `TailInvoke`: a method call dispatched by name at
+    /// runtime. The stack must already hold `[receiver, args...]`.
+    fn emit_invoke(
+        &mut self,
+        op_code: OpCode,
+        method_name: &str,
+        argc: u8,
+        location: SourceLocation,
+    ) {
         let symbol = self.resolutions.symbol(method_name);
-        self.emit_op_code(OpCode::Invoke, location);
+        self.emit_op_code(op_code, location);
         self.current_chunk().write_u16(symbol);
         self.current_chunk().write_u8(argc);
         // Pops the receiver and all argc arguments, pushes one result.

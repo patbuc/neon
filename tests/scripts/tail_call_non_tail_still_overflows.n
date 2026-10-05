@@ -1,0 +1,14 @@
+// Expected:
+// before
+
+// Expected runtime error: Stack overflow
+
+fn depth(n) {
+    if n == 0 {
+        return 0
+    }
+    return 1 + depth(n - 1)
+}
+
+print("before")
+depth(1500000)

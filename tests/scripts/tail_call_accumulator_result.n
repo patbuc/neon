@@ -1,0 +1,11 @@
+// Expected:
+// 1125000750000
+
+fn sum(n, acc) {
+    if n == 0 {
+        return acc
+    }
+    return sum(n - 1, acc + n)
+}
+
+print(sum(1500000, 0))
