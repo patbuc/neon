@@ -1,0 +1,6 @@
+// Expected:
+// é
+// c
+
+print("héllo"[1])
+print("abc"[-1])

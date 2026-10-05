@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot assign to an index of a string: strings are immutable.
+
+print("before")
+"abc"[0] = "x"

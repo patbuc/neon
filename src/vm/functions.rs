@@ -1583,8 +1583,35 @@ impl VirtualMachine {
                 self.push(Value::Int(range.get(actual_index)));
                 Ok(())
             }
+            Value::String(s) => {
+                let index = match index_value {
+                    Value::Number(n) => n as i64,
+                    Value::Int(i) => i,
+                    _ => {
+                        return Err(self.runtime_error(format!(
+                            "String index must be a number, got {}.",
+                            index_value
+                        )));
+                    }
+                };
+
+                let chars: Vec<char> = s.chars().collect();
+                let len = chars.len() as i64;
+
+                let actual_index = if index < 0 { len + index } else { index };
+
+                if actual_index < 0 || actual_index >= len {
+                    return Err(self.runtime_error(format!(
+                        "String index out of bounds: index {} (normalized: {}) on string of length {}.",
+                        index, actual_index, len
+                    )));
+                }
+
+                self.push(string!(chars[actual_index as usize].to_string()));
+                Ok(())
+            }
             _ => Err(self.runtime_error(format!(
-                "Only arrays, maps, and ranges support index access, got {}.",
+                "Only arrays, maps, ranges, and strings support index access, got {}.",
                 collection_value
             ))),
         }
@@ -1638,6 +1665,9 @@ impl VirtualMachine {
             }
             Value::Range(_) => Err(self.runtime_error(
                 "Cannot assign to an index of a range: ranges are immutable.".to_string(),
+            )),
+            Value::String(_) => Err(self.runtime_error(
+                "Cannot assign to an index of a string: strings are immutable.".to_string(),
             )),
             _ => Err(self.runtime_error(format!(
                 "Only arrays and maps support index assignment, got {}.",
