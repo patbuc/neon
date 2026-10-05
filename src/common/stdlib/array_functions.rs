@@ -528,7 +528,13 @@ pub fn native_array_flat_map(
         let mapped = vm.call_value(callback.clone(), &[element])?;
         match mapped {
             Value::Array(mapped_ref) => flattened.extend(mapped_ref.borrow().iter().cloned()),
-            other => return Err(flat_map_type_error(&other)),
+            other => {
+                return Err(format!(
+                    "flatMap() callback must return an array, got {}",
+                    type_name_for_error(&other)
+                )
+                .into())
+            }
         }
     }
 
@@ -537,7 +543,6 @@ pub fn native_array_flat_map(
 
 /// Renders a value's type the way Neon spells it elsewhere (`Int`,
 /// `String`, ...) rather than `type_name()`'s lowercase runtime label.
-/// Shared by flatMap's and zip's type-mismatch errors.
 fn type_name_for_error(value: &Value) -> String {
     if matches!(value, Value::Int(_)) {
         "Int".to_string()
@@ -545,15 +550,6 @@ fn type_name_for_error(value: &Value) -> String {
         let lower = value.type_name();
         lower[..1].to_uppercase() + &lower[1..]
     }
-}
-
-/// Builds the "flatMap() callback must return an array" error.
-fn flat_map_type_error(value: &Value) -> NativeCallError {
-    format!(
-        "flatMap() callback must return an array, got {}",
-        type_name_for_error(value)
-    )
-    .into()
 }
 
 /// Native implementation of Array.filter(fn)
@@ -752,7 +748,7 @@ pub fn native_array_take(args: &[Value]) -> Result<Value, String> {
     }
 
     let array = array_ref.borrow();
-    let end = (n as usize).min(array.len());
+    let end = usize::try_from(n).unwrap_or(usize::MAX).min(array.len());
     Ok(Value::new_array(array[..end].to_vec()))
 }
 
@@ -774,7 +770,7 @@ pub fn native_array_drop(args: &[Value]) -> Result<Value, String> {
     }
 
     let array = array_ref.borrow();
-    let start = (n as usize).min(array.len());
+    let start = usize::try_from(n).unwrap_or(usize::MAX).min(array.len());
     Ok(Value::new_array(array[start..].to_vec()))
 }
 
@@ -827,7 +823,7 @@ pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
 
     let array = array_ref.borrow();
     let chunks: Vec<Value> = array
-        .chunks(n as usize)
+        .chunks(usize::try_from(n).unwrap_or(usize::MAX))
         .map(|chunk| Value::new_array(chunk.to_vec()))
         .collect();
     Ok(Value::new_array(chunks))
@@ -839,10 +835,7 @@ pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
 fn elements_of(value: &Value, limit: usize) -> Option<Vec<Value>> {
     match value {
         Value::Array(arr) => Some(arr.borrow().clone()),
-        Value::Range(range) => {
-            let end = limit.min(usize::try_from(range.len()).unwrap_or(usize::MAX));
-            Some((0..end).map(|i| Value::Int(range.get(i as i64))).collect())
-        }
+        Value::Range(range) => Some(range.elements_upto(limit)),
         _ => None,
     }
 }

@@ -1,20 +1,15 @@
 use crate::common::stdlib::array_functions;
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
-use crate::common::{f64_fits_i64, NativeCallError, ObjRange, Value};
+use crate::common::{f64_fits_i64, NativeCallError, Value};
 use crate::extract_receiver;
-
-/// The range's elements as `Int` values, in order.
-fn elements(range: &ObjRange) -> Vec<Value> {
-    (0..range.len()).map(|i| Value::Int(range.get(i))).collect()
-}
 
 /// Rebuilds `args` as `[array, rest...]`, so a materializing method can
 /// delegate to the existing Array implementation instead of duplicating it.
 fn materialize(args: &[Value], method: &str) -> Result<Vec<Value>, String> {
     let range = extract_receiver!(args, Range, method)?;
     let mut new_args = Vec::with_capacity(args.len());
-    new_args.push(Value::new_array(elements(range)));
+    new_args.push(Value::new_array(range.elements_upto(usize::MAX)));
     new_args.extend_from_slice(&args[1..]);
     Ok(new_args)
 }
@@ -78,7 +73,7 @@ pub fn native_range_to_array(args: &[Value]) -> Result<Value, String> {
     }
 
     let range = extract_receiver!(args, Range, "toArray")?;
-    Ok(Value::new_array(elements(range)))
+    Ok(Value::new_array(range.elements_upto(usize::MAX)))
 }
 
 /// Native implementation of Range.step(k)
@@ -185,11 +180,8 @@ pub fn native_range_take(args: &[Value]) -> Result<Value, String> {
         return Err(format!("take() n must be non-negative, got {}", n));
     }
 
-    let len = usize::try_from(n)
-        .unwrap_or(usize::MAX)
-        .min(usize::try_from(range.len()).unwrap_or(usize::MAX));
-    let values = (0..len).map(|i| Value::Int(range.get(i as i64))).collect();
-    Ok(Value::new_array(values))
+    let len = usize::try_from(n).unwrap_or(usize::MAX);
+    Ok(Value::new_array(range.elements_upto(len)))
 }
 
 /// Native implementation of Range.drop(n)

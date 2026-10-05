@@ -453,6 +453,15 @@ impl ObjRange {
     pub(crate) fn get(&self, i: i64) -> i64 {
         self.start + i
     }
+
+    /// The range's elements as `Int` values, in order, up to `limit` of
+    /// them. Shared by callers that materialize a whole range (`limit` set
+    /// to its length) and ones that only need as many elements as some
+    /// other collection has, so a huge range isn't materialized needlessly.
+    pub(crate) fn elements_upto(&self, limit: usize) -> Vec<Value> {
+        let end = limit.min(usize::try_from(self.len()).unwrap_or(usize::MAX));
+        (0..end).map(|i| Value::Int(self.get(i as i64))).collect()
+    }
 }
 
 #[derive(Debug, Clone)]

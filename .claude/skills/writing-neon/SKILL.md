@@ -138,7 +138,7 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`
 - **Range:** `size`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`, `forEach`, `flatMap`,
-  `take(n)`, `drop(n)`, `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`
+  `take`, `drop`, `first`, `last`, `chunked`, `zip`, `withIndex`
 - **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
