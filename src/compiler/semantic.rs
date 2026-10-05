@@ -2222,9 +2222,27 @@ fn owns_it(params: &[String], implicit_it: bool) -> bool {
 
 /// Whether a trailing block's own body - not a nested block's or function's,
 /// each of which binds its own `it` if it owns the name - mentions `it` as
-/// a free variable.
+/// a free variable. A statement that declares `it` itself (`val`/`var`,
+/// `fn it`, `for it in ...`) shadows any outer `it` from that point on, so
+/// statements after it in the same scope are not scanned.
 fn block_references_it(body: &[Stmt]) -> bool {
-    body.iter().any(stmt_references_it)
+    for stmt in body {
+        if stmt_references_it(stmt) {
+            return true;
+        }
+        if stmt_declares_it(stmt) {
+            return false;
+        }
+    }
+    false
+}
+
+fn stmt_declares_it(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Val { name, .. } | Stmt::Var { name, .. } | Stmt::Fn { name, .. } => name == "it",
+        Stmt::ForIn { variable, .. } => variable == "it",
+        _ => false,
+    }
 }
 
 fn stmt_references_it(stmt: &Stmt) -> bool {
@@ -2232,15 +2250,13 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
         Stmt::Val { initializer, .. } | Stmt::Var { initializer, .. } => {
             initializer.as_ref().is_some_and(expr_references_it)
         }
-        Stmt::Fn { params, body, .. } => {
-            !owns_it(params, false) && body.iter().any(stmt_references_it)
-        }
+        Stmt::Fn { params, body, .. } => !owns_it(params, false) && block_references_it(body),
         Stmt::Struct { .. } | Stmt::Enum { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
             false
         }
         Stmt::Impl { methods, .. } => methods.iter().any(stmt_references_it),
         Stmt::Expression { expr, .. } => expr_references_it(expr),
-        Stmt::Block { statements, .. } => statements.iter().any(stmt_references_it),
+        Stmt::Block { statements, .. } => block_references_it(statements),
         Stmt::If {
             condition,
             then_branch,
@@ -2256,8 +2272,11 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
         } => expr_references_it(condition) || stmt_references_it(body),
         Stmt::Return { value, .. } => value.as_ref().is_some_and(expr_references_it),
         Stmt::ForIn {
-            collection, body, ..
-        } => expr_references_it(collection) || stmt_references_it(body),
+            variable,
+            collection,
+            body,
+            ..
+        } => expr_references_it(collection) || (variable != "it" && stmt_references_it(body)),
     }
 }
 
@@ -2325,7 +2344,7 @@ fn expr_references_it(expr: &Expr) -> bool {
             body,
             implicit_it,
             ..
-        } => !owns_it(params, *implicit_it) && body.iter().any(stmt_references_it),
+        } => !owns_it(params, *implicit_it) && block_references_it(body),
         Expr::If {
             condition,
             then_branch,

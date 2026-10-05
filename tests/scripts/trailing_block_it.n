@@ -7,6 +7,9 @@
 // [[10, 20], [30]]
 // [101, 102, 103]
 // [6]
+// 3
+// 1
+// 2
 
 print([1, 2, 3].map {
     it * 2
@@ -35,3 +38,15 @@ val it = 5
 print([1].map { x ->
     x + it
 })
+
+fn call(f) = f()
+
+print(call {
+    val it = 3
+    it
+})
+call {
+    for it in [1, 2] {
+        print(it)
+    }
+}
