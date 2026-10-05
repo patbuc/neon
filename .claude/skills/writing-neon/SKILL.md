@@ -88,6 +88,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - Only `nil` and `false` are falsy; `0` and `""` are truthy. `&&`/`||`
   return an operand, not a boolean.
 - `==` compares arrays by value.
+- `a ?? b` yields `a` unless `a` is nil, else `b`; only `nil` triggers the fallback
+  (`false ?? x` is `false`). Precedence is between the ternary and `||`:
+  `a ?? b || c` is `a ?? (b || c)`, `c ? a ?? b : d` is `c ? (a ?? b) : d`.
+- `a?.f` / `a?.m(args)` is nil if `a` is nil (call args aren't evaluated), else the field or
+  method call. Not assignable.
 
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.

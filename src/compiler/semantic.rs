@@ -717,11 +717,7 @@ impl SemanticAnalyzer {
                         // Bitwise operations return Number
                         Some(StaticType::Number)
                     }
-                    BinaryOp::NilCoalesce => {
-                        // Yields either operand, so the type isn't known
-                        // without knowing which branch runs.
-                        None
-                    }
+                    BinaryOp::NilCoalesce => None,
                 }
             }
 
