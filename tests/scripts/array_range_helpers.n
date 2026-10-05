@@ -1,0 +1,59 @@
+// Expected:
+// 1
+// 2
+// 3
+// 4
+// 5
+// nil
+// [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+// [1, 2]
+// [3, 4, 5]
+// 1
+// 5
+// [[1, 2], [3, 4], [5]]
+// [[1, a], [2, b]]
+// [[0, 1], [1, 2], [2, 3]]
+// 1
+// 2
+// 3
+// 4
+// 5
+// nil
+// [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+// [1, 2]
+// [3, 4, 5]
+// 1
+// 5
+// [[1, 2], [3, 4], [5]]
+// [[1, 10], [2, 20]]
+// [[0, 1], [1, 2], [2, 3]]
+
+val arr = [1, 2, 3, 4, 5]
+print(arr.forEach(fn(x) {
+    print(x)
+}))
+print(arr.flatMap(fn(x) {
+    return [x, x]
+}))
+print(arr.take(2))
+print(arr.drop(2))
+print(arr.first())
+print(arr.last())
+print(arr.chunked(2))
+print(arr.zip(["a", "b"]))
+print(arr.withIndex().take(3))
+
+val rng = 1..=5
+print(rng.forEach(fn(x) {
+    print(x)
+}))
+print(rng.flatMap(fn(x) {
+    return [x, x]
+}))
+print(rng.take(2))
+print(rng.drop(2))
+print(rng.first())
+print(rng.last())
+print(rng.chunked(2))
+print(rng.zip([10, 20]))
+print(rng.withIndex().take(3))

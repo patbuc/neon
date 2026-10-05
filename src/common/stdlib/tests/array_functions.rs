@@ -1332,3 +1332,49 @@ fn test_array_chunked_zero_errors() {
         errors
     );
 }
+
+// ============================================================================
+// Array.zip() / Array.withIndex()
+// ============================================================================
+
+#[test]
+fn test_array_zip() {
+    let program = r#"
+        print([1, 2, 3].zip(["a", "b"]))
+        print((1..3).zip(1..3))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, a], [2, b]]\n[[1, 1], [2, 2]]", vm.get_output());
+}
+
+#[test]
+fn test_array_zip_other_wrong_type_errors() {
+    let program = r#"
+        [1, 2, 3].zip(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("zip() other must be an array or range, got Int"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_array_with_index() {
+    let program = r#"
+        print(["a", "b"].withIndex())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[0, a], [1, b]]", vm.get_output());
+}

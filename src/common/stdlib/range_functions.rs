@@ -193,6 +193,16 @@ pub fn native_range_chunked(args: &[Value]) -> Result<Value, String> {
     array_functions::native_array_chunked(&materialize(args, "chunked")?)
 }
 
+/// Native implementation of Range.zip(other)
+pub fn native_range_zip(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_zip(&materialize(args, "zip")?)
+}
+
+/// Native implementation of Range.withIndex()
+pub fn native_range_with_index(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_with_index(&materialize(args, "withIndex")?)
+}
+
 /// Native implementation of Range.reduce(fn, initial)
 pub fn native_range_reduce(
     vm: &mut dyn NativeContext,

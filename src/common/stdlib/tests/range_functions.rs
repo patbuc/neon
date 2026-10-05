@@ -378,3 +378,49 @@ fn test_range_chunked_zero_errors() {
         errors
     );
 }
+
+// ============================================================================
+// Range.zip() / Range.withIndex()
+// ============================================================================
+
+#[test]
+fn test_range_zip() {
+    let program = r#"
+        print((1..3).zip(1..3))
+        print((1..=2).zip(["a", "b"]))
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[1, 1], [2, 2]]\n[[1, a], [2, b]]", vm.get_output());
+}
+
+#[test]
+fn test_range_zip_other_wrong_type_errors() {
+    let program = r#"
+        (1..3).zip(5)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    let errors = vm.get_runtime_errors();
+    assert!(
+        errors.contains("zip() other must be an array or range, got Int"),
+        "{}",
+        errors
+    );
+}
+
+#[test]
+fn test_range_with_index() {
+    let program = r#"
+        print((1..=2).withIndex())
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(InterpretResult::Ok, vm.interpret(program.to_string()));
+    assert_eq!("[[0, 1], [1, 2]]", vm.get_output());
+}

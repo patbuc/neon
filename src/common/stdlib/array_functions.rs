@@ -535,17 +535,25 @@ pub fn native_array_flat_map(
     Ok(Value::new_array(flattened))
 }
 
-/// Builds the "flatMap() callback must return an array" error, naming the
-/// value's type the way Neon spells it elsewhere (`Int`, `String`, ...)
-/// rather than `type_name()`'s lowercase runtime label.
-fn flat_map_type_error(value: &Value) -> NativeCallError {
-    let name = if matches!(value, Value::Int(_)) {
+/// Renders a value's type the way Neon spells it elsewhere (`Int`,
+/// `String`, ...) rather than `type_name()`'s lowercase runtime label.
+/// Shared by flatMap's and zip's type-mismatch errors.
+fn type_name_for_error(value: &Value) -> String {
+    if matches!(value, Value::Int(_)) {
         "Int".to_string()
     } else {
         let lower = value.type_name();
         lower[..1].to_uppercase() + &lower[1..]
-    };
-    format!("flatMap() callback must return an array, got {}", name).into()
+    }
+}
+
+/// Builds the "flatMap() callback must return an array" error.
+fn flat_map_type_error(value: &Value) -> NativeCallError {
+    format!(
+        "flatMap() callback must return an array, got {}",
+        type_name_for_error(value)
+    )
+    .into()
 }
 
 /// Native implementation of Array.filter(fn)
@@ -823,6 +831,64 @@ pub fn native_array_chunked(args: &[Value]) -> Result<Value, String> {
         .map(|chunk| Value::new_array(chunk.to_vec()))
         .collect();
     Ok(Value::new_array(chunks))
+}
+
+/// The elements of an array or range value, for methods that accept either.
+fn elements_of(value: &Value) -> Option<Vec<Value>> {
+    match value {
+        Value::Array(arr) => Some(arr.borrow().clone()),
+        Value::Range(range) => Some((0..range.len()).map(|i| Value::Int(range.get(i))).collect()),
+        _ => None,
+    }
+}
+
+/// Native implementation of Array.zip(other)
+/// Pairs each element with the element at the same position in other (an
+/// array or range), stopping at the shorter length.
+pub fn native_array_zip(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "zip() expects 1 argument (other), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "zip")?;
+    let other = elements_of(&args[1]).ok_or_else(|| {
+        format!(
+            "zip() other must be an array or range, got {}",
+            type_name_for_error(&args[1])
+        )
+    })?;
+
+    let array = array_ref.borrow();
+    let len = array.len().min(other.len());
+    let pairs = array[..len]
+        .iter()
+        .zip(other[..len].iter())
+        .map(|(a, b)| Value::new_array(vec![a.clone(), b.clone()]))
+        .collect();
+    Ok(Value::new_array(pairs))
+}
+
+/// Native implementation of Array.withIndex()
+/// Returns `[[0, element0], [1, element1], ...]`.
+pub fn native_array_with_index(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "withIndex() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "withIndex")?;
+    let array = array_ref.borrow();
+    let pairs = array
+        .iter()
+        .enumerate()
+        .map(|(i, element)| Value::new_array(vec![Value::Int(i as i64), element.clone()]))
+        .collect();
+    Ok(Value::new_array(pairs))
 }
 
 const MAX_ARRAY_LEN: usize = 100_000_000;

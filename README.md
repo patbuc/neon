@@ -842,6 +842,9 @@ for ch in "abc" {
 - `.first()` / `.last()` - First / last element, or `nil` if the array is empty
 - `.chunked(n)` - New array of arrays of `n` elements each; the last chunk may be shorter; `n` must
   be an integer >= 1
+- `.zip(other)` - New array pairing each element with the element at the same position in `other`
+  (an array or range), stopping at the shorter length
+- `.withIndex()` - New array of `[index, element]` pairs
 - `Array(n, init)` - New array of `n` elements. If `init` is a closure or function, it's called with
   each index from `0` to `n - 1` and its result becomes that element; otherwise `init` is stored (the
   same reference, for a heap value) in every element. `n` must be a non-negative integer
@@ -887,7 +890,7 @@ comparator must return a number.
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
-- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)` - Same as the Array methods, applied to the range's elements
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(fn, initial)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
 

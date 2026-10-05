@@ -440,6 +440,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::Array),
         },
     ),
+    (
+        "Array",
+        "zip",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_zip,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "withIndex",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_with_index,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
     // Array constructor
     (
         "Array",
@@ -636,6 +654,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::InstanceMethod {
             function: stdlib::range_functions::native_range_chunked,
             arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "zip",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_zip,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "withIndex",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_with_index,
+            arity: 0,
             returns: Some(StaticType::Array),
         },
     ),
