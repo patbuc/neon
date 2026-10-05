@@ -122,6 +122,14 @@ impl MapKey {
     /// rejected rather than recursing forever.
     #[inline]
     pub fn from_value(value: &Value, kind: &str) -> Result<MapKey, String> {
+        MapKey::from_value_with_seen(value, kind, &mut Vec::new())
+    }
+
+    fn from_value_with_seen(
+        value: &Value,
+        kind: &str,
+        seen: &mut Vec<*const ()>,
+    ) -> Result<MapKey, String> {
         match value {
             Value::String(s) => Ok(MapKey::String(Rc::clone(s))),
             Value::Int(i) => Ok(MapKey::Int(*i)),
@@ -140,7 +148,7 @@ impl MapKey {
                 let fields = variant
                     .fields
                     .iter()
-                    .map(|field| MapKey::from_value(field, kind))
+                    .map(|field| MapKey::from_value_with_seen(field, kind, seen))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(MapKey::PayloadVariant(Rc::new(EnumKey {
                     enum_name: variant.enum_name.clone(),
@@ -150,7 +158,7 @@ impl MapKey {
                     fields,
                 })))
             }
-            Value::Array(array) => from_value_array(array, kind, &mut Vec::new()),
+            Value::Array(array) => from_value_array(array, kind, seen),
             other => Err(invalid_key_message(kind, other)),
         }
     }
@@ -205,11 +213,7 @@ fn from_value_array(
     let elements = array.borrow();
     let mut keys = Vec::with_capacity(elements.len());
     for element in elements.iter() {
-        let key = match element {
-            Value::Array(inner) => from_value_array(inner, kind, seen)?,
-            other => MapKey::from_value(other, kind)?,
-        };
-        keys.push(key);
+        keys.push(MapKey::from_value_with_seen(element, kind, seen)?);
     }
     seen.pop();
     Ok(MapKey::Array(Rc::new(keys)))
@@ -945,7 +949,15 @@ impl Value {
             (Value::Closure(a), Value::Closure(b)) => Rc::ptr_eq(a, b),
             (Value::NativeFunction(a), Value::NativeFunction(b)) => a == b,
             (Value::Struct(a), Value::Struct(b)) => a == b,
-            (Value::EnumVariant(a), Value::EnumVariant(b)) => a == b,
+            (Value::EnumVariant(a), Value::EnumVariant(b)) => {
+                a.enum_name == b.enum_name
+                    && a.ordinal == b.ordinal
+                    && a.fields.len() == b.fields.len()
+                    && a.fields
+                        .iter()
+                        .zip(b.fields.iter())
+                        .all(|(x, y)| x.eq_with_seen(y, seen))
+            }
             (Value::Instance(a), Value::Instance(b)) => guarded_eq(a, b, seen, |seen| {
                 let ia = a.borrow();
                 let ib = b.borrow();
