@@ -4384,3 +4384,39 @@ fn test_if_expression_without_else_is_a_compile_error() {
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].message, "if expression requires else");
 }
+
+#[test]
+fn test_trailing_block_not_allowed_in_if_condition() {
+    let mut parser = Parser::new("if [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_while_condition() {
+    let mut parser = Parser::new("while [1, 2].filter { it > 1 } {\n  val x = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}
+
+#[test]
+fn test_trailing_block_not_allowed_in_for_in_collection() {
+    let mut parser = Parser::new("for x in [1, 2].map { it } {\n  val y = 1\n}\n");
+    let result = parser.parse();
+    assert!(result.is_err());
+    let errors = result.unwrap_err();
+    assert_eq!(
+        errors[0].message,
+        "Trailing block is not allowed in a condition; wrap the call in parentheses"
+    );
+}

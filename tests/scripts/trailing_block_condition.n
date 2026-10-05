@@ -1,0 +1,21 @@
+// Expected:
+// if
+// while
+// for
+
+if ([1, 2].filter { it > 1 }.isEmpty()) {
+    print("empty")
+} else {
+    print("if")
+}
+
+var i = 0
+while ([1, 2].filter { it > 1 }.isEmpty()) {
+    i = i + 1
+}
+print("while")
+
+for x in ([1, 2].map { it }) {
+    print("for")
+    break
+}

@@ -96,6 +96,12 @@ impl Scanner {
         self.interpolations.len()
     }
 
+    /// The unconsumed source text from the current scan position, for a
+    /// throwaway lookahead `Scanner` that doesn't disturb this one.
+    pub(in crate::compiler) fn remainder(&self) -> String {
+        self.source[self.current..].iter().collect()
+    }
+
     pub(in crate::compiler) fn trivia(&self) -> &Trivia {
         &self.trivia
     }

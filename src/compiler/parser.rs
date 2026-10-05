@@ -139,6 +139,46 @@ impl Parser {
         result
     }
 
+    /// After a condition/collection parsed with `without_trailing_block`,
+    /// checks whether the `{` it stopped in front of was meant as a
+    /// trailing-block lambda rather than the statement's own body: true if
+    /// the current token is `{` and, scanning ahead to its matching `}`,
+    /// that closing brace is immediately followed on the same line by `{`
+    /// or `.` (another trailing block, or a method call on its result).
+    /// Reports the error at that `{` and returns whether it did.
+    fn reject_trailing_block_in_condition(&mut self) -> bool {
+        if !self.check(TokenType::LeftBrace) {
+            return false;
+        }
+        let mut lookahead = Scanner::new(&self.scanner.remainder());
+        let mut depth = 1;
+        let is_trailing_block = loop {
+            let token = lookahead.scan_token();
+            match token.token_type {
+                TokenType::LeftBrace => depth += 1,
+                TokenType::RightBrace => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let next = lookahead.scan_token();
+                        break next.line == token.line
+                            && matches!(next.token_type, TokenType::LeftBrace | TokenType::Dot);
+                    }
+                }
+                TokenType::Eof => break false,
+                _ => {}
+            }
+        };
+        if !is_trailing_block {
+            return false;
+        }
+        self.report_error_at_current(
+            CompilationErrorKind::ExpectedToken,
+            "Trailing block is not allowed in a condition; wrap the call in parentheses"
+                .to_string(),
+        );
+        true
+    }
+
     fn next_id(&mut self) -> NodeId {
         let id = NodeId(self.next_node_id);
         self.next_node_id += 1;
@@ -874,6 +914,9 @@ impl Parser {
     /// Requires the next token to start a `{ ... }` block, as the body of an
     /// `if`, `while`, or `for ... in`.
     fn require_block_body(&mut self) -> Option<Stmt> {
+        if self.reject_trailing_block_in_condition() {
+            return None;
+        }
         if !self.require_left_brace() {
             return None;
         }
@@ -1670,6 +1713,9 @@ impl Parser {
         let location = self.current_location();
 
         let condition = self.without_trailing_block(|parser| parser.expression(false))?;
+        if self.reject_trailing_block_in_condition() {
+            return None;
+        }
         let then_branch = Box::new(self.if_expr_block()?);
 
         if !self.consume(TokenType::Else, "if expression requires else") {

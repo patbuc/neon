@@ -606,13 +606,54 @@ impl<'a> Printer<'a> {
                 location,
             } => {
                 let close_line = self.map.line(self.map.at(location));
-                if self.has_comment_before(close_line) {
+                if self.has_comment_before(close_line) || self.has_top_level_trailing_block(inner) {
                     self.print_expr(expr);
                 } else {
                     self.print_condition(inner);
                 }
             }
             _ => self.print_expr(expr),
+        }
+    }
+
+    /// Whether `expr` contains a trailing-block call reachable without
+    /// crossing its own `(...)` or `[...]` — stripping the condition's
+    /// grouping parens around such an expression would leave the trailing
+    /// block's `}` directly against the condition's own `{`, or against a
+    /// following `.`, which the parser then rejects as ambiguous.
+    fn has_top_level_trailing_block(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                let is_trailing_block = matches!(
+                    arguments.last(),
+                    Some(Expr::Function { location, .. }) if self.map.is_block_lambda(location)
+                );
+                is_trailing_block || self.has_top_level_trailing_block(callee)
+            }
+            Expr::GetField { object, .. } | Expr::SetField { object, .. } => {
+                self.has_top_level_trailing_block(object)
+            }
+            Expr::Index { object, .. } => self.has_top_level_trailing_block(object),
+            Expr::Binary { left, right, .. } => {
+                self.has_top_level_trailing_block(left) || self.has_top_level_trailing_block(right)
+            }
+            Expr::Unary { operand, .. } => self.has_top_level_trailing_block(operand),
+            Expr::Range { start, end, .. } => {
+                self.has_top_level_trailing_block(start) || self.has_top_level_trailing_block(end)
+            }
+            Expr::Conditional {
+                condition,
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                self.has_top_level_trailing_block(condition)
+                    || self.has_top_level_trailing_block(then_expr)
+                    || self.has_top_level_trailing_block(else_expr)
+            }
+            _ => false,
         }
     }
 
