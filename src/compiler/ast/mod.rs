@@ -257,7 +257,7 @@ pub enum MatchPattern {
     /// A literal, negative-number, or (later) enum-variant expression,
     /// matched with `==`; an `Expr::Range` is matched by containment.
     Expr(Expr),
-    Wildcard,
+    Wildcard(SourceLocation),
 }
 
 /// The body of a match arm: `-> expr` or `-> { ... }`.

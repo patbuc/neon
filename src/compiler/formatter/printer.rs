@@ -1061,7 +1061,7 @@ impl<'a> Printer<'a> {
             }
             match pattern {
                 MatchPattern::Expr(expr) => self.print_expr(expr),
-                MatchPattern::Wildcard => self.write("_"),
+                MatchPattern::Wildcard(_) => self.write("_"),
             }
         }
         self.write(" -> ");

@@ -4379,3 +4379,19 @@ fn test_match_duplicate_enum_variant_points_at_pattern_start() {
         .unwrap_or_else(|| panic!("expected an unreachable pattern error, got {:#?}", errors));
     assert_eq!((error.location.line, error.location.column), (6, 5));
 }
+
+#[test]
+fn test_match_arm_after_wildcard_is_unreachable() {
+    assert_match_error(
+        "val r = match 3 {\n    _ -> \"w\"\n    3 -> \"dead\"\n}\n",
+        "unreachable pattern",
+    );
+}
+
+#[test]
+fn test_match_second_wildcard_is_unreachable() {
+    assert_match_error(
+        "val r = match 3 {\n    _ -> \"a\"\n    _ -> \"b\"\n}\n",
+        "unreachable pattern",
+    );
+}

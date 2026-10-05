@@ -2146,7 +2146,7 @@ impl SemanticAnalyzer {
         for arm in arms {
             for pattern in &arm.patterns {
                 match pattern {
-                    MatchPattern::Wildcard => has_wildcard = true,
+                    MatchPattern::Wildcard(_) => has_wildcard = true,
                     MatchPattern::Expr(expr) => match self.match_pattern_enum_variant(expr) {
                         Some(access) if access.enum_name == enum_name => {
                             if !covered.contains(&access.variant_name.to_string()) {
@@ -2249,29 +2249,32 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// A pattern that repeats an earlier pattern in the same match - across
-    /// arms or within one arm's comma-separated list - can never be
-    /// reached, since an earlier arm (or an earlier pattern in the same
-    /// arm) already matches it first.
+    /// Reports a pattern that repeats an earlier one or follows a `_`.
     fn check_match_unreachable_patterns(&mut self, arms: &[MatchArm]) {
         let mut seen: Vec<MatchPatternKey> = Vec::new();
+        let mut seen_wildcard = false;
         for arm in arms {
             for pattern in &arm.patterns {
-                let MatchPattern::Expr(expr) = pattern else {
-                    continue;
+                let (key, location) = match pattern {
+                    MatchPattern::Wildcard(location) => (None, *location),
+                    MatchPattern::Expr(expr) => (
+                        self.match_pattern_key(expr),
+                        Self::match_pattern_location(expr),
+                    ),
                 };
-                let Some(key) = self.match_pattern_key(expr) else {
-                    continue;
-                };
-                if seen.contains(&key) {
+                let duplicate = key.as_ref().is_some_and(|key| seen.contains(key));
+                if seen_wildcard || duplicate {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::UnreachablePattern,
                         "unreachable pattern".to_string(),
-                        Self::match_pattern_location(expr),
+                        location,
                     ));
-                } else {
+                } else if let Some(key) = key {
                     seen.push(key);
+                }
+                if matches!(pattern, MatchPattern::Wildcard(_)) {
+                    seen_wildcard = true;
                 }
             }
         }
@@ -2746,7 +2749,7 @@ fn expr_references_it(expr: &Expr) -> bool {
                 || arms.iter().any(|arm| {
                     arm.patterns.iter().any(|pattern| match pattern {
                         MatchPattern::Expr(expr) => expr_references_it(expr),
-                        MatchPattern::Wildcard => false,
+                        MatchPattern::Wildcard(_) => false,
                     }) || match &arm.body {
                         MatchArmBody::Expr(expr) => expr_references_it(expr),
                         MatchArmBody::Block(stmt) => stmt_references_it(stmt),

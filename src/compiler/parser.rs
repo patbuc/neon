@@ -1968,8 +1968,9 @@ impl Parser {
     /// number, a range, or - later - an enum variant).
     fn match_pattern(&mut self) -> Option<MatchPattern> {
         if self.check(TokenType::Identifier) && self.current_token.token == "_" {
+            let location = self.current_token_location();
             self.advance();
-            return Some(MatchPattern::Wildcard);
+            return Some(MatchPattern::Wildcard(location));
         }
         Some(MatchPattern::Expr(self.expression(false)?))
     }

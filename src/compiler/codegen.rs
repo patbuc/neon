@@ -2106,7 +2106,7 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         match pattern {
-            MatchPattern::Wildcard => self.emit_op_code(OpCode::True, location),
+            MatchPattern::Wildcard(_) => self.emit_op_code(OpCode::True, location),
             MatchPattern::Expr(Expr::Range {
                 start,
                 end,
