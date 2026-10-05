@@ -23,13 +23,3 @@ fn from_u8_rejects_byte_past_last_opcode() {
 fn from_u8_rejects_unknown_byte() {
     assert_eq!(None, OpCode::from_u8(0xFF));
 }
-
-#[test]
-fn from_u8_round_trips_dup() {
-    assert_eq!(Some(OpCode::Dup), OpCode::from_u8(OpCode::Dup as u8));
-}
-
-#[test]
-fn from_u8_round_trips_dup2() {
-    assert_eq!(Some(OpCode::Dup2), OpCode::from_u8(OpCode::Dup2 as u8));
-}

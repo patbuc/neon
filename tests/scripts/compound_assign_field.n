@@ -6,6 +6,8 @@
 // 81
 // 6
 // 42
+// 1
+// 6
 
 struct Box {
     f
@@ -51,3 +53,18 @@ print(n.inner.f)
 
 val n2 = Nested(Box(40))
 print(n2.inner.f += 2)
+
+struct Counter {
+    n
+}
+
+var c = 0
+fn get(o) {
+    c += 1
+    return o
+}
+
+val obj = Counter(5)
+get(obj).n += 1
+print(c)
+print(obj.n)
