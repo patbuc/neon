@@ -335,6 +335,22 @@ impl<'a> Printer<'a> {
         self.nested(0, |printer| printer.print_stmt_body(stmt));
     }
 
+    fn write_pattern(&mut self, pattern: &Pattern) {
+        match pattern {
+            Pattern::Name(binding) => self.write(&binding.name),
+            Pattern::Tuple(slots) => {
+                self.write("(");
+                for (i, slot) in slots.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
+                }
+                self.write(")");
+            }
+        }
+    }
+
     fn print_stmt_body(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
@@ -348,22 +364,8 @@ impl<'a> Printer<'a> {
                 location,
             } => {
                 let is_val = matches!(stmt, Stmt::Val { .. });
-                match pattern {
-                    Pattern::Name(binding) => {
-                        self.write(if is_val { "val " } else { "var " });
-                        self.write(&binding.name);
-                    }
-                    Pattern::Tuple(slots) => {
-                        self.write(if is_val { "val (" } else { "var (" });
-                        for (i, slot) in slots.iter().enumerate() {
-                            if i > 0 {
-                                self.write(", ");
-                            }
-                            self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
-                        }
-                        self.write(")");
-                    }
-                }
+                self.write(if is_val { "val " } else { "var " });
+                self.write_pattern(pattern);
                 if let Some(init) = initializer {
                     self.write(" =");
                     self.write_space_or_continuation(location.line, self.map.first_line(init));
@@ -438,19 +440,7 @@ impl<'a> Printer<'a> {
                 ..
             } => {
                 self.write("for ");
-                match pattern {
-                    Pattern::Name(binding) => self.write(&binding.name),
-                    Pattern::Tuple(slots) => {
-                        self.write("(");
-                        for (i, slot) in slots.iter().enumerate() {
-                            if i > 0 {
-                                self.write(", ");
-                            }
-                            self.write(slot.as_ref().map_or("_", |b| b.name.as_str()));
-                        }
-                        self.write(")");
-                    }
-                }
+                self.write_pattern(pattern);
                 self.write(" in ");
                 self.nested(0, |printer| printer.print_condition(collection));
                 self.write(" ");

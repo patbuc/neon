@@ -605,28 +605,46 @@ impl<'a> CodeGenerator<'a> {
         self.current().locals.push(Local::new(depth, false));
         let hidden_slot = self.current().stack_height - 1;
 
+        if is_top_level {
+            for (index, slot) in slots.iter().enumerate() {
+                let Some(binding) = slot else {
+                    continue;
+                };
+
+                self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
+                self.emit_constant(int!(index as i64), location);
+                self.emit_op_code(OpCode::GetIndex, location);
+
+                let decl = self.resolutions.decl(binding.id);
+                let slot = self.decl_slot(decl);
+                self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
+            }
+            self.current().locals.pop();
+            self.emit_op_code(OpCode::Pop, location);
+        } else {
+            self.bind_tuple_slots(slots, hidden_slot, location);
+        }
+    }
+
+    /// Reads each named slot's element from the tuple value held in
+    /// `hidden_slot` and binds it as a fresh local, skipping `_` positions.
+    fn bind_tuple_slots(
+        &mut self,
+        slots: &[Option<Binding>],
+        hidden_slot: u32,
+        location: SourceLocation,
+    ) {
         for (index, slot) in slots.iter().enumerate() {
             let Some(binding) = slot else {
                 continue;
             };
-
             self.emit_index_op(OpCode::GetLocal, hidden_slot, "locals", location);
             self.emit_constant(int!(index as i64), location);
             self.emit_op_code(OpCode::GetIndex, location);
 
             let decl = self.resolutions.decl(binding.id);
-            if is_top_level {
-                let slot = self.decl_slot(decl);
-                self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
-                self.emit_op_code(OpCode::Pop, location);
-            } else {
-                self.bind_decl_local(decl, location);
-            }
-        }
-
-        if is_top_level {
-            self.current().locals.pop();
-            self.emit_op_code(OpCode::Pop, location);
+            self.bind_decl_local(decl, location);
         }
     }
 
@@ -1172,17 +1190,7 @@ impl<'a> CodeGenerator<'a> {
                 self.current().locals.push(Local::new(pair_depth, false));
                 let pair_slot = self.current().stack_height - 1;
 
-                for (index, slot) in slots.iter().enumerate() {
-                    let Some(binding) = slot else {
-                        continue;
-                    };
-                    self.emit_index_op(OpCode::GetLocal, pair_slot, "locals", location);
-                    self.emit_constant(int!(index as i64), location);
-                    self.emit_op_code(OpCode::GetIndex, location);
-
-                    let decl = self.resolutions.decl(binding.id);
-                    self.bind_decl_local(decl, location);
-                }
+                self.bind_tuple_slots(slots, pair_slot, location);
             }
         }
 
