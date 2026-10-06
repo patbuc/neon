@@ -1533,3 +1533,23 @@ fn test_nil_coalesce_emits_jump_if_not_nil() {
         &ops[jump_index..jump_index + 3]
     );
 }
+
+#[test]
+fn exported_declarations_are_usable_after_declaration() {
+    let program = r#"
+export val x = 1
+export var y = 2
+y = y + 5
+export fn double(n) {
+    return n * 2
+}
+export struct Point { a }
+export enum Color { Red }
+print(x)
+print(y)
+print(double(4))
+print(Point(3).a)
+print(Color.Red)
+"#;
+    assert_eq!(run(program), "1\n7\n8\n3\nColor.Red");
+}

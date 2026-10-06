@@ -277,7 +277,7 @@ impl SemanticAnalyzer {
 
     fn collect_declarations(&mut self, statements: &[Stmt]) {
         for stmt in statements {
-            match stmt {
+            match stmt.unexported() {
                 Stmt::Fn {
                     name,
                     params,
@@ -344,7 +344,7 @@ impl SemanticAnalyzer {
                     );
                 }
                 Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
-                    let is_mutable = matches!(stmt, Stmt::Var { .. });
+                    let is_mutable = matches!(stmt.unexported(), Stmt::Var { .. });
                     let kind = if is_mutable {
                         SymbolKind::Variable
                     } else {
@@ -1539,7 +1539,7 @@ impl SemanticAnalyzer {
                 id,
                 location,
                 ..
-            } = stmt
+            } = stmt.unexported()
             {
                 let arity = params.len() as u8;
                 let decl_id = self.declare_symbol(

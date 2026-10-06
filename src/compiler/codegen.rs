@@ -180,7 +180,7 @@ impl<'a> CodeGenerator<'a> {
         // val/var slot starts out holding the uninitialized sentinel, which
         // GetGlobal/SetGlobal reject until its statement runs.
         for stmt in statements {
-            match stmt {
+            match stmt.unexported() {
                 Stmt::Fn { id, location, .. } => {
                     self.emit_op_code(OpCode::Nil, *location);
                     let decl = self.resolutions.decl(*id);
@@ -228,7 +228,7 @@ impl<'a> CodeGenerator<'a> {
                 id,
                 location,
                 ..
-            } = stmt
+            } = stmt.unexported()
             {
                 self.generate_closure(*id, name, body, *location);
                 let slot = self.decl_slot(self.resolutions.decl(*id));
@@ -724,7 +724,7 @@ impl<'a> CodeGenerator<'a> {
         for stmt in statements {
             if let Stmt::Fn {
                 name, id, location, ..
-            } = stmt
+            } = stmt.unexported()
             {
                 let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                 self.emit_constant(sentinel, *location);
