@@ -1226,7 +1226,7 @@ pub fn native_array_zip(args: &[Value]) -> Result<Value, String> {
     let other = elements_of(&args[1], array.len()).ok_or_else(|| {
         format!(
             "zip() other must be an array or range, got {}",
-            type_name_for_error(&args[1])
+            args[1].type_name()
         )
     })?;
 
