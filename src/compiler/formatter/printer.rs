@@ -383,8 +383,10 @@ impl<'a> Printer<'a> {
                 }
                 None => self.write("return"),
             },
-            Stmt::Import { path, alias, .. } => {
-                self.write(&format!("import \"{}\"", path));
+            Stmt::Import {
+                raw_path, alias, ..
+            } => {
+                self.write(&format!("import \"{}\"", raw_path));
                 if let Some(alias) = alias {
                     self.write(&format!(" as {}", alias));
                 }

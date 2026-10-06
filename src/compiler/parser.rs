@@ -630,6 +630,7 @@ impl Parser {
             return None;
         }
         let path = self.previous_token.token.clone();
+        let raw_path = self.previous_token.raw.clone();
         let alias = if self.check(TokenType::Identifier) && self.current_token.token == "as" {
             self.advance();
             if !self.consume(TokenType::Identifier, "expected a name after as") {
@@ -642,6 +643,7 @@ impl Parser {
         self.consume_statement_end("Expecting '\\n' or '\\0' after import declaration.");
         Some(Stmt::Import {
             path,
+            raw_path,
             alias,
             id: self.next_id(),
             location,

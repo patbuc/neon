@@ -493,6 +493,7 @@ pub enum Stmt {
     },
     Import {
         path: String,
+        raw_path: String,
         alias: Option<String>,
         id: NodeId,
         location: SourceLocation,
