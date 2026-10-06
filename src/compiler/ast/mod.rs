@@ -487,6 +487,10 @@ pub enum Stmt {
     Continue {
         location: SourceLocation,
     },
+    Export {
+        declaration: Box<Stmt>,
+        location: SourceLocation,
+    },
     Import {
         path: String,
         alias: Option<String>,

@@ -4340,3 +4340,37 @@ fn test_import_recovery_inside_block_reports_import_error() {
     assert_eq!(messages.len(), 2, "{messages:?}");
     assert_eq!(messages[1], "import is only allowed at the top level");
 }
+
+fn parse_export(source: &str) -> Stmt {
+    let mut parser = Parser::new(source);
+    let mut stmts = parser.parse().unwrap();
+    assert_eq!(stmts.len(), 1, "{source}");
+    match stmts.remove(0) {
+        Stmt::Export { declaration, .. } => *declaration,
+        _ => panic!("Expected Export statement for {source}"),
+    }
+}
+
+#[test]
+fn test_parse_export_wraps_declaration() {
+    assert!(matches!(
+        parse_export("export fn f() {}\n"),
+        Stmt::Fn { .. }
+    ));
+    assert!(matches!(
+        parse_export("export val x = 1\n"),
+        Stmt::Val { .. }
+    ));
+    assert!(matches!(
+        parse_export("export var y = 2\n"),
+        Stmt::Var { .. }
+    ));
+    assert!(matches!(
+        parse_export("export struct P { x }\n"),
+        Stmt::Struct { .. }
+    ));
+    assert!(matches!(
+        parse_export("export enum E { A }\n"),
+        Stmt::Enum { .. }
+    ));
+}

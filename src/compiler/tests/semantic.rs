@@ -97,6 +97,7 @@ mod resolutions {
                 index_expr(collection, idx);
                 index_stmt(body, idx);
             }
+            Stmt::Export { declaration, .. } => index_stmt(declaration, idx),
             Stmt::Break { .. } | Stmt::Continue { .. } | Stmt::Import { .. } => {}
         }
     }

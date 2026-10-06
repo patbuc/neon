@@ -389,6 +389,10 @@ impl<'a> Printer<'a> {
                     self.write(&format!(" as {}", alias));
                 }
             }
+            Stmt::Export { declaration, .. } => {
+                self.write("export ");
+                self.print_stmt_body(declaration);
+            }
             Stmt::Break { .. } => self.write("break"),
             Stmt::Continue { .. } => self.write("continue"),
             Stmt::Fn {

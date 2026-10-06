@@ -1402,6 +1402,7 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_return_stmt(value, *location);
             }
             Stmt::Import { .. } => {}
+            Stmt::Export { declaration, .. } => self.generate_stmt(declaration),
             Stmt::Break { location } => {
                 self.generate_loop_exit_stmt(LoopExit::Break, *location);
             }
