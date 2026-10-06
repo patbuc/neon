@@ -473,6 +473,7 @@ impl VirtualMachine {
 
         let mut frames = Vec::with_capacity(total - omitted_frames);
         let mut location = None;
+        let mut file = None;
 
         for (depth, frame) in kept {
             let ip = if depth == 0 {
@@ -480,19 +481,23 @@ impl VirtualMachine {
             } else {
                 frame.ip.saturating_sub(1)
             };
-            let info = frame.closure.function.chunk.get_line_info(ip);
+            let chunk = &frame.closure.function.chunk;
+            let info = chunk.get_line_info(ip);
             if depth == 0 {
                 location = info.as_ref().map(|i| (i.line, i.column));
+                file = chunk.file.clone();
             }
             frames.push(TraceFrame {
                 function: frame.closure.function.name.clone(),
                 line: info.map(|i| i.line),
+                file: chunk.file.clone(),
             });
         }
 
         RuntimeError {
             message: message.into(),
             location,
+            file,
             frames,
             omitted_frames,
         }

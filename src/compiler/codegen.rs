@@ -74,9 +74,10 @@ struct FunctionCompiler {
 }
 
 impl FunctionCompiler {
-    fn new(name: &str, symbols: Rc<[Rc<str>]>) -> Self {
+    fn new(name: &str, symbols: Rc<[Rc<str>]>, file: Option<Rc<str>>) -> Self {
         let mut chunk = Chunk::new(name);
         chunk.symbols = symbols;
+        chunk.file = file;
         FunctionCompiler {
             chunk,
             locals: Vec::new(),
@@ -132,6 +133,8 @@ pub struct CodeGenerator<'a> {
     /// Built once from `resolutions` and `Rc::clone`d into every chunk, so
     /// every chunk of this compile shares one allocation.
     symbols: Rc<[Rc<str>]>,
+    /// The unit's source file, cloned into every chunk like `symbols`.
+    file: Option<Rc<str>>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -141,13 +144,20 @@ impl<'a> CodeGenerator<'a> {
     ) -> Self {
         let symbols = resolutions.symbol_names();
         CodeGenerator {
-            functions: vec![FunctionCompiler::new("main", symbols.clone())],
+            functions: vec![FunctionCompiler::new("main", symbols.clone(), None)],
             end_locations,
             errors: Vec::new(),
             resolutions,
             decl_slots: HashMap::new(),
             symbols,
+            file: None,
         }
+    }
+
+    /// Names the source file of every chunk this generator creates.
+    pub(crate) fn set_file(&mut self, file: Option<Rc<str>>) {
+        self.functions[0].chunk.file = file.clone();
+        self.file = file;
     }
 
     /// Seeds the script frame with one placeholder local per global an
@@ -749,6 +759,7 @@ impl<'a> CodeGenerator<'a> {
         self.functions.push(FunctionCompiler::new(
             &format!("function_{}", name),
             self.symbols.clone(),
+            self.file.clone(),
         ));
 
         // Enter function scope

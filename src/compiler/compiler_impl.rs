@@ -7,7 +7,8 @@ use crate::compiler::module_graph::{EntryLocation, Module, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 /// A compiled program: one chunk per imported file module, in graph order,
 /// then the entry's chunk and the globals it leaves behind.
@@ -57,6 +58,10 @@ impl Compiler {
         // Pass 2: Semantic analysis
         // Pass 3: Code generation
 
+        let entry_file = match &entry {
+            EntryLocation::File(path) => Some(Self::file_name(path)),
+            EntryLocation::Directory(_) | EntryLocation::None => None,
+        };
         self.module_sources.clear();
         let graph = match ModuleGraph::build_with_sources(source, entry, &mut self.module_sources) {
             Ok(graph) => graph,
@@ -81,17 +86,21 @@ impl Compiler {
                 slot_count: env.slot_count,
                 ..GlobalEnv::default()
             };
-            let (mut chunk, module_env, table) =
-                match self.compile_unit(module, &module_env, &exports) {
-                    Ok(unit) => unit,
-                    Err(errors) => {
-                        let errors = errors
-                            .into_iter()
-                            .map(|error| error.with_file(&module.path))
-                            .collect();
-                        return self.fail(errors);
-                    }
-                };
+            let (mut chunk, module_env, table) = match self.compile_unit(
+                module,
+                &module_env,
+                &exports,
+                Some(Self::file_name(&module.path)),
+            ) {
+                Ok(unit) => unit,
+                Err(errors) => {
+                    let errors = errors
+                        .into_iter()
+                        .map(|error| error.with_file(&module.path))
+                        .collect();
+                    return self.fail(errors);
+                }
+            };
             env.symbols = module_env.symbols;
             env.next_decl_id = module_env.next_decl_id;
             env.slot_count = module_env.slot_count;
@@ -101,7 +110,8 @@ impl Compiler {
             module_slot_counts.push(env.slot_count);
         }
 
-        let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports) {
+        let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports, entry_file)
+        {
             Ok(unit) => unit,
             Err(errors) => return self.fail(errors),
         };
@@ -119,6 +129,7 @@ impl Compiler {
         module: &Module,
         env: &GlobalEnv,
         exports: &HashMap<PathBuf, ExportTable>,
+        file: Option<Rc<str>>,
     ) -> CompilationResult<(Chunk, GlobalEnv, ExportTable)> {
         let imports = module
             .imports
@@ -135,12 +146,17 @@ impl Compiler {
         // Phase 3: Code generation
         let mut codegen = CodeGenerator::new(&resolutions, &module.end_locations);
         codegen.seed(env);
+        codegen.set_file(file);
         let chunk = codegen.generate(&module.ast, module.eof_location)?;
         let decl_slots = codegen.into_decl_slots();
 
         let table = ExportTable::build(&module.ast, &resolutions, &decl_slots);
         let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Ok((chunk, new_env, table))
+    }
+
+    fn file_name(path: &Path) -> Rc<str> {
+        Rc::from(path.display().to_string())
     }
 
     #[allow(clippy::expect_used)]

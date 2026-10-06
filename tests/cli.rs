@@ -86,12 +86,15 @@ fn run_file_reports_runtime_error_on_stderr() {
     fs::remove_file(&script_path).ok();
 
     assert_eq!(70, output.status.code().unwrap());
-    let expected = "[2:11] Operands must be two numbers or two strings\n  at <script> (line 2)\n";
+    let path = script_path.display();
+    let expected = format!(
+        "[{path}:2:11] Operands must be two numbers or two strings\n  at <script> ({path}:2)\n"
+    );
     let stderr = String::from_utf8_lossy(&output.stderr);
     #[cfg(feature = "opcode-stats")]
     {
-        assert!(stderr.starts_with(expected));
-        assert_has_add_line_after(&stderr, expected);
+        assert!(stderr.starts_with(&expected));
+        assert_has_add_line_after(&stderr, &expected);
     }
     #[cfg(not(feature = "opcode-stats"))]
     assert_eq!(expected, stderr);
@@ -115,13 +118,15 @@ fn run_file_reports_call_trace_on_stderr() {
     fs::remove_file(&script_path).ok();
 
     assert_eq!(70, output.status.code().unwrap());
-    let expected =
-        "[2:12] Operands must be two numbers or two strings\n  at boom (line 2)\n  at <script> (line 4)\n";
+    let path = script_path.display();
+    let expected = format!(
+        "[{path}:2:12] Operands must be two numbers or two strings\n  at boom ({path}:2)\n  at <script> ({path}:4)\n"
+    );
     let stderr = String::from_utf8_lossy(&output.stderr);
     #[cfg(feature = "opcode-stats")]
     {
-        assert!(stderr.starts_with(expected));
-        assert_has_add_line_after(&stderr, expected);
+        assert!(stderr.starts_with(&expected));
+        assert_has_add_line_after(&stderr, &expected);
     }
     #[cfg(not(feature = "opcode-stats"))]
     assert_eq!(expected, stderr);
@@ -416,6 +421,88 @@ fn run_file_keeps_entry_stack_slots_after_modules() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!("30\n1\n2\n39\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn run_file_reports_a_runtime_error_inside_a_module_body_with_that_module_file_name_and_line() {
+    let dir = unique_temp_dir("neon_cli_test_run_module_body_runtime_error");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"utils\"\n").expect("Failed to write test script");
+    fs::write(dir.join("utils.n"), "val a = 1\nval x = [1][5]\n")
+        .expect("Failed to write test module");
+    let utils = dir.canonicalize().unwrap().join("utils.n");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(70, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let utils = utils.display();
+    assert!(stderr.starts_with(&format!("[{utils}:2:")), "{stderr}");
+    assert!(
+        stderr.contains(&format!("\n  at <script> ({utils}:2)\n")),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn run_file_names_both_files_in_the_call_trace_when_the_entry_file_calls_into_a_module_that_errors()
+{
+    let dir = unique_temp_dir("neon_cli_test_run_module_call_trace");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"utils\"\nutils.boom()\n").expect("Failed to write test script");
+    fs::write(
+        dir.join("utils.n"),
+        "export fn boom() {\n  return [1][5]\n}\n",
+    )
+    .expect("Failed to write test module");
+    let utils = dir.canonicalize().unwrap().join("utils.n");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(70, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let utils = utils.display();
+    let main = main_path.display();
+    assert!(stderr.starts_with(&format!("[{utils}:2:")), "{stderr}");
+    assert!(
+        stderr.contains(&format!(
+            "\n  at boom ({utils}:2)\n  at <script> ({main}:2)\n"
+        )),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn run_file_reports_a_compile_error_in_an_imported_module_with_that_module_file_name() {
+    let dir = unique_temp_dir("neon_cli_test_run_module_compile_error");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
+    fs::write(dir.join("b.n"), "val x = 1\nval = 1\n").expect("Failed to write test module");
+    let module = dir.canonicalize().unwrap().join("b.n");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!("--> {}:2:", module.display())),
+        "{stderr}"
+    );
 }
 
 #[test]
