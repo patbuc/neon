@@ -4318,3 +4318,25 @@ fn test_import_inside_function_is_rejected() {
     let errors = compile_errors("fn f() {\n  import \"a\"\n}\n");
     assert_eq!(errors[0].message, "import is only allowed at the top level");
 }
+
+#[test]
+fn test_import_recovery_reports_one_error_per_bad_statement() {
+    let errors = compile_errors("import utils\nimport 42\nimport \"a\" as\n");
+    let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+    assert_eq!(
+        messages,
+        vec![
+            "expected a string path after import",
+            "expected a string path after import",
+            "expected a name after as",
+        ]
+    );
+}
+
+#[test]
+fn test_import_recovery_inside_block_reports_import_error() {
+    let errors = compile_errors("fn f() {\n  var 1 import \"a\"\n}\n");
+    let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+    assert_eq!(messages.len(), 2, "{messages:?}");
+    assert_eq!(messages[1], "import is only allowed at the top level");
+}

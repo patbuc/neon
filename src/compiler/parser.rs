@@ -498,6 +498,8 @@ impl Parser {
                         | TokenType::Var
                         | TokenType::For
                         | TokenType::While
+                        | TokenType::Import
+                        | TokenType::Export
                         | TokenType::Return => {
                             self.nesting_depth = depth;
                             return;
@@ -524,6 +526,8 @@ impl Parser {
                     | TokenType::For
                     | TokenType::If
                     | TokenType::While
+                    | TokenType::Import
+                    | TokenType::Export
                     | TokenType::Return => return,
                     _ => {}
                 }
