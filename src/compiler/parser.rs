@@ -607,8 +607,19 @@ impl Parser {
         })
     }
 
+    fn at_top_level(&self) -> bool {
+        self.nesting_depth.0 == 0
+    }
+
     fn import_declaration(&mut self) -> Option<Stmt> {
         let location = self.current_location();
+        if !self.at_top_level() {
+            self.report_error_at_previous(
+                CompilationErrorKind::ExpectedToken,
+                "import is only allowed at the top level".to_string(),
+            );
+            return None;
+        }
         if !self.consume(TokenType::String, "expected a string path after import") {
             return None;
         }

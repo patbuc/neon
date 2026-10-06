@@ -4312,3 +4312,9 @@ fn test_import_alias_without_name_is_rejected() {
     let errors = compile_errors("import \"a\" as\n");
     assert_eq!(errors[0].message, "expected a name after as");
 }
+
+#[test]
+fn test_import_inside_function_is_rejected() {
+    let errors = compile_errors("fn f() {\n  import \"a\"\n}\n");
+    assert_eq!(errors[0].message, "import is only allowed at the top level");
+}
