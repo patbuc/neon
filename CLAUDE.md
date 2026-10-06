@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Neon is a dynamically-typed, bytecode-compiled language with a stack-based VM, written in Rust. The implementation
-follows a traditional compiler pipeline: Scanner → Parser → Semantic Analysis → Code Generation → VM Execution.
+follows a traditional compiler pipeline: Scanner → Parser → Module Graph → Semantic Analysis → Code Generation → VM Execution.
 
 ## Build & Test Commands
 
@@ -111,9 +111,10 @@ cargo run -- fmt -               # Format stdin, write to stdout
 cargo run                       # Start REPL
 ```
 
-The REPL drives `VirtualMachine::interpret_line`/`Compiler::compile_line`, which persist
-globals and methods across lines via a `GlobalEnv` carried line to line, instead of
-resetting per line like `interpret` does for a file.
+The REPL drives `VirtualMachine::interpret_line`/`interpret_line_in` (the latter takes the
+directory imports resolve from; the CLI passes the current directory) and `Compiler::compile_line`,
+which persist globals and methods across lines via a `GlobalEnv` carried line to line, instead of
+resetting per line like `interpret`/`interpret_file` does for a file.
 
 ### WebAssembly
 
@@ -154,7 +155,17 @@ enforces these edges in `cargo test`.
     - Recursive descent parser
     - AST nodes: expressions, statements, declarations
 
-3. **Semantic Analysis** (`src/compiler/semantic.rs`)
+3. **Module Graph** (`src/compiler/module_graph.rs`)
+    - `ModuleGraph::build` loads the import graph from an `EntryLocation`: the entry file (run,
+      `--check`), a directory (REPL), or none (in-process `interpret` and wasm, where a file import is
+      an error)
+    - Modules are identified by canonical path, parsed once, and returned in dependency order (the
+      entry module last); import cycles and unknown modules are compile errors attributed to their file
+    - `std/` paths are reserved for builtin modules
+    - Only the entry module is compiled so far; imported modules are loaded and checked but still
+      rejected with "modules are not supported yet"
+
+4. **Semantic Analysis** (`src/compiler/semantic.rs`)
     - Type checking and validation
     - Resolves every name once, using scoped symbol tables (`src/compiler/symbol_table.rs`) for
       lexical scoping — including which calls dispatch to a native
@@ -164,7 +175,7 @@ enforces these edges in `cargo test`.
       and type name into a `u16` id (more than 65,536 distinct names is a compile error)
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand
 
-4. **Code Generation** (`src/compiler/codegen.rs`)
+5. **Code Generation** (`src/compiler/codegen.rs`)
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Produces Chunk objects containing instructions and constant pool

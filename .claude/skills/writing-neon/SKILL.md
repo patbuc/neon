@@ -80,8 +80,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   `Shape.Rect(1, 2)`; equality is structural. No `impl` blocks or explicit
   variant values.
 - `import` and `export` are keywords. `import "path"` and `import "path" as name`
-  are top level only, and currently fail to compile with "modules are not
-  supported yet".
+  are top level only. The path resolves relative to the importing file with `.n`
+  appended (`std/` is reserved for builtin modules), and a missing file or an
+  import cycle is a compile error. A resolved import still fails to compile with
+  "modules are not supported yet".
   `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
   plain name for `val`/`var`; not `impl`) and for now compiles as the plain
   declaration.
