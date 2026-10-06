@@ -206,7 +206,7 @@ fn test_range_zip_other_wrong_type_errors() {
     );
     let errors = vm.get_runtime_errors();
     assert!(
-        errors.contains("zip() other must be an array or range, got Int"),
+        errors.contains("zip() other must be an array or range, got number"),
         "{}",
         errors
     );

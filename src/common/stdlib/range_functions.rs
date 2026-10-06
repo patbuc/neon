@@ -247,7 +247,7 @@ pub fn native_range_zip(args: &[Value]) -> Result<Value, String> {
         other => {
             return Err(format!(
                 "zip() other must be an array or range, got {}",
-                array_functions::type_name_for_error(other)
+                other.type_name()
             ))
         }
     };
