@@ -29,7 +29,7 @@ elif [ "$STATUS" -ne 0 ]; then
 fi
 
 case "$(realpath --relative-to="$PROJECT_DIR" "$FILE_PATH")" in
-    tests/scripts/* | benches/*) ;;
+    tests/scripts/* | tests/modules/* | benches/* | examples/*) ;;
     *) exit 0 ;;
 esac
 

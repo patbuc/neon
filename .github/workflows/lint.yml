@@ -23,4 +23,4 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
       - name: Check Neon script formatting
-        run: cargo run -q -- fmt --check tests/scripts benches
+        run: cargo run -q -- fmt --check tests/scripts tests/modules benches examples
