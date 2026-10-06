@@ -5,7 +5,7 @@ use crate::common::SourceLocation;
 use crate::compiler::ast::{NodeId, Stmt};
 use crate::compiler::parser::Parser;
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub enum EntryLocation {
     File(PathBuf),
@@ -32,19 +32,28 @@ impl ModuleGraph {
     /// imports, so the entry module is last.
     pub fn build(entry_source: &str, entry: EntryLocation) -> CompilationResult<ModuleGraph> {
         let (entry_path, entry_dir) = match entry {
-            EntryLocation::File(path) if !cfg!(target_arch = "wasm32") => {
-                let path = canonicalize(&path)?;
-                let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+            _ if cfg!(target_arch = "wasm32") => (PathBuf::new(), None),
+            EntryLocation::File(path) => {
+                let path = path.canonicalize().map_err(|e| {
+                    vec![CompilationError::new(
+                        CompilationPhase::Parse,
+                        CompilationErrorKind::UnknownModule,
+                        format!("cannot read '{}': {}", path.display(), e),
+                        SourceLocation::default(),
+                    )]
+                })?;
+                let dir = path.parent().map(Path::to_path_buf);
                 (path, dir)
             }
-            EntryLocation::Directory(dir) => (PathBuf::new(), dir),
-            _ => (PathBuf::new(), PathBuf::new()),
+            EntryLocation::Directory(dir) => (PathBuf::new(), Some(dir)),
+            EntryLocation::None => (PathBuf::new(), None),
         };
         let mut modules = Vec::new();
         let mut visited = HashSet::new();
         let mut stack = Vec::new();
         load(
             entry_path,
+            true,
             entry_dir,
             entry_source.to_string(),
             &mut modules,
@@ -61,18 +70,18 @@ impl ModuleGraph {
 
 fn load(
     path: PathBuf,
-    dir: PathBuf,
+    is_entry: bool,
+    dir: Option<PathBuf>,
     source: String,
     modules: &mut Vec<Module>,
     visited: &mut HashSet<PathBuf>,
     stack: &mut Vec<PathBuf>,
 ) -> CompilationResult<()> {
+    let file = (!is_entry).then_some(path.as_path());
     visited.insert(path.clone());
     stack.push(path.clone());
     let mut parser = Parser::new(&source);
-    let ast = parser
-        .parse()
-        .map_err(|errors| attach_file(errors, &path))?;
+    let ast = parser.parse().map_err(|errors| attach_file(errors, file))?;
     let eof_location = parser.eof_location();
     let end_locations = parser.end_locations().clone();
     let mut dependencies = Vec::new();
@@ -96,33 +105,38 @@ fn load(
                         end_locations: HashMap::new(),
                     });
                 }
-                dependencies.push(builtin);
+                if !dependencies.contains(&builtin) {
+                    dependencies.push(builtin);
+                }
                 continue;
             }
-            if dir.as_os_str().is_empty() {
-                return Err(file_import_unavailable_error(*location, &path));
-            }
-            let file = if import.ends_with(".n") {
+            let Some(dir) = &dir else {
+                return Err(file_import_unavailable_error(*location, file));
+            };
+            let file_name = if import.ends_with(".n") {
                 import.to_string()
             } else {
                 format!("{import}.n")
             };
-            let tried = dir.join(file);
+            let relative: PathBuf = Path::new(&file_name)
+                .components()
+                .filter(|c| *c != Component::CurDir)
+                .collect();
+            let tried = dir.join(relative);
             let dependency = tried
                 .canonicalize()
-                .map_err(|_| unknown_module_error(import, &tried, *location, &path))?;
+                .map_err(|_| unknown_module_error(import, &tried, *location, file))?;
             if let Some(start) = stack.iter().position(|p| *p == dependency) {
-                return Err(cycle_error(&stack[start..], &dependency, *location, &path));
+                return Err(cycle_error(&stack[start..], &dependency, *location, file));
             }
             if !visited.contains(&dependency) {
-                let dependency_source =
-                    std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
-                let dependency_dir = dependency
-                    .parent()
-                    .map(Path::to_path_buf)
-                    .unwrap_or_default();
+                let dependency_source = std::fs::read_to_string(&dependency).map_err(|e| {
+                    unreadable_module_error(import, &dependency, &e, *location, file)
+                })?;
+                let dependency_dir = dependency.parent().map(Path::to_path_buf);
                 load(
                     dependency.clone(),
+                    false,
                     dependency_dir,
                     dependency_source,
                     modules,
@@ -130,7 +144,9 @@ fn load(
                     stack,
                 )?;
             }
-            dependencies.push(dependency);
+            if !dependencies.contains(&dependency) {
+                dependencies.push(dependency);
+            }
         }
     }
 
@@ -151,7 +167,7 @@ fn cycle_error(
     cycle: &[PathBuf],
     closing: &Path,
     location: SourceLocation,
-    file: &Path,
+    file: Option<&Path>,
 ) -> Vec<CompilationError> {
     let names: Vec<String> = cycle
         .iter()
@@ -164,56 +180,73 @@ fn cycle_error(
                 .into_owned()
         })
         .collect();
-    vec![CompilationError::new(
-        CompilationPhase::Parse,
-        CompilationErrorKind::ImportCycle,
-        format!("import cycle: {}", names.join(" -> ")),
-        location,
+    attach_file(
+        vec![CompilationError::new(
+            CompilationPhase::Parse,
+            CompilationErrorKind::ImportCycle,
+            format!("import cycle: {}", names.join(" -> ")),
+            location,
+        )],
+        file,
     )
-    .with_file(file)]
 }
 
-fn file_import_unavailable_error(location: SourceLocation, file: &Path) -> Vec<CompilationError> {
-    vec![CompilationError::new(
-        CompilationPhase::Parse,
-        CompilationErrorKind::FileImportUnavailable,
-        "file imports are not available in the browser build".to_string(),
-        location,
+fn file_import_unavailable_error(
+    location: SourceLocation,
+    file: Option<&Path>,
+) -> Vec<CompilationError> {
+    attach_file(
+        vec![CompilationError::new(
+            CompilationPhase::Parse,
+            CompilationErrorKind::FileImportUnavailable,
+            "file imports are not available in the browser build".to_string(),
+            location,
+        )],
+        file,
     )
-    .with_file(file)]
 }
 
 fn unknown_module_error(
     import: &str,
     tried: &Path,
     location: SourceLocation,
-    file: &Path,
+    file: Option<&Path>,
 ) -> Vec<CompilationError> {
-    vec![CompilationError::new(
-        CompilationPhase::Parse,
-        CompilationErrorKind::UnknownModule,
-        format!("cannot find module '{import}' (tried {})", tried.display()),
-        location,
+    attach_file(
+        vec![CompilationError::new(
+            CompilationPhase::Parse,
+            CompilationErrorKind::UnknownModule,
+            format!("cannot find module '{import}' (tried {})", tried.display()),
+            location,
+        )],
+        file,
     )
-    .with_file(file)]
 }
 
-fn attach_file(errors: Vec<CompilationError>, file: &Path) -> Vec<CompilationError> {
-    if file.as_os_str().is_empty() {
-        return errors;
+fn attach_file(errors: Vec<CompilationError>, file: Option<&Path>) -> Vec<CompilationError> {
+    match file {
+        Some(file) => errors.into_iter().map(|e| e.with_file(file)).collect(),
+        None => errors,
     }
-    errors.into_iter().map(|e| e.with_file(file)).collect()
 }
 
-fn canonicalize(path: &Path) -> CompilationResult<PathBuf> {
-    path.canonicalize().map_err(|e| io_error(path, &e))
-}
-
-fn io_error(path: &Path, error: &std::io::Error) -> Vec<CompilationError> {
-    vec![CompilationError::new(
-        CompilationPhase::Parse,
-        CompilationErrorKind::ModulesUnsupported,
-        format!("cannot read '{}': {}", path.display(), error),
-        SourceLocation::default(),
-    )]
+fn unreadable_module_error(
+    import: &str,
+    path: &Path,
+    error: &std::io::Error,
+    location: SourceLocation,
+    file: Option<&Path>,
+) -> Vec<CompilationError> {
+    attach_file(
+        vec![CompilationError::new(
+            CompilationPhase::Parse,
+            CompilationErrorKind::UnknownModule,
+            format!(
+                "cannot read module '{import}' ({}): {error}",
+                path.display()
+            ),
+            location,
+        )],
+        file,
+    )
 }

@@ -1043,4 +1043,24 @@ fn repl_reports_missing_import_with_path_tried_in_the_current_directory() {
         combined.contains(&dir.join("missing.n").display().to_string()),
         "{combined}"
     );
+    assert!(combined.contains("--> <repl>:1:"), "{combined}");
+    assert!(combined.contains("| import \"missing\""), "{combined}");
+}
+
+#[test]
+fn run_renders_an_entry_parse_error_with_the_relative_path_typed() {
+    let dir = std::env::temp_dir().join("neon_cli_test_entry_parse_error_relative");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    fs::write(dir.join("syn.n"), "val x = 1\nval = 1\n").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .current_dir(&dir)
+        .arg("syn.n")
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--> syn.n:2:"), "{stderr}");
 }

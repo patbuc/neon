@@ -1,3 +1,4 @@
+use crate::common::errors::CompilationErrorKind;
 use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
 use std::fs;
 use std::path::PathBuf;
@@ -135,6 +136,12 @@ fn yields_one_module_when_dir_a_imports_both_b_and_dot_slash_b() {
             .filter(|p| **p == b_path.canonicalize().unwrap())
             .count()
     );
+    let a_module = graph
+        .modules()
+        .iter()
+        .find(|m| m.path == a_path.canonicalize().unwrap())
+        .expect("a.n should be in the graph");
+    assert_eq!(vec![b_path.canonicalize().unwrap()], a_module.dependencies);
 }
 
 #[test]
@@ -182,6 +189,150 @@ fn reports_a_b_a_when_a_imports_b_and_b_imports_a() {
         errors[0].message
     );
     assert_eq!(2, errors[0].location.line);
+    assert_eq!(Some(b_path.canonicalize().unwrap()), errors[0].file);
+}
+
+#[test]
+fn reports_an_unknown_module_in_an_imported_file_with_that_files_path() {
+    let dir = TempDir::new("unknown_in_imported");
+    let a_path = dir.0.join("a.n");
+    let b_path = dir.0.join("b.n");
+    let a_source = "import \"b\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+    fs::write(&b_path, "val x = 1\nimport \"missing\"\n").expect("Failed to write b.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("missing module should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(2, errors[0].location.line);
+    assert_eq!(Some(b_path.canonicalize().unwrap()), errors[0].file);
+}
+
+#[test]
+fn reports_an_unknown_module_in_the_entry_file_without_a_path() {
+    let dir = TempDir::new("unknown_in_entry");
+    let a_path = dir.0.join("a.n");
+    let a_source = "import \"missing\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("missing module should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(None, errors[0].file);
+}
+
+#[test]
+fn reports_a_cycle_closed_in_the_entry_file_without_a_path() {
+    let dir = TempDir::new("cycle_in_entry");
+    let a_path = dir.0.join("a.n");
+    let a_source = "import \"a\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("cycle should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(None, errors[0].file);
+}
+
+#[test]
+fn reports_a_self_import_as_a_cycle() {
+    let dir = TempDir::new("self_import");
+    let a_path = dir.0.join("a.n");
+    let a_source = "import \"a\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("self import should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert!(
+        errors[0].message.contains("a.n -> a.n"),
+        "message was: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn reports_a_mid_graph_cycle_without_the_entry_in_the_chain() {
+    let dir = TempDir::new("mid_graph_cycle");
+    let main_path = dir.0.join("main.n");
+    let main_source = "import \"a\"\n";
+    fs::write(&main_path, main_source).expect("Failed to write main.n");
+    fs::write(dir.0.join("a.n"), "import \"b\"\n").expect("Failed to write a.n");
+    fs::write(dir.0.join("b.n"), "import \"a\"\n").expect("Failed to write b.n");
+
+    let Err(errors) = ModuleGraph::build(main_source, EntryLocation::File(main_path)) else {
+        panic!("cycle should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert!(
+        errors[0].message.contains("a.n -> b.n -> a.n"),
+        "message was: {}",
+        errors[0].message
+    );
+    assert!(
+        !errors[0].message.contains("main.n"),
+        "message was: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn treats_dot_slash_std_math_as_a_file_import() {
+    let dir = TempDir::new("dot_slash_std_math");
+    let a_path = dir.0.join("a.n");
+    let a_source = "import \"./std/math\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("missing file should be reported");
+    };
+
+    let tried = dir.0.canonicalize().unwrap().join("std").join("math.n");
+    assert_eq!(1, errors.len());
+    assert!(
+        errors[0].message.contains(tried.to_str().unwrap()),
+        "message was: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn reports_an_unreadable_dependency_at_the_import() {
+    let dir = TempDir::new("unreadable_dependency");
+    let a_path = dir.0.join("a.n");
+    let a_source = "val x = 1\nimport \"b\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+    fs::create_dir(dir.0.join("b.n")).expect("Failed to create b.n dir");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("unreadable module should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(CompilationErrorKind::UnknownModule, errors[0].kind);
+    assert!(
+        errors[0].message.starts_with("cannot read module 'b' ("),
+        "message was: {}",
+        errors[0].message
+    );
+    assert!(
+        errors[0]
+            .message
+            .contains(dir.0.canonicalize().unwrap().join("b.n").to_str().unwrap()),
+        "message was: {}",
+        errors[0].message
+    );
+    assert_eq!(2, errors[0].location.line);
+    assert_eq!(None, errors[0].file);
 }
 
 #[test]
@@ -226,7 +377,7 @@ fn reports_a_parse_error_in_an_imported_file_with_that_files_name_and_line() {
 }
 
 #[test]
-fn reports_a_parse_error_in_the_entry_file_with_the_entry_path() {
+fn reports_a_parse_error_in_the_entry_file_without_a_path() {
     let dir = TempDir::new("reports_entry_parse_error");
     let a_path = dir.0.join("a.n");
     let a_source = "val x = 1\nval = 1\n";
@@ -238,7 +389,7 @@ fn reports_a_parse_error_in_the_entry_file_with_the_entry_path() {
 
     assert!(!errors.is_empty());
     for error in &errors {
-        assert_eq!(Some(a_path.canonicalize().unwrap()), error.file);
+        assert_eq!(None, error.file);
         assert_eq!(2, error.location.line);
     }
 }

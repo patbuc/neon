@@ -36,10 +36,9 @@ fn interpret_once_rejects_file_import() {
         serde_wasm_bindgen::from_value(interpret_once("import \"b\"\n".to_string())).unwrap();
 
     assert!(!result.success);
-    assert!(result
-        .error
-        .unwrap()
-        .contains("file imports are not available in the browser build"));
+    let error = result.error.unwrap();
+    assert!(error.contains("file imports are not available in the browser build"));
+    assert!(error.contains("<input>:1:"), "{error}");
 }
 
 #[wasm_bindgen_test]

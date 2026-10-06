@@ -292,23 +292,25 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
 
 /// Kinds that only a file-based build can produce: the `sources_for` input is
 /// the entry file `a.n`, and these are the files it imports.
-fn sibling_files_for(kind: CompilationErrorKind) -> &'static [(&'static str, &'static str)] {
+fn file_based_siblings(
+    kind: CompilationErrorKind,
+) -> Option<&'static [(&'static str, &'static str)]> {
     match kind {
-        CompilationErrorKind::ImportCycle => &[("b.n", "val x = 1\nimport \"a\"\n")],
-        _ => &[],
+        CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nimport \"a\"\n")]),
+        CompilationErrorKind::UnknownModule => Some(&[]),
+        _ => None,
     }
 }
 
-fn module_graph_errors(kind: CompilationErrorKind, entry_source: &str) -> Vec<CompilationError> {
-    if kind == CompilationErrorKind::FileImportUnavailable {
-        return ModuleGraph::build(entry_source, EntryLocation::None)
-            .err()
-            .unwrap_or_default();
-    }
+fn module_graph_errors(
+    kind: CompilationErrorKind,
+    entry_source: &str,
+    siblings: &[(&str, &str)],
+) -> Vec<CompilationError> {
     let dir = TempDir::new(&format!("error_kinds_{:?}", kind));
     let entry_path = dir.0.join("a.n");
     fs::write(&entry_path, entry_source).expect("Failed to write a.n");
-    for (name, source) in sibling_files_for(kind) {
+    for (name, source) in siblings {
         fs::write(dir.0.join(name), source).expect("Failed to write sibling file");
     }
     ModuleGraph::build(entry_source, EntryLocation::File(entry_path))
@@ -322,11 +324,8 @@ fn every_error_kind_is_produced_by_some_input() {
         for (source, fragment) in sources_for(kind) {
             let errors = if kind == CompilationErrorKind::UnplaceableComment {
                 crate::compiler::format(&source).err().unwrap_or_default()
-            } else if kind == CompilationErrorKind::ImportCycle
-                || kind == CompilationErrorKind::UnknownModule
-                || kind == CompilationErrorKind::FileImportUnavailable
-            {
-                module_graph_errors(kind, &source)
+            } else if let Some(siblings) = file_based_siblings(kind) {
+                module_graph_errors(kind, &source, siblings)
             } else {
                 compile_errors(&source)
             };
