@@ -1656,6 +1656,20 @@ impl<'a> CodeGenerator<'a> {
             self.emit_create_array(access.variants.len() as u16, location);
             return;
         }
+        if let Expr::Variable { id: object_id, .. } = object {
+            if let Some(slot) = self.resolutions.module_member(*object_id) {
+                let call_op = match invoke_op {
+                    OpCode::TailInvoke => OpCode::TailCall,
+                    _ => OpCode::Call,
+                };
+                self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+                self.emit_call(call_op, arguments.len() as u8, location);
+                return;
+            }
+        }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
             None => self.generate_instance_method_call_expr(

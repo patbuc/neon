@@ -1953,13 +1953,28 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
-        if let Expr::Variable { name, .. } = object {
+        if let Expr::Variable {
+            name,
+            id: object_id,
+            ..
+        } = object
+        {
             if optional && self.is_type_or_namespace_name(name) {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
                 self.push_optional_dot_on_type_error(location);
                 return;
+            }
+
+            if !optional {
+                if let Some(exports) = self.module_exports(name) {
+                    self.resolve_module_member(*object_id, &exports, method, location);
+                    for arg in arguments {
+                        self.resolve_expr(arg);
+                    }
+                    return;
+                }
             }
 
             let is_namespace = matches!(
