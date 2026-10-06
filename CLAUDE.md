@@ -164,8 +164,10 @@ enforces these edges in `cargo test`.
       imported modules carry that module's path and are rendered from the sources the graph loaded
       (`Compiler::module_sources`); errors in the entry module carry no file
     - `std/` paths are reserved for builtin modules
-    - Only the entry module is compiled so far; imported modules are loaded and checked but still
-      rejected with "modules are not supported yet"
+    - Every module in the graph compiles as its own unit, in graph order, each against a fresh
+      `GlobalEnv` that shares the compile's `Symbols`, `next_decl_id` and `slot_count`; a file import
+      from a module that never ran through the graph (in-process `interpret`, wasm) is still rejected
+      with "modules are not supported yet"
 
 4. **Semantic Analysis** (`src/compiler/semantic.rs`)
     - Type checking and validation
@@ -175,11 +177,20 @@ enforces these edges in `cargo test`.
       parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
       captures, which declarations are captured, and a `Symbols` table interning every field, method,
       and type name into a `u16` id (more than 65,536 distinct names is a compile error)
-    - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand
+    - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
+      unknown module export, write to an export, module used as a value, wrong-arity export call
+    - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
+      slot and arity for functions, structs and enums. An `import` binds a compile-time `Module` symbol
+      with no slot; `utils.name` resolves against the imported module's table. Enums are compile-time
+      only exports and have no slot
 
 5. **Code Generation** (`src/compiler/codegen.rs`)
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
+    - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
+      call); an import itself emits nothing
+    - The VM refuses to run a program that has module chunks ("modules are not supported yet") until
+      #189
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
       `FunctionCompiler`, not in the Chunk; upvalue captures come from `Resolutions`
