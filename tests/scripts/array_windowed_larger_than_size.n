@@ -1,0 +1,4 @@
+// Expected:
+// []
+
+print([1, 2].windowed(3))

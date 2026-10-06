@@ -1,0 +1,7 @@
+// Expected:
+// 2
+// [1, 2]
+
+val xs = [1, 1.0, 2, 2.0].distinct()
+print(xs.size())
+print(xs.map { it.toInt() })

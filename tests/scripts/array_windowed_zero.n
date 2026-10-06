@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: windowed() n must be >= 1, got 0
+
+print("before")
+print([1, 2].windowed(0))
