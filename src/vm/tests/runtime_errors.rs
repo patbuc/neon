@@ -872,14 +872,17 @@ fn nested_call_error_reports_frames_innermost_first() {
             TraceFrame {
                 function: "inner".to_string(),
                 line: Some(2),
+                file: None,
             },
             TraceFrame {
                 function: "outer".to_string(),
                 line: Some(1),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(3),
+                file: None,
             },
         ],
         error.frames
@@ -909,14 +912,17 @@ fn error_after_a_nested_call_returns_reports_every_frame_correctly() {
             TraceFrame {
                 function: "middle".to_string(),
                 line: Some(4),
+                file: None,
             },
             TraceFrame {
                 function: "outer".to_string(),
                 line: Some(6),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(7),
+                file: None,
             },
         ],
         error.frames
@@ -943,10 +949,12 @@ fn self_tail_recursive_function_appears_once_in_trace() {
             TraceFrame {
                 function: "f".to_string(),
                 line: Some(3),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(6),
+                file: None,
             },
         ],
         error.frames
@@ -969,10 +977,12 @@ fn native_callback_error_trace_has_no_native_frame() {
             TraceFrame {
                 function: "boom".to_string(),
                 line: Some(2),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(3),
+                file: None,
             },
         ],
         error.frames
@@ -1069,14 +1079,17 @@ fn caller_frame_line_is_the_call_site_not_the_next_statement() {
             TraceFrame {
                 function: "boom".to_string(),
                 line: Some(1),
+                file: None,
             },
             TraceFrame {
                 function: "outer".to_string(),
                 line: Some(3),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(6),
+                file: None,
             },
         ],
         error.frames
@@ -1098,10 +1111,12 @@ fn arity_mismatch_through_a_stored_function_reports_the_call_site() {
             TraceFrame {
                 function: "h".to_string(),
                 line: Some(4),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(7),
+                file: None,
             },
         ],
         error.frames
@@ -1123,10 +1138,12 @@ fn native_message_error_through_a_nested_call_reports_the_call_site() {
             TraceFrame {
                 function: "h".to_string(),
                 line: Some(2),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(5),
+                file: None,
             },
         ],
         error.frames
@@ -1148,10 +1165,12 @@ fn not_callable_error_through_a_nested_call_reports_the_call_site() {
             TraceFrame {
                 function: "h".to_string(),
                 line: Some(3),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(6),
+                file: None,
             },
         ],
         error.frames
@@ -1175,10 +1194,12 @@ fn struct_field_count_error_through_a_nested_call_reports_the_call_site() {
             TraceFrame {
                 function: "h".to_string(),
                 line: Some(4),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(7),
+                file: None,
             },
         ],
         error.frames
@@ -1200,10 +1221,12 @@ fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
             TraceFrame {
                 function: "call_origin".to_string(),
                 line: Some(6),
+                file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
                 line: Some(9),
+                file: None,
             },
         ],
         error.frames

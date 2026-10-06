@@ -55,6 +55,9 @@ pub struct Chunk {
     /// Field, method, and type names interned during semantic analysis,
     /// indexed by symbol id. Shared by every chunk of one compile.
     pub symbols: Rc<[Rc<str>]>,
+    /// The source file this chunk was compiled from, when it came from one.
+    /// Shared by every chunk of one compilation unit.
+    pub file: Option<Rc<str>>,
 }
 
 #[derive(Debug, PartialEq)]

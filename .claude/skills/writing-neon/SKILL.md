@@ -85,8 +85,8 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   import cycle is a compile error. A file name that isn't an identifier (`my-utils`) needs `as`.
   Exports are reached as `utils.name` (or the `as` alias) and are
   read-only from outside the module. An unknown export, a module used as a value (`print(utils)`) and a
-  wrong-arity call of an exported function are compile errors. Running (or `--check`ing) a program
-  that imports a file module currently fails with "modules are not supported yet" (E0053).
+  wrong-arity call of an exported function are compile errors. Each module runs once, before its
+  importers; `std/` modules are not available yet.
   `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
   plain name for `val`/`var`; not `impl`).
 
