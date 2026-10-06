@@ -10,6 +10,7 @@ use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -32,6 +33,7 @@ impl VirtualMachine {
             structured_errors: Vec::new(),
             runtime_error: None,
             source: String::new(),
+            module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: Vec::new(),
@@ -66,21 +68,14 @@ impl VirtualMachine {
 
         if chunk.is_none() {
             self.structured_errors = compiler.get_structured_errors();
+            self.module_sources = compiler.module_sources().clone();
         }
 
         chunk
     }
 
-    pub fn check(&mut self, source: String) -> InterpretResult {
-        self.check_entry(source, EntryLocation::None)
-    }
-
     pub fn check_file(&mut self, path: &Path, source: String) -> InterpretResult {
-        self.check_entry(source, EntryLocation::File(path.to_path_buf()))
-    }
-
-    fn check_entry(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
-        match self.compile(source, entry) {
+        match self.compile(source, EntryLocation::File(path.to_path_buf())) {
             Some(_) => InterpretResult::Ok,
             None => InterpretResult::CompileError,
         }
@@ -155,6 +150,7 @@ impl VirtualMachine {
             Some(result) => result,
             None => {
                 self.structured_errors = compiler.get_structured_errors();
+                self.module_sources = compiler.module_sources().clone();
                 return InterpretResult::CompileError;
             }
         };
@@ -500,7 +496,7 @@ impl VirtualMachine {
     pub fn get_formatted_errors(&self, filename: &str) -> String {
         use crate::common::error_renderer::ErrorRenderer;
 
-        let renderer = ErrorRenderer::default();
+        let renderer = ErrorRenderer::default().with_module_sources(self.module_sources.clone());
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 

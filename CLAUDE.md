@@ -112,7 +112,7 @@ cargo run                       # Start REPL
 ```
 
 The REPL drives `VirtualMachine::interpret_line`/`interpret_line_in` (the latter takes the
-directory imports resolve from; the CLI passes the current directory) and `Compiler::compile_line`,
+directory imports resolve from; the CLI passes the current directory) and `Compiler::compile_entry`,
 which persist globals and methods across lines via a `GlobalEnv` carried line to line, instead of
 resetting per line like `interpret`/`interpret_file` does for a file.
 
@@ -160,7 +160,9 @@ enforces these edges in `cargo test`.
       `--check`), a directory (REPL), or none (in-process `interpret` and wasm, where a file import is
       an error)
     - Modules are identified by canonical path, parsed once, and returned in dependency order (the
-      entry module last); import cycles and unknown modules are compile errors attributed to their file
+      entry module last); import cycles and unknown or unreadable modules are compile errors. Errors in
+      imported modules carry that module's path and are rendered from the sources the graph loaded
+      (`Compiler::module_sources`); errors in the entry module carry no file
     - `std/` paths are reserved for builtin modules
     - Only the entry module is compiled so far; imported modules are loaded and checked but still
       rejected with "modules are not supported yet"

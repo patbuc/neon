@@ -31,6 +31,16 @@ impl ModuleGraph {
     /// Modules come in dependency order: every module follows the modules it
     /// imports, so the entry module is last.
     pub fn build(entry_source: &str, entry: EntryLocation) -> CompilationResult<ModuleGraph> {
+        Self::build_with_sources(entry_source, entry, &mut HashMap::new())
+    }
+
+    /// Like `build`, also recording the source of every imported module it
+    /// reads, so errors attributed to one can be rendered after a failed build.
+    pub(crate) fn build_with_sources(
+        entry_source: &str,
+        entry: EntryLocation,
+        sources: &mut HashMap<PathBuf, String>,
+    ) -> CompilationResult<ModuleGraph> {
         let (entry_path, entry_dir) = match entry {
             _ if cfg!(target_arch = "wasm32") => (PathBuf::new(), None),
             EntryLocation::File(path) => {
@@ -53,9 +63,9 @@ impl ModuleGraph {
         let mut stack = Vec::new();
         load(
             entry_path,
-            true,
             entry_dir,
             entry_source.to_string(),
+            sources,
             &mut modules,
             &mut visited,
             &mut stack,
@@ -70,14 +80,18 @@ impl ModuleGraph {
 
 fn load(
     path: PathBuf,
-    is_entry: bool,
     dir: Option<PathBuf>,
     source: String,
+    sources: &mut HashMap<PathBuf, String>,
     modules: &mut Vec<Module>,
     visited: &mut HashSet<PathBuf>,
     stack: &mut Vec<PathBuf>,
 ) -> CompilationResult<()> {
+    let is_entry = stack.is_empty();
     let file = (!is_entry).then_some(path.as_path());
+    if !is_entry {
+        sources.insert(path.clone(), source.clone());
+    }
     visited.insert(path.clone());
     stack.push(path.clone());
     let mut parser = Parser::new(&source);
@@ -136,9 +150,9 @@ fn load(
                 let dependency_dir = dependency.parent().map(Path::to_path_buf);
                 load(
                     dependency.clone(),
-                    false,
                     dependency_dir,
                     dependency_source,
+                    sources,
                     modules,
                     visited,
                     stack,

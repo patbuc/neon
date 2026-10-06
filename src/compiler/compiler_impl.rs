@@ -1,10 +1,9 @@
 use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::global_env::GlobalEnv;
-use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
+use crate::compiler::module_graph::{EntryLocation, Module, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
-use std::path::Path;
 
 impl Compiler {
     pub fn new() -> Compiler {
@@ -13,10 +12,6 @@ impl Compiler {
 
     pub fn compile(&mut self, source: &str) -> Option<Chunk> {
         self.compile_at(source, EntryLocation::None)
-    }
-
-    pub fn compile_file(&mut self, source: &str, path: &Path) -> Option<Chunk> {
-        self.compile_at(source, EntryLocation::File(path.to_path_buf()))
     }
 
     pub(crate) fn compile_at(&mut self, source: &str, entry: EntryLocation) -> Option<Chunk> {
@@ -47,11 +42,12 @@ impl Compiler {
         // Pass 2: Semantic analysis
         // Pass 3: Code generation
 
-        let graph = match ModuleGraph::build(source, entry) {
+        self.module_sources.clear();
+        let graph = match ModuleGraph::build_with_sources(source, entry, &mut self.module_sources) {
             Ok(graph) => graph,
             Err(errors) => return self.fail(errors),
         };
-        let entry = graph.modules().last()?;
+        let entry = Self::entry_module(&graph);
         let ast = &entry.ast;
         let eof_location = entry.eof_location;
 
@@ -74,6 +70,14 @@ impl Compiler {
 
         let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Some((chunk, new_env))
+    }
+
+    #[allow(clippy::expect_used)]
+    fn entry_module(graph: &ModuleGraph) -> &Module {
+        graph
+            .modules()
+            .last()
+            .expect("a module graph always contains its entry")
     }
 
     fn fail<T>(&mut self, errors: Vec<crate::common::errors::CompilationError>) -> Option<T> {
