@@ -39,6 +39,7 @@ pub struct VirtualMachine {
     structured_errors: Vec<crate::common::errors::CompilationError>,
     runtime_error: Option<RuntimeError>,
     source: String,
+    module_sources: std::collections::HashMap<std::path::PathBuf, String>,
     /// Upvalues still pointing at a live stack slot, so closures created
     /// from the same slot share one cell instead of each getting their own.
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,

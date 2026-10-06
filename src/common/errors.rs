@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::path::{Path, PathBuf};
 
 use crate::common::SourceLocation;
 
@@ -85,6 +86,9 @@ compilation_error_kinds! {
     ImportNotTopLevel => "E0051",
     ExportNotTopLevel => "E0052",
     ModulesUnsupported => "E0053",
+    ImportCycle => "E0054",
+    UnknownModule => "E0055",
+    FileImportUnavailable => "E0056",
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -93,6 +97,7 @@ pub struct CompilationError {
     pub kind: CompilationErrorKind,
     pub message: String,
     pub location: SourceLocation,
+    pub file: Option<PathBuf>,
 }
 
 impl CompilationError {
@@ -107,7 +112,13 @@ impl CompilationError {
             kind,
             message: message.into(),
             location,
+            file: None,
         }
+    }
+
+    pub fn with_file(mut self, file: &Path) -> Self {
+        self.file = Some(file.to_path_buf());
+        self
     }
 }
 

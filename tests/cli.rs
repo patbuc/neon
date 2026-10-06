@@ -183,6 +183,77 @@ fn check_mode_reports_same_compile_error_as_running() {
 }
 
 #[test]
+fn check_mode_reports_missing_import_with_path_tried() {
+    let dir = std::env::temp_dir().join("neon_cli_test_check_missing_import");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"missing\"\n").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot find module 'missing'"), "{stderr}");
+    assert!(
+        stderr.contains(&dir.join("missing.n").display().to_string()),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn check_mode_renders_imported_file_error_against_that_file() {
+    let dir = std::env::temp_dir().join("neon_cli_test_check_imported_file_error");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    let module_path = dir.join("b.n");
+    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
+    fs::write(&module_path, "val x = 1\nval = 1\n").expect("Failed to write test module");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!("{}:2:", module_path.display())),
+        "{stderr}"
+    );
+    assert!(stderr.contains("val = 1"), "{stderr}");
+}
+
+#[test]
+fn run_file_with_resolved_import_reports_modules_unsupported() {
+    let dir = std::env::temp_dir().join("neon_cli_test_run_resolved_import");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
+    fs::write(dir.join("b.n"), "val x = 1\n").expect("Failed to write test module");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("modules are not supported yet"), "{stderr}");
+}
+
+#[test]
 fn check_mode_without_file_prints_usage_on_stderr() {
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("--check")
@@ -905,4 +976,91 @@ fn repl_keeps_state_across_lines() {
         "expected stdout to contain the printed 2:\n{}",
         stdout
     );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
+fn run_repl_in_dir_with_stdin(dir: &std::path::Path, stdin_input: &[u8]) -> std::process::Output {
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command.current_dir(dir);
+        },
+        stdin_input,
+    );
+    wait_with_timeout(child, std::time::Duration::from_secs(5))
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+#[allow(clippy::expect_used)]
+fn repl_resolves_an_import_relative_to_the_current_directory() {
+    let dir = std::env::temp_dir().join("neon_cli_test_repl_import_relative_to_cwd");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    fs::write(dir.join("b.n"), "val x = 1\n").expect("Failed to write test module");
+
+    let output = run_repl_in_dir_with_stdin(&dir, b"import \"b\"\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("modules are not supported yet"),
+        "{combined}"
+    );
+    assert!(
+        !combined.contains("file imports are not available"),
+        "{combined}"
+    );
+    assert!(!combined.contains("cannot find module"), "{combined}");
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+#[allow(clippy::expect_used)]
+fn repl_reports_missing_import_with_path_tried_in_the_current_directory() {
+    let dir = std::env::temp_dir().join("neon_cli_test_repl_missing_import_in_cwd");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let dir = dir.canonicalize().expect("Failed to canonicalize test dir");
+
+    let output = run_repl_in_dir_with_stdin(&dir, b"import \"missing\"\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("cannot find module 'missing'"),
+        "{combined}"
+    );
+    assert!(
+        combined.contains(&dir.join("missing.n").display().to_string()),
+        "{combined}"
+    );
+    assert!(combined.contains("--> <repl>:1:"), "{combined}");
+    assert!(combined.contains("| import \"missing\""), "{combined}");
+}
+
+#[test]
+fn run_renders_an_entry_parse_error_with_the_relative_path_typed() {
+    let dir = std::env::temp_dir().join("neon_cli_test_entry_parse_error_relative");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    fs::write(dir.join("syn.n"), "val x = 1\nval = 1\n").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .current_dir(&dir)
+        .arg("syn.n")
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--> syn.n:2:"), "{stderr}");
 }

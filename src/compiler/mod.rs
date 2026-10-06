@@ -6,6 +6,7 @@ pub(crate) mod compiler_impl;
 mod formatter;
 pub use formatter::format;
 pub(crate) mod global_env;
+pub mod module_graph;
 pub(crate) mod parser;
 pub(crate) mod resolutions;
 mod scanner;
@@ -72,11 +73,17 @@ pub(crate) struct Trivia {
 #[derive(Debug, Default)]
 pub struct Compiler {
     structured_errors: Vec<crate::common::errors::CompilationError>,
+    module_sources: std::collections::HashMap<std::path::PathBuf, String>,
 }
 
 impl Compiler {
     pub fn get_structured_errors(&self) -> Vec<crate::common::errors::CompilationError> {
         self.structured_errors.clone()
+    }
+
+    /// Sources of the imported modules read by the last compile, by canonical path.
+    pub fn module_sources(&self) -> &std::collections::HashMap<std::path::PathBuf, String> {
+        &self.module_sources
     }
 }
 

@@ -1,14 +1,26 @@
 use crate::common::errors::CompilationError;
 use crate::common::SourceLocation;
 use colored::Colorize;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub struct ErrorRenderer {
     use_color: bool,
+    module_sources: HashMap<PathBuf, String>,
 }
 
 impl ErrorRenderer {
     pub fn new(use_color: bool) -> Self {
-        ErrorRenderer { use_color }
+        ErrorRenderer {
+            use_color,
+            module_sources: HashMap::new(),
+        }
+    }
+
+    /// Sources of the imported modules errors may be attributed to.
+    pub fn with_module_sources(mut self, module_sources: HashMap<PathBuf, String>) -> Self {
+        self.module_sources = module_sources;
+        self
     }
 
     pub fn render_errors(
@@ -42,8 +54,20 @@ impl ErrorRenderer {
         output
     }
 
+    #[allow(clippy::expect_used)]
     fn render_error(&self, error: &CompilationError, source: &str, filename: &str) -> String {
         let mut output = String::new();
+        let (source, filename) = match &error.file {
+            Some(file) => (
+                self.module_sources
+                    .get(file)
+                    .expect("an error attributed to a module has that module's source")
+                    .as_str(),
+                file.display().to_string(),
+            ),
+            None => (source, filename.to_string()),
+        };
+        let filename = filename.as_str();
 
         let error_label = self.colorize(&format!("error[{}]", error.kind.code()), "red", true);
         let message = format!(": {}", self.lowercase_first(&error.message));

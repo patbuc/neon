@@ -3,12 +3,15 @@ use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::global_env::GlobalEnv;
+use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::collections::HashMap;
+use std::path::Path;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -30,6 +33,7 @@ impl VirtualMachine {
             structured_errors: Vec::new(),
             runtime_error: None,
             source: String::new(),
+            module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             methods: Vec::new(),
@@ -48,7 +52,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    fn compile(&mut self, source: String) -> Option<Chunk> {
+    fn compile(&mut self, source: String, entry: EntryLocation) -> Option<Chunk> {
         self.reset();
 
         self.source = source.clone();
@@ -57,27 +61,36 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new();
-        let chunk = compiler.compile(&source);
+        let chunk = compiler.compile_at(&source, entry);
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
         if chunk.is_none() {
             self.structured_errors = compiler.get_structured_errors();
+            self.module_sources = compiler.module_sources().clone();
         }
 
         chunk
     }
 
-    pub fn check(&mut self, source: String) -> InterpretResult {
-        match self.compile(source) {
+    pub fn check_file(&mut self, path: &Path, source: String) -> InterpretResult {
+        match self.compile(source, EntryLocation::File(path.to_path_buf())) {
             Some(_) => InterpretResult::Ok,
             None => InterpretResult::CompileError,
         }
     }
 
     pub fn interpret(&mut self, source: String) -> InterpretResult {
-        let chunk = self.compile(source);
+        self.interpret_entry(source, EntryLocation::None)
+    }
+
+    pub fn interpret_file(&mut self, path: &Path, source: String) -> InterpretResult {
+        self.interpret_entry(source, EntryLocation::File(path.to_path_buf()))
+    }
+
+    fn interpret_entry(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
+        let chunk = self.compile(source, entry);
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
@@ -117,6 +130,15 @@ impl VirtualMachine {
     /// defined. A compile error leaves the VM untouched; a runtime error
     /// rolls back everything the line declared.
     pub fn interpret_line(&mut self, source: String) -> InterpretResult {
+        self.interpret_line_at(source, EntryLocation::None)
+    }
+
+    /// Like `interpret_line`, resolving the line's imports relative to `dir`.
+    pub fn interpret_line_in(&mut self, source: String, dir: &Path) -> InterpretResult {
+        self.interpret_line_at(source, EntryLocation::Directory(dir.to_path_buf()))
+    }
+
+    fn interpret_line_at(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
         self.source = source.clone();
 
         let previous_env = self.repl_env.clone();
@@ -124,10 +146,11 @@ impl VirtualMachine {
         let previous_slot_count = previous_env.slot_count as usize;
 
         let mut compiler = Compiler::new();
-        let (chunk, new_env) = match compiler.compile_line(&source, &previous_env) {
+        let (chunk, new_env) = match compiler.compile_entry(&source, entry, &previous_env) {
             Some(result) => result,
             None => {
                 self.structured_errors = compiler.get_structured_errors();
+                self.module_sources = compiler.module_sources().clone();
                 return InterpretResult::CompileError;
             }
         };
@@ -473,7 +496,7 @@ impl VirtualMachine {
     pub fn get_formatted_errors(&self, filename: &str) -> String {
         use crate::common::error_renderer::ErrorRenderer;
 
-        let renderer = ErrorRenderer::default();
+        let renderer = ErrorRenderer::default().with_module_sources(self.module_sources.clone());
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 

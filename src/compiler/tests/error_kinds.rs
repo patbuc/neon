@@ -1,5 +1,8 @@
 use super::helpers::compile_errors;
-use crate::common::errors::CompilationErrorKind;
+use super::module_graph::TempDir;
+use crate::common::errors::{CompilationError, CompilationErrorKind};
+use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
+use std::fs;
 
 fn source_overflowing_a_codegen_limit() -> String {
     let mut body = String::new();
@@ -234,8 +237,19 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             vec![("if true {\n    export val x = 1\n}\n".to_string(), None)]
         }
         CompilationErrorKind::ModulesUnsupported => {
-            vec![("import \"utils\"\n".to_string(), None)]
+            vec![("import \"std/math\"\n".to_string(), None)]
         }
+        CompilationErrorKind::ImportCycle => {
+            vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
+        }
+        CompilationErrorKind::FileImportUnavailable => vec![(
+            "import \"b\"\n".to_string(),
+            Some("file imports are not available in the browser build"),
+        )],
+        CompilationErrorKind::UnknownModule => vec![(
+            "import \"missing\"\n".to_string(),
+            Some("missing.n"),
+        )],
         CompilationErrorKind::ImplOnEnum => vec![(
             "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
                 .to_string(),
@@ -276,12 +290,42 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
     }
 }
 
+/// Kinds that only a file-based build can produce: the `sources_for` input is
+/// the entry file `a.n`, and these are the files it imports.
+fn file_based_siblings(
+    kind: CompilationErrorKind,
+) -> Option<&'static [(&'static str, &'static str)]> {
+    match kind {
+        CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nimport \"a\"\n")]),
+        CompilationErrorKind::UnknownModule => Some(&[]),
+        _ => None,
+    }
+}
+
+fn module_graph_errors(
+    kind: CompilationErrorKind,
+    entry_source: &str,
+    siblings: &[(&str, &str)],
+) -> Vec<CompilationError> {
+    let dir = TempDir::new(&format!("error_kinds_{:?}", kind));
+    let entry_path = dir.0.join("a.n");
+    fs::write(&entry_path, entry_source).expect("Failed to write a.n");
+    for (name, source) in siblings {
+        fs::write(dir.0.join(name), source).expect("Failed to write sibling file");
+    }
+    ModuleGraph::build(entry_source, EntryLocation::File(entry_path))
+        .err()
+        .unwrap_or_default()
+}
+
 #[test]
 fn every_error_kind_is_produced_by_some_input() {
     for &kind in CompilationErrorKind::ALL {
         for (source, fragment) in sources_for(kind) {
             let errors = if kind == CompilationErrorKind::UnplaceableComment {
                 crate::compiler::format(&source).err().unwrap_or_default()
+            } else if let Some(siblings) = file_based_siblings(kind) {
+                module_graph_errors(kind, &source, siblings)
             } else {
                 compile_errors(&source)
             };
