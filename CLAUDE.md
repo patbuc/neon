@@ -43,7 +43,8 @@ that error's stored message from `VirtualMachine::get_compile_errors`, not the t
 
 Multi-file module cases live in `tests/modules/<case>/main.n`. The harness runs each `main.n` with its own path as
 the entry script, both as written and after formatting; the modules it imports sit beside or below it in the case
-directory. It also runs `examples/modules/main.n` the same way.
+directory. It also runs `examples/modules/main.n` the same way. Cases under `tests/modules_must_fail/<case>/main.n`
+must fail their own `// Expected compile error:` line, which tests that the harness rejects a mismatch.
 
 ### Benchmarks
 

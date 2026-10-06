@@ -208,6 +208,25 @@ fn run_module_case(path: &Path) -> datatest_stable::Result<()> {
     check_script(path, Some(path), &script)
 }
 
+/// Runs a multi-file case that must fail its own expectations, and checks
+/// that the failure is about the compile error.
+fn run_failing_module_case(path: &Path) -> datatest_stable::Result<()> {
+    let script = fs::read_to_string(path)?;
+    let outcome = std::panic::catch_unwind(|| check_script(path, Some(path), &script));
+    let failure = match outcome {
+        Ok(Ok(())) => return Err(format!("{} passed but must fail", path.display()).into()),
+        Ok(Err(error)) => error.to_string(),
+        Err(payload) => payload
+            .downcast_ref::<String>()
+            .cloned()
+            .ok_or("panic without a string message")?,
+    };
+    if !failure.contains("ompile error") {
+        return Err(format!("{} failed for another reason: {failure}", path.display()).into());
+    }
+    Ok(())
+}
+
 /// Copies the directory `from` to `to`, formatting every `.n` file on the way.
 fn copy_formatted(from: &Path, to: &Path) -> datatest_stable::Result<()> {
     fs::create_dir_all(to)?;
@@ -258,6 +277,7 @@ datatest_stable::harness! {
     { test = run_formatted_neon_script, root = "benches", pattern = r"^.*\.n$" },
     { test = run_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
     { test = run_formatted_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
+    { test = run_failing_module_case, root = "tests/modules_must_fail", pattern = r"^[^/]+/main\.n$" },
     { test = run_module_case, root = "examples", pattern = r"^modules/main\.n$" },
     { test = run_formatted_module_case, root = "examples", pattern = r"^modules/main\.n$" },
 }

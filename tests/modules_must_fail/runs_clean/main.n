@@ -1,0 +1,3 @@
+// Expected compile error: this program compiles
+
+print("runs")
