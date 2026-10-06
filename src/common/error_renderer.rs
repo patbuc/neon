@@ -44,6 +44,15 @@ impl ErrorRenderer {
 
     fn render_error(&self, error: &CompilationError, source: &str, filename: &str) -> String {
         let mut output = String::new();
+        let module_source;
+        let (source, filename) = match &error.file {
+            Some(file) => {
+                module_source = std::fs::read_to_string(file).unwrap_or_default();
+                (module_source.as_str(), file.display().to_string())
+            }
+            None => (source, filename.to_string()),
+        };
+        let filename = filename.as_str();
 
         let error_label = self.colorize(&format!("error[{}]", error.kind.code()), "red", true);
         let message = format!(": {}", self.lowercase_first(&error.message));

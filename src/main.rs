@@ -121,7 +121,7 @@ fn run_file(path: &str, args: Vec<String>) {
     let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
 
-    let result: InterpretResult = vm.interpret(source);
+    let result: InterpretResult = vm.interpret_file(Path::new(path), source);
     let exit_code = match result {
         InterpretResult::Ok => None,
         InterpretResult::CompileError => {
@@ -162,7 +162,7 @@ fn check_file(path: &str) {
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
-    if vm.check(source) == InterpretResult::CompileError {
+    if vm.check_file(Path::new(path), source) == InterpretResult::CompileError {
         let formatted_errors = vm.get_formatted_errors(path);
         eprintln!("{}", formatted_errors);
         exit(65);

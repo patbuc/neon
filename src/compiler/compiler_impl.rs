@@ -4,6 +4,7 @@ use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
+use std::path::Path;
 
 impl Compiler {
     pub fn new() -> Compiler {
@@ -15,6 +16,12 @@ impl Compiler {
         self.compile_line(source, &env).map(|(chunk, _)| chunk)
     }
 
+    pub fn compile_file(&mut self, source: &str, path: &Path) -> Option<Chunk> {
+        let env = GlobalEnv::default();
+        self.compile_entry(source, EntryLocation::File(path.to_path_buf()), &env)
+            .map(|(chunk, _)| chunk)
+    }
+
     /// Compiles one REPL line against `env`, the globals earlier lines left
     /// behind. `env` is only ever borrowed, so a failed line leaves the
     /// caller's copy intact.
@@ -23,11 +30,20 @@ impl Compiler {
         source: &str,
         env: &GlobalEnv,
     ) -> Option<(Chunk, GlobalEnv)> {
+        self.compile_entry(source, EntryLocation::None, env)
+    }
+
+    fn compile_entry(
+        &mut self,
+        source: &str,
+        entry: EntryLocation,
+        env: &GlobalEnv,
+    ) -> Option<(Chunk, GlobalEnv)> {
         // Pass 1: Resolve the module graph (parses every module)
         // Pass 2: Semantic analysis
         // Pass 3: Code generation
 
-        let graph = match ModuleGraph::build(source, EntryLocation::None) {
+        let graph = match ModuleGraph::build(source, entry) {
             Ok(graph) => graph,
             Err(errors) => return self.fail(errors),
         };

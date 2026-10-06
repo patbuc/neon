@@ -3,12 +3,14 @@ use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
 use crate::compiler::global_env::GlobalEnv;
+use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, VirtualMachine};
 use crate::{boolean, common, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::path::Path;
 use std::rc::Rc;
 
 impl Default for VirtualMachine {
@@ -48,7 +50,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    fn compile(&mut self, source: String) -> Option<Chunk> {
+    fn compile(&mut self, source: String, entry: EntryLocation) -> Option<Chunk> {
         self.reset();
 
         self.source = source.clone();
@@ -57,7 +59,10 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new();
-        let chunk = compiler.compile(&source);
+        let chunk = match entry {
+            EntryLocation::File(path) => compiler.compile_file(&source, &path),
+            EntryLocation::None => compiler.compile(&source),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
@@ -70,14 +75,30 @@ impl VirtualMachine {
     }
 
     pub fn check(&mut self, source: String) -> InterpretResult {
-        match self.compile(source) {
+        self.check_entry(source, EntryLocation::None)
+    }
+
+    pub fn check_file(&mut self, path: &Path, source: String) -> InterpretResult {
+        self.check_entry(source, EntryLocation::File(path.to_path_buf()))
+    }
+
+    fn check_entry(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
+        match self.compile(source, entry) {
             Some(_) => InterpretResult::Ok,
             None => InterpretResult::CompileError,
         }
     }
 
     pub fn interpret(&mut self, source: String) -> InterpretResult {
-        let chunk = self.compile(source);
+        self.interpret_entry(source, EntryLocation::None)
+    }
+
+    pub fn interpret_file(&mut self, path: &Path, source: String) -> InterpretResult {
+        self.interpret_entry(source, EntryLocation::File(path.to_path_buf()))
+    }
+
+    fn interpret_entry(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
+        let chunk = self.compile(source, entry);
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
