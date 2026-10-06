@@ -47,22 +47,22 @@ impl Compiler {
             Ok(graph) => graph,
             Err(errors) => return self.fail(errors),
         };
-        let entry = Self::entry_module(&graph);
-        let ast = &entry.ast;
-        let eof_location = entry.eof_location;
+        self.compile_unit(Self::entry_module(&graph), env)
+    }
 
+    fn compile_unit(&mut self, module: &Module, env: &GlobalEnv) -> Option<(Chunk, GlobalEnv)> {
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
         analyzer.seed(env);
-        let resolutions = match analyzer.analyze(ast) {
+        let resolutions = match analyzer.analyze(&module.ast) {
             Ok(resolutions) => resolutions,
             Err(errors) => return self.fail(errors),
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(&resolutions, &entry.end_locations);
+        let mut codegen = CodeGenerator::new(&resolutions, &module.end_locations);
         codegen.seed(env);
-        let chunk = match codegen.generate(ast, eof_location) {
+        let chunk = match codegen.generate(&module.ast, module.eof_location) {
             Ok(chunk) => chunk,
             Err(errors) => return self.fail(errors),
         };
