@@ -1,0 +1,5 @@
+// Expected compile error: import cycle: main.n -> a.n -> b.n -> main.n
+
+import "a"
+
+print("unreachable")

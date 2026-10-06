@@ -532,6 +532,10 @@ impl VirtualMachine {
         renderer.render_errors(&self.structured_errors, &self.source, filename)
     }
 
+    pub fn get_compile_errors(&self) -> &[crate::common::errors::CompilationError] {
+        &self.structured_errors
+    }
+
     pub fn get_runtime_error(&self) -> Option<&RuntimeError> {
         self.runtime_error.as_ref()
     }
