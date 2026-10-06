@@ -1030,7 +1030,7 @@ fn test_array_flat_map_non_array_return_errors() {
     );
     let errors = vm.get_runtime_errors();
     assert!(
-        errors.contains("flatMap() callback must return an array, got Int"),
+        errors.contains("flatMap() callback must return an array, got number"),
         "{}",
         errors
     );

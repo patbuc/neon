@@ -807,7 +807,7 @@ pub fn native_array_flat_map(
             other => {
                 return Err(format!(
                     "flatMap() callback must return an array, got {}",
-                    type_name_for_error(&other)
+                    other.type_name()
                 )
                 .into())
             }
