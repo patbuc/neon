@@ -1066,7 +1066,14 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
-            Stmt::Import { .. } => {}
+            Stmt::Import { location, .. } => {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::LimitExceeded,
+                    "modules are not supported yet",
+                    *location,
+                ));
+            }
             Stmt::Export { declaration, .. } => self.resolve_stmt(declaration),
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);
