@@ -1,4 +1,3 @@
-use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
@@ -54,7 +53,7 @@ impl VirtualMachine {
         Self::with_args(vec![])
     }
 
-    fn compile(&mut self, source: String, entry: EntryLocation) -> Option<Chunk> {
+    fn compile(&mut self, source: String, entry: EntryLocation) -> Option<Compiled> {
         self.reset();
 
         self.source = source.clone();
@@ -68,32 +67,11 @@ impl VirtualMachine {
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
-        let Some(compiled) = compiled else {
+        if compiled.is_none() {
             self.structured_errors = compiler.get_structured_errors();
             self.module_sources = compiler.module_sources().clone();
-            return None;
-        };
-
-        self.reject_modules(compiled).map(|(chunk, _)| chunk)
-    }
-
-    /// Refuses a program that imports a file module: compiled modules
-    /// can't run yet.
-    #[allow(clippy::expect_used)]
-    fn reject_modules(&mut self, compiled: Compiled) -> Option<(Chunk, GlobalEnv)> {
-        if compiled.modules.is_empty() {
-            return Some((compiled.entry, compiled.env));
         }
-        let location = compiled
-            .first_import
-            .expect("a program with modules imports one from its entry");
-        self.structured_errors = vec![CompilationError::new(
-            CompilationPhase::Semantic,
-            CompilationErrorKind::ModulesUnsupported,
-            "modules are not supported yet",
-            location,
-        )];
-        None
+        compiled
     }
 
     pub fn check_file(&mut self, path: &Path, source: String) -> InterpretResult {
@@ -112,15 +90,19 @@ impl VirtualMachine {
     }
 
     fn interpret_entry(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
-        let chunk = self.compile(source, entry);
+        let compiled = self.compile(source, entry);
 
         #[cfg(not(target_arch = "wasm32"))]
         let start = std::time::Instant::now();
-        let Some(chunk) = chunk else {
+        let Some(compiled) = compiled else {
             return InterpretResult::CompileError;
         };
 
-        let result = self.run_script_chunk(chunk);
+        let result = self.run_program(
+            compiled.modules,
+            compiled.module_slot_counts,
+            compiled.entry,
+        );
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Run time: {}ms", start.elapsed().as_millis());
@@ -128,10 +110,28 @@ impl VirtualMachine {
         result
     }
 
+    /// Runs each module chunk, then `entry`, as the script frame over the
+    /// same globals. The entry's symbols are a superset of every module's,
+    /// so one native method table serves them all.
+    fn run_program(
+        &mut self,
+        modules: Vec<Chunk>,
+        module_slot_counts: Vec<u32>,
+        entry: Chunk,
+    ) -> InterpretResult {
+        self.native_methods = native_method_table(&entry.symbols);
+        for (module, slot_count) in modules.into_iter().zip(module_slot_counts) {
+            let result = self.run_script_chunk(module);
+            if result != InterpretResult::Ok {
+                return result;
+            }
+            self.stack.truncate(slot_count as usize);
+        }
+        self.run_script_chunk(entry)
+    }
+
     /// Makes `chunk` the running script frame and runs it to completion.
     fn run_script_chunk(&mut self, chunk: Chunk) -> InterpretResult {
-        self.native_methods = native_method_table(&chunk.symbols);
-
         let script_function = Rc::new(ObjFunction {
             name: "<script>".to_string(),
             arity: 0,
@@ -173,16 +173,18 @@ impl VirtualMachine {
             self.module_sources = compiler.module_sources().clone();
             return InterpretResult::CompileError;
         };
-        let Some((chunk, new_env)) = self.reject_modules(compiled) else {
-            return InterpretResult::CompileError;
-        };
+        let new_env = compiled.env;
 
         self.call_frames.clear();
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.runtime_error = None;
 
-        let result = self.run_script_chunk(chunk);
+        let result = self.run_program(
+            compiled.modules,
+            compiled.module_slot_counts,
+            compiled.entry,
+        );
 
         match result {
             InterpretResult::Ok => {

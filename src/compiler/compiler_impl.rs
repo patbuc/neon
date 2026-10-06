@@ -1,6 +1,5 @@
 use crate::common::errors::CompilationResult;
-use crate::common::{Chunk, SourceLocation};
-use crate::compiler::ast::{NodeId, Stmt};
+use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::exports::ExportTable;
 use crate::compiler::global_env::GlobalEnv;
@@ -14,10 +13,10 @@ use std::path::PathBuf;
 /// then the entry's chunk and the globals it leaves behind.
 pub(crate) struct Compiled {
     pub(crate) modules: Vec<Chunk>,
+    /// The global slot count after each module in `modules` has run.
+    pub(crate) module_slot_counts: Vec<u32>,
     pub(crate) entry: Chunk,
     pub(crate) env: GlobalEnv,
-    /// Where the entry first imports a file module, if it does.
-    pub(crate) first_import: Option<SourceLocation>,
 }
 
 impl Compiler {
@@ -70,6 +69,7 @@ impl Compiler {
         let mut env = env.clone();
         let mut exports = std::mem::take(&mut env.modules);
         let mut modules = Vec::new();
+        let mut module_slot_counts = Vec::new();
         let (entry_module, imported) = Self::split_entry(&graph);
         for module in imported.iter().filter(|module| !module.builtin) {
             if exports.contains_key(&module.path) {
@@ -98,26 +98,19 @@ impl Compiler {
             exports.insert(module.path.clone(), table);
             chunk.name = module.path.display().to_string();
             modules.push(chunk);
+            module_slot_counts.push(env.slot_count);
         }
 
         let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports) {
             Ok(unit) => unit,
             Err(errors) => return self.fail(errors),
         };
-        let first_import = entry_module.ast.iter().find_map(|stmt| match stmt {
-            Stmt::Import { id, location, .. }
-                if Self::imports_file(entry_module, *id, &exports) =>
-            {
-                Some(*location)
-            }
-            _ => None,
-        });
         env.modules = exports;
         Some(Compiled {
             modules,
+            module_slot_counts,
             entry,
             env,
-            first_import,
         })
     }
 
@@ -148,13 +141,6 @@ impl Compiler {
         let table = ExportTable::build(&module.ast, &resolutions, &decl_slots);
         let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Ok((chunk, new_env, table))
-    }
-
-    fn imports_file(module: &Module, id: NodeId, exports: &HashMap<PathBuf, ExportTable>) -> bool {
-        module
-            .imports
-            .get(&id)
-            .is_some_and(|path| exports.contains_key(path))
     }
 
     #[allow(clippy::expect_used)]

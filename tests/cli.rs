@@ -234,12 +234,17 @@ fn check_mode_renders_imported_file_error_against_that_file() {
 }
 
 #[test]
-fn run_file_with_resolved_import_reports_modules_unsupported() {
-    let dir = std::env::temp_dir().join("neon_cli_test_run_resolved_import");
+fn run_file_runs_an_imported_module_function() {
+    let dir = std::env::temp_dir().join("neon_cli_test_run_imported_module_function");
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
-    fs::write(dir.join("b.n"), "val x = 1\n").expect("Failed to write test module");
+    fs::write(&main_path, "import \"utils\"\nprint(utils.double(21))\n")
+        .expect("Failed to write test script");
+    fs::write(
+        dir.join("utils.n"),
+        "export fn double(x) { return x * 2 }\n",
+    )
+    .expect("Failed to write test module");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg(&main_path)
@@ -248,9 +253,98 @@ fn run_file_with_resolved_import_reports_modules_unsupported() {
 
     fs::remove_dir_all(&dir).ok();
 
-    assert_eq!(65, output.status.code().unwrap());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("modules are not supported yet"), "{stderr}");
+    assert!(output.status.success());
+    assert_eq!("42\n", String::from_utf8_lossy(&output.stdout));
+    #[cfg(not(feature = "opcode-stats"))]
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
+fn run_file_runs_an_aliased_module_import() {
+    let dir = std::env::temp_dir().join("neon_cli_test_run_aliased_module_import");
+    fs::create_dir_all(dir.join("lib")).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    fs::write(
+        &main_path,
+        "import \"lib/utils\" as u\nprint(u.double(21))\n",
+    )
+    .expect("Failed to write test script");
+    fs::write(
+        dir.join("lib").join("utils.n"),
+        "export fn double(x) { return x * 2 }\n",
+    )
+    .expect("Failed to write test module");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("42\n", String::from_utf8_lossy(&output.stdout));
+    #[cfg(not(feature = "opcode-stats"))]
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
+fn run_file_keeps_entry_stack_slots_after_modules() {
+    let dir = std::env::temp_dir().join("neon_cli_test_run_entry_stack_slots_after_modules");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    fs::write(
+        &main_path,
+        "import \"a\"\nimport \"b\"\nval m1 = 10\nval m2 = 20\nif true {\n    val q = m1 + m2\n    print(q)\n}\nfor i in 0..2 {\n    print(i + a.x)\n}\nprint(m1 + m2 + a.x + a.y + b.z)\n",
+    )
+    .expect("Failed to write test script");
+    fs::write(
+        dir.join("a.n"),
+        "export val x = 1\nval hidden = 2\nexport val y = 3\n",
+    )
+    .expect("Failed to write test module");
+    fs::write(dir.join("b.n"), "val hidden = 4\nexport val z = 5\n")
+        .expect("Failed to write test module");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!("30\n1\n2\n39\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn check_mode_accepts_a_program_with_imports() {
+    let dir = std::env::temp_dir().join("neon_cli_test_check_accepts_imports");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "import \"utils\"\nprint(utils.double(21))\n")
+        .expect("Failed to write test script");
+    fs::write(
+        dir.join("utils.n"),
+        "export fn double(x) { return x * 2 }\n",
+    )
+    .expect("Failed to write test module");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&main_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
 }
 
 #[test]
@@ -996,7 +1090,7 @@ fn run_repl_in_dir_with_stdin(dir: &std::path::Path, stdin_input: &[u8]) -> std:
 fn repl_resolves_an_import_relative_to_the_current_directory() {
     let dir = std::env::temp_dir().join("neon_cli_test_repl_import_relative_to_cwd");
     fs::create_dir_all(&dir).expect("Failed to create test dir");
-    fs::write(dir.join("b.n"), "val x = 1\n").expect("Failed to write test module");
+    fs::write(dir.join("b.n"), "print(\"loaded b\")\n").expect("Failed to write test module");
 
     let output = run_repl_in_dir_with_stdin(&dir, b"import \"b\"\n");
 
@@ -1007,10 +1101,7 @@ fn repl_resolves_an_import_relative_to_the_current_directory() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(
-        combined.contains("modules are not supported yet"),
-        "{combined}"
-    );
+    assert!(combined.contains("loaded b"), "{combined}");
     assert!(
         !combined.contains("file imports are not available"),
         "{combined}"
