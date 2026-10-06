@@ -1553,3 +1553,14 @@ print(Color.Red)
 "#;
     assert_eq!(run(program), "1\n7\n8\n3\nColor.Red");
 }
+
+#[test]
+fn an_exported_fn_is_callable_before_its_declaration() {
+    let program = r#"
+print(f())
+export fn f() {
+    return 5
+}
+"#;
+    assert_eq!(run(program), "5");
+}
