@@ -177,6 +177,11 @@ impl Resolutions {
         self.symbols.intern(name)
     }
 
+    /// The id `name` was interned under, if it was.
+    pub(crate) fn symbol_id(&self, name: &str) -> Option<u16> {
+        self.symbols.id(name)
+    }
+
     /// Every interned field, method, and type name, indexed by symbol id,
     /// for embedding into a compiled chunk.
     pub fn symbol_names(&self) -> Rc<[Rc<str>]> {

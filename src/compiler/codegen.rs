@@ -1869,6 +1869,22 @@ impl<'a> CodeGenerator<'a> {
                         return;
                     }
                 }
+                // A variant of an exported enum, e.g. utils.Color.Red: the
+                // access is recorded on the node naming the module.
+                if let Expr::GetField { object: module, .. } = object.as_ref() {
+                    if let Expr::Variable { id, .. } = module.as_ref() {
+                        if let Some(access) = self.resolutions.enum_variant_access(*id) {
+                            self.emit_enum_variant_constant(
+                                &access.enum_name,
+                                &access.variant_name,
+                                access.ordinal,
+                                &access.fields,
+                                *location,
+                            );
+                            return;
+                        }
+                    }
+                }
                 let symbol = self.resolutions.symbol(field);
                 if let Expr::Variable { id, .. } = object.as_ref() {
                     if let Res::Local(decl) = self.resolutions.res(*id) {

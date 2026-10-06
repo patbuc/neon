@@ -1,18 +1,38 @@
-use crate::compiler::ast::Stmt;
+use crate::compiler::ast::{EnumVariant, Stmt};
 use crate::compiler::resolutions::{DeclId, Resolutions};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExportKind {
-    Function { arity: u8 },
-    Variable { mutable: bool },
+/// One exported name: what it is and, for the kinds that have one, the
+/// global slot it lives in.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Export {
+    Function {
+        arity: u8,
+        slot: u32,
+    },
+    Variable {
+        mutable: bool,
+        slot: u32,
+    },
+    Struct {
+        fields: Vec<String>,
+        slot: u32,
+    },
+    /// Variants compile to constants, so an enum has no slot.
+    Enum {
+        variants: Vec<EnumVariant>,
+    },
 }
 
-/// One exported name: what it is and the global slot it lives in.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Export {
-    pub kind: ExportKind,
-    pub slot: u32,
+impl Export {
+    pub fn slot(&self) -> Option<u32> {
+        match self {
+            Export::Function { slot, .. }
+            | Export::Variable { slot, .. }
+            | Export::Struct { slot, .. } => Some(*slot),
+            Export::Enum { .. } => None,
+        }
+    }
 }
 
 /// A module's exports, keyed by the symbol id of the exported name.
@@ -22,40 +42,59 @@ pub struct ExportTable {
 }
 
 impl ExportTable {
-    /// Collects the `export`ed `fn`/`val`/`var` declarations of a compiled
-    /// module, given the slot codegen assigned each declaration.
+    /// Collects the `export`ed declarations of a compiled module, given the
+    /// slot codegen assigned each declaration.
     pub(crate) fn build(
         ast: &[Stmt],
         resolutions: &Resolutions,
         decl_slots: &HashMap<DeclId, u32>,
     ) -> ExportTable {
         let mut table = ExportTable::default();
-        let mut add = |name: &str, id, kind| {
-            let slot = decl_slots[&resolutions.decl(id)];
-            table
-                .exports
-                .insert(resolutions.symbol(name), Export { kind, slot });
-        };
+        let slot = |id| decl_slots[&resolutions.decl(id)];
         for stmt in ast {
             let Stmt::Export { declaration, .. } = stmt else {
                 continue;
+            };
+            let mut add = |name: &str, export| {
+                table.exports.insert(resolutions.symbol(name), export);
             };
             match declaration.as_ref() {
                 Stmt::Fn {
                     name, params, id, ..
                 } => add(
                     name,
-                    *id,
-                    ExportKind::Function {
+                    Export::Function {
                         arity: params.len() as u8,
+                        slot: slot(*id),
                     },
                 ),
                 Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
                     let mutable = matches!(declaration.as_ref(), Stmt::Var { .. });
                     for binding in pattern.bindings() {
-                        add(&binding.name, binding.id, ExportKind::Variable { mutable });
+                        add(
+                            &binding.name,
+                            Export::Variable {
+                                mutable,
+                                slot: slot(binding.id),
+                            },
+                        );
                     }
                 }
+                Stmt::Struct {
+                    name, fields, id, ..
+                } => add(
+                    name,
+                    Export::Struct {
+                        fields: fields.iter().map(|f| f.name.clone()).collect(),
+                        slot: slot(*id),
+                    },
+                ),
+                Stmt::Enum { name, variants, .. } => add(
+                    name,
+                    Export::Enum {
+                        variants: variants.clone(),
+                    },
+                ),
                 _ => {}
             }
         }

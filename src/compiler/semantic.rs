@@ -11,7 +11,7 @@ use crate::compiler::ast::{
     Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
     MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
-use crate::compiler::exports::{Export, ExportKind, ExportTable};
+use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
@@ -713,6 +713,13 @@ impl SemanticAnalyzer {
             Expr::Call { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
+                    // A constructor call on an exported struct, e.g.
+                    // utils.Point(1, 2).
+                    if let Expr::Variable { name, .. } = object.as_ref() {
+                        if let Some(Export::Struct { .. }) = self.module_export(name, field) {
+                            return Some(StaticType::Struct(format!("{}.{}", name, field)));
+                        }
+                    }
                     // This is a method call obj.method(args)
                     let object_type = self.infer_expr_type(object)?;
                     crate::common::method_registry::instance_return_type(object_type.name(), field)
@@ -1782,12 +1789,7 @@ impl SemanticAnalyzer {
         }
 
         if matches!(symbol.kind, SymbolKind::Enum { .. }) {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::EnumAsValue,
-                format!("'{}' is an enum, not a value", name),
-                location,
-            ));
+            self.push_enum_as_value_error(name, location);
             return;
         }
 
@@ -1958,6 +1960,16 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
+        // A static call on an exported enum, e.g. utils.Shape.Circle(2).
+        if !optional {
+            if let Some((_, enum_name, variants)) = self.module_enum(object) {
+                self.resolve_enum_static_call(
+                    id, &enum_name, &variants, method, arguments, location,
+                );
+                return;
+            }
+        }
+
         if let Expr::Variable {
             name,
             id: object_id,
@@ -1976,12 +1988,26 @@ impl SemanticAnalyzer {
                 if let Some(exports) = self.module_exports(name) {
                     let export =
                         self.resolve_module_member(*object_id, name, &exports, method, location);
-                    if let Some(Export {
-                        kind: ExportKind::Function { arity },
-                        ..
-                    }) = export
-                    {
-                        self.validate_arity("Function", method, arity, arguments.len(), location);
+                    match export {
+                        Some(Export::Function { arity, .. }) => {
+                            self.validate_arity(
+                                "Function",
+                                method,
+                                arity,
+                                arguments.len(),
+                                location,
+                            );
+                        }
+                        Some(Export::Struct { fields, .. }) => {
+                            self.validate_arity(
+                                "Function",
+                                method,
+                                fields.len() as u8,
+                                arguments.len(),
+                                location,
+                            );
+                        }
+                        _ => {}
                     }
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2144,9 +2170,20 @@ impl SemanticAnalyzer {
 
             if !optional {
                 if let Some(exports) = self.module_exports(name) {
-                    self.resolve_module_member(*id, name, &exports, field, location);
+                    let export = self.resolve_module_member(*id, name, &exports, field, location);
+                    if let Some(Export::Enum { .. }) = export {
+                        self.push_enum_as_value_error(field, location);
+                    }
                     return;
                 }
+            }
+        }
+
+        // A variant of an exported enum, e.g. utils.Color.Red.
+        if !optional {
+            if let Some((module_id, enum_name, variants)) = self.module_enum(object) {
+                self.resolve_enum_variant_access(module_id, &enum_name, &variants, field, location);
+                return;
             }
         }
 
@@ -2192,6 +2229,54 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// The export `member` of the module `module` names, if `module` names
+    /// a module that exports it.
+    fn module_export(&self, module: &str, member: &str) -> Option<Export> {
+        let symbol = self.resolutions.symbol_id(member)?;
+        self.module_exports(module)?.get(symbol).cloned()
+    }
+
+    /// When `expr` is `module.Enum` naming an exported enum, the
+    /// `Expr::Variable` node naming the module, the enum's name and its
+    /// variants.
+    fn module_enum(&self, expr: &Expr) -> Option<(NodeId, String, Vec<EnumVariant>)> {
+        let Expr::GetField {
+            object,
+            field,
+            optional: false,
+            ..
+        } = expr
+        else {
+            return None;
+        };
+        let Expr::Variable { name, id, .. } = object.as_ref() else {
+            return None;
+        };
+        match self.module_export(name, field)? {
+            Export::Enum { variants } => Some((*id, field.clone(), variants)),
+            _ => None,
+        }
+    }
+
+    /// The name and fields of a struct exported by a module, given its
+    /// static type name `module.Struct`.
+    fn module_struct<'a>(&self, type_name: &'a str) -> Option<(&'a str, Vec<String>)> {
+        let (module, name) = type_name.split_once('.')?;
+        match self.module_export(module, name)? {
+            Export::Struct { fields, .. } => Some((name, fields)),
+            _ => None,
+        }
+    }
+
+    fn push_enum_as_value_error(&mut self, name: &str, location: SourceLocation) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::EnumAsValue,
+            format!("'{}' is an enum, not a value", name),
+            location,
+        ));
+    }
+
     /// Resolves `utils.counter`: `id` is the `Expr::Variable` node naming
     /// the module.
     fn resolve_module_member(
@@ -2209,8 +2294,10 @@ impl SemanticAnalyzer {
             .and_then(|symbol| exports.get(symbol));
         match export {
             Some(export) => {
-                self.resolutions.record_module_member(id, export.slot);
-                Some(*export)
+                if let Some(slot) = export.slot() {
+                    self.resolutions.record_module_member(id, slot);
+                }
+                Some(export.clone())
             }
             None => {
                 let names = self.resolutions.symbol_names();
@@ -2804,6 +2891,11 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
+        // Methods on a module's structs aren't resolved yet (#191).
+        if self.module_struct(object_type).is_some() {
+            return;
+        }
+
         if self.is_struct_type(object_type) {
             self.validate_struct_method_call(
                 object_type,
@@ -2871,22 +2963,20 @@ impl SemanticAnalyzer {
     /// Check that a field access/set on a receiver of statically known
     /// struct type refers to one of the struct's declared fields.
     fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
-        if !matches!(
-            self.symbol_table.resolve(struct_name),
-            Some(Symbol {
-                kind: SymbolKind::Struct { .. },
-                ..
-            })
-        ) {
+        let (name, has_field) = if let Some((name, fields)) = self.module_struct(struct_name) {
+            (name, fields.iter().any(|f| f == field))
+        } else if self.is_struct_type(struct_name) {
+            (struct_name, self.struct_has_field(struct_name, field))
+        } else {
             // Not a known struct type - nothing to check.
             return;
-        }
+        };
 
-        if !self.struct_has_field(struct_name, field) {
+        if !has_field {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownField,
-                format!("Struct '{}' has no field named '{}'", struct_name, field),
+                format!("Struct '{}' has no field named '{}'", name, field),
                 location,
             ));
         }

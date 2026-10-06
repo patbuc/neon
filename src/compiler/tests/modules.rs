@@ -1,4 +1,4 @@
-use super::helpers::{compile_errors, disassemble};
+use super::helpers::{compile, compile_errors, disassemble};
 use super::module_graph::TempDir;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
 use crate::common::{Chunk, Value};
@@ -429,4 +429,89 @@ fn rejects_an_import_and_a_val_binding_the_same_name() {
         &local[0].message,
         2,
     );
+}
+
+const POINT_MODULE: &str = "export struct Point {\n    x\n    y\n}\n";
+
+#[test]
+fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
+    compile_files(
+        "struct_field_ok",
+        "import \"utils\"\nval p = utils.Point(1, 2)\nprint(p.x)\n",
+        &[("utils.n", POINT_MODULE)],
+    )
+    .expect("should compile");
+
+    let local_field =
+        compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1, 2)\nprint(p.z)\n");
+    assert_eq!(1, local_field.len(), "errors: {:#?}", local_field);
+    let errors = compile_errors_of(
+        "struct_field_unknown",
+        "import \"utils\"\nval p = utils.Point(1, 2)\nprint(p.z)\n",
+        &[("utils.n", POINT_MODULE)],
+    );
+    assert_one_error(&errors, local_field[0].kind, &local_field[0].message, 3);
+
+    let local_arity = compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1)\n");
+    assert_eq!(1, local_arity.len(), "errors: {:#?}", local_arity);
+    let errors = compile_errors_of(
+        "struct_ctor_arity",
+        "import \"utils\"\nval p = utils.Point(1)\n",
+        &[("utils.n", POINT_MODULE)],
+    );
+    assert_one_error(&errors, local_arity[0].kind, &local_arity[0].message, 2);
+}
+
+const ENUM_MODULE: &str =
+    "export enum Color {\n    Red\n    Green\n}\nexport enum Shape {\n    Circle(r)\n}\n";
+
+fn instructions(chunk: &Chunk) -> Vec<String> {
+    chunk
+        .disassemble()
+        .lines()
+        .filter(|line| !line.starts_with("==="))
+        .map(|line| {
+            let tokens: Vec<&str> = line.split_whitespace().skip(2).collect();
+            let text = tokens.join(" ");
+            match text.find('\'') {
+                Some(quote) => format!("{} {}", tokens[0], &text[quote..]),
+                None => text,
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn resolves_utils_color_red_for_an_exported_enum() {
+    let local = compile(&format!(
+        "{}print(Color.Red)\nprint(Shape.Circle(2))\n",
+        ENUM_MODULE.replace("export ", "")
+    ))
+    .expect("should compile");
+    let chunk = compile_files(
+        "enum_variant",
+        "import \"utils\"\nprint(utils.Color.Red)\nprint(utils.Shape.Circle(2))\n",
+        &[("utils.n", ENUM_MODULE)],
+    )
+    .expect("should compile");
+    assert_eq!(instructions(&local), instructions(&chunk));
+
+    let local_unknown =
+        compile_errors("enum Color {\n    Red\n    Green\n}\nprint(Color.Purple)\n");
+    assert_eq!(1, local_unknown.len(), "errors: {:#?}", local_unknown);
+    let errors = compile_errors_of(
+        "enum_unknown_variant",
+        "import \"utils\"\nprint(utils.Color.Purple)\n",
+        &[("utils.n", ENUM_MODULE)],
+    );
+    assert_one_error(&errors, local_unknown[0].kind, &local_unknown[0].message, 2);
+
+    let local_value = compile_errors("enum Color {\n    Red\n    Green\n}\nval c = Color\n");
+    assert_eq!(1, local_value.len(), "errors: {:#?}", local_value);
+    let errors = compile_errors_of(
+        "enum_as_value",
+        "import \"utils\"\nval c = utils.Color\n",
+        &[("utils.n", ENUM_MODULE)],
+    );
+    assert_one_error(&errors, local_value[0].kind, &local_value[0].message, 2);
 }
