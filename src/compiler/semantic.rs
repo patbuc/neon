@@ -1837,6 +1837,75 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn resolve_enum_static_call(
+        &mut self,
+        id: NodeId,
+        name: &str,
+        variants: &[EnumVariant],
+        method: &str,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        for arg in arguments {
+            self.resolve_expr(arg);
+        }
+        if method == "values" {
+            if variants.iter().any(|v| !v.fields.is_empty()) {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownMethod,
+                    format!("'values()' is not available on enum '{}'", name),
+                    location,
+                ));
+                return;
+            }
+            self.validate_arity("Method", "values", 0, arguments.len(), location);
+            self.resolutions.record_enum_values_access(
+                id,
+                EnumValuesAccess {
+                    enum_name: Rc::from(name),
+                    variants: variants.iter().map(|v| Rc::from(v.name.as_str())).collect(),
+                },
+            );
+        } else if let Some(ordinal) = variants.iter().position(|v| v.name == method) {
+            let variant = &variants[ordinal];
+            if variant.fields.is_empty() {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::NotCallable,
+                    format!("'{}' is not a payload variant", method),
+                    location,
+                ));
+                return;
+            }
+            self.validate_arity(
+                "Function",
+                method,
+                variant.fields.len() as u8,
+                arguments.len(),
+                location,
+            );
+            self.resolutions
+                .record_enum_construct(id, EnumVariantAccess::new(name, variant, ordinal));
+        } else {
+            let mut candidates: Vec<&str> = variants
+                .iter()
+                .filter(|v| !v.fields.is_empty())
+                .map(|v| v.name.as_str())
+                .collect();
+            if candidates.is_empty() {
+                candidates.push("values");
+            }
+            let error_message = unknown_method_error(name, method, &candidates, None);
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::UnknownMethod,
+                error_message,
+                location,
+            ));
+        }
+    }
+
     fn resolve_method_call(
         &mut self,
         id: NodeId,
@@ -1875,64 +1944,7 @@ impl SemanticAnalyzer {
 
             // A static call on an enum's own name, e.g. Color.values().
             if let Some(variants) = self.enum_variants(name) {
-                for arg in arguments {
-                    self.resolve_expr(arg);
-                }
-                if method == "values" {
-                    if variants.iter().any(|v| !v.fields.is_empty()) {
-                        self.push_error(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::UnknownMethod,
-                            format!("'values()' is not available on enum '{}'", name),
-                            location,
-                        ));
-                        return;
-                    }
-                    self.validate_arity("Method", "values", 0, arguments.len(), location);
-                    self.resolutions.record_enum_values_access(
-                        id,
-                        EnumValuesAccess {
-                            enum_name: Rc::from(name.as_str()),
-                            variants: variants.iter().map(|v| Rc::from(v.name.as_str())).collect(),
-                        },
-                    );
-                } else if let Some(ordinal) = variants.iter().position(|v| v.name == method) {
-                    let variant = &variants[ordinal];
-                    if variant.fields.is_empty() {
-                        self.push_error(CompilationError::new(
-                            CompilationPhase::Semantic,
-                            CompilationErrorKind::NotCallable,
-                            format!("'{}' is not a payload variant", method),
-                            location,
-                        ));
-                        return;
-                    }
-                    self.validate_arity(
-                        "Function",
-                        method,
-                        variant.fields.len() as u8,
-                        arguments.len(),
-                        location,
-                    );
-                    self.resolutions
-                        .record_enum_construct(id, EnumVariantAccess::new(name, variant, ordinal));
-                } else {
-                    let mut candidates: Vec<&str> = variants
-                        .iter()
-                        .filter(|v| !v.fields.is_empty())
-                        .map(|v| v.name.as_str())
-                        .collect();
-                    if candidates.is_empty() {
-                        candidates.push("values");
-                    }
-                    let error_message = unknown_method_error(name, method, &candidates, None);
-                    self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::UnknownMethod,
-                        error_message,
-                        location,
-                    ));
-                }
+                self.resolve_enum_static_call(id, name, &variants, method, arguments, location);
                 return;
             }
 
