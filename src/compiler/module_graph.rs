@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 pub enum EntryLocation {
     File(PathBuf),
+    Directory(PathBuf),
     None,
 }
 
@@ -30,15 +31,21 @@ impl ModuleGraph {
     /// Modules come in dependency order: every module follows the modules it
     /// imports, so the entry module is last.
     pub fn build(entry_source: &str, entry: EntryLocation) -> CompilationResult<ModuleGraph> {
-        let entry_path = match entry {
-            EntryLocation::File(path) if !cfg!(target_arch = "wasm32") => canonicalize(&path)?,
-            _ => PathBuf::new(),
+        let (entry_path, entry_dir) = match entry {
+            EntryLocation::File(path) if !cfg!(target_arch = "wasm32") => {
+                let path = canonicalize(&path)?;
+                let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+                (path, dir)
+            }
+            EntryLocation::Directory(dir) => (PathBuf::new(), dir),
+            _ => (PathBuf::new(), PathBuf::new()),
         };
         let mut modules = Vec::new();
         let mut visited = HashSet::new();
         let mut stack = Vec::new();
         load(
             entry_path,
+            entry_dir,
             entry_source.to_string(),
             &mut modules,
             &mut visited,
@@ -54,6 +61,7 @@ impl ModuleGraph {
 
 fn load(
     path: PathBuf,
+    dir: PathBuf,
     source: String,
     modules: &mut Vec<Module>,
     visited: &mut HashSet<PathBuf>,
@@ -67,8 +75,6 @@ fn load(
         .map_err(|errors| attach_file(errors, &path))?;
     let eof_location = parser.eof_location();
     let end_locations = parser.end_locations().clone();
-    let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
-
     let mut dependencies = Vec::new();
     for stmt in &ast {
         if let Stmt::Import {
@@ -93,7 +99,7 @@ fn load(
                 dependencies.push(builtin);
                 continue;
             }
-            if path.as_os_str().is_empty() {
+            if dir.as_os_str().is_empty() {
                 return Err(file_import_unavailable_error(*location, &path));
             }
             let file = if import.ends_with(".n") {
@@ -111,8 +117,13 @@ fn load(
             if !visited.contains(&dependency) {
                 let dependency_source =
                     std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
+                let dependency_dir = dependency
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_default();
                 load(
                     dependency.clone(),
+                    dependency_dir,
                     dependency_source,
                     modules,
                     visited,

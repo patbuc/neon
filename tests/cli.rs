@@ -977,3 +977,70 @@ fn repl_keeps_state_across_lines() {
         stdout
     );
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
+fn run_repl_in_dir_with_stdin(dir: &std::path::Path, stdin_input: &[u8]) -> std::process::Output {
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command.current_dir(dir);
+        },
+        stdin_input,
+    );
+    wait_with_timeout(child, std::time::Duration::from_secs(5))
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+#[allow(clippy::expect_used)]
+fn repl_resolves_an_import_relative_to_the_current_directory() {
+    let dir = std::env::temp_dir().join("neon_cli_test_repl_import_relative_to_cwd");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    fs::write(dir.join("b.n"), "val x = 1\n").expect("Failed to write test module");
+
+    let output = run_repl_in_dir_with_stdin(&dir, b"import \"b\"\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("modules are not supported yet"),
+        "{combined}"
+    );
+    assert!(
+        !combined.contains("file imports are not available"),
+        "{combined}"
+    );
+    assert!(!combined.contains("cannot find module"), "{combined}");
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+#[allow(clippy::expect_used)]
+fn repl_reports_missing_import_with_path_tried_in_the_current_directory() {
+    let dir = std::env::temp_dir().join("neon_cli_test_repl_missing_import_in_cwd");
+    fs::create_dir_all(&dir).expect("Failed to create test dir");
+    let dir = dir.canonicalize().expect("Failed to canonicalize test dir");
+
+    let output = run_repl_in_dir_with_stdin(&dir, b"import \"missing\"\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("cannot find module 'missing'"),
+        "{combined}"
+    );
+    assert!(
+        combined.contains(&dir.join("missing.n").display().to_string()),
+        "{combined}"
+    );
+}

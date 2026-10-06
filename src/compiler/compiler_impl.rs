@@ -12,19 +12,23 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, source: &str) -> Option<Chunk> {
-        let env = GlobalEnv::default();
-        self.compile_line(source, &env).map(|(chunk, _)| chunk)
+        self.compile_at(source, EntryLocation::None)
     }
 
     pub fn compile_file(&mut self, source: &str, path: &Path) -> Option<Chunk> {
+        self.compile_at(source, EntryLocation::File(path.to_path_buf()))
+    }
+
+    pub(crate) fn compile_at(&mut self, source: &str, entry: EntryLocation) -> Option<Chunk> {
         let env = GlobalEnv::default();
-        self.compile_entry(source, EntryLocation::File(path.to_path_buf()), &env)
+        self.compile_entry(source, entry, &env)
             .map(|(chunk, _)| chunk)
     }
 
     /// Compiles one REPL line against `env`, the globals earlier lines left
     /// behind. `env` is only ever borrowed, so a failed line leaves the
     /// caller's copy intact.
+    #[cfg(test)]
     pub(crate) fn compile_line(
         &mut self,
         source: &str,
@@ -33,7 +37,7 @@ impl Compiler {
         self.compile_entry(source, EntryLocation::None, env)
     }
 
-    fn compile_entry(
+    pub(crate) fn compile_entry(
         &mut self,
         source: &str,
         entry: EntryLocation,

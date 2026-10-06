@@ -65,6 +65,13 @@ fn run_repl() {
     println!("Type 'exit' or Ctrl+D to quit");
 
     // REPL has no command-line arguments
+    let dir = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            eprintln!("Failed to get the current directory: {}", err);
+            exit(74);
+        }
+    };
     let mut vm = VirtualMachine::new();
     loop {
         print_prompt();
@@ -76,7 +83,7 @@ fn run_repl() {
             println!("Ciao 👋 - May your coffee be strong");
             break;
         }
-        let result = vm.interpret_line(line);
+        let result = vm.interpret_line_in(line, &dir);
         match result {
             InterpretResult::Ok => {}
             InterpretResult::CompileError => {

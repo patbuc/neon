@@ -59,10 +59,7 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new();
-        let chunk = match entry {
-            EntryLocation::File(path) => compiler.compile_file(&source, &path),
-            EntryLocation::None => compiler.compile(&source),
-        };
+        let chunk = compiler.compile_at(&source, entry);
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
@@ -138,6 +135,15 @@ impl VirtualMachine {
     /// defined. A compile error leaves the VM untouched; a runtime error
     /// rolls back everything the line declared.
     pub fn interpret_line(&mut self, source: String) -> InterpretResult {
+        self.interpret_line_at(source, EntryLocation::None)
+    }
+
+    /// Like `interpret_line`, resolving the line's imports relative to `dir`.
+    pub fn interpret_line_in(&mut self, source: String, dir: &Path) -> InterpretResult {
+        self.interpret_line_at(source, EntryLocation::Directory(dir.to_path_buf()))
+    }
+
+    fn interpret_line_at(&mut self, source: String, entry: EntryLocation) -> InterpretResult {
         self.source = source.clone();
 
         let previous_env = self.repl_env.clone();
@@ -145,7 +151,7 @@ impl VirtualMachine {
         let previous_slot_count = previous_env.slot_count as usize;
 
         let mut compiler = Compiler::new();
-        let (chunk, new_env) = match compiler.compile_line(&source, &previous_env) {
+        let (chunk, new_env) = match compiler.compile_entry(&source, entry, &previous_env) {
             Some(result) => result,
             None => {
                 self.structured_errors = compiler.get_structured_errors();
