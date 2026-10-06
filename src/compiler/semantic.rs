@@ -1969,7 +1969,7 @@ impl SemanticAnalyzer {
 
             if !optional {
                 if let Some(exports) = self.module_exports(name) {
-                    self.resolve_module_member(*object_id, &exports, method, location);
+                    self.resolve_module_member(*object_id, name, &exports, method, location);
                     for arg in arguments {
                         self.resolve_expr(arg);
                     }
@@ -2131,7 +2131,7 @@ impl SemanticAnalyzer {
 
             if !optional {
                 if let Some(exports) = self.module_exports(name) {
-                    self.resolve_module_member(*id, &exports, field, location);
+                    self.resolve_module_member(*id, name, &exports, field, location);
                     return;
                 }
             }
@@ -2184,6 +2184,7 @@ impl SemanticAnalyzer {
     fn resolve_module_member(
         &mut self,
         id: NodeId,
+        module: &str,
         exports: &ExportTable,
         field: &str,
         location: SourceLocation,
@@ -2195,12 +2196,25 @@ impl SemanticAnalyzer {
             .and_then(|symbol| exports.get(symbol));
         match export {
             Some(export) => self.resolutions.record_module_member(id, export.slot),
-            None => self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::UndefinedVariable,
-                format!("Undefined export '{}'", field),
-                location,
-            )),
+            None => {
+                let names = self.resolutions.symbol_names();
+                let candidates: Vec<&str> = exports
+                    .symbols()
+                    .map(|symbol| &*names[symbol as usize])
+                    .collect();
+                let mut message = format!("module '{}' has no export '{}'", module, field);
+                if let Some(closest) =
+                    crate::common::string_similarity::find_closest_match(field, &candidates)
+                {
+                    message.push_str(&format!(" Did you mean '{}'?", closest));
+                }
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownExport,
+                    message,
+                    location,
+                ));
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use super::helpers::disassemble;
 use super::module_graph::TempDir;
-use crate::common::errors::CompilationError;
+use crate::common::errors::{CompilationError, CompilationErrorKind};
 use crate::common::{Chunk, Value};
 use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
@@ -202,4 +202,100 @@ fn interns_a_field_name_used_in_two_modules_to_one_symbol_id() {
 
     let count = chunk.symbols.iter().filter(|s| &***s == "x").count();
     assert_eq!(1, count, "symbols: {:?}", chunk.symbols);
+}
+
+fn compile_errors_of(dir_name: &str, entry: &str, files: &[(&str, &str)]) -> Vec<CompilationError> {
+    match compile_files(dir_name, entry, files) {
+        Ok(_) => panic!("expected compile errors"),
+        Err(errors) => errors,
+    }
+}
+
+#[test]
+fn rejects_an_unknown_export_call_with_a_suggestion() {
+    let errors = compile_errors_of(
+        "unknown_export_suggestion",
+        "import \"utils\"\nutils.doubel(1)\n",
+        &[("utils.n", DOUBLE_MODULE)],
+    );
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    let error = &errors[0];
+    assert_eq!(CompilationErrorKind::UnknownExport, error.kind);
+    assert!(
+        error
+            .message
+            .starts_with("module 'utils' has no export 'doubel'"),
+        "message: {}",
+        error.message
+    );
+    assert!(
+        error.message.contains("Did you mean 'double'"),
+        "message: {}",
+        error.message
+    );
+    assert_eq!(2, error.location.line);
+    assert_eq!(None, error.file);
+}
+
+#[test]
+fn rejects_an_unknown_export_call_without_a_suggestion_when_nothing_is_similar() {
+    let errors = compile_errors_of(
+        "unknown_export_plain",
+        "import \"utils\"\nutils.nope()\n",
+        &[("utils.n", DOUBLE_MODULE)],
+    );
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(CompilationErrorKind::UnknownExport, errors[0].kind);
+    assert!(
+        errors[0]
+            .message
+            .starts_with("module 'utils' has no export 'nope'"),
+        "message: {}",
+        errors[0].message
+    );
+    assert!(
+        !errors[0].message.contains("Did you mean"),
+        "message: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn rejects_a_call_to_a_non_exported_function_as_an_unknown_export() {
+    let errors = compile_errors_of(
+        "unknown_export_hidden_fn",
+        "import \"utils\"\nutils.hidden()\n",
+        &[("utils.n", "fn hidden() {}\nexport fn shown() {}\n")],
+    );
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(CompilationErrorKind::UnknownExport, errors[0].kind);
+    assert!(
+        errors[0]
+            .message
+            .starts_with("module 'utils' has no export 'hidden'"),
+        "message: {}",
+        errors[0].message
+    );
+}
+
+#[test]
+fn rejects_a_read_of_a_non_exported_val_as_an_unknown_export() {
+    let errors = compile_errors_of(
+        "unknown_export_hidden_val",
+        "import \"utils\"\nprint(utils.hidden_val)\n",
+        &[("utils.n", "val hidden_val = 1\nexport val shown = 2\n")],
+    );
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(CompilationErrorKind::UnknownExport, errors[0].kind);
+    assert!(
+        errors[0]
+            .message
+            .starts_with("module 'utils' has no export 'hidden_val'"),
+        "message: {}",
+        errors[0].message
+    );
 }

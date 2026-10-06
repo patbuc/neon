@@ -89,6 +89,7 @@ compilation_error_kinds! {
     ImportCycle => "E0054",
     UnknownModule => "E0055",
     FileImportUnavailable => "E0056",
+    UnknownExport => "E0057",
 }
 
 #[derive(Debug, Clone, PartialEq)]

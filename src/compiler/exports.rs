@@ -62,6 +62,10 @@ impl ExportTable {
         table
     }
 
+    pub fn symbols(&self) -> impl Iterator<Item = u16> + '_ {
+        self.exports.keys().copied()
+    }
+
     pub fn get(&self, symbol: u16) -> Option<&Export> {
         self.exports.get(&symbol)
     }
