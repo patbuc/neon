@@ -1,0 +1,1 @@
+export fn label(name, value) = "${name}: ${value}"

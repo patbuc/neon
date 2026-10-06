@@ -895,6 +895,10 @@ print(math.square(5))     // 25
   Import cycles are compile errors.
 - The browser build can't import files.
 
+[`examples/modules/`](examples/modules/) is a small multi-file program that
+exports a struct, an enum and a variable, and imports a module under an alias.
+Run it with `cargo run -- examples/modules/main.n`.
+
 ## Code Examples
 
 ### Fibonacci

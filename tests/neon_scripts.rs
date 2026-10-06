@@ -234,4 +234,6 @@ datatest_stable::harness! {
     { test = run_formatted_neon_script, root = "benches", pattern = r"^.*\.n$" },
     { test = run_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
     { test = run_formatted_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
+    { test = run_module_case, root = "examples", pattern = r"^modules/main\.n$" },
+    { test = run_formatted_module_case, root = "examples", pattern = r"^modules/main\.n$" },
 }
