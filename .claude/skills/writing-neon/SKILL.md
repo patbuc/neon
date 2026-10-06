@@ -98,7 +98,8 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   instead: `for i in 0..n { }`. For-in over a map gives keys, or
   `[key, value]` pairs with `for (k, v) in m { }`. `val`/`var`/`for` also
   destructure a tuple pattern (`val (a, b) = [1, 2]`), `_` skipping a
-  position. `break`/`continue` exist.
+  position; a non-array or wrong-size value is a runtime error (`Cannot
+  destructure number into 2 names`). `break`/`continue` exist.
 - No `switch`, `do`/`while`, `try`/`catch`, or `throw`.
 - `match x { pattern, pattern -> body ... }` is an expression and a statement.
   A pattern is a number/string/bool/`nil` literal, `Enum.Variant`, an integer
