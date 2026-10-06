@@ -485,6 +485,12 @@ fn can_scan_all_keywords() {
 }
 
 #[test]
+fn scans_import_and_export_as_keywords() {
+    assert_first_token("import", TokenType::Import, "import");
+    assert_first_token("export", TokenType::Export, "export");
+}
+
+#[test]
 fn identifiers_with_keyword_prefixes_scan_as_identifiers() {
     for src in [
         "fname", "iffy", "valid", "variable", "format", "returned", "nilly", "implicit",
