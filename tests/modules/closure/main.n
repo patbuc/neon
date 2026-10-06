@@ -1,0 +1,11 @@
+// Expected:
+// 1
+// 2
+// 2
+
+import "utils"
+
+val next = utils.make()
+print(next())
+print(next())
+print(utils.counter)

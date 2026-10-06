@@ -1,0 +1,9 @@
+// Expected:
+// 0
+// 1
+
+import "utils"
+
+print(utils.counter)
+utils.bump()
+print(utils.counter)

@@ -1,0 +1,8 @@
+export var counter = 0
+
+export fn make() {
+    return fn() {
+        counter = counter + 1
+        return counter
+    }
+}

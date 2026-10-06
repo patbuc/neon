@@ -1,0 +1,7 @@
+import "c"
+
+print("a loaded")
+
+export fn fa() {
+    return c.one + 1
+}

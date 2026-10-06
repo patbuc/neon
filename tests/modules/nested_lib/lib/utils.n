@@ -1,0 +1,9 @@
+import "helpers"
+
+export fn double(x) {
+    return x * 2
+}
+
+export fn triplePlusOne(x) {
+    return helpers.inc(x * 3)
+}

@@ -1,0 +1,9 @@
+// Expected:
+// 42
+// 25
+
+import "utils" as u
+import "my-math" as math
+
+print(u.double(21))
+print(math.square(5))

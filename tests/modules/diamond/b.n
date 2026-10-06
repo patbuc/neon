@@ -1,0 +1,7 @@
+import "c"
+
+print("b loaded")
+
+export fn fb() {
+    return c.one + 2
+}
