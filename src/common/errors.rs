@@ -82,6 +82,9 @@ compilation_error_kinds! {
     PatternNotInEnum => "E0048",
     UnreachablePattern => "E0049",
     InvalidMatchPattern => "E0050",
+    ImportNotTopLevel => "E0051",
+    ExportNotTopLevel => "E0052",
+    ModulesUnsupported => "E0053",
 }
 
 #[derive(Debug, Clone, PartialEq)]

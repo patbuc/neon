@@ -277,6 +277,7 @@ impl SemanticAnalyzer {
 
     fn collect_declarations(&mut self, statements: &[Stmt]) {
         for stmt in statements {
+            let stmt = stmt.unexported();
             match stmt {
                 Stmt::Fn {
                     name,
@@ -1066,6 +1067,15 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
+            Stmt::Import { location, .. } => {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::ModulesUnsupported,
+                    "modules are not supported yet",
+                    *location,
+                ));
+            }
+            Stmt::Export { declaration, .. } => self.resolve_stmt(declaration),
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);
             }
@@ -2886,9 +2896,12 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
             initializer.as_ref().is_some_and(expr_references_it)
         }
         Stmt::Fn { params, body, .. } => !owns_it(params, false) && block_references_it(body),
-        Stmt::Struct { .. } | Stmt::Enum { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
-            false
-        }
+        Stmt::Struct { .. }
+        | Stmt::Enum { .. }
+        | Stmt::Break { .. }
+        | Stmt::Continue { .. }
+        | Stmt::Import { .. } => false,
+        Stmt::Export { declaration, .. } => stmt_references_it(declaration),
         Stmt::Impl { methods, .. } => methods.iter().any(stmt_references_it),
         Stmt::Expression { expr, .. } => expr_references_it(expr),
         Stmt::Block { statements, .. } => block_references_it(statements),

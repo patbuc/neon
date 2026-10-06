@@ -498,6 +498,8 @@ impl Parser {
                         | TokenType::Var
                         | TokenType::For
                         | TokenType::While
+                        | TokenType::Import
+                        | TokenType::Export
                         | TokenType::Return => {
                             self.nesting_depth = depth;
                             return;
@@ -524,6 +526,8 @@ impl Parser {
                     | TokenType::For
                     | TokenType::If
                     | TokenType::While
+                    | TokenType::Import
+                    | TokenType::Export
                     | TokenType::Return => return,
                     _ => {}
                 }
@@ -555,6 +559,10 @@ impl Parser {
             self.enum_declaration()
         } else if self.match_token(TokenType::Impl) {
             self.impl_declaration()
+        } else if self.match_token(TokenType::Import) {
+            self.import_declaration()
+        } else if self.match_token(TokenType::Export) {
+            self.export_declaration()
         } else {
             self.statement()
         }
@@ -603,6 +611,88 @@ impl Parser {
                 location,
             }
         })
+    }
+
+    fn at_top_level(&self) -> bool {
+        self.nesting_depth.0 == 0
+    }
+
+    fn import_declaration(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        if !self.at_top_level() {
+            self.report_error_at_previous(
+                CompilationErrorKind::ImportNotTopLevel,
+                "import is only allowed at the top level".to_string(),
+            );
+            return None;
+        }
+        if !self.consume(TokenType::String, "expected a string path after import") {
+            return None;
+        }
+        let path = self.previous_token.token.clone();
+        let raw_path = self.previous_token.raw.clone();
+        let alias = if self.check(TokenType::Identifier) && self.current_token.token == "as" {
+            self.advance();
+            if !self.consume(TokenType::Identifier, "expected a name after as") {
+                return None;
+            }
+            Some(self.previous_token.token.clone())
+        } else {
+            None
+        };
+        self.consume_statement_end("Expecting '\\n' or '\\0' after import declaration.");
+        Some(Stmt::Import {
+            path,
+            raw_path,
+            alias,
+            id: self.next_id(),
+            location,
+        })
+    }
+
+    fn export_declaration(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        if !self.at_top_level() {
+            self.report_error_at_previous(
+                CompilationErrorKind::ExportNotTopLevel,
+                "export is only allowed at the top level".to_string(),
+            );
+            return None;
+        }
+        let declaration = if self.match_token(TokenType::Val) || self.match_token(TokenType::Var) {
+            if self.check(TokenType::LeftParen) {
+                return self.export_destructuring_error();
+            }
+            if self.previous_token.token_type == TokenType::Val {
+                self.val_declaration()
+            } else {
+                self.var_declaration()
+            }
+        } else if self.match_token(TokenType::Fn) {
+            self.fn_declaration()
+        } else if self.match_token(TokenType::Struct) {
+            self.struct_declaration()
+        } else if self.match_token(TokenType::Enum) {
+            self.enum_declaration()
+        } else {
+            self.report_error_at_current(
+                CompilationErrorKind::ExpectedToken,
+                "export must precede a fn, val, var, struct or enum".to_string(),
+            );
+            return None;
+        }?;
+        Some(Stmt::Export {
+            declaration: Box::new(declaration),
+            location,
+        })
+    }
+
+    fn export_destructuring_error(&mut self) -> Option<Stmt> {
+        self.report_error_at_current(
+            CompilationErrorKind::ExpectedToken,
+            "export binds one name".to_string(),
+        );
+        None
     }
 
     fn val_declaration(&mut self) -> Option<Stmt> {
@@ -1173,6 +1263,8 @@ impl Parser {
                 | TokenType::Struct
                 | TokenType::Enum
                 | TokenType::Impl
+                | TokenType::Import
+                | TokenType::Export
                 | TokenType::For
                 | TokenType::While
                 | TokenType::Return

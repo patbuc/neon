@@ -97,7 +97,8 @@ mod resolutions {
                 index_expr(collection, idx);
                 index_stmt(body, idx);
             }
-            Stmt::Break { .. } | Stmt::Continue { .. } => {}
+            Stmt::Export { declaration, .. } => index_stmt(declaration, idx),
+            Stmt::Break { .. } | Stmt::Continue { .. } | Stmt::Import { .. } => {}
         }
     }
 
@@ -3969,4 +3970,13 @@ fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
         errors,
         vec!["Enum 'Color' has no variant named 'Purple'".to_string()]
     );
+}
+
+#[test]
+fn test_import_reports_modules_not_supported_yet() {
+    let errors: Vec<String> = compile_errors("import \"utils\"\n")
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
+    assert_eq!(errors, vec!["modules are not supported yet".to_string()]);
 }

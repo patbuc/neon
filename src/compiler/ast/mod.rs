@@ -487,4 +487,24 @@ pub enum Stmt {
     Continue {
         location: SourceLocation,
     },
+    Export {
+        declaration: Box<Stmt>,
+        location: SourceLocation,
+    },
+    Import {
+        path: String,
+        raw_path: String,
+        alias: Option<String>,
+        id: NodeId,
+        location: SourceLocation,
+    },
+}
+
+impl Stmt {
+    pub fn unexported(&self) -> &Stmt {
+        match self {
+            Stmt::Export { declaration, .. } => declaration,
+            _ => self,
+        }
+    }
 }
