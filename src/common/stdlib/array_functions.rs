@@ -817,17 +817,6 @@ pub fn native_array_flat_map(
     Ok(Value::new_array(flattened))
 }
 
-/// Renders a value's type the way Neon spells it elsewhere (`Int`,
-/// `String`, ...) rather than `type_name()`'s lowercase runtime label.
-pub(crate) fn type_name_for_error(value: &Value) -> String {
-    if matches!(value, Value::Int(_)) {
-        "Int".to_string()
-    } else {
-        let lower = value.type_name();
-        lower[..1].to_uppercase() + &lower[1..]
-    }
-}
-
 /// Native implementation of Array.filter(fn)
 /// Returns a new array of the elements for which fn is truthy.
 pub fn native_array_filter(
