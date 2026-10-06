@@ -3957,3 +3957,16 @@ fn test_match_unknown_variant_pattern_reports_only_no_such_variant() {
         vec!["Enum 'Shape' has no variant named 'Nope'".to_string()]
     );
 }
+
+#[test]
+fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
+    let program = "enum Color {\n    Red\n}\nval c = Color.Red\nval x = match c {\n    Color.Purple -> 1\n    _ -> 0\n}\n";
+    let errors: Vec<String> = compile_errors(program)
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
+    assert_eq!(
+        errors,
+        vec!["Enum 'Color' has no variant named 'Purple'".to_string()]
+    );
+}
