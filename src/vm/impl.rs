@@ -195,6 +195,9 @@ impl VirtualMachine {
                 let new_slot_count = new_env.slot_count as usize;
                 self.close_upvalues_above(new_slot_count);
                 self.stack.truncate(new_slot_count);
+                self.stack.resize_with(new_slot_count, || {
+                    Value::Uninitialized(Rc::new(String::new()))
+                });
                 for (name, symbol) in &new_env.globals {
                     let Some(&slot) = new_env.decl_slots.get(&symbol.decl_id) else {
                         continue;
