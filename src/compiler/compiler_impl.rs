@@ -68,10 +68,13 @@ impl Compiler {
         // the symbols, decl ids and slot count, so its globals follow the
         // previous module's and stay invisible to the others.
         let mut env = env.clone();
-        let mut exports: HashMap<PathBuf, ExportTable> = HashMap::new();
+        let mut exports = std::mem::take(&mut env.modules);
         let mut modules = Vec::new();
         let (entry_module, imported) = Self::split_entry(&graph);
         for module in imported.iter().filter(|module| !module.builtin) {
+            if exports.contains_key(&module.path) {
+                continue;
+            }
             let module_env = GlobalEnv {
                 symbols: env.symbols.clone(),
                 next_decl_id: env.next_decl_id,
@@ -96,7 +99,7 @@ impl Compiler {
             modules.push(chunk);
         }
 
-        let (entry, env, _) = match self.compile_unit(entry_module, &env, &exports) {
+        let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports) {
             Ok(unit) => unit,
             Err(errors) => return self.fail(errors),
         };
@@ -108,6 +111,7 @@ impl Compiler {
             }
             _ => None,
         });
+        env.modules = exports;
         Some(Compiled {
             modules,
             entry,

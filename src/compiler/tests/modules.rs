@@ -222,16 +222,8 @@ fn rejects_an_unknown_export_call_with_a_suggestion() {
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     let error = &errors[0];
     assert_eq!(CompilationErrorKind::UnknownExport, error.kind);
-    assert!(
-        error
-            .message
-            .starts_with("module 'utils' has no export 'doubel'"),
-        "message: {}",
-        error.message
-    );
-    assert!(
-        error.message.contains("Did you mean 'double'"),
-        "message: {}",
+    assert_eq!(
+        "module 'utils' has no export 'doubel'. Did you mean 'double'?",
         error.message
     );
     assert_eq!(2, error.location.line);
@@ -445,12 +437,23 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     let local_field =
         compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1, 2)\nprint(p.z)\n");
     assert_eq!(1, local_field.len(), "errors: {:#?}", local_field);
+    let qualified_field = local_field[0].message.replace("'Point'", "'utils.Point'");
+    assert_eq!(
+        "Struct 'utils.Point' has no field named 'z'",
+        qualified_field
+    );
     let errors = compile_errors_of(
         "struct_field_unknown",
         "import \"utils\"\nval p = utils.Point(1, 2)\nprint(p.z)\n",
         &[("utils.n", POINT_MODULE)],
     );
-    assert_one_error(&errors, local_field[0].kind, &local_field[0].message, 3);
+    assert_one_error(&errors, local_field[0].kind, &qualified_field, 3);
+    let errors = compile_errors_of(
+        "struct_field_unknown_shadowed",
+        "import \"utils\"\nstruct Point {\n    z\n}\nval p = utils.Point(1, 2)\nprint(p.z)\n",
+        &[("utils.n", POINT_MODULE)],
+    );
+    assert_one_error(&errors, local_field[0].kind, &qualified_field, 6);
 
     let local_arity = compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1)\n");
     assert_eq!(1, local_arity.len(), "errors: {:#?}", local_arity);
@@ -514,4 +517,102 @@ fn resolves_utils_color_red_for_an_exported_enum() {
         &[("utils.n", ENUM_MODULE)],
     );
     assert_one_error(&errors, local_value[0].kind, &local_value[0].message, 2);
+}
+
+#[test]
+fn suggests_the_alphabetically_first_of_equally_close_exports() {
+    let errors = compile_errors_of(
+        "unknown_export_tie",
+        "import \"ties\"\nprint(ties.hat)\n",
+        &[(
+            "ties.n",
+            "export val rat = 1\nexport val mat = 2\nexport val cat = 3\nexport val bat = 4\n",
+        )],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::UnknownExport,
+        "module 'ties' has no export 'hat'. Did you mean 'bat'?",
+        2,
+    );
+}
+
+fn assert_same_errors(local: &[CompilationError], errors: &[CompilationError]) {
+    assert!(!local.is_empty());
+    let kinds_and_messages = |errors: &[CompilationError]| -> Vec<(CompilationErrorKind, String)> {
+        errors
+            .iter()
+            .map(|error| (error.kind, error.message.clone()))
+            .collect()
+    };
+    assert_eq!(kinds_and_messages(local), kinds_and_messages(errors));
+}
+
+#[test]
+fn rejects_calling_an_exported_enum_like_a_local_enum() {
+    let local_enums = ENUM_MODULE.replace("export ", "");
+    let cases = [
+        ("enum_call_no_args", "Color()\n", "utils.Color()\n"),
+        ("enum_call_one_arg", "Color(1)\n", "utils.Color(1)\n"),
+        (
+            "enum_call_returned",
+            "fn f() {\n    return Shape()\n}\n",
+            "fn f() {\n    return utils.Shape()\n}\n",
+        ),
+    ];
+    for (dir_name, local_call, member_call) in cases {
+        let local = compile_errors(&format!("{}{}", local_enums, local_call));
+        let errors = compile_errors_of(
+            dir_name,
+            &format!("import \"utils\"\n{}", member_call),
+            &[("utils.n", ENUM_MODULE)],
+        );
+        assert_same_errors(&local, &errors);
+    }
+}
+
+#[test]
+fn rejects_optional_dot_on_an_exported_type_like_a_local_type() {
+    let local_types = format!("{}{}", POINT_MODULE, ENUM_MODULE).replace("export ", "");
+    let cases = [
+        ("optional_dot_struct", "print(Point?.x)\n"),
+        ("optional_dot_enum", "print(Color?.values())\n"),
+    ];
+    for (dir_name, local_use) in cases {
+        let local = compile_errors(&format!("{}{}", local_types, local_use));
+        assert_eq!(CompilationErrorKind::OptionalDotOnType, local[0].kind);
+        let errors = compile_errors_of(
+            dir_name,
+            &format!(
+                "import \"utils\"\n{}",
+                local_use.replace("print(", "print(utils.")
+            ),
+            &[("utils.n", &format!("{}{}", POINT_MODULE, ENUM_MODULE))],
+        );
+        assert_same_errors(&local, &errors);
+    }
+}
+
+#[test]
+fn rejects_a_file_stem_that_is_not_an_identifier_unless_aliased() {
+    let errors = compile_errors_of(
+        "invalid_import_name",
+        "import \"my-utils\"\n",
+        &[("my-utils.n", "export val x = 1\n")],
+    );
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::InvalidImportName,
+        "cannot bind 'my-utils' as a name; use `import \"my-utils\" as <name>`",
+        1,
+    );
+    assert_eq!("E0058", CompilationErrorKind::InvalidImportName.code());
+
+    compile_files(
+        "invalid_import_name_aliased",
+        "import \"my-utils\" as mu\nprint(mu.x)\n",
+        &[("my-utils.n", "export val x = 1\n")],
+    )
+    .expect("should compile");
 }

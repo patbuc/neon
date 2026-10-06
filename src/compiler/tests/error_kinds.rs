@@ -255,6 +255,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "import \"b\"\nb.nope()\n".to_string(),
             Some("module 'b' has no export 'nope'"),
         )],
+        CompilationErrorKind::InvalidImportName => vec![(
+            "import \"my-utils\"\n".to_string(),
+            Some("cannot bind 'my-utils' as a name"),
+        )],
         CompilationErrorKind::ImplOnEnum => vec![(
             "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
                 .to_string(),
@@ -304,6 +308,7 @@ fn file_based_siblings(
         CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nimport \"a\"\n")]),
         CompilationErrorKind::UnknownModule => Some(&[]),
         CompilationErrorKind::UnknownExport => Some(&[("b.n", "export val x = 1\n")]),
+        CompilationErrorKind::InvalidImportName => Some(&[("my-utils.n", "export val x = 1\n")]),
         _ => None,
     }
 }

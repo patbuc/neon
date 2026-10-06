@@ -295,3 +295,56 @@ fn resolves_module_member_on_line_after_import() {
         disassembly
     );
 }
+
+#[test]
+fn reimporting_a_module_on_a_later_line_reuses_its_slots() {
+    let dir = TempDir::new("repl_reimport");
+    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    let mut compiler = Compiler::new();
+    let entry = || EntryLocation::Directory(dir.0.clone());
+
+    let first = compiler
+        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let second = compiler
+        .compile_entry("import \"a\"\n", entry(), &first.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let third = compiler
+        .compile_entry("val y = 1\nprint(a.counter)\n", entry(), &second.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+
+    let disassembly = disassemble(&third.entry);
+    assert!(
+        disassembly.contains("SetLocal 01") && disassembly.contains("GetGlobal 00"),
+        "expected y in slot 1 and a.counter read from slot 0:\n{}",
+        disassembly
+    );
+}
+
+#[test]
+fn module_importing_an_earlier_lines_module_reads_its_slots() {
+    let dir = TempDir::new("repl_transitive_import");
+    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    fs::write(
+        dir.0.join("b.n"),
+        "import \"a\"\nexport fn get() { return a.counter }\n",
+    )
+    .expect("Failed to write b.n");
+    let mut compiler = Compiler::new();
+    let entry = || EntryLocation::Directory(dir.0.clone());
+
+    let first = compiler
+        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let second = compiler
+        .compile_entry("import \"b\"\n", entry(), &first.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+
+    let b_chunk = second.modules.last().expect("b should be compiled");
+    let disassembly = disassemble(b_chunk);
+    assert!(
+        disassembly.contains("GetGlobal 00"),
+        "expected b to read a.counter from slot 0:\n{}",
+        disassembly
+    );
+}

@@ -16,6 +16,7 @@ use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
 };
+use crate::compiler::scanner::is_identifier;
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -253,6 +254,7 @@ impl SemanticAnalyzer {
             decl_slots,
             slot_count,
             immutable,
+            modules: HashMap::new(),
         }
     }
 
@@ -390,6 +392,18 @@ impl SemanticAnalyzer {
                             .to_string_lossy()
                             .into_owned()
                     });
+                    if !is_identifier(&name) {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::InvalidImportName,
+                            format!(
+                                "cannot bind '{}' as a name; use `import \"{}\" as <name>`",
+                                name, path
+                            ),
+                            *location,
+                        ));
+                        continue;
+                    }
                     self.define_symbol(name, SymbolKind::Module { exports }, false, *location);
                 }
                 _ => {}
@@ -1960,6 +1974,14 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
+        if optional && self.is_module_type(object) {
+            for arg in arguments {
+                self.resolve_expr(arg);
+            }
+            self.push_optional_dot_on_type_error(location);
+            return;
+        }
+
         // A static call on an exported enum, e.g. utils.Shape.Circle(2).
         if !optional {
             if let Some((_, enum_name, variants)) = self.module_enum(object) {
@@ -2007,7 +2029,16 @@ impl SemanticAnalyzer {
                                 location,
                             );
                         }
-                        _ => {}
+                        Some(Export::Enum { .. }) => {
+                            self.push_enum_as_value_error(method, location);
+                            self.push_error(CompilationError::new(
+                                CompilationPhase::Semantic,
+                                CompilationErrorKind::NotCallable,
+                                format!("'{}' is not a function", method),
+                                location,
+                            ));
+                        }
+                        Some(Export::Variable { .. }) | None => {}
                     }
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2157,6 +2188,11 @@ impl SemanticAnalyzer {
         optional: bool,
         location: SourceLocation,
     ) {
+        if optional && self.is_module_type(object) {
+            self.push_optional_dot_on_type_error(location);
+            return;
+        }
+
         if let Expr::Variable { name, id, .. } = object {
             if optional && self.is_type_or_namespace_name(name) {
                 self.push_optional_dot_on_type_error(location);
@@ -2258,12 +2294,12 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// The name and fields of a struct exported by a module, given its
-    /// static type name `module.Struct`.
-    fn module_struct<'a>(&self, type_name: &'a str) -> Option<(&'a str, Vec<String>)> {
+    /// The fields of a struct exported by a module, given its static type
+    /// name `module.Struct`.
+    fn module_struct(&self, type_name: &str) -> Option<Vec<String>> {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
-            Export::Struct { fields, .. } => Some((name, fields)),
+            Export::Struct { fields, .. } => Some(fields),
             _ => None,
         }
     }
@@ -2301,15 +2337,16 @@ impl SemanticAnalyzer {
             }
             None => {
                 let names = self.resolutions.symbol_names();
-                let candidates: Vec<&str> = exports
+                let mut candidates: Vec<&str> = exports
                     .symbols()
                     .map(|symbol| &*names[symbol as usize])
                     .collect();
+                candidates.sort_unstable();
                 let mut message = format!("module '{}' has no export '{}'", module, field);
                 if let Some(closest) =
                     crate::common::string_similarity::find_closest_match(field, &candidates)
                 {
-                    message.push_str(&format!(" Did you mean '{}'?", closest));
+                    message.push_str(&format!(". Did you mean '{}'?", closest));
                 }
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -2458,6 +2495,26 @@ impl SemanticAnalyzer {
             Some(symbol) if symbol.kind == SymbolKind::Namespace
         ) || self.enum_variants(name).is_some()
             || self.is_struct_type(name)
+    }
+
+    /// True when `expr` is `module.Type` naming an exported struct or enum.
+    fn is_module_type(&self, expr: &Expr) -> bool {
+        let Expr::GetField {
+            object,
+            field,
+            optional: false,
+            ..
+        } = expr
+        else {
+            return false;
+        };
+        let Expr::Variable { name, .. } = object.as_ref() else {
+            return false;
+        };
+        matches!(
+            self.module_export(name, field),
+            Some(Export::Struct { .. } | Export::Enum { .. })
+        )
     }
 
     fn push_optional_dot_on_type_error(&mut self, location: SourceLocation) {
@@ -2963,10 +3020,10 @@ impl SemanticAnalyzer {
     /// Check that a field access/set on a receiver of statically known
     /// struct type refers to one of the struct's declared fields.
     fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
-        let (name, has_field) = if let Some((name, fields)) = self.module_struct(struct_name) {
-            (name, fields.iter().any(|f| f == field))
+        let has_field = if let Some(fields) = self.module_struct(struct_name) {
+            fields.iter().any(|f| f == field)
         } else if self.is_struct_type(struct_name) {
-            (struct_name, self.struct_has_field(struct_name, field))
+            self.struct_has_field(struct_name, field)
         } else {
             // Not a known struct type - nothing to check.
             return;
@@ -2976,7 +3033,7 @@ impl SemanticAnalyzer {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownField,
-                format!("Struct '{}' has no field named '{}'", name, field),
+                format!("Struct '{}' has no field named '{}'", struct_name, field),
                 location,
             ));
         }
