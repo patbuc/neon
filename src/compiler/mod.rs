@@ -6,7 +6,7 @@ pub(crate) mod compiler_impl;
 mod formatter;
 pub use formatter::format;
 pub(crate) mod global_env;
-pub(crate) mod module_graph;
+pub mod module_graph;
 pub(crate) mod parser;
 pub(crate) mod resolutions;
 mod scanner;

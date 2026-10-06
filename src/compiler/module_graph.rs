@@ -1,29 +1,28 @@
-// Not consumed by Compiler until the plumbing unit lands.
-#![allow(dead_code)]
-
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 use crate::common::SourceLocation;
-use crate::compiler::ast::Stmt;
+use crate::compiler::ast::{NodeId, Stmt};
 use crate::compiler::parser::Parser;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-pub(crate) enum EntryLocation {
+pub enum EntryLocation {
     File(PathBuf),
     None,
 }
 
-pub(crate) struct Module {
+pub struct Module {
     pub path: PathBuf,
     pub source: String,
     pub ast: Vec<Stmt>,
     pub dependencies: Vec<PathBuf>,
     pub builtin: bool,
+    pub(crate) eof_location: SourceLocation,
+    pub(crate) end_locations: HashMap<NodeId, SourceLocation>,
 }
 
-pub(crate) struct ModuleGraph {
+pub struct ModuleGraph {
     modules: Vec<Module>,
 }
 
@@ -62,9 +61,12 @@ fn load(
 ) -> CompilationResult<()> {
     visited.insert(path.clone());
     stack.push(path.clone());
-    let ast = Parser::new(&source)
+    let mut parser = Parser::new(&source);
+    let ast = parser
         .parse()
         .map_err(|errors| attach_file(errors, &path))?;
+    let eof_location = parser.eof_location();
+    let end_locations = parser.end_locations().clone();
     let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
 
     let mut dependencies = Vec::new();
@@ -84,6 +86,8 @@ fn load(
                         ast: Vec::new(),
                         dependencies: Vec::new(),
                         builtin: true,
+                        eof_location: SourceLocation::default(),
+                        end_locations: HashMap::new(),
                     });
                 }
                 dependencies.push(builtin);
@@ -126,6 +130,8 @@ fn load(
         ast,
         dependencies,
         builtin: false,
+        eof_location,
+        end_locations,
     });
     Ok(())
 }
@@ -182,6 +188,9 @@ fn unknown_module_error(
 }
 
 fn attach_file(errors: Vec<CompilationError>, file: &Path) -> Vec<CompilationError> {
+    if file.as_os_str().is_empty() {
+        return errors;
+    }
     errors.into_iter().map(|e| e.with_file(file)).collect()
 }
 

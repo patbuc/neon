@@ -1,7 +1,7 @@
 use crate::common::Chunk;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::global_env::GlobalEnv;
-use crate::compiler::parser::Parser;
+use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
 use crate::compiler::Compiler;
 
@@ -23,31 +23,30 @@ impl Compiler {
         source: &str,
         env: &GlobalEnv,
     ) -> Option<(Chunk, GlobalEnv)> {
-        // Multi-pass compilation:
-        // Pass 1: Parse source into AST
+        // Pass 1: Resolve the module graph (parses every module)
         // Pass 2: Semantic analysis
         // Pass 3: Code generation
 
-        // Phase 1: Parse
-        let mut parser = Parser::new(source);
-        let ast = match parser.parse() {
-            Ok(ast) => ast,
+        let graph = match ModuleGraph::build(source, EntryLocation::None) {
+            Ok(graph) => graph,
             Err(errors) => return self.fail(errors),
         };
-        let eof_location = parser.eof_location();
+        let entry = graph.modules().last()?;
+        let ast = &entry.ast;
+        let eof_location = entry.eof_location;
 
         // Phase 2: Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
         analyzer.seed(env);
-        let resolutions = match analyzer.analyze(&ast) {
+        let resolutions = match analyzer.analyze(ast) {
             Ok(resolutions) => resolutions,
             Err(errors) => return self.fail(errors),
         };
 
         // Phase 3: Code generation
-        let mut codegen = CodeGenerator::new(&resolutions, parser.end_locations());
+        let mut codegen = CodeGenerator::new(&resolutions, &entry.end_locations);
         codegen.seed(env);
-        let chunk = match codegen.generate(&ast, eof_location) {
+        let chunk = match codegen.generate(ast, eof_location) {
             Ok(chunk) => chunk,
             Err(errors) => return self.fail(errors),
         };

@@ -237,7 +237,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             vec![("if true {\n    export val x = 1\n}\n".to_string(), None)]
         }
         CompilationErrorKind::ModulesUnsupported => {
-            vec![("import \"utils\"\n".to_string(), None)]
+            vec![("import \"std/math\"\n".to_string(), None)]
         }
         CompilationErrorKind::ImportCycle => {
             vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
