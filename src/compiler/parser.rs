@@ -651,8 +651,14 @@ impl Parser {
     fn export_declaration(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         let declaration = if self.match_token(TokenType::Val) {
+            if self.check(TokenType::LeftParen) {
+                return self.export_destructuring_error();
+            }
             self.val_declaration()
         } else if self.match_token(TokenType::Var) {
+            if self.check(TokenType::LeftParen) {
+                return self.export_destructuring_error();
+            }
             self.var_declaration()
         } else if self.match_token(TokenType::Fn) {
             self.fn_declaration()
@@ -671,6 +677,14 @@ impl Parser {
             declaration: Box::new(declaration),
             location,
         })
+    }
+
+    fn export_destructuring_error(&mut self) -> Option<Stmt> {
+        self.report_error_at_current(
+            CompilationErrorKind::ExpectedToken,
+            "export binds one name".to_string(),
+        );
+        None
     }
 
     fn val_declaration(&mut self) -> Option<Stmt> {

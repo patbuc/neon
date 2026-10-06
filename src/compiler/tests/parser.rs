@@ -4393,3 +4393,10 @@ fn test_export_before_impl_is_rejected() {
         "export must precede a fn, val, var, struct or enum"
     );
 }
+
+#[test]
+fn test_export_destructuring_is_rejected() {
+    let errors = compile_errors("export val (a, b) = pair\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "export binds one name");
+}
