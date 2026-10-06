@@ -1,0 +1,9 @@
+// Expected:
+// []
+// []
+// [[], []]
+
+val xs = []
+print(xs.takeWhile { true })
+print(xs.dropWhile { true })
+print(xs.partition { true })

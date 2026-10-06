@@ -780,6 +780,100 @@ pub fn native_array_filter(
     Ok(Value::new_array(kept))
 }
 
+/// Index of the first element for which predicate is falsy, or the length
+/// if there is none. Shared by takeWhile and dropWhile.
+fn leading_truthy_count(
+    vm: &mut dyn NativeContext,
+    elements: &[Value],
+    predicate: &Value,
+) -> Result<usize, NativeCallError> {
+    for (index, element) in elements.iter().enumerate() {
+        let result = vm.call_value(predicate.clone(), std::slice::from_ref(element))?;
+        if is_false_like!(result) {
+            return Ok(index);
+        }
+    }
+    Ok(elements.len())
+}
+
+/// Native implementation of Array.takeWhile(fn)
+/// Returns the leading elements for which fn is truthy, stopping at the
+/// first one that isn't.
+pub fn native_array_take_while(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "takeWhile() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "takeWhile")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+    let end = leading_truthy_count(vm, &elements, &args[1])?;
+
+    Ok(Value::new_array(elements[..end].to_vec()))
+}
+
+/// Native implementation of Array.dropWhile(fn)
+/// Returns the elements from the first one for which fn is falsy onwards.
+pub fn native_array_drop_while(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "dropWhile() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "dropWhile")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+    let start = leading_truthy_count(vm, &elements, &args[1])?;
+
+    Ok(Value::new_array(elements[start..].to_vec()))
+}
+
+/// Native implementation of Array.partition(fn)
+/// Returns [matching, nonMatching], splitting the elements by fn's truthiness.
+pub fn native_array_partition(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 2 {
+        return Err(format!(
+            "partition() expects 1 argument (predicate), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "partition")?;
+    let predicate = args[1].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut matching = Vec::new();
+    let mut rest = Vec::new();
+    for element in elements {
+        let result = vm.call_value(predicate.clone(), std::slice::from_ref(&element))?;
+        if is_false_like!(result) {
+            rest.push(element);
+        } else {
+            matching.push(element);
+        }
+    }
+
+    Ok(Value::new_array(vec![
+        Value::new_array(matching),
+        Value::new_array(rest),
+    ]))
+}
+
 /// Native implementation of Array.reduce(initial, fn)
 /// Folds the array from the left, calling fn(accumulator, element).
 pub fn native_array_reduce(
