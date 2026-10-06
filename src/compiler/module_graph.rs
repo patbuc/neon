@@ -7,6 +7,7 @@ use crate::common::errors::{
 use crate::common::SourceLocation;
 use crate::compiler::ast::Stmt;
 use crate::compiler::parser::Parser;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub(crate) enum EntryLocation {
@@ -30,7 +31,13 @@ impl ModuleGraph {
     pub fn build(entry_source: &str, entry: EntryLocation) -> CompilationResult<ModuleGraph> {
         let EntryLocation::File(entry_path) = entry;
         let mut modules = Vec::new();
-        load(entry_path, entry_source.to_string(), &mut modules)?;
+        let mut visited = HashSet::new();
+        load(
+            entry_path,
+            entry_source.to_string(),
+            &mut modules,
+            &mut visited,
+        )?;
         Ok(ModuleGraph { modules })
     }
 
@@ -39,8 +46,14 @@ impl ModuleGraph {
     }
 }
 
-fn load(path: PathBuf, source: String, modules: &mut Vec<Module>) -> CompilationResult<()> {
+fn load(
+    path: PathBuf,
+    source: String,
+    modules: &mut Vec<Module>,
+    visited: &mut HashSet<PathBuf>,
+) -> CompilationResult<()> {
     let path = canonicalize(&path)?;
+    visited.insert(path.clone());
     let ast = Parser::new(&source).parse()?;
     let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
 
@@ -53,9 +66,11 @@ fn load(path: PathBuf, source: String, modules: &mut Vec<Module>) -> Compilation
                 format!("{import}.n")
             };
             let dependency = canonicalize(&dir.join(file))?;
-            let dependency_source =
-                std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
-            load(dependency.clone(), dependency_source, modules)?;
+            if !visited.contains(&dependency) {
+                let dependency_source =
+                    std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
+                load(dependency.clone(), dependency_source, modules, visited)?;
+            }
             dependencies.push(dependency);
         }
     }

@@ -112,3 +112,52 @@ fn does_not_double_n_extension() {
         deps
     );
 }
+
+#[test]
+fn yields_one_module_when_dir_a_imports_both_b_and_dot_slash_b() {
+    let dir = TempDir::new("one_module_for_b");
+    let a_path = dir.0.join("dir").join("a.n");
+    let b_path = dir.0.join("dir").join("b.n");
+    let a_source = "import \"b\"\nimport \"./b\"\n";
+    fs::create_dir_all(dir.0.join("dir")).expect("Failed to create dir");
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+    fs::write(&b_path, "val x = 1\n").expect("Failed to write b.n");
+
+    let graph = ModuleGraph::build(a_source, EntryLocation::File(a_path.clone()))
+        .expect("graph should build");
+
+    let paths: Vec<PathBuf> = graph.modules().iter().map(|m| m.path.clone()).collect();
+    assert_eq!(2, paths.len());
+    assert_eq!(
+        1,
+        paths
+            .iter()
+            .filter(|p| **p == b_path.canonicalize().unwrap())
+            .count()
+    );
+}
+
+#[test]
+fn orders_b_a_main_when_main_imports_a_and_b_and_a_imports_b() {
+    let dir = TempDir::new("orders_b_a_main");
+    let main_path = dir.0.join("main.n");
+    let a_path = dir.0.join("a.n");
+    let b_path = dir.0.join("b.n");
+    let main_source = "import \"a\"\nimport \"b\"\n";
+    fs::write(&main_path, main_source).expect("Failed to write main.n");
+    fs::write(&a_path, "import \"b\"\n").expect("Failed to write a.n");
+    fs::write(&b_path, "val x = 1\n").expect("Failed to write b.n");
+
+    let graph = ModuleGraph::build(main_source, EntryLocation::File(main_path.clone()))
+        .expect("graph should build");
+
+    let paths: Vec<PathBuf> = graph.modules().iter().map(|m| m.path.clone()).collect();
+    assert_eq!(
+        vec![
+            b_path.canonicalize().unwrap(),
+            a_path.canonicalize().unwrap(),
+            main_path.canonicalize().unwrap()
+        ],
+        paths
+    );
+}
