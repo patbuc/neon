@@ -1,4 +1,4 @@
-use super::helpers::disassemble;
+use super::helpers::{compile_errors, disassemble};
 use super::module_graph::TempDir;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
 use crate::common::{Chunk, Value};
@@ -297,5 +297,136 @@ fn rejects_a_read_of_a_non_exported_val_as_an_unknown_export() {
             .starts_with("module 'utils' has no export 'hidden_val'"),
         "message: {}",
         errors[0].message
+    );
+}
+
+fn assert_one_error(
+    errors: &[CompilationError],
+    kind: CompilationErrorKind,
+    message: &str,
+    line: u32,
+) {
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(kind, errors[0].kind);
+    assert_eq!(message, errors[0].message);
+    assert_eq!(line, errors[0].location.line);
+}
+
+#[test]
+fn rejects_assignment_to_an_exported_val() {
+    let errors = compile_errors_of(
+        "assign_export_val",
+        "import \"utils\"\nutils.VERSION = 2\n",
+        &[("utils.n", "export val VERSION = 1\n")],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::ImmutableAssignment,
+        "exports are read-only",
+        2,
+    );
+}
+
+#[test]
+fn rejects_compound_assignment_to_an_exported_var() {
+    let errors = compile_errors_of(
+        "assign_export_var",
+        "import \"utils\"\nutils.count += 1\n",
+        &[("utils.n", "export var count = 0\n")],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::ImmutableAssignment,
+        "exports are read-only",
+        2,
+    );
+}
+
+#[test]
+fn rejects_a_module_bound_to_a_val() {
+    let errors = compile_errors_of(
+        "module_as_val",
+        "import \"utils\"\nval m = utils\n",
+        &[("utils.n", "export val a = 1\n")],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::NamespaceAsValue,
+        "'utils' is a module, not a value",
+        2,
+    );
+}
+
+#[test]
+fn rejects_a_module_passed_as_an_argument() {
+    let errors = compile_errors_of(
+        "module_as_argument",
+        "import \"utils\"\nprint(utils)\n",
+        &[("utils.n", "export val a = 1\n")],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::NamespaceAsValue,
+        "'utils' is a module, not a value",
+        2,
+    );
+}
+
+#[test]
+fn rejects_an_exported_function_call_with_the_wrong_arity_like_a_local_function() {
+    let local = compile_errors("fn double(x) {\n    return x * 2\n}\ndouble(1, 2)\n");
+    assert_eq!(1, local.len(), "errors: {:#?}", local);
+
+    let errors = compile_errors_of(
+        "export_call_arity",
+        "import \"utils\"\nutils.double(1, 2)\n",
+        &[("utils.n", DOUBLE_MODULE)],
+    );
+
+    assert_one_error(&errors, local[0].kind, &local[0].message, 2);
+}
+
+#[test]
+fn rejects_two_imports_binding_the_same_name() {
+    let local = compile_errors("val utils = 1\nval utils = 2\n");
+    assert_eq!(1, local.len(), "errors: {:#?}", local);
+
+    let errors = compile_errors_of(
+        "duplicate_imports",
+        "import \"a/utils\"\nimport \"b/utils\"\n",
+        &[
+            ("a/utils.n", "export val a = 1\n"),
+            ("b/utils.n", "export val b = 1\n"),
+        ],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::DuplicateSymbol,
+        &local[0].message,
+        2,
+    );
+}
+
+#[test]
+fn rejects_an_import_and_a_val_binding_the_same_name() {
+    let local = compile_errors("val utils = 1\nval utils = 2\n");
+    assert_eq!(1, local.len(), "errors: {:#?}", local);
+
+    let errors = compile_errors_of(
+        "import_and_val",
+        "import \"utils\"\nval utils = 1\n",
+        &[("utils.n", "export val a = 1\n")],
+    );
+
+    assert_one_error(
+        &errors,
+        CompilationErrorKind::DuplicateSymbol,
+        &local[0].message,
+        2,
     );
 }

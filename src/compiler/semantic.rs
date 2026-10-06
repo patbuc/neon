@@ -11,7 +11,7 @@ use crate::compiler::ast::{
     Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
     MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
-use crate::compiler::exports::ExportTable;
+use crate::compiler::exports::{Export, ExportKind, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
@@ -1767,10 +1767,15 @@ impl SemanticAnalyzer {
             symbol.kind,
             SymbolKind::Namespace | SymbolKind::Module { .. }
         ) {
+            let what = if symbol.kind == SymbolKind::Namespace {
+                "namespace"
+            } else {
+                "module"
+            };
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::NamespaceAsValue,
-                format!("'{}' is a namespace, not a value", name),
+                format!("'{}' is a {}, not a value", name, what),
                 location,
             ));
             return;
@@ -1969,7 +1974,15 @@ impl SemanticAnalyzer {
 
             if !optional {
                 if let Some(exports) = self.module_exports(name) {
-                    self.resolve_module_member(*object_id, name, &exports, method, location);
+                    let export =
+                        self.resolve_module_member(*object_id, name, &exports, method, location);
+                    if let Some(Export {
+                        kind: ExportKind::Function { arity },
+                        ..
+                    }) = export
+                    {
+                        self.validate_arity("Function", method, arity, arguments.len(), location);
+                    }
                     for arg in arguments {
                         self.resolve_expr(arg);
                     }
@@ -2188,14 +2201,17 @@ impl SemanticAnalyzer {
         exports: &ExportTable,
         field: &str,
         location: SourceLocation,
-    ) {
+    ) -> Option<Export> {
         self.intern_name(field, location);
         let export = self
             .resolutions
             .intern_symbol(field)
             .and_then(|symbol| exports.get(symbol));
         match export {
-            Some(export) => self.resolutions.record_module_member(id, export.slot),
+            Some(export) => {
+                self.resolutions.record_module_member(id, export.slot);
+                Some(*export)
+            }
             None => {
                 let names = self.resolutions.symbol_names();
                 let candidates: Vec<&str> = exports
@@ -2214,6 +2230,7 @@ impl SemanticAnalyzer {
                     message,
                     location,
                 ));
+                None
             }
         }
     }
@@ -2239,7 +2256,22 @@ impl SemanticAnalyzer {
         value: &Expr,
         location: SourceLocation,
     ) {
-        if let Expr::Variable { name, .. } = object {
+        if let Expr::Variable { name, id, .. } = object {
+            if let Some(exports) = self.module_exports(name) {
+                self.resolve_expr(value);
+                if self
+                    .resolve_module_member(*id, name, &exports, field, location)
+                    .is_some()
+                {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        "exports are read-only".to_string(),
+                        location,
+                    ));
+                }
+                return;
+            }
             if self.enum_variants(name).is_some() {
                 self.resolve_expr(value);
                 self.push_error(CompilationError::new(
