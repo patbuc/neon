@@ -52,6 +52,11 @@ pub struct Chunk {
     pub constants: Constants,
     pub instructions: Vec<u8>,
     pub line_infos: Vec<LineInfo>,
+    /// `instructions` decoded once the chunk is final, with one source
+    /// location per decoded instruction.
+    pub(crate) code: Vec<chunk::Instr>,
+    pub(crate) instr_lines: Vec<Option<LineInfo>>,
+    pub(crate) closure_upvalues: Vec<(bool, u16)>,
     /// Field, method, and type names interned during semantic analysis,
     /// indexed by symbol id. Shared by every chunk of one compile.
     pub symbols: Rc<[Rc<str>]>,
@@ -730,7 +735,8 @@ impl Value {
         }))
     }
 
-    pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
+    pub(crate) fn new_function(name: String, arity: u8, mut chunk: Chunk) -> Self {
+        chunk.decode();
         Value::Function(Rc::new(ObjFunction {
             name,
             arity,

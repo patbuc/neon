@@ -1,4 +1,6 @@
+use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
+#[cfg(feature = "opcode-stats")]
 use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
@@ -6,7 +8,7 @@ use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{InterpretResult, VirtualMachine};
-use crate::{boolean, common, nil};
+use crate::{boolean, common, is_false_like, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
 use std::rc::Rc;
@@ -94,7 +96,8 @@ impl VirtualMachine {
     }
 
     /// Makes `chunk` the running script frame and runs it to completion.
-    fn run_script_chunk(&mut self, chunk: Chunk) -> InterpretResult {
+    fn run_script_chunk(&mut self, mut chunk: Chunk) -> InterpretResult {
+        chunk.decode();
         self.native_methods = native_method_table(&chunk.symbols);
 
         let script_function = Rc::new(ObjFunction {
@@ -191,16 +194,11 @@ impl VirtualMachine {
             frame.closure.function.chunk.disassemble_chunk();
         }
         loop {
-            let byte = self.chunk.read_u8(self.ip);
-            let op_code = match OpCode::from_u8(byte) {
-                Some(op_code) => op_code,
-                None => {
-                    return Err(self.runtime_error(format!("Unknown opcode {:#04x}", byte)));
-                }
-            };
+            let instr = self.chunk.code[self.ip];
 
             #[cfg(feature = "opcode-stats")]
-            {
+            if let Some(op_code) = instr.opcode() {
+                let byte = op_code as u8;
                 self.opcode_counts[byte as usize] += 1;
                 if let Some(prev) = self.last_opcode {
                     self.opcode_pair_counts[prev as usize * 256 + byte as usize] += 1;
@@ -208,65 +206,82 @@ impl VirtualMachine {
                 self.last_opcode = Some(byte);
             }
 
-            match op_code {
-                OpCode::Return => {
+            match instr {
+                Instr::Invalid(byte) => {
+                    return Err(self.runtime_error(format!("Unknown opcode {:#04x}", byte)));
+                }
+                Instr::Return => {
                     self.op_return();
                     if self.call_frames.len() == target_depth {
                         return Ok(());
                     }
                     continue;
                 }
-                OpCode::Constant => self.op_constant(),
-                OpCode::Negate => self.op_negate()?,
-                OpCode::Add => self.op_add()?,
-                OpCode::Subtract => self.op_subtract()?,
-                OpCode::Multiply => self.op_multiply()?,
-                OpCode::Divide => self.op_divide()?,
-                OpCode::Modulo => self.op_modulo()?,
-                OpCode::Exponent => self.op_exponent()?,
-                OpCode::Nil => self.push(nil!()),
-                OpCode::True => self.push(boolean!(true)),
-                OpCode::False => self.push(boolean!(false)),
-                OpCode::Equal => self.op_equal(),
-                OpCode::Greater => self.op_compare(Comparison::Greater)?,
-                OpCode::GreaterEqual => self.op_compare(Comparison::GreaterEqual)?,
-                OpCode::Less => self.op_compare(Comparison::Less)?,
-                OpCode::LessEqual => self.op_compare(Comparison::LessEqual)?,
-                OpCode::Not => self.op_not(),
-                OpCode::Pop => self.pop().discard(),
-                OpCode::GetLocal => self.op_get_local()?,
-                OpCode::SetLocal => self.op_set_local()?,
-                OpCode::GetBuiltin => self.op_get_builtin()?,
-                OpCode::GetGlobal => self.op_get_global()?,
-                OpCode::SetGlobal => self.op_set_global()?,
-                OpCode::JumpIfFalse => self.op_jump_if_false(),
-                OpCode::JumpIfNotNil => self.op_jump_if_not_nil(),
-                OpCode::JumpIfNil => self.op_jump_if_nil(),
-                OpCode::NoMatchArm => self.op_no_match_arm()?,
-                OpCode::IsArrayOfLen => self.op_is_array_of_len(),
-                OpCode::IsNumber => self.op_is_number(),
-                OpCode::IsVariant => self.op_is_variant()?,
-                OpCode::EnumConstruct => self.op_enum_construct()?,
-                OpCode::Jump => self.op_jump(),
-                OpCode::Loop => {
-                    self.op_loop();
+                Instr::Constant(index) => self.op_constant(index),
+                Instr::Negate => self.op_negate()?,
+                Instr::Add => self.op_add()?,
+                Instr::Subtract => self.op_subtract()?,
+                Instr::Multiply => self.op_multiply()?,
+                Instr::Divide => self.op_divide()?,
+                Instr::Modulo => self.op_modulo()?,
+                Instr::Exponent => self.op_exponent()?,
+                Instr::Nil => self.push(nil!()),
+                Instr::True => self.push(boolean!(true)),
+                Instr::False => self.push(boolean!(false)),
+                Instr::Equal => self.op_equal(),
+                Instr::Greater => self.op_compare(Comparison::Greater)?,
+                Instr::GreaterEqual => self.op_compare(Comparison::GreaterEqual)?,
+                Instr::Less => self.op_compare(Comparison::Less)?,
+                Instr::LessEqual => self.op_compare(Comparison::LessEqual)?,
+                Instr::Not => self.op_not(),
+                Instr::Pop => self.pop().discard(),
+                Instr::GetLocal(slot) => self.op_get_local(slot)?,
+                Instr::SetLocal(slot) => self.op_set_local(slot)?,
+                Instr::GetBuiltin(index) => self.op_get_builtin(index)?,
+                Instr::GetGlobal(index) => self.op_get_global(index)?,
+                Instr::SetGlobal(index) => self.op_set_global(index)?,
+                Instr::JumpIfFalse(target) => {
+                    if is_false_like!(self.peek(0)) {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::JumpIfNotNil(target) => {
+                    if !matches!(self.peek(0), Value::Nil) {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::JumpIfNil(target) => {
+                    if matches!(self.peek(0), Value::Nil) {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::Jump(target) | Instr::Loop(target) => {
+                    self.ip = target as usize;
                     continue;
                 }
-                OpCode::Call => {
-                    self.op_call()?;
+                Instr::NoMatchArm => self.op_no_match_arm()?,
+                Instr::IsArrayOfLen { length, at_least } => {
+                    self.op_is_array_of_len(length, at_least)
+                }
+                Instr::IsNumber => self.op_is_number(),
+                Instr::IsVariant(index) => self.op_is_variant(index)?,
+                Instr::EnumConstruct(index) => self.op_enum_construct(index)?,
+                Instr::Call(arg_count) => {
+                    self.op_call(arg_count)?;
                     continue;
                 }
-                OpCode::Invoke => {
-                    self.op_invoke()?;
+                Instr::Invoke {
+                    method_symbol,
+                    arg_count,
+                } => {
+                    self.op_invoke(method_symbol, arg_count)?;
                     continue;
                 }
-                OpCode::TailCall | OpCode::TailInvoke => {
-                    let kept_frame = if op_code == OpCode::TailCall {
-                        self.op_tail_call()?
-                    } else {
-                        self.op_tail_invoke()?
-                    };
-                    if !kept_frame {
+                Instr::TailCall(arg_count) => {
+                    if !self.op_tail_call(arg_count)? {
                         self.op_return();
                         if self.call_frames.len() == target_depth {
                             return Ok(());
@@ -274,46 +289,72 @@ impl VirtualMachine {
                     }
                     continue;
                 }
-                OpCode::GetField => self.op_get_field()?,
-                OpCode::SetField => self.op_set_field()?,
-                OpCode::GetLocalField => self.op_get_local_field()?,
-
-                OpCode::CreateMap => self.op_create_map()?,
-                OpCode::CreateArray => self.op_create_array(),
-                OpCode::CreateSet => self.op_create_set()?,
-                OpCode::GetIndex => self.op_get_index()?,
-                OpCode::SetIndex => self.op_set_index()?,
-                OpCode::GetIterator => self.op_get_iterator()?,
-                OpCode::IteratorNext => self.op_iterator_next()?,
-                OpCode::IteratorDone => self.op_iterator_done()?,
-                OpCode::CreateRange => self.op_create_range()?,
-                OpCode::ToString => self.op_to_string(),
-                OpCode::BitwiseAnd => self.op_bitwise_and()?,
-                OpCode::BitwiseOr => self.op_bitwise_or()?,
-                OpCode::BitwiseXor => self.op_bitwise_xor()?,
-                OpCode::BitwiseNot => self.op_bitwise_not()?,
-                OpCode::LeftShift => self.op_left_shift()?,
-                OpCode::RightShift => self.op_right_shift()?,
-                OpCode::Closure => self.op_closure()?,
-                OpCode::GetUpvalue => self.op_get_upvalue()?,
-                OpCode::SetUpvalue => self.op_set_upvalue()?,
-                OpCode::CloseUpvalue => self.op_close_upvalue(),
-                OpCode::DefineMethod => self.op_define_method(),
-                OpCode::CheckInitialized => self.op_check_initialized()?,
-                OpCode::CheckTuple => self.op_check_tuple()?,
-                OpCode::StoreLocal => self.op_store_local()?,
-                OpCode::StoreField => self.op_store_field()?,
-                OpCode::StoreLocalField => self.op_store_local_field()?,
-                OpCode::AddConstant => self.op_add_constant()?,
-                OpCode::SubtractConstant => self.op_subtract_constant()?,
-                OpCode::GreaterConstant => self.op_compare_constant(Comparison::Greater)?,
-                OpCode::GreaterEqualConstant => {
-                    self.op_compare_constant(Comparison::GreaterEqual)?
+                Instr::TailInvoke {
+                    method_symbol,
+                    arg_count,
+                } => {
+                    if !self.op_tail_invoke(method_symbol, arg_count)? {
+                        self.op_return();
+                        if self.call_frames.len() == target_depth {
+                            return Ok(());
+                        }
+                    }
+                    continue;
                 }
-                OpCode::LessConstant => self.op_compare_constant(Comparison::Less)?,
-                OpCode::LessEqualConstant => self.op_compare_constant(Comparison::LessEqual)?,
-                OpCode::Dup => self.push(self.peek(0).copy_or_clone()),
-                OpCode::Dup2 => {
+                Instr::GetField(symbol) => self.op_get_field(symbol)?,
+                Instr::SetField(symbol) => self.op_set_field(symbol)?,
+                Instr::GetLocalField { slot, symbol } => self.op_get_local_field(slot, symbol)?,
+
+                Instr::CreateMap(count) => self.op_create_map(count)?,
+                Instr::CreateArray(count) => self.op_create_array(count),
+                Instr::CreateSet(count) => self.op_create_set(count)?,
+                Instr::GetIndex => self.op_get_index()?,
+                Instr::SetIndex => self.op_set_index()?,
+                Instr::GetIterator { pairs } => self.op_get_iterator(pairs)?,
+                Instr::IteratorNext(slot) => self.op_iterator_next(slot)?,
+                Instr::IteratorDone(slot) => self.op_iterator_done(slot)?,
+                Instr::CreateRange { inclusive } => self.op_create_range(inclusive)?,
+                Instr::ToString => self.op_to_string(),
+                Instr::BitwiseAnd => self.op_bitwise_and()?,
+                Instr::BitwiseOr => self.op_bitwise_or()?,
+                Instr::BitwiseXor => self.op_bitwise_xor()?,
+                Instr::BitwiseNot => self.op_bitwise_not()?,
+                Instr::LeftShift => self.op_left_shift()?,
+                Instr::RightShift => self.op_right_shift()?,
+                Instr::Closure {
+                    const_index,
+                    upvalue_count,
+                    upvalues,
+                } => self.op_closure(const_index, upvalue_count, upvalues)?,
+                Instr::GetUpvalue(index) => self.op_get_upvalue(index)?,
+                Instr::SetUpvalue(index) => self.op_set_upvalue(index)?,
+                Instr::CloseUpvalue => self.op_close_upvalue(),
+                Instr::DefineMethod {
+                    type_symbol,
+                    method_symbol,
+                    takes_self,
+                } => self.op_define_method(type_symbol, method_symbol, takes_self),
+                Instr::CheckInitialized => self.op_check_initialized()?,
+                Instr::CheckTuple(n) => self.op_check_tuple(n)?,
+                Instr::StoreLocal(slot) => self.op_store_local(slot)?,
+                Instr::StoreField(symbol) => self.op_store_field(symbol)?,
+                Instr::StoreLocalField { slot, symbol } => {
+                    self.op_store_local_field(slot, symbol)?
+                }
+                Instr::AddConstant(index) => self.op_add_constant(index)?,
+                Instr::SubtractConstant(index) => self.op_subtract_constant(index)?,
+                Instr::GreaterConstant(index) => {
+                    self.op_compare_constant(index, Comparison::Greater)?
+                }
+                Instr::GreaterEqualConstant(index) => {
+                    self.op_compare_constant(index, Comparison::GreaterEqual)?
+                }
+                Instr::LessConstant(index) => self.op_compare_constant(index, Comparison::Less)?,
+                Instr::LessEqualConstant(index) => {
+                    self.op_compare_constant(index, Comparison::LessEqual)?
+                }
+                Instr::Dup => self.push(self.peek(0).copy_or_clone()),
+                Instr::Dup2 => {
                     let second = self.peek(1).copy_or_clone();
                     let top = self.peek(0).copy_or_clone();
                     self.push(second);
@@ -347,21 +388,6 @@ impl VirtualMachine {
             self.ip = caller.ip;
             self.chunk = Rc::clone(&caller.closure.function.chunk);
         }
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn operand_u8(&self, offset: usize) -> u8 {
-        self.chunk.read_u8(self.ip + offset)
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn operand_u16(&self, offset: usize) -> u16 {
-        self.chunk.read_u16(self.ip + offset)
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn operand_u32(&self, offset: usize) -> u32 {
-        self.chunk.read_u32(self.ip + offset)
     }
 
     #[inline(always)]
@@ -433,7 +459,7 @@ impl VirtualMachine {
             } else {
                 frame.ip.saturating_sub(1)
             };
-            let info = frame.closure.function.chunk.get_line_info(ip);
+            let info = frame.closure.function.chunk.instr_line_info(ip);
             if depth == 0 {
                 location = info.as_ref().map(|i| (i.line, i.column));
             }
