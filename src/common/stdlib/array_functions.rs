@@ -807,7 +807,7 @@ pub fn native_array_flat_map(
             other => {
                 return Err(format!(
                     "flatMap() callback must return an array, got {}",
-                    type_name_for_error(&other)
+                    other.type_name()
                 )
                 .into())
             }
@@ -815,17 +815,6 @@ pub fn native_array_flat_map(
     }
 
     Ok(Value::new_array(flattened))
-}
-
-/// Renders a value's type the way Neon spells it elsewhere (`Int`,
-/// `String`, ...) rather than `type_name()`'s lowercase runtime label.
-pub(crate) fn type_name_for_error(value: &Value) -> String {
-    if matches!(value, Value::Int(_)) {
-        "Int".to_string()
-    } else {
-        let lower = value.type_name();
-        lower[..1].to_uppercase() + &lower[1..]
-    }
 }
 
 /// Native implementation of Array.filter(fn)
@@ -1226,7 +1215,7 @@ pub fn native_array_zip(args: &[Value]) -> Result<Value, String> {
     let other = elements_of(&args[1], array.len()).ok_or_else(|| {
         format!(
             "zip() other must be an array or range, got {}",
-            type_name_for_error(&args[1])
+            args[1].type_name()
         )
     })?;
 

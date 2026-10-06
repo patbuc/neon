@@ -1,7 +1,7 @@
 // Expected:
 // before
 
-// Expected runtime error: Cannot destructure Int into 2 names
+// Expected runtime error: Cannot destructure number into 2 names
 
 print("before")
 for (a, b) in [1, 2] {

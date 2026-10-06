@@ -1,7 +1,6 @@
 use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
-use crate::common::stdlib::array_functions;
 use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
@@ -1493,7 +1492,7 @@ impl VirtualMachine {
                 let len = array_ref.borrow().len();
                 if len != n {
                     return Err(self.runtime_error(format!(
-                        "Cannot destructure Array of size {} into {} names",
+                        "Cannot destructure array of size {} into {} names",
                         len, n
                     )));
                 }
@@ -1501,7 +1500,7 @@ impl VirtualMachine {
             }
             other => Err(self.runtime_error(format!(
                 "Cannot destructure {} into {} names",
-                array_functions::type_name_for_error(other),
+                other.type_name(),
                 n
             ))),
         }

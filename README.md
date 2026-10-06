@@ -153,7 +153,8 @@ val name = "Bob"  // Immutable variable
 
 `val`/`var` also destructure a tuple pattern - an Array of exactly the right
 length - binding each element to a name; `_` skips a position without
-declaring anything:
+declaring anything. Any other value is a runtime error (`Cannot destructure
+number into 2 names`, `Cannot destructure array of size 1 into 2 names`):
 
 ```neon
 val (a, b) = [1, 2]
@@ -1098,7 +1099,7 @@ for ch in "abc" {
 - `.reduce(initial, fn)` - Fold the array from the left, calling `fn(accumulator, element)`
 - `.forEach(fn)` - Call `fn` with each element in order; returns `nil`
 - `.flatMap(fn)` - New array concatenating the arrays `fn` returns for each element; a `fn`
-  returning a non-array is a runtime error
+  returning a non-array is a runtime error (`flatMap() callback must return an array, got number`)
 - `.find(fn)` - First element for which `fn` is truthy, or `nil`
 - `.some(fn)` / `.every(fn)` - Whether `fn` is truthy for any / all elements; stop calling `fn` after
   the deciding element. `some` is `false` and `every` is `true` on an empty array
@@ -1111,7 +1112,8 @@ for ch in "abc" {
 - `.chunked(n)` - New array of arrays of `n` elements each; the last chunk may be shorter; `n` must
   be an integer >= 1
 - `.zip(other)` - New array pairing each element with the element at the same position in `other`
-  (an array or range), stopping at the shorter length
+  (an array or range), stopping at the shorter length; anything else is a runtime error
+  (`zip() other must be an array or range, got number`)
 - `.withIndex()` - New array of `[index, element]` pairs
 - `Array(n, init)` - New array of `n` elements. If `init` is a closure or function, it's called with
   each index from `0` to `n - 1` and its result becomes that element; otherwise `init` is stored (the
