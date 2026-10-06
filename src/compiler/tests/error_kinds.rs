@@ -242,6 +242,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::ImportCycle => {
             vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
         }
+        CompilationErrorKind::UnknownModule => vec![(
+            "import \"missing\"\n".to_string(),
+            Some("missing.n"),
+        )],
         CompilationErrorKind::ImplOnEnum => vec![(
             "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
                 .to_string(),
@@ -309,7 +313,9 @@ fn every_error_kind_is_produced_by_some_input() {
         for (source, fragment) in sources_for(kind) {
             let errors = if kind == CompilationErrorKind::UnplaceableComment {
                 crate::compiler::format(&source).err().unwrap_or_default()
-            } else if kind == CompilationErrorKind::ImportCycle {
+            } else if kind == CompilationErrorKind::ImportCycle
+                || kind == CompilationErrorKind::UnknownModule
+            {
                 module_graph_errors(kind, &source)
             } else {
                 compile_errors(&source)

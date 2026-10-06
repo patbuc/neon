@@ -183,3 +183,24 @@ fn reports_a_b_a_when_a_imports_b_and_b_imports_a() {
     );
     assert_eq!(2, errors[0].location.line);
 }
+
+#[test]
+fn reports_the_path_tried_for_import_missing() {
+    let dir = TempDir::new("reports_missing");
+    let a_path = dir.0.join("a.n");
+    let a_source = "val x = 1\nimport \"missing\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("missing module should be reported");
+    };
+
+    let tried = dir.0.canonicalize().unwrap().join("missing.n");
+    assert_eq!(1, errors.len());
+    assert!(
+        errors[0].message.contains(tried.to_str().unwrap()),
+        "message was: {}",
+        errors[0].message
+    );
+    assert_eq!(2, errors[0].location.line);
+}

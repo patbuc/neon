@@ -74,7 +74,10 @@ fn load(
             } else {
                 format!("{import}.n")
             };
-            let dependency = canonicalize(&dir.join(file))?;
+            let tried = dir.join(file);
+            let dependency = tried
+                .canonicalize()
+                .map_err(|_| unknown_module_error(import, &tried, *location))?;
             if let Some(start) = stack.iter().position(|p| *p == dependency) {
                 return Err(cycle_error(&stack[start..], &dependency, *location));
             }
@@ -123,6 +126,19 @@ fn cycle_error(
         CompilationPhase::Parse,
         CompilationErrorKind::ImportCycle,
         format!("import cycle: {}", names.join(" -> ")),
+        location,
+    )]
+}
+
+fn unknown_module_error(
+    import: &str,
+    tried: &Path,
+    location: SourceLocation,
+) -> Vec<CompilationError> {
+    vec![CompilationError::new(
+        CompilationPhase::Parse,
+        CompilationErrorKind::UnknownModule,
+        format!("cannot find module '{import}' (tried {})", tried.display()),
         location,
     )]
 }

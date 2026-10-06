@@ -86,6 +86,7 @@ compilation_error_kinds! {
     ExportNotTopLevel => "E0052",
     ModulesUnsupported => "E0053",
     ImportCycle => "E0054",
+    UnknownModule => "E0055",
 }
 
 #[derive(Debug, Clone, PartialEq)]
