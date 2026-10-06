@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 pub(crate) enum EntryLocation {
     File(PathBuf),
+    None,
 }
 
 pub(crate) struct Module {
@@ -19,6 +20,7 @@ pub(crate) struct Module {
     pub source: String,
     pub ast: Vec<Stmt>,
     pub dependencies: Vec<PathBuf>,
+    pub builtin: bool,
 }
 
 pub(crate) struct ModuleGraph {
@@ -29,7 +31,10 @@ impl ModuleGraph {
     /// Modules come in dependency order: every module follows the modules it
     /// imports, so the entry module is last.
     pub fn build(entry_source: &str, entry: EntryLocation) -> CompilationResult<ModuleGraph> {
-        let EntryLocation::File(entry_path) = entry;
+        let entry_path = match entry {
+            EntryLocation::File(path) if !cfg!(target_arch = "wasm32") => canonicalize(&path)?,
+            _ => PathBuf::new(),
+        };
         let mut modules = Vec::new();
         let mut visited = HashSet::new();
         let mut stack = Vec::new();
@@ -55,7 +60,6 @@ fn load(
     visited: &mut HashSet<PathBuf>,
     stack: &mut Vec<PathBuf>,
 ) -> CompilationResult<()> {
-    let path = canonicalize(&path)?;
     visited.insert(path.clone());
     stack.push(path.clone());
     let ast = Parser::new(&source)
@@ -71,6 +75,23 @@ fn load(
             ..
         } = stmt
         {
+            if import.starts_with("std/") {
+                let builtin = PathBuf::from(import.as_str());
+                if visited.insert(builtin.clone()) {
+                    modules.push(Module {
+                        path: builtin.clone(),
+                        source: String::new(),
+                        ast: Vec::new(),
+                        dependencies: Vec::new(),
+                        builtin: true,
+                    });
+                }
+                dependencies.push(builtin);
+                continue;
+            }
+            if path.as_os_str().is_empty() {
+                return Err(file_import_unavailable_error(*location, &path));
+            }
             let file = if import.ends_with(".n") {
                 import.to_string()
             } else {
@@ -104,6 +125,7 @@ fn load(
         source,
         ast,
         dependencies,
+        builtin: false,
     });
     Ok(())
 }
@@ -129,6 +151,16 @@ fn cycle_error(
         CompilationPhase::Parse,
         CompilationErrorKind::ImportCycle,
         format!("import cycle: {}", names.join(" -> ")),
+        location,
+    )
+    .with_file(file)]
+}
+
+fn file_import_unavailable_error(location: SourceLocation, file: &Path) -> Vec<CompilationError> {
+    vec![CompilationError::new(
+        CompilationPhase::Parse,
+        CompilationErrorKind::FileImportUnavailable,
+        "file imports are not available in the browser build".to_string(),
         location,
     )
     .with_file(file)]

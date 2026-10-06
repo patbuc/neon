@@ -242,3 +242,42 @@ fn reports_a_parse_error_in_the_entry_file_with_the_entry_path() {
         assert_eq!(2, error.location.line);
     }
 }
+
+#[test]
+fn marks_std_math_builtin_without_touching_the_disk() {
+    let dir = TempDir::new("marks_std_math_builtin");
+    let a_path = dir.0.join("a.n");
+    let a_source = "import \"std/math\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let graph = ModuleGraph::build(a_source, EntryLocation::File(a_path.clone()))
+        .expect("graph should build");
+
+    let modules = graph.modules();
+    assert_eq!(2, modules.len());
+    assert_eq!(PathBuf::from("std/math"), modules[0].path);
+    assert!(modules[0].builtin);
+    assert!(modules[0].source.is_empty());
+    assert_eq!(a_path.canonicalize().unwrap(), modules[1].path);
+    assert!(!modules[1].builtin);
+}
+
+#[test]
+fn rejects_a_file_import_when_no_entry_path_is_given_with_the_documented_message() {
+    let source = "val x = 1\nimport \"b\"\n";
+
+    let Err(errors) = ModuleGraph::build(source, EntryLocation::None) else {
+        panic!("file import should be rejected");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(
+        "file imports are not available in the browser build",
+        errors[0].message
+    );
+    assert_eq!(2, errors[0].location.line);
+
+    let graph = ModuleGraph::build("import \"std/math\"\n", EntryLocation::None)
+        .expect("std import should pass through");
+    assert!(graph.modules()[0].builtin);
+}

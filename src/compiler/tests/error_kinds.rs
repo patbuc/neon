@@ -242,6 +242,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::ImportCycle => {
             vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
         }
+        CompilationErrorKind::FileImportUnavailable => vec![(
+            "import \"b\"\n".to_string(),
+            Some("file imports are not available in the browser build"),
+        )],
         CompilationErrorKind::UnknownModule => vec![(
             "import \"missing\"\n".to_string(),
             Some("missing.n"),
@@ -296,6 +300,11 @@ fn sibling_files_for(kind: CompilationErrorKind) -> &'static [(&'static str, &'s
 }
 
 fn module_graph_errors(kind: CompilationErrorKind, entry_source: &str) -> Vec<CompilationError> {
+    if kind == CompilationErrorKind::FileImportUnavailable {
+        return ModuleGraph::build(entry_source, EntryLocation::None)
+            .err()
+            .unwrap_or_default();
+    }
     let dir = TempDir::new(&format!("error_kinds_{:?}", kind));
     let entry_path = dir.0.join("a.n");
     fs::write(&entry_path, entry_source).expect("Failed to write a.n");
@@ -315,6 +324,7 @@ fn every_error_kind_is_produced_by_some_input() {
                 crate::compiler::format(&source).err().unwrap_or_default()
             } else if kind == CompilationErrorKind::ImportCycle
                 || kind == CompilationErrorKind::UnknownModule
+                || kind == CompilationErrorKind::FileImportUnavailable
             {
                 module_graph_errors(kind, &source)
             } else {

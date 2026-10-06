@@ -88,6 +88,7 @@ compilation_error_kinds! {
     ModulesUnsupported => "E0053",
     ImportCycle => "E0054",
     UnknownModule => "E0055",
+    FileImportUnavailable => "E0056",
 }
 
 #[derive(Debug, Clone, PartialEq)]
