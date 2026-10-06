@@ -1,7 +1,10 @@
 use super::helpers::disassemble;
+use super::module_graph::TempDir;
 use crate::common::errors::CompilationErrorKind;
 use crate::compiler::global_env::GlobalEnv;
+use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
+use std::fs;
 
 #[test]
 fn global_read_across_lines() {
@@ -255,4 +258,93 @@ fn second_line_redeclaring_namespace_rejected() {
         .get_structured_errors()
         .iter()
         .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+}
+
+#[test]
+fn resolves_module_member_on_line_after_import() {
+    let dir = TempDir::new("repl_import");
+    fs::write(
+        dir.0.join("utils.n"),
+        "export fn double(x) { return x * 2 }\n",
+    )
+    .expect("Failed to write utils.n");
+    let mut compiler = Compiler::new();
+    let entry = || EntryLocation::Directory(dir.0.clone());
+
+    let first = compiler
+        .compile_entry("import \"utils\"\n", entry(), &GlobalEnv::default())
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+
+    let second = compiler
+        .compile_entry("print(utils.double(1))\n", entry(), &first.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let disassembly = disassemble(&second.entry);
+    assert!(
+        disassembly.contains("GetGlobal 00") && disassembly.contains("Call"),
+        "expected a call through the export's slot:\n{}",
+        disassembly
+    );
+
+    let third = compiler
+        .compile_entry("val y = 1\n", entry(), &second.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let disassembly = third.entry.disassemble();
+    assert!(
+        disassembly.contains("SetLocal 01"),
+        "expected y's slot after the module's globals:\n{}",
+        disassembly
+    );
+}
+
+#[test]
+fn reimporting_a_module_on_a_later_line_reuses_its_slots() {
+    let dir = TempDir::new("repl_reimport");
+    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    let mut compiler = Compiler::new();
+    let entry = || EntryLocation::Directory(dir.0.clone());
+
+    let first = compiler
+        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let second = compiler
+        .compile_entry("import \"a\"\n", entry(), &first.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let third = compiler
+        .compile_entry("val y = 1\nprint(a.counter)\n", entry(), &second.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+
+    let disassembly = disassemble(&third.entry);
+    assert!(
+        disassembly.contains("SetLocal 01") && disassembly.contains("GetGlobal 00"),
+        "expected y in slot 1 and a.counter read from slot 0:\n{}",
+        disassembly
+    );
+}
+
+#[test]
+fn module_importing_an_earlier_lines_module_reads_its_slots() {
+    let dir = TempDir::new("repl_transitive_import");
+    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    fs::write(
+        dir.0.join("b.n"),
+        "import \"a\"\nexport fn get() { return a.counter }\n",
+    )
+    .expect("Failed to write b.n");
+    let mut compiler = Compiler::new();
+    let entry = || EntryLocation::Directory(dir.0.clone());
+
+    let first = compiler
+        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+    let second = compiler
+        .compile_entry("import \"b\"\n", entry(), &first.env)
+        .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
+
+    let b_chunk = second.modules.last().expect("b should be compiled");
+    let disassembly = disassemble(b_chunk);
+    assert!(
+        disassembly.contains("GetGlobal 00"),
+        "expected b to read a.counter from slot 0:\n{}",
+        disassembly
+    );
 }

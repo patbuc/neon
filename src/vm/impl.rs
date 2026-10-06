@@ -1,7 +1,9 @@
+use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::method_registry::native_method_table;
 use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
+use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
@@ -61,17 +63,37 @@ impl VirtualMachine {
         let start = std::time::Instant::now();
 
         let mut compiler = Compiler::new();
-        let chunk = compiler.compile_at(&source, entry);
+        let compiled = compiler.compile_entry(&source, entry, &GlobalEnv::default());
 
         #[cfg(not(target_arch = "wasm32"))]
         info!("Compile time: {}ms", start.elapsed().as_millis());
 
-        if chunk.is_none() {
+        let Some(compiled) = compiled else {
             self.structured_errors = compiler.get_structured_errors();
             self.module_sources = compiler.module_sources().clone();
-        }
+            return None;
+        };
 
-        chunk
+        self.reject_modules(compiled).map(|(chunk, _)| chunk)
+    }
+
+    /// Refuses a program that imports a file module: compiled modules
+    /// can't run yet.
+    #[allow(clippy::expect_used)]
+    fn reject_modules(&mut self, compiled: Compiled) -> Option<(Chunk, GlobalEnv)> {
+        if compiled.modules.is_empty() {
+            return Some((compiled.entry, compiled.env));
+        }
+        let location = compiled
+            .first_import
+            .expect("a program with modules imports one from its entry");
+        self.structured_errors = vec![CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::ModulesUnsupported,
+            "modules are not supported yet",
+            location,
+        )];
+        None
     }
 
     pub fn check_file(&mut self, path: &Path, source: String) -> InterpretResult {
@@ -146,13 +168,13 @@ impl VirtualMachine {
         let previous_slot_count = previous_env.slot_count as usize;
 
         let mut compiler = Compiler::new();
-        let (chunk, new_env) = match compiler.compile_entry(&source, entry, &previous_env) {
-            Some(result) => result,
-            None => {
-                self.structured_errors = compiler.get_structured_errors();
-                self.module_sources = compiler.module_sources().clone();
-                return InterpretResult::CompileError;
-            }
+        let Some(compiled) = compiler.compile_entry(&source, entry, &previous_env) else {
+            self.structured_errors = compiler.get_structured_errors();
+            self.module_sources = compiler.module_sources().clone();
+            return InterpretResult::CompileError;
+        };
+        let Some((chunk, new_env)) = self.reject_modules(compiled) else {
+            return InterpretResult::CompileError;
         };
 
         self.call_frames.clear();

@@ -47,6 +47,14 @@ pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("while", TokenType::While),
 ];
 
+/// True when `name` would scan as a single identifier token.
+pub(in crate::compiler) fn is_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(Scanner::is_alpha)
+        && chars.all(|c| Scanner::is_alpha(c) || Scanner::is_digit(c))
+        && Scanner::make_identifier_type(name) == TokenType::Identifier
+}
+
 /// `chars` starts right after the `\`; the returned consumed count excludes it.
 fn decode_escape(chars: &[char]) -> Option<(char, usize)> {
     match *chars.first()? {

@@ -164,8 +164,13 @@ enforces these edges in `cargo test`.
       imported modules carry that module's path and are rendered from the sources the graph loaded
       (`Compiler::module_sources`); errors in the entry module carry no file
     - `std/` paths are reserved for builtin modules
-    - Only the entry module is compiled so far; imported modules are loaded and checked but still
-      rejected with "modules are not supported yet"
+    - Every module in the graph compiles as its own unit, in graph order, each against a fresh
+      `GlobalEnv` that shares the compile's `Symbols`, `next_decl_id` and `slot_count`. A file import
+      with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056); semantic
+      analysis still rejects a `std/` import with "modules are not supported yet"
+    - The REPL's `GlobalEnv` remembers each compiled module's `ExportTable` by canonical path, so a
+      module imported again on a later line, directly or by a new module, is not compiled again and
+      its bindings resolve to the original slots
 
 4. **Semantic Analysis** (`src/compiler/semantic.rs`)
     - Type checking and validation
@@ -175,11 +180,18 @@ enforces these edges in `cargo test`.
       parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
       captures, which declarations are captured, and a `Symbols` table interning every field, method,
       and type name into a `u16` id (more than 65,536 distinct names is a compile error)
-    - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand
+    - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
+      unknown module export, write to an export, module used as a value, wrong-arity export call
+    - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
+      slot and arity for functions, variables, structs and enums. An `import` binds a compile-time `Module` symbol
+      with no slot; `utils.name` resolves against the imported module's table. Enums are compile-time
+      only exports and have no slot
 
 5. **Code Generation** (`src/compiler/codegen.rs`)
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
+    - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
+      call); an import itself emits nothing. Each module's chunk is named after its module path
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
       `FunctionCompiler`, not in the Chunk; upvalue captures come from `Resolutions`
@@ -197,6 +209,8 @@ enforces these edges in `cargo test`.
 - `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
   recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
 - Separate builtin values storage (e.g., Math namespace)
+- Refuses to run (or `--check`) a program that compiled module chunks, reporting "modules are not supported
+  yet" (E0053) at the entry's first file import, until #189
 
 **Bytecode Format** (`src/common/chunk/`)
 

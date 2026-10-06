@@ -1,8 +1,10 @@
 use crate::common::static_type::StaticType;
+use crate::compiler::exports::ExportTable;
 use crate::compiler::resolutions::{DeclId, Symbols};
 use crate::compiler::semantic::MethodSignature;
 use crate::compiler::symbol_table::Symbol;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 
 /// Everything one REPL line's compile leaves behind for the next line to
 /// resolve against: the top-level names it declared, the symbol ids it
@@ -18,6 +20,9 @@ pub(crate) struct GlobalEnv {
     pub(crate) decl_slots: HashMap<DeclId, u32>,
     pub(crate) slot_count: u32,
     pub(crate) immutable: HashSet<DeclId>,
+    /// Exports of every file module compiled so far, by canonical path, so
+    /// a later line importing one again reuses its slots.
+    pub(crate) modules: HashMap<PathBuf, ExportTable>,
 }
 
 impl GlobalEnv {

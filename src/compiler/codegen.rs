@@ -1656,6 +1656,20 @@ impl<'a> CodeGenerator<'a> {
             self.emit_create_array(access.variants.len() as u16, location);
             return;
         }
+        if let Expr::Variable { id: object_id, .. } = object {
+            if let Some(slot) = self.resolutions.module_member(*object_id) {
+                let call_op = match invoke_op {
+                    OpCode::TailInvoke => OpCode::TailCall,
+                    _ => OpCode::Call,
+                };
+                self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+                self.emit_call(call_op, arguments.len() as u8, location);
+                return;
+            }
+        }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
             None => self.generate_instance_method_call_expr(
@@ -1840,6 +1854,10 @@ impl<'a> CodeGenerator<'a> {
                     return;
                 }
                 if let Expr::Variable { id, .. } = object.as_ref() {
+                    if let Some(slot) = self.resolutions.module_member(*id) {
+                        self.emit_index_op(OpCode::GetGlobal, slot, "globals", *location);
+                        return;
+                    }
                     if let Some(access) = self.resolutions.enum_variant_access(*id) {
                         self.emit_enum_variant_constant(
                             &access.enum_name,
@@ -1849,6 +1867,22 @@ impl<'a> CodeGenerator<'a> {
                             *location,
                         );
                         return;
+                    }
+                }
+                // A variant of an exported enum, e.g. utils.Color.Red: the
+                // access is recorded on the node naming the module.
+                if let Expr::GetField { object: module, .. } = object.as_ref() {
+                    if let Expr::Variable { id, .. } = module.as_ref() {
+                        if let Some(access) = self.resolutions.enum_variant_access(*id) {
+                            self.emit_enum_variant_constant(
+                                &access.enum_name,
+                                &access.variant_name,
+                                access.ordinal,
+                                &access.fields,
+                                *location,
+                            );
+                            return;
+                        }
                     }
                 }
                 let symbol = self.resolutions.symbol(field);

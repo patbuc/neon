@@ -18,6 +18,8 @@ pub struct Module {
     pub source: String,
     pub ast: Vec<Stmt>,
     pub dependencies: Vec<PathBuf>,
+    /// The resolved path of each `Stmt::Import`, by its node id.
+    pub imports: HashMap<NodeId, PathBuf>,
     pub builtin: bool,
     pub(crate) eof_location: SourceLocation,
     pub(crate) end_locations: HashMap<NodeId, SourceLocation>,
@@ -99,9 +101,11 @@ fn load(
     let eof_location = parser.eof_location();
     let end_locations = parser.end_locations().clone();
     let mut dependencies = Vec::new();
+    let mut imports = HashMap::new();
     for stmt in &ast {
         if let Stmt::Import {
             path: import,
+            id,
             location,
             ..
         } = stmt
@@ -114,11 +118,13 @@ fn load(
                         source: String::new(),
                         ast: Vec::new(),
                         dependencies: Vec::new(),
+                        imports: HashMap::new(),
                         builtin: true,
                         eof_location: SourceLocation::default(),
                         end_locations: HashMap::new(),
                     });
                 }
+                imports.insert(*id, builtin.clone());
                 if !dependencies.contains(&builtin) {
                     dependencies.push(builtin);
                 }
@@ -158,6 +164,7 @@ fn load(
                     stack,
                 )?;
             }
+            imports.insert(*id, dependency.clone());
             if !dependencies.contains(&dependency) {
                 dependencies.push(dependency);
             }
@@ -170,6 +177,7 @@ fn load(
         source,
         ast,
         dependencies,
+        imports,
         builtin: false,
         eof_location,
         end_locations,

@@ -11,10 +11,12 @@ use crate::compiler::ast::{
     Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
     MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
+use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
 };
+use crate::compiler::scanner::is_identifier;
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -118,6 +120,9 @@ pub struct SemanticAnalyzer {
     // them so a later REPL line can't redeclare a builtin, since a fresh
     // analyzer re-seeds them anyway.
     builtin_decl_count: u32,
+    // Export table of the module each file `import` resolved to, by the
+    // import's node id.
+    imports: HashMap<NodeId, ExportTable>,
 }
 
 impl SemanticAnalyzer {
@@ -179,6 +184,7 @@ impl SemanticAnalyzer {
             pending_block_fns: HashSet::new(),
             too_many_symbols_reported: false,
             builtin_decl_count: next_decl_id,
+            imports: HashMap::new(),
         }
     }
 
@@ -192,6 +198,12 @@ impl SemanticAnalyzer {
         self.resolutions
             .seed(env.symbols.clone(), env.immutable.clone());
         self.next_decl_id = self.next_decl_id.max(env.next_decl_id);
+    }
+
+    /// Binds each file import, by node id, to the exports of the module it
+    /// resolved to.
+    pub(crate) fn seed_imports(&mut self, imports: HashMap<NodeId, ExportTable>) {
+        self.imports = imports;
     }
 
     /// Builds the `GlobalEnv` a later REPL line compiles against: this
@@ -242,6 +254,7 @@ impl SemanticAnalyzer {
             decl_slots,
             slot_count,
             immutable,
+            modules: HashMap::new(),
         }
     }
 
@@ -361,6 +374,37 @@ impl SemanticAnalyzer {
                         );
                         self.not_initialized_top_level.insert(decl_id);
                     }
+                }
+                Stmt::Import {
+                    path,
+                    alias,
+                    id,
+                    location,
+                    ..
+                } => {
+                    let Some(exports) = self.imports.get(id).cloned() else {
+                        continue;
+                    };
+                    let name = alias.clone().unwrap_or_else(|| {
+                        std::path::Path::new(path)
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    });
+                    if !is_identifier(&name) {
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::InvalidImportName,
+                            format!(
+                                "cannot bind '{}' as a name; use `import \"{}\" as <name>`",
+                                name, path
+                            ),
+                            *location,
+                        ));
+                        continue;
+                    }
+                    self.define_symbol(name, SymbolKind::Module { exports }, false, *location);
                 }
                 _ => {}
             }
@@ -683,6 +727,13 @@ impl SemanticAnalyzer {
             Expr::Call { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
+                    // A constructor call on an exported struct, e.g.
+                    // utils.Point(1, 2).
+                    if let Expr::Variable { name, .. } = object.as_ref() {
+                        if let Some(Export::Struct { .. }) = self.module_export(name, field) {
+                            return Some(StaticType::Struct(format!("{}.{}", name, field)));
+                        }
+                    }
                     // This is a method call obj.method(args)
                     let object_type = self.infer_expr_type(object)?;
                     crate::common::method_registry::instance_return_type(object_type.name(), field)
@@ -1067,6 +1118,7 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
+            Stmt::Import { id, .. } if self.imports.contains_key(id) => {}
             Stmt::Import { location, .. } => {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -1075,7 +1127,10 @@ impl SemanticAnalyzer {
                     *location,
                 ));
             }
-            Stmt::Export { declaration, .. } => self.resolve_stmt(declaration),
+            Stmt::Export { declaration, .. } => {
+                self.intern_exported_names(declaration);
+                self.resolve_stmt(declaration);
+            }
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);
             }
@@ -1729,23 +1784,26 @@ impl SemanticAnalyzer {
             return;
         };
 
-        if symbol.kind == SymbolKind::Namespace {
+        if matches!(
+            symbol.kind,
+            SymbolKind::Namespace | SymbolKind::Module { .. }
+        ) {
+            let what = if symbol.kind == SymbolKind::Namespace {
+                "namespace"
+            } else {
+                "module"
+            };
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::NamespaceAsValue,
-                format!("'{}' is a namespace, not a value", name),
+                format!("'{}' is a {}, not a value", name, what),
                 location,
             ));
             return;
         }
 
         if matches!(symbol.kind, SymbolKind::Enum { .. }) {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::EnumAsValue,
-                format!("'{}' is an enum, not a value", name),
-                location,
-            ));
+            self.push_enum_as_value_error(name, location);
             return;
         }
 
@@ -1916,12 +1974,67 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
-        if let Expr::Variable { name, .. } = object {
+        if optional && self.is_module_type(object) {
+            for arg in arguments {
+                self.resolve_expr(arg);
+            }
+            self.push_optional_dot_on_type_error(location);
+            return;
+        }
+
+        // A static call on an exported enum, e.g. utils.Shape.Circle(2).
+        if !optional {
+            if let Some((_, enum_name, variants)) = self.module_enum(object) {
+                self.resolve_enum_static_call(
+                    id, &enum_name, &variants, method, arguments, location,
+                );
+                return;
+            }
+        }
+
+        if let Expr::Variable {
+            name,
+            id: object_id,
+            ..
+        } = object
+        {
             if optional && self.is_type_or_namespace_name(name) {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
                 self.push_optional_dot_on_type_error(location);
+                return;
+            }
+
+            if !optional && self.module_exports(name).is_some() {
+                let export = self.resolve_module_member(*object_id, name, method, location);
+                match export {
+                    Some(Export::Function { arity, .. }) => {
+                        self.validate_arity("Function", method, arity, arguments.len(), location);
+                    }
+                    Some(Export::Struct { fields, .. }) => {
+                        self.validate_arity(
+                            "Function",
+                            method,
+                            fields.len() as u8,
+                            arguments.len(),
+                            location,
+                        );
+                    }
+                    Some(Export::Enum { .. }) => {
+                        self.push_enum_as_value_error(method, location);
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::NotCallable,
+                            format!("'{}' is not a function", method),
+                            location,
+                        ));
+                    }
+                    Some(Export::Variable { .. }) | None => {}
+                }
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
                 return;
             }
 
@@ -2066,6 +2179,11 @@ impl SemanticAnalyzer {
         optional: bool,
         location: SourceLocation,
     ) {
+        if optional && self.is_module_type(object) {
+            self.push_optional_dot_on_type_error(location);
+            return;
+        }
+
         if let Expr::Variable { name, id, .. } = object {
             if optional && self.is_type_or_namespace_name(name) {
                 self.push_optional_dot_on_type_error(location);
@@ -2074,6 +2192,22 @@ impl SemanticAnalyzer {
 
             if let Some(variants) = self.enum_variants(name) {
                 self.resolve_enum_variant_access(*id, name, &variants, field, location);
+                return;
+            }
+
+            if !optional && self.module_exports(name).is_some() {
+                let export = self.resolve_module_member(*id, name, field, location);
+                if let Some(Export::Enum { .. }) = export {
+                    self.push_enum_as_value_error(field, location);
+                }
+                return;
+            }
+        }
+
+        // A variant of an exported enum, e.g. utils.Color.Red.
+        if !optional {
+            if let Some((module_id, enum_name, variants)) = self.module_enum(object) {
+                self.resolve_enum_variant_access(module_id, &enum_name, &variants, field, location);
                 return;
             }
         }
@@ -2110,6 +2244,119 @@ impl SemanticAnalyzer {
         );
     }
 
+    fn module_exports(&self, name: &str) -> Option<&ExportTable> {
+        match self.symbol_table.resolve(name) {
+            Some(Symbol {
+                kind: SymbolKind::Module { exports },
+                ..
+            }) => Some(exports),
+            _ => None,
+        }
+    }
+
+    /// The export `member` of the module `module` names, if `module` names
+    /// a module that exports it.
+    fn module_export(&self, module: &str, member: &str) -> Option<&Export> {
+        let symbol = self.resolutions.symbol_id(member)?;
+        self.module_exports(module)?.get(symbol)
+    }
+
+    /// When `expr` is `module.Enum` naming an exported enum, the
+    /// `Expr::Variable` node naming the module, the enum's name and its
+    /// variants.
+    fn module_enum(&self, expr: &Expr) -> Option<(NodeId, String, Vec<EnumVariant>)> {
+        let Expr::GetField {
+            object,
+            field,
+            optional: false,
+            ..
+        } = expr
+        else {
+            return None;
+        };
+        let Expr::Variable { name, id, .. } = object.as_ref() else {
+            return None;
+        };
+        match self.module_export(name, field)? {
+            Export::Enum { variants } => Some((*id, field.clone(), variants.clone())),
+            _ => None,
+        }
+    }
+
+    /// The fields of a struct exported by a module, given its static type
+    /// name `module.Struct`.
+    fn module_struct(&self, type_name: &str) -> Option<&[String]> {
+        let (module, name) = type_name.split_once('.')?;
+        match self.module_export(module, name)? {
+            Export::Struct { fields, .. } => Some(fields),
+            _ => None,
+        }
+    }
+
+    fn push_enum_as_value_error(&mut self, name: &str, location: SourceLocation) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::EnumAsValue,
+            format!("'{}' is an enum, not a value", name),
+            location,
+        ));
+    }
+
+    /// Resolves `utils.counter`: `id` is the `Expr::Variable` node naming
+    /// the module.
+    fn resolve_module_member(
+        &mut self,
+        id: NodeId,
+        module: &str,
+        field: &str,
+        location: SourceLocation,
+    ) -> Option<Export> {
+        match self.module_export(module, field).cloned() {
+            Some(export) => {
+                if let Some(slot) = export.slot() {
+                    self.resolutions.record_module_member(id, slot);
+                }
+                Some(export)
+            }
+            None => {
+                let names = self.resolutions.symbol_names();
+                let mut candidates: Vec<&str> = self
+                    .module_exports(module)?
+                    .symbols()
+                    .map(|symbol| &*names[symbol as usize])
+                    .collect();
+                candidates.sort_unstable();
+                let mut message = format!("module '{}' has no export '{}'", module, field);
+                if let Some(closest) =
+                    crate::common::string_similarity::find_closest_match(field, &candidates)
+                {
+                    message.push_str(&format!(". Did you mean '{}'?", closest));
+                }
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownExport,
+                    message,
+                    location,
+                ));
+                None
+            }
+        }
+    }
+
+    /// Interns the names an `export` declares, so the module's export table
+    /// can key them by symbol id.
+    fn intern_exported_names(&mut self, declaration: &Stmt) {
+        match declaration {
+            Stmt::Fn { name, location, .. } => self.intern_name(name, *location),
+            Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
+                for binding in pattern.bindings() {
+                    self.intern_name(&binding.name, binding.location);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn resolve_set_field(
         &mut self,
         object: &Expr,
@@ -2117,7 +2364,22 @@ impl SemanticAnalyzer {
         value: &Expr,
         location: SourceLocation,
     ) {
-        if let Expr::Variable { name, .. } = object {
+        if let Expr::Variable { name, id, .. } = object {
+            if self.module_exports(name).is_some() {
+                self.resolve_expr(value);
+                if self
+                    .resolve_module_member(*id, name, field, location)
+                    .is_some()
+                {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImmutableAssignment,
+                        "exports are read-only".to_string(),
+                        location,
+                    ));
+                }
+                return;
+            }
             if self.enum_variants(name).is_some() {
                 self.resolve_expr(value);
                 self.push_error(CompilationError::new(
@@ -2217,6 +2479,26 @@ impl SemanticAnalyzer {
             Some(symbol) if symbol.kind == SymbolKind::Namespace
         ) || self.enum_variants(name).is_some()
             || self.is_struct_type(name)
+    }
+
+    /// True when `expr` is `module.Type` naming an exported struct or enum.
+    fn is_module_type(&self, expr: &Expr) -> bool {
+        let Expr::GetField {
+            object,
+            field,
+            optional: false,
+            ..
+        } = expr
+        else {
+            return false;
+        };
+        let Expr::Variable { name, .. } = object.as_ref() else {
+            return false;
+        };
+        matches!(
+            self.module_export(name, field),
+            Some(Export::Struct { .. } | Export::Enum { .. })
+        )
     }
 
     fn push_optional_dot_on_type_error(&mut self, location: SourceLocation) {
@@ -2650,6 +2932,11 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
+        // Methods on a module's structs aren't resolved yet (#191).
+        if self.module_struct(object_type).is_some() {
+            return;
+        }
+
         if self.is_struct_type(object_type) {
             self.validate_struct_method_call(
                 object_type,
@@ -2717,18 +3004,16 @@ impl SemanticAnalyzer {
     /// Check that a field access/set on a receiver of statically known
     /// struct type refers to one of the struct's declared fields.
     fn validate_struct_field(&mut self, struct_name: &str, field: &str, location: SourceLocation) {
-        if !matches!(
-            self.symbol_table.resolve(struct_name),
-            Some(Symbol {
-                kind: SymbolKind::Struct { .. },
-                ..
-            })
-        ) {
+        let has_field = if let Some(fields) = self.module_struct(struct_name) {
+            fields.iter().any(|f| f == field)
+        } else if self.is_struct_type(struct_name) {
+            self.struct_has_field(struct_name, field)
+        } else {
             // Not a known struct type - nothing to check.
             return;
-        }
+        };
 
-        if !self.struct_has_field(struct_name, field) {
+        if !has_field {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::UnknownField,
@@ -2773,7 +3058,7 @@ impl SemanticAnalyzer {
                     // Holds an arbitrary value; whether it's callable, and
                     // with how many arguments, is only known at runtime.
                 }
-                SymbolKind::Namespace | SymbolKind::Enum { .. } => {
+                SymbolKind::Namespace | SymbolKind::Enum { .. } | SymbolKind::Module { .. } => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::NotCallable,

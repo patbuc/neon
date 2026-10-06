@@ -134,6 +134,9 @@ pub struct Resolutions {
     enum_values_accesses: HashMap<NodeId, EnumValuesAccess>,
     /// Keyed by the `Expr::Call` node of a `Shape.Circle(2)` constructor call.
     enum_constructs: HashMap<NodeId, EnumVariantAccess>,
+    /// Global slot of the export a module member read names, keyed by the
+    /// `Expr::Variable` node naming the module in `utils.counter`.
+    module_members: HashMap<NodeId, u32>,
 }
 
 impl Resolutions {
@@ -172,6 +175,11 @@ impl Resolutions {
     /// See `Symbols::intern`.
     pub(crate) fn intern_symbol(&mut self, name: &str) -> Option<u16> {
         self.symbols.intern(name)
+    }
+
+    /// The id `name` was interned under, if it was.
+    pub(crate) fn symbol_id(&self, name: &str) -> Option<u16> {
+        self.symbols.id(name)
     }
 
     /// Every interned field, method, and type name, indexed by symbol id,
@@ -273,5 +281,15 @@ impl Resolutions {
     /// The enum `id` (an `Expr::Call` node) resolves to as a `values()` call, if any.
     pub fn enum_values_access(&self, id: NodeId) -> Option<&EnumValuesAccess> {
         self.enum_values_accesses.get(&id)
+    }
+
+    pub(crate) fn record_module_member(&mut self, id: NodeId, slot: u32) {
+        self.module_members.insert(id, slot);
+    }
+
+    /// The global slot `id` (an `Expr::Variable` naming a module) reads as
+    /// the object of a `GetField`, if any.
+    pub fn module_member(&self, id: NodeId) -> Option<u32> {
+        self.module_members.get(&id).copied()
     }
 }

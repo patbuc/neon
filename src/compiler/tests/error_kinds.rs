@@ -1,7 +1,8 @@
 use super::helpers::compile_errors;
 use super::module_graph::TempDir;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
-use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
+use crate::compiler::module_graph::EntryLocation;
+use crate::compiler::Compiler;
 use std::fs;
 
 fn source_overflowing_a_codegen_limit() -> String {
@@ -250,6 +251,14 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "import \"missing\"\n".to_string(),
             Some("missing.n"),
         )],
+        CompilationErrorKind::UnknownExport => vec![(
+            "import \"b\"\nb.nope()\n".to_string(),
+            Some("module 'b' has no export 'nope'"),
+        )],
+        CompilationErrorKind::InvalidImportName => vec![(
+            "import \"my-utils\"\n".to_string(),
+            Some("cannot bind 'my-utils' as a name"),
+        )],
         CompilationErrorKind::ImplOnEnum => vec![(
             "enum Color {\n    Red\n}\nimpl Color {\n    fn m(self) { return 1 }\n}\n"
                 .to_string(),
@@ -298,6 +307,8 @@ fn file_based_siblings(
     match kind {
         CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nimport \"a\"\n")]),
         CompilationErrorKind::UnknownModule => Some(&[]),
+        CompilationErrorKind::UnknownExport => Some(&[("b.n", "export val x = 1\n")]),
+        CompilationErrorKind::InvalidImportName => Some(&[("my-utils.n", "export val x = 1\n")]),
         _ => None,
     }
 }
@@ -313,9 +324,9 @@ fn module_graph_errors(
     for (name, source) in siblings {
         fs::write(dir.0.join(name), source).expect("Failed to write sibling file");
     }
-    ModuleGraph::build(entry_source, EntryLocation::File(entry_path))
-        .err()
-        .unwrap_or_default()
+    let mut compiler = Compiler::new();
+    compiler.compile_at(entry_source, EntryLocation::File(entry_path));
+    compiler.get_structured_errors()
 }
 
 #[test]
