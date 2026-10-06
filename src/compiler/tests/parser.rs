@@ -4286,3 +4286,17 @@ fn test_parse_import_without_alias() {
         _ => panic!("Expected Import statement"),
     }
 }
+
+#[test]
+fn test_parse_import_with_alias() {
+    let mut parser = Parser::new("import \"./lib/utils\" as u\n");
+    let stmts = parser.parse().unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Import { path, alias, .. } => {
+            assert_eq!(path, "./lib/utils");
+            assert_eq!(alias.as_deref(), Some("u"));
+        }
+        _ => panic!("Expected Import statement"),
+    }
+}
