@@ -1,7 +1,7 @@
 // Expected:
 // before
 
-// Expected runtime error: Cannot destructure Array of size 2 into 3 names
+// Expected runtime error: Cannot destructure array of size 2 into 3 names
 
 print("before")
 for (a, b, c) in {"k": 1} {

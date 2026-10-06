@@ -1492,7 +1492,7 @@ impl VirtualMachine {
                 let len = array_ref.borrow().len();
                 if len != n {
                     return Err(self.runtime_error(format!(
-                        "Cannot destructure Array of size {} into {} names",
+                        "Cannot destructure array of size {} into {} names",
                         len, n
                     )));
                 }
