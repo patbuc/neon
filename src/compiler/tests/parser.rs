@@ -4334,11 +4334,57 @@ fn test_import_recovery_reports_one_error_per_bad_statement() {
 }
 
 #[test]
+fn test_import_after_bad_statement_on_same_line_is_reported() {
+    let errors = compile_errors("val 1 import 42\n");
+    let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+    assert_eq!(messages.len(), 2, "{messages:?}");
+    assert_eq!(messages[1], "expected a string path after import");
+}
+
+#[test]
+fn test_export_after_bad_statement_on_same_line_is_reported() {
+    let errors = compile_errors("val 1 export print(1)\n");
+    let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+    assert_eq!(messages.len(), 2, "{messages:?}");
+    assert_eq!(
+        messages[1],
+        "export must precede a fn, val, var, struct or enum"
+    );
+}
+
+#[test]
 fn test_import_recovery_inside_block_reports_import_error() {
     let errors = compile_errors("fn f() {\n  var 1 import \"a\"\n}\n");
     let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
     assert_eq!(messages.len(), 2, "{messages:?}");
+    assert_eq!(messages[0], "Expecting variable name.");
     assert_eq!(messages[1], "import is only allowed at the top level");
+}
+
+#[test]
+fn test_import_after_unclosed_group_inside_block_is_reported() {
+    let errors = compile_errors("fn f() {\n  var x = (1 import \"a\"\n}\n");
+    let messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+    assert!(
+        messages.contains(&"import is only allowed at the top level"),
+        "{messages:?}"
+    );
+}
+
+#[test]
+fn test_import_after_dangling_operator_is_not_an_operand() {
+    let errors = compile_errors("val x = 1 +\nimport \"a\"\n");
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
+}
+
+#[test]
+fn test_export_after_dangling_operator_is_not_an_operand() {
+    let errors = compile_errors("val x = 1 +\nexport val y = 2\n");
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(errors[0].message, "Expect expression");
+    assert_eq!(errors[0].location.line, 1);
 }
 
 fn parse_export(source: &str) -> Stmt {
@@ -4378,6 +4424,7 @@ fn test_parse_export_wraps_declaration() {
 #[test]
 fn test_export_before_non_declaration_is_rejected() {
     let errors = compile_errors("export print(1)\n");
+    assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
         "export must precede a fn, val, var, struct or enum"
@@ -4397,6 +4444,9 @@ fn test_export_before_impl_is_rejected() {
 #[test]
 fn test_export_destructuring_is_rejected() {
     let errors = compile_errors("export val (a, b) = pair\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "export binds one name");
+    let errors = compile_errors("export var (a, b) = pair\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "export binds one name");
 }

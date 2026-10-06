@@ -1265,6 +1265,7 @@ impl Parser {
                 | TokenType::Enum
                 | TokenType::Impl
                 | TokenType::Import
+                | TokenType::Export
                 | TokenType::For
                 | TokenType::While
                 | TokenType::Return
