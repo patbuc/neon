@@ -79,6 +79,12 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   `Shape.Rect` is a constructor value), read with `s.w` (immutable). Prints
   `Shape.Rect(1, 2)`; equality is structural. No `impl` blocks or explicit
   variant values.
+- `import` and `export` are keywords. `import "path"` and `import "path" as name`
+  are top level only, and currently fail to compile with "modules are not
+  supported yet" (module resolution lands in later tickets of epic #185).
+  `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
+  plain name for `val`/`var`; not `impl`) and for now compiles as the plain
+  declaration.
 
 **Control flow**
 - Conditions are paren-free: `if x {`, `while x {`. Parentheses around a
