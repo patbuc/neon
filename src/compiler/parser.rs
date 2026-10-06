@@ -650,6 +650,13 @@ impl Parser {
 
     fn export_declaration(&mut self) -> Option<Stmt> {
         let location = self.current_location();
+        if !self.at_top_level() {
+            self.report_error_at_previous(
+                CompilationErrorKind::ExpectedToken,
+                "export is only allowed at the top level".to_string(),
+            );
+            return None;
+        }
         let declaration = if self.match_token(TokenType::Val) {
             if self.check(TokenType::LeftParen) {
                 return self.export_destructuring_error();

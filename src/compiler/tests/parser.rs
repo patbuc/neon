@@ -4400,3 +4400,10 @@ fn test_export_destructuring_is_rejected() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "export binds one name");
 }
+
+#[test]
+fn test_export_inside_block_is_rejected() {
+    let errors = compile_errors("if true {\n  export val x = 1\n}\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "export is only allowed at the top level");
+}
