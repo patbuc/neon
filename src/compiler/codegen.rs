@@ -724,7 +724,7 @@ impl<'a> CodeGenerator<'a> {
         for stmt in statements {
             if let Stmt::Fn {
                 name, id, location, ..
-            } = stmt.unexported()
+            } = stmt
             {
                 let sentinel = Value::Uninitialized(Rc::new(name.clone()));
                 self.emit_constant(sentinel, *location);

@@ -81,7 +81,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   variant values.
 - `import` and `export` are keywords. `import "path"` and `import "path" as name`
   are top level only, and currently fail to compile with "modules are not
-  supported yet" (module resolution lands in later tickets of epic #185).
+  supported yet".
   `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
   plain name for `val`/`var`; not `impl`) and for now compiles as the plain
   declaration.

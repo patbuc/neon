@@ -501,7 +501,6 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    /// The declaration an `export` wraps, or the statement itself.
     pub fn unexported(&self) -> &Stmt {
         match self {
             Stmt::Export { declaration, .. } => declaration,

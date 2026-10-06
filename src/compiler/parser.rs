@@ -659,16 +659,15 @@ impl Parser {
             );
             return None;
         }
-        let declaration = if self.match_token(TokenType::Val) {
+        let declaration = if self.match_token(TokenType::Val) || self.match_token(TokenType::Var) {
             if self.check(TokenType::LeftParen) {
                 return self.export_destructuring_error();
             }
-            self.val_declaration()
-        } else if self.match_token(TokenType::Var) {
-            if self.check(TokenType::LeftParen) {
-                return self.export_destructuring_error();
+            if self.previous_token.token_type == TokenType::Val {
+                self.val_declaration()
+            } else {
+                self.var_declaration()
             }
-            self.var_declaration()
         } else if self.match_token(TokenType::Fn) {
             self.fn_declaration()
         } else if self.match_token(TokenType::Struct) {
