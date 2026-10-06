@@ -704,3 +704,16 @@ fn map_key_cross_kind_ord() {
     assert!(bool_key < enum_key);
     assert!(enum_key < array_key);
 }
+
+#[test]
+fn shares_one_frozen_key_across_conversions_of_the_same_unit_variant() {
+    let red = Value::new_enum_variant("Color".to_string(), "Red".to_string(), 0);
+
+    let first = MapKey::from_value(&red, "map key").unwrap();
+    let second = MapKey::from_value(&red, "map key").unwrap();
+
+    match (first, second) {
+        (MapKey::EnumVariant(a), MapKey::EnumVariant(b)) => assert!(Rc::ptr_eq(&a, &b)),
+        _ => panic!("expected enum variant keys"),
+    }
+}

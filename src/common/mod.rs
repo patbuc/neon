@@ -159,6 +159,9 @@ impl MapKey {
             }
             Value::Boolean(b) => Ok(MapKey::Boolean(*b)),
             Value::EnumVariant(variant) => {
+                if let Some(key) = &variant.unit_key {
+                    return Ok(MapKey::EnumVariant(Rc::clone(key)));
+                }
                 let fields = variant
                     .fields
                     .iter()
@@ -195,6 +198,7 @@ impl MapKey {
                 ordinal: key.ordinal,
                 field_symbols: Rc::clone(&key.field_symbols),
                 fields: key.fields.iter().map(MapKey::to_value).collect(),
+                unit_key: (key.field_symbols.is_empty()).then(|| Rc::clone(key)),
             })),
         }
     }
@@ -618,6 +622,9 @@ pub struct ObjEnumVariant {
     /// The payload values, parallel to `field_symbols`. Empty on the
     /// constant-pool template a constructor call copies from.
     pub fields: Vec<Value>,
+    /// The frozen key of a unit variant, built once at creation and shared
+    /// by every map key conversion. `None` for payload variants.
+    unit_key: Option<Rc<EnumKey>>,
 }
 
 impl ObjEnumVariant {
@@ -639,6 +646,7 @@ impl ObjEnumVariant {
             ordinal: self.ordinal,
             field_symbols: Rc::clone(&self.field_symbols),
             fields,
+            unit_key: None,
         }
     }
 }
@@ -684,12 +692,23 @@ impl Value {
     }
 
     pub(crate) fn new_enum_variant(enum_name: String, variant_name: String, ordinal: u16) -> Self {
-        Value::EnumVariant(Rc::new(ObjEnumVariant {
-            enum_name: Rc::from(enum_name),
-            variant_name: Rc::from(variant_name),
+        let enum_name: Rc<str> = Rc::from(enum_name);
+        let variant_name: Rc<str> = Rc::from(variant_name);
+        let field_symbols: Rc<[u16]> = Rc::from([]);
+        let unit_key = Rc::new(EnumKey {
+            enum_name: Rc::clone(&enum_name),
+            variant_name: Rc::clone(&variant_name),
             ordinal,
-            field_symbols: Rc::from([]),
+            field_symbols: Rc::clone(&field_symbols),
             fields: Vec::new(),
+        });
+        Value::EnumVariant(Rc::new(ObjEnumVariant {
+            enum_name,
+            variant_name,
+            ordinal,
+            field_symbols,
+            fields: Vec::new(),
+            unit_key: Some(unit_key),
         }))
     }
 
@@ -707,6 +726,7 @@ impl Value {
             ordinal,
             field_symbols: Rc::from(field_symbols),
             fields: Vec::new(),
+            unit_key: None,
         }))
     }
 
