@@ -32,11 +32,13 @@ impl ModuleGraph {
         let EntryLocation::File(entry_path) = entry;
         let mut modules = Vec::new();
         let mut visited = HashSet::new();
+        let mut stack = Vec::new();
         load(
             entry_path,
             entry_source.to_string(),
             &mut modules,
             &mut visited,
+            &mut stack,
         )?;
         Ok(ModuleGraph { modules })
     }
@@ -51,30 +53,47 @@ fn load(
     source: String,
     modules: &mut Vec<Module>,
     visited: &mut HashSet<PathBuf>,
+    stack: &mut Vec<PathBuf>,
 ) -> CompilationResult<()> {
     let path = canonicalize(&path)?;
     visited.insert(path.clone());
+    stack.push(path.clone());
     let ast = Parser::new(&source).parse()?;
     let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
 
     let mut dependencies = Vec::new();
     for stmt in &ast {
-        if let Stmt::Import { path: import, .. } = stmt {
+        if let Stmt::Import {
+            path: import,
+            location,
+            ..
+        } = stmt
+        {
             let file = if import.ends_with(".n") {
                 import.to_string()
             } else {
                 format!("{import}.n")
             };
             let dependency = canonicalize(&dir.join(file))?;
+            if let Some(start) = stack.iter().position(|p| *p == dependency) {
+                return Err(cycle_error(&stack[start..], &dependency, *location));
+            }
             if !visited.contains(&dependency) {
                 let dependency_source =
                     std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
-                load(dependency.clone(), dependency_source, modules, visited)?;
+                load(
+                    dependency.clone(),
+                    dependency_source,
+                    modules,
+                    visited,
+                    stack,
+                )?;
             }
             dependencies.push(dependency);
         }
     }
 
+    stack.pop();
     modules.push(Module {
         path,
         source,
@@ -82,6 +101,30 @@ fn load(
         dependencies,
     });
     Ok(())
+}
+
+fn cycle_error(
+    cycle: &[PathBuf],
+    closing: &Path,
+    location: SourceLocation,
+) -> Vec<CompilationError> {
+    let names: Vec<String> = cycle
+        .iter()
+        .map(PathBuf::as_path)
+        .chain(std::iter::once(closing))
+        .map(|p| {
+            p.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    vec![CompilationError::new(
+        CompilationPhase::Parse,
+        CompilationErrorKind::ImportCycle,
+        format!("import cycle: {}", names.join(" -> ")),
+        location,
+    )]
 }
 
 fn canonicalize(path: &Path) -> CompilationResult<PathBuf> {

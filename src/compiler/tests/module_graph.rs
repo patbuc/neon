@@ -2,10 +2,10 @@ use crate::compiler::module_graph::{EntryLocation, ModuleGraph};
 use std::fs;
 use std::path::PathBuf;
 
-struct TempDir(PathBuf);
+pub(super) struct TempDir(pub(super) PathBuf);
 
 impl TempDir {
-    fn new(name: &str) -> Self {
+    pub(super) fn new(name: &str) -> Self {
         let dir =
             std::env::temp_dir().join(format!("neon_module_graph_{}_{}", name, std::process::id()));
         fs::create_dir_all(&dir).expect("Failed to create temp dir");
@@ -160,4 +160,26 @@ fn orders_b_a_main_when_main_imports_a_and_b_and_a_imports_b() {
         ],
         paths
     );
+}
+
+#[test]
+fn reports_a_b_a_when_a_imports_b_and_b_imports_a() {
+    let dir = TempDir::new("reports_cycle");
+    let a_path = dir.0.join("a.n");
+    let b_path = dir.0.join("b.n");
+    let a_source = "import \"b\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+    fs::write(&b_path, "val x = 1\nimport \"a\"\n").expect("Failed to write b.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("cycle should be reported");
+    };
+
+    assert_eq!(1, errors.len());
+    assert!(
+        errors[0].message.contains("a.n -> b.n -> a.n"),
+        "message was: {}",
+        errors[0].message
+    );
+    assert_eq!(2, errors[0].location.line);
 }
