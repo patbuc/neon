@@ -81,21 +81,22 @@ impl Compiler {
                 slot_count: env.slot_count,
                 ..GlobalEnv::default()
             };
-            let (chunk, module_env, table) = match self.compile_unit(module, &module_env, &exports)
-            {
-                Ok(unit) => unit,
-                Err(errors) => {
-                    let errors = errors
-                        .into_iter()
-                        .map(|error| error.with_file(&module.path))
-                        .collect();
-                    return self.fail(errors);
-                }
-            };
+            let (mut chunk, module_env, table) =
+                match self.compile_unit(module, &module_env, &exports) {
+                    Ok(unit) => unit,
+                    Err(errors) => {
+                        let errors = errors
+                            .into_iter()
+                            .map(|error| error.with_file(&module.path))
+                            .collect();
+                        return self.fail(errors);
+                    }
+                };
             env.symbols = module_env.symbols;
             env.next_decl_id = module_env.next_decl_id;
             env.slot_count = module_env.slot_count;
             exports.insert(module.path.clone(), table);
+            chunk.name = module.path.display().to_string();
             modules.push(chunk);
         }
 

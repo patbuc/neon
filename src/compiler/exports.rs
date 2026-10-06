@@ -11,7 +11,6 @@ pub enum Export {
         slot: u32,
     },
     Variable {
-        mutable: bool,
         slot: u32,
     },
     Struct {
@@ -44,13 +43,18 @@ pub struct ExportTable {
 impl ExportTable {
     /// Collects the `export`ed declarations of a compiled module, given the
     /// slot codegen assigned each declaration.
+    #[allow(clippy::expect_used)]
     pub(crate) fn build(
         ast: &[Stmt],
         resolutions: &Resolutions,
         decl_slots: &HashMap<DeclId, u32>,
     ) -> ExportTable {
         let mut table = ExportTable::default();
-        let slot = |id| decl_slots[&resolutions.decl(id)];
+        let slot = |id| {
+            *decl_slots
+                .get(&resolutions.decl(id))
+                .expect("codegen gives every top-level declaration a slot")
+        };
         for stmt in ast {
             let Stmt::Export { declaration, .. } = stmt else {
                 continue;
@@ -69,12 +73,10 @@ impl ExportTable {
                     },
                 ),
                 Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
-                    let mutable = matches!(declaration.as_ref(), Stmt::Var { .. });
                     for binding in pattern.bindings() {
                         add(
                             &binding.name,
                             Export::Variable {
-                                mutable,
                                 slot: slot(binding.id),
                             },
                         );

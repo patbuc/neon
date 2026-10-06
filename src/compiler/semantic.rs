@@ -2006,45 +2006,36 @@ impl SemanticAnalyzer {
                 return;
             }
 
-            if !optional {
-                if let Some(exports) = self.module_exports(name) {
-                    let export =
-                        self.resolve_module_member(*object_id, name, &exports, method, location);
-                    match export {
-                        Some(Export::Function { arity, .. }) => {
-                            self.validate_arity(
-                                "Function",
-                                method,
-                                arity,
-                                arguments.len(),
-                                location,
-                            );
-                        }
-                        Some(Export::Struct { fields, .. }) => {
-                            self.validate_arity(
-                                "Function",
-                                method,
-                                fields.len() as u8,
-                                arguments.len(),
-                                location,
-                            );
-                        }
-                        Some(Export::Enum { .. }) => {
-                            self.push_enum_as_value_error(method, location);
-                            self.push_error(CompilationError::new(
-                                CompilationPhase::Semantic,
-                                CompilationErrorKind::NotCallable,
-                                format!("'{}' is not a function", method),
-                                location,
-                            ));
-                        }
-                        Some(Export::Variable { .. }) | None => {}
+            if !optional && self.module_exports(name).is_some() {
+                let export = self.resolve_module_member(*object_id, name, method, location);
+                match export {
+                    Some(Export::Function { arity, .. }) => {
+                        self.validate_arity("Function", method, arity, arguments.len(), location);
                     }
-                    for arg in arguments {
-                        self.resolve_expr(arg);
+                    Some(Export::Struct { fields, .. }) => {
+                        self.validate_arity(
+                            "Function",
+                            method,
+                            fields.len() as u8,
+                            arguments.len(),
+                            location,
+                        );
                     }
-                    return;
+                    Some(Export::Enum { .. }) => {
+                        self.push_enum_as_value_error(method, location);
+                        self.push_error(CompilationError::new(
+                            CompilationPhase::Semantic,
+                            CompilationErrorKind::NotCallable,
+                            format!("'{}' is not a function", method),
+                            location,
+                        ));
+                    }
+                    Some(Export::Variable { .. }) | None => {}
                 }
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                return;
             }
 
             let is_namespace = matches!(
@@ -2204,14 +2195,12 @@ impl SemanticAnalyzer {
                 return;
             }
 
-            if !optional {
-                if let Some(exports) = self.module_exports(name) {
-                    let export = self.resolve_module_member(*id, name, &exports, field, location);
-                    if let Some(Export::Enum { .. }) = export {
-                        self.push_enum_as_value_error(field, location);
-                    }
-                    return;
+            if !optional && self.module_exports(name).is_some() {
+                let export = self.resolve_module_member(*id, name, field, location);
+                if let Some(Export::Enum { .. }) = export {
+                    self.push_enum_as_value_error(field, location);
                 }
+                return;
             }
         }
 
@@ -2255,21 +2244,21 @@ impl SemanticAnalyzer {
         );
     }
 
-    fn module_exports(&self, name: &str) -> Option<ExportTable> {
+    fn module_exports(&self, name: &str) -> Option<&ExportTable> {
         match self.symbol_table.resolve(name) {
             Some(Symbol {
                 kind: SymbolKind::Module { exports },
                 ..
-            }) => Some(exports.clone()),
+            }) => Some(exports),
             _ => None,
         }
     }
 
     /// The export `member` of the module `module` names, if `module` names
     /// a module that exports it.
-    fn module_export(&self, module: &str, member: &str) -> Option<Export> {
+    fn module_export(&self, module: &str, member: &str) -> Option<&Export> {
         let symbol = self.resolutions.symbol_id(member)?;
-        self.module_exports(module)?.get(symbol).cloned()
+        self.module_exports(module)?.get(symbol)
     }
 
     /// When `expr` is `module.Enum` naming an exported enum, the
@@ -2289,14 +2278,14 @@ impl SemanticAnalyzer {
             return None;
         };
         match self.module_export(name, field)? {
-            Export::Enum { variants } => Some((*id, field.clone(), variants)),
+            Export::Enum { variants } => Some((*id, field.clone(), variants.clone())),
             _ => None,
         }
     }
 
     /// The fields of a struct exported by a module, given its static type
     /// name `module.Struct`.
-    fn module_struct(&self, type_name: &str) -> Option<Vec<String>> {
+    fn module_struct(&self, type_name: &str) -> Option<&[String]> {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
             Export::Struct { fields, .. } => Some(fields),
@@ -2319,25 +2308,20 @@ impl SemanticAnalyzer {
         &mut self,
         id: NodeId,
         module: &str,
-        exports: &ExportTable,
         field: &str,
         location: SourceLocation,
     ) -> Option<Export> {
-        self.intern_name(field, location);
-        let export = self
-            .resolutions
-            .intern_symbol(field)
-            .and_then(|symbol| exports.get(symbol));
-        match export {
+        match self.module_export(module, field).cloned() {
             Some(export) => {
                 if let Some(slot) = export.slot() {
                     self.resolutions.record_module_member(id, slot);
                 }
-                Some(export.clone())
+                Some(export)
             }
             None => {
                 let names = self.resolutions.symbol_names();
-                let mut candidates: Vec<&str> = exports
+                let mut candidates: Vec<&str> = self
+                    .module_exports(module)?
                     .symbols()
                     .map(|symbol| &*names[symbol as usize])
                     .collect();
@@ -2381,10 +2365,10 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, id, .. } = object {
-            if let Some(exports) = self.module_exports(name) {
+            if self.module_exports(name).is_some() {
                 self.resolve_expr(value);
                 if self
-                    .resolve_module_member(*id, name, &exports, field, location)
+                    .resolve_module_member(*id, name, field, location)
                     .is_some()
                 {
                     self.push_error(CompilationError::new(

@@ -82,13 +82,13 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - `import` and `export` are keywords. `import "path"` and `import "path" as name`
   are top level only. The path resolves relative to the importing file (the current
   directory in the REPL) with `.n` appended (`std/` is reserved for builtin modules), and a missing file or an
-  import cycle is a compile error. Exports are reached as `utils.name` (or the `as` alias) and are
+  import cycle is a compile error. A file name that isn't an identifier (`my-utils`) needs `as`.
+  Exports are reached as `utils.name` (or the `as` alias) and are
   read-only from outside the module. An unknown export, a module used as a value (`print(utils)`) and a
-  wrong-arity call of an exported function are compile errors. A program importing a file module
-  compiles but does not run yet.
+  wrong-arity call of an exported function are compile errors. Running (or `--check`ing) a program
+  that imports a file module currently fails with "modules are not supported yet" (E0053).
   `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
-  plain name for `val`/`var`; not `impl`) and for now compiles as the plain
-  declaration.
+  plain name for `val`/`var`; not `impl`).
 
 **Control flow**
 - Conditions are paren-free: `if x {`, `while x {`. Parentheses around a
