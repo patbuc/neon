@@ -1,0 +1,14 @@
+// Expected:
+// [Alpha.One, Alpha.Two(2), Beta.One, Beta.Two(1), Beta.Two(2)]
+
+enum Beta {
+    One
+    Two(n)
+}
+
+enum Alpha {
+    One
+    Two(n)
+}
+
+print(#{Beta.Two(2), Alpha.Two(2), Beta.One, Beta.Two(1), Alpha.One}.toArray())

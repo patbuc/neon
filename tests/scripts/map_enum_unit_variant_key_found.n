@@ -1,0 +1,32 @@
+// Expected:
+// 10
+// 20
+// 10
+// 20
+// nil
+// 2
+
+enum Color {
+    Red
+    Green
+    Blue
+}
+
+fn lookup(m, c) = m[c]
+
+val m = {}
+m[Color.Red] = 10
+m[Color.Green] = 20
+
+val local = Color.Red
+print(lookup(m, local))
+print(lookup(m, Color.Green))
+
+var found = []
+for k in m.keys() {
+    found.push(m[k])
+}
+print(found[0])
+print(found[1])
+print(lookup(m, Color.Blue))
+print(m.size())
