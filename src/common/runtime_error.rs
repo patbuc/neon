@@ -38,9 +38,10 @@ impl Display for RuntimeError {
 
 impl RuntimeError {
     /// Renders the call trace as one `  at <function> (<file>:<n>)` line per
-    /// frame, or `  at <function> (line <n>)` when the file is unknown. When `omitted_frames` is non-zero, `frames` holds only the
-    /// innermost and outermost `TRACE_EDGE_FRAMES`, with an "N frames
-    /// omitted" line rendered between them.
+    /// frame, or `  at <function> (line <n>)` when the file is unknown. When
+    /// `omitted_frames` is non-zero, `frames` holds only the innermost and
+    /// outermost `TRACE_EDGE_FRAMES`, with an "N frames omitted" line rendered
+    /// between them.
     pub fn trace(&self) -> String {
         let render = |frame: &TraceFrame| match (&frame.file, frame.line) {
             (Some(file), Some(line)) => format!("  at {} ({}:{})", frame.function, file, line),

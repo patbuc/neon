@@ -220,8 +220,9 @@ enforces these edges in `cargo test`.
   symbol table shared by every chunk of the compile, and `file`, the unit's source file when known
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting;
-  runtime errors and call-trace frames also name `Chunk.file` when it is set (in-process and REPL output is
-  unchanged)
+  runtime errors and call-trace frames also name `Chunk.file` when it is set (errors in REPL lines and in-process
+  runs keep the old format, but a runtime error inside an imported module prints that module's file, REPL
+  included)
 
 **Opcodes** (`src/common/opcodes.rs`)
 

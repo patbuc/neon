@@ -882,8 +882,10 @@ print(math.square(5))     // 25
   module is bound to its file name (`lib/utils` becomes `utils`) or to the
   `as` name. A file name that isn't an identifier, like `my-math`, needs `as`.
 - A path is relative to the importing file, and may start with `./`, `../` or
-  `/`. `.n` is appended. In the REPL, paths resolve from the current
-  directory. The `std/` prefix is reserved for the standard library's modules.
+  `/`. `.n` is appended unless the path already ends in `.n`. In the REPL,
+  paths resolve from the current directory. The `std/` prefix is reserved for
+  the standard library's modules, which can't be imported yet: `import "std/…"`
+  reports "modules are not supported yet".
 - Exports are reached as `utils.name`. They are read-only from outside:
   `utils.counter = 5` and `utils.counter += 1` are compile errors. They are
   live, so `utils.counter` sees the updates the module makes.
