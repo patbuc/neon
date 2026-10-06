@@ -2,12 +2,14 @@ use neon::vm::{InterpretResult, VirtualMachine};
 use std::fs;
 use std::path::Path;
 
-/// Extracts an expected runtime error message from a `// Expected runtime
-/// error: <message>` line anywhere in the script, if present.
-fn extract_expected_runtime_error(script: &str) -> Option<String> {
+const RUNTIME_ERROR_PREFIX: &str = "// Expected runtime error:";
+
+/// Extracts the message from a `<prefix> <message>` line anywhere in the
+/// script, if present.
+fn extract_expected_error(script: &str, prefix: &str) -> Option<String> {
     script.lines().find_map(|line| {
         line.trim()
-            .strip_prefix("// Expected runtime error:")
+            .strip_prefix(prefix)
             .map(|rest| rest.trim().to_string())
     })
 }
@@ -38,7 +40,7 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
         }
 
         if in_expectation_block {
-            if trimmed.is_empty() || trimmed.starts_with("// Expected runtime error:") {
+            if trimmed.is_empty() || trimmed.starts_with(RUNTIME_ERROR_PREFIX) {
                 // Empty line, or the runtime-error line, ends the expectation block
                 break;
             } else if trimmed.starts_with("//") {
@@ -71,7 +73,7 @@ fn check_script(path: &Path, script: &str) -> datatest_stable::Result<()> {
         )
     })?;
 
-    let expected_runtime_error = extract_expected_runtime_error(script);
+    let expected_runtime_error = extract_expected_error(script, RUNTIME_ERROR_PREFIX);
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(script.to_string());
@@ -120,15 +122,13 @@ fn run_neon_script(path: &Path) -> datatest_stable::Result<()> {
     check_script(path, &script)
 }
 
-/// Formats the script first, checks that formatting kept its `// Expected:`
-/// block intact, then runs the formatted source through the same checks as
-/// `run_neon_script`.
-fn run_formatted_neon_script(path: &Path) -> datatest_stable::Result<()> {
-    let script = fs::read_to_string(path)?;
-    let formatted = neon::compiler::format(&script)
+/// Formats `script`, checking that formatting kept its `// Expected:` block
+/// intact.
+fn format_script(path: &Path, script: &str) -> datatest_stable::Result<String> {
+    let formatted = neon::compiler::format(script)
         .map_err(|errors| format!("format({}) failed: {errors:?}", path.display()))?;
 
-    let original_expectation = extract_inline_expectation(&script);
+    let original_expectation = extract_inline_expectation(script);
     let formatted_expectation = extract_inline_expectation(&formatted);
     if original_expectation != formatted_expectation {
         return Err(format!(
@@ -138,6 +138,14 @@ fn run_formatted_neon_script(path: &Path) -> datatest_stable::Result<()> {
         .into());
     }
 
+    Ok(formatted)
+}
+
+/// Formats the script first, then runs the formatted source through the same
+/// checks as `run_neon_script`.
+fn run_formatted_neon_script(path: &Path) -> datatest_stable::Result<()> {
+    let script = fs::read_to_string(path)?;
+    let formatted = format_script(path, &script)?;
     check_script(path, &formatted)
 }
 
