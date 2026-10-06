@@ -114,7 +114,8 @@ cargo run                       # Start REPL
 The REPL drives `VirtualMachine::interpret_line`/`interpret_line_in` (the latter takes the
 directory imports resolve from; the CLI passes the current directory) and `Compiler::compile_entry`,
 which persist globals and methods across lines via a `GlobalEnv` carried line to line, instead of
-resetting per line like `interpret`/`interpret_file` does for a file.
+resetting per line like `interpret`/`interpret_file` does for a file. A line that imports a new module runs
+that module's chunk first; if the module or the line fails, the line's globals are rolled back.
 
 ### WebAssembly
 
@@ -209,15 +210,18 @@ enforces these edges in `cargo test`.
 - `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
   recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
 - Separate builtin values storage (e.g., Math namespace)
-- Refuses to run (or `--check`) a program that compiled module chunks, reporting "modules are not supported
-  yet" (E0053) at the entry's first file import, until #189
+- Runs a program's module chunks in dependency order, then the entry as the script frame; globals live in one
+  shared area, so a module's exports are plain globals. Only `std/` imports are still refused ("modules are
+  not supported yet", E0053)
 
 **Bytecode Format** (`src/common/chunk/`)
 
-- Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, and the
-  symbol table shared by every chunk of the compile
+- Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, the
+  symbol table shared by every chunk of the compile, and `file`, the unit's source file when known
 - Constants pool stores literals referenced by index
-- `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting
+- `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting;
+  runtime errors and call-trace frames also name `Chunk.file` when it is set (in-process and REPL output is
+  unchanged)
 
 **Opcodes** (`src/common/opcodes.rs`)
 
