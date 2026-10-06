@@ -609,7 +609,7 @@ impl Parser {
 
     fn import_declaration(&mut self) -> Option<Stmt> {
         let location = self.current_location();
-        if !self.consume(TokenType::String, "Expecting a module path after 'import'.") {
+        if !self.consume(TokenType::String, "expected a string path after import") {
             return None;
         }
         let path = self.previous_token.token.clone();

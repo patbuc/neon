@@ -4300,3 +4300,9 @@ fn test_parse_import_with_alias() {
         _ => panic!("Expected Import statement"),
     }
 }
+
+#[test]
+fn test_import_without_string_path_is_rejected() {
+    let errors = compile_errors("import utils\n");
+    assert_eq!(errors[0].message, "expected a string path after import");
+}
