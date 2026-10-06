@@ -45,7 +45,6 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
                 || trimmed.starts_with(RUNTIME_ERROR_PREFIX)
                 || trimmed.starts_with(COMPILE_ERROR_PREFIX)
             {
-                // Empty line, or an expected-error line, ends the expectation block
                 break;
             } else if trimmed.starts_with("//") {
                 // Remove the comment prefix and trim
@@ -72,9 +71,21 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
 #[allow(clippy::expect_used)]
 fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_stable::Result<()> {
     let expected_compile_error = extract_expected_error(script, COMPILE_ERROR_PREFIX);
+    let expected_runtime_error = extract_expected_error(script, RUNTIME_ERROR_PREFIX);
+    let expected_output = extract_inline_expectation(script);
 
-    // Extract expected output from inline comments
-    let expected_result = match extract_inline_expectation(script) {
+    if expected_compile_error.is_some()
+        && (expected_runtime_error.is_some() || expected_output.is_some())
+    {
+        return Err(format!(
+            "Conflicting expectations in {}: a '// Expected compile error:' line allows neither \
+             a '// Expected runtime error:' line nor '// Expected:' output.",
+            path.display()
+        )
+        .into());
+    }
+
+    let expected_result = match expected_output {
         Some(expected) => expected,
         None if expected_compile_error.is_some() => String::new(),
         None => {
@@ -85,8 +96,6 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
             .into())
         }
     };
-
-    let expected_runtime_error = extract_expected_error(script, RUNTIME_ERROR_PREFIX);
 
     let mut vm = VirtualMachine::new();
     let result = match entry {
@@ -102,14 +111,22 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
                 "Expected a compile error for {}",
                 path.display()
             );
-            let actual_message = &vm
+            let messages: Vec<&str> = vm
                 .get_compile_errors()
-                .first()
-                .expect("InterpretResult::CompileError but no CompilationError recorded")
-                .message;
+                .iter()
+                .map(|error| error.message.as_str())
+                .collect();
+            let [actual_message] = messages.as_slice() else {
+                return Err(format!(
+                    "Expected exactly one compile error for {}, got {}: {messages:?}",
+                    path.display(),
+                    messages.len()
+                )
+                .into());
+            };
             assert_eq!(
-                &expected_message,
-                actual_message,
+                expected_message.as_str(),
+                *actual_message,
                 "Compile error message mismatch for {}",
                 path.display()
             );
@@ -213,8 +230,15 @@ fn copy_formatted(from: &Path, to: &Path) -> datatest_stable::Result<()> {
 /// into a temporary copy of its directory and runs the copy's `main.n`.
 fn run_formatted_module_case(path: &Path) -> datatest_stable::Result<()> {
     let case_dir = path.parent().ok_or("main.n without a case directory")?;
-    let copy_name = case_dir.display().to_string().replace(['/', '\\'], "_");
-    let copy_dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("formatted_{copy_name}"));
+    // The process id keeps concurrent test runs apart, and the escaping keeps
+    // distinct case paths from sharing a name.
+    let copy_name = case_dir
+        .display()
+        .to_string()
+        .replace('%', "%25")
+        .replace(['/', '\\'], "%2F");
+    let copy_dir = Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("formatted-{}-{copy_name}", std::process::id()));
     if copy_dir.exists() {
         fs::remove_dir_all(&copy_dir)?;
     }
