@@ -1069,7 +1069,7 @@ impl SemanticAnalyzer {
             Stmt::Import { location, .. } => {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
-                    CompilationErrorKind::LimitExceeded,
+                    CompilationErrorKind::ModulesUnsupported,
                     "modules are not supported yet",
                     *location,
                 ));
