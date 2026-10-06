@@ -1840,6 +1840,10 @@ impl<'a> CodeGenerator<'a> {
                     return;
                 }
                 if let Expr::Variable { id, .. } = object.as_ref() {
+                    if let Some(slot) = self.resolutions.module_member(*id) {
+                        self.emit_index_op(OpCode::GetGlobal, slot, "globals", *location);
+                        return;
+                    }
                     if let Some(access) = self.resolutions.enum_variant_access(*id) {
                         self.emit_enum_variant_constant(
                             &access.enum_name,

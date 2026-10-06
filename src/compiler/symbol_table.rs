@@ -1,5 +1,6 @@
 use crate::common::SourceLocation;
 use crate::compiler::ast::EnumVariant;
+use crate::compiler::exports::ExportTable;
 use crate::compiler::resolutions::DeclId;
 use std::collections::{HashMap, HashSet};
 
@@ -23,6 +24,8 @@ pub enum SymbolKind {
     Namespace,
     /// Runtime builtin value (e.g. `args`); index into `stdlib::BUILTIN_VALUES`
     Builtin { index: u32 },
+    /// An imported file module; usable only as `name.export`
+    Module { exports: ExportTable },
 }
 
 /// Symbol in the symbol table

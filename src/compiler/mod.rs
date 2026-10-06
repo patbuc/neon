@@ -3,6 +3,7 @@ use crate::compiler::token::TokenType;
 pub(crate) mod ast;
 pub(crate) mod codegen;
 pub(crate) mod compiler_impl;
+pub(crate) mod exports;
 mod formatter;
 pub use formatter::format;
 pub(crate) mod global_env;

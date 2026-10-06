@@ -11,6 +11,7 @@ use crate::compiler::ast::{
     Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
     MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
+use crate::compiler::exports::ExportTable;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
     Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
@@ -118,6 +119,9 @@ pub struct SemanticAnalyzer {
     // them so a later REPL line can't redeclare a builtin, since a fresh
     // analyzer re-seeds them anyway.
     builtin_decl_count: u32,
+    // Export table of the module each file `import` resolved to, by the
+    // import's node id.
+    imports: HashMap<NodeId, ExportTable>,
 }
 
 impl SemanticAnalyzer {
@@ -179,6 +183,7 @@ impl SemanticAnalyzer {
             pending_block_fns: HashSet::new(),
             too_many_symbols_reported: false,
             builtin_decl_count: next_decl_id,
+            imports: HashMap::new(),
         }
     }
 
@@ -192,6 +197,12 @@ impl SemanticAnalyzer {
         self.resolutions
             .seed(env.symbols.clone(), env.immutable.clone());
         self.next_decl_id = self.next_decl_id.max(env.next_decl_id);
+    }
+
+    /// Binds each file import, by node id, to the exports of the module it
+    /// resolved to.
+    pub(crate) fn seed_imports(&mut self, imports: HashMap<NodeId, ExportTable>) {
+        self.imports = imports;
     }
 
     /// Builds the `GlobalEnv` a later REPL line compiles against: this
@@ -361,6 +372,25 @@ impl SemanticAnalyzer {
                         );
                         self.not_initialized_top_level.insert(decl_id);
                     }
+                }
+                Stmt::Import {
+                    path,
+                    alias,
+                    id,
+                    location,
+                    ..
+                } => {
+                    let Some(exports) = self.imports.get(id).cloned() else {
+                        continue;
+                    };
+                    let name = alias.clone().unwrap_or_else(|| {
+                        std::path::Path::new(path)
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    });
+                    self.define_symbol(name, SymbolKind::Module { exports }, false, *location);
                 }
                 _ => {}
             }
@@ -1067,6 +1097,7 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
+            Stmt::Import { id, .. } if self.imports.contains_key(id) => {}
             Stmt::Import { location, .. } => {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -1075,7 +1106,10 @@ impl SemanticAnalyzer {
                     *location,
                 ));
             }
-            Stmt::Export { declaration, .. } => self.resolve_stmt(declaration),
+            Stmt::Export { declaration, .. } => {
+                self.intern_exported_names(declaration);
+                self.resolve_stmt(declaration);
+            }
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);
             }
@@ -1729,7 +1763,10 @@ impl SemanticAnalyzer {
             return;
         };
 
-        if symbol.kind == SymbolKind::Namespace {
+        if matches!(
+            symbol.kind,
+            SymbolKind::Namespace | SymbolKind::Module { .. }
+        ) {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::NamespaceAsValue,
@@ -2076,6 +2113,13 @@ impl SemanticAnalyzer {
                 self.resolve_enum_variant_access(*id, name, &variants, field, location);
                 return;
             }
+
+            if !optional {
+                if let Some(exports) = self.module_exports(name) {
+                    self.resolve_module_member(*id, &exports, field, location);
+                    return;
+                }
+            }
         }
 
         self.intern_name(field, location);
@@ -2108,6 +2152,55 @@ impl SemanticAnalyzer {
             id,
             EnumVariantAccess::new(enum_name, &variants[ordinal], ordinal),
         );
+    }
+
+    fn module_exports(&self, name: &str) -> Option<ExportTable> {
+        match self.symbol_table.resolve(name) {
+            Some(Symbol {
+                kind: SymbolKind::Module { exports },
+                ..
+            }) => Some(exports.clone()),
+            _ => None,
+        }
+    }
+
+    /// Resolves `utils.counter`: `id` is the `Expr::Variable` node naming
+    /// the module.
+    fn resolve_module_member(
+        &mut self,
+        id: NodeId,
+        exports: &ExportTable,
+        field: &str,
+        location: SourceLocation,
+    ) {
+        self.intern_name(field, location);
+        let export = self
+            .resolutions
+            .intern_symbol(field)
+            .and_then(|symbol| exports.get(symbol));
+        match export {
+            Some(export) => self.resolutions.record_module_member(id, export.slot),
+            None => self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::UndefinedVariable,
+                format!("Undefined export '{}'", field),
+                location,
+            )),
+        }
+    }
+
+    /// Interns the names an `export` declares, so the module's export table
+    /// can key them by symbol id.
+    fn intern_exported_names(&mut self, declaration: &Stmt) {
+        match declaration {
+            Stmt::Fn { name, location, .. } => self.intern_name(name, *location),
+            Stmt::Val { pattern, .. } | Stmt::Var { pattern, .. } => {
+                for binding in pattern.bindings() {
+                    self.intern_name(&binding.name, binding.location);
+                }
+            }
+            _ => {}
+        }
     }
 
     fn resolve_set_field(
@@ -2773,7 +2866,7 @@ impl SemanticAnalyzer {
                     // Holds an arbitrary value; whether it's callable, and
                     // with how many arguments, is only known at runtime.
                 }
-                SymbolKind::Namespace | SymbolKind::Enum { .. } => {
+                SymbolKind::Namespace | SymbolKind::Enum { .. } | SymbolKind::Module { .. } => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::NotCallable,
