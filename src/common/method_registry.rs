@@ -307,6 +307,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "distinct",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_distinct,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "scan",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::array_functions::native_array_scan,
+            arity: 2,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
+        "windowed",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_windowed,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Array",
         "tally",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_tally,
@@ -743,6 +770,33 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         "partition",
         NativeCallable::InstanceMethodWithVm {
             function: stdlib::range_functions::native_range_partition,
+            arity: 1,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "distinct",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_distinct,
+            arity: 0,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "scan",
+        NativeCallable::InstanceMethodWithVm {
+            function: stdlib::range_functions::native_range_scan,
+            arity: 2,
+            returns: Some(StaticType::Array),
+        },
+    ),
+    (
+        "Range",
+        "windowed",
+        NativeCallable::InstanceMethod {
+            function: stdlib::range_functions::native_range_windowed,
             arity: 1,
             returns: Some(StaticType::Array),
         },

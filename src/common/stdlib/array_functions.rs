@@ -391,6 +391,83 @@ pub fn native_array_tally(args: &[Value]) -> Result<Value, String> {
     Ok(Value::new_map(counts))
 }
 
+/// Native implementation of Array.distinct()
+/// Returns a new array without repeated elements, keeping the first of each.
+/// Elements must be valid map keys.
+pub fn native_array_distinct(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err(format!(
+            "distinct() expects no arguments, got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "distinct")?;
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut seen: IndexMap<MapKey, Value> = IndexMap::new();
+    for element in elements {
+        let key = MapKey::from_value(&element, "map key")?;
+        seen.entry(key).or_insert(element);
+    }
+
+    Ok(Value::new_array(seen.into_values().collect()))
+}
+
+/// Native implementation of Array.scan(initial, fn)
+/// Like reduce, but returns every intermediate accumulator, starting with
+/// initial.
+pub fn native_array_scan(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    if args.len() != 3 {
+        return Err(format!(
+            "scan() expects 2 arguments (initial value, function), got {}",
+            args.len() - 1
+        )
+        .into());
+    }
+
+    let array_ref = extract_receiver!(args, Array, "scan")?;
+    let callback = args[2].clone();
+    let elements: Vec<Value> = array_ref.borrow().clone();
+
+    let mut accumulator = args[1].clone();
+    let mut results = Vec::with_capacity(elements.len() + 1);
+    results.push(accumulator.clone());
+    for element in elements {
+        accumulator = vm.call_value(callback.clone(), &[accumulator, element])?;
+        results.push(accumulator.clone());
+    }
+
+    Ok(Value::new_array(results))
+}
+
+/// Native implementation of Array.windowed(n)
+/// Returns every run of n consecutive elements, sliding one at a time.
+pub fn native_array_windowed(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "windowed() expects 1 argument (n), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "windowed")?;
+    let n = extract_integer_arg(args, 1, "n", "windowed")?;
+    if n < 1 {
+        return Err(format!("windowed() n must be >= 1, got {}", n));
+    }
+
+    let array = array_ref.borrow();
+    let windows: Vec<Value> = array
+        .windows(usize::try_from(n).unwrap_or(usize::MAX))
+        .map(|window| Value::new_array(window.to_vec()))
+        .collect();
+    Ok(Value::new_array(windows))
+}
+
 /// Converts a comparator's return value to the signed number `sort()` needs.
 fn comparator_result_to_f64(value: Value) -> Result<f64, NativeCallError> {
     match value {

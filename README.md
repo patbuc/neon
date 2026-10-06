@@ -1079,6 +1079,12 @@ for ch in "abc" {
   it, in first-key insertion order. Keys must be valid map keys
 - `.tally()` - Map from each distinct element to how many times it occurs, in first-occurrence order.
   Elements must be valid map keys
+- `.distinct()` - New array without repeated elements, keeping the first of each. Elements must be
+  valid map keys
+- `.scan(initial, fn)` - Like `reduce`, but returns every running accumulator as a new array, starting
+  with `initial` (one element longer than the receiver)
+- `.windowed(n)` - New array of every `n` consecutive elements, sliding one at a time; `[]` if `n` is
+  larger than the array; `n` must be an integer >= 1
 - `.takeWhile(fn)` - New array of the leading elements for which `fn` is truthy, stopping at the first that isn't
 - `.dropWhile(fn)` - New array of the elements from the first one for which `fn` is falsy onwards
 - `.partition(fn)` - `[matching, nonMatching]`: two new arrays split by whether `fn` is truthy
@@ -1152,7 +1158,7 @@ comparator must return a number.
 - `.contains(value)` - Check if value is an integer within the range, computed from its bounds
 - `.toArray()` - Convert to an array
 - `.step(k)` - Array of the range's values from its start, every k-th, honoring the end bound; `k` must be an integer >= 1
-- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(initial, fn)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()`, `.takeWhile(fn)`, `.dropWhile(fn)`, `.partition(fn)` - Same as the Array methods, applied to the range's elements
+- `.slice(start, end)`, `.join(delimiter)`, `.indexOf(value)`, `.sum()`, `.min()`, `.max()`, `.map(fn)`, `.filter(fn)`, `.reduce(initial, fn)`, `.forEach(fn)`, `.flatMap(fn)`, `.take(n)`, `.drop(n)`, `.first()`, `.last()`, `.chunked(n)`, `.zip(other)`, `.withIndex()`, `.sortBy(fn)`, `.minBy(fn)`, `.maxBy(fn)`, `.groupBy(fn)`, `.tally()`, `.takeWhile(fn)`, `.dropWhile(fn)`, `.partition(fn)`, `.distinct()`, `.scan(initial, fn)`, `.windowed(n)` - Same as the Array methods, applied to the range's elements
 
 Ranges are immutable: `.push()`, `.pop()`, `.sort()`, `.reverse()` and index assignment (`r[i] = v`) are all runtime errors.
 

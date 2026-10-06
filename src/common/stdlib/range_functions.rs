@@ -331,6 +331,24 @@ pub fn native_range_tally(args: &[Value]) -> Result<Value, String> {
     array_functions::native_array_tally(&materialize(args, "tally")?)
 }
 
+/// Native implementation of Range.distinct()
+pub fn native_range_distinct(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_distinct(&materialize(args, "distinct")?)
+}
+
+/// Native implementation of Range.scan(initial, fn)
+pub fn native_range_scan(
+    vm: &mut dyn NativeContext,
+    args: &[Value],
+) -> Result<Value, NativeCallError> {
+    array_functions::native_array_scan(vm, &materialize(args, "scan")?)
+}
+
+/// Native implementation of Range.windowed(n)
+pub fn native_range_windowed(args: &[Value]) -> Result<Value, String> {
+    array_functions::native_array_windowed(&materialize(args, "windowed")?)
+}
+
 fn immutable_error(method: &str) -> String {
     format!(
         "{}() cannot be called on a range: ranges are immutable",

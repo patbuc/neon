@@ -186,11 +186,11 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`, `take(n)`, `drop(n)`,
   `first()`, `last()`, `chunked(n)`, `zip(other)`, `withIndex()`, `sortBy(fn)`,
   `minBy(fn)`, `maxBy(fn)`, `groupBy(fn)`, `tally()`, `takeWhile(fn)`, `dropWhile(fn)`,
-  `partition(fn)`
+  `partition(fn)`, `distinct()`, `scan(initial, fn)`, `windowed(n)`
 - **Range:** `size`, `isEmpty`, `contains`, `toArray`, `step(k)`, `slice`, `join`,
   `indexOf`, `sum`, `min`, `max`, `map`, `filter`, `reduce`, `forEach`, `flatMap`,
   `take`, `drop`, `first`, `last`, `chunked`, `zip`, `withIndex`, `sortBy`, `minBy`, `maxBy`,
-  `groupBy`, `tally`, `takeWhile`, `dropWhile`, `partition`
+  `groupBy`, `tally`, `takeWhile`, `dropWhile`, `partition`, `distinct`, `scan`, `windowed`
 - **Map:** `get`, `contains`, `remove`, `size`, `isEmpty`, `keys`, `values`, `entries`,
   `forEach(fn)`, `map(fn)`, `filter(fn)`, `mapValues(fn)`, `some(fn)`, `every(fn)`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
