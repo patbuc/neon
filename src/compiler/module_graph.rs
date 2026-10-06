@@ -58,7 +58,9 @@ fn load(
     let path = canonicalize(&path)?;
     visited.insert(path.clone());
     stack.push(path.clone());
-    let ast = Parser::new(&source).parse()?;
+    let ast = Parser::new(&source)
+        .parse()
+        .map_err(|errors| attach_file(errors, &path))?;
     let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
 
     let mut dependencies = Vec::new();
@@ -77,9 +79,9 @@ fn load(
             let tried = dir.join(file);
             let dependency = tried
                 .canonicalize()
-                .map_err(|_| unknown_module_error(import, &tried, *location))?;
+                .map_err(|_| unknown_module_error(import, &tried, *location, &path))?;
             if let Some(start) = stack.iter().position(|p| *p == dependency) {
-                return Err(cycle_error(&stack[start..], &dependency, *location));
+                return Err(cycle_error(&stack[start..], &dependency, *location, &path));
             }
             if !visited.contains(&dependency) {
                 let dependency_source =
@@ -110,6 +112,7 @@ fn cycle_error(
     cycle: &[PathBuf],
     closing: &Path,
     location: SourceLocation,
+    file: &Path,
 ) -> Vec<CompilationError> {
     let names: Vec<String> = cycle
         .iter()
@@ -127,20 +130,27 @@ fn cycle_error(
         CompilationErrorKind::ImportCycle,
         format!("import cycle: {}", names.join(" -> ")),
         location,
-    )]
+    )
+    .with_file(file)]
 }
 
 fn unknown_module_error(
     import: &str,
     tried: &Path,
     location: SourceLocation,
+    file: &Path,
 ) -> Vec<CompilationError> {
     vec![CompilationError::new(
         CompilationPhase::Parse,
         CompilationErrorKind::UnknownModule,
         format!("cannot find module '{import}' (tried {})", tried.display()),
         location,
-    )]
+    )
+    .with_file(file)]
+}
+
+fn attach_file(errors: Vec<CompilationError>, file: &Path) -> Vec<CompilationError> {
+    errors.into_iter().map(|e| e.with_file(file)).collect()
 }
 
 fn canonicalize(path: &Path) -> CompilationResult<PathBuf> {

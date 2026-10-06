@@ -204,3 +204,41 @@ fn reports_the_path_tried_for_import_missing() {
     );
     assert_eq!(2, errors[0].location.line);
 }
+
+#[test]
+fn reports_a_parse_error_in_an_imported_file_with_that_files_name_and_line() {
+    let dir = TempDir::new("reports_parse_error");
+    let a_path = dir.0.join("a.n");
+    let b_path = dir.0.join("b.n");
+    let a_source = "import \"b\"\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+    fs::write(&b_path, "val x = 1\nval = 1\n").expect("Failed to write b.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path)) else {
+        panic!("parse error should be reported");
+    };
+
+    assert!(!errors.is_empty());
+    for error in &errors {
+        assert_eq!(Some(b_path.canonicalize().unwrap()), error.file);
+        assert_eq!(2, error.location.line);
+    }
+}
+
+#[test]
+fn reports_a_parse_error_in_the_entry_file_with_the_entry_path() {
+    let dir = TempDir::new("reports_entry_parse_error");
+    let a_path = dir.0.join("a.n");
+    let a_source = "val x = 1\nval = 1\n";
+    fs::write(&a_path, a_source).expect("Failed to write a.n");
+
+    let Err(errors) = ModuleGraph::build(a_source, EntryLocation::File(a_path.clone())) else {
+        panic!("parse error should be reported");
+    };
+
+    assert!(!errors.is_empty());
+    for error in &errors {
+        assert_eq!(Some(a_path.canonicalize().unwrap()), error.file);
+        assert_eq!(2, error.location.line);
+    }
+}

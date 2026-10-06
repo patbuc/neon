@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::path::{Path, PathBuf};
 
 use crate::common::SourceLocation;
 
@@ -95,6 +96,7 @@ pub struct CompilationError {
     pub kind: CompilationErrorKind,
     pub message: String,
     pub location: SourceLocation,
+    pub file: Option<PathBuf>,
 }
 
 impl CompilationError {
@@ -109,7 +111,13 @@ impl CompilationError {
             kind,
             message: message.into(),
             location,
+            file: None,
         }
+    }
+
+    pub fn with_file(mut self, file: &Path) -> Self {
+        self.file = Some(file.to_path_buf());
+        self
     }
 }
 
