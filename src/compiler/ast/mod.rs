@@ -487,4 +487,10 @@ pub enum Stmt {
     Continue {
         location: SourceLocation,
     },
+    Import {
+        path: String,
+        alias: Option<String>,
+        id: NodeId,
+        location: SourceLocation,
+    },
 }

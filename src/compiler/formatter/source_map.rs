@@ -299,6 +299,7 @@ impl SourceMap {
                 None => self.at(location),
             },
             Stmt::Break { location } | Stmt::Continue { location } => self.at(location),
+            Stmt::Import { location, .. } => self.at(location),
         }
     }
 
@@ -326,6 +327,7 @@ fn stmt_location(stmt: &Stmt) -> &SourceLocation {
         | Stmt::Return { location, .. }
         | Stmt::ForIn { location, .. }
         | Stmt::Break { location }
-        | Stmt::Continue { location } => location,
+        | Stmt::Continue { location }
+        | Stmt::Import { location, .. } => location,
     }
 }

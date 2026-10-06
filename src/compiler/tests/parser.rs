@@ -4272,3 +4272,17 @@ fn test_trailing_block_not_allowed_in_condition_before_equal_equal() {
         "Trailing block is not allowed in a condition; wrap the call in parentheses"
     );
 }
+
+#[test]
+fn test_parse_import_without_alias() {
+    let mut parser = Parser::new("import \"utils\"\n");
+    let stmts = parser.parse().unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Import { path, alias, .. } => {
+            assert_eq!(path, "utils");
+            assert_eq!(*alias, None);
+        }
+        _ => panic!("Expected Import statement"),
+    }
+}

@@ -555,6 +555,8 @@ impl Parser {
             self.enum_declaration()
         } else if self.match_token(TokenType::Impl) {
             self.impl_declaration()
+        } else if self.match_token(TokenType::Import) {
+            self.import_declaration()
         } else {
             self.statement()
         }
@@ -602,6 +604,30 @@ impl Parser {
                 initializer,
                 location,
             }
+        })
+    }
+
+    fn import_declaration(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        if !self.consume(TokenType::String, "Expecting a module path after 'import'.") {
+            return None;
+        }
+        let path = self.previous_token.token.clone();
+        let alias = if self.check(TokenType::Identifier) && self.current_token.token == "as" {
+            self.advance();
+            if !self.consume(TokenType::Identifier, "Expecting a name after 'as'.") {
+                return None;
+            }
+            Some(self.previous_token.token.clone())
+        } else {
+            None
+        };
+        self.consume_statement_end("Expecting '\\n' or '\\0' after import declaration.");
+        Some(Stmt::Import {
+            path,
+            alias,
+            id: self.next_id(),
+            location,
         })
     }
 
@@ -1173,6 +1199,7 @@ impl Parser {
                 | TokenType::Struct
                 | TokenType::Enum
                 | TokenType::Impl
+                | TokenType::Import
                 | TokenType::For
                 | TokenType::While
                 | TokenType::Return

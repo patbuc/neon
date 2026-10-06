@@ -1066,6 +1066,7 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
+            Stmt::Import { .. } => {}
             Stmt::Break { location } => {
                 self.validate_loop_control_statement("break", *location);
             }
@@ -2886,9 +2887,11 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
             initializer.as_ref().is_some_and(expr_references_it)
         }
         Stmt::Fn { params, body, .. } => !owns_it(params, false) && block_references_it(body),
-        Stmt::Struct { .. } | Stmt::Enum { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
-            false
-        }
+        Stmt::Struct { .. }
+        | Stmt::Enum { .. }
+        | Stmt::Break { .. }
+        | Stmt::Continue { .. }
+        | Stmt::Import { .. } => false,
         Stmt::Impl { methods, .. } => methods.iter().any(stmt_references_it),
         Stmt::Expression { expr, .. } => expr_references_it(expr),
         Stmt::Block { statements, .. } => block_references_it(statements),
