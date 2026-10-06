@@ -25,6 +25,10 @@ case "$RELATIVE_PATH" in
         CASE=${RELATIVE_PATH#tests/modules/}
         EXPECTATION_FILE="tests/modules/${CASE%%/*}/main.n"
         ;;
+    tests/modules_must_fail/*/*)
+        CASE=${RELATIVE_PATH#tests/modules_must_fail/}
+        EXPECTATION_FILE="tests/modules_must_fail/${CASE%%/*}/main.n"
+        ;;
     tests/scripts/*) EXPECTATION_FILE="$RELATIVE_PATH" ;;
     *) EXPECTATION_FILE="" ;;
 esac
@@ -44,7 +48,7 @@ if [ -z "$EXPECTATION_FILE" ] \
 fi
 
 case "$RELATIVE_PATH" in
-    tests/scripts/* | tests/modules/* | benches/* | examples/*) ;;
+    tests/scripts/* | tests/modules/* | tests/modules_must_fail/* | benches/* | examples/*) ;;
     *) exit 0 ;;
 esac
 

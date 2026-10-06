@@ -331,14 +331,14 @@ enforces these edges in `cargo test`.
   syntax differs from JS/Kotlin and the full list of native methods
 - A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
   written, feeding compile errors back automatically; for files under `tests/scripts/`, `tests/modules/`,
-  `benches/`, and `examples/` it then runs `neon fmt --check` and blocks with feedback to run
+  `tests/modules_must_fail/`, `benches/`, and `examples/` it then runs `neon fmt --check` and blocks with feedback to run
   `cargo run -- fmt <file>` if it's unformatted. A case expecting a compile error (the line in a
-  `tests/scripts/` file, or in its case's `main.n` under `tests/modules/`) skips `--check` but is still
+  `tests/scripts/` file, or in its case's `main.n` under `tests/modules/` or `tests/modules_must_fail/`) skips `--check` but is still
   format-checked
 - A PostToolUse hook (`.claude/hooks/check-arch.sh`) runs `cargo test --test architecture` after any
   `src/*.rs` file is edited or written, blocking with the test's layer-violation output if it fails
-- New or edited `.n` files under `tests/scripts/`, `tests/modules/`, `benches/`, and `examples/` must pass
-  `neon fmt --check`; the Lint CI workflow runs the same check over those directories
+- New or edited `.n` files under `tests/scripts/`, `tests/modules/`, `tests/modules_must_fail/`, `benches/`, and
+  `examples/` must pass `neon fmt --check`; the Lint CI workflow runs the same check over those directories
 - Test both success and error paths
 - Include edge cases (empty input, stack overflow, division by zero, etc.)
 

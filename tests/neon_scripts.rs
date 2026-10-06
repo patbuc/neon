@@ -64,6 +64,19 @@ fn extract_inline_expectation(script: &str) -> Option<String> {
     }
 }
 
+/// Fails with `context` and both values unless `expected` equals `actual`.
+fn expect_equal<T: PartialEq + std::fmt::Debug>(
+    expected: &T,
+    actual: &T,
+    context: std::fmt::Arguments,
+) -> datatest_stable::Result<()> {
+    if expected == actual {
+        Ok(())
+    } else {
+        Err(format!("{context}\n  expected: {expected:?}\n    actual: {actual:?}").into())
+    }
+}
+
 /// Interprets `script` and checks its output and error behavior against
 /// its own inline `// Expected:` / `// Expected runtime error:` /
 /// `// Expected compile error:` comments. With an `entry` path the script
@@ -105,12 +118,11 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
 
     match (expected_compile_error, expected_runtime_error) {
         (Some(expected_message), _) => {
-            assert_eq!(
-                InterpretResult::CompileError,
-                result,
-                "Expected a compile error for {}",
-                path.display()
-            );
+            expect_equal(
+                &InterpretResult::CompileError,
+                &result,
+                format_args!("Expected a compile error for {}", path.display()),
+            )?;
             let messages: Vec<&str> = vm
                 .get_compile_errors()
                 .iter()
@@ -124,47 +136,42 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
                 )
                 .into());
             };
-            assert_eq!(
-                expected_message.as_str(),
-                *actual_message,
-                "Compile error message mismatch for {}",
-                path.display()
-            );
+            expect_equal(
+                &expected_message.as_str(),
+                actual_message,
+                format_args!("Compile error message mismatch for {}", path.display()),
+            )?;
         }
         (None, Some(expected_message)) => {
-            assert_eq!(
-                InterpretResult::RuntimeError,
-                result,
-                "Expected a runtime error for {}",
-                path.display()
-            );
+            expect_equal(
+                &InterpretResult::RuntimeError,
+                &result,
+                format_args!("Expected a runtime error for {}", path.display()),
+            )?;
             let actual_message = vm
                 .get_runtime_error()
                 .expect("InterpretResult::RuntimeError but no RuntimeError recorded")
                 .message
                 .clone();
-            assert_eq!(
-                expected_message,
-                actual_message,
-                "Runtime error message mismatch for {}",
-                path.display()
-            );
+            expect_equal(
+                &expected_message,
+                &actual_message,
+                format_args!("Runtime error message mismatch for {}", path.display()),
+            )?;
         }
         (None, None) => {
-            assert_eq!(
-                InterpretResult::Ok,
-                result,
-                "VM interpretation failed for {}",
-                path.display()
-            );
+            expect_equal(
+                &InterpretResult::Ok,
+                &result,
+                format_args!("VM interpretation failed for {}", path.display()),
+            )?;
         }
     }
-    assert_eq!(
-        expected_result,
-        vm.get_output(),
-        "Output mismatch for {}",
-        path.display()
-    );
+    expect_equal(
+        &expected_result,
+        &vm.get_output(),
+        format_args!("Output mismatch for {}", path.display()),
+    )?;
 
     Ok(())
 }
@@ -209,19 +216,16 @@ fn run_module_case(path: &Path) -> datatest_stable::Result<()> {
 }
 
 /// Runs a multi-file case that must fail its own expectations, and checks
-/// that the failure is about the compile error.
+/// that the failure is a compile error expectation mismatch.
 fn run_failing_module_case(path: &Path) -> datatest_stable::Result<()> {
     let script = fs::read_to_string(path)?;
-    let outcome = std::panic::catch_unwind(|| check_script(path, Some(path), &script));
-    let failure = match outcome {
-        Ok(Ok(())) => return Err(format!("{} passed but must fail", path.display()).into()),
-        Ok(Err(error)) => error.to_string(),
-        Err(payload) => payload
-            .downcast_ref::<String>()
-            .cloned()
-            .ok_or("panic without a string message")?,
+    let failure = match check_script(path, Some(path), &script) {
+        Ok(()) => return Err(format!("{} passed but must fail", path.display()).into()),
+        Err(error) => error.to_string(),
     };
-    if !failure.contains("ompile error") {
+    if !failure.contains("Compile error message mismatch")
+        && !failure.contains("Expected a compile error for")
+    {
         return Err(format!("{} failed for another reason: {failure}", path.display()).into());
     }
     Ok(())
