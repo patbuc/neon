@@ -663,7 +663,7 @@ impl Parser {
         } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
-                "expected a declaration after export".to_string(),
+                "export must precede a fn, val, var, struct or enum".to_string(),
             );
             return None;
         }?;

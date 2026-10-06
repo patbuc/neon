@@ -4374,3 +4374,12 @@ fn test_parse_export_wraps_declaration() {
         Stmt::Enum { .. }
     ));
 }
+
+#[test]
+fn test_export_before_non_declaration_is_rejected() {
+    let errors = compile_errors("export print(1)\n");
+    assert_eq!(
+        errors[0].message,
+        "export must precede a fn, val, var, struct or enum"
+    );
+}
