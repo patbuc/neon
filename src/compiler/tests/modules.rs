@@ -141,3 +141,65 @@ fn compiles_aliased_import_call_like_the_unaliased_form() {
 
     assert_eq!(plain.disassemble(), aliased.disassemble());
 }
+
+#[test]
+fn assigns_a_modules_globals_the_slots_after_the_module_compiled_before_it() {
+    let chunk = compile_files(
+        "module_slot_offsets",
+        "import \"a\"\nimport \"b\"\nprint(b.z)\n",
+        &[
+            ("a.n", "export val x = 1\nexport val y = 2\n"),
+            ("b.n", "export val z = 3\n"),
+        ],
+    )
+    .expect("should compile");
+
+    let disassembly = disassemble(&chunk);
+    assert!(
+        disassembly.contains("GetGlobal 02"),
+        "expected b.z in slot 2, after a's two globals:\n{}",
+        disassembly
+    );
+}
+
+#[test]
+fn accepts_two_modules_declaring_the_same_top_level_name() {
+    let chunk = compile_files(
+        "duplicate_top_level_names",
+        "import \"a\"\nimport \"b\"\nprint(a.x)\nprint(b.x)\n",
+        &[
+            ("a.n", "export val x = 1\nval hidden = 2\n"),
+            ("b.n", "export val x = 3\nval hidden = 4\n"),
+        ],
+    )
+    .expect("should compile");
+
+    let disassembly = disassemble(&chunk);
+    assert!(
+        disassembly.contains("GetGlobal 00") && disassembly.contains("GetGlobal 02"),
+        "expected a.x and b.x in different slots:\n{}",
+        disassembly
+    );
+}
+
+#[test]
+fn interns_a_field_name_used_in_two_modules_to_one_symbol_id() {
+    let chunk = compile_files(
+        "shared_field_symbol",
+        "import \"a\"\nimport \"b\"\nprint(a.p.x)\nprint(b.p.x)\n",
+        &[
+            (
+                "a.n",
+                "struct P {\n    x\n}\nexport val p = P(1)\nprint(p.x)\n",
+            ),
+            (
+                "b.n",
+                "struct P {\n    x\n}\nexport val p = P(2)\nprint(p.x)\n",
+            ),
+        ],
+    )
+    .expect("should compile");
+
+    let count = chunk.symbols.iter().filter(|s| &***s == "x").count();
+    assert_eq!(1, count, "symbols: {:?}", chunk.symbols);
+}
