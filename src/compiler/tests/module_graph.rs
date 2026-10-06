@@ -42,3 +42,73 @@ fn loads_dir_b_for_import_b_from_dir_a() {
     assert_eq!("val x = 1\n", graph.modules()[0].source);
     assert_eq!(a_source, graph.modules()[1].source);
 }
+
+fn dependencies_of_import(dir: &TempDir, import: &str) -> Vec<PathBuf> {
+    let a_path = dir.0.join("dir").join("a.n");
+    let a_source = format!("import \"{import}\"\n");
+    fs::create_dir_all(dir.0.join("dir").join("sub")).expect("Failed to create dirs");
+    fs::write(&a_path, &a_source).expect("Failed to write a.n");
+    for target in [
+        dir.0.join("b.n"),
+        dir.0.join("dir").join("b.n"),
+        dir.0.join("dir").join("sub").join("b.n"),
+        dir.0.join("abs.n"),
+    ] {
+        fs::write(&target, "val x = 1\n").expect("Failed to write target");
+    }
+
+    let graph =
+        ModuleGraph::build(&a_source, EntryLocation::File(a_path)).expect("graph should build");
+    graph.modules()[1].dependencies.clone()
+}
+
+#[test]
+fn resolves_dot_slash_b_relative_to_importing_file() {
+    let dir = TempDir::new("resolves_dot_slash");
+    let deps = dependencies_of_import(&dir, "./b");
+    assert_eq!(
+        vec![dir.0.join("dir").join("b.n").canonicalize().unwrap()],
+        deps
+    );
+}
+
+#[test]
+fn resolves_dot_dot_slash_b_relative_to_importing_file() {
+    let dir = TempDir::new("resolves_dot_dot");
+    let deps = dependencies_of_import(&dir, "../b");
+    assert_eq!(vec![dir.0.join("b.n").canonicalize().unwrap()], deps);
+}
+
+#[test]
+fn resolves_sub_slash_b_relative_to_importing_file() {
+    let dir = TempDir::new("resolves_sub");
+    let deps = dependencies_of_import(&dir, "sub/b");
+    assert_eq!(
+        vec![dir
+            .0
+            .join("dir")
+            .join("sub")
+            .join("b.n")
+            .canonicalize()
+            .unwrap()],
+        deps
+    );
+}
+
+#[test]
+fn resolves_absolute_path_import() {
+    let dir = TempDir::new("resolves_absolute");
+    let abs = dir.0.join("abs");
+    let deps = dependencies_of_import(&dir, abs.to_str().unwrap());
+    assert_eq!(vec![dir.0.join("abs.n").canonicalize().unwrap()], deps);
+}
+
+#[test]
+fn does_not_double_n_extension() {
+    let dir = TempDir::new("no_double_extension");
+    let deps = dependencies_of_import(&dir, "b.n");
+    assert_eq!(
+        vec![dir.0.join("dir").join("b.n").canonicalize().unwrap()],
+        deps
+    );
+}

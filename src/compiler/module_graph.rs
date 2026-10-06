@@ -47,7 +47,12 @@ fn load(path: PathBuf, source: String, modules: &mut Vec<Module>) -> Compilation
     let mut dependencies = Vec::new();
     for stmt in &ast {
         if let Stmt::Import { path: import, .. } = stmt {
-            let dependency = canonicalize(&dir.join(format!("{import}.n")))?;
+            let file = if import.ends_with(".n") {
+                import.to_string()
+            } else {
+                format!("{import}.n")
+            };
+            let dependency = canonicalize(&dir.join(file))?;
             let dependency_source =
                 std::fs::read_to_string(&dependency).map_err(|e| io_error(&dependency, &e))?;
             load(dependency.clone(), dependency_source, modules)?;
