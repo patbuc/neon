@@ -615,7 +615,7 @@ impl Parser {
         let path = self.previous_token.token.clone();
         let alias = if self.check(TokenType::Identifier) && self.current_token.token == "as" {
             self.advance();
-            if !self.consume(TokenType::Identifier, "Expecting a name after 'as'.") {
+            if !self.consume(TokenType::Identifier, "expected a name after as") {
                 return None;
             }
             Some(self.previous_token.token.clone())

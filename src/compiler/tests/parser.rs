@@ -4306,3 +4306,9 @@ fn test_import_without_string_path_is_rejected() {
     let errors = compile_errors("import utils\n");
     assert_eq!(errors[0].message, "expected a string path after import");
 }
+
+#[test]
+fn test_import_alias_without_name_is_rejected() {
+    let errors = compile_errors("import \"a\" as\n");
+    assert_eq!(errors[0].message, "expected a name after as");
+}
