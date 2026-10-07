@@ -3973,15 +3973,6 @@ fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
 }
 
 #[test]
-fn test_import_reports_modules_not_supported_yet() {
-    let errors: Vec<String> = compile_errors("import \"std/math\"\n")
-        .into_iter()
-        .map(|e| e.message)
-        .collect();
-    assert_eq!(errors, vec!["modules are not supported yet".to_string()]);
-}
-
-#[test]
 fn test_compiler_resolves_imports_before_semantic_analysis() {
     let errors = compile_errors("val x = 1\nimport \"b\"\n");
     assert_eq!(errors.len(), 1);

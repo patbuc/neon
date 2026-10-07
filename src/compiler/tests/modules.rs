@@ -672,3 +672,41 @@ fn rejects_a_file_stem_that_is_not_an_identifier_unless_aliased() {
     )
     .expect("should compile");
 }
+
+#[test]
+fn rejects_a_std_native_call_with_too_many_arguments() {
+    let errors = compile_errors_of("std_arity", "import \"std/math\"\nmath.abs(1, 2)\n", &[]);
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(CompilationErrorKind::TooManyArguments, errors[0].kind);
+    assert_eq!(
+        "Function 'abs' expects 1 arguments but got 2",
+        errors[0].message
+    );
+}
+
+#[test]
+fn compiles_a_variadic_std_native_call() {
+    compile_files(
+        "std_variadic",
+        "import \"std/math\"\nprint(math.max(1, 2, 3, 4))\n",
+        &[],
+    )
+    .expect("should compile");
+}
+
+#[test]
+fn rejects_an_unknown_std_export_with_a_suggestion() {
+    let errors = compile_errors_of(
+        "std_unknown_export",
+        "import \"std/math\"\nmath.abss(1)\n",
+        &[],
+    );
+
+    assert_eq!(1, errors.len(), "errors: {:#?}", errors);
+    assert_eq!(CompilationErrorKind::UnknownExport, errors[0].kind);
+    assert_eq!(
+        "module 'math' has no export 'abss'. Did you mean 'abs'?",
+        errors[0].message
+    );
+}

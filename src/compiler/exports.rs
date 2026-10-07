@@ -1,5 +1,6 @@
+use crate::common::method_registry::NATIVE_METHODS;
 use crate::compiler::ast::{EnumVariant, Stmt};
-use crate::compiler::resolutions::{DeclId, Resolutions};
+use crate::compiler::resolutions::{DeclId, Resolutions, Symbols};
 use crate::compiler::semantic::MethodSignature;
 use std::collections::HashMap;
 
@@ -23,6 +24,11 @@ pub enum Export {
     Enum {
         variants: Vec<EnumVariant>,
     },
+    /// A builtin module's function: a registry row, called without a slot.
+    Native {
+        index: usize,
+        arity: u8,
+    },
 }
 
 impl Export {
@@ -31,7 +37,7 @@ impl Export {
             Export::Function { slot, .. }
             | Export::Variable { slot, .. }
             | Export::Struct { slot, .. } => Some(*slot),
-            Export::Enum { .. } => None,
+            Export::Enum { .. } | Export::Native { .. } => None,
         }
     }
 }
@@ -108,6 +114,23 @@ impl ExportTable {
             }
         }
         table
+    }
+
+    /// The exports of the builtin module `path` (e.g. `std/math`), one per
+    /// registry row keyed by that path. `None` when interning an export
+    /// name would overflow the symbol id space.
+    pub(crate) fn builtin(path: &str, symbols: &mut Symbols) -> Option<ExportTable> {
+        let mut table = ExportTable::default();
+        for (index, (module, name, callable)) in NATIVE_METHODS.iter().enumerate() {
+            if *module == path {
+                let export = Export::Native {
+                    index,
+                    arity: callable.arity(),
+                };
+                table.exports.insert(symbols.intern(name)?, export);
+            }
+        }
+        Some(table)
     }
 
     pub fn symbols(&self) -> impl Iterator<Item = u16> + '_ {

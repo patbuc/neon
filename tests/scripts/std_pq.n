@@ -1,0 +1,15 @@
+// std_pq.n - builds a PriorityQueue through the builtin std/pq module
+
+// Expected:
+// a
+// b
+// nil
+
+import "std/pq"
+
+val queue = pq.new()
+queue.push(2, "b")
+queue.push(1, "a")
+print(queue.pop())
+print(queue.pop())
+print(queue.pop())

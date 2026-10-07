@@ -63,7 +63,7 @@ impl Symbols {
     /// Interns `name`, returning its id. An already-interned name returns
     /// its existing id; a new name once 65,536 names are interned returns
     /// `None`.
-    fn intern(&mut self, name: &str) -> Option<u16> {
+    pub(crate) fn intern(&mut self, name: &str) -> Option<u16> {
         if let Some(&id) = self.ids.get(name) {
             return Some(id);
         }

@@ -178,8 +178,9 @@ enforces these edges in `cargo test`.
       `UnknownModule` error listing the known ones
     - Every module in the graph compiles as its own unit, in graph order, each against a fresh
       `GlobalEnv` that shares the compile's `Symbols`, `next_decl_id` and `slot_count`. A file import
-      with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056); semantic
-      analysis still rejects a `std/` import with "modules are not supported yet"
+      with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056). A builtin
+      module has no chunk: its `ExportTable` is built from its registry rows (`ExportTable::builtin`)
+      and bound to the path's file stem (`std/pq` → `pq`)
     - The REPL's `GlobalEnv` remembers each compiled module's `ExportTable` by canonical path, so a
       module imported again on a later line, directly or by a new module, is not compiled again and
       its bindings resolve to the original slots
@@ -195,7 +196,8 @@ enforces these edges in `cargo test`.
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
       unknown module export, write to an export, module used as a value, wrong-arity export call
     - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
-      slot and arity for functions, variables, structs and enums. An `import` binds a compile-time `Module` symbol
+      slot and arity for functions, variables, structs and enums, registry index and arity for a builtin
+      module's natives (`Export::Native`, no slot). An `import` binds a compile-time `Module` symbol
       with no slot; `utils.name` resolves against the imported module's table. Enums are compile-time
       only exports and have no slot
 
@@ -203,7 +205,8 @@ enforces these edges in `cargo test`.
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
-      call); an import itself emits nothing. Each module's chunk is named after its module path
+      call); a call of a builtin module's native emits the same native call as `Math.abs(x)`; an import
+      itself emits nothing. Each module's chunk is named after its module path
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
       `FunctionCompiler`, not in the Chunk; upvalue captures come from `Resolutions`
@@ -222,8 +225,7 @@ enforces these edges in `cargo test`.
   recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
 - Separate builtin values storage (e.g., Math namespace)
 - Runs a program's module chunks in dependency order, then the entry as the script frame; globals live in one
-  shared area, so a module's exports are plain globals. Only `std/` imports are still refused ("modules are
-  not supported yet", E0053)
+  shared area, so a module's exports are plain globals
 
 **Bytecode Format** (`src/common/chunk/`)
 

@@ -1,5 +1,7 @@
-use crate::common::errors::CompilationResult;
-use crate::common::Chunk;
+use crate::common::errors::{
+    CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
+};
+use crate::common::{Chunk, SourceLocation};
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::exports::ExportTable;
 use crate::compiler::global_env::GlobalEnv;
@@ -76,8 +78,21 @@ impl Compiler {
         let mut modules = Vec::new();
         let mut module_slot_counts = Vec::new();
         let (entry_module, imported) = Self::split_entry(&graph);
-        for module in imported.iter().filter(|module| !module.builtin) {
+        for module in imported {
             if exports.contains_key(&module.path) {
+                continue;
+            }
+            if module.builtin {
+                let path = module.path.to_string_lossy();
+                let Some(table) = ExportTable::builtin(&path, &mut env.symbols) else {
+                    return self.fail(vec![CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::TooManySymbols,
+                        "Too many distinct field, method and type names (limit 65536)",
+                        SourceLocation::default(),
+                    )]);
+                };
+                exports.insert(module.path.clone(), table);
                 continue;
             }
             let module_env = GlobalEnv {
@@ -174,7 +189,7 @@ impl Compiler {
             .expect("a module graph always contains its entry")
     }
 
-    fn fail<T>(&mut self, errors: Vec<crate::common::errors::CompilationError>) -> Option<T> {
+    fn fail<T>(&mut self, errors: Vec<CompilationError>) -> Option<T> {
         self.structured_errors = errors;
         None
     }

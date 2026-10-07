@@ -85,7 +85,6 @@ compilation_error_kinds! {
     InvalidMatchPattern => "E0050",
     ImportNotTopLevel => "E0051",
     ExportNotTopLevel => "E0052",
-    ModulesUnsupported => "E0053",
     ImportCycle => "E0054",
     UnknownModule => "E0055",
     FileImportUnavailable => "E0056",

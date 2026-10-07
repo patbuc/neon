@@ -816,3 +816,24 @@ fn test_impl_on_file_user_method() {
     assert_eq!(InterpretResult::Ok, vm.interpret(source));
     assert_eq!("a file", vm.get_output());
 }
+
+#[test]
+fn test_std_file_open_read() {
+    let test_file = create_test_file("std_file_open_read.txt", "Hello, std!");
+    let file_path = test_file.to_str().unwrap();
+
+    let mut vm = VirtualMachine::new();
+    let source = format!(
+        r#"
+        import "std/file"
+        print(file.open("{}").read())
+    "#,
+        file_path
+    );
+
+    let result = vm.interpret(source);
+    assert_eq!(InterpretResult::Ok, result, "VM interpretation failed");
+    assert_eq!("Hello, std!", vm.get_output());
+
+    cleanup_test_file(&test_file);
+}

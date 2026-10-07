@@ -2,6 +2,7 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 
+use crate::common::constants::VARIADIC_ARITY;
 use crate::common::static_type::StaticType;
 use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
@@ -1171,15 +1172,7 @@ impl SemanticAnalyzer {
                     self.resolve_expr(value);
                 }
             }
-            Stmt::Import { id, .. } if self.imports.contains_key(id) => {}
-            Stmt::Import { location, .. } => {
-                self.push_error(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::ModulesUnsupported,
-                    "modules are not supported yet",
-                    *location,
-                ));
-            }
+            Stmt::Import { .. } => {}
             Stmt::Export { declaration, .. } => {
                 self.intern_exported_names(declaration);
                 self.resolve_stmt(declaration);
@@ -2083,6 +2076,18 @@ impl SemanticAnalyzer {
                             location,
                         ));
                     }
+                    Some(Export::Native { index, arity }) => {
+                        if arity != VARIADIC_ARITY {
+                            self.validate_arity(
+                                "Function",
+                                method,
+                                arity,
+                                arguments.len(),
+                                location,
+                            );
+                        }
+                        self.resolutions.record_native(id, index);
+                    }
                     Some(Export::Variable { .. }) | None => {}
                 }
                 for arg in arguments {
@@ -2282,8 +2287,18 @@ impl SemanticAnalyzer {
 
             if !optional && self.module_exports(name).is_some() {
                 let export = self.resolve_module_member(*id, name, field, location);
-                if let Some(Export::Enum { .. }) = export {
-                    self.push_enum_as_value_error(field, location);
+                match export {
+                    Some(Export::Enum { .. }) => self.push_enum_as_value_error(field, location),
+                    Some(Export::Native { .. }) => self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::NamespaceAsValue,
+                        format!(
+                            "'{}.{}' can only be called, not used as a value",
+                            name, field
+                        ),
+                        location,
+                    )),
+                    _ => {}
                 }
                 return;
             }

@@ -541,6 +541,15 @@ fn stdin_read_returns_full_piped_text() {
 
 #[cfg(not(feature = "disassemble"))]
 #[test]
+fn std_stdin_read_returns_full_piped_text() {
+    let output = run_script_with_stdin("import \"std/stdin\"\nprint(stdin.read())\n", b"a\nb\n");
+
+    assert!(output.status.success());
+    assert_eq!("a\nb\n\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
 fn stdin_read_on_empty_input_returns_empty_string() {
     let output = run_script_with_stdin("print(\"[\" + Stdin.read() + \"]\")\n", b"");
 

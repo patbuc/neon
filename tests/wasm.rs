@@ -42,13 +42,12 @@ fn interpret_once_rejects_file_import() {
 }
 
 #[wasm_bindgen_test]
-fn interpret_once_does_not_reject_std_import_as_file_import() {
+fn interpret_once_runs_std_import() {
+    let source = "import \"std/math\"\nprint(math.max(3, 7, 2))\n";
     let result: WasmResult =
-        serde_wasm_bindgen::from_value(interpret_once("import \"std/math\"\n".to_string()))
-            .unwrap();
+        serde_wasm_bindgen::from_value(interpret_once(source.to_string())).unwrap();
 
-    assert!(!result.success);
-    let error = result.error.unwrap();
-    assert!(error.contains("modules are not supported yet"));
-    assert!(!error.contains("file imports are not available in the browser build"));
+    assert!(result.success);
+    assert_eq!(result.output.unwrap().trim(), "7");
+    assert!(result.error.is_none());
 }
