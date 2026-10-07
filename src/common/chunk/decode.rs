@@ -224,9 +224,18 @@ impl Chunk {
                 code.push(Instr::Invalid(byte));
                 break;
             };
-            let u8_at = |offset: usize| self.read_u8(pos + offset);
-            let u16_at = |offset: usize| self.read_u16(pos + offset);
-            let u32_at = |offset: usize| self.read_u32(pos + offset);
+            // Reads past the end give 0; the width check below rejects them.
+            let u8_at = |offset: usize| bytes.get(pos + offset).copied().unwrap_or(0);
+            let u16_at = |offset: usize| u16::from_le_bytes([u8_at(offset), u8_at(offset + 1)]);
+            let u32_at = |offset: usize| {
+                u32::from_le_bytes([
+                    u8_at(offset),
+                    u8_at(offset + 1),
+                    u8_at(offset + 2),
+                    u8_at(offset + 3),
+                ])
+            };
+            let upvalues_start = closure_upvalues.len();
             let (instr, width) = match op_code {
                 OpCode::Return => (Instr::Return, 1),
                 OpCode::Constant => (Instr::Constant(u16_at(1)), 3),
@@ -374,21 +383,36 @@ impl Chunk {
                 ),
                 OpCode::IsNumber => (Instr::IsNumber, 1),
             };
-            match op_code {
+            if pos + width > bytes.len() {
+                closure_upvalues.truncate(upvalues_start);
+                code.push(Instr::Invalid(byte));
+                break;
+            }
+            let target = match op_code {
                 OpCode::Jump | OpCode::JumpIfFalse | OpCode::JumpIfNotNil | OpCode::JumpIfNil => {
-                    jumps.push((code.len(), pos + 5 + u32_at(1) as usize))
+                    Some((pos + 5).checked_add(u32_at(1) as usize))
                 }
-                OpCode::Loop => jumps.push((code.len(), pos + 5 - u32_at(1) as usize)),
-                _ => {}
+                OpCode::Loop => Some((pos + 5).checked_sub(u32_at(1) as usize)),
+                _ => None,
+            };
+            if let Some(target) = target {
+                jumps.push((code.len(), target, byte));
             }
             code.push(instr);
             pos += width;
         }
-        index_of[pos.min(bytes.len())] = code.len() as u32;
+        if pos == bytes.len() {
+            index_of[pos] = code.len() as u32;
+        }
 
-        for (at, target_offset) in jumps {
-            let target = index_of[target_offset];
-            assert_ne!(target, u32::MAX, "jump target is not an instruction start");
+        for (at, target_offset, byte) in jumps {
+            let target = target_offset
+                .and_then(|offset| index_of.get(offset).copied())
+                .filter(|&target| target != u32::MAX);
+            let Some(target) = target else {
+                code[at] = Instr::Invalid(byte);
+                continue;
+            };
             match &mut code[at] {
                 Instr::Jump(t)
                 | Instr::JumpIfFalse(t)

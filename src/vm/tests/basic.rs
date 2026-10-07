@@ -1792,6 +1792,29 @@ fn method_call_with_256_arguments_is_compile_error_naming_the_limit() {
 }
 
 #[test]
+fn too_many_captures_is_a_compile_error() {
+    let locals: String = (0..300).map(|i| format!("val v{i} = {i}\n")).collect();
+    let uses: Vec<String> = (0..300).map(|i| format!("v{i}")).collect();
+    let program = format!(
+        "fn outer() {{\n{locals}fn inner() {{ return {} }}\nreturn inner\n}}\nprint(outer()())",
+        uses.join(" + ")
+    );
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program);
+    assert_eq!(InterpretResult::CompileError, result);
+    let messages: Vec<&str> = vm
+        .get_compile_errors()
+        .iter()
+        .map(|error| error.message.as_str())
+        .collect();
+    assert_eq!(
+        vec!["function captures too many variables: 300 (maximum is 255)"],
+        messages
+    );
+}
+
+#[test]
 fn undefined_variable_in_interpolation_reports_location() {
     let program = "var s = \"abc\n${zz}\"\n";
 
