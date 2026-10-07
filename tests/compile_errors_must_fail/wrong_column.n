@@ -1,0 +1,2 @@
+// Expected compile error: 2:8 E0013 Undefined variable 'x'
+print(x)

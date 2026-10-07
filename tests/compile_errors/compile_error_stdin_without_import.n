@@ -1,0 +1,3 @@
+// Expected compile error: 3:7 E0013 Undefined variable 'Stdin'
+
+print(Stdin.read())

@@ -1,4 +1,4 @@
-// Expected compile error: import cycle: main.n -> a.n -> b.n -> main.n
+// Expected compile error: 1:1 E0054 import cycle: main.n -> a.n -> b.n -> main.n
 
 import "a"
 

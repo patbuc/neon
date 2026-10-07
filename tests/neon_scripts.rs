@@ -8,11 +8,19 @@ const COMPILE_ERROR_PREFIX: &str = "// Expected compile error:";
 /// Extracts the message from a `<prefix> <message>` line anywhere in the
 /// script, if present.
 fn extract_expected_error(script: &str, prefix: &str) -> Option<String> {
-    script.lines().find_map(|line| {
-        line.trim()
-            .strip_prefix(prefix)
-            .map(|rest| rest.trim().to_string())
-    })
+    extract_expected_errors(script, prefix).into_iter().next()
+}
+
+/// Extracts the text of every `<prefix> <text>` line in the script, in order.
+fn extract_expected_errors(script: &str, prefix: &str) -> Vec<String> {
+    script
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix(prefix)
+                .map(|rest| rest.trim().to_string())
+        })
+        .collect()
 }
 
 /// Extracts expected output from inline comments in the script.
@@ -79,15 +87,16 @@ fn expect_equal<T: PartialEq + std::fmt::Debug>(
 
 /// Interprets `script` and checks its output and error behavior against
 /// its own inline `// Expected:` / `// Expected runtime error:` /
-/// `// Expected compile error:` comments. With an `entry` path the script
+/// `// Expected compile error: <line>:<col> <code> <message>` comments, one
+/// line per compile error in reported order. With an `entry` path the script
 /// runs as that file, so its imports resolve next to it.
 #[allow(clippy::expect_used)]
 fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_stable::Result<()> {
-    let expected_compile_error = extract_expected_error(script, COMPILE_ERROR_PREFIX);
+    let expected_compile_errors = extract_expected_errors(script, COMPILE_ERROR_PREFIX);
     let expected_runtime_error = extract_expected_error(script, RUNTIME_ERROR_PREFIX);
     let expected_output = extract_inline_expectation(script);
 
-    if expected_compile_error.is_some()
+    if !expected_compile_errors.is_empty()
         && (expected_runtime_error.is_some() || expected_output.is_some())
     {
         return Err(format!(
@@ -100,7 +109,7 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
 
     let expected_result = match expected_output {
         Some(expected) => expected,
-        None if expected_compile_error.is_some() => String::new(),
+        None if !expected_compile_errors.is_empty() => String::new(),
         None => {
             return Err(format!(
                 "No expected output found in {}. Add '// Expected:' block at the top of the file.",
@@ -116,33 +125,33 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
         None => vm.interpret(script.to_string()),
     };
 
-    match (expected_compile_error, expected_runtime_error) {
-        (Some(expected_message), _) => {
+    match (expected_compile_errors.is_empty(), expected_runtime_error) {
+        (false, _) => {
             expect_equal(
                 &InterpretResult::CompileError,
                 &result,
                 format_args!("Expected a compile error for {}", path.display()),
             )?;
-            let messages: Vec<&str> = vm
+            let actual_errors: Vec<String> = vm
                 .get_compile_errors()
                 .iter()
-                .map(|error| error.message.as_str())
+                .map(|e| {
+                    format!(
+                        "{}:{} {} {}",
+                        e.location.line,
+                        e.location.column,
+                        e.kind.code(),
+                        e.message
+                    )
+                })
                 .collect();
-            let [actual_message] = messages.as_slice() else {
-                return Err(format!(
-                    "Expected exactly one compile error for {}, got {}: {messages:?}",
-                    path.display(),
-                    messages.len()
-                )
-                .into());
-            };
             expect_equal(
-                &expected_message.as_str(),
-                actual_message,
-                format_args!("Compile error message mismatch for {}", path.display()),
+                &expected_compile_errors,
+                &actual_errors,
+                format_args!("Compile errors mismatch for {}", path.display()),
             )?;
         }
-        (None, Some(expected_message)) => {
+        (true, Some(expected_message)) => {
             expect_equal(
                 &InterpretResult::RuntimeError,
                 &result,
@@ -159,7 +168,7 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
                 format_args!("Runtime error message mismatch for {}", path.display()),
             )?;
         }
-        (None, None) => {
+        (true, None) => {
             expect_equal(
                 &InterpretResult::Ok,
                 &result,
@@ -223,8 +232,34 @@ fn run_failing_module_case(path: &Path) -> datatest_stable::Result<()> {
         Ok(()) => return Err(format!("{} passed but must fail", path.display()).into()),
         Err(error) => error.to_string(),
     };
-    if !failure.contains("Compile error message mismatch")
+    if !failure.contains("Compile errors mismatch")
         && !failure.contains("Expected a compile error for")
+    {
+        return Err(format!("{} failed for another reason: {failure}", path.display()).into());
+    }
+    Ok(())
+}
+
+/// Runs a script from `tests/compile_errors`: it must carry at least one
+/// `// Expected compile error:` line, and is not formatted first.
+fn run_compile_error_script(path: &Path) -> datatest_stable::Result<()> {
+    let script = fs::read_to_string(path)?;
+    if extract_expected_error(&script, COMPILE_ERROR_PREFIX).is_none() {
+        return Err(format!("No '{COMPILE_ERROR_PREFIX}' line in {}", path.display()).into());
+    }
+    check_script(path, None, &script)
+}
+
+/// Runs a `tests/compile_errors_must_fail` script, which must fail its own
+/// compile error expectations.
+fn run_failing_compile_error_script(path: &Path) -> datatest_stable::Result<()> {
+    let failure = match run_compile_error_script(path) {
+        Ok(()) => return Err(format!("{} passed but must fail", path.display()).into()),
+        Err(error) => error.to_string(),
+    };
+    if !failure.contains("Compile errors mismatch")
+        && !failure.contains("Expected a compile error for")
+        && !failure.contains("No '// Expected compile error:' line")
     {
         return Err(format!("{} failed for another reason: {failure}", path.display()).into());
     }
@@ -282,6 +317,8 @@ datatest_stable::harness! {
     { test = run_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
     { test = run_formatted_module_case, root = "tests/modules", pattern = r"^[^/]+/main\.n$" },
     { test = run_failing_module_case, root = "tests/modules_must_fail", pattern = r"^[^/]+/main\.n$" },
+    { test = run_compile_error_script, root = "tests/compile_errors", pattern = r"^.*\.n$" },
+    { test = run_failing_compile_error_script, root = "tests/compile_errors_must_fail", pattern = r"^.*\.n$" },
     { test = run_module_case, root = "examples", pattern = r"^modules/main\.n$" },
     { test = run_formatted_module_case, root = "examples", pattern = r"^modules/main\.n$" },
 }

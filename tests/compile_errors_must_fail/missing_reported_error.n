@@ -1,0 +1,3 @@
+// Expected compile error: 3:7 E0013 Undefined variable 'a'
+// Expected compile error: 4:7 E0013 Undefined variable 'b'
+print(a)

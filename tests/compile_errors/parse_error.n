@@ -1,0 +1,4 @@
+// Expected compile error: 5:1 E0005 Expect ')' after expression
+
+val x = (1 +
+print(x)
