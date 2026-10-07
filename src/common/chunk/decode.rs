@@ -28,6 +28,7 @@ pub(crate) enum Instr {
     SetLocal(u16),
     GetLocal(u16),
     JumpIfFalse(u32),
+    PopJumpIfFalse(u32),
     Jump(u32),
     Loop(u32),
     Call(u8),
@@ -144,6 +145,7 @@ impl Instr {
             Instr::SetLocal(_) => OpCode::SetLocal,
             Instr::GetLocal(_) => OpCode::GetLocal,
             Instr::JumpIfFalse(_) => OpCode::JumpIfFalse,
+            Instr::PopJumpIfFalse(_) => OpCode::PopJumpIfFalse,
             Instr::Jump(_) => OpCode::Jump,
             Instr::Loop(_) => OpCode::Loop,
             Instr::Call(_) => OpCode::Call,
@@ -259,6 +261,7 @@ impl Chunk {
                 OpCode::SetLocal => (Instr::SetLocal(u16_at(1)), 3),
                 OpCode::GetLocal => (Instr::GetLocal(u16_at(1)), 3),
                 OpCode::JumpIfFalse => (Instr::JumpIfFalse(0), 5),
+                OpCode::PopJumpIfFalse => (Instr::PopJumpIfFalse(0), 5),
                 OpCode::Jump => (Instr::Jump(0), 5),
                 OpCode::JumpIfNotNil => (Instr::JumpIfNotNil(0), 5),
                 OpCode::JumpIfNil => (Instr::JumpIfNil(0), 5),
@@ -389,9 +392,11 @@ impl Chunk {
                 break;
             }
             let target = match op_code {
-                OpCode::Jump | OpCode::JumpIfFalse | OpCode::JumpIfNotNil | OpCode::JumpIfNil => {
-                    Some((pos + 5).checked_add(u32_at(1) as usize))
-                }
+                OpCode::Jump
+                | OpCode::JumpIfFalse
+                | OpCode::PopJumpIfFalse
+                | OpCode::JumpIfNotNil
+                | OpCode::JumpIfNil => Some((pos + 5).checked_add(u32_at(1) as usize)),
                 OpCode::Loop => Some((pos + 5).checked_sub(u32_at(1) as usize)),
                 _ => None,
             };
@@ -416,6 +421,7 @@ impl Chunk {
             match &mut code[at] {
                 Instr::Jump(t)
                 | Instr::JumpIfFalse(t)
+                | Instr::PopJumpIfFalse(t)
                 | Instr::JumpIfNotNil(t)
                 | Instr::JumpIfNil(t)
                 | Instr::Loop(t) => *t = target,

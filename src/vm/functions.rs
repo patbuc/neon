@@ -1875,7 +1875,7 @@ impl VirtualMachine {
     /// IteratorDone: Check if iteration is complete for the hidden iterator
     /// slots starting at the given local slot (collection, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
-    /// This inverted logic allows JumpIfFalse to exit the loop when done
+    /// This inverted logic allows PopJumpIfFalse to exit the loop when done
     #[inline(always)]
     pub(in crate::vm) fn op_iterator_done(&mut self, slot: u16) -> OpResult {
         let slot = self.read_iterator_slot(slot)?;

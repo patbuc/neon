@@ -302,6 +302,15 @@ impl VirtualMachine {
                         continue;
                     }
                 }
+                Instr::PopJumpIfFalse(target) => {
+                    let condition = self.pop();
+                    let is_false = is_false_like!(condition);
+                    condition.discard();
+                    if is_false {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
                 Instr::JumpIfNotNil(target) => {
                     if !matches!(self.peek(0), Value::Nil) {
                         self.ip = target as usize;

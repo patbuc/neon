@@ -616,8 +616,18 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn emit_jump(&mut self, op_code: OpCode, location: SourceLocation) -> u32 {
-        self.current_chunk()
-            .emit_jump(op_code, location.line, location.column)
+        let offset = self
+            .current_chunk()
+            .emit_jump(op_code, location.line, location.column);
+        self.adjust_stack_height(op_code.stack_effect());
+        offset
+    }
+
+    /// Emits `condition` and a jump, taken when it is false-like, that pops
+    /// it on both paths. Returns the jump to patch.
+    fn generate_condition_jump(&mut self, condition: &Expr, location: SourceLocation) -> u32 {
+        self.generate_expr(condition);
+        self.emit_jump(OpCode::PopJumpIfFalse, location)
     }
 
     /// The value of a number literal, which a `*Constant` opcode takes from
@@ -1023,17 +1033,14 @@ impl<'a> CodeGenerator<'a> {
         else_branch: &Option<Box<Stmt>>,
         location: SourceLocation,
     ) {
-        self.generate_expr(condition);
-
-        let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
-        // then_jump's target below is reached only via the false path, with
-        // the condition still unpopped at this height. then_branch's own
-        // height doesn't apply there (its end is reached by a jump, or not
-        // at all when it always exits), so save this to restore there.
+        let then_jump = self.generate_condition_jump(condition, location);
+        // then_jump's target below is reached only via the false path, at
+        // this height. then_branch's own height doesn't apply there (its end
+        // is reached by a jump, or not at all when it always exits), so save
+        // this to restore there.
         let false_path_height = self.current().stack_height;
-        self.emit_op_code(OpCode::Pop, location); // Pop condition if true (not jumping)
         self.generate_stmt(then_branch);
-        let else_jump = if Self::always_exits(then_branch) {
+        let else_jump = if else_branch.is_none() || Self::always_exits(then_branch) {
             None
         } else {
             Some(self.emit_jump(OpCode::Jump, location))
@@ -1041,7 +1048,6 @@ impl<'a> CodeGenerator<'a> {
 
         self.patch_jump(then_jump);
         self.current().stack_height = false_path_height;
-        self.emit_op_code(OpCode::Pop, location); // Pop condition if false (jumped here)
 
         if let Some(else_stmt) = else_branch {
             self.generate_stmt(else_stmt);
@@ -1066,16 +1072,12 @@ impl<'a> CodeGenerator<'a> {
             entry_stack_height,
         });
 
-        self.generate_expr(condition);
-
-        let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
-        // exit_jump, when taken, lands after the Loop below with the
-        // condition still unpopped at this height. Loop is a back-edge, not
-        // a fallthrough, so save this now and restore it after Loop: the
-        // body's own height (reached by the true path, through the pop
-        // below) is not what the exit lands with.
+        let exit_jump = self.generate_condition_jump(condition, location);
+        // exit_jump, when taken, lands after the Loop below at this height.
+        // Loop is a back-edge, not a fallthrough, so save this now and
+        // restore it after Loop: the body's own height is not what the exit
+        // lands with.
         let exit_height = self.current().stack_height;
-        self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the true case
 
         self.generate_stmt(body);
 
@@ -1093,7 +1095,6 @@ impl<'a> CodeGenerator<'a> {
         self.current().stack_height = exit_height;
 
         self.patch_jump(exit_jump);
-        self.emit_op_code(OpCode::Pop, location); // Pop the condition value for the false case (exiting loop)
 
         // Patch all break jumps
         for break_jump in loop_context.break_jumps {
@@ -1239,15 +1240,13 @@ impl<'a> CodeGenerator<'a> {
         //   GetIterator              ; pop collection, push [iterable collection, index 0]
         //   loop_start:
         //   IteratorDone slot        ; pushes true if more, false if done
-        //   JumpIfFalse exit_jump    ; if false (done), exit loop
-        //   Pop                      ; pop the true value (has more)
+        //   PopJumpIfFalse exit_jump ; pop it; if false (done), exit loop
         //   IteratorNext slot        ; push collection[index], slot+1 index += 1
         //   <body with loop variable>       ; break/continue pop the loop variable
         //                                    ; and any body locals before jumping
         //   Pop                      ; Pop the loop variable value
         //   Loop loop_start          ; Jump back
         //   exit_jump:
-        //   Pop                      ; Pop the false value (done)
         //   <break lands here>
         //   Pop, Pop                 ; pop the two hidden iterator slots
 
@@ -1293,15 +1292,12 @@ impl<'a> CodeGenerator<'a> {
         // Check if iterator has more elements (pushes true if more, false if done)
         self.emit_index_op(OpCode::IteratorDone, iterator_slot, "locals", location);
 
-        // JumpIfFalse exits when false (done/no more elements)
-        let exit_jump = self.emit_jump(OpCode::JumpIfFalse, location);
+        // PopJumpIfFalse exits when false (done/no more elements)
+        let exit_jump = self.emit_jump(OpCode::PopJumpIfFalse, location);
         // See generate_while_stmt: exit_jump lands after the Loop below,
         // which is a back-edge rather than a fallthrough, at this height
-        // (the IteratorDone result still unpopped) rather than the body's.
+        // rather than the body's.
         let exit_height = self.current().stack_height;
-
-        // Pop the true value (has more elements, continuing loop)
-        self.emit_op_code(OpCode::Pop, location);
 
         // Get next value from iterator (pushes value)
         self.emit_index_op(OpCode::IteratorNext, iterator_slot, "locals", location);
@@ -1353,9 +1349,6 @@ impl<'a> CodeGenerator<'a> {
 
         // Patch the exit jump
         self.patch_jump(exit_jump);
-
-        // Pop the false value (done/no more elements)
-        self.emit_op_code(OpCode::Pop, location);
 
         // Patch all break jumps
         for break_jump in loop_context.break_jumps {
@@ -2101,14 +2094,13 @@ impl<'a> CodeGenerator<'a> {
         tail: bool,
         location: SourceLocation,
     ) {
-        self.generate_expr(condition);
-        let else_jump = self.emit_jump(OpCode::JumpIfFalse, location);
-        self.emit_op_code(OpCode::Pop, location);
+        let else_jump = self.generate_condition_jump(condition, location);
+        let false_path_height = self.current().stack_height;
         self.generate_expr_in_tail(then_expr, tail);
         let end_jump = self.emit_jump(OpCode::Jump, location);
 
         self.patch_jump(else_jump);
-        self.emit_op_code(OpCode::Pop, location);
+        self.current().stack_height = false_path_height;
         self.generate_expr_in_tail(else_expr, tail);
         self.patch_jump(end_jump);
     }
@@ -2138,18 +2130,15 @@ impl<'a> CodeGenerator<'a> {
         self.current().locals.push(Local::new(hidden_depth, false));
         let hidden_slot = self.current().stack_height - 1;
 
-        self.generate_expr(condition);
-        let then_jump = self.emit_jump(OpCode::JumpIfFalse, location);
-        // See generate_if_stmt: then_jump lands here with the condition
-        // still unpopped, not at the height the then-branch leaves behind.
+        let then_jump = self.generate_condition_jump(condition, location);
+        // See generate_if_stmt: then_jump lands here, not at the height the
+        // then-branch leaves behind.
         let false_path_height = self.current().stack_height;
-        self.emit_op_code(OpCode::Pop, location); // Pop condition if true
         self.generate_if_expr_branch(then_branch, hidden_slot, tail);
         let else_jump = self.emit_jump(OpCode::Jump, location);
 
         self.patch_jump(then_jump);
         self.current().stack_height = false_path_height;
-        self.emit_op_code(OpCode::Pop, location); // Pop condition if false
 
         match else_branch {
             IfExprElse::If(expr) => {
@@ -2228,9 +2217,8 @@ impl<'a> CodeGenerator<'a> {
             self.current().scope_depth += 1;
             let slots = self.bind_match_arm_placeholders(arm);
             self.generate_match_arm_test(hidden_slot, &arm.patterns, &slots, arm.location);
-            let next_arm_jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
+            let next_arm_jump = self.emit_jump(OpCode::PopJumpIfFalse, arm.location);
             let false_path_height = self.current().stack_height;
-            self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if true
             let guard_false = self.generate_match_arm_body(arm, hidden_slot, tail);
             self.current().scope_depth -= 1;
             let captured = self.discard_locals_above_current_depth();
@@ -2241,14 +2229,12 @@ impl<'a> CodeGenerator<'a> {
             if let Some((jump, guard_height)) = guard_false {
                 self.patch_jump(jump);
                 self.current().stack_height = guard_height;
-                self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if false
                 self.emit_scope_exit(&captured, arm.location);
                 guard_failed_jump = Some(self.emit_jump(OpCode::Jump, arm.location));
             }
 
             self.patch_jump(next_arm_jump);
             self.current().stack_height = false_path_height;
-            self.emit_op_code(OpCode::Pop, arm.location); // Pop the test result if false
             self.emit_scope_exit(&captured, arm.location);
             if let Some(jump) = guard_failed_jump {
                 self.patch_jump(jump);
@@ -2289,10 +2275,8 @@ impl<'a> CodeGenerator<'a> {
         tail: bool,
     ) -> Option<(u32, u32)> {
         let guard_false = arm.guard.as_ref().map(|guard| {
-            self.generate_expr(guard);
-            let jump = self.emit_jump(OpCode::JumpIfFalse, arm.location);
+            let jump = self.generate_condition_jump(guard, arm.location);
             let guard_height = self.current().stack_height;
-            self.emit_op_code(OpCode::Pop, arm.location); // Pop the guard if true
             (jump, guard_height)
         });
         self.generate_match_arm_value(&arm.body, hidden_slot, tail, arm.location);

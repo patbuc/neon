@@ -69,6 +69,7 @@ impl OpCode {
             OpCode::NoMatchArm => -1,
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
+            OpCode::PopJumpIfFalse => -1,
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
         }
@@ -76,7 +77,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 76] = [
+        const OPCODES: [OpCode; 77] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -153,6 +154,7 @@ impl OpCode {
             OpCode::TailCall,
             OpCode::TailInvoke,
             OpCode::IsNumber,
+            OpCode::PopJumpIfFalse,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -318,4 +320,9 @@ pub(crate) enum OpCode {
 
     /// Replaces the top of stack with whether it is an Int or a Number.
     IsNumber,
+
+    /// Pops the top of stack and jumps by the 32-bit operand if it was
+    /// false-like. Emitted for conditions whose value is not needed after
+    /// the branch, unlike `JumpIfFalse`, which `and`/`or` use.
+    PopJumpIfFalse,
 }
