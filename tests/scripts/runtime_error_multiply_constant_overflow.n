@@ -1,6 +1,3 @@
-// Multiplying a variable by an int literal, which compiles to the fused
-// MultiplyConstant opcode, raises the same overflow error as unfused multiply
-
 // Expected:
 // before
 

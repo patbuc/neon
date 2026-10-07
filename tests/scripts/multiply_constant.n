@@ -1,7 +1,3 @@
-// A number literal as the right operand of * compiles to a constant-operand
-// opcode. Check int, float and mixed results match * by a variable holding
-// the same value.
-
 // Expected:
 // 63
 // true
