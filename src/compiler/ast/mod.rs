@@ -449,6 +449,7 @@ pub enum Stmt {
     },
     Impl {
         type_name: String,
+        type_id: NodeId,
         methods: Vec<Stmt>,
         location: SourceLocation,
     },

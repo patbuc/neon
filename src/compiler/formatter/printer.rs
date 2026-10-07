@@ -496,6 +496,7 @@ impl<'a> Printer<'a> {
                 type_name,
                 methods,
                 location,
+                ..
             } => {
                 self.write("impl ");
                 self.write(type_name);

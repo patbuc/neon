@@ -420,11 +420,12 @@ impl SemanticAnalyzer {
         for stmt in statements {
             if let Stmt::Impl {
                 type_name,
+                type_id,
                 methods,
                 location,
             } = stmt
             {
-                self.collect_impl_block(type_name, methods, *location);
+                self.collect_impl_block(type_name, *type_id, methods, *location);
             }
         }
     }
@@ -496,7 +497,13 @@ impl SemanticAnalyzer {
     /// builtin type, flagging an impl for an undefined type, a method
     /// already defined for this type, one shadowing a field name, or one
     /// shadowing a native method (builtin types only).
-    fn collect_impl_block(&mut self, type_name: &str, methods: &[Stmt], location: SourceLocation) {
+    fn collect_impl_block(
+        &mut self,
+        type_name: &str,
+        type_id: NodeId,
+        methods: &[Stmt],
+        location: SourceLocation,
+    ) {
         self.intern_name(type_name, location);
         let is_builtin_type =
             crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&type_name);
@@ -504,11 +511,18 @@ impl SemanticAnalyzer {
             (None, Vec::new())
         } else {
             match self.symbol_table.resolve(type_name) {
-                Some(Symbol {
-                    kind: SymbolKind::Struct { fields },
-                    decl_id,
-                    ..
-                }) => (Some(*decl_id), fields.clone()),
+                Some(
+                    symbol @ Symbol {
+                        kind: SymbolKind::Struct { fields },
+                        decl_id,
+                        ..
+                    },
+                ) => {
+                    let use_ = SymbolUse::from(symbol);
+                    let resolved = (Some(*decl_id), fields.clone());
+                    self.record_symbol_use(type_id, use_);
+                    resolved
+                }
                 Some(Symbol {
                     kind: SymbolKind::Enum { .. },
                     ..
@@ -1062,6 +1076,7 @@ impl SemanticAnalyzer {
                 type_name,
                 methods,
                 location,
+                ..
             } => {
                 // Resolve method bodies here, at the impl's textual position,
                 // so they see top-level val/var like other script-level code.
