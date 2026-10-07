@@ -22,7 +22,7 @@ fn main() {
             "help" | "--help" | "-h" => {
                 print_help();
             }
-            "--version" => {
+            "--version" | "-V" => {
                 print_version();
             }
             "--tokens" => {
@@ -375,7 +375,7 @@ fn print_help() {
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
-    println!("  neon --version           Print the version");
+    println!("  neon --version, -V       Print the version");
     println!("  neon help                Show this help message");
     println!();
     println!("Examples:");

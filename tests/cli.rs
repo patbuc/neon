@@ -1197,3 +1197,19 @@ fn version_flag_prints_neon_version_and_exits_zero() {
         String::from_utf8_lossy(&output.stdout)
     );
 }
+
+#[test]
+fn short_version_flag_matches_long_flag() {
+    let long = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+    let short = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("-V")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(short.status.success());
+    assert_eq!(long.status.code(), short.status.code());
+    assert_eq!(long.stdout, short.stdout);
+}
