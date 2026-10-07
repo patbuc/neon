@@ -9,6 +9,9 @@ impl Chunk {
             constants: Constants::new(),
             instructions: Vec::new(),
             line_infos: Vec::new(),
+            code: Vec::new(),
+            instr_lines: Vec::new(),
+            closure_upvalues: Vec::new(),
             symbols: Rc::from(Vec::new()),
             file: None,
         }
