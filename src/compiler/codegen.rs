@@ -620,6 +620,16 @@ impl<'a> CodeGenerator<'a> {
             .emit_jump(op_code, location.line, location.column)
     }
 
+    /// The value of a number literal, which a `*Constant` opcode takes from
+    /// the constant pool instead of the stack.
+    fn number_literal(expr: &Expr) -> Option<Value> {
+        match expr {
+            Expr::Number { value, .. } => Some(number!(*value)),
+            Expr::Int { value, .. } => Some(int!(*value)),
+            _ => None,
+        }
+    }
+
     fn patch_jump(&mut self, offset: u32) {
         self.current_chunk().patch_jump(offset);
     }
@@ -1556,20 +1566,10 @@ impl<'a> CodeGenerator<'a> {
             BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
             _ => None,
         };
-        if let Some(op_code) = fused {
-            match right {
-                Expr::Number { value, .. } => {
-                    let index = self.add_constant(number!(*value));
-                    self.emit_index_op(op_code, index, "constants", location);
-                    return;
-                }
-                Expr::Int { value, .. } => {
-                    let index = self.add_constant(int!(*value));
-                    self.emit_index_op(op_code, index, "constants", location);
-                    return;
-                }
-                _ => {}
-            }
+        if let (Some(op_code), Some(constant)) = (fused, Self::number_literal(right)) {
+            let index = self.add_constant(constant);
+            self.emit_index_op(op_code, index, "constants", location);
+            return;
         }
 
         self.generate_expr(right);
