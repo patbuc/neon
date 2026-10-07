@@ -407,6 +407,7 @@ fn print_help() {
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
     println!("  neon -e <code> [args...]  Run a snippet");
+    println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
     println!("  neon --version, -V       Print the version");
     println!("  neon help                Show this help message");

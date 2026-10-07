@@ -1426,3 +1426,14 @@ fn dash_rejects_file_module_import() {
     assert_eq!(Some(65), output.status.code());
     assert!(stderr.contains("E0056"), "stderr was: {}", stderr);
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn help_lists_stdin_dash() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("neon - [args...]"));
+}
