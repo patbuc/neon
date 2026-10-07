@@ -14,22 +14,24 @@
 // x
 // PriorityQueue(size=0)
 
-val pq = PriorityQueue()
-pq.push(3, "c")
-pq.push(1, "a")
-pq.push(2, "b")
-print(pq.pop())
-print(pq.pop())
-print(pq.pop())
-print(pq.pop())
+import "std/pq"
 
-val ties = PriorityQueue()
+val queue = pq.new()
+queue.push(3, "c")
+queue.push(1, "a")
+queue.push(2, "b")
+print(queue.pop())
+print(queue.pop())
+print(queue.pop())
+print(queue.pop())
+
+val ties = pq.new()
 ties.push(5, "first")
 ties.push(5, "second")
 print(ties.pop())
 print(ties.pop())
 
-val peeked = PriorityQueue()
+val peeked = pq.new()
 peeked.push(1, "x")
 print(peeked)
 print(peeked.peek())

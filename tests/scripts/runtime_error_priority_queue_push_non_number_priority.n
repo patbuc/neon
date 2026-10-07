@@ -3,6 +3,8 @@
 
 // Expected runtime error: push() priority must be a number, got string
 
+import "std/pq"
+
 print("before")
-val pq = PriorityQueue()
-pq.push("high", "x")
+val queue = pq.new()
+queue.push("high", "x")
