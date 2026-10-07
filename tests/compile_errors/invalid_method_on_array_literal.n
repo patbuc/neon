@@ -1,0 +1,2 @@
+// Expected compile error: 2:32 E0030 Type 'Array' has no method named 'invalidMethod'. Available methods: push, pop, size, contains, isEmpty, sort, sortBy, minBy, maxBy, groupBy, takeWhile, dropWhile, partition, distinct, scan, windowed, tally, reverse, slice, join, indexOf, sum, min, max, map, filter, reduce, forEach, flatMap, find, some, every, flat, copy, take, drop, first, last, chunked, zip, withIndex, new
+val x = [1, 2, 3].invalidMethod()

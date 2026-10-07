@@ -1,0 +1,7 @@
+// Expected compile error: 4:9 E0015 Cannot assign to immutable variable 'n'
+val r = match 1 {
+    n -> {
+        n = 2
+        n
+    }
+}

@@ -676,13 +676,6 @@ fn outer() {
 }
 
 #[test]
-fn test_undefined_variable() {
-    let program = "print(x)\n";
-    let errors = assert_compile_error(program, "Undefined variable 'x'");
-    assert_eq!(errors.len(), 1);
-}
-
-#[test]
 fn test_tuple_pattern_underscore_declares_nothing() {
     let program = "val (p, _) = [1, 2]\nprint(_)\n";
     let errors = assert_compile_error(program, "Undefined variable '_'");
@@ -945,17 +938,6 @@ val x = [1, 2, 3].size()
         }
     }
     assert!(result.is_ok());
-}
-
-#[test]
-fn test_invalid_method_on_array_literal() {
-    let program = r#"
-val x = [1, 2, 3].invalidMethod()
-"#;
-    let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'invalidMethod'")));
 }
 
 #[test]
@@ -3719,14 +3701,6 @@ fn test_match_second_wildcard_is_unreachable() {
     assert_match_error(
         "val r = match 3 {\n    _ -> \"a\"\n    _ -> \"b\"\n}\n",
         "unreachable pattern",
-    );
-}
-
-#[test]
-fn test_match_binding_is_immutable() {
-    assert_match_error(
-        "val r = match 1 {\n    n -> {\n        n = 2\n        n\n    }\n}\n",
-        "Cannot assign to immutable",
     );
 }
 
