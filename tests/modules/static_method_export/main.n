@@ -1,0 +1,13 @@
+// Expected:
+// 1
+// 2
+// a
+// b
+
+import "a"
+import "b"
+
+print(a.Point.make().x)
+print(b.Point.make().x)
+print(a.Point.make().tag())
+print(b.Point.make().tag())

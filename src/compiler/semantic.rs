@@ -44,7 +44,7 @@ enum PatternNumber {
 /// A method's call signature: the rule that decides whether it's callable
 /// as `receiver.method(...)` or `Type.method(...)` is a single fact - does
 /// its first parameter literally read `self`.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct MethodSignature {
     param_count: u8,
     takes_self: bool,
@@ -272,6 +272,10 @@ impl SemanticAnalyzer {
     }
 
     /// Analyze the AST and return the recorded name resolutions if successful
+    pub(crate) fn struct_methods(&self) -> &HashMap<DeclId, HashMap<String, MethodSignature>> {
+        &self.struct_methods
+    }
+
     pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<Resolutions> {
         // First: collect all top-level declarations
         self.collect_declarations(statements);
@@ -2131,6 +2135,36 @@ impl SemanticAnalyzer {
             }
         }
 
+        // A static call on an exported struct, e.g. utils.Point.make().
+        if !optional {
+            if let Expr::GetField {
+                object: module,
+                field: struct_field,
+                optional: false,
+                ..
+            } = object
+            {
+                if let Expr::Variable { name: module, .. } = module.as_ref() {
+                    let type_name = format!("{}.{}", module, struct_field);
+                    if let Some(members) = self.exported_struct_method_info(&type_name) {
+                        self.resolve_expr(object);
+                        for arg in arguments {
+                            self.resolve_expr(arg);
+                        }
+                        self.validate_struct_method_call(
+                            &type_name,
+                            &members,
+                            method,
+                            arguments.len(),
+                            location,
+                            MethodCallKind::Static,
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+
         self.resolve_expr(object);
         for arg in arguments {
             self.resolve_expr(arg);
@@ -2323,6 +2357,21 @@ impl SemanticAnalyzer {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
             Export::Struct { fields, .. } => Some(fields),
+            _ => None,
+        }
+    }
+
+    /// The methods and fields of an exported struct, given its type name
+    /// `module.Struct`.
+    fn exported_struct_method_info(&self, type_name: &str) -> Option<StructMembers> {
+        let (module, name) = type_name.split_once('.')?;
+        match self.module_export(module, name)? {
+            Export::Struct {
+                fields, methods, ..
+            } => Some(StructMembers {
+                methods: methods.clone(),
+                fields: fields.clone(),
+            }),
             _ => None,
         }
     }
@@ -2960,8 +3009,15 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
-        // Methods on a module's structs aren't resolved yet (#191).
-        if self.module_struct(object_type).is_some() {
+        if let Some(members) = self.exported_struct_method_info(object_type) {
+            self.validate_struct_method_call(
+                object_type,
+                &members,
+                method,
+                arg_count,
+                location,
+                MethodCallKind::Instance,
+            );
             return;
         }
 

@@ -488,11 +488,11 @@ fn runtime_error_in_impl_line_rolls_back_methods() {
     );
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("impl Point {\n    fn two(self) { return 2 }\n}".to_string())
+        vm.interpret_line("impl Point {\n    fn one(self) { return 11 }\n}".to_string())
     );
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("print(Point(1).two())".to_string())
+        vm.interpret_line("print(Point(1).one())".to_string())
     );
-    assert_eq!("2", vm.get_output());
+    assert_eq!("11", vm.get_output());
 }

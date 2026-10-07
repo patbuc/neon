@@ -150,7 +150,12 @@ impl Compiler {
         let chunk = codegen.generate(&module.ast, module.eof_location)?;
         let decl_slots = codegen.into_decl_slots();
 
-        let table = ExportTable::build(&module.ast, &resolutions, &decl_slots);
+        let table = ExportTable::build(
+            &module.ast,
+            &resolutions,
+            &decl_slots,
+            analyzer.struct_methods(),
+        );
         let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Ok((chunk, new_env, table))
     }

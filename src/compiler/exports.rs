@@ -1,5 +1,6 @@
 use crate::compiler::ast::{EnumVariant, Stmt};
 use crate::compiler::resolutions::{DeclId, Resolutions};
+use crate::compiler::semantic::MethodSignature;
 use std::collections::HashMap;
 
 /// One exported name: what it is and, for the kinds that have one, the
@@ -15,6 +16,7 @@ pub enum Export {
     },
     Struct {
         fields: Vec<String>,
+        methods: HashMap<String, MethodSignature>,
         slot: u32,
     },
     /// Variants compile to constants, so an enum has no slot.
@@ -48,6 +50,7 @@ impl ExportTable {
         ast: &[Stmt],
         resolutions: &Resolutions,
         decl_slots: &HashMap<DeclId, u32>,
+        struct_methods: &HashMap<DeclId, HashMap<String, MethodSignature>>,
     ) -> ExportTable {
         let mut table = ExportTable::default();
         let slot = |id| {
@@ -88,6 +91,10 @@ impl ExportTable {
                     name,
                     Export::Struct {
                         fields: fields.iter().map(|f| f.name.clone()).collect(),
+                        methods: struct_methods
+                            .get(&resolutions.decl(*id))
+                            .cloned()
+                            .unwrap_or_default(),
                         slot: slot(*id),
                     },
                 ),
