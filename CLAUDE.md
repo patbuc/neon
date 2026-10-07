@@ -109,6 +109,13 @@ executed opcode pair (consecutive opcodes across calls, returns, and native call
 Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every pull request,
 every push to `main`, and on demand.
 
+### Versioning
+
+The version the CLI prints is `<major>.<minor>.<merges>`. `build.rs` takes major and minor from `Cargo.toml` and
+counts the merge commits on `HEAD`'s first-parent history (`git rev-list --count --merges --first-parent HEAD`), so
+every PR merged into `main` bumps the patch. It is exposed as `env!("NEON_VERSION")`; the patch in `Cargo.toml` is
+ignored. Bump the minor by hand in `Cargo.toml`. Without git the build warns and uses `Cargo.toml`'s version.
+
 ### Running Scripts
 
 ```bash
