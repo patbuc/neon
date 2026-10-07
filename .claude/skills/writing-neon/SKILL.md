@@ -139,7 +139,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   an expression whose value is the new value. No bitwise compound operators.
   There is no `++`/`--`; use `+= 1`/`-= 1`.
 - `/` is always float division (`7 / 2` is `3.5`), even on two ints. Integer floor division is
-  `Math.div(a, b)`, not `Math.floor(a / b)` — that round-trips through `f64` and loses precision
+  `math.div(a, b)` (`std/math`), not `math.floor(a / b)` — that round-trips through `f64` and loses precision
   past 2^53.
 - A decimal literal with no `.`/exponent (and hex/bin/oct literals) is an int; one with a `.` or
   exponent is a float. `+ - * %` on two ints give an int and raise `integer overflow in <op>` if the
@@ -188,7 +188,7 @@ then call `math.abs(x)`.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
 - **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
-  `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
+  `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)` - old namespace form of std/math, to be removed
 - **String:** `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
   `lastIndexOf`, `contains`, `charCodeAt(index)`, `String.fromCharCode(n)`,
@@ -211,16 +211,15 @@ then call `math.abs(x)`.
   `forEach(fn)`, `map(fn)`, `filter(fn)`, `mapValues(fn)`, `some(fn)`, `every(fn)`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
-- **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;
-  errors if it exists)
-- **Stdin:** `Stdin.read()`, `Stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
-- **PriorityQueue:** `PriorityQueue()`, `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
+- **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
+- **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
 - **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
   `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`
-- **std/file:** `file.open(path)` - returns a File
-- **std/stdin:** `stdin.read()`, `stdin.readLines()`
-- **std/pq:** `pq.new()` - returns a PriorityQueue
+- **std/file:** `file.open(path)` - returns a File (old form `File(path)`, to be removed)
+- **std/stdin:** `stdin.read()`, `stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
+  (old form `Stdin.read()`, `Stdin.readLines()`, to be removed)
+- **std/pq:** `pq.new()` - returns a PriorityQueue (old form `PriorityQueue()`, to be removed)
 
 The source of truth is `src/common/method_registry.rs`; if it disagrees
 with this list, trust the registry.

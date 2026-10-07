@@ -644,8 +644,8 @@ arm's value.
 
 `+ - * %` on two ints give an int; `**` gives an int for a non-negative int exponent, a float for a
 negative one. Any float operand makes the result a float. An int result outside `i64` raises a runtime
-error (`integer overflow in <op>`); `%` by zero raises `modulo by zero`. Use `Math.div(a, b)` for integer
-floor division.
+error (`integer overflow in <op>`); `%` by zero raises `modulo by zero`. Use `math.div(a, b)` from `std/math`
+for integer floor division.
 
 **Comparison:**
 - `==` Equal
@@ -735,9 +735,11 @@ A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 #### Methods
 
 ```neon
+import "std/math"
+
 impl Point {
     fn len(self) {
-        return Math.sqrt(self.x * self.x + self.y * self.y)
+        return math.sqrt(self.x * self.x + self.y * self.y)
     }
 
     fn origin() {
@@ -1050,11 +1052,10 @@ val flag = "true".toBool()
 
 ## Standard Library
 
-`Math`, `File`, `String`, `Array`, `Stdin` and `PriorityQueue` are namespaces: their static methods
-(`Math.abs(n)`, `File(path)`, `String.fromCharCode(n)`, `Array(n, init)`, `Stdin.read()`,
-`PriorityQueue()`) are only callable through the namespace name, and
-redefining that name at top level (`val String = ...`, `fn Math() {}`) is a compile error — a local of
-the same name inside a function still shadows it, same as any other name.
+`String` and `Array` are namespaces: their static methods (`String.fromCharCode(n)`,
+`Array(n, init)`) are only callable through the namespace name, and redefining that name at top level
+(`val String = ...`) is a compile error — a local of the same name inside a function still shadows it,
+same as any other name. Math, files, standard input and priority queues come from the `std/` modules.
 
 ### Global Functions
 
@@ -1073,20 +1074,28 @@ The builtin modules are imported like any other module and bound to their last p
 - `math.min(a, b, ...)` - Minimum value (variadic, keeps ints as ints)
 - `math.max(a, b, ...)` - Maximum value (variadic, keeps ints as ints)
 - `math.div(a, b)` - Floor division on two ints, returns an int; errors on a float argument, division by
-  zero, or overflow
+  zero, or overflow (`math.div(i64::MIN, -1)`)
 - `math.round(n)` - Round half away from zero, returns an int (same error cases as `floor`)
 - `math.sign(n)` - `-1`, `0` or `1` as an int (`-0.0` is `0`; `NaN` is a runtime error)
-- `math.gcd(a, b)` - Greatest common divisor of two ints, always non-negative
-- `math.lcm(a, b)` - Least common multiple of two ints, always non-negative
-- `math.mod(a, b)` - Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise
+- `math.gcd(a, b)` - Greatest common divisor of two ints, always non-negative (`gcd(0, 0)` is `0`);
+  errors on a float argument or overflow
+- `math.lcm(a, b)` - Least common multiple of two ints, always non-negative (`0` if either argument is
+  `0`); errors on a float argument or overflow (`integer overflow in lcm()`)
+- `math.mod(a, b)` - Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise; errors if
+  `b` is `0` or if either argument is infinite or `NaN`
 
 **Example:**
 ```neon
 import "std/math"
 
 print(math.abs(-5))        // 5
+print(math.sqrt(16))       // 4
 print(math.max(3, 7, 2))   // 7
 print(math.div(7, 2))      // 3, integer division
+print(math.round(2.5))     // 3
+print(math.gcd(12, 18))    // 6
+print(math.lcm(4, 6))      // 12
+print(math.mod(-7, 3))     // 2
 ```
 
 ### std/file Methods
@@ -1097,6 +1106,14 @@ print(math.div(7, 2))      // 3, integer division
 
 - `stdin.read()` - All remaining standard input as a string, read to EOF (`""` once EOF is reached)
 - `stdin.readLines()` - Array of lines from standard input, split the same way as `File.readLines()`
+
+**Example:**
+```neon
+// echo -e "a\nb" | neon script.n
+import "std/stdin"
+
+print(stdin.readLines())   // [a, b]
+```
 
 ### std/pq Methods
 
@@ -1115,34 +1132,9 @@ print(queue.pop())   // a
 
 ### Math (Static Methods)
 
-- `Math.abs(n)` - Absolute value (keeps ints as ints)
-- `Math.floor(n)` - Round down, returns an int (runtime error if the result doesn't fit in `i64` or is NaN)
-- `Math.ceil(n)` - Round up, returns an int (same error cases as `floor`)
-- `Math.sqrt(n)` - Square root
-- `Math.min(a, b, ...)` - Minimum value (variadic, keeps ints as ints)
-- `Math.max(a, b, ...)` - Maximum value (variadic, keeps ints as ints)
-- `Math.div(a, b)` - Floor division on two ints, returns an int; errors on a float argument, division by
-  zero, or overflow (`Math.div(i64::MIN, -1)`)
-- `Math.round(n)` - Round half away from zero, returns an int (same error cases as `floor`)
-- `Math.sign(n)` - `-1`, `0` or `1` as an int (`-0.0` is `0`; `NaN` is a runtime error)
-- `Math.gcd(a, b)` - Greatest common divisor of two ints, always non-negative (`gcd(0, 0)` is `0`);
-  errors on a float argument or overflow
-- `Math.lcm(a, b)` - Least common multiple of two ints, always non-negative (`0` if either argument is
-  `0`); errors on a float argument or overflow (`integer overflow in lcm()`)
-- `Math.mod(a, b)` - Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise; errors if
-  `b` is `0` or if either argument is infinite or `NaN`
-
-**Example:**
-```neon
-print(Math.abs(-5))        // 5
-print(Math.sqrt(16))       // 4
-print(Math.max(3, 7, 2))   // 7
-print(Math.div(7, 2))      // 3, integer division
-print(Math.round(2.5))     // 3
-print(Math.gcd(12, 18))    // 6
-print(Math.lcm(4, 6))      // 12
-print(Math.mod(-7, 3))     // 2
-```
+- `Math.abs`, `Math.floor`, `Math.ceil`, `Math.sqrt`, `Math.min`, `Math.max`, `Math.div`,
+  `Math.round`, `Math.sign`, `Math.gcd`, `Math.lcm`, `Math.mod` - Old namespace form of
+  [std/math](#stdmath-methods), to be removed
 
 ### String Methods
 
@@ -1356,25 +1348,20 @@ print(arr)                // [1, 2] (order may vary)
 
 ### File
 
-- `File(path)` - Open a file handle for `path`
+- `File(path)` - Old constructor form of `file.open(path)` from [std/file](#stdfile-methods), to be
+  removed
 - `.read()` - Whole file as a string
 - `.readLines()` - Array of lines
 - `.write(text)` - Create the file with `text`; a runtime error if it already exists
 
 ### Stdin Methods
 
-- `Stdin.read()` - All remaining standard input as a string, read to EOF (`""` once EOF is reached)
-- `Stdin.readLines()` - Array of lines from standard input, split the same way as `File.readLines()`
-
-**Example:**
-```neon
-// echo -e "a\nb" | neon script.n
-print(Stdin.readLines())   // [a, b]
-```
+- `Stdin.read()`, `Stdin.readLines()` - Old namespace form of [std/stdin](#stdstdin-methods), to be
+  removed
 
 ### PriorityQueue Methods
 
-- `PriorityQueue()` - New, empty min-priority-queue
+- `PriorityQueue()` - Old constructor form of `pq.new()` from [std/pq](#stdpq-methods), to be removed
 - `.push(priority, value)` - Add `value` with the given `priority` (a number); returns `nil`
 - `.pop()` - Remove and return the value with the smallest priority, or `nil` if empty. Equal
   priorities pop in insertion order
@@ -1384,14 +1371,16 @@ print(Stdin.readLines())   // [a, b]
 
 **Example:**
 ```neon
-val pq = PriorityQueue()
-pq.push(3, "c")
-pq.push(1, "a")
-pq.push(2, "b")
-print(pq.pop())   // a
-print(pq.pop())   // b
-print(pq.pop())   // c
-print(pq.pop())   // nil
+import "std/pq"
+
+val queue = pq.new()
+queue.push(3, "c")
+queue.push(1, "a")
+queue.push(2, "b")
+print(queue.pop())   // a
+print(queue.pop())   // b
+print(queue.pop())   // c
+print(queue.pop())   // nil
 ```
 
 ### Type Conversions
