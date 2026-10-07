@@ -56,7 +56,7 @@ fn setup_logging() {
 fn print_tagline() {
     println!(
         "✨ neon {} - a toy language you didn't wait for",
-        env!("CARGO_PKG_VERSION")
+        env!("NEON_VERSION")
     );
 }
 
@@ -359,7 +359,7 @@ fn read_file(path: &str) -> String {
 fn print_help() {
     println!(
         "Neon {} - a toy language you didn't wait for",
-        env!("CARGO_PKG_VERSION")
+        env!("NEON_VERSION")
     );
     println!();
     println!("Usage:");

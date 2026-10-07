@@ -388,6 +388,28 @@ fn help_lists_check_flag() {
     assert!(stdout.contains("--check"));
 }
 
+#[test]
+fn help_shows_merge_count_version() {
+    let merges = Command::new("git")
+        .args(["rev-list", "--count", "--merges", "--first-parent", "HEAD"])
+        .output()
+        .expect("Failed to run git");
+    let merges = String::from_utf8_lossy(&merges.stdout).trim().to_string();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let expected = format!(
+        "Neon {}.{}.{merges} ",
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR")
+    );
+    assert!(stdout.starts_with(&expected), "{stdout}");
+}
+
 #[cfg(feature = "opcode-stats")]
 #[test]
 fn run_file_prints_opcode_stats_to_stderr_only() {
