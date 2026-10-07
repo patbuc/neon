@@ -1,0 +1,86 @@
+// Expected:
+// if false: else
+// if nil: else
+// if 0: then
+// if "": then
+// while nil: 0
+// while false: 0
+// while countdown: 3
+// ternary false: no
+// ternary nil: no
+// ternary true: yes
+// if-expr false: b
+// if-expr nil: b
+// guard false: other
+// guard nil: other
+// guard true: guarded
+// for-in: 1 2 3
+// and/or: nil false 1 1
+
+fn check_if(label, c) {
+    if c {
+        print("if ${label}: then")
+    } else {
+        print("if ${label}: else")
+    }
+}
+
+check_if("false", false)
+check_if("nil", nil)
+check_if("0", 0)
+check_if("\"\"", "")
+
+var count = 0
+while nil {
+    count += 1
+}
+print("while nil: ${count}")
+while false {
+    count += 1
+}
+print("while false: ${count}")
+
+var n = 3
+var going = true
+while going {
+    count += 1
+    n -= 1
+    going = n > 0 ? true : nil
+}
+print("while countdown: ${count}")
+
+print("ternary false: ${false ? "yes" : "no"}")
+print("ternary nil: ${nil ? "yes" : "no"}")
+print("ternary true: ${true ? "yes" : "no"}")
+
+val a = if false {
+    "a"
+} else {
+    "b"
+}
+print("if-expr false: ${a}")
+val b = if nil {
+    "a"
+} else {
+    "b"
+}
+print("if-expr nil: ${b}")
+
+fn guard(c) {
+    match 1 {
+        1 if c -> "guarded"
+        _ -> "other"
+    }
+}
+
+print("guard false: ${guard(false)}")
+print("guard nil: ${guard(nil)}")
+print("guard true: ${guard(true)}")
+
+var seen = ""
+for x in [1, 2, 3] {
+    seen = seen == "" ? "${x}" : "${seen} ${x}"
+}
+print("for-in: ${seen}")
+
+print("and/or: ${nil && 1} ${false && 1} ${nil || 1} ${1 || nil}")
