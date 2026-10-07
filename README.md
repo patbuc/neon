@@ -65,6 +65,8 @@ entries:
 - A later line may redeclare an earlier `val`, `var`, or `fn` — a function defined between
   the two still sees the value it closed over. Structs and enums can't be redeclared, and
   an existing method can't be redefined, though `impl` blocks accumulate.
+- Methods persist across lines. A line that fails at runtime adds none of the
+  methods it defined.
 - Type `exit` or press Ctrl+D (EOF) to quit.
 
 ### Hello World
@@ -755,6 +757,10 @@ print(Point.origin().x)   // 0
   `impl` block must appear at the top level, and its type must be a declared
   struct or a builtin type. A method can't share a name with a field or with
   another method of the same struct.
+- Methods belong to the struct they are declared for. Two modules' structs
+  with the same name keep separate methods, and an exported struct carries its
+  methods to the modules that import it. An `impl` block must be in the
+  struct's own module: `impl utils.Point` is a compile error.
 - Methods are registered before the program runs, so they can be called from
   code that appears before their `impl` block. A method body can see
   functions, structs, builtins, and top-level variables.
@@ -765,6 +771,9 @@ of that type. A method can't share a name with a native method of the type -
 that's a compile error, since a native method can never be redefined. Unlike
 a struct, a builtin type only supports instance methods; every method must
 take `self`.
+
+An `impl` on a builtin type is program-wide: every module compiled after the
+one declaring it sees the method, in dependency order.
 
 ```neon
 impl Array {
