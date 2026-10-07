@@ -28,6 +28,7 @@ impl VirtualMachine {
         VirtualMachine {
             call_frames: Vec::new(),
             ip: 0,
+            frame_base: 0,
             chunk: Rc::new(Chunk::new("")),
             stack: Vec::new(),
             builtin: common::stdlib::create_builtin_objects(args),
@@ -493,6 +494,7 @@ impl VirtualMachine {
             caller.ip = self.ip;
         }
         self.ip = 0;
+        self.frame_base = (slot_start + 1) as usize;
         self.chunk = Rc::clone(&closure.function.chunk);
         self.call_frames.push(CallFrame {
             closure,
@@ -506,6 +508,7 @@ impl VirtualMachine {
         self.call_frames.pop();
         if let Some(caller) = self.call_frames.last() {
             self.ip = caller.ip;
+            self.frame_base = (caller.slot_start + 1) as usize;
             self.chunk = Rc::clone(&caller.closure.function.chunk);
         }
     }
