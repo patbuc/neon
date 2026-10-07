@@ -1,17 +1,24 @@
 //! Spike: a Cranelift JIT for function bodies whose values are all Ints.
 //!
-//! Every frame slot (locals and operand stack) becomes an i64 variable.
-//! Arguments are tag-checked on entry. An unsupported instruction, a
-//! failed check, or an overflow exits to the interpreter at that
-//! instruction: the compiled code writes its slots to a buffer, and
-//! `run_jitted` turns them back into `Value::Int`s on the VM stack, so the
-//! interpreter resumes with exactly the state it would have had.
+//! Compiled code takes its arguments as raw i64s and keeps every frame
+//! slot in an i64 variable. A call of a global goes straight to the
+//! callee's compiled code, with no VM frame. Only functions using nothing
+//! but supported instructions compile. An overflow, a call that can't
+//! finish natively, or the depth limit exits to the interpreter at that
+//! instruction: the code
+//! writes its slots to a buffer and `restore_frame` rebuilds the frame on
+//! the VM stack, so the interpreter resumes with the state it would have
+//! had.
 use crate::common::chunk::Instr;
+use crate::common::runtime_error::RuntimeError;
 use crate::common::{ObjClosure, ObjFunction, Value};
 use crate::vm::functions::OpResult;
 use crate::vm::VirtualMachine;
 use cranelift_codegen::ir::condcodes::IntCC;
-use cranelift_codegen::ir::{types, AbiParam, Block, InstBuilder, MemFlags, UserFuncName};
+use cranelift_codegen::ir::{
+    types, AbiParam, Block, InstBuilder, MemFlags, Signature, StackSlotData, StackSlotKind,
+    UserFuncName,
+};
 use cranelift_codegen::settings::{self, Configurable};
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -20,60 +27,29 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-/// `(args, buf) -> status`. `RETURNED`: the result is in `buf[0]`.
-/// `ENTRY_DEOPT`: an argument isn't an Int; nothing ran. Otherwise the
-/// status is the instruction to resume at, `buf[0]` the slot count and
-/// `buf[1..]` the slots.
-type JitFn = unsafe extern "C" fn(*const Value, *mut i64) -> i64;
+/// `(vm, args, buf) -> status`. `RETURNED`: the result is in `buf[0]`.
+/// `ERROR`: a helper stored the error in `jit_error`. Otherwise the code
+/// exited at instruction `status & !PENDING`, with the slot count in
+/// `buf[0]`, the slots in `buf[1..]` and a bitmask of slots that hold a
+/// global's index (not yet loaded) in `buf[GLOBALS]`. With `PENDING` set,
+/// `jit_pending` is one more slot on top.
+type JitFn = unsafe extern "C" fn(*mut VirtualMachine, *const i64, *mut i64) -> i64;
 const RETURNED: i64 = -1;
-const ENTRY_DEOPT: i64 = -2;
-const MAX_DEPTH: usize = 64;
+const ERROR: i64 = -2;
+const NOT_COMPILED: i64 = -3;
+const PENDING: i64 = 1 << 40;
+const MAX_DEPTH: usize = 62;
+const GLOBALS: usize = MAX_DEPTH + 1;
+const BUF_LEN: usize = MAX_DEPTH + 2;
+/// Rust stack budget for compiled frames: a native call costs 1, an
+/// interpreter run nested inside compiled code costs `NESTED_RUN`.
+const DEPTH_LIMIT: i64 = 1000;
+const NESTED_RUN: i64 = 100;
 
-#[derive(Clone, Copy)]
-struct Layout {
-    tag_offset: i32,
-    int_tag: u8,
-    payload_offset: i32,
-}
-
-fn value_bytes(value: &Value) -> [u8; 16] {
-    // SAFETY: spike only; `Value` is 16 bytes (checked by the caller).
-    unsafe { std::mem::transmute_copy(value) }
-}
-
-/// Finds where `Value::Int` keeps its tag and payload, since `Value` has
-/// no fixed `repr`.
-fn probe_layout() -> Option<Layout> {
-    if std::mem::size_of::<Value>() != 16 {
-        return None;
-    }
-    let a = value_bytes(&Value::Int(0x0102_0304_0506_0708));
-    let b = value_bytes(&Value::Int(-0x1122_3344_5566_7788));
-    let payload_offset = [0usize, 8].into_iter().find(|&o| {
-        a[o..o + 8] == 0x0102_0304_0506_0708i64.to_ne_bytes()
-            && b[o..o + 8] == (-0x1122_3344_5566_7788i64).to_ne_bytes()
-    })?;
-    let others = [
-        value_bytes(&Value::Number(f64::from_bits(0x0102_0304_0506_0708))),
-        value_bytes(&Value::Boolean(true)),
-        value_bytes(&Value::Nil),
-    ];
-    let tag_offset = (0..16)
-        .filter(|o| !(payload_offset..payload_offset + 8).contains(o))
-        .find(|&o| a[o] == b[o] && others.iter().all(|other| other[o] != a[o]))?;
-    Some(Layout {
-        tag_offset: tag_offset as i32,
-        int_tag: a[tag_offset],
-        payload_offset: payload_offset as i32,
-    })
-}
+pub(in crate::vm) const NOT_COMPILABLE: usize = 1;
 
 struct Jit {
     module: JITModule,
-    layout: Layout,
-    /// Keyed by function address; the `Rc` keeps that address from being
-    /// reused by another function.
-    cache: HashMap<*const ObjFunction, (Rc<ObjFunction>, Option<JitFn>)>,
 }
 
 thread_local! {
@@ -81,18 +57,19 @@ thread_local! {
 }
 
 /// The compiled code for `function`, compiling it on first use.
-pub(in crate::vm) fn compiled(function: &Rc<ObjFunction>) -> Option<JitFn> {
-    JIT.with(|jit| {
-        let mut jit = jit.borrow_mut();
-        let jit = jit.as_mut()?;
-        let key = Rc::as_ptr(function);
-        if let Some((_, compiled)) = jit.cache.get(&key) {
-            return *compiled;
+fn compiled(function: &ObjFunction) -> Option<JitFn> {
+    match function.jit.get() {
+        0 => {
+            let code = JIT.with(|jit| jit.borrow_mut().as_mut()?.compile(function));
+            function
+                .jit
+                .set(code.map_or(NOT_COMPILABLE, |code| code as usize));
+            code
         }
-        let compiled = jit.compile(function);
-        jit.cache.insert(key, (Rc::clone(function), compiled));
-        compiled
-    })
+        NOT_COMPILABLE => None,
+        // SAFETY: only `compiled` stores code addresses, all of this type.
+        code => Some(unsafe { std::mem::transmute::<usize, JitFn>(code) }),
+    }
 }
 
 impl Jit {
@@ -100,7 +77,6 @@ impl Jit {
         if std::env::var("NEON_JIT").as_deref() == Ok("0") {
             return None;
         }
-        let layout = probe_layout()?;
         let mut flags = settings::builder();
         flags.set("opt_level", "speed").ok()?;
         let isa = cranelift_native::builder()
@@ -108,19 +84,12 @@ impl Jit {
             .finish(settings::Flags::new(flags))
             .ok()?;
         let module = JITModule::new(JITBuilder::with_isa(isa, default_libcall_names()));
-        Some(Jit {
-            module,
-            layout,
-            cache: HashMap::new(),
-        })
+        Some(Jit { module })
     }
 
     fn compile(&mut self, function: &ObjFunction) -> Option<JitFn> {
         let mut ctx = self.module.make_context();
-        let pointer = self.module.target_config().pointer_type();
-        ctx.func.signature.params.push(AbiParam::new(pointer));
-        ctx.func.signature.params.push(AbiParam::new(pointer));
-        ctx.func.signature.returns.push(AbiParam::new(types::I64));
+        ctx.func.signature = jit_signature(&self.module);
         let id = self
             .module
             .declare_anonymous_function(&ctx.func.signature)
@@ -129,8 +98,7 @@ impl Jit {
 
         let mut fctx = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut ctx.func, &mut fctx);
-        let emitter = Emitter::new(builder, self.layout, function)?;
-        emitter.emit(function)?;
+        Emitter::new(builder, &self.module, function)?.emit(function)?;
 
         self.module.define_function(id, &mut ctx).ok()?;
         self.module.clear_context(&mut ctx);
@@ -141,52 +109,58 @@ impl Jit {
     }
 }
 
+fn jit_signature(module: &JITModule) -> Signature {
+    let pointer = module.target_config().pointer_type();
+    let mut sig = module.make_signature();
+    sig.params.extend([AbiParam::new(pointer); 3]);
+    sig.returns.push(AbiParam::new(types::I64));
+    sig
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Int,
+    /// A global's value, not loaded yet; the variable holds its index.
+    Global,
+}
+
+type Val = cranelift_codegen::ir::Value;
+
 struct Emitter<'a> {
     b: FunctionBuilder<'a>,
     slots: Vec<Variable>,
-    buf: cranelift_codegen::ir::Value,
+    kinds: Vec<Kind>,
+    vm: Val,
+    buf: Val,
+    pointer: types::Type,
+    jit_sig: Signature,
+    lookup_sig: Signature,
+    finish_sig: Signature,
     blocks: HashMap<usize, Block>,
-    depths: HashMap<usize, usize>,
+    entries: HashMap<usize, Vec<Kind>>,
 }
 
 impl<'a> Emitter<'a> {
-    fn new(mut b: FunctionBuilder<'a>, layout: Layout, function: &ObjFunction) -> Option<Self> {
+    fn new(mut b: FunctionBuilder<'a>, module: &JITModule, function: &ObjFunction) -> Option<Self> {
         let arity = function.arity as usize;
         if arity >= MAX_DEPTH {
             return None;
         }
+        let pointer = module.target_config().pointer_type();
         let slots: Vec<Variable> = (0..MAX_DEPTH).map(|_| b.declare_var(types::I64)).collect();
 
         let entry = b.create_block();
         b.append_block_params_for_function_params(entry);
         b.switch_to_block(entry);
-        let args = b.block_params(entry)[0];
-        let buf = b.block_params(entry)[1];
-
-        let entry_deopt = b.create_block();
+        let vm = b.block_params(entry)[0];
+        let args = b.block_params(entry)[1];
+        let buf = b.block_params(entry)[2];
         for (i, &slot) in slots.iter().enumerate().take(arity) {
-            let base = (i * 16) as i32;
-            let tag = b
+            let arg = b
                 .ins()
-                .uload8(types::I32, MemFlags::trusted(), args, base + layout.tag_offset);
-            let is_int = b.ins().icmp_imm(IntCC::Equal, tag, layout.int_tag as i64);
-            let next = b.create_block();
-            b.ins().brif(is_int, next, &[], entry_deopt, &[]);
-            b.switch_to_block(next);
-            let payload = b.ins().load(
-                types::I64,
-                MemFlags::trusted(),
-                args,
-                base + layout.payload_offset,
-            );
-            b.def_var(slot, payload);
+                .load(types::I64, MemFlags::trusted(), args, (8 * i) as i32);
+            b.def_var(slot, arg);
         }
-        let body = b.create_block();
-        b.ins().jump(body, &[]);
-        b.switch_to_block(entry_deopt);
-        let status = b.ins().iconst(types::I64, ENTRY_DEOPT);
-        b.ins().return_(&[status]);
-        b.switch_to_block(body);
 
         let mut blocks = HashMap::new();
         for instr in &function.chunk.code {
@@ -194,12 +168,38 @@ impl<'a> Emitter<'a> {
                 blocks.entry(target).or_insert_with(|| b.create_block());
             }
         }
+
+        let mut lookup_sig = module.make_signature();
+        lookup_sig.params.extend([
+            AbiParam::new(pointer),
+            AbiParam::new(types::I64),
+            AbiParam::new(types::I64),
+        ]);
+        lookup_sig.returns.push(AbiParam::new(pointer));
+        let mut finish_sig = module.make_signature();
+        finish_sig.params.extend([
+            AbiParam::new(pointer),
+            AbiParam::new(types::I64),
+            AbiParam::new(types::I64),
+            AbiParam::new(pointer),
+            AbiParam::new(pointer),
+            AbiParam::new(types::I64),
+            AbiParam::new(types::I64),
+        ]);
+        finish_sig.returns.push(AbiParam::new(types::I64));
+
         Some(Emitter {
             b,
             slots,
+            kinds: vec![Kind::Int; arity],
+            vm,
             buf,
+            pointer,
+            jit_sig: jit_signature(module),
+            lookup_sig,
+            finish_sig,
             blocks,
-            depths: HashMap::new(),
+            entries: HashMap::new(),
         })
     }
 
@@ -209,20 +209,19 @@ impl<'a> Emitter<'a> {
             Value::Int(c) => Some(*c),
             _ => None,
         };
-        let mut depth = function.arity as usize;
         let mut reachable = true;
 
         for (ip, instr) in chunk.code.iter().enumerate() {
             if let Some(&block) = self.blocks.get(&ip) {
                 if reachable {
+                    self.enter(ip)?;
                     self.b.ins().jump(block, &[]);
-                    self.depths.entry(ip).or_insert(depth);
                 }
-                match self.depths.get(&ip) {
-                    Some(&d) => depth = d,
+                match self.entries.get(&ip) {
+                    Some(kinds) => self.kinds = kinds.clone(),
                     None => {
-                        // Only reachable by a later backward jump from
-                        // code that itself is unreachable.
+                        // Only jumped to from code after this point that
+                        // is itself unreachable.
                         reachable = false;
                         continue;
                     }
@@ -233,110 +232,120 @@ impl<'a> Emitter<'a> {
             if !reachable {
                 continue;
             }
+            let depth = self.kinds.len();
             if depth + 2 >= MAX_DEPTH {
                 return None;
             }
 
             match *instr {
-                Instr::Constant(index) => match int_constant(index) {
-                    Some(c) => {
-                        let v = self.b.ins().iconst(types::I64, c);
-                        self.set(depth, v);
-                        depth += 1;
-                    }
-                    None => reachable = self.deopt(ip, depth),
-                },
-                Instr::GetLocal(slot) if (slot as usize) < depth => {
+                Instr::Constant(index) if int_constant(index).is_some() => {
+                    let v = self.b.ins().iconst(types::I64, int_constant(index)?);
+                    self.push(Kind::Int, v);
+                }
+                Instr::GetGlobal(index) => {
+                    let v = self.b.ins().iconst(types::I64, index as i64);
+                    self.push(Kind::Global, v);
+                }
+                Instr::GetLocal(slot) if self.is_int(slot as usize) => {
                     let v = self.get(slot as usize);
-                    self.set(depth, v);
-                    depth += 1;
+                    self.push(Kind::Int, v);
                 }
-                Instr::SetLocal(slot) if (slot as usize) < depth => {
+                Instr::SetLocal(slot) if self.is_int(slot as usize) && self.is_int(depth - 1) => {
                     let v = self.get(depth - 1);
                     self.set(slot as usize, v);
                 }
-                Instr::StoreLocal(slot) if (slot as usize) < depth => {
+                Instr::StoreLocal(slot) if self.is_int(slot as usize) && self.is_int(depth - 1) => {
                     let v = self.get(depth - 1);
                     self.set(slot as usize, v);
-                    depth -= 1;
+                    self.kinds.pop();
                 }
-                Instr::Pop => depth -= 1,
-                Instr::Add | Instr::Subtract | Instr::Multiply => {
+                Instr::Pop => {
+                    self.kinds.pop();
+                }
+                Instr::Add | Instr::Subtract | Instr::Multiply
+                    if self.is_int(depth - 2) && self.is_int(depth - 1) =>
+                {
                     let a = self.get(depth - 2);
                     let c = self.get(depth - 1);
-                    let r = self.checked(instr, a, c, ip, depth);
+                    let r = self.checked(instr, a, c, ip);
                     self.set(depth - 2, r);
-                    depth -= 1;
+                    self.kinds.pop();
                 }
                 Instr::AddConstant(index)
                 | Instr::SubtractConstant(index)
-                | Instr::MultiplyConstant(index) => match int_constant(index) {
-                    Some(c) => {
-                        let a = self.get(depth - 1);
-                        let c = self.b.ins().iconst(types::I64, c);
-                        let r = self.checked(instr, a, c, ip, depth);
-                        self.set(depth - 1, r);
-                    }
-                    None => reachable = self.deopt(ip, depth),
-                },
-                Instr::ModuloConstant(index) => match int_constant(index) {
-                    Some(c) if c != 0 && c != -1 => {
-                        let a = self.get(depth - 1);
-                        let c = self.b.ins().iconst(types::I64, c);
-                        let r = self.b.ins().srem(a, c);
-                        self.set(depth - 1, r);
-                    }
-                    _ => reachable = self.deopt(ip, depth),
-                },
-                Instr::Modulo => {
+                | Instr::MultiplyConstant(index)
+                    if self.is_int(depth - 1) && int_constant(index).is_some() =>
+                {
+                    let a = self.get(depth - 1);
+                    let c = self.b.ins().iconst(types::I64, int_constant(index)?);
+                    let r = self.checked(instr, a, c, ip);
+                    self.set(depth - 1, r);
+                }
+                Instr::ModuloConstant(index)
+                    if self.is_int(depth - 1)
+                        && int_constant(index).is_some_and(|c| c != 0 && c != -1) =>
+                {
+                    let a = self.get(depth - 1);
+                    let c = self.b.ins().iconst(types::I64, int_constant(index)?);
+                    let r = self.b.ins().srem(a, c);
+                    self.set(depth - 1, r);
+                }
+                Instr::Modulo if self.is_int(depth - 2) && self.is_int(depth - 1) => {
                     let a = self.get(depth - 2);
                     let c = self.get(depth - 1);
                     let zero = self.b.ins().icmp_imm(IntCC::Equal, c, 0);
                     let minus_one = self.b.ins().icmp_imm(IntCC::Equal, c, -1);
                     let bad = self.b.ins().bor(zero, minus_one);
-                    self.guard(bad, ip, depth);
+                    self.guard(bad, ip);
                     let r = self.b.ins().srem(a, c);
                     self.set(depth - 2, r);
-                    depth -= 1;
+                    self.kinds.pop();
                 }
                 Instr::LessJumpIfFalse(target)
                 | Instr::LessEqualJumpIfFalse(target)
                 | Instr::GreaterJumpIfFalse(target)
-                | Instr::GreaterEqualJumpIfFalse(target) => {
+                | Instr::GreaterEqualJumpIfFalse(target)
+                    if self.is_int(depth - 2) && self.is_int(depth - 1) =>
+                {
                     let a = self.get(depth - 2);
                     let c = self.get(depth - 1);
-                    depth -= 2;
-                    self.branch(instr, a, c, target as usize, depth);
+                    self.kinds.truncate(depth - 2);
+                    self.branch(instr, a, c, target as usize)?;
                 }
                 Instr::LessConstantJumpIfFalse { constant, target }
                 | Instr::LessEqualConstantJumpIfFalse { constant, target }
                 | Instr::GreaterConstantJumpIfFalse { constant, target }
-                | Instr::GreaterEqualConstantJumpIfFalse { constant, target } => {
-                    match int_constant(constant) {
-                        Some(c) => {
-                            let a = self.get(depth - 1);
-                            let c = self.b.ins().iconst(types::I64, c);
-                            depth -= 1;
-                            self.branch(instr, a, c, target as usize, depth);
-                        }
-                        None => reachable = self.deopt(ip, depth),
-                    }
+                | Instr::GreaterEqualConstantJumpIfFalse { constant, target }
+                    if self.is_int(depth - 1) && int_constant(constant).is_some() =>
+                {
+                    let a = self.get(depth - 1);
+                    let c = self.b.ins().iconst(types::I64, int_constant(constant)?);
+                    self.kinds.pop();
+                    self.branch(instr, a, c, target as usize)?;
                 }
                 Instr::Jump(target) | Instr::Loop(target) => {
                     let target = target as usize;
-                    self.depths.entry(target).or_insert(depth);
+                    self.enter(target)?;
                     let block = self.blocks[&target];
                     self.b.ins().jump(block, &[]);
                     reachable = false;
                 }
-                Instr::Return => {
+                Instr::Return if self.is_int(depth - 1) => {
                     let v = self.get(depth - 1);
                     self.b.ins().store(MemFlags::trusted(), v, self.buf, 0);
                     let status = self.b.ins().iconst(types::I64, RETURNED);
                     self.b.ins().return_(&[status]);
                     reachable = false;
                 }
-                _ => reachable = self.deopt(ip, depth),
+                Instr::Call(arg_count)
+                    if (arg_count as usize) < depth
+                        && self.kinds[depth - 1 - arg_count as usize] == Kind::Global
+                        && (depth - arg_count as usize..depth).all(|s| self.is_int(s)) =>
+                {
+                    self.call(ip, arg_count as usize);
+                }
+                // Exiting on every call costs more than interpreting.
+                _ => return None,
             }
         }
         if reachable {
@@ -347,65 +356,83 @@ impl<'a> Emitter<'a> {
         Some(())
     }
 
-    fn get(&mut self, slot: usize) -> cranelift_codegen::ir::Value {
+    fn is_int(&self, slot: usize) -> bool {
+        self.kinds.get(slot) == Some(&Kind::Int)
+    }
+
+    fn get(&mut self, slot: usize) -> Val {
         self.b.use_var(self.slots[slot])
     }
 
-    fn set(&mut self, slot: usize, value: cranelift_codegen::ir::Value) {
+    fn set(&mut self, slot: usize, value: Val) {
         self.b.def_var(self.slots[slot], value);
     }
 
-    /// Writes the frame's `depth` slots to the buffer and returns `ip` to
-    /// resume at. Returns false: what follows is unreachable.
-    fn deopt(&mut self, ip: usize, depth: usize) -> bool {
+    fn push(&mut self, kind: Kind, value: Val) {
+        let slot = self.kinds.len();
+        self.set(slot, value);
+        self.kinds.push(kind);
+    }
+
+    /// Records the slot kinds a jump into `target` arrives with; every
+    /// edge into a block has to agree.
+    fn enter(&mut self, target: usize) -> Option<()> {
+        match self.entries.get(&target) {
+            Some(kinds) if *kinds != self.kinds => None,
+            Some(_) => Some(()),
+            None => {
+                self.entries.insert(target, self.kinds.clone());
+                Some(())
+            }
+        }
+    }
+
+    /// Exits to the interpreter at `ip` (`flags` may add `PENDING`).
+    /// Returns false: what follows is unreachable.
+    fn deopt(&mut self, ip: usize, flags: i64) -> bool {
+        let depth = self.kinds.len();
+        let mut globals = 0i64;
         let d = self.b.ins().iconst(types::I64, depth as i64);
         self.b.ins().store(MemFlags::trusted(), d, self.buf, 0);
         for i in 0..depth {
+            if self.kinds[i] == Kind::Global {
+                globals |= 1 << i;
+            }
             let v = self.get(i);
             self.b
                 .ins()
                 .store(MemFlags::trusted(), v, self.buf, (8 * (i + 1)) as i32);
         }
-        let status = self.b.ins().iconst(types::I64, ip as i64);
+        let g = self.b.ins().iconst(types::I64, globals);
+        self.b
+            .ins()
+            .store(MemFlags::trusted(), g, self.buf, (8 * GLOBALS) as i32);
+        let status = self.b.ins().iconst(types::I64, ip as i64 | flags);
         self.b.ins().return_(&[status]);
         false
     }
 
     /// Exits to the interpreter at `ip` when `failed` is set.
-    fn guard(&mut self, failed: cranelift_codegen::ir::Value, ip: usize, depth: usize) {
+    fn guard(&mut self, failed: Val, ip: usize) {
         let exit = self.b.create_block();
         let next = self.b.create_block();
         self.b.ins().brif(failed, exit, &[], next, &[]);
         self.b.switch_to_block(exit);
-        self.deopt(ip, depth);
+        self.deopt(ip, 0);
         self.b.switch_to_block(next);
     }
 
-    fn checked(
-        &mut self,
-        instr: &Instr,
-        a: cranelift_codegen::ir::Value,
-        c: cranelift_codegen::ir::Value,
-        ip: usize,
-        depth: usize,
-    ) -> cranelift_codegen::ir::Value {
+    fn checked(&mut self, instr: &Instr, a: Val, c: Val, ip: usize) -> Val {
         let (r, overflow) = match instr {
             Instr::Add | Instr::AddConstant(_) => self.b.ins().sadd_overflow(a, c),
             Instr::Subtract | Instr::SubtractConstant(_) => self.b.ins().ssub_overflow(a, c),
             _ => self.b.ins().smul_overflow(a, c),
         };
-        self.guard(overflow, ip, depth);
+        self.guard(overflow, ip);
         r
     }
 
-    fn branch(
-        &mut self,
-        instr: &Instr,
-        a: cranelift_codegen::ir::Value,
-        c: cranelift_codegen::ir::Value,
-        target: usize,
-        depth: usize,
-    ) {
+    fn branch(&mut self, instr: &Instr, a: Val, c: Val, target: usize) -> Option<()> {
         let cc = match instr {
             Instr::LessJumpIfFalse(_) | Instr::LessConstantJumpIfFalse { .. } => {
                 IntCC::SignedLessThan
@@ -419,11 +446,128 @@ impl<'a> Emitter<'a> {
             _ => IntCC::SignedGreaterThanOrEqual,
         };
         let holds = self.b.ins().icmp(cc, a, c);
-        self.depths.entry(target).or_insert(depth);
+        self.enter(target)?;
         let next = self.b.create_block();
         let target_block = self.blocks[&target];
         self.b.ins().brif(holds, next, &[], target_block, &[]);
         self.b.switch_to_block(next);
+        Some(())
+    }
+
+    fn helper(&mut self, address: usize, sig: Signature, args: &[Val]) -> Val {
+        let sig = self.b.import_signature(sig);
+        let callee = self.b.ins().iconst(self.pointer, address as i64);
+        let call = self.b.ins().call_indirect(sig, callee, args);
+        self.b.inst_results(call)[0]
+    }
+
+    /// `[.., global, args..] -> [.., result]`: calls the global's compiled
+    /// code directly when it has some, and otherwise goes through
+    /// `jit_finish`, which also resumes a callee that exited.
+    fn call(&mut self, ip: usize, arg_count: usize) {
+        let depth = self.kinds.len();
+        let callee_slot = depth - 1 - arg_count;
+
+        let jit_depth = std::mem::offset_of!(VirtualMachine, jit_depth) as i32;
+        let current = self
+            .b
+            .ins()
+            .load(types::I64, MemFlags::trusted(), self.vm, jit_depth);
+        let too_deep = self
+            .b
+            .ins()
+            .icmp_imm(IntCC::SignedGreaterThanOrEqual, current, DEPTH_LIMIT);
+        self.guard(too_deep, ip);
+
+        let args_slot = self.b.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            (8 * arg_count.max(1)) as u32,
+            3,
+        ));
+        let buf_slot = self.b.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            (8 * BUF_LEN) as u32,
+            3,
+        ));
+        for i in 0..arg_count {
+            let v = self.get(callee_slot + 1 + i);
+            self.b.ins().stack_store(v, args_slot, (8 * i) as i32);
+        }
+        let args = self.b.ins().stack_addr(self.pointer, args_slot, 0);
+        let callee_buf = self.b.ins().stack_addr(self.pointer, buf_slot, 0);
+        let global = self.get(callee_slot);
+        let count = self.b.ins().iconst(types::I64, arg_count as i64);
+
+        let code = self.helper(
+            jit_lookup as *const () as usize,
+            self.lookup_sig.clone(),
+            &[self.vm, global, count],
+        );
+        let native = self.b.create_block();
+        let finish = self.b.create_block();
+        self.b.append_block_param(finish, types::I64);
+        let not_compiled = self.b.ins().iconst(types::I64, NOT_COMPILED);
+        self.b
+            .ins()
+            .brif(code, native, &[], finish, &[not_compiled.into()]);
+
+        self.b.switch_to_block(native);
+        let current = self
+            .b
+            .ins()
+            .load(types::I64, MemFlags::trusted(), self.vm, jit_depth);
+        let deeper = self.b.ins().iadd_imm(current, 1);
+        self.b
+            .ins()
+            .store(MemFlags::trusted(), deeper, self.vm, jit_depth);
+        let sig = self.b.import_signature(self.jit_sig.clone());
+        let call = self
+            .b
+            .ins()
+            .call_indirect(sig, code, &[self.vm, args, callee_buf]);
+        let status = self.b.inst_results(call)[0];
+        self.b
+            .ins()
+            .store(MemFlags::trusted(), current, self.vm, jit_depth);
+        let returned = self.b.ins().icmp_imm(IntCC::Equal, status, RETURNED);
+        let done = self.b.create_block();
+        self.b
+            .ins()
+            .brif(returned, done, &[], finish, &[status.into()]);
+
+        self.b.switch_to_block(finish);
+        let status = self.b.block_params(finish)[0];
+        let call_ip = self.b.ins().iconst(types::I64, ip as i64);
+        let outcome = self.helper(
+            jit_finish as *const () as usize,
+            self.finish_sig.clone(),
+            &[self.vm, global, count, args, callee_buf, status, call_ip],
+        );
+        let not_int = self.b.create_block();
+        self.b.ins().brif(outcome, not_int, &[], done, &[]);
+
+        // The callee's result isn't an Int (outcome 1) or it failed (2).
+        self.b.switch_to_block(not_int);
+        let failed = self.b.ins().icmp_imm(IntCC::Equal, outcome, 2);
+        let error = self.b.create_block();
+        let pending = self.b.create_block();
+        self.b.ins().brif(failed, error, &[], pending, &[]);
+        self.b.switch_to_block(error);
+        let status = self.b.ins().iconst(types::I64, ERROR);
+        self.b.ins().return_(&[status]);
+        self.b.switch_to_block(pending);
+        let below = self.kinds[..callee_slot].to_vec();
+        let saved = std::mem::replace(&mut self.kinds, below);
+        self.deopt(ip + 1, PENDING);
+        self.kinds = saved;
+
+        self.b.switch_to_block(done);
+        let result = self
+            .b
+            .ins()
+            .load(types::I64, MemFlags::trusted(), callee_buf, 0);
+        self.kinds.truncate(callee_slot);
+        self.push(Kind::Int, result);
     }
 }
 
@@ -447,40 +591,173 @@ fn jump_target(instr: &Instr) -> Option<usize> {
     }
 }
 
+/// The compiled code of global `index` if it's a closure taking
+/// `arg_count` arguments, else null.
+extern "C" fn jit_lookup(vm: *mut VirtualMachine, index: i64, arg_count: i64) -> usize {
+    // SAFETY: compiled code only runs inside `call_jit_candidate`, which
+    // hands it a live, exclusively borrowed VM.
+    let vm = unsafe { &mut *vm };
+    match &vm.stack[index as usize] {
+        Value::Closure(closure) if closure.function.arity as i64 == arg_count => {
+            compiled(&closure.function).map_or(0, |code| code as usize)
+        }
+        _ => 0,
+    }
+}
+
+/// Finishes a call compiled code couldn't complete natively: runs it in
+/// the interpreter (`NOT_COMPILED`), resumes a callee that exited, or
+/// passes on an `ERROR`. `ip` is the calling `Call`. Writes an Int result to `buf[0]` and returns 0;
+/// returns 1 with a non-Int result in `jit_pending`, 2 with the error in
+/// `jit_error`.
+extern "C" fn jit_finish(
+    vm: *mut VirtualMachine,
+    index: i64,
+    arg_count: i64,
+    args: *const i64,
+    buf: *mut i64,
+    status: i64,
+    ip: i64,
+) -> i64 {
+    // SAFETY: as in `jit_lookup`; `args` holds `arg_count` slots and `buf`
+    // `BUF_LEN`, both on the calling compiled frame.
+    let vm = unsafe { &mut *vm };
+    let args = unsafe { std::slice::from_raw_parts(args, arg_count as usize) };
+    let buf = unsafe { std::slice::from_raw_parts_mut(buf, BUF_LEN) };
+    if status == ERROR {
+        return 2;
+    }
+    // Where `op_call` would have left it, for the error location; only
+    // right for the outermost compiled frame, which owns the VM frame.
+    vm.ip = ip as usize + 1;
+    vm.jit_depth += NESTED_RUN;
+    let outcome = vm.finish_call(index as usize, args, buf, status);
+    vm.jit_depth -= NESTED_RUN;
+    match outcome {
+        Ok(Value::Int(result)) => {
+            buf[0] = result;
+            0
+        }
+        Ok(value) => {
+            vm.jit_pending = Some(value);
+            1
+        }
+        Err(error) => {
+            vm.jit_error = Some(error);
+            2
+        }
+    }
+}
+
 impl VirtualMachine {
-    /// Calls `closure` through its compiled code. On a deopt the frame is
-    /// left running at the resume point for the interpreter loop.
-    pub(in crate::vm) fn run_jitted(
+    /// The JIT path of `op_call`, kept out of line so it doesn't change
+    /// how the dispatch loop compiles.
+    #[inline(never)]
+    pub(in crate::vm) fn call_jit_candidate(
         &mut self,
         arg_count: usize,
         closure: Rc<ObjClosure>,
-        jitted: JitFn,
     ) -> OpResult {
-        if arg_count != closure.function.arity as usize {
-            return self.call_closure(arg_count, closure);
-        }
         let slot_start = self.stack.len() - arg_count - 1;
         let base = slot_start + 1;
+        let mut args = [0i64; MAX_DEPTH];
+        let all_ints = arg_count == closure.function.arity as usize
+            && arg_count <= MAX_DEPTH
+            && self.stack[base..]
+                .iter()
+                .zip(args.iter_mut())
+                .all(|(value, arg)| match value {
+                    Value::Int(i) => {
+                        *arg = *i;
+                        true
+                    }
+                    _ => false,
+                });
+        let code = match compiled(&closure.function) {
+            Some(code) if all_ints && self.jit_depth < DEPTH_LIMIT => code,
+            _ => return self.call_closure(arg_count, closure),
+        };
+
         self.push_frame(closure, slot_start as isize);
-        let mut buf = [0i64; MAX_DEPTH + 1];
-        // SAFETY: `base..base + arg_count` are the arguments on the stack,
-        // and `buf` holds MAX_DEPTH slots plus the count.
-        let status = unsafe { jitted(self.stack.as_ptr().add(base), buf.as_mut_ptr()) };
+        let mut buf = [0i64; BUF_LEN];
+        self.jit_depth += 1;
+        // SAFETY: `args` and `buf` are as large as the code may address.
+        let status = unsafe { code(self, args.as_ptr(), buf.as_mut_ptr()) };
+        self.jit_depth -= 1;
         match status {
             RETURNED => {
                 self.pop_frame();
                 self.stack.truncate(slot_start);
                 self.push(Value::Int(buf[0]));
             }
-            ENTRY_DEOPT => {}
-            ip => {
-                self.stack.truncate(base);
-                for &slot in &buf[1..=buf[0] as usize] {
-                    self.push(Value::Int(slot));
-                }
-                self.ip = ip as usize;
+            ERROR => {
+                return Err(self
+                    .jit_error
+                    .take()
+                    .unwrap_or_else(|| self.runtime_error("JIT error went missing")));
             }
+            _ => self.restore_frame(base, &buf, status)?,
         }
         Ok(())
+    }
+
+    /// Rebuilds the frame starting at `base` from an exit's buffer and
+    /// points the interpreter at the exit's instruction.
+    fn restore_frame(&mut self, base: usize, buf: &[i64], status: i64) -> OpResult {
+        self.stack.truncate(base);
+        let depth = buf[0] as usize;
+        let globals = buf[GLOBALS];
+        for (i, &slot) in buf[1..=depth].iter().enumerate() {
+            let value = if globals & (1 << i) != 0 {
+                let value = self.stack[slot as usize].clone();
+                if let Some(message) = Self::uninitialized_error(&value) {
+                    return Err(self.runtime_error(message));
+                }
+                value
+            } else {
+                Value::Int(slot)
+            };
+            self.push(value);
+        }
+        if status & PENDING != 0 {
+            if let Some(value) = self.jit_pending.take() {
+                self.push(value);
+            }
+        }
+        self.ip = (status & !PENDING) as usize;
+        Ok(())
+    }
+
+    fn finish_call(
+        &mut self,
+        index: usize,
+        args: &[i64],
+        buf: &[i64],
+        status: i64,
+    ) -> Result<Value, RuntimeError> {
+        let callee = self.stack[index].clone();
+        if let Some(message) = Self::uninitialized_error(&callee) {
+            return Err(self.runtime_error(message));
+        }
+        let depth = self.call_frames.len();
+        if status == NOT_COMPILED {
+            self.push(callee);
+            for &arg in args {
+                self.push(Value::Int(arg));
+            }
+            self.dispatch_call(args.len())?;
+        } else {
+            let Value::Closure(closure) = callee.clone() else {
+                return Err(self.runtime_error("JIT resumed a non-closure"));
+            };
+            let slot_start = self.stack.len();
+            self.push(callee);
+            self.push_frame(closure, slot_start as isize);
+            self.restore_frame(slot_start + 1, buf, status)?;
+        }
+        if self.call_frames.len() > depth {
+            self.run_until(depth)?;
+        }
+        Ok(self.pop())
     }
 }

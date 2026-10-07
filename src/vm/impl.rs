@@ -43,6 +43,12 @@ impl VirtualMachine {
             method_journal: None,
             native_methods: Vec::new(),
             repl_env: GlobalEnv::default(),
+            #[cfg(feature = "jit")]
+            jit_depth: 0,
+            #[cfg(feature = "jit")]
+            jit_pending: None,
+            #[cfg(feature = "jit")]
+            jit_error: None,
             #[cfg(feature = "opcode-stats")]
             opcode_counts: [0; 256],
             #[cfg(feature = "opcode-stats")]
@@ -140,6 +146,7 @@ impl VirtualMachine {
             name: "<script>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            jit: std::cell::Cell::new(0),
         });
         let script_closure = Rc::new(ObjClosure {
             function: script_function,

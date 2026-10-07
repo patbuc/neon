@@ -59,6 +59,15 @@ pub struct VirtualMachine {
     native_methods: NativeMethodTable,
     /// Globals, symbols and slot layout the REPL has accumulated so far.
     repl_env: GlobalEnv,
+    /// Stack budget used by JIT code running on the Rust stack.
+    #[cfg(feature = "jit")]
+    jit_depth: i64,
+    /// A non-Int result handed from a JIT helper to the frame it rebuilds.
+    #[cfg(feature = "jit")]
+    jit_pending: Option<Value>,
+    /// The error a JIT helper hit, for the outermost compiled frame.
+    #[cfg(feature = "jit")]
+    jit_error: Option<RuntimeError>,
     /// Execution count per opcode byte, for the `opcode-stats` histogram.
     #[cfg(feature = "opcode-stats")]
     opcode_counts: [u64; 256],
@@ -87,6 +96,7 @@ impl VirtualMachine {
             name: "<test>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            jit: std::cell::Cell::new(0),
         });
         let test_closure = Rc::new(ObjClosure {
             function: test_function,

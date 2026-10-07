@@ -180,8 +180,8 @@ impl VirtualMachine {
         match callable_value {
             Value::Closure(closure) => {
                 #[cfg(feature = "jit")]
-                if let Some(jitted) = crate::vm::jit::compiled(&closure.function) {
-                    return self.run_jitted(arg_count, closure, jitted);
+                if closure.function.jit.get() != crate::vm::jit::NOT_COMPILABLE {
+                    return self.call_jit_candidate(arg_count, closure);
                 }
                 self.call_closure(arg_count, closure)
             }
@@ -316,7 +316,7 @@ impl VirtualMachine {
 
     /// Dispatches a call: the stack must already hold `[callable, args...]`.
     /// Used by `call_value`'s re-entrant native-to-Neon calls.
-    fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
+    pub(in crate::vm) fn dispatch_call(&mut self, arg_count: usize) -> OpResult {
         // Nothing reads the callee's slot again; locals start above it.
         let callable_index = self.stack.len() - 1 - arg_count;
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
@@ -1531,7 +1531,7 @@ impl VirtualMachine {
     /// The "used before initialization" message for `value`, if it's the
     /// uninitialized sentinel. A free function (no `self`) so callers can
     /// build it while still holding an immutable borrow of the stack.
-    fn uninitialized_error(value: &Value) -> Option<String> {
+    pub(in crate::vm) fn uninitialized_error(value: &Value) -> Option<String> {
         match value {
             Value::Uninitialized(name) => {
                 Some(format!("variable '{}' used before initialization", name))

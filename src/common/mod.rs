@@ -550,6 +550,9 @@ pub struct ObjFunction {
     pub name: String,
     pub arity: u8,
     pub chunk: Rc<Chunk>,
+    /// JIT state: 0 not tried yet, 1 not compilable, else the code address.
+    #[cfg_attr(not(feature = "jit"), allow(dead_code))]
+    pub(crate) jit: std::cell::Cell<usize>,
 }
 
 /// A function bundled with the values it closes over. This is the only
@@ -776,6 +779,7 @@ impl Value {
             name,
             arity,
             chunk: Rc::new(chunk),
+            jit: std::cell::Cell::new(0),
         }))
     }
 
