@@ -69,6 +69,15 @@ impl OpCode {
             OpCode::NoMatchArm => -1,
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
+            OpCode::PopJumpIfFalse => -1,
+            OpCode::GreaterJumpIfFalse
+            | OpCode::GreaterEqualJumpIfFalse
+            | OpCode::LessJumpIfFalse
+            | OpCode::LessEqualJumpIfFalse => -2,
+            OpCode::GreaterConstantJumpIfFalse
+            | OpCode::GreaterEqualConstantJumpIfFalse
+            | OpCode::LessConstantJumpIfFalse
+            | OpCode::LessEqualConstantJumpIfFalse => -1,
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
         }
@@ -76,7 +85,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 76] = [
+        const OPCODES: [OpCode; 85] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -153,6 +162,15 @@ impl OpCode {
             OpCode::TailCall,
             OpCode::TailInvoke,
             OpCode::IsNumber,
+            OpCode::PopJumpIfFalse,
+            OpCode::GreaterJumpIfFalse,
+            OpCode::GreaterEqualJumpIfFalse,
+            OpCode::LessJumpIfFalse,
+            OpCode::LessEqualJumpIfFalse,
+            OpCode::GreaterConstantJumpIfFalse,
+            OpCode::GreaterEqualConstantJumpIfFalse,
+            OpCode::LessConstantJumpIfFalse,
+            OpCode::LessEqualConstantJumpIfFalse,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -318,4 +336,36 @@ pub(crate) enum OpCode {
 
     /// Replaces the top of stack with whether it is an Int or a Number.
     IsNumber,
+
+    /// Pops the top of stack and jumps by the 32-bit operand if it was
+    /// false-like. Unlike `JumpIfFalse`, it leaves nothing behind.
+    PopJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` > `b`.
+    GreaterJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` >= `b`.
+    GreaterEqualJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` < `b`.
+    LessJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` <= `b`.
+    LessEqualJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` > the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
+    GreaterConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` >= the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
+    GreaterEqualConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` < the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
+    LessConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` <= the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
+    LessEqualConstantJumpIfFalse,
 }

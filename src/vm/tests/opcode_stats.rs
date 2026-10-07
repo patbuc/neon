@@ -77,7 +77,7 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
         (OpCode::GetLocal, OpCode::AddConstant),
         (OpCode::AddConstant, OpCode::Pop),
         (OpCode::Pop, OpCode::Loop),
-        (OpCode::Pop, OpCode::IteratorNext),
+        (OpCode::PopJumpIfFalse, OpCode::IteratorNext),
         (OpCode::Loop, OpCode::IteratorDone),
         (OpCode::IteratorNext, OpCode::GetLocal),
     ];

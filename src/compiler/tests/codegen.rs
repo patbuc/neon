@@ -64,23 +64,26 @@ fn test_else_if_bytecode_simple() {
     // Verify that bytecode contains the expected jump instructions
     // Pattern should be:
     // 1. First condition (x == 1)
-    // 2. JumpIfFalse (skip first then-branch)
+    // 2. PopJumpIfFalse (skip first then-branch)
     // 3. First then-branch code
     // 4. Jump (skip else-if and else)
     // 5. Second condition (x == 2) - this is the else-if
-    // 6. JumpIfFalse (skip second then-branch)
+    // 6. PopJumpIfFalse (skip second then-branch)
     // 7. Second then-branch code
     // 8. Jump (skip else)
     // 9. Else-branch code
 
     let ops = op_codes(&chunk);
-    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let pop_jump_if_false_count = ops
+        .iter()
+        .filter(|op| **op == OpCode::PopJumpIfFalse)
+        .count();
     let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
-    // We should have 2 JumpIfFalse (one for each condition)
+    // We should have 2 PopJumpIfFalse (one for each condition)
     assert_eq!(
-        jump_if_false_count, 2,
-        "Expected 2 JumpIfFalse instructions for if and else-if conditions"
+        pop_jump_if_false_count, 2,
+        "Expected 2 PopJumpIfFalse instructions for if and else-if conditions"
     );
 
     // We should have 2 Jump instructions (one after each then-branch)
@@ -110,13 +113,16 @@ fn test_else_if_bytecode_multiple_branches() {
     let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
-    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let less_jump_count = ops
+        .iter()
+        .filter(|op| **op == OpCode::LessConstantJumpIfFalse)
+        .count();
     let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
-    // We should have 4 JumpIfFalse (one for each condition)
+    // We should have 4 LessConstantJumpIfFalse (one for each condition)
     assert_eq!(
-        jump_if_false_count, 4,
-        "Expected 4 JumpIfFalse instructions for all conditions"
+        less_jump_count, 4,
+        "Expected 4 LessConstantJumpIfFalse instructions for all conditions"
     );
 
     // We should have 4 Jump instructions (one after each then-branch)
@@ -140,17 +146,20 @@ fn test_else_if_bytecode_without_final_else() {
     let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
-    let jump_if_false_count = ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count();
+    let pop_jump_if_false_count = ops
+        .iter()
+        .filter(|op| **op == OpCode::PopJumpIfFalse)
+        .count();
     let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
-    // We should have 2 JumpIfFalse (one for each condition)
+    // We should have 2 PopJumpIfFalse (one for each condition)
     assert_eq!(
-        jump_if_false_count, 2,
-        "Expected 2 JumpIfFalse instructions"
+        pop_jump_if_false_count, 2,
+        "Expected 2 PopJumpIfFalse instructions"
     );
 
-    // We should have 2 Jump instructions (one after each then-branch)
-    assert_eq!(jump_count, 2, "Expected 2 Jump instructions");
+    // Only the first then-branch needs a Jump: the else-if has no else to skip
+    assert_eq!(jump_count, 1, "Expected 1 Jump instruction");
 }
 
 #[test]
@@ -170,7 +179,7 @@ fn test_else_if_bytecode_jump_offsets() {
 
     let jumps: Vec<(usize, usize)> = instructions(&chunk)
         .into_iter()
-        .filter(|(_, op)| matches!(op, OpCode::JumpIfFalse | OpCode::Jump))
+        .filter(|(_, op)| matches!(op, OpCode::PopJumpIfFalse | OpCode::Jump))
         .map(|(pos, _)| (pos, pos + 5 + chunk.read_u32(pos + 1) as usize))
         .collect();
     assert_eq!(jumps.len(), 4);
@@ -671,11 +680,20 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::LessConstant
             | OpCode::LessEqualConstant => 2,
             OpCode::JumpIfFalse
+            | OpCode::PopJumpIfFalse
+            | OpCode::GreaterJumpIfFalse
+            | OpCode::GreaterEqualJumpIfFalse
+            | OpCode::LessJumpIfFalse
+            | OpCode::LessEqualJumpIfFalse
             | OpCode::JumpIfNotNil
             | OpCode::JumpIfNil
             | OpCode::Jump
             | OpCode::Loop => 4,
             OpCode::GetLocalField | OpCode::StoreLocalField => 4,
+            OpCode::GreaterConstantJumpIfFalse
+            | OpCode::GreaterEqualConstantJumpIfFalse
+            | OpCode::LessConstantJumpIfFalse
+            | OpCode::LessEqualConstantJumpIfFalse => 6,
             OpCode::Closure => {
                 // 2-byte constant index, then a 1-byte upvalue count and
                 // that many (is_local, index) pairs (1 + 2 bytes each).
@@ -692,6 +710,63 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
 
 fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
     instructions(chunk).into_iter().map(|(_, op)| op).collect()
+}
+
+#[test]
+fn and_or_keep_jump_if_false() {
+    let program = "val a = 1\nval b = 2\nval c = a && b\nval d = a || b\n";
+    let ops = op_codes(&compile(program).unwrap());
+
+    assert_eq!(
+        2,
+        ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count()
+    );
+    assert!(!ops.contains(&OpCode::PopJumpIfFalse), "{ops:?}");
+}
+
+#[test]
+fn test_two_operand_fused_jump_bytecode() {
+    let program = "val a = 1\nval b = 2\nif a < b { print(1) }\n";
+    let chunk = compile(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      1 Constant 00 '<uninitialized>'
+0003      2 Constant 01 '<uninitialized>'
+0006      1 Constant 02 '1'
+0009      | SetLocal 00
+000c      | Pop
+000d      2 Constant 03 '2'
+0010      | SetLocal 01
+0013      | Pop
+0014      3 GetLocal 00
+0017      | GetLocal 01
+001a      | LessJumpIfFalse 001a -> 0028
+001f      | Constant 04 '<native fn print>'
+0022      | Constant 02 '1'
+0025      | Call (args: 1)
+0027      | Pop
+0028      4 Nil
+0029      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble(&chunk), expected);
+}
+
+#[test]
+fn test_comparison_conditions_fuse_into_jumps() {
+    let program = "val a = 1\nval b = 2\nif a < b { print(1) }\nwhile a >= 2.5 { print(2) }\n";
+    let ops = op_codes(&compile(program).unwrap());
+
+    assert!(ops.contains(&OpCode::LessJumpIfFalse));
+    assert!(ops.contains(&OpCode::GreaterEqualConstantJumpIfFalse));
+    for op in [
+        OpCode::Less,
+        OpCode::GreaterEqualConstant,
+        OpCode::PopJumpIfFalse,
+    ] {
+        assert!(!ops.contains(&op), "unexpected {op:?} in {ops:?}");
+    }
 }
 
 #[test]
@@ -850,34 +925,27 @@ fn test_while_break_continue_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 GetLocal 00
-000d      | LessConstant 02 '10'
-0010      | JumpIfFalse 0010 -> 0053
-0015      | Pop
-0016      4 GetLocal 00
-0019      | AddConstant 03 '1'
-001c      | StoreLocal 00
-001f      5 GetLocal 00
-0022      | Constant 04 '2'
-0025      | Equal
-0026      | JumpIfFalse 0026 -> 0031
-002b      | Pop
-002c      | Jump 002c -> 004e
-0031      | Pop
-0032      6 GetLocal 00
-0035      | Constant 05 '5'
-0038      | Equal
-0039      | JumpIfFalse 0039 -> 0044
-003e      | Pop
-003f      | Jump 003f -> 0054
-0044      | Pop
-0045      7 Constant 06 '<native fn print>'
-0048      | GetLocal 00
-004b      | Call (args: 1)
-004d      6 Pop
-004e      3 Loop 004e -> 000a
-0053      | Pop
-0054      9 Nil
-0055      | Return
+000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004d
+0014      4 GetLocal 00
+0017      | AddConstant 03 '1'
+001a      | StoreLocal 00
+001d      5 GetLocal 00
+0020      | Constant 04 '2'
+0023      | Equal
+0024      | PopJumpIfFalse 0024 -> 002e
+0029      | Jump 0029 -> 0048
+002e      6 GetLocal 00
+0031      | Constant 05 '5'
+0034      | Equal
+0035      | PopJumpIfFalse 0035 -> 003f
+003a      | Jump 003a -> 004d
+003f      7 Constant 06 '<native fn print>'
+0042      | GetLocal 00
+0045      | Call (args: 1)
+0047      6 Pop
+0048      3 Loop 0048 -> 000a
+004d      9 Nil
+004e      | Return
 === </main> ===
 "#;
 
@@ -902,20 +970,18 @@ fn test_for_in_bytecode() {
 0009      | CreateArray (elements: 3)
 000c      | GetIterator (pairs: false)
 000e      | IteratorDone 00
-0011      | JumpIfFalse 0011 -> 0029
-0016      | Pop
-0017      | IteratorNext 00
-001a      3 Constant 03 '<native fn print>'
-001d      | GetLocal 02
-0020      | Call (args: 1)
-0022      2 Pop
-0023      | Pop
-0024      | Loop 0024 -> 000e
+0011      | PopJumpIfFalse 0011 -> 0028
+0016      | IteratorNext 00
+0019      3 Constant 03 '<native fn print>'
+001c      | GetLocal 02
+001f      | Call (args: 1)
+0021      2 Pop
+0022      | Pop
+0023      | Loop 0023 -> 000e
+0028      | Pop
 0029      | Pop
-002a      | Pop
-002b      | Pop
-002c      5 Nil
-002d      | Return
+002a      5 Nil
+002b      | Return
 === </main> ===
 "#;
 
@@ -951,30 +1017,27 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | LessConstant 03 '3'
-0018      | JumpIfFalse 0018 -> 0044
-001d      | Pop
-001e      5 GetLocal 01
-0021      | AddConstant 04 '1'
-0024      | StoreLocal 01
-0027      7 GetLocal 01
-002a      | Constant 05 '10'
-002d      | Multiply
-002e      8 Closure 06 '<fn anonymous>'
+0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0042
+001c      5 GetLocal 01
+001f      | AddConstant 04 '1'
+0022      | StoreLocal 01
+0025      7 GetLocal 01
+0028      | Constant 05 '10'
+002b      | Multiply
+002c      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0035      | StoreLocal 00
-0038      9 CloseUpvalue
-0039      | Jump 0039 -> 0045
-003e      6 CloseUpvalue
-003f      4 Loop 003f -> 0012
-0044      | Pop
-0045     12 Constant 07 '<native fn print>'
-0048      | GetLocal 00
-004b      | Call (args: 0)
-004d      | Call (args: 1)
-004f     11 Pop
-0050     13 Nil
-0051      | Return
+0033      | StoreLocal 00
+0036      9 CloseUpvalue
+0037      | Jump 0037 -> 0042
+003c      6 CloseUpvalue
+003d      4 Loop 003d -> 0012
+0042     12 Constant 07 '<native fn print>'
+0045      | GetLocal 00
+0048      | Call (args: 0)
+004a      | Call (args: 1)
+004c     11 Pop
+004d     13 Nil
+004e      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
@@ -1025,21 +1088,17 @@ fn test_if_break_skips_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0022
-0006      | Pop
-0007      3 True
-0008      | JumpIfFalse 0008 -> 0013
-000d      | Pop
-000e      | Jump 000e -> 0023
-0013      | Pop
-0014      4 Constant 00 '<native fn print>'
-0017      | Constant 01 '1'
-001a      | Call (args: 1)
-001c      3 Pop
-001d      2 Loop 001d -> 0000
-0022      | Pop
-0023      6 Nil
-0024      | Return
+0001      | PopJumpIfFalse 0001 -> 001f
+0006      3 True
+0007      | PopJumpIfFalse 0007 -> 0011
+000c      | Jump 000c -> 001f
+0011      4 Constant 00 '<native fn print>'
+0014      | Constant 01 '1'
+0017      | Call (args: 1)
+0019      3 Pop
+001a      2 Loop 001a -> 0000
+001f      6 Nil
+0020      | Return
 === </main> ===
 "#;
 
@@ -1058,21 +1117,17 @@ fn test_if_continue_skips_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0022
-0006      | Pop
-0007      3 True
-0008      | JumpIfFalse 0008 -> 0013
-000d      | Pop
-000e      | Jump 000e -> 001d
-0013      | Pop
-0014      4 Constant 00 '<native fn print>'
-0017      | Constant 01 '1'
-001a      | Call (args: 1)
-001c      3 Pop
-001d      2 Loop 001d -> 0000
-0022      | Pop
-0023      6 Nil
-0024      | Return
+0001      | PopJumpIfFalse 0001 -> 001f
+0006      3 True
+0007      | PopJumpIfFalse 0007 -> 0011
+000c      | Jump 000c -> 001a
+0011      4 Constant 00 '<native fn print>'
+0014      | Constant 01 '1'
+0017      | Call (args: 1)
+0019      3 Pop
+001a      2 Loop 001a -> 0000
+001f      6 Nil
+0020      | Return
 === </main> ===
 "#;
 
@@ -1104,18 +1159,16 @@ fn test_if_return_skips_jump() {
 === </main> ===
 === <function_f>  ===
 0000      3 True
-0001      | JumpIfFalse 0001 -> 000b
-0006      | Pop
-0007      | Constant 00 '1'
-000a      | Return
-000b      | Pop
-000c      4 Constant 01 '<native fn print>'
-000f      | Constant 00 '1'
-0012      | Call (args: 1)
-0014      3 Pop
-0015      5 Constant 00 '1'
-0018      6 Nil
-0019      | Return
+0001      | PopJumpIfFalse 0001 -> 000a
+0006      | Constant 00 '1'
+0009      | Return
+000a      4 Constant 01 '<native fn print>'
+000d      | Constant 00 '1'
+0010      | Call (args: 1)
+0012      3 Pop
+0013      5 Constant 00 '1'
+0016      6 Nil
+0017      | Return
 === </function_f> ===
 "#;
 
@@ -1123,7 +1176,7 @@ fn test_if_return_skips_jump() {
 }
 
 #[test]
-fn test_if_fallthrough_emits_jump() {
+fn test_if_without_else_skips_jump() {
     let program = r#"
     if (true) {
         print(1)
@@ -1133,16 +1186,13 @@ fn test_if_fallthrough_emits_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0015
-0006      | Pop
-0007      3 Constant 00 '<native fn print>'
-000a      | Constant 01 '1'
-000d      | Call (args: 1)
-000f      2 Pop
-0010      | Jump 0010 -> 0016
-0015      | Pop
-0016      5 Nil
-0017      | Return
+0001      | PopJumpIfFalse 0001 -> 000f
+0006      3 Constant 00 '<native fn print>'
+0009      | Constant 01 '1'
+000c      | Call (args: 1)
+000e      2 Pop
+000f      5 Nil
+0010      | Return
 === </main> ===
 "#;
 
@@ -1162,20 +1212,18 @@ fn test_if_else_fallthrough_emits_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0015
-0006      | Pop
-0007      3 Constant 00 '<native fn print>'
-000a      | Constant 01 '1'
-000d      | Call (args: 1)
-000f      2 Pop
-0010      | Jump 0010 -> 001f
-0015      | Pop
-0016      5 Constant 02 '<native fn print>'
-0019      | Constant 03 '2'
-001c      | Call (args: 1)
-001e      4 Pop
-001f      7 Nil
-0020      | Return
+0001      | PopJumpIfFalse 0001 -> 0014
+0006      3 Constant 00 '<native fn print>'
+0009      | Constant 01 '1'
+000c      | Call (args: 1)
+000e      2 Pop
+000f      | Jump 000f -> 001d
+0014      5 Constant 02 '<native fn print>'
+0017      | Constant 03 '2'
+001a      | Call (args: 1)
+001c      4 Pop
+001d      7 Nil
+001e      | Return
 === </main> ===
 "#;
 
@@ -1197,25 +1245,21 @@ fn test_if_block_ending_in_break_skips_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 002b
-0006      | Pop
-0007      3 True
-0008      | JumpIfFalse 0008 -> 001c
-000d      | Pop
-000e      4 Constant 00 '<native fn print>'
-0011      | Constant 01 '1'
-0014      | Call (args: 1)
-0016      3 Pop
-0017      5 Jump 0017 -> 002c
-001c      3 Pop
-001d      7 Constant 02 '<native fn print>'
-0020      | Constant 03 '2'
-0023      | Call (args: 1)
-0025      6 Pop
-0026      2 Loop 0026 -> 0000
-002b      | Pop
-002c      9 Nil
-002d      | Return
+0001      | PopJumpIfFalse 0001 -> 0028
+0006      3 True
+0007      | PopJumpIfFalse 0007 -> 001a
+000c      4 Constant 00 '<native fn print>'
+000f      | Constant 01 '1'
+0012      | Call (args: 1)
+0014      3 Pop
+0015      5 Jump 0015 -> 0028
+001a      7 Constant 02 '<native fn print>'
+001d      | Constant 03 '2'
+0020      | Call (args: 1)
+0022      6 Pop
+0023      2 Loop 0023 -> 0000
+0028      9 Nil
+0029      | Return
 === </main> ===
 "#;
 
@@ -1233,21 +1277,17 @@ fn test_if_break_with_else_skips_jump() {
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0022
-0006      | Pop
-0007      3 True
-0008      | JumpIfFalse 0008 -> 0013
-000d      | Pop
-000e      | Jump 000e -> 0023
-0013      | Pop
-0014      | Constant 00 '<native fn print>'
-0017      | Constant 01 '2'
-001a      | Call (args: 1)
-001c      | Pop
-001d      2 Loop 001d -> 0000
-0022      | Pop
-0023      5 Nil
-0024      | Return
+0001      | PopJumpIfFalse 0001 -> 001f
+0006      3 True
+0007      | PopJumpIfFalse 0007 -> 0011
+000c      | Jump 000c -> 001f
+0011      | Constant 00 '<native fn print>'
+0014      | Constant 01 '2'
+0017      | Call (args: 1)
+0019      | Pop
+001a      2 Loop 001a -> 0000
+001f      5 Nil
+0020      | Return
 === </main> ===
 "#;
 
@@ -1258,29 +1298,27 @@ fn test_if_break_with_else_skips_jump() {
 fn test_if_nested_exit_emits_jump() {
     let program = r#"
     while (true) {
-        if (true) { if (true) { break } }
+        if (true) { if (true) { break } } else { print(2) }
     }
     "#;
     let chunk = compile(program).unwrap();
 
     let expected = r#"=== <main>  ===
 0000      2 True
-0001      | JumpIfFalse 0001 -> 0026
-0006      | Pop
-0007      3 True
-0008      | JumpIfFalse 0008 -> 0020
-000d      | Pop
-000e      | True
-000f      | JumpIfFalse 000f -> 001a
-0014      | Pop
-0015      | Jump 0015 -> 0027
-001a      | Pop
-001b      | Jump 001b -> 0021
-0020      | Pop
-0021      2 Loop 0021 -> 0000
-0026      | Pop
-0027      5 Nil
-0028      | Return
+0001      | PopJumpIfFalse 0001 -> 002a
+0006      3 True
+0007      | PopJumpIfFalse 0007 -> 001c
+000c      | True
+000d      | PopJumpIfFalse 000d -> 0017
+0012      | Jump 0012 -> 002a
+0017      | Jump 0017 -> 0025
+001c      | Constant 00 '<native fn print>'
+001f      | Constant 01 '2'
+0022      | Call (args: 1)
+0024      | Pop
+0025      2 Loop 0025 -> 0000
+002a      5 Nil
+002b      | Return
 === </main> ===
 "#;
 

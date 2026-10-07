@@ -1,0 +1,134 @@
+// Expected:
+// < int: then else else
+// < float: then else else
+// < mixed: then else else
+// < const: then else else
+// <= int: then then else
+// <= float: then then else
+// <= mixed: then then else
+// <= const: then then else
+// > int: else else then
+// > float: else else then
+// > mixed: else else then
+// > const: else else then
+// >= int: else then then
+// >= float: else then then
+// >= mixed: else then then
+// >= const: else then then
+// strings: then else
+// nan: else else else else
+// while: 3 3
+// ternary: lt ge
+// guard: small big
+// value: true false
+// before
+
+// Expected runtime error: Operands of a comparison must be two numbers or two strings, got string and number
+
+fn pick(c) = c ? "then" : "else"
+
+fn lt(a, b) {
+    if a < b {
+        return "then"
+    }
+    "else"
+}
+
+fn le(a, b) {
+    if a <= b {
+        return "then"
+    }
+    "else"
+}
+
+fn gt(a, b) {
+    if a > b {
+        return "then"
+    }
+    "else"
+}
+
+fn ge(a, b) {
+    if a >= b {
+        return "then"
+    }
+    "else"
+}
+
+fn lt_const(a) {
+    if a < 2 {
+        return "then"
+    }
+    "else"
+}
+
+fn le_const(a) {
+    if a <= 2.0 {
+        return "then"
+    }
+    "else"
+}
+
+fn gt_const(a) {
+    if a > 2 {
+        return "then"
+    }
+    "else"
+}
+
+fn ge_const(a) {
+    if a >= 2.0 {
+        return "then"
+    }
+    "else"
+}
+
+print("< int: ${lt(1, 2)} ${lt(2, 2)} ${lt(3, 2)}")
+print("< float: ${lt(1.5, 2.5)} ${lt(2.5, 2.5)} ${lt(3.5, 2.5)}")
+print("< mixed: ${lt(1, 2.0)} ${lt(2.0, 2)} ${lt(3, 2.0)}")
+print("< const: ${lt_const(1)} ${lt_const(2.0)} ${lt_const(3.5)}")
+print("<= int: ${le(1, 2)} ${le(2, 2)} ${le(3, 2)}")
+print("<= float: ${le(1.5, 2.5)} ${le(2.5, 2.5)} ${le(3.5, 2.5)}")
+print("<= mixed: ${le(1, 2.0)} ${le(2.0, 2)} ${le(3, 2.0)}")
+print("<= const: ${le_const(1)} ${le_const(2)} ${le_const(3.5)}")
+print("> int: ${gt(1, 2)} ${gt(2, 2)} ${gt(3, 2)}")
+print("> float: ${gt(1.5, 2.5)} ${gt(2.5, 2.5)} ${gt(3.5, 2.5)}")
+print("> mixed: ${gt(1, 2.0)} ${gt(2.0, 2)} ${gt(3, 2.0)}")
+print("> const: ${gt_const(1.5)} ${gt_const(2.0)} ${gt_const(3)}")
+print(">= int: ${ge(1, 2)} ${ge(2, 2)} ${ge(3, 2)}")
+print(">= float: ${ge(1.5, 2.5)} ${ge(2.5, 2.5)} ${ge(3.5, 2.5)}")
+print(">= mixed: ${ge(1, 2.0)} ${ge(2.0, 2)} ${ge(3, 2.0)}")
+print(">= const: ${ge_const(1)} ${ge_const(2)} ${ge_const(3.5)}")
+print("strings: ${lt("a", "b")} ${lt("b", "a")}")
+
+val nan = 0.0 / 0.0
+print("nan: ${lt(nan, 1)} ${le(nan, nan)} ${gt(1, nan)} ${ge_const(nan)}")
+
+var i = 0
+while i < 3 {
+    i += 1
+}
+var j = 0
+while j <= 2.5 {
+    j += 1
+}
+print("while: ${i} ${j}")
+
+print("ternary: ${1 < 2 ? "lt" : "ge"} ${2 < 1 ? "lt" : "ge"}")
+
+fn size(n) {
+    match n {
+        x if x < 10 -> "small"
+        _ -> "big"
+    }
+}
+
+print("guard: ${size(3)} ${size(30)}")
+
+val one = 1
+print("value: ${one < 2} ${one > 2}")
+
+print("before")
+if "a" < 1 {
+    print("unreachable")
+}

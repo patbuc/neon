@@ -37,6 +37,53 @@ fn jumps_decode_to_instruction_indices() {
 }
 
 #[test]
+fn pop_jump_if_false_decodes_to_instruction_index() {
+    let mut chunk = Chunk::new("pop jump");
+    chunk.write_op_code(OpCode::Nil, 1, 1);
+    let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 2, 1);
+    chunk.write_op_code(OpCode::Nil, 3, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Nil,
+            Instr::PopJumpIfFalse(3),
+            Instr::Nil,
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn constant_compare_jump_decodes_constant_and_target() {
+    let mut chunk = Chunk::new("compare jump");
+    chunk.write_op_code(OpCode::Nil, 1, 1);
+    let jump = chunk.emit_constant_jump(OpCode::LessConstantJumpIfFalse, 9, 2, 1);
+    chunk.write_op_code(OpCode::Nil, 3, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Nil,
+            Instr::LessConstantJumpIfFalse {
+                constant: 9,
+                target: 3,
+            },
+            Instr::Nil,
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
+
+#[test]
 fn closure_upvalues_decode_into_side_table() {
     let mut chunk = Chunk::new("closure");
     chunk.write_indexed(OpCode::Closure, 3, 1, 1);

@@ -302,6 +302,63 @@ impl VirtualMachine {
                         continue;
                     }
                 }
+                Instr::PopJumpIfFalse(target) => {
+                    let condition = self.pop();
+                    let is_false = is_false_like!(condition);
+                    condition.discard();
+                    if is_false {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::GreaterJumpIfFalse(target) => {
+                    if !self.op_compare_and_pop(Comparison::Greater)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::GreaterEqualJumpIfFalse(target) => {
+                    if !self.op_compare_and_pop(Comparison::GreaterEqual)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LessJumpIfFalse(target) => {
+                    if !self.op_compare_and_pop(Comparison::Less)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LessEqualJumpIfFalse(target) => {
+                    if !self.op_compare_and_pop(Comparison::LessEqual)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::GreaterConstantJumpIfFalse { constant, target } => {
+                    if !self.op_compare_constant_and_pop(constant, Comparison::Greater)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::GreaterEqualConstantJumpIfFalse { constant, target } => {
+                    if !self.op_compare_constant_and_pop(constant, Comparison::GreaterEqual)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LessConstantJumpIfFalse { constant, target } => {
+                    if !self.op_compare_constant_and_pop(constant, Comparison::Less)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LessEqualConstantJumpIfFalse { constant, target } => {
+                    if !self.op_compare_constant_and_pop(constant, Comparison::LessEqual)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
                 Instr::JumpIfNotNil(target) => {
                     if !matches!(self.peek(0), Value::Nil) {
                         self.ip = target as usize;

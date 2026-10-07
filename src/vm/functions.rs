@@ -736,6 +736,43 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Pops both operands and returns whether `a <wanted> b`, for a
+    /// comparison fused into a conditional jump.
+    #[inline(always)]
+    pub(in crate::vm) fn op_compare_and_pop(
+        &mut self,
+        wanted: Comparison,
+    ) -> Result<bool, RuntimeError> {
+        // [.., a, b] -> [..]
+        let b = self.pop();
+        let a = self.pop();
+        let is_match = match Self::compare_values(&a, &b, &wanted) {
+            Ok(is_match) => is_match,
+            Err(message) => return Err(self.runtime_error(message)),
+        };
+        b.discard();
+        a.discard();
+        Ok(is_match)
+    }
+
+    /// Like `op_compare_and_pop`, with constant `index` as the right operand.
+    #[inline(always)]
+    pub(in crate::vm) fn op_compare_constant_and_pop(
+        &mut self,
+        index: u16,
+        wanted: Comparison,
+    ) -> Result<bool, RuntimeError> {
+        // [.., a] -> [..]
+        let a = self.pop();
+        let is_match = match Self::compare_values(&a, self.chunk.constant(index as usize), &wanted)
+        {
+            Ok(is_match) => is_match,
+            Err(message) => return Err(self.runtime_error(message)),
+        };
+        a.discard();
+        Ok(is_match)
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_equal(&mut self) {
         let b = self.pop();
@@ -1875,7 +1912,7 @@ impl VirtualMachine {
     /// IteratorDone: Check if iteration is complete for the hidden iterator
     /// slots starting at the given local slot (collection, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
-    /// This inverted logic allows JumpIfFalse to exit the loop when done
+    /// This inverted logic allows PopJumpIfFalse to exit the loop when done
     #[inline(always)]
     pub(in crate::vm) fn op_iterator_done(&mut self, slot: u16) -> OpResult {
         let slot = self.read_iterator_slot(slot)?;
