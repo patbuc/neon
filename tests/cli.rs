@@ -1342,52 +1342,30 @@ fn help_lists_eval_flag() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn dash_runs_program_from_stdin() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
-        .arg("-")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to spawn neon binary");
-
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"print(1 + 2)\n")
-        .expect("Failed to write stdin");
-
-    let output = child.wait_with_output().expect("Failed to wait on child");
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print(1 + 2)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
 
     assert!(output.status.success());
     assert_eq!("3\n", String::from_utf8_lossy(&output.stdout));
 }
 
 #[cfg(not(feature = "disassemble"))]
-#[allow(clippy::expect_used)]
-fn run_with_stdin(args: &[&str], source: &str) -> std::process::Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to spawn neon binary");
-
-    child
-        .stdin
-        .take()
-        .expect("Child stdin was not piped")
-        .write_all(source.as_bytes())
-        .expect("Failed to write stdin");
-
-    child.wait_with_output().expect("Failed to wait on child")
-}
-
-#[cfg(not(feature = "disassemble"))]
 #[test]
 fn dash_passes_trailing_arguments_as_args() {
-    let output = run_with_stdin(&["-", "a", "b"], "print(args)\n");
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-", "a", "b"]);
+        },
+        b"print(args)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
 
     assert!(output.status.success());
     assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
@@ -1396,7 +1374,14 @@ fn dash_passes_trailing_arguments_as_args() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn dash_reports_compile_error_with_exit_65() {
-    let output = run_with_stdin(&["-"], "print(missing)\n");
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print(missing)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(Some(65), output.status.code());
@@ -1411,7 +1396,14 @@ fn dash_reports_compile_error_with_exit_65() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn dash_reports_runtime_error_with_exit_70() {
-    let output = run_with_stdin(&["-"], "print([1][5])\n");
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print([1][5])\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
 
     assert_eq!(Some(70), output.status.code());
     assert!(!output.stderr.is_empty());
@@ -1420,7 +1412,14 @@ fn dash_reports_runtime_error_with_exit_70() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn dash_rejects_file_module_import() {
-    let output = run_with_stdin(&["-"], "use \"utils\" as u\nprint(u.double(1))\n");
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"use \"utils\" as u\nprint(u.double(1))\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(Some(65), output.status.code());
