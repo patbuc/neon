@@ -1,0 +1,9 @@
+// Expected compile error: impl blocks must be in the struct's own module
+
+import "utils"
+
+impl utils.Point {
+    fn m(self) {
+        return 1
+    }
+}

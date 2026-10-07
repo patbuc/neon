@@ -264,6 +264,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
+        CompilationErrorKind::ImplOutsideOwnModule => vec![(
+            "impl a.B {\n}\n".to_string(),
+            Some("impl blocks must be in the struct's own module"),
+        )],
         CompilationErrorKind::OptionalDotOnType => {
             vec![("Math?.abs(-3)\n".to_string(), Some("'?.'"))]
         }

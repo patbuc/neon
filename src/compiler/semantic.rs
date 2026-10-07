@@ -430,13 +430,23 @@ impl SemanticAnalyzer {
         // Second pass, after all structs are declared: impl blocks.
         for stmt in statements {
             if let Stmt::Impl {
+                module_name,
                 type_name,
                 type_id,
                 methods,
                 location,
             } = stmt
             {
-                self.collect_impl_block(type_name, *type_id, methods, *location);
+                if module_name.is_some() {
+                    self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::ImplOutsideOwnModule,
+                        "impl blocks must be in the struct's own module",
+                        *location,
+                    ));
+                } else {
+                    self.collect_impl_block(type_name, *type_id, methods, *location);
+                }
             }
         }
     }
@@ -1084,6 +1094,7 @@ impl SemanticAnalyzer {
                 }
             }
             Stmt::Impl {
+                module_name,
                 type_name,
                 methods,
                 location,
@@ -1098,9 +1109,10 @@ impl SemanticAnalyzer {
                         "'impl' blocks are only allowed at the top level".to_string(),
                         *location,
                     ));
-                } else if self.is_struct_type(type_name)
-                    || crate::common::method_registry::BUILTIN_TYPE_NAMES
-                        .contains(&type_name.as_str())
+                } else if module_name.is_none()
+                    && (self.is_struct_type(type_name)
+                        || crate::common::method_registry::BUILTIN_TYPE_NAMES
+                            .contains(&type_name.as_str()))
                 {
                     // An impl for an undefined type never registered its
                     // methods, so resolving bodies would only add follow-on

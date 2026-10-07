@@ -819,6 +819,14 @@ fn test_parse_impl_block() {
 }
 
 #[test]
+fn test_parse_impl_on_qualified_name_is_rejected() {
+    assert_compile_error(
+        "impl a.B {\n}\n",
+        "impl blocks must be in the struct's own module",
+    );
+}
+
+#[test]
 fn test_parse_impl_block_rejects_non_fn_item() {
     let program = r#"
         impl Point {
