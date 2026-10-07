@@ -50,6 +50,13 @@ pub(crate) struct MethodSignature {
     takes_self: bool,
 }
 
+/// The methods and fields of a struct, local or exported.
+#[derive(Default)]
+struct StructMembers {
+    methods: HashMap<String, MethodSignature>,
+    fields: Vec<String>,
+}
+
 /// Which syntactic form a method call used.
 #[derive(Clone, Copy, PartialEq)]
 enum MethodCallKind {
@@ -2095,8 +2102,10 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
+                let members = self.local_struct_members(&struct_name);
                 self.validate_struct_method_call(
                     &struct_name,
+                    &members,
                     method,
                     arguments.len(),
                     location,
@@ -2870,14 +2879,13 @@ impl SemanticAnalyzer {
     fn validate_struct_method_call(
         &mut self,
         struct_name: &str,
+        members: &StructMembers,
         method: &str,
         arg_count: usize,
         location: SourceLocation,
         call_kind: MethodCallKind,
     ) {
-        let signature = self
-            .struct_methods_of(struct_name)
-            .and_then(|methods| methods.get(method).copied());
+        let signature = members.methods.get(method).copied();
 
         if let Some(signature) = signature {
             match (call_kind, signature.takes_self) {
@@ -2928,14 +2936,11 @@ impl SemanticAnalyzer {
         // No method by this name; a field can still be called (its value is
         // callable or not only known at runtime). Fields only exist on
         // instances, so a static call keeps erroring.
-        if call_kind == MethodCallKind::Instance && self.struct_has_field(struct_name, method) {
+        if call_kind == MethodCallKind::Instance && members.fields.iter().any(|f| f == method) {
             return;
         }
 
-        let candidates: Vec<String> = self
-            .struct_methods_of(struct_name)
-            .map(|methods| methods.keys().cloned().collect())
-            .unwrap_or_default();
+        let candidates: Vec<String> = members.methods.keys().cloned().collect();
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
 
         let error_message = unknown_method_error(struct_name, method, &candidate_refs, None);
@@ -2961,8 +2966,10 @@ impl SemanticAnalyzer {
         }
 
         if self.is_struct_type(object_type) {
+            let members = self.local_struct_members(object_type);
             self.validate_struct_method_call(
                 object_type,
+                &members,
                 method,
                 arg_count,
                 location,
@@ -3027,13 +3034,27 @@ impl SemanticAnalyzer {
     /// True when `struct_name` is a known struct type declaring a field
     /// named `field`.
     fn struct_has_field(&self, struct_name: &str, field: &str) -> bool {
-        matches!(
-            self.symbol_table.resolve(struct_name),
+        self.struct_fields(struct_name).iter().any(|f| f == field)
+    }
+
+    fn local_struct_members(&self, struct_name: &str) -> StructMembers {
+        StructMembers {
+            methods: self
+                .struct_methods_of(struct_name)
+                .cloned()
+                .unwrap_or_default(),
+            fields: self.struct_fields(struct_name),
+        }
+    }
+
+    fn struct_fields(&self, struct_name: &str) -> Vec<String> {
+        match self.symbol_table.resolve(struct_name) {
             Some(Symbol {
                 kind: SymbolKind::Struct { fields },
                 ..
-            }) if fields.iter().any(|f| f == field)
-        )
+            }) => fields.clone(),
+            _ => Vec::new(),
+        }
     }
 
     /// Check that a field access/set on a receiver of statically known
