@@ -1,0 +1,29 @@
+// Expected:
+// 2
+// true
+// 1.5
+// true
+// -1.5
+// true
+// 2.5
+// true
+// 1.5
+// true
+
+val i = 9
+val f = 9.5
+val nf = -9.5
+val seven = 7
+val twoAndHalf = 2.5
+val four = 4.0
+
+print(i % 7)
+print(i % 7 == i % seven)
+print(f % 4.0)
+print(f % 4.0 == f % four)
+print(nf % 4.0)
+print(nf % 4.0 == nf % four)
+print(f % 7)
+print(f % 7 == f % seven)
+print(i % 2.5)
+print(i % 2.5 == i % twoAndHalf)

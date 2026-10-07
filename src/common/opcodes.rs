@@ -62,7 +62,9 @@ impl OpCode {
             | OpCode::GreaterConstant
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
-            | OpCode::LessEqualConstant => 0,
+            | OpCode::LessEqualConstant
+            | OpCode::ModuloConstant
+            | OpCode::MultiplyConstant => 0,
             OpCode::Dup => 1,
             OpCode::Dup2 => 2,
             OpCode::JumpIfNotNil | OpCode::JumpIfNil => 0,
@@ -85,7 +87,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 85] = [
+        const OPCODES: [OpCode; 87] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -171,6 +173,8 @@ impl OpCode {
             OpCode::GreaterEqualConstantJumpIfFalse,
             OpCode::LessConstantJumpIfFalse,
             OpCode::LessEqualConstantJumpIfFalse,
+            OpCode::ModuloConstant,
+            OpCode::MultiplyConstant,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -368,4 +372,10 @@ pub(crate) enum OpCode {
     /// Pops `a` and jumps by the 32-bit operand unless `a` <= the number
     /// constant at the 16-bit pool index that precedes the jump operand.
     LessEqualConstantJumpIfFalse,
+
+    /// `Modulo` by a number literal.
+    ModuloConstant,
+
+    /// `Multiply` by a number literal.
+    MultiplyConstant,
 }

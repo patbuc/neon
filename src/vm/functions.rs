@@ -1106,6 +1106,57 @@ impl VirtualMachine {
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_modulo_constant(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
+        let slot = self.stack.last_mut().expect("operand is on the stack");
+        match (&mut *slot, self.chunk.constant(index)) {
+            (Value::Int(a), &Value::Int(c)) => {
+                if let Some(r) = a.checked_rem(c) {
+                    *a = r;
+                    return Ok(());
+                }
+            }
+            (Value::Number(a), &Value::Number(c)) => {
+                *a %= c;
+                return Ok(());
+            }
+            _ => {}
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_modulo()?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn op_multiply_constant(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
+        let slot = self.stack.last_mut().expect("operand is on the stack");
+        match (&mut *slot, self.chunk.constant(index)) {
+            (Value::Number(a), &Value::Number(c)) => {
+                *a *= c;
+                return Ok(());
+            }
+            (Value::Int(a), &Value::Int(c)) => {
+                return match a.checked_mul(c) {
+                    Some(r) => {
+                        *a = r;
+                        Ok(())
+                    }
+                    None => Err(self.overflow_error("*")),
+                };
+            }
+            _ => {}
+        }
+        let constant = self.chunk.read_constant(index);
+        self.push(constant);
+        self.op_multiply()?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_subtract_constant(&mut self, index: u16) -> OpResult {
         let index = index as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");

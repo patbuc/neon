@@ -1,0 +1,8 @@
+// Expected:
+// before
+
+// Expected runtime error: modulo by zero
+
+val x = 5
+print("before")
+print(x % 0)
