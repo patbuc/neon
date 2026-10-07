@@ -91,17 +91,9 @@ impl ErrorRenderer {
         output.push_str(&self.render_snippet(&snippet, error.location.column));
 
         if let Some(help) = &error.help {
-            let line_num_width = snippet
-                .lines
-                .iter()
-                .map(|l| l.line_number)
-                .max()
-                .unwrap_or(0)
-                .to_string()
-                .len();
             output.push_str(&format!(
                 "{}{} {}: {}\n",
-                " ".repeat(line_num_width + 2),
+                " ".repeat(snippet.line_num_width() + 2),
                 self.colorize("=", "blue", true),
                 self.colorize("help", "cyan", true),
                 help
@@ -138,14 +130,7 @@ impl ErrorRenderer {
     fn render_snippet(&self, snippet: &SourceSnippet, error_column: u32) -> String {
         let mut output = String::new();
 
-        // Calculate max line number width for alignment
-        let max_line_num = snippet
-            .lines
-            .iter()
-            .map(|l| l.line_number)
-            .max()
-            .unwrap_or(0);
-        let line_num_width = max_line_num.to_string().len();
+        let line_num_width = snippet.line_num_width();
 
         for line in &snippet.lines {
             // Line number and content
@@ -227,6 +212,18 @@ struct SourceSnippet {
     lines: Vec<SourceLine>,
 }
 
+impl SourceSnippet {
+    fn line_num_width(&self) -> usize {
+        self.lines
+            .iter()
+            .map(|l| l.line_number)
+            .max()
+            .unwrap_or(0)
+            .to_string()
+            .len()
+    }
+}
+
 struct SourceLine {
     line_number: u32,
     content: String,
@@ -262,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_help_as_a_help_line_after_the_source_excerpt() {
+    fn renders_help() {
         let renderer = ErrorRenderer::new(false);
         let error = CompilationError::new(
             CompilationPhase::Semantic,
@@ -286,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_no_help_line_for_an_error_without_help() {
+    fn omits_absent_help() {
         let renderer = ErrorRenderer::new(false);
         let error = CompilationError::new(
             CompilationPhase::Semantic,
@@ -302,5 +299,30 @@ mod tests {
         let output = renderer.render_errors(&[error], "a\nx\n", "test.n");
 
         assert!(!output.contains("= help"), "{}", output);
+    }
+
+    #[test]
+    fn aligns_help_with_a_wide_gutter() {
+        let renderer = ErrorRenderer::new(false);
+        let error = CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::UndefinedVariable,
+            "Undefined variable 'x'",
+            SourceLocation {
+                offset: 18,
+                line: 10,
+                column: 1,
+            },
+        )
+        .with_help("available methods: push, pop");
+        let source = "a\n".repeat(9) + "x\n";
+
+        let output = renderer.render_errors(&[error], &source, "test.n");
+
+        assert!(
+            output.contains("^\n    = help: available methods: push, pop\n"),
+            "{}",
+            output
+        );
     }
 }
