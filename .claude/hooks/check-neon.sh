@@ -18,7 +18,11 @@ PROJECT_DIR=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/
 cd "$PROJECT_DIR" || exit 1
 RELATIVE_PATH=$(realpath --relative-to="$PROJECT_DIR" "$FILE_PATH")
 
-# A case expecting a compile error fails --check by design, so only its
+case "$RELATIVE_PATH" in
+    tests/compile_errors/* | tests/compile_errors_must_fail/*) exit 0 ;;
+esac
+
+# A module case expecting a compile error fails --check by design, so only its
 # formatting is checked.
 case "$RELATIVE_PATH" in
     tests/modules/*/*)
@@ -29,7 +33,6 @@ case "$RELATIVE_PATH" in
         CASE=${RELATIVE_PATH#tests/modules_must_fail/}
         EXPECTATION_FILE="tests/modules_must_fail/${CASE%%/*}/main.n"
         ;;
-    tests/scripts/*) EXPECTATION_FILE="$RELATIVE_PATH" ;;
     *) EXPECTATION_FILE="" ;;
 esac
 

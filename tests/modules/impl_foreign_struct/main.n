@@ -1,4 +1,4 @@
-// Expected compile error: impl blocks must be in the struct's own module
+// Expected compile error: 5:12 E0059 impl blocks must be in the struct's own module
 
 import "utils"
 

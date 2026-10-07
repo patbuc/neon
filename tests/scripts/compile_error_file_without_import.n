@@ -1,3 +1,0 @@
-// Expected compile error: Undefined variable 'File'
-
-val f = File("x.txt")

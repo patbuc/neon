@@ -242,3 +242,8 @@ print("hello")
 A script that ends in a runtime error also needs
 `// Expected runtime error: <message>`, matched exactly. Check one with
 `cargo test --test neon_scripts -- <name>`.
+
+A script that fails to compile goes in `tests/compile_errors/` (not formatted, may not parse) and has one
+`// Expected compile error: <line>:<col> <code> <message>` line per error, in reported order, e.g.
+`// Expected compile error: 1:7 E0013 Undefined variable 'x'`. It has no `// Expected:` block. The message is the
+stored one, not the CLI rendering.

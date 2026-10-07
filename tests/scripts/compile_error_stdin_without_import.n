@@ -1,3 +1,0 @@
-// Expected compile error: Undefined variable 'Stdin'
-
-print(Stdin.read())

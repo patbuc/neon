@@ -36,15 +36,20 @@ A script whose execution ends in a runtime error also needs a `// Expected runti
 line, matched exactly against the error message; it still needs an `// Expected:` block for any output
 printed before the error.
 
-A script that fails to compile uses `// Expected compile error: <message>` instead, with no `// Expected:` block
-and no runtime-error line. It must fail with exactly one compile error, and the line is matched exactly against
-that error's stored message from `VirtualMachine::get_compile_errors`, not the text the CLI renders (e.g.
-`Undefined variable 'x'`, where the CLI prints `undefined variable 'x'`).
+A script that fails to compile lives in `tests/compile_errors/` and carries one
+`// Expected compile error: <line>:<col> <code> <message>` line per expected error, in reported order (e.g.
+`// Expected compile error: 1:7 E0013 Undefined variable 'x'`). It has no `// Expected:` block and no runtime-error
+line. The lines are matched exactly against the stored errors from `VirtualMachine::get_compile_errors`, not the
+text the CLI renders, and carry no file path. The script need not parse and is not formatted, but must carry at
+least one such line. Scripts under `tests/compile_errors_must_fail/` must fail, each naming its expected failure
+in a `// Must fail with: <text>` line that the failure must contain, which tests that the harness rejects a mismatch.
 
 Multi-file module cases live in `tests/modules/<case>/main.n`. The harness runs each `main.n` with its own path as
 the entry script, both as written and after formatting; the modules it imports sit beside or below it in the case
 directory. It also runs `examples/modules/main.n` the same way. Cases under `tests/modules_must_fail/<case>/main.n`
-must fail their own `// Expected compile error:` line, which tests that the harness rejects a mismatch.
+must fail, each naming its expected failure in a `// Must fail with: <text>` line that the failure must contain,
+which tests that the harness rejects a mismatch. Module cases
+use the same directive format and stay formatted.
 
 ### Benchmarks
 
@@ -352,9 +357,9 @@ enforces these edges in `cargo test`.
 - A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
   written, feeding compile errors back automatically; for files under `tests/scripts/`, `tests/modules/`,
   `tests/modules_must_fail/`, `benches/`, and `examples/` it then runs `neon fmt --check` and blocks with feedback to run
-  `cargo run -- fmt <file>` if it's unformatted. A case expecting a compile error (the line in a
-  `tests/scripts/` file, or in its case's `main.n` under `tests/modules/` or `tests/modules_must_fail/`) skips `--check` but is still
-  format-checked
+  `cargo run -- fmt <file>` if it's unformatted. A module case expecting a compile error (the line in its case's
+  `main.n` under `tests/modules/` or `tests/modules_must_fail/`) skips `--check` but is still format-checked; files
+  under `tests/compile_errors/` and `tests/compile_errors_must_fail/` skip both
 - A PostToolUse hook (`.claude/hooks/check-arch.sh`) runs `cargo test --test architecture` after any
   `src/*.rs` file is edited or written, blocking with the test's layer-violation output if it fails
 - New or edited `.n` files under `tests/scripts/`, `tests/modules/`, `tests/modules_must_fail/`, `benches/`, and
