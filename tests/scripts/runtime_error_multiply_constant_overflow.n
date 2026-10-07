@@ -1,0 +1,11 @@
+// Multiplying a variable by an int literal, which compiles to the fused
+// MultiplyConstant opcode, raises the same overflow error as unfused multiply
+
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in *
+
+val x = 9223372036854775807
+print("before")
+print(x * 2)

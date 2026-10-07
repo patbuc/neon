@@ -676,6 +676,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::AddConstant
             | OpCode::SubtractConstant
             | OpCode::ModuloConstant
+            | OpCode::MultiplyConstant
             | OpCode::GreaterConstant
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
@@ -1018,27 +1019,26 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0042
+0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0041
 001c      5 GetLocal 01
 001f      | AddConstant 04 '1'
 0022      | StoreLocal 01
 0025      7 GetLocal 01
-0028      | Constant 05 '10'
-002b      | Multiply
-002c      8 Closure 06 '<fn anonymous>'
+0028      | MultiplyConstant 05 '10'
+002b      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0033      | StoreLocal 00
-0036      9 CloseUpvalue
-0037      | Jump 0037 -> 0042
-003c      6 CloseUpvalue
-003d      4 Loop 003d -> 0012
-0042     12 Constant 07 '<native fn print>'
-0045      | GetLocal 00
-0048      | Call (args: 0)
-004a      | Call (args: 1)
-004c     11 Pop
-004d     13 Nil
-004e      | Return
+0032      | StoreLocal 00
+0035      9 CloseUpvalue
+0036      | Jump 0036 -> 0041
+003b      6 CloseUpvalue
+003c      4 Loop 003c -> 0012
+0041     12 Constant 07 '<native fn print>'
+0044      | GetLocal 00
+0047      | Call (args: 0)
+0049      | Call (args: 1)
+004b     11 Pop
+004c     13 Nil
+004d      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
@@ -1623,6 +1623,27 @@ fn modulo_constant_disassembles_with_its_constant() {
 
     assert!(
         disassembly.contains("| ModuloConstant 03 '7'"),
+        "{disassembly}"
+    );
+}
+
+#[test]
+fn multiply_by_literal_compiles_to_multiply_constant() {
+    let program = "val a = 1\nval b = a * 7\n";
+    let ops = op_codes(&compile(program).unwrap());
+
+    assert!(ops.contains(&OpCode::MultiplyConstant), "{ops:?}");
+    assert!(!ops.contains(&OpCode::Multiply), "{ops:?}");
+}
+
+#[test]
+fn multiply_constant_disassembles_with_its_constant() {
+    let chunk = compile("val a = 1\nval b = a * 7\n").unwrap();
+
+    let disassembly = disassemble(&chunk);
+
+    assert!(
+        disassembly.contains("| MultiplyConstant 03 '7'"),
         "{disassembly}"
     );
 }

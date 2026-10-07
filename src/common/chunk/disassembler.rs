@@ -155,6 +155,9 @@ impl Chunk {
             OpCode::ModuloConstant => {
                 self.constant_instruction(OpCode::ModuloConstant, offset, out)
             }
+            OpCode::MultiplyConstant => {
+                self.constant_instruction(OpCode::MultiplyConstant, offset, out)
+            }
             OpCode::SubtractConstant => {
                 self.constant_instruction(OpCode::SubtractConstant, offset, out)
             }

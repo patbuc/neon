@@ -1609,6 +1609,7 @@ impl<'a> CodeGenerator<'a> {
             BinaryOp::Add => Some(OpCode::AddConstant),
             BinaryOp::Subtract => Some(OpCode::SubtractConstant),
             BinaryOp::Modulo => Some(OpCode::ModuloConstant),
+            BinaryOp::Multiply => Some(OpCode::MultiplyConstant),
             BinaryOp::Greater => Some(OpCode::GreaterConstant),
             BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
             BinaryOp::Less => Some(OpCode::LessConstant),

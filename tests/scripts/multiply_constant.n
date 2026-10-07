@@ -1,0 +1,28 @@
+// A number literal as the right operand of * compiles to a constant-operand
+// opcode. Check int, float and mixed results match * by a variable holding
+// the same value.
+
+// Expected:
+// 63
+// true
+// 38
+// true
+// 66.5
+// true
+// 22.5
+// true
+
+val i = 9
+val f = 9.5
+val seven = 7
+val twoAndHalf = 2.5
+val four = 4.0
+
+print(i * 7)
+print(i * 7 == i * seven)
+print(f * 4.0)
+print(f * 4.0 == f * four)
+print(f * 7)
+print(f * 7 == f * seven)
+print(i * 2.5)
+print(i * 2.5 == i * twoAndHalf)

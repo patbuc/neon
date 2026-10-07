@@ -81,12 +81,13 @@ impl OpCode {
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
             OpCode::ModuloConstant => 0,
+            OpCode::MultiplyConstant => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 86] = [
+        const OPCODES: [OpCode; 87] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -173,6 +174,7 @@ impl OpCode {
             OpCode::LessConstantJumpIfFalse,
             OpCode::LessEqualConstantJumpIfFalse,
             OpCode::ModuloConstant,
+            OpCode::MultiplyConstant,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -374,4 +376,8 @@ pub(crate) enum OpCode {
     /// `Modulo` with a number-literal right operand: a 16-bit constant-pool
     /// index replaces pushing it.
     ModuloConstant,
+
+    /// `Multiply` with a number-literal right operand: a 16-bit constant-pool
+    /// index replaces pushing it.
+    MultiplyConstant,
 }
