@@ -1289,7 +1289,7 @@ fn eval_passes_trailing_arguments_as_args() {
 #[test]
 fn eval_rejects_file_module_import() {
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
-        .args(["-e", "import \"utils\" as u\nprint(u.double(1))"])
+        .args(["-e", "use \"utils\" as u\nprint(u.double(1))"])
         .output()
         .expect("Failed to run neon binary");
 
