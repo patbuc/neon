@@ -39,7 +39,11 @@ fn main() {
                 }
                 check_file(&args[2]);
             }
-            "-e" => {
+            "-e" | "--eval" => {
+                if args.len() < 3 {
+                    eprintln!("Usage: neon -e <code> [args...]");
+                    exit(64);
+                }
                 run_eval(args[2].clone(), args[3..].to_vec());
             }
             "fmt" => {
@@ -387,6 +391,7 @@ fn print_help() {
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
+    println!("  neon -e <code> [args...]  Run a snippet");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
     println!("  neon --version, -V       Print the version");
     println!("  neon help                Show this help message");
