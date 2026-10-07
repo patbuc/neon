@@ -126,6 +126,7 @@ ignored. Bump the minor by hand in `Cargo.toml`. Without git the build warns and
 ```bash
 cargo run -- script.n           # Interpret a Neon script
 cargo run -- script.n arg1 arg2 # Pass arguments to script
+cargo run -- -e 'print(1 + 2)'  # Run a snippet (also --eval); file imports are an error
 cargo run -- --check script.n   # Compile without running
 cargo run -- fmt path...         # Format .n files in place, recursing into directories
 cargo run -- fmt --check path... # Print files that would change, exit 1 if any

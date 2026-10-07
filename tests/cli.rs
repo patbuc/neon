@@ -1230,3 +1230,111 @@ fn help_lists_version_flag() {
 
     assert!(String::from_utf8_lossy(&output.stdout).contains("--version"));
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_flag_runs_snippet() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print(1 + 2)"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    assert_eq!("3\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_reports_compile_error_with_exit_65() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print(missing)"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(Some(65), output.status.code());
+    assert!(stderr.contains("<eval>"), "stderr was: {}", stderr);
+    assert!(
+        stderr.contains("undefined variable 'missing'"),
+        "stderr was: {}",
+        stderr
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_reports_runtime_error_with_exit_70() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print([1][5])"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(Some(70), output.status.code());
+    assert!(!output.stderr.is_empty());
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_passes_trailing_arguments_as_args() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print(args)", "a", "b"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_rejects_file_module_import() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "use \"utils\" as u\nprint(u.double(1))"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(Some(65), output.status.code());
+    assert!(stderr.contains("E0056"), "stderr was: {}", stderr);
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn long_eval_flag_matches_short_flag() {
+    let short = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print(1 + 2)"])
+        .output()
+        .expect("Failed to run neon binary");
+    let long = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["--eval", "print(1 + 2)"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(short.status.code(), long.status.code());
+    assert_eq!(short.stdout, long.stdout);
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_without_snippet_prints_usage_and_exits_64() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("-e")
+        .output()
+        .expect("Failed to run neon binary");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(Some(64), output.status.code());
+    assert!(stderr.contains("Usage: neon -e"), "stderr was: {}", stderr);
+    assert!(!stderr.contains("panicked"), "stderr was: {}", stderr);
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn help_lists_eval_flag() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("neon -e"));
+}
