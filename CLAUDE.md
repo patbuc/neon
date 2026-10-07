@@ -258,6 +258,12 @@ enforces these edges in `cargo test`.
 - Method registry (`src/common/method_registry.rs`) maps type+method to function index
 - Runtime `Invoke` dispatch of native methods goes through the per-compile `NativeMethodTable` held on the VM,
   indexed by method symbol and builtin type symbol, not through name lookups
+- User methods from `impl` blocks live on the struct: `ObjStruct.methods`, which `DefineMethod` appends to after
+  loading the struct value. `impl` on a builtin type goes through `DefineBuiltinMethod` into the VM's
+  `builtin_methods` table, indexed by builtin type symbol, and is program-wide. The semantic analyzer and
+  `GlobalEnv` key struct methods by declaration (`DeclId`) and keep builtin-type methods in a separate map
+  keyed by type name. The VM journals the structs `DefineMethod` touched during a REPL line so a runtime
+  error can roll those methods back.
 
 ### Key Type Interactions
 

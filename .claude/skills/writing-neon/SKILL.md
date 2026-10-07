@@ -70,6 +70,8 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
   explicit first parameter. A method without `self` is static (`Point.origin()`).
   No classes, inheritance, `this`, or `new`.
+  An `impl` must be in the struct's own module (`impl utils.Point` is an error);
+  `impl Array` and other builtin impls are program-wide for modules compiled after.
 - Enum variants are declared like struct fields, conventionally one per line,
   no commas: `enum Color {` / `Red` / `Green` / `}`. Top level only. Access is
   always qualified (`Color.Red`); a bare `Color` is a compile error.

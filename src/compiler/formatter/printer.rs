@@ -493,12 +493,17 @@ impl<'a> Printer<'a> {
                 self.print_named_braces("enum ", name, location, &names);
             }
             Stmt::Impl {
+                module_name,
                 type_name,
                 methods,
                 location,
                 ..
             } => {
                 self.write("impl ");
+                if let Some(module_name) = module_name {
+                    self.write(module_name);
+                    self.write(".");
+                }
                 self.write(type_name);
                 self.write(" ");
                 let (open, close) = self.map.braces_after(location);

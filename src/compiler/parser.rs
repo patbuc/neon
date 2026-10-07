@@ -958,7 +958,15 @@ impl Parser {
         if !self.consume(TokenType::Identifier, "Expect type name.") {
             return None;
         }
-        let type_name = self.previous_token.token.clone();
+        let mut module_name = None;
+        let mut type_name = self.previous_token.token.clone();
+        if self.match_token(TokenType::Dot) {
+            if !self.consume(TokenType::Identifier, "Expect type name after '.'.") {
+                return None;
+            }
+            module_name = Some(type_name);
+            type_name = self.previous_token.token.clone();
+        }
         let type_id = self.next_id();
         let location = self.current_location();
 
@@ -1001,6 +1009,7 @@ impl Parser {
         self.consume_statement_end("Expecting '\\n' or '\\0' after impl declaration.");
 
         Some(Stmt::Impl {
+            module_name,
             type_name,
             type_id,
             methods,

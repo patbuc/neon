@@ -5,7 +5,7 @@ use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
 };
-use crate::common::{ObjClosure, Upvalue};
+use crate::common::{find_method_entry, ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -83,13 +83,6 @@ impl TypeName {
                 crate::common::method_registry::BUILTIN_TYPE_NAMES[*symbol as usize]
             }
             TypeName::Struct(r#struct) => &r#struct.name,
-        }
-    }
-
-    fn symbol(&self) -> u16 {
-        match self {
-            TypeName::Builtin(symbol) => *symbol,
-            TypeName::Struct(r#struct) => r#struct.name_symbol,
         }
     }
 }
@@ -512,10 +505,11 @@ impl VirtualMachine {
         }
     }
 
-    /// Looks up `method_symbol` in the user method table under `type_name`'s
-    /// symbol and checks the call form (static vs. instance) against the
-    /// method's definition. For an instance call, inserts a `Nil` callee
-    /// slot below the receiver so the receiver becomes `self`.
+    /// Looks up `method_symbol` among the user methods of `type_name` (the
+    /// struct's own methods, or the builtin type's `impl` methods) and
+    /// checks the call form (static vs. instance) against the method's
+    /// definition. For an instance call, inserts a `Nil` callee slot below
+    /// the receiver so the receiver becomes `self`.
     fn dispatch_user_method(
         &mut self,
         type_name: &TypeName,
@@ -524,16 +518,13 @@ impl VirtualMachine {
         arg_count: usize,
         method_symbol: u16,
     ) -> MethodDispatch {
-        let Some((_, closure, takes_self)) = self
-            .methods
-            .get(type_name.symbol() as usize)
-            .and_then(|methods| {
-                methods
-                    .iter()
-                    .find(|(symbol, _, _)| *symbol == method_symbol)
-            })
-            .cloned()
-        else {
+        let method = match type_name {
+            TypeName::Struct(r#struct) => r#struct.find_method(method_symbol),
+            TypeName::Builtin(type_symbol) => {
+                find_method_entry(&self.builtin_methods[*type_symbol as usize], method_symbol)
+            }
+        };
+        let Some((_, closure, takes_self)) = method else {
             return MethodDispatch::NotFound;
         };
 
@@ -2080,24 +2071,44 @@ impl VirtualMachine {
     }
 
     /// DefineMethod: pops the closure left on top of the stack by a
-    /// preceding Closure op and registers it under (type name, method name),
-    /// along with whether the method takes `self`.
+    /// preceding Closure op and the struct value below it, and appends the
+    /// closure to the struct's methods along with whether it takes `self`.
     #[inline(always)]
     pub(in crate::vm) fn op_define_method(&mut self) {
-        let type_symbol = self.operand_u16(1);
         let method_symbol = self.operand_u16(3);
         let takes_self = self.operand_u8(5) != 0;
         self.ip += 5;
 
         let closure_value = self.pop();
-        let Value::Closure(closure) = &closure_value else {
+        let Value::Closure(closure) = closure_value else {
             unreachable!("DefineMethod expects a closure on top of the stack")
         };
-        let type_symbol = type_symbol as usize;
-        if type_symbol >= self.methods.len() {
-            self.methods.resize_with(type_symbol + 1, Vec::new);
+        let Value::Struct(r#struct) = self.pop() else {
+            unreachable!("DefineMethod expects a struct below the closure")
+        };
+        r#struct
+            .methods
+            .borrow_mut()
+            .push((method_symbol, closure, takes_self));
+        if let Some(journal) = &mut self.method_journal {
+            journal.push(r#struct);
         }
-        self.methods[type_symbol].push((method_symbol, Rc::clone(closure), takes_self));
+    }
+
+    /// DefineBuiltinMethod: pops the closure left on top of the stack by a
+    /// preceding Closure op and registers it under the builtin type symbol,
+    /// along with whether the method takes `self`.
+    #[inline(always)]
+    pub(in crate::vm) fn op_define_builtin_method(&mut self) {
+        let type_symbol = self.operand_u16(1);
+        let method_symbol = self.operand_u16(3);
+        let takes_self = self.operand_u8(5) != 0;
+        self.ip += 5;
+
+        let Value::Closure(closure) = self.pop() else {
+            unreachable!("DefineBuiltinMethod expects a closure on top of the stack")
+        };
+        self.builtin_methods[type_symbol as usize].push((method_symbol, closure, takes_self));
     }
 }
 

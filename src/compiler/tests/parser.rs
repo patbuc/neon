@@ -819,6 +819,23 @@ fn test_parse_impl_block() {
 }
 
 #[test]
+fn test_parse_impl_on_qualified_name() {
+    let stmts = Parser::new("impl a.B {\n}\n").parse().unwrap();
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Impl {
+            module_name,
+            type_name,
+            ..
+        } => {
+            assert_eq!(module_name.as_deref(), Some("a"));
+            assert_eq!(type_name, "B");
+        }
+        _ => panic!("Expected Impl statement"),
+    }
+}
+
+#[test]
 fn test_parse_impl_block_rejects_non_fn_item() {
     let program = r#"
         impl Point {

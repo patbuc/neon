@@ -69,8 +69,8 @@ impl Compiler {
         };
 
         // Each imported module compiles against a fresh env sharing only
-        // the symbols, decl ids and slot count, so its globals follow the
-        // previous module's and stay invisible to the others.
+        // the builtin impls, symbols, decl ids and slot count, so its globals
+        // follow the previous module's and stay invisible to the others.
         let mut env = env.clone();
         let mut exports = std::mem::take(&mut env.modules);
         let mut modules = Vec::new();
@@ -81,6 +81,7 @@ impl Compiler {
                 continue;
             }
             let module_env = GlobalEnv {
+                builtin_methods: env.builtin_methods.clone(),
                 symbols: env.symbols.clone(),
                 next_decl_id: env.next_decl_id,
                 slot_count: env.slot_count,
@@ -101,6 +102,7 @@ impl Compiler {
                     return self.fail(errors);
                 }
             };
+            env.builtin_methods = module_env.builtin_methods;
             env.symbols = module_env.symbols;
             env.next_decl_id = module_env.next_decl_id;
             env.slot_count = module_env.slot_count;
@@ -150,7 +152,12 @@ impl Compiler {
         let chunk = codegen.generate(&module.ast, module.eof_location)?;
         let decl_slots = codegen.into_decl_slots();
 
-        let table = ExportTable::build(&module.ast, &resolutions, &decl_slots);
+        let table = ExportTable::build(
+            &module.ast,
+            &resolutions,
+            &decl_slots,
+            analyzer.struct_methods(),
+        );
         let new_env = analyzer.snapshot_env(resolutions, decl_slots, env.slot_count);
         Ok((chunk, new_env, table))
     }

@@ -1,0 +1,13 @@
+export struct Point {
+    x
+}
+
+impl Point {
+    fn tag(self) {
+        return "b"
+    }
+}
+
+export fn make() {
+    return Point(2)
+}

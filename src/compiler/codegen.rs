@@ -1,6 +1,7 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+use crate::common::method_registry::BUILTIN_TYPE_NAMES;
 
 /// Code generator for the multi-pass compiler
 /// Generates bytecode from AST using the semantic pass's resolutions
@@ -251,9 +252,13 @@ impl<'a> CodeGenerator<'a> {
         // so a method call textually before its `impl` block still works.
         for stmt in statements {
             if let Stmt::Impl {
-                type_name, methods, ..
+                type_name,
+                type_id,
+                methods,
+                ..
             } = stmt
             {
+                let is_builtin_type = BUILTIN_TYPE_NAMES.contains(&type_name.as_str());
                 for method in methods {
                     if let Stmt::Fn {
                         name,
@@ -263,9 +268,17 @@ impl<'a> CodeGenerator<'a> {
                         location,
                     } = method
                     {
+                        if !is_builtin_type {
+                            self.emit_variable_get(*type_id, *location);
+                        }
                         self.generate_closure(*id, name, body, *location);
                         let takes_self = params.first().map(String::as_str) == Some("self");
-                        self.emit_define_method(type_name, name, takes_self, *location);
+                        let op_code = if is_builtin_type {
+                            OpCode::DefineBuiltinMethod
+                        } else {
+                            OpCode::DefineMethod
+                        };
+                        self.emit_define_method(op_code, type_name, name, takes_self, *location);
                     }
                 }
             }
@@ -2573,11 +2586,13 @@ impl<'a> CodeGenerator<'a> {
         self.adjust_stack_height(1 - count as i32);
     }
 
-    /// Emits `DefineMethod`, popping the closure left on top of the stack by
-    /// a preceding `generate_closure` call and registering it under
-    /// `(type_symbol, method_symbol)`, along with whether it takes `self`.
+    /// Emits `DefineMethod` or `DefineBuiltinMethod`, popping the closure
+    /// left on top of the stack by a preceding `generate_closure` call (and,
+    /// for `DefineMethod`, the struct value below it) and registering it
+    /// under `method_symbol`, along with whether it takes `self`.
     fn emit_define_method(
         &mut self,
+        op_code: OpCode,
         type_name: &str,
         method_name: &str,
         takes_self: bool,
@@ -2585,7 +2600,7 @@ impl<'a> CodeGenerator<'a> {
     ) {
         let type_symbol = self.resolutions.symbol(type_name);
         let method_symbol = self.resolutions.symbol(method_name);
-        self.emit_op_code(OpCode::DefineMethod, location);
+        self.emit_op_code(op_code, location);
         self.current_chunk().write_u16(type_symbol);
         self.current_chunk().write_u16(method_symbol);
         self.current_chunk().write_u8(takes_self as u8);

@@ -1,6 +1,6 @@
-use crate::common::method_registry::NativeMethodTable;
+use crate::common::method_registry::{NativeMethodTable, BUILTIN_TYPE_NAMES};
 use crate::common::runtime_error::RuntimeError;
-use crate::common::{CallFrame, Chunk, ObjClosure, Upvalue, Value};
+use crate::common::{CallFrame, Chunk, MethodEntry, ObjStruct, Upvalue, Value};
 use crate::compiler::global_env::GlobalEnv;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -45,9 +45,13 @@ pub struct VirtualMachine {
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
-    /// User-defined methods from `impl` blocks, indexed by type symbol.
-    /// Each entry is a Vec of (method symbol, closure, takes `self`).
-    methods: Vec<Vec<(u16, Rc<ObjClosure>, bool)>>,
+    /// User methods from `impl` blocks on builtin types, indexed by builtin
+    /// type symbol. Struct methods live on the `ObjStruct` instead.
+    builtin_methods: [Vec<MethodEntry>; BUILTIN_TYPE_NAMES.len()],
+    /// The structs `DefineMethod` appended a method to since the current
+    /// REPL line started, so a runtime error can take those methods back.
+    /// `None` outside a REPL line.
+    method_journal: Option<Vec<Rc<ObjStruct>>>,
     /// Native methods of the builtin types, built from the running
     /// compile's symbol table.
     native_methods: NativeMethodTable,

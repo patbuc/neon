@@ -91,6 +91,7 @@ compilation_error_kinds! {
     FileImportUnavailable => "E0056",
     UnknownExport => "E0057",
     InvalidImportName => "E0058",
+    ImplOutsideOwnModule => "E0059",
 }
 
 #[derive(Debug, Clone, PartialEq)]

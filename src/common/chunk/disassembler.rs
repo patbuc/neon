@@ -125,7 +125,12 @@ impl Chunk {
             OpCode::GetUpvalue => self.variable_instruction(OpCode::GetUpvalue, offset, out),
             OpCode::SetUpvalue => self.variable_instruction(OpCode::SetUpvalue, offset, out),
             OpCode::CloseUpvalue => self.simple_instruction(OpCode::CloseUpvalue, offset, out),
-            OpCode::DefineMethod => self.define_method_instruction(offset, out),
+            OpCode::DefineMethod => {
+                self.define_method_instruction(OpCode::DefineMethod, offset, out)
+            }
+            OpCode::DefineBuiltinMethod => {
+                self.define_method_instruction(OpCode::DefineBuiltinMethod, offset, out)
+            }
             OpCode::CheckInitialized => {
                 self.simple_instruction(OpCode::CheckInitialized, offset, out)
             }
@@ -154,7 +159,7 @@ impl Chunk {
         }
     }
 
-    fn define_method_instruction(&self, offset: usize, out: &mut String) -> usize {
+    fn define_method_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
         let type_symbol = self.read_u16(offset + 1) as usize;
         let method_symbol = self.read_u16(offset + 3) as usize;
         let takes_self = self.read_u8(offset + 5) != 0;
@@ -164,10 +169,7 @@ impl Chunk {
         let _ = writeln!(
             out,
             "{:?} {}.{} ({})",
-            OpCode::DefineMethod,
-            type_name,
-            method_name,
-            kind
+            op_code, type_name, method_name, kind
         );
         offset + 6
     }
