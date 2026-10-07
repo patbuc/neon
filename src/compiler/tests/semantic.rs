@@ -2992,6 +2992,19 @@ val x = Map.second({})
 }
 
 #[test]
+fn test_unknown_static_method_on_builtin_type_is_compile_error() {
+    let errors = compile_errors("val x = String.nope(1)\n");
+    assert!(
+        errors.iter().any(|e| {
+            e.kind == CompilationErrorKind::StaticCallOnBuiltinType
+                && e.message == "Type 'String' has no static method 'nope'"
+        }),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
 fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
     let program = "val args = 5\n";
     let errors = compile_errors(program);
@@ -3400,7 +3413,9 @@ fn test_enum_values_with_payload_variant_is_compile_error() {
 fn test_optional_dot_on_enum_static_call_is_compile_error() {
     let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );
@@ -3410,7 +3425,9 @@ fn test_optional_dot_on_enum_static_call_is_compile_error() {
 fn test_optional_dot_on_enum_variant_is_compile_error() {
     let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.Red\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );
@@ -3420,7 +3437,9 @@ fn test_optional_dot_on_enum_variant_is_compile_error() {
 fn test_optional_dot_on_struct_type_name_is_compile_error() {
     let errors = compile_errors("struct P {\n    x\n}\nP?.x\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );

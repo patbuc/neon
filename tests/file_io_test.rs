@@ -101,7 +101,7 @@ fn test_file_constructor_invalid_type() {
         "import \"std/file\"\nvar f = file.open(true)",
         "import \"std/file\"\nvar f = file.open(nil)",
     ] {
-        assert_runtime_error(source, "File() path must be a string");
+        assert_runtime_error(source, "file.open() path must be a string");
     }
 }
 

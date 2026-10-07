@@ -2111,10 +2111,15 @@ impl SemanticAnalyzer {
                         return;
                     }
                 }
+                let message = if crate::common::method_registry::has_static_methods(name) {
+                    format!("Type '{}' has no static method '{}'", name, method)
+                } else {
+                    "Static methods are only supported on structs".to_string()
+                };
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::StaticCallOnBuiltinType,
-                    "Static methods are only supported on structs".to_string(),
+                    message,
                     location,
                 ));
                 return;
@@ -2538,7 +2543,7 @@ impl SemanticAnalyzer {
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
             CompilationErrorKind::OptionalDotOnType,
-            "Cannot use '?.' on a type or namespace".to_string(),
+            "Cannot use '?.' on a type".to_string(),
             location,
         ));
     }

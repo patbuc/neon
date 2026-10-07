@@ -12,7 +12,7 @@ pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
         ));
     }
 
-    let s = extract_arg!(args, 0, String, "path", "File")?;
+    let s = extract_arg!(args, 0, String, "path", "file.open")?;
     Ok(Value::new_file(s.to_string()))
 }
 

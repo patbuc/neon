@@ -1586,6 +1586,12 @@ pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
     )
 }
 
+pub fn has_static_methods(type_name: &str) -> bool {
+    NATIVE_METHODS.iter().any(|(t, _, callable)| {
+        *t == type_name && matches!(callable, NativeCallable::StaticMethod { .. })
+    })
+}
+
 pub fn suggest_method(type_name: &str, method_name: &str) -> Option<&'static str> {
     let methods = get_methods_for_type(type_name);
     find_closest_match(method_name, &methods)

@@ -50,14 +50,14 @@ fn read_stdin_to_string(method: &str) -> Result<String, String> {
 /// input in the browser, so this always errors instead.
 #[cfg(target_arch = "wasm32")]
 pub fn native_stdin_read(_args: &[Value]) -> Result<Value, String> {
-    Err("Stdin is not supported in the browser".to_string())
+    Err("stdin is not supported in the browser".to_string())
 }
 
 /// Native implementation of stdin.readLines() on wasm32: see
 /// `native_stdin_read`.
 #[cfg(target_arch = "wasm32")]
 pub fn native_stdin_read_lines(_args: &[Value]) -> Result<Value, String> {
-    Err("Stdin is not supported in the browser".to_string())
+    Err("stdin is not supported in the browser".to_string())
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
