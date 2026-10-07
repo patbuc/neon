@@ -1,9 +1,13 @@
 // Expected:
 // a
 // b
+// false
+// true
 
 import "a"
 import "b"
 
 print(a.make().tag())
 print(b.make().tag())
+print(a.make() == b.make())
+print(a.make() == a.make())
