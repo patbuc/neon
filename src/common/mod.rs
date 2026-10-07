@@ -587,12 +587,28 @@ impl ObjInstance {
     }
 }
 
-#[derive(Debug, Clone)]
+/// A user method: (method symbol, closure, takes `self`).
+pub(crate) type MethodEntry = (u16, Rc<ObjClosure>, bool);
+
+#[derive(Clone)]
 pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
     field_table: Vec<Option<u16>>,
     pub name_symbol: u16,
+    /// Methods the struct's `impl` blocks define, appended by `DefineMethod`.
+    pub(crate) methods: RefCell<Vec<MethodEntry>>,
+}
+
+impl std::fmt::Debug for ObjStruct {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjStruct")
+            .field("name", &self.name)
+            .field("fields", &self.fields)
+            .field("name_symbol", &self.name_symbol)
+            .field("method_count", &self.methods.borrow().len())
+            .finish()
+    }
 }
 
 impl ObjStruct {
@@ -611,6 +627,14 @@ impl ObjStruct {
             .copied()
             .flatten()
             .map(|index| index as usize)
+    }
+
+    pub(crate) fn find_method(&self, method_symbol: u16) -> Option<MethodEntry> {
+        self.methods
+            .borrow()
+            .iter()
+            .find(|(symbol, _, _)| *symbol == method_symbol)
+            .cloned()
     }
 }
 
@@ -691,6 +715,7 @@ impl Value {
             fields,
             field_table,
             name_symbol,
+            methods: RefCell::new(Vec::new()),
         }))
     }
 

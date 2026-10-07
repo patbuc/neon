@@ -37,7 +37,8 @@ impl VirtualMachine {
             module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
             native_call_depth: 0,
-            methods: Vec::new(),
+            builtin_methods: std::array::from_fn(|_| Vec::new()),
+            method_journal: Vec::new(),
             native_methods: Vec::new(),
             repl_env: GlobalEnv::default(),
             #[cfg(feature = "opcode-stats")]
@@ -164,7 +165,8 @@ impl VirtualMachine {
         self.source = source.clone();
 
         let previous_env = self.repl_env.clone();
-        let previous_methods = self.methods.clone();
+        let previous_builtin_methods = self.builtin_methods.clone();
+        self.method_journal.clear();
         let previous_slot_count = previous_env.slot_count as usize;
 
         let mut compiler = Compiler::new();
@@ -208,7 +210,10 @@ impl VirtualMachine {
                 }
                 self.call_frames.clear();
                 self.native_call_depth = 0;
-                self.methods = previous_methods;
+                for r#struct in self.method_journal.drain(..).rev() {
+                    r#struct.methods.borrow_mut().pop();
+                }
+                self.builtin_methods = previous_builtin_methods;
                 self.repl_env = previous_env.after_runtime_error(&new_env);
             }
             InterpretResult::CompileError => unreachable!("compile already handled"),
@@ -349,6 +354,7 @@ impl VirtualMachine {
                 OpCode::SetUpvalue => self.op_set_upvalue()?,
                 OpCode::CloseUpvalue => self.op_close_upvalue(),
                 OpCode::DefineMethod => self.op_define_method(),
+                OpCode::DefineBuiltinMethod => self.op_define_builtin_method(),
                 OpCode::CheckInitialized => self.op_check_initialized()?,
                 OpCode::CheckTuple => self.op_check_tuple()?,
                 OpCode::StoreLocal => self.op_store_local()?,
@@ -619,7 +625,8 @@ impl VirtualMachine {
         self.runtime_error = None;
         self.open_upvalues.clear();
         self.native_call_depth = 0;
-        self.methods.clear();
+        self.builtin_methods.iter_mut().for_each(Vec::clear);
+        self.method_journal.clear();
         self.repl_env = GlobalEnv::default();
         #[cfg(feature = "opcode-stats")]
         {

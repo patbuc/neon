@@ -2069,3 +2069,22 @@ fn nested_fn_reading_later_block_val_is_compile_error() {
     assert_eq!(InterpretResult::CompileError, result);
     assert!(vm.get_compiler_error().contains("Undefined variable 'v'"));
 }
+
+#[test]
+fn struct_methods_live_on_the_struct() {
+    let mut vm = VirtualMachine::new();
+    let result =
+        vm.interpret("struct Point { x }\nimpl Point { fn m(self) { return 1 } }".to_string());
+    assert_eq!(InterpretResult::Ok, result);
+
+    let point = vm
+        .stack
+        .iter()
+        .find_map(|value| match value {
+            Value::Struct(point) => Some(point.clone()),
+            _ => None,
+        })
+        .expect("struct value on the stack");
+    assert_eq!(1, point.methods.borrow().len());
+    assert!(vm.builtin_methods.iter().all(|methods| methods.is_empty()));
+}

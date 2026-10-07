@@ -50,7 +50,8 @@ impl OpCode {
             OpCode::GetUpvalue => 1,
             OpCode::SetUpvalue => 0,
             OpCode::CloseUpvalue => -1,
-            OpCode::DefineMethod => -1,
+            OpCode::DefineMethod => -2,
+            OpCode::DefineBuiltinMethod => -1,
             OpCode::CheckInitialized => 0,
             OpCode::CheckTuple => 0,
             OpCode::StoreLocal => -1,
@@ -75,7 +76,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 75] = [
+        const OPCODES: [OpCode; 76] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -129,6 +130,7 @@ impl OpCode {
             OpCode::SetUpvalue,
             OpCode::CloseUpvalue,
             OpCode::DefineMethod,
+            OpCode::DefineBuiltinMethod,
             OpCode::CheckInitialized,
             OpCode::CheckTuple,
             OpCode::StoreLocal,
@@ -230,9 +232,15 @@ pub(crate) enum OpCode {
     /// Closes the upvalue (if any) pointing at the top-of-stack slot, then
     /// pops it, so a captured local's value survives its scope exiting.
     CloseUpvalue,
-    /// Pops a closure and registers it as a method under a type name and
-    /// method name (both read as fixed 16-bit constant-pool indices).
+    /// Pops a closure and the struct value below it and appends the closure
+    /// to the struct's methods. Operands: the struct's 16-bit name symbol
+    /// (read only by the disassembler), the 16-bit method symbol, and an
+    /// 8-bit takes-`self` flag.
     DefineMethod,
+    /// Pops a closure and registers it as a method of a builtin type.
+    /// Operands: the 16-bit builtin type symbol, the 16-bit method symbol,
+    /// and an 8-bit takes-`self` flag.
+    DefineBuiltinMethod,
     /// Peeks the top of the stack and errors if it holds a hoisted
     /// declaration's uninitialized sentinel; otherwise a no-op.
     CheckInitialized,

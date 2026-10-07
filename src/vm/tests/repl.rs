@@ -470,3 +470,29 @@ fn keeps_earlier_globals_after_a_module_error_on_a_line_declaring_globals() {
     );
     assert_eq!("3\n7", vm.get_output());
 }
+
+#[test]
+fn runtime_error_in_impl_line_rolls_back_methods() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("struct Point {\n    x\n}".to_string())
+    );
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret_line("impl Point {\n    fn one(self) { return 1 }\n}\n1 + true".to_string())
+    );
+    assert_eq!(
+        InterpretResult::CompileError,
+        vm.interpret_line("print(Point(1).one())".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("impl Point {\n    fn two(self) { return 2 }\n}".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(Point(1).two())".to_string())
+    );
+    assert_eq!("2", vm.get_output());
+}
