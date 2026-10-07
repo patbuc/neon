@@ -76,7 +76,10 @@ fn test_file_constructor_relative_and_absolute_paths() {
 
 #[test]
 fn test_file_constructor_wrong_arg_count() {
-    for source in [r#"var f = File()"#, r#"var f = File("a.txt", "b.txt")"#] {
+    for source in [
+        "import \"std/file\"\nvar f = file.open()",
+        "import \"std/file\"\nvar f = file.open(\"a.txt\", \"b.txt\")",
+    ] {
         let mut vm = VirtualMachine::new();
         assert_eq!(
             InterpretResult::CompileError,
@@ -85,6 +88,10 @@ fn test_file_constructor_wrong_arg_count() {
             source
         );
     }
+    assert_runtime_error(
+        "import \"std/file\"\nval open = file.open\nopen()",
+        "file.open() expects 1 argument, got 0",
+    );
 }
 
 #[test]
@@ -826,7 +833,7 @@ fn test_file_read_lines_wrong_arg_count() {
 
 #[test]
 fn test_impl_on_file_user_method() {
-    // File(path) only wraps a path, so this exercises impl-on-builtin
+    // file.open(path) only wraps a path, so this exercises impl-on-builtin
     // dispatch without touching the filesystem.
     let path = std::env::temp_dir().join("neon_test_impl_on_file_unused.txt");
     let source = format!(

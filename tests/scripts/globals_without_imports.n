@@ -1,0 +1,11 @@
+// globals_without_imports.n - print, args, Array(n) and String.fromCharCode
+// need no import
+
+// Expected:
+// 0
+// [0, 2, 4]
+// A
+
+print(args.size())
+print(Array(3) { it * 2 })
+print(String.fromCharCode(65))

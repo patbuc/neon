@@ -796,9 +796,11 @@ fn test_native_call_labels() {
     use crate::common::Value;
 
     let program = r#"
+    import "std/file"
+    import "std/math"
     print(1)
-    File("x")
-    Math.abs(1)
+    file.open("x")
+    math.abs(1)
     "#;
     let chunk = compile(program).unwrap();
 
@@ -812,7 +814,7 @@ fn test_native_call_labels() {
         })
         .collect();
 
-    assert_eq!(labels, vec!["print", "File.new", "abs"]);
+    assert_eq!(labels, vec!["print", "open", "abs"]);
 }
 
 #[test]

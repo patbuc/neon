@@ -123,7 +123,8 @@ fn test_priority_queue_push_wrong_arg_count() {
 #[test]
 fn test_priority_queue_constructor_wrong_arg_count() {
     let program = r#"
-        val pq = PriorityQueue(1)
+        import "std/pq"
+        val queue = pq.new(1)
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -131,6 +132,21 @@ fn test_priority_queue_constructor_wrong_arg_count() {
         InterpretResult::CompileError,
         vm.interpret(program.to_string())
     );
+
+    let program = r#"
+        import "std/pq"
+        val make = pq.new
+        make(1)
+    "#;
+
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret(program.to_string())
+    );
+    assert!(vm
+        .get_runtime_errors()
+        .contains("pq.new() expects 0 arguments, got 1"));
 }
 
 #[test]

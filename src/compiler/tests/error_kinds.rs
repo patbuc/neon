@@ -169,9 +169,8 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             vec![("Map.foo()\n".to_string(), None)]
         }
         CompilationErrorKind::LoopControlOutsideLoop => vec![("break\n".to_string(), None)],
-        CompilationErrorKind::NamespaceAsValue => vec![("Math\n".to_string(), None)],
-        CompilationErrorKind::UnknownNamespaceMethod => {
-            vec![("Math.bogus()\n".to_string(), None)]
+        CompilationErrorKind::NamespaceAsValue => {
+            vec![("import \"std/math\"\nval m = math\n".to_string(), None)]
         }
         CompilationErrorKind::UnknownMethod => vec![
             (
@@ -192,7 +191,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
-        CompilationErrorKind::NotCallable => vec![("Math()\n".to_string(), None)],
+        CompilationErrorKind::NotCallable => {
+            vec![("import \"std/math\"\nmath()\n".to_string(), None)]
+        }
         CompilationErrorKind::TooFewArguments => vec![(
             "fn add(a, b) {\n    return a + b\n}\nadd(1)\n".to_string(),
             Some("but got 1"),
@@ -269,7 +270,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             Some("impl blocks must be in the struct's own module"),
         )],
         CompilationErrorKind::OptionalDotOnType => {
-            vec![("Math?.abs(-3)\n".to_string(), Some("'?.'"))]
+            vec![(
+                "enum E {\n    A\n}\nprint(E?.A)\n".to_string(),
+                Some("'?.'"),
+            )]
         }
         CompilationErrorKind::NonExhaustiveMatch => vec![(
             "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n"

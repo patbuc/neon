@@ -61,7 +61,6 @@ compilation_error_kinds! {
     StaticCallOnBuiltinType => "E0025",
     LoopControlOutsideLoop => "E0026",
     NamespaceAsValue => "E0027",
-    UnknownNamespaceMethod => "E0029",
     UnknownMethod => "E0030",
     UnknownField => "E0031",
     MethodNeedsInstance => "E0032",

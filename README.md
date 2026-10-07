@@ -1052,10 +1052,9 @@ val flag = "true".toBool()
 
 ## Standard Library
 
-`String` and `Array` are namespaces: their static methods (`String.fromCharCode(n)`,
-`Array(n, init)`) are only callable through the namespace name, and redefining that name at top level
-(`val String = ...`) is a compile error — a local of the same name inside a function still shadows it,
-same as any other name. Math, files, standard input and priority queues come from the `std/` modules.
+`String.fromCharCode(n)` and `Array(n, init)` need no import; a variable named `String` or `Array`
+shadows them, same as any other name. Math, files, standard input and priority queues come from the
+`std/` modules.
 
 ### Global Functions
 
@@ -1129,12 +1128,6 @@ queue.push(2, "b")
 queue.push(1, "a")
 print(queue.pop())   // a
 ```
-
-### Math (Static Methods)
-
-- `Math.abs`, `Math.floor`, `Math.ceil`, `Math.sqrt`, `Math.min`, `Math.max`, `Math.div`,
-  `Math.round`, `Math.sign`, `Math.gcd`, `Math.lcm`, `Math.mod` - Old namespace form of
-  [std/math](#stdmath-methods), to be removed
 
 ### String Methods
 
@@ -1348,20 +1341,12 @@ print(arr)                // [1, 2] (order may vary)
 
 ### File
 
-- `File(path)` - Old constructor form of `file.open(path)` from [std/file](#stdfile-methods), to be
-  removed
 - `.read()` - Whole file as a string
 - `.readLines()` - Array of lines
 - `.write(text)` - Create the file with `text`; a runtime error if it already exists
 
-### Stdin Methods
-
-- `Stdin.read()`, `Stdin.readLines()` - Old namespace form of [std/stdin](#stdstdin-methods), to be
-  removed
-
 ### PriorityQueue Methods
 
-- `PriorityQueue()` - Old constructor form of `pq.new()` from [std/pq](#stdpq-methods), to be removed
 - `.push(priority, value)` - Add `value` with the given `priority` (a number); returns `nil`
 - `.pop()` - Remove and return the value with the smallest priority, or `nil` if empty. Equal
   priorities pop in insertion order

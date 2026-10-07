@@ -90,7 +90,6 @@ fn heading_section(heading: &str) -> Section {
         "Global Functions" => Section::Global,
         "Type Conversions" => Section::None,
         "File" => Section::Types(vec!["File".to_string()]),
-        "Math (Static Methods)" => Section::Types(vec!["Math".to_string()]),
         other => match other.strip_suffix(" Methods") {
             Some(t) => Section::Types(vec![t.to_string()]),
             None => {

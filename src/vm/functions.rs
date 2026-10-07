@@ -53,6 +53,7 @@ pub(in crate::vm) enum Comparison {
 }
 
 /// Registry index for the print() function (always at index 0)
+#[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
 const PRINT_METHOD_INDEX: u32 = 0;
 
 /// Symbol ids for builtin types, matching `BUILTIN_TYPE_NAMES`'s order
@@ -463,8 +464,7 @@ impl VirtualMachine {
                 function(self, &args)
             }
             NativeCallable::StaticMethod { function, .. }
-            | NativeCallable::InstanceMethod { function, .. }
-            | NativeCallable::Constructor { function, .. } => {
+            | NativeCallable::InstanceMethod { function, .. } => {
                 function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
             }
         }

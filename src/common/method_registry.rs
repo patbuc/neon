@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 /// Classifies native callable functions by their calling convention.
 #[derive(Debug, Clone)]
 pub(crate) enum NativeCallable {
-    /// Static method (no receiver): Math.abs(x), JSON.parse(s)
+    /// Static method (no receiver): print(x), String.fromCharCode(c)
     StaticMethod {
         function: NativeFn,
         #[allow(dead_code)]
@@ -31,12 +31,6 @@ pub(crate) enum NativeCallable {
         arity: u8,
         returns: Option<StaticType>,
     },
-    /// Constructor (creates new instance): File(path)
-    Constructor {
-        function: NativeFn,
-        #[allow(dead_code)]
-        arity: u8,
-    },
     /// Constructor that calls back into Neon code, so it needs the VM:
     /// Array(n, init) calling init(i)
     ConstructorWithVm {
@@ -47,13 +41,11 @@ pub(crate) enum NativeCallable {
 }
 
 impl NativeCallable {
-    #[allow(dead_code)]
     pub fn arity(&self) -> u8 {
         match self {
             NativeCallable::StaticMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
-            NativeCallable::Constructor { arity, .. } => *arity,
             NativeCallable::ConstructorWithVm { arity, .. } => *arity,
         }
     }
@@ -62,9 +54,7 @@ impl NativeCallable {
         match self {
             NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
             NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
-            NativeCallable::StaticMethod { .. }
-            | NativeCallable::Constructor { .. }
-            | NativeCallable::ConstructorWithVm { .. } => None,
+            NativeCallable::StaticMethod { .. } | NativeCallable::ConstructorWithVm { .. } => None,
         }
     }
 }
@@ -88,103 +78,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::StaticMethod {
             function: stdlib::system_functions::native_system_sleep,
             arity: 1,
-        },
-    ),
-    // Math static methods
-    (
-        "Math",
-        "abs",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_abs,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "floor",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_floor,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "ceil",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_ceil,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "sqrt",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_sqrt,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "min",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_min,
-            arity: VARIADIC_ARITY,
-        },
-    ),
-    (
-        "Math",
-        "max",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_max,
-            arity: VARIADIC_ARITY,
-        },
-    ),
-    (
-        "Math",
-        "div",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_div,
-            arity: 2,
-        },
-    ),
-    (
-        "Math",
-        "round",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_round,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "sign",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_sign,
-            arity: 1,
-        },
-    ),
-    (
-        "Math",
-        "gcd",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_gcd,
-            arity: 2,
-        },
-    ),
-    (
-        "Math",
-        "lcm",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_lcm,
-            arity: 2,
-        },
-    ),
-    (
-        "Math",
-        "mod",
-        NativeCallable::StaticMethod {
-            function: stdlib::math_functions::native_math_mod,
-            arity: 2,
         },
     ),
     // Array instance methods
@@ -1372,15 +1265,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: Some(StaticType::Array),
         },
     ),
-    // File constructor
-    (
-        "File",
-        "new",
-        NativeCallable::Constructor {
-            function: stdlib::file_functions::native_file_constructor,
-            arity: 1,
-        },
-    ),
     // File instance methods
     (
         "File",
@@ -1407,15 +1291,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::file_functions::native_file_write,
             arity: 1,
             returns: None,
-        },
-    ),
-    // PriorityQueue constructor
-    (
-        "PriorityQueue",
-        "new",
-        NativeCallable::Constructor {
-            function: stdlib::priority_queue_functions::native_priority_queue_constructor,
-            arity: 0,
         },
     ),
     // PriorityQueue instance methods
@@ -1462,23 +1337,6 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             function: stdlib::priority_queue_functions::native_priority_queue_is_empty,
             arity: 0,
             returns: Some(StaticType::Boolean),
-        },
-    ),
-    // Stdin static methods
-    (
-        "Stdin",
-        "read",
-        NativeCallable::StaticMethod {
-            function: stdlib::stdin_functions::native_stdin_read,
-            arity: 0,
-        },
-    ),
-    (
-        "Stdin",
-        "readLines",
-        NativeCallable::StaticMethod {
-            function: stdlib::stdin_functions::native_stdin_read_lines,
-            arity: 0,
         },
     ),
     // Builtin module functions, keyed by module path
@@ -1669,7 +1527,7 @@ pub(crate) fn get_native_method_by_index(index: usize) -> Option<&'static Native
 pub fn native_label(index: usize) -> String {
     let (type_name, method_name, callable) = &NATIVE_METHODS[index];
     match callable {
-        NativeCallable::Constructor { .. } | NativeCallable::ConstructorWithVm { .. } => {
+        NativeCallable::ConstructorWithVm { .. } => {
             format!("{}.new", type_name)
         }
         _ => method_name.to_string(),
@@ -1693,26 +1551,6 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
         .collect()
 }
 
-pub fn get_static_methods_for_type(type_name: &str) -> Vec<&'static str> {
-    NATIVE_METHODS
-        .iter()
-        .filter_map(|(t, m, callable)| {
-            if *t == type_name {
-                match callable {
-                    NativeCallable::StaticMethod { .. } => Some(*m),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-pub fn is_static_namespace(name: &str) -> bool {
-    !get_static_methods_for_type(name).is_empty()
-}
-
 /// Runtime type names `get_type_name` (`src/vm/functions.rs`) returns for
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
@@ -1729,30 +1567,6 @@ pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
     "PriorityQueue",
 ];
 
-/// Names of registry types that are namespaces rather than instance types:
-/// callable as `Name.method(...)` (has static methods) or constructible as
-/// `Name(...)` (has a constructor). This is the single source of truth the
-/// semantic analyzer uses to pre-define Math, File, etc.
-pub fn namespaces() -> Vec<&'static str> {
-    let mut names: Vec<&'static str> = NATIVE_METHODS
-        .iter()
-        .filter(|(type_name, _, callable)| {
-            !type_name.is_empty()
-                && !type_name.starts_with("std/")
-                && matches!(
-                    callable,
-                    NativeCallable::StaticMethod { .. }
-                        | NativeCallable::Constructor { .. }
-                        | NativeCallable::ConstructorWithVm { .. }
-                )
-        })
-        .map(|(type_name, _, _)| *type_name)
-        .collect();
-    names.sort_unstable();
-    names.dedup();
-    names
-}
-
 /// The paths of the builtin `std/` modules, sorted.
 pub fn builtin_modules() -> Vec<&'static str> {
     let mut paths: Vec<&'static str> = NATIVE_METHODS
@@ -1763,15 +1577,6 @@ pub fn builtin_modules() -> Vec<&'static str> {
     paths.sort_unstable();
     paths.dedup();
     paths
-}
-
-/// The arity of a namespace's constructor (e.g. `File.new`), if it has one.
-pub fn constructor_arity(type_name: &str) -> Option<u8> {
-    match get_native_method_by_name(type_name, "new") {
-        Some(NativeCallable::Constructor { arity, .. }) => Some(*arity),
-        Some(NativeCallable::ConstructorWithVm { arity, .. }) => Some(*arity),
-        _ => None,
-    }
 }
 
 pub fn is_static_method(type_name: &str, method_name: &str) -> bool {

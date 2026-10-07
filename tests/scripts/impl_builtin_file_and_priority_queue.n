@@ -1,0 +1,26 @@
+// impl_builtin_file_and_priority_queue.n - a user method dispatches on the
+// File and PriorityQueue values the std modules create
+
+// Expected:
+// a file
+// 1
+
+import "std/file"
+import "std/pq"
+
+impl File {
+    fn describe(self) {
+        return "a file"
+    }
+}
+
+impl PriorityQueue {
+    fn count(self) {
+        return self.size()
+    }
+}
+
+print(file.open("x.txt").describe())
+val queue = pq.new()
+queue.push(1, "a")
+print(queue.count())

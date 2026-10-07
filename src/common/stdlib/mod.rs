@@ -29,9 +29,7 @@ const ARGS: &str = "args";
 /// `create_builtin_objects` (to build the VM's values) and
 /// `SemanticAnalyzer::new` (to predefine them for method validation). Their
 /// order here is also the `GetBuiltin` operand a resolution's `Res::Builtin`
-/// carries, so the VM and the semantic analyzer must agree on it. Math and
-/// File are namespaces, not values, and come from the method registry
-/// instead (see `method_registry::namespaces`).
+/// carries, so the VM and the semantic analyzer must agree on it.
 pub const BUILTIN_VALUES: &[(&str, StaticType)] = &[(ARGS, StaticType::Array)];
 
 /// Create stdlib objects for the VM, in `BUILTIN_VALUES` order.

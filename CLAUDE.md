@@ -205,7 +205,7 @@ enforces these edges in `cargo test`.
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
-      call); a call of a builtin module's native emits the same native call as `Math.abs(x)`; an import
+      call); a call of a builtin module's native emits the same native call as `print(x)`; an import
       itself emits nothing. Each module's chunk is named after its module path
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
@@ -223,7 +223,7 @@ enforces these edges in `cargo test`.
   frames below the top (`push_frame`/`pop_frame` save and restore it)
 - `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
   recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
-- Separate builtin values storage (e.g., Math namespace)
+- Separate builtin values storage (e.g., `args`)
 - Runs a program's module chunks in dependency order, then the entry as the script frame; globals live in one
   shared area, so a module's exports are plain globals
 
@@ -305,9 +305,9 @@ enforces these edges in `cargo test`.
 ### New Standard Library Function
 
 1. Implement function in appropriate `src/common/stdlib/*_functions.rs` file
-2. Register in method registry if it's a method (see `src/common/method_registry.rs`) — a new namespace (like
-   `Math`/`File`) is picked up automatically from there; a new runtime builtin value (like `args`) is declared in
-   `BUILTIN_VALUES` (`src/common/stdlib/mod.rs`) and constructed in `create_builtin_objects`
+2. Register in method registry if it's a method (see `src/common/method_registry.rs`) — a new builtin module (like
+   `std/math`) is a set of `std/<name>` rows, picked up automatically from there; a new runtime builtin value
+   (like `args`) is declared in `BUILTIN_VALUES` (`src/common/stdlib/mod.rs`) and constructed in `create_builtin_objects`
 3. For global functions, add to builtin initialization in VM
 4. Add tests in corresponding `src/common/stdlib/tests/` file
 
@@ -329,7 +329,7 @@ enforces these edges in `cargo test`.
 - **Error reporting**: Always include source location (line/column) from tokens
 - **Symbol tables**: Maintain proper lexical scope depth
 - **Name resolution**: Names shadow lexically — a local or user function named like a native (`print`,
-  `Math`, `File`) wins; the method registry is consulted only when a name resolves to nothing else
+  `Array`) wins; the method registry is consulted only when a name resolves to nothing else
 - **Bytecode emission**: Append-only except for jump address backpatching
 - **Opcode design**: Keep instruction set minimal and orthogonal
 

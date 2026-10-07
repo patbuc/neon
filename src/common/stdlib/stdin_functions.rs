@@ -2,7 +2,7 @@ use crate::common::Value;
 #[cfg(not(target_arch = "wasm32"))]
 use std::rc::Rc;
 
-/// Native implementation of Stdin.read()
+/// Native implementation of stdin.read()
 /// Reads all remaining standard input and returns it as a string. A call
 /// after EOF has already been reached returns "".
 #[cfg(not(target_arch = "wasm32"))]
@@ -15,7 +15,7 @@ pub fn native_stdin_read(args: &[Value]) -> Result<Value, String> {
     Ok(Value::String(Rc::new(contents)))
 }
 
-/// Native implementation of Stdin.readLines()
+/// Native implementation of stdin.readLines()
 /// Reads all remaining standard input and returns an array of lines, split
 /// the same way as File.readLines().
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,14 +46,14 @@ fn read_stdin_to_string(method: &str) -> Result<String, String> {
     Ok(buf)
 }
 
-/// Native implementation of Stdin.read() on wasm32: there is no standard
+/// Native implementation of stdin.read() on wasm32: there is no standard
 /// input in the browser, so this always errors instead.
 #[cfg(target_arch = "wasm32")]
 pub fn native_stdin_read(_args: &[Value]) -> Result<Value, String> {
     Err("Stdin is not supported in the browser".to_string())
 }
 
-/// Native implementation of Stdin.readLines() on wasm32: see
+/// Native implementation of stdin.readLines() on wasm32: see
 /// `native_stdin_read`.
 #[cfg(target_arch = "wasm32")]
 pub fn native_stdin_read_lines(_args: &[Value]) -> Result<Value, String> {

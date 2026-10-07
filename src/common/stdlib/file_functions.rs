@@ -2,11 +2,14 @@ use crate::common::Value;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 use std::rc::Rc;
 
-/// Native implementation of File(path) constructor
+/// Native implementation of file.open(path)
 /// Creates a new File object with the given path
 pub fn native_file_constructor(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
-        return Err(format!("File() expects 1 argument, got {}", args.len()));
+        return Err(format!(
+            "file.open() expects 1 argument, got {}",
+            args.len()
+        ));
     }
 
     let s = extract_arg!(args, 0, String, "path", "File")?;

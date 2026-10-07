@@ -1,13 +1,10 @@
 use crate::common::{Numeric, Value};
 use crate::extract_receiver;
 
-/// Native implementation of the `PriorityQueue()` constructor.
+/// Native implementation of `pq.new()`.
 pub fn native_priority_queue_constructor(args: &[Value]) -> Result<Value, String> {
     if !args.is_empty() {
-        return Err(format!(
-            "PriorityQueue() expects 0 arguments, got {}",
-            args.len()
-        ));
+        return Err(format!("pq.new() expects 0 arguments, got {}", args.len()));
     }
 
     Ok(Value::new_priority_queue())

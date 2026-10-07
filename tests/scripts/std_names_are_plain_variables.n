@@ -1,0 +1,18 @@
+// std_names_are_plain_variables.n - Math, File, Stdin and PriorityQueue are
+// ordinary names a program can bind
+
+// Expected:
+// 1
+// f
+// s
+// q
+
+val Math = 1
+val File = "f"
+val Stdin = "s"
+fn PriorityQueue() = "q"
+
+print(Math)
+print(File)
+print(Stdin)
+print(PriorityQueue())

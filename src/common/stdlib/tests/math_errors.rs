@@ -7,25 +7,37 @@ fn math_errors() {
         (r#"print(math.abs("string"))"#, "abs() x must be a number"),
         ("print(math.abs(true))", "abs() x must be a number"),
         ("print(math.abs(nil))", "abs() x must be a number"),
-        ("print(Math.abs())", "abs() expects 1 argument, got 0"),
-        ("print(Math.abs(1, 2))", "abs() expects 1 argument, got 2"),
+        (
+            "val f = math.abs\nprint(f())",
+            "abs() expects 1 argument, got 0",
+        ),
+        (
+            "val f = math.abs\nprint(f(1, 2))",
+            "abs() expects 1 argument, got 2",
+        ),
         (
             r#"print(math.floor("hello"))"#,
             "floor() x must be a number",
         ),
         ("print(math.floor(false))", "floor() x must be a number"),
         ("print(math.floor(nil))", "floor() x must be a number"),
-        ("print(Math.floor())", "floor() expects 1 argument, got 0"),
         (
-            "print(Math.floor(1.5, 2.5))",
+            "val f = math.floor\nprint(f())",
+            "floor() expects 1 argument, got 0",
+        ),
+        (
+            "val f = math.floor\nprint(f(1.5, 2.5))",
             "floor() expects 1 argument, got 2",
         ),
         (r#"print(math.ceil("world"))"#, "ceil() x must be a number"),
         ("print(math.ceil(true))", "ceil() x must be a number"),
         ("print(math.ceil(nil))", "ceil() x must be a number"),
-        ("print(Math.ceil())", "ceil() expects 1 argument, got 0"),
         (
-            "print(Math.ceil(1.5, 2.5))",
+            "val f = math.ceil\nprint(f())",
+            "ceil() expects 1 argument, got 0",
+        ),
+        (
+            "val f = math.ceil\nprint(f(1.5, 2.5))",
             "ceil() expects 1 argument, got 2",
         ),
         (
@@ -35,8 +47,14 @@ fn math_errors() {
         (r#"print(math.sqrt("42"))"#, "sqrt() x must be a number"),
         ("print(math.sqrt(false))", "sqrt() x must be a number"),
         ("print(math.sqrt(nil))", "sqrt() x must be a number"),
-        ("print(Math.sqrt())", "sqrt() expects 1 argument, got 0"),
-        ("print(Math.sqrt(4, 9))", "sqrt() expects 1 argument, got 2"),
+        (
+            "val f = math.sqrt\nprint(f())",
+            "sqrt() expects 1 argument, got 0",
+        ),
+        (
+            "val f = math.sqrt\nprint(f(4, 9))",
+            "sqrt() expects 1 argument, got 2",
+        ),
         (
             "print(math.sqrt(-100))",
             "sqrt() requires a non-negative number",

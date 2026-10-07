@@ -125,9 +125,8 @@ pub struct SemanticAnalyzer {
     // Whether `TooManySymbols` has already been reported, so one program
     // with many overflowing names doesn't produce one error per name.
     too_many_symbols_reported: bool,
-    // DeclIds below this were seeded by `new()` itself (namespaces, builtin
-    // values) rather than declared by the program; `snapshot_env` excludes
-    // them so a later REPL line can't redeclare a builtin, since a fresh
+    // DeclIds below this were seeded by `new()` itself (builtin values)
+    // rather than declared by the program; `snapshot_env` excludes them so a later REPL line can't redeclare a builtin, since a fresh
     // analyzer re-seeds them anyway.
     builtin_decl_count: u32,
     // Export table of the module each file `import` resolved to, by the
@@ -140,24 +139,6 @@ impl SemanticAnalyzer {
         let mut symbol_table = SymbolTable::new();
         let mut type_env = vec![HashMap::new()];
         let mut next_decl_id = 0u32;
-
-        // Namespaces (Math, File, ...) come from the method registry, the
-        // single source of truth for what's callable as `Name.method(...)`
-        // or constructible as `Name(...)`.
-        for namespace in crate::common::method_registry::namespaces() {
-            let decl_id = DeclId(next_decl_id);
-            next_decl_id += 1;
-            let symbol = Symbol::new(
-                namespace.to_string(),
-                SymbolKind::Namespace,
-                false,
-                0,
-                SourceLocation::default(),
-                decl_id,
-                0,
-            );
-            let _ = symbol_table.define(symbol); // Ignore error since this is initial setup
-        }
 
         // Runtime builtin values (args, ...) come from the same list the VM
         // uses to construct them.
@@ -1830,19 +1811,11 @@ impl SemanticAnalyzer {
             return;
         };
 
-        if matches!(
-            symbol.kind,
-            SymbolKind::Namespace | SymbolKind::Module { .. }
-        ) {
-            let what = if symbol.kind == SymbolKind::Namespace {
-                "namespace"
-            } else {
-                "module"
-            };
+        if matches!(symbol.kind, SymbolKind::Module { .. }) {
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
                 CompilationErrorKind::NamespaceAsValue,
-                format!("'{}' is a {}, not a value", name, what),
+                format!("'{}' is a module, not a value", name),
                 location,
             ));
             return;
@@ -2044,7 +2017,7 @@ impl SemanticAnalyzer {
             ..
         } = object
         {
-            if optional && self.is_type_or_namespace_name(name) {
+            if optional && self.is_type_name(name) {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
@@ -2096,23 +2069,6 @@ impl SemanticAnalyzer {
                 return;
             }
 
-            let is_namespace = matches!(
-                self.symbol_table.resolve(name),
-                Some(symbol) if symbol.kind == SymbolKind::Namespace
-            );
-
-            // A static method call, e.g. Math.abs(x). The namespace name
-            // isn't a variable reference, so don't resolve it as one.
-            if is_namespace && crate::common::method_registry::is_static_namespace(name) {
-                for arg in arguments {
-                    self.resolve_expr(arg);
-                }
-                if let Some(index) = self.validate_static_method(name, method, location) {
-                    self.resolutions.record_native(id, index);
-                }
-                return;
-            }
-
             // A static call on an enum's own name, e.g. Color.values().
             if let Some(variants) = self.enum_variants(name) {
                 self.resolve_enum_static_call(id, name, &variants, method, arguments, location);
@@ -2139,12 +2095,21 @@ impl SemanticAnalyzer {
                 return;
             }
 
-            // A static call on a builtin type name, e.g. Array.second().
+            // A static call on a builtin type name: a native static method
+            // such as String.fromCharCode(c), or an error like Array.second().
             if crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&name.as_str())
                 && self.symbol_table.resolve(name).is_none()
             {
                 for arg in arguments {
                     self.resolve_expr(arg);
+                }
+                if crate::common::method_registry::is_static_method(name, method) {
+                    if let Some(index) =
+                        crate::common::method_registry::get_native_method_index(name, method)
+                    {
+                        self.resolutions.record_native(id, index);
+                        return;
+                    }
                 }
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -2213,32 +2178,27 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
-            let (resolved, is_namespace) = match self.symbol_table.resolve(name) {
-                Some(symbol) => (true, symbol.kind == SymbolKind::Namespace),
-                None => (false, false),
-            };
-
-            // Constructor call on a namespace (e.g. File(path)), only when
-            // nothing else shadows the namespace name.
-            if is_namespace {
-                if let Some(arity) = crate::common::method_registry::constructor_arity(name) {
-                    self.validate_arity("Function", name, arity, arguments.len(), location);
-                    if let Some(index) =
-                        crate::common::method_registry::get_native_method_index(name, "new")
-                    {
-                        self.resolutions.record_native(id, index);
-                    }
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                    return;
-                }
-            } else if !resolved {
+            if self.symbol_table.resolve(name).is_none() {
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index("", name)
                 {
+                    self.resolutions.record_native(id, index);
+                    for arg in arguments {
+                        self.resolve_expr(arg);
+                    }
+                    return;
+                }
+
+                // Likewise a builtin type's constructor, e.g. Array(n).
+                if let Some(index) =
+                    crate::common::method_registry::get_native_method_index(name, "new")
+                {
+                    let arity = crate::common::method_registry::NATIVE_METHODS[index]
+                        .2
+                        .arity();
+                    self.validate_arity("Function", name, arity, arguments.len(), location);
                     self.resolutions.record_native(id, index);
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2275,7 +2235,7 @@ impl SemanticAnalyzer {
         }
 
         if let Expr::Variable { name, id, .. } = object {
-            if optional && self.is_type_or_namespace_name(name) {
+            if optional && self.is_type_name(name) {
                 self.push_optional_dot_on_type_error(location);
                 return;
             }
@@ -2548,42 +2508,10 @@ impl SemanticAnalyzer {
 
     // Validation helper methods
 
-    /// Validate a static method call against the method registry, returning
-    /// the registry index when it names an actual static method. A registry
-    /// entry that exists but isn't a static method (e.g. a constructor)
-    /// reports the same "not found" error, so a caller can record the
-    /// native call directly from the returned index without a second,
-    /// possibly-disagreeing lookup.
-    fn validate_static_method(
-        &mut self,
-        namespace: &str,
-        method: &str,
-        location: SourceLocation,
-    ) -> Option<usize> {
-        let index = crate::common::method_registry::get_native_method_index(namespace, method)
-            .filter(|_| crate::common::method_registry::is_static_method(namespace, method));
-        if index.is_none() {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::UnknownNamespaceMethod,
-                format!(
-                    "Static method '{}' not found in namespace '{}'",
-                    method, namespace
-                ),
-                location,
-            ));
-        }
-        index
-    }
-
-    /// True when `name` names a namespace (Math, File, ...), an enum, or a
-    /// struct type itself - never nil, so `?.` on it is nonsensical.
-    fn is_type_or_namespace_name(&self, name: &str) -> bool {
-        matches!(
-            self.symbol_table.resolve(name),
-            Some(symbol) if symbol.kind == SymbolKind::Namespace
-        ) || self.enum_variants(name).is_some()
-            || self.is_struct_type(name)
+    /// True when `name` names an enum or a struct type itself - never nil,
+    /// so `?.` on it is nonsensical.
+    fn is_type_name(&self, name: &str) -> bool {
+        self.enum_variants(name).is_some() || self.is_struct_type(name)
     }
 
     /// True when `expr` is `module.Type` naming an exported struct or enum.
@@ -3103,7 +3031,7 @@ impl SemanticAnalyzer {
                     // Holds an arbitrary value; whether it's callable, and
                     // with how many arguments, is only known at runtime.
                 }
-                SymbolKind::Namespace | SymbolKind::Enum { .. } | SymbolKind::Module { .. } => {
+                SymbolKind::Enum { .. } | SymbolKind::Module { .. } => {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::NotCallable,
