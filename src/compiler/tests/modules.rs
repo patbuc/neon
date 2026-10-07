@@ -468,13 +468,6 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
 const POINT_METHODS_MODULE: &str = "export struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
 const LOCAL_POINT_METHODS: &str = "struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
 
-fn unknown_method_prefix(message: &str) -> &str {
-    message
-        .split_once(". Available methods")
-        .expect("available methods listed")
-        .0
-}
-
 #[test]
 fn validates_method_calls_on_an_exported_struct() {
     compile_files(
@@ -486,8 +479,7 @@ fn validates_method_calls_on_an_exported_struct() {
 
     let local_static = compile_errors(&format!("{}Point.nope()\n", LOCAL_POINT_METHODS));
     assert_eq!(1, local_static.len(), "errors: {:#?}", local_static);
-    let expected =
-        unknown_method_prefix(&local_static[0].message).replace("'Point'", "'utils.Point'");
+    let expected = local_static[0].message.replace("'Point'", "'utils.Point'");
     assert_eq!("Type 'utils.Point' has no method named 'nope'", expected);
     let errors = compile_errors_of(
         "struct_static_unknown",
@@ -496,7 +488,8 @@ fn validates_method_calls_on_an_exported_struct() {
     );
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     assert_eq!(local_static[0].kind, errors[0].kind);
-    assert_eq!(expected, unknown_method_prefix(&errors[0].message));
+    assert_eq!(expected, errors[0].message);
+    assert!(errors[0].help.is_some());
     assert_eq!(2, errors[0].location.line);
 
     let local_instance = compile_errors(&format!("{}Point(1).nope()\n", LOCAL_POINT_METHODS));
@@ -508,7 +501,8 @@ fn validates_method_calls_on_an_exported_struct() {
     );
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     assert_eq!(local_instance[0].kind, errors[0].kind);
-    assert_eq!(expected, unknown_method_prefix(&errors[0].message));
+    assert_eq!(expected, errors[0].message);
+    assert!(errors[0].help.is_some());
     assert_eq!(2, errors[0].location.line);
 
     let local_arity = compile_errors(&format!("{}Point.make(1)\n", LOCAL_POINT_METHODS));

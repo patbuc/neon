@@ -1974,11 +1974,11 @@ impl SemanticAnalyzer {
             if candidates.is_empty() {
                 candidates.push("values");
             }
-            let error_message = unknown_method_error(name, method, &candidates, None);
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::UnknownMethod,
-                error_message,
+            self.push_error(unknown_method_error(
+                name,
+                method,
+                &candidates,
+                None,
                 location,
             ));
         }
@@ -2931,12 +2931,11 @@ impl SemanticAnalyzer {
         }
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
         let renamed = renamed_method_suggestion(method, &candidate_refs);
-        let error_message = unknown_method_error(object_type, method, &candidate_refs, renamed);
-
-        self.push_error(CompilationError::new(
-            CompilationPhase::Semantic,
-            CompilationErrorKind::UnknownMethod,
-            error_message,
+        self.push_error(unknown_method_error(
+            object_type,
+            method,
+            &candidate_refs,
+            renamed,
             location,
         ));
     }
@@ -3141,10 +3140,11 @@ fn struct_method_call_error(
         .into_iter()
         .flat_map(|methods| methods.keys().map(String::as_str))
         .collect();
-    Some(CompilationError::new(
-        CompilationPhase::Semantic,
-        CompilationErrorKind::UnknownMethod,
-        unknown_method_error(struct_name, method, &candidates, None),
+    Some(unknown_method_error(
+        struct_name,
+        method,
+        &candidates,
+        None,
         location,
     ))
 }
@@ -3174,34 +3174,43 @@ fn renamed_method_suggestion<'a>(method: &str, candidates: &[&'a str]) -> Option
         .map(|(_, new)| *new)
 }
 
-/// Builds the "unknown method" error message for `type_name`, suggesting
-/// `renamed` or else the closest match among `candidates` when one exists.
+/// Builds the "unknown method" error for `type_name`, suggesting `renamed` or
+/// else the closest match among `candidates` when one exists; otherwise the
+/// candidates go in the error's help.
 fn unknown_method_error(
     type_name: &str,
     method: &str,
     candidates: &[&str],
     renamed: Option<&str>,
-) -> String {
+    location: SourceLocation,
+) -> CompilationError {
     let suggestion = renamed
         .or_else(|| crate::common::string_similarity::find_closest_match(method, candidates));
+    let error = |message: String| {
+        CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::UnknownMethod,
+            message,
+            location,
+        )
+    };
 
     if let Some(suggestion) = suggestion {
-        format!(
+        error(format!(
             "Type '{}' has no method named '{}'. Did you mean '{}'?",
             type_name, method, suggestion
-        )
+        ))
     } else if candidates.is_empty() {
-        format!(
+        error(format!(
             "Type '{}' has no method named '{}' and no available methods",
             type_name, method
-        )
+        ))
     } else {
-        format!(
-            "Type '{}' has no method named '{}'. Available methods: {}",
-            type_name,
-            method,
-            candidates.join(", ")
-        )
+        error(format!(
+            "Type '{}' has no method named '{}'",
+            type_name, method
+        ))
+        .with_help(format!("available methods: {}", candidates.join(", ")))
     }
 }
 
