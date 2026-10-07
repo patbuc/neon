@@ -9,6 +9,9 @@ impl Chunk {
             constants: Constants::new(),
             instructions: Vec::new(),
             line_infos: Vec::new(),
+            code: Vec::new(),
+            instr_lines: Vec::new(),
+            closure_upvalues: Vec::new(),
             symbols: Rc::from(Vec::new()),
             file: None,
         }
@@ -67,11 +70,13 @@ impl Chunk {
     }
 
     #[inline(always)]
+    #[cfg(any(test, feature = "disassemble"))]
     pub(crate) fn read_u8(&self, offset: usize) -> u8 {
         self.instructions[offset]
     }
 
     #[inline(always)]
+    #[cfg(any(test, feature = "disassemble"))]
     pub(crate) fn read_u16(&self, offset: usize) -> u16 {
         let byte1 = self.instructions[offset] as u16;
         let byte2 = self.instructions[offset + 1] as u16;
@@ -79,6 +84,7 @@ impl Chunk {
     }
 
     #[inline(always)]
+    #[cfg(any(test, feature = "disassemble"))]
     pub(crate) fn read_u32(&self, offset: usize) -> u32 {
         let byte1 = self.instructions[offset] as u32;
         let byte2 = self.instructions[offset + 1] as u32;

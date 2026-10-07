@@ -122,15 +122,13 @@ impl VirtualMachine {
     }
 
     /// Stack: `[.., field values...]` -> `[.., variant]`.
-    pub(in crate::vm) fn op_enum_construct(&mut self) -> OpResult {
-        let Value::EnumVariant(template) = self.chunk.read_constant(self.operand_u16(1) as usize)
-        else {
+    pub(in crate::vm) fn op_enum_construct(&mut self, index: u16) -> OpResult {
+        let Value::EnumVariant(template) = self.chunk.read_constant(index as usize) else {
             return Err(self.runtime_error("Enum constructor constant is not an enum variant."));
         };
         let fields = self
             .stack
             .split_off(self.stack.len() - template.field_symbols.len());
-        self.ip += 2;
         self.push(Value::EnumVariant(Rc::new(template.with_fields(fields))));
         Ok(())
     }
@@ -145,13 +143,11 @@ impl VirtualMachine {
     }
 
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_is_variant(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_is_variant(&mut self, index: u16) -> OpResult {
         // [.., value] -> [.., is_variant]
-        let Value::EnumVariant(template) = self.chunk.read_constant(self.operand_u16(1) as usize)
-        else {
+        let Value::EnumVariant(template) = self.chunk.read_constant(index as usize) else {
             return Err(self.runtime_error("Variant pattern constant is not an enum variant."));
         };
-        self.ip += 2;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         let matches = matches!(slot, Value::EnumVariant(variant)
             if variant.ordinal == template.ordinal && variant.enum_name == template.enum_name);
@@ -161,11 +157,9 @@ impl VirtualMachine {
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_is_array_of_len(&mut self) {
+    pub(in crate::vm) fn op_is_array_of_len(&mut self, length: u16, at_least: bool) {
         // [.., value] -> [.., is_array_of_len]
-        let length = self.operand_u16(1) as usize;
-        let at_least = self.operand_u8(3) != 0;
-        self.ip += 3;
+        let length = length as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         let matches = matches!(slot, Value::Array(array) if {
             let actual = array.borrow().len();
@@ -175,9 +169,9 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_call(&mut self) -> OpResult {
-        let arg_count = self.operand_u8(1) as usize;
-        self.ip += 2; // Skip CALL opcode and arg_count byte
+    pub(in crate::vm) fn op_call(&mut self, arg_count: u8) -> OpResult {
+        let arg_count = arg_count as usize;
+        self.ip += 1;
 
         self.check_frame_limit()?;
 
@@ -193,9 +187,9 @@ impl VirtualMachine {
     /// takes over the running frame. Returns whether it did; otherwise the
     /// callee's result is on the stack for the caller to return.
     #[inline(never)]
-    pub(in crate::vm) fn op_tail_call(&mut self) -> Result<bool, RuntimeError> {
-        let arg_count = self.operand_u8(1) as usize;
-        self.ip += 2; // Skip TailCall opcode and arg_count byte
+    pub(in crate::vm) fn op_tail_call(&mut self, arg_count: u8) -> Result<bool, RuntimeError> {
+        let arg_count = arg_count as usize;
+        self.ip += 1;
 
         let callable_index = self.stack.len() - 1 - arg_count;
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
@@ -214,10 +208,13 @@ impl VirtualMachine {
     /// Returns whether it did; otherwise the callee's result is on the stack
     /// for the caller to return.
     #[inline(never)]
-    pub(in crate::vm) fn op_tail_invoke(&mut self) -> Result<bool, RuntimeError> {
-        let method_symbol = self.operand_u16(1);
-        let arg_count = self.operand_u8(3) as usize;
-        self.ip += 4; // Skip TailInvoke opcode, method_symbol and arg_count byte
+    pub(in crate::vm) fn op_tail_invoke(
+        &mut self,
+        method_symbol: u16,
+        arg_count: u8,
+    ) -> Result<bool, RuntimeError> {
+        let arg_count = arg_count as usize;
+        self.ip += 1;
 
         let receiver_index = self.stack.len() - arg_count - 1;
         let receiver = self.stack[receiver_index].clone();
@@ -292,10 +289,9 @@ impl VirtualMachine {
     /// Invoke: a method call dispatched by name at runtime. Stack before:
     /// `[receiver, args...]`, argc excluding the receiver.
     #[inline(always)]
-    pub(in crate::vm) fn op_invoke(&mut self) -> OpResult {
-        let method_symbol = self.operand_u16(1);
-        let arg_count = self.operand_u8(3) as usize;
-        self.ip += 4; // Skip Invoke opcode, method_symbol and arg_count byte
+    pub(in crate::vm) fn op_invoke(&mut self, method_symbol: u16, arg_count: u8) -> OpResult {
+        let arg_count = arg_count as usize;
+        self.ip += 1;
 
         self.check_frame_limit()?;
 
@@ -1032,20 +1028,18 @@ impl VirtualMachine {
     /// so its result and error stay identical.
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_add_constant(&mut self) -> OpResult {
-        let index = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_add_constant(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&mut *slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
                 *a += c;
-                self.ip += 2;
                 return Ok(());
             }
             (Value::Int(a), &Value::Int(c)) => {
                 return match a.checked_add(c) {
                     Some(r) => {
                         *a = r;
-                        self.ip += 2;
                         Ok(())
                     }
                     None => Err(self.overflow_error("+")),
@@ -1053,7 +1047,6 @@ impl VirtualMachine {
             }
             (Value::Number(a), &Value::Int(c)) => {
                 *a += c as f64;
-                self.ip += 2;
                 return Ok(());
             }
             _ => {}
@@ -1061,26 +1054,23 @@ impl VirtualMachine {
         let constant = self.chunk.read_constant(index);
         self.push(constant);
         self.op_add()?;
-        self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_subtract_constant(&mut self) -> OpResult {
-        let index = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_subtract_constant(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&mut *slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
                 *a -= c;
-                self.ip += 2;
                 return Ok(());
             }
             (Value::Int(a), &Value::Int(c)) => {
                 return match a.checked_sub(c) {
                     Some(r) => {
                         *a = r;
-                        self.ip += 2;
                         Ok(())
                     }
                     None => Err(self.overflow_error("-")),
@@ -1088,7 +1078,6 @@ impl VirtualMachine {
             }
             (Value::Number(a), &Value::Int(c)) => {
                 *a -= c as f64;
-                self.ip += 2;
                 return Ok(());
             }
             _ => {}
@@ -1096,14 +1085,17 @@ impl VirtualMachine {
         let constant = self.chunk.read_constant(index);
         self.push(constant);
         self.op_subtract()?;
-        self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_compare_constant(&mut self, wanted: Comparison) -> OpResult {
-        let index = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_compare_constant(
+        &mut self,
+        index: u16,
+        wanted: Comparison,
+    ) -> OpResult {
+        let index = index as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&*slot, self.chunk.constant(index)) {
             (Value::Number(a), &Value::Number(c)) => {
@@ -1114,13 +1106,11 @@ impl VirtualMachine {
                     Comparison::LessEqual => *a <= c,
                 };
                 std::mem::replace(slot, boolean!(is_match)).discard();
-                self.ip += 2;
                 return Ok(());
             }
             (Value::Int(a), &Value::Int(c)) => {
                 let is_match = Self::ordering_matches(Some(a.cmp(&c)), &wanted);
                 std::mem::replace(slot, boolean!(is_match)).discard();
-                self.ip += 2;
                 return Ok(());
             }
             (Value::Number(a), &Value::Int(c)) => {
@@ -1129,7 +1119,6 @@ impl VirtualMachine {
                     &wanted,
                 );
                 std::mem::replace(slot, boolean!(is_match)).discard();
-                self.ip += 2;
                 return Ok(());
             }
             _ => {}
@@ -1137,7 +1126,6 @@ impl VirtualMachine {
         let constant = self.chunk.read_constant(index);
         self.push(constant);
         self.op_compare(wanted)?;
-        self.ip += 2;
         Ok(())
     }
 
@@ -1163,15 +1151,14 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_constant(&mut self) {
-        let constant = self.chunk.read_constant(self.operand_u16(1) as usize);
-        self.ip += 2;
+    pub(in crate::vm) fn op_constant(&mut self, index: u16) {
+        let constant = self.chunk.read_constant(index as usize);
         self.push(constant);
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_set_local(&mut self) -> OpResult {
-        let (index, absolute_index) = self.read_local_slot();
+    pub(in crate::vm) fn op_set_local(&mut self, index: u16) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot(index);
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1183,8 +1170,8 @@ impl VirtualMachine {
     /// Statement-position `SetLocal`: moves the top of stack into the slot
     /// instead of copying it there and leaving it pushed.
     #[inline(always)]
-    pub(in crate::vm) fn op_store_local(&mut self) -> OpResult {
-        let (index, absolute_index) = self.read_local_slot();
+    pub(in crate::vm) fn op_store_local(&mut self, index: u16) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot(index);
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1193,29 +1180,25 @@ impl VirtualMachine {
         Ok(())
     }
 
-    fn read_index(&self) -> usize {
-        self.operand_u16(1) as usize
-    }
-
-    /// Wraps a function constant in a closure, capturing whatever upvalues
-    /// its metadata (following the constant index) describes.
+    /// Wraps a function constant in a closure, capturing the upvalues its
+    /// run in `Chunk::closure_upvalues` describes.
     #[inline(always)]
-    pub(in crate::vm) fn op_closure(&mut self) -> OpResult {
-        let const_index = self.read_index();
-        let function = match self.chunk.read_constant(const_index) {
+    pub(in crate::vm) fn op_closure(
+        &mut self,
+        const_index: u16,
+        upvalue_count: u8,
+        upvalues_start: u32,
+    ) -> OpResult {
+        let function = match self.chunk.read_constant(const_index as usize) {
             Value::Function(function) => function,
             _ => unreachable!("Closure operand must reference a function constant"),
         };
 
-        let mut offset = 2;
-        let upvalue_count = self.operand_u8(1 + offset) as usize;
-        offset += 1;
-
-        let mut upvalues = Vec::with_capacity(upvalue_count);
-        for _ in 0..upvalue_count {
-            let is_local = self.operand_u8(1 + offset) != 0;
-            let index = self.operand_u16(1 + offset + 1) as usize;
-            offset += 3;
+        let upvalues_start = upvalues_start as usize;
+        let mut upvalues = Vec::with_capacity(upvalue_count as usize);
+        for i in 0..upvalue_count as usize {
+            let (is_local, index) = self.chunk.closure_upvalues[upvalues_start + i];
+            let index = index as usize;
 
             let upvalue = if is_local {
                 let absolute_index =
@@ -1231,13 +1214,12 @@ impl VirtualMachine {
         }
 
         self.push(Value::new_closure(function, upvalues));
-        self.ip += offset;
         Ok(())
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_get_upvalue(&mut self) -> OpResult {
-        let index = self.read_index();
+    pub(in crate::vm) fn op_get_upvalue(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         if index >= self.current_frame().closure.upvalues.len() {
             return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
         }
@@ -1246,14 +1228,13 @@ impl VirtualMachine {
             Upvalue::Open(stack_index) => self.stack[*stack_index].clone(),
             Upvalue::Closed(value) => value.clone(),
         };
-        self.ip += 2;
         self.push(value);
         Ok(())
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_set_upvalue(&mut self) -> OpResult {
-        let index = self.read_index();
+    pub(in crate::vm) fn op_set_upvalue(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         if index >= self.current_frame().closure.upvalues.len() {
             return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
         }
@@ -1267,7 +1248,6 @@ impl VirtualMachine {
             Some(stack_index) => self.stack[stack_index] = value,
             None => *upvalue.borrow_mut() = Upvalue::Closed(value),
         }
-        self.ip += 2;
         Ok(())
     }
 
@@ -1318,20 +1298,19 @@ impl VirtualMachine {
         });
     }
 
-    /// Reads a u16 local-slot operand, advancing `ip` past it, and returns
-    /// it with its absolute stack index. Locals start at `slot_start + 1`,
-    /// which is 0 for the script frame (`slot_start` is -1).
+    /// Returns a local-slot operand with its absolute stack index. Locals
+    /// start at `slot_start + 1`, which is 0 for the script frame
+    /// (`slot_start` is -1).
     #[inline(always)]
-    fn read_local_slot(&mut self) -> (usize, usize) {
-        let index = self.read_index();
+    fn read_local_slot(&self, index: u16) -> (usize, usize) {
+        let index = index as usize;
         let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
-        self.ip += 2;
         (index, absolute_index)
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_get_local(&mut self) -> OpResult {
-        let (index, absolute_index) = self.read_local_slot();
+    pub(in crate::vm) fn op_get_local(&mut self, index: u16) -> OpResult {
+        let (index, absolute_index) = self.read_local_slot(index);
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1339,71 +1318,19 @@ impl VirtualMachine {
         Ok(())
     }
 
-    #[inline(always)]
-    pub(in crate::vm) fn op_jump_if_false(&mut self) {
-        let is_false = is_false_like!(self.peek(0));
-        let offset = self.operand_u32(1);
-        self.ip += 4;
-        if is_false {
-            // Don't pop! Leave the value on the stack for logical operators
-            // The caller is responsible for popping if needed (e.g., in if statements)
-            self.ip += offset as usize;
-        }
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn op_jump_if_not_nil(&mut self) {
-        let is_nil = matches!(self.peek(0), Value::Nil);
-        let offset = self.operand_u32(1);
-        self.ip += 4;
-        if !is_nil {
-            // Don't pop! The caller needs the value as the `??` result.
-            self.ip += offset as usize;
-        }
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn op_jump_if_nil(&mut self) {
-        let is_nil = matches!(self.peek(0), Value::Nil);
-        let offset = self.operand_u32(1);
-        self.ip += 4;
-        if is_nil {
-            // Don't pop! That nil is the result of `a?.b`.
-            self.ip += offset as usize;
-        }
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn op_jump(&mut self) {
-        let offset = self.operand_u32(1);
-        self.ip += 4 + offset as usize;
-    }
-
-    /// Loop: jumps back by the u32 operand, measured from the end of this
-    /// instruction plus one (the slot the dispatch loop's `ip += 1` would
-    /// land on). Sets `ip` to the target directly, so a loop starting at
-    /// instruction 0 doesn't pass through an underflowed intermediate; the
-    /// dispatch loop must not increment `ip` afterwards.
-    #[inline(always)]
-    pub(in crate::vm) fn op_loop(&mut self) {
-        let offset = self.operand_u32(1);
-        self.ip = self.ip + 5 - offset as usize;
-    }
-
-    pub(in crate::vm) fn op_get_builtin(&mut self) -> OpResult {
-        let index = self.read_index();
+    pub(in crate::vm) fn op_get_builtin(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         if let Some(value) = self.builtin.get(index) {
             self.push(value.clone());
         } else {
             return Err(self.runtime_error(format!("Built-in global at index {} not found", index)));
         }
-        self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_get_global(&mut self) -> OpResult {
-        let index = self.read_index();
+    pub(in crate::vm) fn op_get_global(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
 
         // Regular global variables are in the script frame
         // Script frame has slot_start = -1, so globals start at index 0
@@ -1425,13 +1352,12 @@ impl VirtualMachine {
         }
 
         self.push(value.clone());
-        self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_set_global(&mut self) -> OpResult {
-        let index = self.read_index();
+    pub(in crate::vm) fn op_set_global(&mut self, index: u16) -> OpResult {
+        let index = index as usize;
         // Global variables are always in the script frame (first frame)
         // Script frame has slot_start = -1, so globals start at index 0
         let script_frame = &self.call_frames[0];
@@ -1450,7 +1376,6 @@ impl VirtualMachine {
         }
 
         self.stack[absolute_index] = self.peek(0).clone();
-        self.ip += 2;
         Ok(())
     }
 
@@ -1471,12 +1396,10 @@ impl VirtualMachine {
     }
 
     /// Peeks the top of the stack and errors unless it holds an Array of
-    /// exactly `n` elements, read from the 16-bit operand; otherwise a
-    /// no-op.
+    /// exactly `n` elements; otherwise a no-op.
     #[inline(always)]
-    pub(in crate::vm) fn op_check_tuple(&mut self) -> OpResult {
-        let n = self.read_index();
-        self.ip += 2;
+    pub(in crate::vm) fn op_check_tuple(&mut self, n: u16) -> OpResult {
+        let n = n as usize;
 
         match self.peek(0) {
             Value::Array(array_ref) => {
@@ -1511,8 +1434,7 @@ impl VirtualMachine {
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_get_field(&mut self) -> OpResult {
-        let symbol = self.read_index() as u16;
+    pub(in crate::vm) fn op_get_field(&mut self, symbol: u16) -> OpResult {
         let value = match self.peek(0) {
             Value::Instance(instance_ref) => match instance_ref.borrow().field(symbol) {
                 Some(value) => value.copy_or_clone(),
@@ -1538,14 +1460,12 @@ impl VirtualMachine {
             value,
         ));
 
-        self.ip += 2;
         Ok(())
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_get_local_field(&mut self) -> OpResult {
-        let index = self.operand_u16(1) as usize;
-        let symbol = self.operand_u16(3);
+    pub(in crate::vm) fn op_get_local_field(&mut self, index: u16, symbol: u16) -> OpResult {
+        let index = index as usize;
         let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
@@ -1569,16 +1489,14 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
-        self.ip += 4;
         self.push(value);
         Ok(())
     }
 
     /// Stack: `[.., value]` -> `[..]`.
     #[inline(always)]
-    pub(in crate::vm) fn op_store_local_field(&mut self) -> OpResult {
-        let index = self.operand_u16(1) as usize;
-        let symbol = self.operand_u16(3);
+    pub(in crate::vm) fn op_store_local_field(&mut self, index: u16, symbol: u16) -> OpResult {
+        let index = index as usize;
         let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
@@ -1598,15 +1516,13 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        self.ip += 4;
         Ok(())
     }
 
     #[inline(always)]
     #[allow(clippy::expect_used)]
-    pub(in crate::vm) fn op_set_field(&mut self) -> OpResult {
+    pub(in crate::vm) fn op_set_field(&mut self, symbol: u16) -> OpResult {
         // [.., instance, value] -> [.., value]
-        let symbol = self.read_index() as u16;
         let value = self.pop();
         match self.peek(0) {
             Value::Instance(instance_ref) => {
@@ -1628,7 +1544,6 @@ impl VirtualMachine {
             value,
         ));
 
-        self.ip += 2;
         Ok(())
     }
 
@@ -1636,8 +1551,7 @@ impl VirtualMachine {
     /// consumes the instance and value instead of leaving the value
     /// pushed. Stack: `[.., instance, value]` -> `[..]`.
     #[inline(always)]
-    pub(in crate::vm) fn op_store_field(&mut self) -> OpResult {
-        let symbol = self.read_index() as u16;
+    pub(in crate::vm) fn op_store_field(&mut self, symbol: u16) -> OpResult {
         let value = self.pop();
         let instance = self.pop();
         match instance {
@@ -1653,7 +1567,6 @@ impl VirtualMachine {
             _ => return Err(self.runtime_error("Only instances have fields.")),
         }
 
-        self.ip += 2;
         Ok(())
     }
 
@@ -1671,8 +1584,8 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_create_map(&mut self) -> OpResult {
-        let count = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_create_map(&mut self, count: u16) -> OpResult {
+        let count = count as usize;
 
         let stack_len = self.stack.len();
         let pairs_start = stack_len - (count * 2);
@@ -1692,12 +1605,11 @@ impl VirtualMachine {
 
         self.push(Value::new_map(map));
 
-        self.ip += 2;
         Ok(())
     }
 
-    pub(in crate::vm) fn op_create_array(&mut self) {
-        let count = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_create_array(&mut self, count: u16) {
+        let count = count as usize;
 
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
@@ -1707,13 +1619,11 @@ impl VirtualMachine {
         self.stack.drain(elements_start..);
 
         self.push(Value::new_array(elements));
-
-        self.ip += 2;
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn op_create_set(&mut self) -> OpResult {
-        let count = self.operand_u16(1) as usize;
+    pub(in crate::vm) fn op_create_set(&mut self, count: u16) -> OpResult {
+        let count = count as usize;
 
         let stack_len = self.stack.len();
         let elements_start = stack_len - count;
@@ -1732,13 +1642,10 @@ impl VirtualMachine {
 
         self.push(Value::new_set(set));
 
-        self.ip += 2;
         Ok(())
     }
 
-    pub(in crate::vm) fn op_create_range(&mut self) -> OpResult {
-        let inclusive = self.operand_u8(1) != 0;
-
+    pub(in crate::vm) fn op_create_range(&mut self, inclusive: bool) -> OpResult {
         let end_value = self.pop();
         let start_value = self.pop();
 
@@ -1756,8 +1663,6 @@ impl VirtualMachine {
         }
 
         self.push(range);
-
-        self.ip += 1;
 
         Ok(())
     }
@@ -1904,9 +1809,7 @@ impl VirtualMachine {
     /// collection (arrays and ranges as-is, map keys or set elements
     /// collected into a new array) followed by the starting index, 0.
     #[inline(always)]
-    pub(in crate::vm) fn op_get_iterator(&mut self) -> OpResult {
-        let pairs = self.operand_u8(1) != 0;
-
+    pub(in crate::vm) fn op_get_iterator(&mut self, pairs: bool) -> OpResult {
         let collection = self.pop();
 
         let iterator_value = match &collection {
@@ -1944,7 +1847,6 @@ impl VirtualMachine {
 
         self.push(iterator_value);
         self.push(int!(0));
-        self.ip += 1;
         Ok(())
     }
 
@@ -1952,8 +1854,8 @@ impl VirtualMachine {
     /// index of its first hidden slot (collection), checking that both it and
     /// the index slot right after it are in range.
     #[inline(always)]
-    fn read_iterator_slot(&mut self) -> std::result::Result<usize, RuntimeError> {
-        let (index, slot) = self.read_local_slot();
+    fn read_iterator_slot(&self, index: u16) -> std::result::Result<usize, RuntimeError> {
+        let (index, slot) = self.read_local_slot(index);
         if slot + 1 >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1965,8 +1867,8 @@ impl VirtualMachine {
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows JumpIfFalse to exit the loop when done
     #[inline(always)]
-    pub(in crate::vm) fn op_iterator_done(&mut self) -> OpResult {
-        let slot = self.read_iterator_slot()?;
+    pub(in crate::vm) fn op_iterator_done(&mut self, slot: u16) -> OpResult {
+        let slot = self.read_iterator_slot(slot)?;
         let index = match &self.stack[slot + 1] {
             Value::Int(i) => *i,
             other => {
@@ -1995,8 +1897,8 @@ impl VirtualMachine {
     /// hidden slots starting at the given local slot (collection, then index).
     /// Pushes the next value onto the stack and advances the index slot.
     #[inline(always)]
-    pub(in crate::vm) fn op_iterator_next(&mut self) -> OpResult {
-        let slot = self.read_iterator_slot()?;
+    pub(in crate::vm) fn op_iterator_next(&mut self, slot: u16) -> OpResult {
+        let slot = self.read_iterator_slot(slot)?;
         let index = match &self.stack[slot + 1] {
             Value::Int(i) => *i,
             other => {
@@ -2074,11 +1976,7 @@ impl VirtualMachine {
     /// preceding Closure op and the struct value below it, and appends the
     /// closure to the struct's methods along with whether it takes `self`.
     #[inline(always)]
-    pub(in crate::vm) fn op_define_method(&mut self) {
-        let method_symbol = self.operand_u16(3);
-        let takes_self = self.operand_u8(5) != 0;
-        self.ip += 5;
-
+    pub(in crate::vm) fn op_define_method(&mut self, method_symbol: u16, takes_self: bool) {
         let closure_value = self.pop();
         let Value::Closure(closure) = closure_value else {
             unreachable!("DefineMethod expects a closure on top of the stack")
@@ -2099,12 +1997,12 @@ impl VirtualMachine {
     /// preceding Closure op and registers it under the builtin type symbol,
     /// along with whether the method takes `self`.
     #[inline(always)]
-    pub(in crate::vm) fn op_define_builtin_method(&mut self) {
-        let type_symbol = self.operand_u16(1);
-        let method_symbol = self.operand_u16(3);
-        let takes_self = self.operand_u8(5) != 0;
-        self.ip += 5;
-
+    pub(in crate::vm) fn op_define_builtin_method(
+        &mut self,
+        type_symbol: u16,
+        method_symbol: u16,
+        takes_self: bool,
+    ) {
         let Value::Closure(closure) = self.pop() else {
             unreachable!("DefineBuiltinMethod expects a closure on top of the stack")
         };
