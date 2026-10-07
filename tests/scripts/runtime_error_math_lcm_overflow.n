@@ -3,7 +3,7 @@
 
 // Expected runtime error: integer overflow in lcm()
 
-import "std/math"
+use "std/math"
 
 print("before")
 print(math.lcm(2 ** 62, 3))

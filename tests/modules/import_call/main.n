@@ -1,6 +1,6 @@
 // Expected:
 // 42
 
-import "utils"
+use "utils"
 
 print(utils.double(21))

@@ -1,2 +1,2 @@
 val hidden = 4
-export val z = 5
+pub val z = 5

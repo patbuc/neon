@@ -1,1 +1,1 @@
-export fn label(name, value) = "${name}: ${value}"
+pub fn label(name, value) = "${name}: ${value}"

@@ -3,7 +3,7 @@
 // 1
 // 0.5
 
-import "std/math"
+use "std/math"
 
 print(math.mod(-7, 3))
 print(math.mod(7, -3))

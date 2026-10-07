@@ -3,7 +3,7 @@
 // 1
 // 5
 
-import "std/math"
+use "std/math"
 
 fn absolute(x) = math.abs(x)
 

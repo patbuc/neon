@@ -4,7 +4,7 @@
 // Expected:
 // 107381461775216
 
-import "std/pq"
+use "std/pq"
 
 val queue = pq.new()
 var seed = 12345

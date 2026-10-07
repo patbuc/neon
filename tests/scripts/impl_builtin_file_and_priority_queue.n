@@ -5,8 +5,8 @@
 // a file
 // 1
 
-import "std/file"
-import "std/pq"
+use "std/file"
+use "std/pq"
 
 impl File {
     fn describe(self) {

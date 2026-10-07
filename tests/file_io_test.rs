@@ -39,7 +39,7 @@ fn cleanup_test_file(path: &PathBuf) {
 fn test_file_constructor_from_neon() {
     let mut vm = VirtualMachine::new();
     let source = r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("test.txt")
         print(f)
     "#;
@@ -61,7 +61,7 @@ fn test_file_constructor_relative_and_absolute_paths() {
     let absolute = std::env::temp_dir().join("neon_test_constructor_absolute.txt");
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var relative = file.open("../data/input.txt")
         var absolute = file.open("{}")
         print("File created")
@@ -77,8 +77,8 @@ fn test_file_constructor_relative_and_absolute_paths() {
 #[test]
 fn test_file_constructor_wrong_arg_count() {
     for source in [
-        "import \"std/file\"\nvar f = file.open()",
-        "import \"std/file\"\nvar f = file.open(\"a.txt\", \"b.txt\")",
+        "use \"std/file\"\nvar f = file.open()",
+        "use \"std/file\"\nvar f = file.open(\"a.txt\", \"b.txt\")",
     ] {
         let mut vm = VirtualMachine::new();
         assert_eq!(
@@ -89,7 +89,7 @@ fn test_file_constructor_wrong_arg_count() {
         );
     }
     assert_runtime_error(
-        "import \"std/file\"\nval open = file.open\nopen()",
+        "use \"std/file\"\nval open = file.open\nopen()",
         "file.open() expects 1 argument, got 0",
     );
 }
@@ -97,9 +97,9 @@ fn test_file_constructor_wrong_arg_count() {
 #[test]
 fn test_file_constructor_invalid_type() {
     for source in [
-        "import \"std/file\"\nvar f = file.open(42)",
-        "import \"std/file\"\nvar f = file.open(true)",
-        "import \"std/file\"\nvar f = file.open(nil)",
+        "use \"std/file\"\nvar f = file.open(42)",
+        "use \"std/file\"\nvar f = file.open(true)",
+        "use \"std/file\"\nvar f = file.open(nil)",
     ] {
         assert_runtime_error(source, "file.open() path must be a string");
     }
@@ -113,7 +113,7 @@ fn test_file_read_basic() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var content = f.read()
         print(content)
@@ -139,7 +139,7 @@ fn test_file_read_multiline() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var content = f.read()
         print(content)
@@ -164,7 +164,7 @@ fn test_file_read_empty_file() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var content = f.read()
         print("start")
@@ -191,7 +191,7 @@ fn test_file_read_unicode() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var content = f.read()
         print(content)
@@ -212,7 +212,7 @@ fn test_file_read_unicode() {
 fn test_file_read_not_found() {
     assert_runtime_error(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("/nonexistent/path/to/file.txt")
         var content = f.read()
         print(content)
@@ -230,7 +230,7 @@ fn test_file_read_lines_basic() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         for line in lines {{
@@ -262,7 +262,7 @@ fn test_file_read_lines_with_empty_lines() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         print(lines.size())
@@ -297,7 +297,7 @@ fn test_file_read_lines_crlf() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         for line in lines {{
@@ -328,7 +328,7 @@ fn test_file_read_lines_empty_file() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         print(lines.size())
@@ -352,7 +352,7 @@ fn test_file_read_lines_single_line_no_newline() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         print(lines.size())
@@ -373,7 +373,7 @@ fn test_file_read_lines_single_line_no_newline() {
 fn test_file_read_lines_not_found() {
     assert_runtime_error(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("/nonexistent/path/to/file.txt")
         var lines = f.readLines()
         print(lines)
@@ -394,7 +394,7 @@ fn test_file_write_basic() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.write("Hello from Neon!")
         print("Write successful")
@@ -427,7 +427,7 @@ fn test_file_write_multiline() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.write("Line 1\nLine 2\nLine 3")
     "#,
@@ -455,7 +455,7 @@ fn test_file_write_empty_content() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.write("")
          print("Done")
@@ -481,7 +481,7 @@ fn test_file_write_refuses_to_overwrite_existing_file() {
     assert_runtime_error(
         &format!(
             r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.write("New content")
          print("This should not print")
@@ -502,7 +502,7 @@ fn test_file_write_refuses_to_overwrite_existing_file() {
 fn test_file_write_invalid_directory() {
     let mut vm = VirtualMachine::new();
     let source = r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("/nonexistent/directory/file.txt")
         f.write("content")
          print("This should not print")
@@ -525,7 +525,7 @@ fn test_file_end_to_end_write_then_read() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f1 = file.open("{}")
         f1.write("Test content for end-to-end")
 
@@ -563,7 +563,7 @@ fn test_file_end_to_end_write_then_read_lines() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         for line in lines {{
@@ -594,7 +594,7 @@ fn test_file_multiple_operations_same_file_object() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var content = f.read()
         print(content)
@@ -623,7 +623,7 @@ fn test_file_constructor_with_variable_path() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var path = "{}"
         var f = file.open(path)
         var content = f.read()
@@ -649,7 +649,7 @@ fn test_file_in_function() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         fn readFile(path) {{
             var f = file.open(path)
             return f.read()
@@ -678,7 +678,7 @@ fn test_file_read_lines_in_function() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         fn getLines(path) {{
             var f = file.open(path)
             return f.readLines()
@@ -715,7 +715,7 @@ fn test_file_write_in_function() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         fn writeFile(path, content) {{
             var f = file.open(path)
             f.write(content)
@@ -746,7 +746,7 @@ fn test_file_practical_example_process_lines() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         var lines = f.readLines()
         var count = 0
@@ -782,7 +782,7 @@ fn test_file_write_wrong_arg_count() {
     assert_runtime_error(
         &format!(
             r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.write()
     "#,
@@ -800,7 +800,7 @@ fn test_file_read_wrong_arg_count() {
     assert_runtime_error(
         &format!(
             r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.read("unexpected")
     "#,
@@ -819,7 +819,7 @@ fn test_file_read_lines_wrong_arg_count() {
     assert_runtime_error(
         &format!(
             r#"
-        import "std/file"
+        use "std/file"
         var f = file.open("{}")
         f.readLines("unexpected")
     "#,
@@ -838,7 +838,7 @@ fn test_impl_on_file_user_method() {
     let path = std::env::temp_dir().join("neon_test_impl_on_file_unused.txt");
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         impl File {{
             fn describe(self) {{
                 return "a file"
@@ -862,7 +862,7 @@ fn test_std_file_open_read() {
     let mut vm = VirtualMachine::new();
     let source = format!(
         r#"
-        import "std/file"
+        use "std/file"
         print(file.open("{}").read())
     "#,
         file_path

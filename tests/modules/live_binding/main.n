@@ -2,7 +2,7 @@
 // 0
 // 1
 
-import "utils"
+use "utils"
 
 print(utils.counter)
 utils.bump()

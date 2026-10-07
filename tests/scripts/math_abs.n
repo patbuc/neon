@@ -7,7 +7,7 @@
 // 3.14
 // 2.5
 
-import "std/math"
+use "std/math"
 
 print(math.abs(-5))
 print(math.abs(5))

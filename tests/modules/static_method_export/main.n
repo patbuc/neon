@@ -4,8 +4,8 @@
 // a
 // b
 
-import "a"
-import "b"
+use "a"
+use "b"
 
 print(a.Point.make().x)
 print(b.Point.make().x)

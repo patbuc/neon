@@ -3,7 +3,7 @@
 // Expected:
 // 5
 
-import "std/math"
+use "std/math"
 
 struct Point {
     x

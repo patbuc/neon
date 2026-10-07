@@ -1,7 +1,7 @@
 // Expected:
 // c
 
-import "std/math"
+use "std/math"
 
 val letters = ["a", "b", "c", "d"]
 print(letters[math.floor(2.7)])

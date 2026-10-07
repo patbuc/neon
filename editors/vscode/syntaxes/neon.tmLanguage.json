@@ -28,7 +28,7 @@
       "name": "comment.line.double-slash.neon"
     },
     "keywords-control": {
-      "match": "\\b(break|continue|else|export|for|if|import|in|match|return|while)\\b",
+      "match": "\\b(break|continue|else|for|if|in|match|pub|return|use|while)\\b",
       "name": "keyword.control.neon"
     },
     "constants-language": {

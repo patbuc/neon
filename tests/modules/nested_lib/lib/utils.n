@@ -1,9 +1,9 @@
-import "helpers"
+use "helpers"
 
-export fn double(x) {
+pub fn double(x) {
     return x * 2
 }
 
-export fn triplePlusOne(x) {
+pub fn triplePlusOne(x) {
     return helpers.inc(x * 3)
 }

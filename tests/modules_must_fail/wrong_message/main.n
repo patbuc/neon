@@ -1,6 +1,6 @@
 // Expected compile error: 1:1 E0054 import cycle: main.n -> b.n -> a.n -> main.n
 
-import "a"
+use "a"
 
 print("unreachable")
 // Must fail with: actual: ["1:1 E0054 import cycle: main.n -> a.n -> b.n -> main.n"]

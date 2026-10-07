@@ -6,7 +6,7 @@
 // 0
 // -1
 
-import "std/math"
+use "std/math"
 
 print(math.div(7, 2))
 print(math.div(-7, 2))

@@ -498,8 +498,8 @@ impl Parser {
                         | TokenType::Var
                         | TokenType::For
                         | TokenType::While
-                        | TokenType::Import
-                        | TokenType::Export
+                        | TokenType::Use
+                        | TokenType::Pub
                         | TokenType::Return => {
                             self.nesting_depth = depth;
                             return;
@@ -526,8 +526,8 @@ impl Parser {
                     | TokenType::For
                     | TokenType::If
                     | TokenType::While
-                    | TokenType::Import
-                    | TokenType::Export
+                    | TokenType::Use
+                    | TokenType::Pub
                     | TokenType::Return => return,
                     _ => {}
                 }
@@ -559,9 +559,9 @@ impl Parser {
             self.enum_declaration()
         } else if self.match_token(TokenType::Impl) {
             self.impl_declaration()
-        } else if self.match_token(TokenType::Import) {
+        } else if self.match_token(TokenType::Use) {
             self.import_declaration()
-        } else if self.match_token(TokenType::Export) {
+        } else if self.match_token(TokenType::Pub) {
             self.export_declaration()
         } else {
             self.statement()
@@ -622,11 +622,11 @@ impl Parser {
         if !self.at_top_level() {
             self.report_error_at_previous(
                 CompilationErrorKind::ImportNotTopLevel,
-                "import is only allowed at the top level".to_string(),
+                "use is only allowed at the top level".to_string(),
             );
             return None;
         }
-        if !self.consume(TokenType::String, "expected a string path after import") {
+        if !self.consume(TokenType::String, "expected a string path after use") {
             return None;
         }
         let path = self.previous_token.token.clone();
@@ -640,7 +640,7 @@ impl Parser {
         } else {
             None
         };
-        self.consume_statement_end("Expecting '\\n' or '\\0' after import declaration.");
+        self.consume_statement_end("Expecting '\\n' or '\\0' after use declaration.");
         Some(Stmt::Import {
             path,
             raw_path,
@@ -655,7 +655,7 @@ impl Parser {
         if !self.at_top_level() {
             self.report_error_at_previous(
                 CompilationErrorKind::ExportNotTopLevel,
-                "export is only allowed at the top level".to_string(),
+                "pub is only allowed at the top level".to_string(),
             );
             return None;
         }
@@ -677,7 +677,7 @@ impl Parser {
         } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
-                "export must precede a fn, val, var, struct or enum".to_string(),
+                "pub must precede a fn, val, var, struct or enum".to_string(),
             );
             return None;
         }?;
@@ -690,7 +690,7 @@ impl Parser {
     fn export_destructuring_error(&mut self) -> Option<Stmt> {
         self.report_error_at_current(
             CompilationErrorKind::ExpectedToken,
-            "export binds one name".to_string(),
+            "pub binds one name".to_string(),
         );
         None
     }
@@ -1274,8 +1274,8 @@ impl Parser {
                 | TokenType::Struct
                 | TokenType::Enum
                 | TokenType::Impl
-                | TokenType::Import
-                | TokenType::Export
+                | TokenType::Use
+                | TokenType::Pub
                 | TokenType::For
                 | TokenType::While
                 | TokenType::Return

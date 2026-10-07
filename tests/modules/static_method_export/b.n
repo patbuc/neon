@@ -1,4 +1,4 @@
-export struct Point {
+pub struct Point {
     x
 }
 

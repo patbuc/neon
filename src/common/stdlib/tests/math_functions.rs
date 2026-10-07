@@ -11,7 +11,7 @@ use crate::vm::{InterpretResult, VirtualMachine};
 #[test]
 fn test_math_abs_keeps_int() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.abs(-9007199254740993))
     "#;
 
@@ -23,7 +23,7 @@ fn test_math_abs_keeps_int() {
 #[test]
 fn test_math_floor_ceil_keep_int() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.floor(9007199254740993))
         print(math.ceil(9007199254740993))
     "#;
@@ -36,7 +36,7 @@ fn test_math_floor_ceil_keep_int() {
 #[test]
 fn test_math_floor_ceil_int() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.div(math.floor(2.7), 1))
         print(math.div(math.ceil(2.1), 1))
     "#;
@@ -53,7 +53,7 @@ fn test_math_floor_ceil_int() {
 #[test]
 fn test_math_min_max_keep_variant() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.max(9007199254740993, 1).toString())
         print(math.min(-9007199254740993, -1).toString())
         print(math.min(9007199254740993, 1).toString())

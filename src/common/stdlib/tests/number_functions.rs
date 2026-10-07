@@ -7,7 +7,7 @@ use crate::vm::{InterpretResult, VirtualMachine};
 #[test]
 fn test_number_to_int_truncates_float() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print((5.7).toInt())
         print((-5.7).toInt())
         print((5).toInt())
@@ -63,7 +63,7 @@ fn test_number_to_float() {
 #[test]
 fn test_number_to_float_returns_float_variant() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.div((5).toFloat(), 1))
     "#;
 

@@ -4,8 +4,8 @@
 // total: 21
 // shapes made: 2
 
-import "lib/shapes"
-import "lib/text-utils" as text
+use "lib/shapes"
+use "lib/text-utils" as text
 
 val all = [shapes.make(shapes.Kind.Circle, 2), shapes.make(shapes.Kind.Square, 3)]
 

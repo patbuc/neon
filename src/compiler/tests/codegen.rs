@@ -873,8 +873,8 @@ fn test_native_call_labels() {
     use crate::common::Value;
 
     let program = r#"
-    import "std/file"
-    import "std/math"
+    use "std/file"
+    use "std/math"
     print(1)
     file.open("x")
     math.abs(1)
@@ -1578,14 +1578,14 @@ fn test_nil_coalesce_emits_jump_if_not_nil() {
 #[test]
 fn exported_declarations_are_usable_after_declaration() {
     let program = r#"
-export val x = 1
-export var y = 2
+pub val x = 1
+pub var y = 2
 y = y + 5
-export fn double(n) {
+pub fn double(n) {
     return n * 2
 }
-export struct Point { a }
-export enum Color { Red }
+pub struct Point { a }
+pub enum Color { Red }
 print(x)
 print(y)
 print(double(4))
@@ -1599,7 +1599,7 @@ print(Color.Red)
 fn an_exported_fn_is_callable_before_its_declaration() {
     let program = r#"
 print(f())
-export fn f() {
+pub fn f() {
     return 5
 }
 "#;

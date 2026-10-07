@@ -1,3 +1,3 @@
-import "main"
+use "main"
 
-export val y = 2
+pub val y = 2

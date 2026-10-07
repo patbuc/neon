@@ -1,1 +1,1 @@
-export fn square(x) = x * x
+pub fn square(x) = x * x

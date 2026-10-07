@@ -30,8 +30,8 @@ fn compile_files(
 fn compiles_member_read_to_get_global_of_exports_slot() {
     let chunk = compile_files(
         "member_read",
-        "import \"utils\"\nprint(utils.counter)\n",
-        &[("utils.n", "export var counter = 0\n")],
+        "use \"utils\"\nprint(utils.counter)\n",
+        &[("utils.n", "pub var counter = 0\n")],
     )
     .expect("should compile");
 
@@ -52,8 +52,8 @@ fn compiles_member_read_to_get_global_of_exports_slot() {
 fn gives_an_import_binding_no_global_slot() {
     let chunk = compile_files(
         "import_binding_slot",
-        "import \"utils\"\nval x = 1\nprint(x)\n",
-        &[("utils.n", "export val a = 1\n")],
+        "use \"utils\"\nval x = 1\nprint(x)\n",
+        &[("utils.n", "pub val a = 1\n")],
     )
     .expect("should compile");
 
@@ -65,13 +65,13 @@ fn gives_an_import_binding_no_global_slot() {
     );
 }
 
-const DOUBLE_MODULE: &str = "export fn double(x) {\n    return x * 2\n}\n";
+const DOUBLE_MODULE: &str = "pub fn double(x) {\n    return x * 2\n}\n";
 
 #[test]
 fn compiles_exported_function_call_to_get_global_then_call() {
     let chunk = compile_files(
         "member_call",
-        "import \"utils\"\nprint(utils.double(21))\n",
+        "use \"utils\"\nprint(utils.double(21))\n",
         &[("utils.n", DOUBLE_MODULE)],
     )
     .expect("should compile");
@@ -95,7 +95,7 @@ fn compiles_exported_function_call_to_get_global_then_call() {
 fn compiles_returned_exported_function_call_to_tail_call() {
     let chunk = compile_files(
         "member_tail_call",
-        "import \"utils\"\nfn f(x) {\n    return utils.double(x)\n}\nprint(f(1))\n",
+        "use \"utils\"\nfn f(x) {\n    return utils.double(x)\n}\nprint(f(1))\n",
         &[("utils.n", DOUBLE_MODULE)],
     )
     .expect("should compile");
@@ -128,13 +128,13 @@ fn compiles_returned_exported_function_call_to_tail_call() {
 fn compiles_aliased_import_call_like_the_unaliased_form() {
     let plain = compile_files(
         "alias_plain",
-        "import \"lib/utils\"\nprint(utils.double(21))\n",
+        "use \"lib/utils\"\nprint(utils.double(21))\n",
         &[("lib/utils.n", DOUBLE_MODULE)],
     )
     .expect("should compile");
     let aliased = compile_files(
         "alias_as",
-        "import \"lib/utils\" as u\nprint(u.double(21))\n",
+        "use \"lib/utils\" as u\nprint(u.double(21))\n",
         &[("lib/utils.n", DOUBLE_MODULE)],
     )
     .expect("should compile");
@@ -146,10 +146,10 @@ fn compiles_aliased_import_call_like_the_unaliased_form() {
 fn assigns_a_modules_globals_the_slots_after_the_module_compiled_before_it() {
     let chunk = compile_files(
         "module_slot_offsets",
-        "import \"a\"\nimport \"b\"\nprint(b.z)\n",
+        "use \"a\"\nuse \"b\"\nprint(b.z)\n",
         &[
-            ("a.n", "export val x = 1\nexport val y = 2\n"),
-            ("b.n", "export val z = 3\n"),
+            ("a.n", "pub val x = 1\npub val y = 2\n"),
+            ("b.n", "pub val z = 3\n"),
         ],
     )
     .expect("should compile");
@@ -166,10 +166,10 @@ fn assigns_a_modules_globals_the_slots_after_the_module_compiled_before_it() {
 fn accepts_two_modules_declaring_the_same_top_level_name() {
     let chunk = compile_files(
         "duplicate_top_level_names",
-        "import \"a\"\nimport \"b\"\nprint(a.x)\nprint(b.x)\n",
+        "use \"a\"\nuse \"b\"\nprint(a.x)\nprint(b.x)\n",
         &[
-            ("a.n", "export val x = 1\nval hidden = 2\n"),
-            ("b.n", "export val x = 3\nval hidden = 4\n"),
+            ("a.n", "pub val x = 1\nval hidden = 2\n"),
+            ("b.n", "pub val x = 3\nval hidden = 4\n"),
         ],
     )
     .expect("should compile");
@@ -186,15 +186,15 @@ fn accepts_two_modules_declaring_the_same_top_level_name() {
 fn interns_a_field_name_used_in_two_modules_to_one_symbol_id() {
     let chunk = compile_files(
         "shared_field_symbol",
-        "import \"a\"\nimport \"b\"\nprint(a.p.x)\nprint(b.p.x)\n",
+        "use \"a\"\nuse \"b\"\nprint(a.p.x)\nprint(b.p.x)\n",
         &[
             (
                 "a.n",
-                "struct P {\n    x\n}\nexport val p = P(1)\nprint(p.x)\n",
+                "struct P {\n    x\n}\npub val p = P(1)\nprint(p.x)\n",
             ),
             (
                 "b.n",
-                "struct P {\n    x\n}\nexport val p = P(2)\nprint(p.x)\n",
+                "struct P {\n    x\n}\npub val p = P(2)\nprint(p.x)\n",
             ),
         ],
     )
@@ -215,7 +215,7 @@ fn compile_errors_of(dir_name: &str, entry: &str, files: &[(&str, &str)]) -> Vec
 fn rejects_an_unknown_export_call_with_a_suggestion() {
     let errors = compile_errors_of(
         "unknown_export_suggestion",
-        "import \"utils\"\nutils.doubel(1)\n",
+        "use \"utils\"\nutils.doubel(1)\n",
         &[("utils.n", DOUBLE_MODULE)],
     );
 
@@ -234,7 +234,7 @@ fn rejects_an_unknown_export_call_with_a_suggestion() {
 fn rejects_an_unknown_export_call_without_a_suggestion_when_nothing_is_similar() {
     let errors = compile_errors_of(
         "unknown_export_plain",
-        "import \"utils\"\nutils.nope()\n",
+        "use \"utils\"\nutils.nope()\n",
         &[("utils.n", DOUBLE_MODULE)],
     );
 
@@ -258,8 +258,8 @@ fn rejects_an_unknown_export_call_without_a_suggestion_when_nothing_is_similar()
 fn rejects_a_call_to_a_non_exported_function_as_an_unknown_export() {
     let errors = compile_errors_of(
         "unknown_export_hidden_fn",
-        "import \"utils\"\nutils.hidden()\n",
-        &[("utils.n", "fn hidden() {}\nexport fn shown() {}\n")],
+        "use \"utils\"\nutils.hidden()\n",
+        &[("utils.n", "fn hidden() {}\npub fn shown() {}\n")],
     );
 
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
@@ -277,8 +277,8 @@ fn rejects_a_call_to_a_non_exported_function_as_an_unknown_export() {
 fn rejects_a_read_of_a_non_exported_val_as_an_unknown_export() {
     let errors = compile_errors_of(
         "unknown_export_hidden_val",
-        "import \"utils\"\nprint(utils.hidden_val)\n",
-        &[("utils.n", "val hidden_val = 1\nexport val shown = 2\n")],
+        "use \"utils\"\nprint(utils.hidden_val)\n",
+        &[("utils.n", "val hidden_val = 1\npub val shown = 2\n")],
     );
 
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
@@ -308,8 +308,8 @@ fn assert_one_error(
 fn rejects_assignment_to_an_exported_val() {
     let errors = compile_errors_of(
         "assign_export_val",
-        "import \"utils\"\nutils.VERSION = 2\n",
-        &[("utils.n", "export val VERSION = 1\n")],
+        "use \"utils\"\nutils.VERSION = 2\n",
+        &[("utils.n", "pub val VERSION = 1\n")],
     );
 
     assert_one_error(
@@ -324,8 +324,8 @@ fn rejects_assignment_to_an_exported_val() {
 fn rejects_compound_assignment_to_an_exported_var() {
     let errors = compile_errors_of(
         "assign_export_var",
-        "import \"utils\"\nutils.count += 1\n",
-        &[("utils.n", "export var count = 0\n")],
+        "use \"utils\"\nutils.count += 1\n",
+        &[("utils.n", "pub var count = 0\n")],
     );
 
     assert_one_error(
@@ -340,8 +340,8 @@ fn rejects_compound_assignment_to_an_exported_var() {
 fn rejects_a_module_bound_to_a_val() {
     let errors = compile_errors_of(
         "module_as_val",
-        "import \"utils\"\nval m = utils\n",
-        &[("utils.n", "export val a = 1\n")],
+        "use \"utils\"\nval m = utils\n",
+        &[("utils.n", "pub val a = 1\n")],
     );
 
     assert_one_error(
@@ -356,8 +356,8 @@ fn rejects_a_module_bound_to_a_val() {
 fn rejects_a_module_passed_as_an_argument() {
     let errors = compile_errors_of(
         "module_as_argument",
-        "import \"utils\"\nprint(utils)\n",
-        &[("utils.n", "export val a = 1\n")],
+        "use \"utils\"\nprint(utils)\n",
+        &[("utils.n", "pub val a = 1\n")],
     );
 
     assert_one_error(
@@ -375,7 +375,7 @@ fn rejects_an_exported_function_call_with_the_wrong_arity_like_a_local_function(
 
     let errors = compile_errors_of(
         "export_call_arity",
-        "import \"utils\"\nutils.double(1, 2)\n",
+        "use \"utils\"\nutils.double(1, 2)\n",
         &[("utils.n", DOUBLE_MODULE)],
     );
 
@@ -389,10 +389,10 @@ fn rejects_two_imports_binding_the_same_name() {
 
     let errors = compile_errors_of(
         "duplicate_imports",
-        "import \"a/utils\"\nimport \"b/utils\"\n",
+        "use \"a/utils\"\nuse \"b/utils\"\n",
         &[
-            ("a/utils.n", "export val a = 1\n"),
-            ("b/utils.n", "export val b = 1\n"),
+            ("a/utils.n", "pub val a = 1\n"),
+            ("b/utils.n", "pub val b = 1\n"),
         ],
     );
 
@@ -411,8 +411,8 @@ fn rejects_an_import_and_a_val_binding_the_same_name() {
 
     let errors = compile_errors_of(
         "import_and_val",
-        "import \"utils\"\nval utils = 1\n",
-        &[("utils.n", "export val a = 1\n")],
+        "use \"utils\"\nval utils = 1\n",
+        &[("utils.n", "pub val a = 1\n")],
     );
 
     assert_one_error(
@@ -423,13 +423,13 @@ fn rejects_an_import_and_a_val_binding_the_same_name() {
     );
 }
 
-const POINT_MODULE: &str = "export struct Point {\n    x\n    y\n}\n";
+const POINT_MODULE: &str = "pub struct Point {\n    x\n    y\n}\n";
 
 #[test]
 fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     compile_files(
         "struct_field_ok",
-        "import \"utils\"\nval p = utils.Point(1, 2)\nprint(p.x)\n",
+        "use \"utils\"\nval p = utils.Point(1, 2)\nprint(p.x)\n",
         &[("utils.n", POINT_MODULE)],
     )
     .expect("should compile");
@@ -444,13 +444,13 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     );
     let errors = compile_errors_of(
         "struct_field_unknown",
-        "import \"utils\"\nval p = utils.Point(1, 2)\nprint(p.z)\n",
+        "use \"utils\"\nval p = utils.Point(1, 2)\nprint(p.z)\n",
         &[("utils.n", POINT_MODULE)],
     );
     assert_one_error(&errors, local_field[0].kind, &qualified_field, 3);
     let errors = compile_errors_of(
         "struct_field_unknown_shadowed",
-        "import \"utils\"\nstruct Point {\n    z\n}\nval p = utils.Point(1, 2)\nprint(p.z)\n",
+        "use \"utils\"\nstruct Point {\n    z\n}\nval p = utils.Point(1, 2)\nprint(p.z)\n",
         &[("utils.n", POINT_MODULE)],
     );
     assert_one_error(&errors, local_field[0].kind, &qualified_field, 6);
@@ -459,13 +459,13 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     assert_eq!(1, local_arity.len(), "errors: {:#?}", local_arity);
     let errors = compile_errors_of(
         "struct_ctor_arity",
-        "import \"utils\"\nval p = utils.Point(1)\n",
+        "use \"utils\"\nval p = utils.Point(1)\n",
         &[("utils.n", POINT_MODULE)],
     );
     assert_one_error(&errors, local_arity[0].kind, &local_arity[0].message, 2);
 }
 
-const POINT_METHODS_MODULE: &str = "export struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
+const POINT_METHODS_MODULE: &str = "pub struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
 const LOCAL_POINT_METHODS: &str = "struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
 
 fn unknown_method_prefix(message: &str) -> &str {
@@ -479,7 +479,7 @@ fn unknown_method_prefix(message: &str) -> &str {
 fn validates_method_calls_on_an_exported_struct() {
     compile_files(
         "struct_methods_ok",
-        "import \"utils\"\nprint(utils.Point.make().x)\nprint(utils.Point(1).tag())\n",
+        "use \"utils\"\nprint(utils.Point.make().x)\nprint(utils.Point(1).tag())\n",
         &[("utils.n", POINT_METHODS_MODULE)],
     )
     .expect("should compile");
@@ -491,7 +491,7 @@ fn validates_method_calls_on_an_exported_struct() {
     assert_eq!("Type 'utils.Point' has no method named 'nope'", expected);
     let errors = compile_errors_of(
         "struct_static_unknown",
-        "import \"utils\"\nutils.Point.nope()\n",
+        "use \"utils\"\nutils.Point.nope()\n",
         &[("utils.n", POINT_METHODS_MODULE)],
     );
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
@@ -503,7 +503,7 @@ fn validates_method_calls_on_an_exported_struct() {
     assert_eq!(1, local_instance.len(), "errors: {:#?}", local_instance);
     let errors = compile_errors_of(
         "struct_instance_unknown",
-        "import \"utils\"\nutils.Point(1).nope()\n",
+        "use \"utils\"\nutils.Point(1).nope()\n",
         &[("utils.n", POINT_METHODS_MODULE)],
     );
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
@@ -515,14 +515,14 @@ fn validates_method_calls_on_an_exported_struct() {
     assert_eq!(1, local_arity.len(), "errors: {:#?}", local_arity);
     let errors = compile_errors_of(
         "struct_static_arity",
-        "import \"utils\"\nutils.Point.make(1)\n",
+        "use \"utils\"\nutils.Point.make(1)\n",
         &[("utils.n", POINT_METHODS_MODULE)],
     );
     assert_one_error(&errors, local_arity[0].kind, &local_arity[0].message, 2);
 }
 
 const ENUM_MODULE: &str =
-    "export enum Color {\n    Red\n    Green\n}\nexport enum Shape {\n    Circle(r)\n}\n";
+    "pub enum Color {\n    Red\n    Green\n}\npub enum Shape {\n    Circle(r)\n}\n";
 
 fn instructions(chunk: &Chunk) -> Vec<String> {
     chunk
@@ -544,12 +544,12 @@ fn instructions(chunk: &Chunk) -> Vec<String> {
 fn resolves_utils_color_red_for_an_exported_enum() {
     let local = compile(&format!(
         "{}print(Color.Red)\nprint(Shape.Circle(2))\n",
-        ENUM_MODULE.replace("export ", "")
+        ENUM_MODULE.replace("pub ", "")
     ))
     .expect("should compile");
     let chunk = compile_files(
         "enum_variant",
-        "import \"utils\"\nprint(utils.Color.Red)\nprint(utils.Shape.Circle(2))\n",
+        "use \"utils\"\nprint(utils.Color.Red)\nprint(utils.Shape.Circle(2))\n",
         &[("utils.n", ENUM_MODULE)],
     )
     .expect("should compile");
@@ -560,7 +560,7 @@ fn resolves_utils_color_red_for_an_exported_enum() {
     assert_eq!(1, local_unknown.len(), "errors: {:#?}", local_unknown);
     let errors = compile_errors_of(
         "enum_unknown_variant",
-        "import \"utils\"\nprint(utils.Color.Purple)\n",
+        "use \"utils\"\nprint(utils.Color.Purple)\n",
         &[("utils.n", ENUM_MODULE)],
     );
     assert_one_error(&errors, local_unknown[0].kind, &local_unknown[0].message, 2);
@@ -569,7 +569,7 @@ fn resolves_utils_color_red_for_an_exported_enum() {
     assert_eq!(1, local_value.len(), "errors: {:#?}", local_value);
     let errors = compile_errors_of(
         "enum_as_value",
-        "import \"utils\"\nval c = utils.Color\n",
+        "use \"utils\"\nval c = utils.Color\n",
         &[("utils.n", ENUM_MODULE)],
     );
     assert_one_error(&errors, local_value[0].kind, &local_value[0].message, 2);
@@ -579,10 +579,10 @@ fn resolves_utils_color_red_for_an_exported_enum() {
 fn suggests_the_alphabetically_first_of_equally_close_exports() {
     let errors = compile_errors_of(
         "unknown_export_tie",
-        "import \"ties\"\nprint(ties.hat)\n",
+        "use \"ties\"\nprint(ties.hat)\n",
         &[(
             "ties.n",
-            "export val rat = 1\nexport val mat = 2\nexport val cat = 3\nexport val bat = 4\n",
+            "pub val rat = 1\npub val mat = 2\npub val cat = 3\npub val bat = 4\n",
         )],
     );
 
@@ -607,7 +607,7 @@ fn assert_same_errors(local: &[CompilationError], errors: &[CompilationError]) {
 
 #[test]
 fn rejects_calling_an_exported_enum_like_a_local_enum() {
-    let local_enums = ENUM_MODULE.replace("export ", "");
+    let local_enums = ENUM_MODULE.replace("pub ", "");
     let cases = [
         ("enum_call_no_args", "Color()\n", "utils.Color()\n"),
         ("enum_call_one_arg", "Color(1)\n", "utils.Color(1)\n"),
@@ -621,7 +621,7 @@ fn rejects_calling_an_exported_enum_like_a_local_enum() {
         let local = compile_errors(&format!("{}{}", local_enums, local_call));
         let errors = compile_errors_of(
             dir_name,
-            &format!("import \"utils\"\n{}", member_call),
+            &format!("use \"utils\"\n{}", member_call),
             &[("utils.n", ENUM_MODULE)],
         );
         assert_same_errors(&local, &errors);
@@ -630,7 +630,7 @@ fn rejects_calling_an_exported_enum_like_a_local_enum() {
 
 #[test]
 fn rejects_optional_dot_on_an_exported_type_like_a_local_type() {
-    let local_types = format!("{}{}", POINT_MODULE, ENUM_MODULE).replace("export ", "");
+    let local_types = format!("{}{}", POINT_MODULE, ENUM_MODULE).replace("pub ", "");
     let cases = [
         ("optional_dot_struct", "print(Point?.x)\n"),
         ("optional_dot_enum", "print(Color?.values())\n"),
@@ -641,7 +641,7 @@ fn rejects_optional_dot_on_an_exported_type_like_a_local_type() {
         let errors = compile_errors_of(
             dir_name,
             &format!(
-                "import \"utils\"\n{}",
+                "use \"utils\"\n{}",
                 local_use.replace("print(", "print(utils.")
             ),
             &[("utils.n", &format!("{}{}", POINT_MODULE, ENUM_MODULE))],
@@ -654,28 +654,28 @@ fn rejects_optional_dot_on_an_exported_type_like_a_local_type() {
 fn rejects_a_file_stem_that_is_not_an_identifier_unless_aliased() {
     let errors = compile_errors_of(
         "invalid_import_name",
-        "import \"my-utils\"\n",
-        &[("my-utils.n", "export val x = 1\n")],
+        "use \"my-utils\"\n",
+        &[("my-utils.n", "pub val x = 1\n")],
     );
     assert_one_error(
         &errors,
         CompilationErrorKind::InvalidImportName,
-        "cannot bind 'my-utils' as a name; use `import \"my-utils\" as <name>`",
+        "cannot bind 'my-utils' as a name; use `use \"my-utils\" as <name>`",
         1,
     );
     assert_eq!("E0058", CompilationErrorKind::InvalidImportName.code());
 
     compile_files(
         "invalid_import_name_aliased",
-        "import \"my-utils\" as mu\nprint(mu.x)\n",
-        &[("my-utils.n", "export val x = 1\n")],
+        "use \"my-utils\" as mu\nprint(mu.x)\n",
+        &[("my-utils.n", "pub val x = 1\n")],
     )
     .expect("should compile");
 }
 
 #[test]
 fn rejects_a_std_native_call_with_too_many_arguments() {
-    let errors = compile_errors_of("std_arity", "import \"std/math\"\nmath.abs(1, 2)\n", &[]);
+    let errors = compile_errors_of("std_arity", "use \"std/math\"\nmath.abs(1, 2)\n", &[]);
 
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     assert_eq!(CompilationErrorKind::TooManyArguments, errors[0].kind);
@@ -689,7 +689,7 @@ fn rejects_a_std_native_call_with_too_many_arguments() {
 fn compiles_a_variadic_std_native_call() {
     compile_files(
         "std_variadic",
-        "import \"std/math\"\nprint(math.max(1, 2, 3, 4))\n",
+        "use \"std/math\"\nprint(math.max(1, 2, 3, 4))\n",
         &[],
     )
     .expect("should compile");
@@ -699,7 +699,7 @@ fn compiles_a_variadic_std_native_call() {
 fn rejects_an_unknown_std_export_with_a_suggestion() {
     let errors = compile_errors_of(
         "std_unknown_export",
-        "import \"std/math\"\nmath.abss(1)\n",
+        "use \"std/math\"\nmath.abss(1)\n",
         &[],
     );
 
@@ -715,7 +715,7 @@ fn rejects_an_unknown_std_export_with_a_suggestion() {
 fn loads_a_std_native_export_as_a_native_function_constant() {
     let chunk = compile_files(
         "std_native_value",
-        "import \"std/math\" as m\nval abs = m.abs\n",
+        "use \"std/math\" as m\nval abs = m.abs\n",
         &[],
     )
     .expect("should compile");

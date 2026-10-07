@@ -3,7 +3,7 @@
 
 // Expected runtime error: gcd() expects two integers, got float
 
-import "std/math"
+use "std/math"
 
 print("before")
 print(math.gcd(4.0, 6))

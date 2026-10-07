@@ -146,7 +146,7 @@ fn math_errors() {
 
     for (program, expected_message) in cases {
         let mut vm = VirtualMachine::new();
-        let result = vm.interpret(format!("import \"std/math\"\n{program}"));
+        let result = vm.interpret(format!("use \"std/math\"\n{program}"));
         assert_eq!(
             InterpretResult::RuntimeError,
             result,

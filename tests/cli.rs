@@ -192,7 +192,7 @@ fn check_mode_reports_missing_import_with_path_tried() {
     let dir = std::env::temp_dir().join("neon_cli_test_check_missing_import");
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"missing\"\n").expect("Failed to write test script");
+    fs::write(&main_path, "use \"missing\"\n").expect("Failed to write test script");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("--check")
@@ -218,7 +218,7 @@ fn check_mode_renders_imported_file_error_against_that_file() {
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     let main_path = dir.join("main.n");
     let module_path = dir.join("b.n");
-    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
+    fs::write(&main_path, "use \"b\"\n").expect("Failed to write test script");
     fs::write(&module_path, "val x = 1\nval = 1\n").expect("Failed to write test module");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
@@ -242,7 +242,7 @@ fn check_mode_renders_imported_file_error_against_that_file() {
 fn run_file_reports_a_runtime_error_inside_a_module_body_with_that_module_file_name_and_line() {
     let dir = unique_temp_dir("neon_cli_test_run_module_body_runtime_error");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"utils\"\n").expect("Failed to write test script");
+    fs::write(&main_path, "use \"utils\"\n").expect("Failed to write test script");
     fs::write(dir.join("utils.n"), "val a = 1\nval x = [1][5]\n")
         .expect("Failed to write test module");
     let utils = dir.canonicalize().unwrap().join("utils.n");
@@ -269,12 +269,9 @@ fn run_file_names_both_files_in_the_call_trace_when_the_entry_file_calls_into_a_
 {
     let dir = unique_temp_dir("neon_cli_test_run_module_call_trace");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"utils\"\nutils.boom()\n").expect("Failed to write test script");
-    fs::write(
-        dir.join("utils.n"),
-        "export fn boom() {\n  return [1][5]\n}\n",
-    )
-    .expect("Failed to write test module");
+    fs::write(&main_path, "use \"utils\"\nutils.boom()\n").expect("Failed to write test script");
+    fs::write(dir.join("utils.n"), "pub fn boom() {\n  return [1][5]\n}\n")
+        .expect("Failed to write test module");
     let utils = dir.canonicalize().unwrap().join("utils.n");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
@@ -301,7 +298,7 @@ fn run_file_names_both_files_in_the_call_trace_when_the_entry_file_calls_into_a_
 fn run_file_reports_a_compile_error_in_an_imported_module_with_that_module_file_name() {
     let dir = unique_temp_dir("neon_cli_test_run_module_compile_error");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"b\"\n").expect("Failed to write test script");
+    fs::write(&main_path, "use \"b\"\n").expect("Failed to write test script");
     fs::write(dir.join("b.n"), "val x = 1\nval = 1\n").expect("Failed to write test module");
     let module = dir.canonicalize().unwrap().join("b.n");
 
@@ -325,13 +322,10 @@ fn check_mode_accepts_a_program_with_imports() {
     let dir = std::env::temp_dir().join("neon_cli_test_check_accepts_imports");
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     let main_path = dir.join("main.n");
-    fs::write(&main_path, "import \"utils\"\nprint(utils.double(21))\n")
+    fs::write(&main_path, "use \"utils\"\nprint(utils.double(21))\n")
         .expect("Failed to write test script");
-    fs::write(
-        dir.join("utils.n"),
-        "export fn double(x) { return x * 2 }\n",
-    )
-    .expect("Failed to write test module");
+    fs::write(dir.join("utils.n"), "pub fn double(x) { return x * 2 }\n")
+        .expect("Failed to write test module");
 
     let output = Command::new(env!("CARGO_BIN_EXE_neon"))
         .arg("--check")
@@ -546,10 +540,7 @@ fn run_repl_with_stdin(stdin_input: &[u8]) -> std::process::Output {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn stdin_read_lines_splits_like_file() {
-    let output = run_script_with_stdin(
-        "import \"std/stdin\"\nprint(stdin.readLines())\n",
-        b"a\nb\n",
-    );
+    let output = run_script_with_stdin("use \"std/stdin\"\nprint(stdin.readLines())\n", b"a\nb\n");
 
     assert!(output.status.success());
     assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
@@ -558,7 +549,7 @@ fn stdin_read_lines_splits_like_file() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn std_stdin_read_returns_full_piped_text() {
-    let output = run_script_with_stdin("import \"std/stdin\"\nprint(stdin.read())\n", b"a\nb\n");
+    let output = run_script_with_stdin("use \"std/stdin\"\nprint(stdin.read())\n", b"a\nb\n");
 
     assert!(output.status.success());
     assert_eq!("a\nb\n\n", String::from_utf8_lossy(&output.stdout));
@@ -568,7 +559,7 @@ fn std_stdin_read_returns_full_piped_text() {
 #[test]
 fn stdin_read_on_empty_input_returns_empty_string() {
     let output = run_script_with_stdin(
-        "import \"std/stdin\"\nprint(\"[\" + stdin.read() + \"]\")\n",
+        "use \"std/stdin\"\nprint(\"[\" + stdin.read() + \"]\")\n",
         b"",
     );
 
@@ -580,7 +571,7 @@ fn stdin_read_on_empty_input_returns_empty_string() {
 #[test]
 fn stdin_second_read_after_eof_returns_empty_string() {
     let script =
-        "import \"std/stdin\"\nval first = stdin.read()\nprint(\"[\" + stdin.read() + \"]\")\n";
+        "use \"std/stdin\"\nval first = stdin.read()\nprint(\"[\" + stdin.read() + \"]\")\n";
     let output = run_script_with_stdin(script, b"hi");
 
     assert!(output.status.success());
@@ -1120,7 +1111,7 @@ fn repl_resolves_an_import_relative_to_the_current_directory() {
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     fs::write(dir.join("b.n"), "print(\"loaded b\")\n").expect("Failed to write test module");
 
-    let output = run_repl_in_dir_with_stdin(&dir, b"import \"b\"\n");
+    let output = run_repl_in_dir_with_stdin(&dir, b"use \"b\"\n");
 
     fs::remove_dir_all(&dir).ok();
 
@@ -1145,7 +1136,7 @@ fn repl_reports_missing_import_with_path_tried_in_the_current_directory() {
     fs::create_dir_all(&dir).expect("Failed to create test dir");
     let dir = dir.canonicalize().expect("Failed to canonicalize test dir");
 
-    let output = run_repl_in_dir_with_stdin(&dir, b"import \"missing\"\n");
+    let output = run_repl_in_dir_with_stdin(&dir, b"use \"missing\"\n");
 
     fs::remove_dir_all(&dir).ok();
 
@@ -1163,7 +1154,7 @@ fn repl_reports_missing_import_with_path_tried_in_the_current_directory() {
         "{combined}"
     );
     assert!(combined.contains("--> <repl>:1:"), "{combined}");
-    assert!(combined.contains("| import \"missing\""), "{combined}");
+    assert!(combined.contains("| use \"missing\""), "{combined}");
 }
 
 #[test]

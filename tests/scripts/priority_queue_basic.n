@@ -14,7 +14,7 @@
 // x
 // PriorityQueue(size=0)
 
-import "std/pq"
+use "std/pq"
 
 val queue = pq.new()
 queue.push(3, "c")

@@ -170,7 +170,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         }
         CompilationErrorKind::LoopControlOutsideLoop => vec![("break\n".to_string(), None)],
         CompilationErrorKind::NamespaceAsValue => {
-            vec![("import \"std/math\"\nval m = math\n".to_string(), None)]
+            vec![("use \"std/math\"\nval m = math\n".to_string(), None)]
         }
         CompilationErrorKind::UnknownMethod => vec![
             (
@@ -192,7 +192,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             None,
         )],
         CompilationErrorKind::NotCallable => {
-            vec![("import \"std/math\"\nmath()\n".to_string(), None)]
+            vec![("use \"std/math\"\nmath()\n".to_string(), None)]
         }
         CompilationErrorKind::TooFewArguments => vec![(
             "fn add(a, b) {\n    return a + b\n}\nadd(1)\n".to_string(),
@@ -233,31 +233,31 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             None,
         )],
         CompilationErrorKind::ImportNotTopLevel => {
-            vec![("fn f() {\n    import \"a\"\n}\n".to_string(), None)]
+            vec![("fn f() {\n    use \"a\"\n}\n".to_string(), None)]
         }
         CompilationErrorKind::ExportNotTopLevel => {
-            vec![("if true {\n    export val x = 1\n}\n".to_string(), None)]
+            vec![("if true {\n    pub val x = 1\n}\n".to_string(), None)]
         }
         CompilationErrorKind::ImportCycle => {
-            vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
+            vec![("use \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
         }
         CompilationErrorKind::FileImportUnavailable => vec![(
-            "import \"b\"\n".to_string(),
+            "use \"b\"\n".to_string(),
             Some("file imports are not available in the browser build"),
         )],
         CompilationErrorKind::UnknownModule => vec![
-            ("import \"missing\"\n".to_string(), Some("missing.n")),
+            ("use \"missing\"\n".to_string(), Some("missing.n")),
             (
-                "import \"std/nope\"\n".to_string(),
+                "use \"std/nope\"\n".to_string(),
                 Some("unknown builtin module"),
             ),
         ],
         CompilationErrorKind::UnknownExport => vec![(
-            "import \"b\"\nb.nope()\n".to_string(),
+            "use \"b\"\nb.nope()\n".to_string(),
             Some("module 'b' has no export 'nope'"),
         )],
         CompilationErrorKind::InvalidImportName => vec![(
-            "import \"my-utils\"\n".to_string(),
+            "use \"my-utils\"\n".to_string(),
             Some("cannot bind 'my-utils' as a name"),
         )],
         CompilationErrorKind::ImplOnEnum => vec![(
@@ -313,10 +313,10 @@ fn file_based_siblings(
     kind: CompilationErrorKind,
 ) -> Option<&'static [(&'static str, &'static str)]> {
     match kind {
-        CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nimport \"a\"\n")]),
+        CompilationErrorKind::ImportCycle => Some(&[("b.n", "val x = 1\nuse \"a\"\n")]),
         CompilationErrorKind::UnknownModule => Some(&[]),
-        CompilationErrorKind::UnknownExport => Some(&[("b.n", "export val x = 1\n")]),
-        CompilationErrorKind::InvalidImportName => Some(&[("my-utils.n", "export val x = 1\n")]),
+        CompilationErrorKind::UnknownExport => Some(&[("b.n", "pub val x = 1\n")]),
+        CompilationErrorKind::InvalidImportName => Some(&[("my-utils.n", "pub val x = 1\n")]),
         _ => None,
     }
 }

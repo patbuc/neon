@@ -396,7 +396,7 @@ impl SemanticAnalyzer {
                             CompilationPhase::Semantic,
                             CompilationErrorKind::InvalidImportName,
                             format!(
-                                "cannot bind '{}' as a name; use `import \"{}\" as <name>`",
+                                "cannot bind '{}' as a name; use `use \"{}\" as <name>`",
                                 name, path
                             ),
                             *location,

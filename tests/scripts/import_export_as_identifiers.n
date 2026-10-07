@@ -1,0 +1,11 @@
+// Expected:
+// 3
+// 7
+
+val import = 1
+var export = 2
+print(import + export)
+fn use_it(import, export) {
+    import + export
+}
+print(use_it(3, 4))

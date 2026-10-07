@@ -9,7 +9,7 @@
 // 0
 // -1
 
-import "std/math"
+use "std/math"
 
 // Basic integer division
 print(math.floor(10 / 3))

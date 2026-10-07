@@ -1126,7 +1126,7 @@ fn arity_mismatch_through_a_stored_function_reports_the_call_site() {
 
 #[test]
 fn native_message_error_through_a_nested_call_reports_the_call_site() {
-    let program = "import \"std/math\"\nfn h() {\n  math.sqrt(\"a\")\n  print(1)\n}\nh()";
+    let program = "use \"std/math\"\nfn h() {\n  math.sqrt(\"a\")\n  print(1)\n}\nh()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());

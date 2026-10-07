@@ -943,11 +943,11 @@ fn test_match_variant_patterns_unchanged() {
 #[test]
 fn test_import_and_export_unchanged() {
     for source in [
-        "import \"a\"\n",
-        "import \"a\" as b\n",
-        "export fn f() {}\n",
-        "export val x = 1\n",
-        "import \"a\\tb\"\n",
+        "use \"a\"\n",
+        "use \"a\" as b\n",
+        "pub fn f() {}\n",
+        "pub val x = 1\n",
+        "use \"a\\tb\"\n",
     ] {
         check(source, source);
     }
@@ -956,9 +956,9 @@ fn test_import_and_export_unchanged() {
 #[test]
 fn test_export_multiline_with_trailing_comment_unchanged() {
     for source in [
-        "export fn f() {\n    print(1)\n} // after\n",
-        "export struct P {\n    x\n    y\n} // after\n",
-        "export enum E {\n    A\n    B\n} // after\n",
+        "pub fn f() {\n    print(1)\n} // after\n",
+        "pub struct P {\n    x\n    y\n} // after\n",
+        "pub enum E {\n    A\n    B\n} // after\n",
     ] {
         check(source, source);
     }
