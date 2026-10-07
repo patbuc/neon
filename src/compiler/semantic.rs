@@ -2289,15 +2289,9 @@ impl SemanticAnalyzer {
                 let export = self.resolve_module_member(*id, name, field, location);
                 match export {
                     Some(Export::Enum { .. }) => self.push_enum_as_value_error(field, location),
-                    Some(Export::Native { .. }) => self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::NamespaceAsValue,
-                        format!(
-                            "'{}.{}' can only be called, not used as a value",
-                            name, field
-                        ),
-                        location,
-                    )),
+                    Some(Export::Native { index, .. }) => {
+                        self.resolutions.record_native(*id, index);
+                    }
                     _ => {}
                 }
                 return;

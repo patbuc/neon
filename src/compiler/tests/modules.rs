@@ -710,3 +710,21 @@ fn rejects_an_unknown_std_export_with_a_suggestion() {
         errors[0].message
     );
 }
+
+#[test]
+fn loads_a_std_native_export_as_a_native_function_constant() {
+    let chunk = compile_files(
+        "std_native_value",
+        "import \"std/math\" as m\nval abs = m.abs\n",
+        &[],
+    )
+    .expect("should compile");
+
+    let disassembly = disassemble(&chunk);
+    assert!(
+        disassembly
+            .lines()
+            .any(|line| line.contains("Constant") && line.ends_with("'<native fn abs>'")),
+        "got:\n{disassembly}"
+    );
+}

@@ -1882,6 +1882,14 @@ impl<'a> CodeGenerator<'a> {
                         self.emit_index_op(OpCode::GetGlobal, slot, "globals", *location);
                         return;
                     }
+                    if let Some(index) = self.resolutions.native(*id) {
+                        let label = crate::common::method_registry::native_label(index);
+                        let arity =
+                            crate::common::method_registry::get_native_method_by_index(index)
+                                .map_or(0, |callable| callable.arity());
+                        self.push_native_callable_by_index(label, index, arity, *location);
+                        return;
+                    }
                     if let Some(access) = self.resolutions.enum_variant_access(*id) {
                         self.emit_enum_variant_constant(
                             &access.enum_name,

@@ -1,0 +1,9 @@
+// Expected:
+// 14
+// 5
+
+import "math" as local
+import "std/math"
+
+print(local.double(7))
+print(math.max(1, 5))

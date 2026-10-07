@@ -1,0 +1,9 @@
+// Expected:
+// 1
+// [1, 2]
+
+import "std/math" as m
+
+val abs = m.abs
+print(abs(-1))
+print([-1, 2].map(m.abs))
