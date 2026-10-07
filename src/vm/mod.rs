@@ -50,7 +50,8 @@ pub struct VirtualMachine {
     builtin_methods: [Vec<MethodEntry>; BUILTIN_TYPE_NAMES.len()],
     /// The structs `DefineMethod` appended a method to since the current
     /// REPL line started, so a runtime error can take those methods back.
-    method_journal: Vec<Rc<ObjStruct>>,
+    /// `None` outside a REPL line.
+    method_journal: Option<Vec<Rc<ObjStruct>>>,
     /// Native methods of the builtin types, built from the running
     /// compile's symbol table.
     native_methods: NativeMethodTable,

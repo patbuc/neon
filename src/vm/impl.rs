@@ -38,7 +38,7 @@ impl VirtualMachine {
             open_upvalues: Vec::new(),
             native_call_depth: 0,
             builtin_methods: std::array::from_fn(|_| Vec::new()),
-            method_journal: Vec::new(),
+            method_journal: None,
             native_methods: Vec::new(),
             repl_env: GlobalEnv::default(),
             #[cfg(feature = "opcode-stats")]
@@ -166,7 +166,6 @@ impl VirtualMachine {
 
         let previous_env = self.repl_env.clone();
         let previous_builtin_methods = self.builtin_methods.clone();
-        self.method_journal.clear();
         let previous_slot_count = previous_env.slot_count as usize;
 
         let mut compiler = Compiler::new();
@@ -181,12 +180,14 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.runtime_error = None;
+        self.method_journal = Some(Vec::new());
 
         let result = self.run_program(
             compiled.modules,
             compiled.module_slot_counts,
             compiled.entry,
         );
+        let method_journal = self.method_journal.take().unwrap_or_default();
 
         match result {
             InterpretResult::Ok => {
@@ -210,7 +211,7 @@ impl VirtualMachine {
                 }
                 self.call_frames.clear();
                 self.native_call_depth = 0;
-                for r#struct in self.method_journal.drain(..).rev() {
+                for r#struct in method_journal.into_iter().rev() {
                     r#struct.methods.borrow_mut().pop();
                 }
                 self.builtin_methods = previous_builtin_methods;
@@ -626,7 +627,7 @@ impl VirtualMachine {
         self.open_upvalues.clear();
         self.native_call_depth = 0;
         self.builtin_methods.iter_mut().for_each(Vec::clear);
-        self.method_journal.clear();
+        self.method_journal = None;
         self.repl_env = GlobalEnv::default();
         #[cfg(feature = "opcode-stats")]
         {

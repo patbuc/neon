@@ -5,7 +5,7 @@ use crate::common::{
     compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
     ObjNativeFunction, ObjStruct, Value,
 };
-use crate::common::{ObjClosure, Upvalue};
+use crate::common::{find_method_entry, ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -520,10 +520,9 @@ impl VirtualMachine {
     ) -> MethodDispatch {
         let method = match type_name {
             TypeName::Struct(r#struct) => r#struct.find_method(method_symbol),
-            TypeName::Builtin(type_symbol) => self.builtin_methods[*type_symbol as usize]
-                .iter()
-                .find(|(symbol, _, _)| *symbol == method_symbol)
-                .cloned(),
+            TypeName::Builtin(type_symbol) => {
+                find_method_entry(&self.builtin_methods[*type_symbol as usize], method_symbol)
+            }
         };
         let Some((_, closure, takes_self)) = method else {
             return MethodDispatch::NotFound;
@@ -2091,7 +2090,9 @@ impl VirtualMachine {
             .methods
             .borrow_mut()
             .push((method_symbol, closure, takes_self));
-        self.method_journal.push(r#struct);
+        if let Some(journal) = &mut self.method_journal {
+            journal.push(r#struct);
+        }
     }
 
     /// DefineBuiltinMethod: pops the closure left on top of the stack by a

@@ -590,6 +590,17 @@ impl ObjInstance {
 /// A user method: (method symbol, closure, takes `self`).
 pub(crate) type MethodEntry = (u16, Rc<ObjClosure>, bool);
 
+#[inline]
+pub(crate) fn find_method_entry(
+    methods: &[MethodEntry],
+    method_symbol: u16,
+) -> Option<MethodEntry> {
+    methods
+        .iter()
+        .find(|(symbol, _, _)| *symbol == method_symbol)
+        .cloned()
+}
+
 #[derive(Clone)]
 pub struct ObjStruct {
     pub name: String,
@@ -630,11 +641,7 @@ impl ObjStruct {
     }
 
     pub(crate) fn find_method(&self, method_symbol: u16) -> Option<MethodEntry> {
-        self.methods
-            .borrow()
-            .iter()
-            .find(|(symbol, _, _)| *symbol == method_symbol)
-            .cloned()
+        find_method_entry(&self.methods.borrow(), method_symbol)
     }
 }
 

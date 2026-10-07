@@ -51,10 +51,9 @@ pub(crate) struct MethodSignature {
 }
 
 /// The methods and fields of a struct, local or exported.
-#[derive(Default)]
-struct StructMembers {
-    methods: HashMap<String, MethodSignature>,
-    fields: Vec<String>,
+struct StructMembers<'a> {
+    methods: Option<&'a HashMap<String, MethodSignature>>,
+    fields: &'a [String],
 }
 
 /// Which syntactic form a method call used.
@@ -271,11 +270,11 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Analyze the AST and return the recorded name resolutions if successful
     pub(crate) fn struct_methods(&self) -> &HashMap<DeclId, HashMap<String, MethodSignature>> {
         &self.struct_methods
     }
 
+    /// Analyze the AST and return the recorded name resolutions if successful
     pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<Resolutions> {
         // First: collect all top-level declarations
         self.collect_declarations(statements);
@@ -940,6 +939,12 @@ impl SemanticAnalyzer {
     fn push_error(&mut self, error: CompilationError) {
         if !self.errors.contains(&error) {
             self.errors.push(error);
+        }
+    }
+
+    fn push_optional_error(&mut self, error: Option<CompilationError>) {
+        if let Some(error) = error {
+            self.push_error(error);
         }
     }
 
@@ -2113,20 +2118,19 @@ impl SemanticAnalyzer {
             // The receiver is the type itself, but codegen still loads it
             // as a value, so resolve it like any other variable use.
             if self.is_struct_type(name) {
-                let struct_name = name.clone();
-                self.resolve_expr(object);
-                for arg in arguments {
-                    self.resolve_expr(arg);
-                }
-                let members = self.local_struct_members(&struct_name);
-                self.validate_struct_method_call(
-                    &struct_name,
-                    &members,
+                let error = struct_method_call_error(
+                    name,
+                    &self.local_struct_members(name),
                     method,
                     arguments.len(),
                     location,
                     MethodCallKind::Static,
                 );
+                self.resolve_expr(object);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                self.push_optional_error(error);
                 return;
             }
 
@@ -2159,11 +2163,7 @@ impl SemanticAnalyzer {
                 if let Expr::Variable { name: module, .. } = module.as_ref() {
                     let type_name = format!("{}.{}", module, struct_field);
                     if let Some(members) = self.exported_struct_method_info(&type_name) {
-                        self.resolve_expr(object);
-                        for arg in arguments {
-                            self.resolve_expr(arg);
-                        }
-                        self.validate_struct_method_call(
+                        let error = struct_method_call_error(
                             &type_name,
                             &members,
                             method,
@@ -2171,6 +2171,11 @@ impl SemanticAnalyzer {
                             location,
                             MethodCallKind::Static,
                         );
+                        self.resolve_expr(object);
+                        for arg in arguments {
+                            self.resolve_expr(arg);
+                        }
+                        self.push_optional_error(error);
                         return;
                     }
                 }
@@ -2366,23 +2371,19 @@ impl SemanticAnalyzer {
     /// The fields of a struct exported by a module, given its static type
     /// name `module.Struct`.
     fn module_struct(&self, type_name: &str) -> Option<&[String]> {
-        let (module, name) = type_name.split_once('.')?;
-        match self.module_export(module, name)? {
-            Export::Struct { fields, .. } => Some(fields),
-            _ => None,
-        }
+        Some(self.exported_struct_method_info(type_name)?.fields)
     }
 
     /// The methods and fields of an exported struct, given its type name
     /// `module.Struct`.
-    fn exported_struct_method_info(&self, type_name: &str) -> Option<StructMembers> {
+    fn exported_struct_method_info(&self, type_name: &str) -> Option<StructMembers<'_>> {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
             Export::Struct {
                 fields, methods, ..
             } => Some(StructMembers {
-                methods: methods.clone(),
-                fields: fields.clone(),
+                methods: Some(methods),
+                fields,
             }),
             _ => None,
         }
@@ -2933,87 +2934,6 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Validate a call to a struct's own method, whether the receiver is an
-    /// instance (`p.len()`) or the struct name itself (`Point.origin()`).
-    /// Unknown methods get a "Did you mean" suggestion drawn from the
-    /// struct's own methods, since a struct never has builtin methods.
-    fn validate_struct_method_call(
-        &mut self,
-        struct_name: &str,
-        members: &StructMembers,
-        method: &str,
-        arg_count: usize,
-        location: SourceLocation,
-        call_kind: MethodCallKind,
-    ) {
-        let signature = members.methods.get(method).copied();
-
-        if let Some(signature) = signature {
-            match (call_kind, signature.takes_self) {
-                (MethodCallKind::Static, true) => {
-                    self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::MethodNeedsInstance,
-                        format!(
-                            "Method '{}' needs an instance; call it on a {} value",
-                            method, struct_name
-                        ),
-                        location,
-                    ));
-                }
-                (MethodCallKind::Instance, false) => {
-                    self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::MethodIsStatic,
-                        format!(
-                            "Method '{}' is static; call it as {}.{}()",
-                            method, struct_name, method
-                        ),
-                        location,
-                    ));
-                }
-                (MethodCallKind::Static, false) => {
-                    self.validate_arity(
-                        "Method",
-                        method,
-                        signature.param_count,
-                        arg_count,
-                        location,
-                    );
-                }
-                (MethodCallKind::Instance, true) => {
-                    self.validate_arity(
-                        "Method",
-                        method,
-                        signature.param_count - 1,
-                        arg_count,
-                        location,
-                    );
-                }
-            }
-            return;
-        }
-
-        // No method by this name; a field can still be called (its value is
-        // callable or not only known at runtime). Fields only exist on
-        // instances, so a static call keeps erroring.
-        if call_kind == MethodCallKind::Instance && members.fields.iter().any(|f| f == method) {
-            return;
-        }
-
-        let candidates: Vec<String> = members.methods.keys().cloned().collect();
-        let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
-
-        let error_message = unknown_method_error(struct_name, method, &candidate_refs, None);
-
-        self.push_error(CompilationError::new(
-            CompilationPhase::Semantic,
-            CompilationErrorKind::UnknownMethod,
-            error_message,
-            location,
-        ));
-    }
-
     fn validate_instance_method(
         &mut self,
         object_type: &str,
@@ -3021,8 +2941,15 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
-        if let Some(members) = self.exported_struct_method_info(object_type) {
-            self.validate_struct_method_call(
+        let members = match self.exported_struct_method_info(object_type) {
+            Some(members) => Some(members),
+            None if self.is_struct_type(object_type) => {
+                Some(self.local_struct_members(object_type))
+            }
+            None => None,
+        };
+        if let Some(members) = members {
+            let error = struct_method_call_error(
                 object_type,
                 &members,
                 method,
@@ -3030,19 +2957,7 @@ impl SemanticAnalyzer {
                 location,
                 MethodCallKind::Instance,
             );
-            return;
-        }
-
-        if self.is_struct_type(object_type) {
-            let members = self.local_struct_members(object_type);
-            self.validate_struct_method_call(
-                object_type,
-                &members,
-                method,
-                arg_count,
-                location,
-                MethodCallKind::Instance,
-            );
+            self.push_optional_error(error);
             return;
         }
 
@@ -3105,23 +3020,20 @@ impl SemanticAnalyzer {
         self.struct_fields(struct_name).iter().any(|f| f == field)
     }
 
-    fn local_struct_members(&self, struct_name: &str) -> StructMembers {
+    fn local_struct_members(&self, struct_name: &str) -> StructMembers<'_> {
         StructMembers {
-            methods: self
-                .struct_methods_of(struct_name)
-                .cloned()
-                .unwrap_or_default(),
+            methods: self.struct_methods_of(struct_name),
             fields: self.struct_fields(struct_name),
         }
     }
 
-    fn struct_fields(&self, struct_name: &str) -> Vec<String> {
+    fn struct_fields(&self, struct_name: &str) -> &[String] {
         match self.symbol_table.resolve(struct_name) {
             Some(Symbol {
                 kind: SymbolKind::Struct { fields },
                 ..
-            }) => fields.clone(),
-            _ => Vec::new(),
+            }) => fields,
+            _ => &[],
         }
     }
 
@@ -3202,23 +3114,100 @@ impl SemanticAnalyzer {
         actual: usize,
         location: SourceLocation,
     ) {
-        if actual != expected as usize {
-            let kind = if actual < expected as usize {
-                CompilationErrorKind::TooFewArguments
-            } else {
-                CompilationErrorKind::TooManyArguments
-            };
-            self.push_error(CompilationError::new(
+        let error = arity_error(kind_label, name, expected, actual, location);
+        self.push_optional_error(error);
+    }
+}
+
+fn arity_error(
+    kind_label: &str,
+    name: &str,
+    expected: u8,
+    actual: usize,
+    location: SourceLocation,
+) -> Option<CompilationError> {
+    if actual == expected as usize {
+        return None;
+    }
+    let kind = if actual < expected as usize {
+        CompilationErrorKind::TooFewArguments
+    } else {
+        CompilationErrorKind::TooManyArguments
+    };
+    Some(CompilationError::new(
+        CompilationPhase::Semantic,
+        kind,
+        format!(
+            "{} '{}' expects {} arguments but got {}",
+            kind_label, name, expected, actual
+        ),
+        location,
+    ))
+}
+
+/// The error, if any, for a call to a struct's own method, whether the
+/// receiver is an instance (`p.len()`) or the struct name itself
+/// (`Point.origin()`). Unknown methods get a "Did you mean" suggestion drawn
+/// from the struct's own methods, since a struct never has builtin methods.
+fn struct_method_call_error(
+    struct_name: &str,
+    members: &StructMembers,
+    method: &str,
+    arg_count: usize,
+    location: SourceLocation,
+    call_kind: MethodCallKind,
+) -> Option<CompilationError> {
+    if let Some(signature) = members.methods.and_then(|methods| methods.get(method)) {
+        return match (call_kind, signature.takes_self) {
+            (MethodCallKind::Static, true) => Some(CompilationError::new(
                 CompilationPhase::Semantic,
-                kind,
+                CompilationErrorKind::MethodNeedsInstance,
                 format!(
-                    "{} '{}' expects {} arguments but got {}",
-                    kind_label, name, expected, actual
+                    "Method '{}' needs an instance; call it on a {} value",
+                    method, struct_name
                 ),
                 location,
-            ));
-        }
+            )),
+            (MethodCallKind::Instance, false) => Some(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::MethodIsStatic,
+                format!(
+                    "Method '{}' is static; call it as {}.{}()",
+                    method, struct_name, method
+                ),
+                location,
+            )),
+            (MethodCallKind::Static, false) => {
+                arity_error("Method", method, signature.param_count, arg_count, location)
+            }
+            (MethodCallKind::Instance, true) => arity_error(
+                "Method",
+                method,
+                signature.param_count - 1,
+                arg_count,
+                location,
+            ),
+        };
     }
+
+    // No method by this name; a field can still be called (its value is
+    // callable or not only known at runtime). Fields only exist on
+    // instances, so a static call keeps erroring.
+    if call_kind == MethodCallKind::Instance && members.fields.iter().any(|f| f == method) {
+        return None;
+    }
+
+    let candidates: Vec<&str> = members
+        .methods
+        .into_iter()
+        .flat_map(|methods| methods.keys().map(String::as_str))
+        .collect();
+    Some(CompilationError::new(
+        CompilationPhase::Semantic,
+        CompilationErrorKind::UnknownMethod,
+        unknown_method_error(struct_name, method, &candidates, None),
+        location,
+    ))
 }
 
 /// The `stdlib::BUILTIN_VALUES` index of a symbol, if it's a runtime builtin.
