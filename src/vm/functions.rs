@@ -179,10 +179,9 @@ impl VirtualMachine {
         let callable_value = std::mem::replace(&mut self.stack[callable_index], Value::Nil);
         match callable_value {
             Value::Closure(closure) => {
-                if crate::vm::jit_spike::mode() != 0 {
-                    if let Some(compiled) = crate::vm::jit_spike::lookup(&closure) {
-                        return self.run_compiled(arg_count, closure, compiled);
-                    }
+                #[cfg(feature = "jit")]
+                if let Some(jitted) = crate::vm::jit::compiled(&closure.function) {
+                    return self.run_jitted(arg_count, closure, jitted);
                 }
                 self.call_closure(arg_count, closure)
             }
@@ -307,7 +306,7 @@ impl VirtualMachine {
 
     /// Errors with "Stack overflow" if the call frame stack is already at
     /// its limit.
-    pub(in crate::vm) fn check_frame_limit(&self) -> OpResult {
+    fn check_frame_limit(&self) -> OpResult {
         if self.call_frames.len() >= MAX_FRAMES {
             Err(self.call_error("Stack overflow"))
         } else {
@@ -326,7 +325,7 @@ impl VirtualMachine {
 
     /// Dispatches an already-extracted callable value (its stack slot has
     /// already been replaced with `Value::Nil`).
-    pub(in crate::vm) fn dispatch_call_value(&mut self, callable_value: Value, arg_count: usize) -> OpResult {
+    fn dispatch_call_value(&mut self, callable_value: Value, arg_count: usize) -> OpResult {
         let result = match callable_value {
             Value::Closure(closure) => return self.call_closure(arg_count, closure),
             Value::Struct(r#struct) => return self.instantiate_struct(arg_count, r#struct),
@@ -610,7 +609,11 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
-    pub(in crate::vm) fn call_closure(&mut self, arg_count: usize, closure: Rc<ObjClosure>) -> OpResult {
+    pub(in crate::vm) fn call_closure(
+        &mut self,
+        arg_count: usize,
+        closure: Rc<ObjClosure>,
+    ) -> OpResult {
         self.call_closure_with(arg_count, closure, false)
     }
 

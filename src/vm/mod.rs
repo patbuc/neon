@@ -7,8 +7,9 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 mod functions;
-mod jit_spike;
 mod r#impl;
+#[cfg(feature = "jit")]
+mod jit;
 #[cfg(test)]
 mod tests;
 
