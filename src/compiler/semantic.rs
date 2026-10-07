@@ -2927,7 +2927,9 @@ impl SemanticAnalyzer {
                 .map(String::from)
                 .collect();
         if let Some(user_methods) = self.builtin_methods.get(object_type) {
-            candidates.extend(user_methods.keys().cloned());
+            let mut user_names: Vec<&String> = user_methods.keys().collect();
+            user_names.sort();
+            candidates.extend(user_names.into_iter().cloned());
         }
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
         let renamed = renamed_method_suggestion(method, &candidate_refs);
@@ -3135,11 +3137,12 @@ fn struct_method_call_error(
         return None;
     }
 
-    let candidates: Vec<&str> = members
+    let mut candidates: Vec<&str> = members
         .methods
         .into_iter()
         .flat_map(|methods| methods.keys().map(String::as_str))
         .collect();
+    candidates.sort_unstable();
     Some(unknown_method_error(
         struct_name,
         method,

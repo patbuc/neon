@@ -489,7 +489,8 @@ fn validates_method_calls_on_an_exported_struct() {
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     assert_eq!(local_static[0].kind, errors[0].kind);
     assert_eq!(expected, errors[0].message);
-    assert!(errors[0].help.is_some());
+    assert!(local_static[0].help.is_some());
+    assert_eq!(local_static[0].help, errors[0].help);
     assert_eq!(2, errors[0].location.line);
 
     let local_instance = compile_errors(&format!("{}Point(1).nope()\n", LOCAL_POINT_METHODS));
@@ -502,7 +503,7 @@ fn validates_method_calls_on_an_exported_struct() {
     assert_eq!(1, errors.len(), "errors: {:#?}", errors);
     assert_eq!(local_instance[0].kind, errors[0].kind);
     assert_eq!(expected, errors[0].message);
-    assert!(errors[0].help.is_some());
+    assert_eq!(local_instance[0].help, errors[0].help);
     assert_eq!(2, errors[0].location.line);
 
     let local_arity = compile_errors(&format!("{}Point.make(1)\n", LOCAL_POINT_METHODS));
