@@ -44,7 +44,7 @@ fn main() {
                     eprintln!("Usage: neon -e <code> [args...]");
                     exit(64);
                 }
-                run_eval(args[2].clone(), args[3..].to_vec());
+                run_source(args[2].clone(), args[3..].to_vec(), "<eval>");
             }
             "fmt" => {
                 fmt_command(&args[2..]);
@@ -141,10 +141,10 @@ fn run_file(path: &str, args: Vec<String>) {
     finish_run(&vm, result, path);
 }
 
-fn run_eval(snippet: String, args: Vec<String>) {
+fn run_source(source: String, args: Vec<String>, name: &str) {
     let mut vm = VirtualMachine::with_args(args);
-    let result = vm.interpret(snippet);
-    finish_run(&vm, result, "<eval>");
+    let result = vm.interpret(source);
+    finish_run(&vm, result, name);
 }
 
 #[allow(clippy::print_stderr)]
