@@ -1,1 +1,2 @@
 print(x)
+// Must fail with: No '// Expected compile error:' line

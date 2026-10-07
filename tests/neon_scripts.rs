@@ -4,6 +4,7 @@ use std::path::Path;
 
 const RUNTIME_ERROR_PREFIX: &str = "// Expected runtime error:";
 const COMPILE_ERROR_PREFIX: &str = "// Expected compile error:";
+const MUST_FAIL_PREFIX: &str = "// Must fail with:";
 
 /// Extracts the message from a `<prefix> <message>` line anywhere in the
 /// script, if present.
@@ -135,13 +136,13 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
             let actual_errors: Vec<String> = vm
                 .get_compile_errors()
                 .iter()
-                .map(|e| {
+                .map(|error| {
                     format!(
                         "{}:{} {} {}",
-                        e.location.line,
-                        e.location.column,
-                        e.kind.code(),
-                        e.message
+                        error.location.line,
+                        error.location.column,
+                        error.kind.code(),
+                        error.message
                     )
                 })
                 .collect();
@@ -224,27 +225,40 @@ fn run_module_case(path: &Path) -> datatest_stable::Result<()> {
     check_script(path, Some(path), &script)
 }
 
-/// Runs a multi-file case that must fail its own expectations, and checks
-/// that the failure is a compile error expectation mismatch.
-fn run_failing_module_case(path: &Path) -> datatest_stable::Result<()> {
+/// Requires `check` to fail with a message containing the script's
+/// `// Must fail with:` text.
+fn expect_failure(
+    path: &Path,
+    check: impl FnOnce(&str) -> datatest_stable::Result<()>,
+) -> datatest_stable::Result<()> {
     let script = fs::read_to_string(path)?;
-    let failure = match check_script(path, Some(path), &script) {
+    let failure = match check(&script) {
         Ok(()) => return Err(format!("{} passed but must fail", path.display()).into()),
         Err(error) => error.to_string(),
     };
-    if !failure.contains("Compile errors mismatch")
-        && !failure.contains("Expected a compile error for")
-    {
-        return Err(format!("{} failed for another reason: {failure}", path.display()).into());
+    let Some(expected) = extract_expected_error(&script, MUST_FAIL_PREFIX) else {
+        return Err(format!("No '{MUST_FAIL_PREFIX}' line in {}", path.display()).into());
+    };
+    if !failure.contains(&expected) {
+        return Err(format!(
+            "{} must fail with '{expected}' but failed with: {failure}",
+            path.display()
+        )
+        .into());
     }
     Ok(())
+}
+
+/// Runs a multi-file case that must fail its own expectations.
+fn run_failing_module_case(path: &Path) -> datatest_stable::Result<()> {
+    expect_failure(path, |script| check_script(path, Some(path), script))
 }
 
 /// Runs a script from `tests/compile_errors`: it must carry at least one
 /// `// Expected compile error:` line, and is not formatted first.
 fn run_compile_error_script(path: &Path) -> datatest_stable::Result<()> {
     let script = fs::read_to_string(path)?;
-    if extract_expected_error(&script, COMPILE_ERROR_PREFIX).is_none() {
+    if extract_expected_errors(&script, COMPILE_ERROR_PREFIX).is_empty() {
         return Err(format!("No '{COMPILE_ERROR_PREFIX}' line in {}", path.display()).into());
     }
     check_script(path, None, &script)
@@ -253,17 +267,7 @@ fn run_compile_error_script(path: &Path) -> datatest_stable::Result<()> {
 /// Runs a `tests/compile_errors_must_fail` script, which must fail its own
 /// compile error expectations.
 fn run_failing_compile_error_script(path: &Path) -> datatest_stable::Result<()> {
-    let failure = match run_compile_error_script(path) {
-        Ok(()) => return Err(format!("{} passed but must fail", path.display()).into()),
-        Err(error) => error.to_string(),
-    };
-    if !failure.contains("Compile errors mismatch")
-        && !failure.contains("Expected a compile error for")
-        && !failure.contains("No '// Expected compile error:' line")
-    {
-        return Err(format!("{} failed for another reason: {failure}", path.display()).into());
-    }
-    Ok(())
+    expect_failure(path, |_| run_compile_error_script(path))
 }
 
 /// Copies the directory `from` to `to`, formatting every `.n` file on the way.

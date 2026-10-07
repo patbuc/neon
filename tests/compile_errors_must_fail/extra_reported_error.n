@@ -1,3 +1,4 @@
 // Expected compile error: 2:7 E0013 Undefined variable 'a'
 print(a)
 print(b)
+// Must fail with: actual: ["2:7 E0013 Undefined variable 'a'", "3:7 E0013 Undefined variable 'b'"]

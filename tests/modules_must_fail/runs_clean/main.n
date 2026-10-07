@@ -1,3 +1,4 @@
-// Expected compile error: 1:1 E0013 This program compiles
+// Expected compile error: 1:1 E0013 this program compiles
 
 print("runs")
+// Must fail with: Expected a compile error for

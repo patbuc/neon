@@ -41,13 +41,14 @@ A script that fails to compile lives in `tests/compile_errors/` and carries one
 `// Expected compile error: 1:7 E0013 Undefined variable 'x'`). It has no `// Expected:` block and no runtime-error
 line. The lines are matched exactly against the stored errors from `VirtualMachine::get_compile_errors`, not the
 text the CLI renders, and carry no file path. The script need not parse and is not formatted, but must carry at
-least one such line. Scripts under `tests/compile_errors_must_fail/` must fail their own directive, which tests
-that the harness rejects a mismatch.
+least one such line. Scripts under `tests/compile_errors_must_fail/` must fail, each naming its expected failure
+in a `// Must fail with: <text>` line that the failure must contain, which tests that the harness rejects a mismatch.
 
 Multi-file module cases live in `tests/modules/<case>/main.n`. The harness runs each `main.n` with its own path as
 the entry script, both as written and after formatting; the modules it imports sit beside or below it in the case
 directory. It also runs `examples/modules/main.n` the same way. Cases under `tests/modules_must_fail/<case>/main.n`
-must fail their own `// Expected compile error:` line, which tests that the harness rejects a mismatch. Module cases
+must fail, each naming its expected failure in a `// Must fail with: <text>` line that the failure must contain,
+which tests that the harness rejects a mismatch. Module cases
 use the same directive format and stay formatted.
 
 ### Benchmarks
