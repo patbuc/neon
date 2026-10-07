@@ -338,21 +338,34 @@ pub(crate) enum OpCode {
     IsNumber,
 
     /// Pops the top of stack and jumps by the 32-bit operand if it was
-    /// false-like. Emitted for conditions whose value is not needed after
-    /// the branch, unlike `JumpIfFalse`, which `and`/`or` use.
+    /// false-like. Unlike `JumpIfFalse`, it leaves nothing behind.
     PopJumpIfFalse,
 
-    /// A comparison fused into `PopJumpIfFalse`: pops both operands and
-    /// jumps by the 32-bit operand unless the comparison holds.
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` > `b`.
     GreaterJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` >= `b`.
     GreaterEqualJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` < `b`.
     LessJumpIfFalse,
+
+    /// Pops `b` then `a` and jumps by the 32-bit operand unless `a` <= `b`.
     LessEqualJumpIfFalse,
 
-    /// Like the comparison jumps above, with a number-literal right operand:
-    /// a 16-bit constant-pool index, then the 32-bit jump.
+    /// Pops `a` and jumps by the 32-bit operand unless `a` > the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
     GreaterConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` >= the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
     GreaterEqualConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` < the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
     LessConstantJumpIfFalse,
+
+    /// Pops `a` and jumps by the 32-bit operand unless `a` <= the number
+    /// constant at the 16-bit pool index that precedes the jump operand.
     LessEqualConstantJumpIfFalse,
 }

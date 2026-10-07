@@ -74,7 +74,7 @@ fn test_else_if_bytecode_simple() {
     // 9. Else-branch code
 
     let ops = op_codes(&chunk);
-    let jump_if_false_count = ops
+    let pop_jump_if_false_count = ops
         .iter()
         .filter(|op| **op == OpCode::PopJumpIfFalse)
         .count();
@@ -82,7 +82,7 @@ fn test_else_if_bytecode_simple() {
 
     // We should have 2 PopJumpIfFalse (one for each condition)
     assert_eq!(
-        jump_if_false_count, 2,
+        pop_jump_if_false_count, 2,
         "Expected 2 PopJumpIfFalse instructions for if and else-if conditions"
     );
 
@@ -146,7 +146,7 @@ fn test_else_if_bytecode_without_final_else() {
     let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
-    let jump_if_false_count = ops
+    let pop_jump_if_false_count = ops
         .iter()
         .filter(|op| **op == OpCode::PopJumpIfFalse)
         .count();
@@ -154,7 +154,7 @@ fn test_else_if_bytecode_without_final_else() {
 
     // We should have 2 PopJumpIfFalse (one for each condition)
     assert_eq!(
-        jump_if_false_count, 2,
+        pop_jump_if_false_count, 2,
         "Expected 2 PopJumpIfFalse instructions"
     );
 

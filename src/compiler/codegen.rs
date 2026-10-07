@@ -1348,7 +1348,6 @@ impl<'a> CodeGenerator<'a> {
         // Check if iterator has more elements (pushes true if more, false if done)
         self.emit_index_op(OpCode::IteratorDone, iterator_slot, "locals", location);
 
-        // PopJumpIfFalse exits when false (done/no more elements)
         let exit_jump = self.emit_jump(OpCode::PopJumpIfFalse, location);
         // See generate_while_stmt: exit_jump lands after the Loop below,
         // which is a back-edge rather than a fallthrough, at this height
