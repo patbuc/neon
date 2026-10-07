@@ -770,7 +770,8 @@ impl Value {
         }))
     }
 
-    pub(crate) fn new_function(name: String, arity: u8, chunk: Chunk) -> Self {
+    pub(crate) fn new_function(name: String, arity: u8, mut chunk: Chunk) -> Self {
+        chunk.decode();
         Value::Function(Rc::new(ObjFunction {
             name,
             arity,

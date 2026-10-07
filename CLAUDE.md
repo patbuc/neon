@@ -217,7 +217,8 @@ enforces these edges in `cargo test`.
 **VM Core** (`src/vm/impl.rs`)
 
 - Stack-based bytecode interpreter
-- Main execution loop processes opcodes
+- Main execution loop dispatches on `Chunk.code`, the chunk's bytes decoded once into `Instr` values
+  (`src/common/chunk/decode.rs`) when it becomes immutable; `ip` is an index into it
 - Call frame stack for function calls (`src/vm/functions.rs`)
 - The running frame's `ip` and chunk live in `VirtualMachine.ip`/`chunk`; `CallFrame.ip` is only current for the
   frames below the top (`push_frame`/`pop_frame` save and restore it)
@@ -231,6 +232,8 @@ enforces these edges in `cargo test`.
 
 - Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, the
   symbol table shared by every chunk of the compile, and `file`, the unit's source file when known
+- `Chunk::decode` fills `code`, `instr_lines` (one location per instruction, read by `instr_line_info`) and
+  `closure_upvalues`; jump targets become instruction indices
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting;
   runtime errors and call-trace frames also name `Chunk.file` when it is set (errors in REPL lines and in-process

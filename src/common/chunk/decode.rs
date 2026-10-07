@@ -5,7 +5,6 @@ use crate::common::{Chunk, LineInfo};
 /// `Closure.upvalues` is the start of its `(is_local, index)` run in
 /// `Chunk::closure_upvalues`.
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
 pub(crate) enum Instr {
     Return,
     Constant(u16),
@@ -119,7 +118,91 @@ pub(crate) enum Instr {
     Invalid(u8),
 }
 
-#[allow(dead_code)]
+impl Instr {
+    #[cfg(feature = "opcode-stats")]
+    pub(crate) fn opcode(self) -> Option<OpCode> {
+        Some(match self {
+            Instr::Return => OpCode::Return,
+            Instr::Constant(_) => OpCode::Constant,
+            Instr::Negate => OpCode::Negate,
+            Instr::Add => OpCode::Add,
+            Instr::Subtract => OpCode::Subtract,
+            Instr::Multiply => OpCode::Multiply,
+            Instr::Divide => OpCode::Divide,
+            Instr::Modulo => OpCode::Modulo,
+            Instr::Exponent => OpCode::Exponent,
+            Instr::Nil => OpCode::Nil,
+            Instr::True => OpCode::True,
+            Instr::False => OpCode::False,
+            Instr::Equal => OpCode::Equal,
+            Instr::Greater => OpCode::Greater,
+            Instr::GreaterEqual => OpCode::GreaterEqual,
+            Instr::Less => OpCode::Less,
+            Instr::LessEqual => OpCode::LessEqual,
+            Instr::Not => OpCode::Not,
+            Instr::Pop => OpCode::Pop,
+            Instr::SetLocal(_) => OpCode::SetLocal,
+            Instr::GetLocal(_) => OpCode::GetLocal,
+            Instr::JumpIfFalse(_) => OpCode::JumpIfFalse,
+            Instr::Jump(_) => OpCode::Jump,
+            Instr::Loop(_) => OpCode::Loop,
+            Instr::Call(_) => OpCode::Call,
+            Instr::Invoke { .. } => OpCode::Invoke,
+            Instr::GetBuiltin(_) => OpCode::GetBuiltin,
+            Instr::GetGlobal(_) => OpCode::GetGlobal,
+            Instr::SetGlobal(_) => OpCode::SetGlobal,
+            Instr::GetField(_) => OpCode::GetField,
+            Instr::SetField(_) => OpCode::SetField,
+            Instr::GetLocalField { .. } => OpCode::GetLocalField,
+            Instr::CreateMap(_) => OpCode::CreateMap,
+            Instr::CreateArray(_) => OpCode::CreateArray,
+            Instr::CreateSet(_) => OpCode::CreateSet,
+            Instr::GetIndex => OpCode::GetIndex,
+            Instr::SetIndex => OpCode::SetIndex,
+            Instr::GetIterator { .. } => OpCode::GetIterator,
+            Instr::IteratorNext(_) => OpCode::IteratorNext,
+            Instr::IteratorDone(_) => OpCode::IteratorDone,
+            Instr::CreateRange { .. } => OpCode::CreateRange,
+            Instr::ToString => OpCode::ToString,
+            Instr::BitwiseAnd => OpCode::BitwiseAnd,
+            Instr::BitwiseOr => OpCode::BitwiseOr,
+            Instr::BitwiseXor => OpCode::BitwiseXor,
+            Instr::BitwiseNot => OpCode::BitwiseNot,
+            Instr::LeftShift => OpCode::LeftShift,
+            Instr::RightShift => OpCode::RightShift,
+            Instr::Closure { .. } => OpCode::Closure,
+            Instr::GetUpvalue(_) => OpCode::GetUpvalue,
+            Instr::SetUpvalue(_) => OpCode::SetUpvalue,
+            Instr::CloseUpvalue => OpCode::CloseUpvalue,
+            Instr::DefineMethod { .. } => OpCode::DefineMethod,
+            Instr::DefineBuiltinMethod { .. } => OpCode::DefineBuiltinMethod,
+            Instr::CheckInitialized => OpCode::CheckInitialized,
+            Instr::CheckTuple(_) => OpCode::CheckTuple,
+            Instr::StoreLocal(_) => OpCode::StoreLocal,
+            Instr::StoreField(_) => OpCode::StoreField,
+            Instr::StoreLocalField { .. } => OpCode::StoreLocalField,
+            Instr::AddConstant(_) => OpCode::AddConstant,
+            Instr::SubtractConstant(_) => OpCode::SubtractConstant,
+            Instr::GreaterConstant(_) => OpCode::GreaterConstant,
+            Instr::GreaterEqualConstant(_) => OpCode::GreaterEqualConstant,
+            Instr::LessConstant(_) => OpCode::LessConstant,
+            Instr::LessEqualConstant(_) => OpCode::LessEqualConstant,
+            Instr::Dup => OpCode::Dup,
+            Instr::Dup2 => OpCode::Dup2,
+            Instr::JumpIfNotNil(_) => OpCode::JumpIfNotNil,
+            Instr::JumpIfNil(_) => OpCode::JumpIfNil,
+            Instr::NoMatchArm => OpCode::NoMatchArm,
+            Instr::EnumConstruct(_) => OpCode::EnumConstruct,
+            Instr::IsArrayOfLen { .. } => OpCode::IsArrayOfLen,
+            Instr::IsVariant(_) => OpCode::IsVariant,
+            Instr::TailCall(_) => OpCode::TailCall,
+            Instr::TailInvoke { .. } => OpCode::TailInvoke,
+            Instr::IsNumber => OpCode::IsNumber,
+            Instr::Invalid(_) => return None,
+        })
+    }
+}
+
 impl Chunk {
     /// Decodes `instructions` into `code`, with one `instr_lines` entry per
     /// instruction. Runs once, when the chunk becomes immutable.

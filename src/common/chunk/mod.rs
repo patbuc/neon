@@ -7,5 +7,4 @@ mod disassembler;
 #[cfg(test)]
 mod tests;
 
-#[allow(unused_imports)]
 pub(crate) use decode::Instr;

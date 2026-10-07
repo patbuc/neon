@@ -72,7 +72,8 @@ pub struct VirtualMachine {
 // Test-only methods
 #[cfg(test)]
 impl VirtualMachine {
-    pub(crate) fn run_chunk(&mut self, chunk: Chunk) -> InterpretResult {
+    pub(crate) fn run_chunk(&mut self, mut chunk: Chunk) -> InterpretResult {
+        chunk.decode();
         use crate::common::method_registry::native_method_table;
         use crate::common::{ObjClosure, ObjFunction};
         use std::rc::Rc;
