@@ -209,7 +209,7 @@ enforces these edges in `cargo test`.
       unknown module export, write to an export, module used as a value, wrong-arity export call
     - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
       slot and arity for functions, variables, structs and enums, registry index and arity for a builtin
-      module's natives (`Export::Native`, no slot). An `import` binds a compile-time `Module` symbol
+      module's natives (`Export::Native`, no slot). A `use` binds a compile-time `Module` symbol
       with no slot; `utils.name` resolves against the imported module's table. Enums are compile-time
       only exports and have no slot
 
@@ -217,7 +217,7 @@ enforces these edges in `cargo test`.
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
-      call); a call of a builtin module's native emits the same native call as `print(x)`; an import
+      call); a call of a builtin module's native emits the same native call as `print(x)`; a `use`
       itself emits nothing. Each module's chunk is named after its module path
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function

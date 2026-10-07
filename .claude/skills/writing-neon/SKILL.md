@@ -81,16 +81,16 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   `Shape.Rect` is a constructor value), read with `s.w` (immutable). Prints
   `Shape.Rect(1, 2)`; equality is structural. No `impl` blocks or explicit
   variant values.
-- `import` and `export` are keywords. `import "path"` and `import "path" as name`
+- `use` and `pub` are keywords (`import` and `export` are plain identifiers). `use "path"` and `use "path" as name`
   are top level only. The path resolves relative to the importing file (the current
   directory in the REPL) with `.n` appended, and a missing file or an
   import cycle is a compile error. A file name that isn't an identifier (`my-utils`) needs `as`.
   Exports are reached as `utils.name` (or the `as` alias) and are
   read-only from outside the module. An unknown export, a module used as a value (`print(utils)`) and a
   wrong-arity call of an exported function are compile errors. Each module runs once, before its
-  importers. `import "std/math"` (also `std/file`, `std/stdin`, `std/pq`) binds a builtin module;
+  importers. `use "std/math"` (also `std/file`, `std/stdin`, `std/pq`) binds a builtin module;
   any other `std/` path is a compile error.
-  `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
+  `pub` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
   plain name for `val`/`var`; not `impl`).
 
 **Control flow**
@@ -183,7 +183,7 @@ all use these names (Map checks keys, not values). No property-style
 This is the full list. Anything not here, like `keys` on
 arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
-The `std/` entries are builtin modules: `import "std/math"` binds `math`,
+The `std/` entries are builtin modules: `use "std/math"` binds `math`,
 then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.abs)`.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)

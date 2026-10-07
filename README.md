@@ -735,7 +735,7 @@ A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 #### Methods
 
 ```neon
-import "std/math"
+use "std/math"
 
 impl Point {
     fn len(self) {
@@ -849,22 +849,22 @@ print(Shape.Circle(2) == Shape.Circle(2)) // true
 
 ### Modules
 
-A file can export names and another file can import them.
+A file can export names with `pub` and another file can import them with `use`.
 
 ```neon
 // lib/utils.n
-export val VERSION = 1
-export var counter = 0
+pub val VERSION = 1
+pub var counter = 0
 
-export fn double(x) {
+pub fn double(x) {
     x * 2
 }
 
-export fn bump() {
+pub fn bump() {
     counter += 1
 }
 
-export struct Point {
+pub struct Point {
     x
     y
 }
@@ -872,13 +872,13 @@ export struct Point {
 
 ```neon
 // lib/my-math.n
-export fn square(x) = x * x
+pub fn square(x) = x * x
 ```
 
 ```neon
 // main.n
-import "lib/utils"
-import "lib/my-math" as math
+use "lib/utils"
+use "lib/my-math" as math
 
 print(utils.double(21))   // 42
 utils.bump()
@@ -887,14 +887,14 @@ print(utils.Point(1, 2).x) // 1
 print(math.square(5))     // 25
 ```
 
-- `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum`, and
+- `pub` goes before a top-level `fn`, `val`, `var`, `struct` or `enum`, and
   exports one name. Everything else stays private to the file.
-- `import "path"` and `import "path" as name` are top-level statements. The
+- `use "path"` and `use "path" as name` are top-level statements. The
   module is bound to its file name (`lib/utils` becomes `utils`) or to the
   `as` name. A file name that isn't an identifier, like `my-math`, needs `as`.
 - A path is relative to the importing file, and may start with `./`, `../` or
   `/`. `.n` is appended unless the path already ends in `.n`. In the REPL,
-  paths resolve from the current directory. A `std/` path imports one of the
+  paths resolve from the current directory. A `std/` path names one of the
   builtin modules (`std/math`, `std/file`, `std/stdin`, `std/pq`; see
   [Standard Library](#standard-library)); any other `std/` path is a compile error.
 - Exports are reached as `utils.name`. They are read-only from outside:
@@ -1062,7 +1062,7 @@ shadows them, same as any other name. Math, files, standard input and priority q
 - `sleep(ms)` - Block the current thread for `ms` milliseconds
 
 The builtin modules are imported like any other module and bound to their last path segment:
-`import "std/math"` binds `math`, and `import "std/math" as m` binds `m`.
+`use "std/math"` binds `math`, and `use "std/math" as m` binds `m`.
 
 ### std/math Methods
 
@@ -1085,7 +1085,7 @@ The builtin modules are imported like any other module and bound to their last p
 
 **Example:**
 ```neon
-import "std/math"
+use "std/math"
 
 val abs = math.abs         // exports are values
 print(abs(-5))             // 5
@@ -1111,7 +1111,7 @@ print(math.mod(-7, 3))     // 2
 **Example:**
 ```neon
 // echo -e "a\nb" | neon script.n
-import "std/stdin"
+use "std/stdin"
 
 print(stdin.readLines())   // [a, b]
 ```
@@ -1123,7 +1123,7 @@ print(stdin.readLines())   // [a, b]
 
 **Example:**
 ```neon
-import "std/pq"
+use "std/pq"
 
 val queue = pq.new()
 queue.push(2, "b")
@@ -1358,7 +1358,7 @@ print(arr)                // [1, 2] (order may vary)
 
 **Example:**
 ```neon
-import "std/pq"
+use "std/pq"
 
 val queue = pq.new()
 queue.push(3, "c")
