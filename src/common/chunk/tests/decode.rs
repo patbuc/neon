@@ -35,3 +35,42 @@ fn jumps_decode_to_instruction_indices() {
     assert_eq!(vec![1, 2, 3, 4, 5], lines);
     assert!(chunk.instr_line_info(5).is_none());
 }
+
+#[test]
+fn closure_upvalues_decode_into_side_table() {
+    let mut chunk = Chunk::new("closure");
+    chunk.write_indexed(OpCode::Closure, 3, 1, 1);
+    chunk.write_u8(2);
+    chunk.write_u8(1);
+    chunk.write_u16(4);
+    chunk.write_u8(0);
+    chunk.write_u16(9);
+    chunk.write_op_code(OpCode::Return, 2, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Closure {
+                const_index: 3,
+                upvalue_count: 2,
+                upvalues: 0,
+            },
+            Instr::Return,
+        ],
+        chunk.code
+    );
+    assert_eq!(vec![(true, 4), (false, 9)], chunk.closure_upvalues);
+}
+
+#[test]
+fn unknown_opcode_decodes_to_invalid() {
+    let mut chunk = Chunk::new("invalid");
+    chunk.write_op_code(OpCode::Nil, 1, 1);
+    chunk.instructions[0] = 0xFF;
+    chunk.write_op_code(OpCode::Return, 2, 1);
+
+    chunk.decode();
+
+    assert_eq!(vec![Instr::Invalid(0xFF)], chunk.code);
+}
