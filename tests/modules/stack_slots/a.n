@@ -1,0 +1,3 @@
+export val x = 1
+val hidden = 2
+export val y = 3

@@ -1,0 +1,2 @@
+val hidden = 4
+export val z = 5

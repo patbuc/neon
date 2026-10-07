@@ -1,0 +1,11 @@
+// Expected:
+// 42
+// 7
+// 42
+
+import "lib/utils"
+import "lib/utils" as u
+
+print(utils.double(21))
+print(utils.triplePlusOne(2))
+print(u.double(21))

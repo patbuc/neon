@@ -16,20 +16,39 @@ fi
 PROJECT_DIR=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null) || PROJECT_DIR="$CLAUDE_PROJECT_DIR"
 
 cd "$PROJECT_DIR" || exit 1
+RELATIVE_PATH=$(realpath --relative-to="$PROJECT_DIR" "$FILE_PATH")
 
-OUTPUT=$(cargo run -q -- --check "$FILE_PATH" 2>&1)
-STATUS=$?
+# A case expecting a compile error fails --check by design, so only its
+# formatting is checked.
+case "$RELATIVE_PATH" in
+    tests/modules/*/*)
+        CASE=${RELATIVE_PATH#tests/modules/}
+        EXPECTATION_FILE="tests/modules/${CASE%%/*}/main.n"
+        ;;
+    tests/modules_must_fail/*/*)
+        CASE=${RELATIVE_PATH#tests/modules_must_fail/}
+        EXPECTATION_FILE="tests/modules_must_fail/${CASE%%/*}/main.n"
+        ;;
+    tests/scripts/*) EXPECTATION_FILE="$RELATIVE_PATH" ;;
+    *) EXPECTATION_FILE="" ;;
+esac
 
-if [ "$STATUS" -eq 65 ]; then
-    echo "$OUTPUT" >&2
-    exit 2
-elif [ "$STATUS" -ne 0 ]; then
-    echo "$OUTPUT" >&2
-    exit 1
+if [ -z "$EXPECTATION_FILE" ] \
+    || ! grep -qE '^[[:space:]]*// Expected compile error:' "$EXPECTATION_FILE" 2>/dev/null; then
+    OUTPUT=$(cargo run -q -- --check "$FILE_PATH" 2>&1)
+    STATUS=$?
+
+    if [ "$STATUS" -eq 65 ]; then
+        echo "$OUTPUT" >&2
+        exit 2
+    elif [ "$STATUS" -ne 0 ]; then
+        echo "$OUTPUT" >&2
+        exit 1
+    fi
 fi
 
-case "$(realpath --relative-to="$PROJECT_DIR" "$FILE_PATH")" in
-    tests/scripts/* | benches/*) ;;
+case "$RELATIVE_PATH" in
+    tests/scripts/* | tests/modules/* | tests/modules_must_fail/* | benches/* | examples/*) ;;
     *) exit 0 ;;
 esac
 

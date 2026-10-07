@@ -1,0 +1,19 @@
+// Expected:
+// 30
+// 1
+// 2
+// 39
+
+import "a"
+import "b"
+
+val m1 = 10
+val m2 = 20
+if true {
+    val q = m1 + m2
+    print(q)
+}
+for i in 0..2 {
+    print(i + a.x)
+}
+print(m1 + m2 + a.x + a.y + b.z)

@@ -1,0 +1,12 @@
+// Expected:
+// c loaded
+// a loaded
+// b loaded
+// main
+// 5
+
+import "a"
+import "b"
+
+print("main")
+print(a.fa() + b.fb())

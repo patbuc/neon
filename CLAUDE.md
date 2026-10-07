@@ -36,6 +36,16 @@ A script whose execution ends in a runtime error also needs a `// Expected runti
 line, matched exactly against the error message; it still needs an `// Expected:` block for any output
 printed before the error.
 
+A script that fails to compile uses `// Expected compile error: <message>` instead, with no `// Expected:` block
+and no runtime-error line. It must fail with exactly one compile error, and the line is matched exactly against
+that error's stored message from `VirtualMachine::get_compile_errors`, not the text the CLI renders (e.g.
+`Undefined variable 'x'`, where the CLI prints `undefined variable 'x'`).
+
+Multi-file module cases live in `tests/modules/<case>/main.n`. The harness runs each `main.n` with its own path as
+the entry script, both as written and after formatting; the modules it imports sit beside or below it in the case
+directory. It also runs `examples/modules/main.n` the same way. Cases under `tests/modules_must_fail/<case>/main.n`
+must fail their own `// Expected compile error:` line, which tests that the harness rejects a mismatch.
+
 ### Benchmarks
 
 Neon vs. Python benchmarks live in `benches/` as `<name>.n` / `<name>.py` pairs implementing the same algorithm.
@@ -320,12 +330,15 @@ enforces these edges in `cargo test`.
 - Before writing or editing `.n` files, load the `writing-neon` skill (`.claude/skills/writing-neon/`): where Neon
   syntax differs from JS/Kotlin and the full list of native methods
 - A PostToolUse hook (`.claude/hooks/check-neon.sh`) runs `--check` on any `.n` file after it's edited or
-  written, feeding compile errors back automatically; for files under `tests/scripts/` and `benches/` it then runs
-  `neon fmt --check` and blocks with feedback to run `cargo run -- fmt <file>` if it's unformatted
+  written, feeding compile errors back automatically; for files under `tests/scripts/`, `tests/modules/`,
+  `tests/modules_must_fail/`, `benches/`, and `examples/` it then runs `neon fmt --check` and blocks with feedback to run
+  `cargo run -- fmt <file>` if it's unformatted. A case expecting a compile error (the line in a
+  `tests/scripts/` file, or in its case's `main.n` under `tests/modules/` or `tests/modules_must_fail/`) skips `--check` but is still
+  format-checked
 - A PostToolUse hook (`.claude/hooks/check-arch.sh`) runs `cargo test --test architecture` after any
   `src/*.rs` file is edited or written, blocking with the test's layer-violation output if it fails
-- New or edited `.n` files under `tests/scripts/` and `benches/` must pass `neon fmt --check`; the Lint
-  CI workflow runs the same check over both directories
+- New or edited `.n` files under `tests/scripts/`, `tests/modules/`, `tests/modules_must_fail/`, `benches/`, and
+  `examples/` must pass `neon fmt --check`; the Lint CI workflow runs the same check over those directories
 - Test both success and error paths
 - Include edge cases (empty input, stack overflow, division by zero, etc.)
 
