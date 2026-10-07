@@ -83,12 +83,13 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   variant values.
 - `import` and `export` are keywords. `import "path"` and `import "path" as name`
   are top level only. The path resolves relative to the importing file (the current
-  directory in the REPL) with `.n` appended (`std/` is reserved for builtin modules), and a missing file or an
+  directory in the REPL) with `.n` appended, and a missing file or an
   import cycle is a compile error. A file name that isn't an identifier (`my-utils`) needs `as`.
   Exports are reached as `utils.name` (or the `as` alias) and are
   read-only from outside the module. An unknown export, a module used as a value (`print(utils)`) and a
   wrong-arity call of an exported function are compile errors. Each module runs once, before its
-  importers; `std/` modules are not available yet.
+  importers. `import "std/math"` (also `std/file`, `std/stdin`, `std/pq`) binds a builtin module;
+  any other `std/` path is a compile error.
   `export` goes before a top-level `fn`, `val`, `var`, `struct` or `enum` (one
   plain name for `val`/`var`; not `impl`).
 
@@ -138,7 +139,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   an expression whose value is the new value. No bitwise compound operators.
   There is no `++`/`--`; use `+= 1`/`-= 1`.
 - `/` is always float division (`7 / 2` is `3.5`), even on two ints. Integer floor division is
-  `Math.div(a, b)`, not `Math.floor(a / b)` — that round-trips through `f64` and loses precision
+  `math.div(a, b)` (`std/math`), not `math.floor(a / b)` — that round-trips through `f64` and loses precision
   past 2^53.
 - A decimal literal with no `.`/exponent (and hex/bin/oct literals) is an int; one with a `.` or
   exponent is a float. `+ - * %` on two ints give an int and raise `integer overflow in <op>` if the
@@ -182,10 +183,10 @@ all use these names (Map checks keys, not values). No property-style
 This is the full list. Anything not here, like `keys` on
 arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
+The `std/` entries are builtin modules: `import "std/math"` binds `math`,
+then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.abs)`.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
-- **Math:** `abs`, `floor`, `ceil`, `sqrt`, `min(...)`, `max(...)`, `div(a, b)`, `round`, `sign`,
-  `gcd(a, b)`, `lcm(a, b)`, `mod(a, b)`
 - **String:** `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
   `split()` (on Unicode whitespace) / `split(sep)`, `trim`, `startsWith`, `endsWith`, `indexOf`,
   `lastIndexOf`, `contains`, `charCodeAt(index)`, `String.fromCharCode(n)`,
@@ -208,11 +209,14 @@ helper with `impl Array { fn name(self) { ... } }` if you need one.
   `forEach(fn)`, `map(fn)`, `filter(fn)`, `mapValues(fn)`, `some(fn)`, `every(fn)`
 - **Set:** `add`, `remove`, `contains`, `size`, `isEmpty`, `clear`, `union`,
   `intersection`, `difference`, `isSubset`, `toArray`
-- **File:** `File(path)`, `read`, `readLines`, `write(text)` (creates the file;
-  errors if it exists)
-- **Stdin:** `Stdin.read()`, `Stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
-- **PriorityQueue:** `PriorityQueue()`, `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
+- **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
+- **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
+- **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
+  `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`
+- **std/file:** `file.open(path)` - returns a File
+- **std/stdin:** `stdin.read()`, `stdin.readLines()` - read to EOF; `read()` after EOF returns `""`
+- **std/pq:** `pq.new()` - returns a PriorityQueue
 
 The source of truth is `src/common/method_registry.rs`; if it disagrees
 with this list, trust the registry.

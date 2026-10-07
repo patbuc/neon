@@ -1125,24 +1125,24 @@ fn arity_mismatch_through_a_stored_function_reports_the_call_site() {
 
 #[test]
 fn native_message_error_through_a_nested_call_reports_the_call_site() {
-    let program = "fn h() {\n  Math.sqrt(\"a\")\n  print(1)\n}\nh()";
+    let program = "import \"std/math\"\nfn h() {\n  math.sqrt(\"a\")\n  print(1)\n}\nh()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
     let error = vm.get_runtime_error().unwrap();
 
-    assert_eq!(2, error.location.unwrap().0);
+    assert_eq!(3, error.location.unwrap().0);
     assert_eq!(
         vec![
             TraceFrame {
                 function: "h".to_string(),
-                line: Some(2),
+                line: Some(3),
                 file: None,
             },
             TraceFrame {
                 function: "<script>".to_string(),
-                line: Some(5),
+                line: Some(6),
                 file: None,
             },
         ],

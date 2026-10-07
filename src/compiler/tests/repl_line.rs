@@ -246,18 +246,16 @@ fn second_line_redeclaring_builtin_value_rejected() {
 }
 
 #[test]
-fn second_line_redeclaring_namespace_rejected() {
+fn second_line_declares_math_as_a_plain_name() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
         .compile_line("val x = 1\n", &GlobalEnv::default())
         .unwrap();
 
-    let result = compiler.compile_line("fn Math() { return 7 }\n", &env);
-    assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    let (_, env) = compiler
+        .compile_line("fn Math() { return 7 }\n", &env)
+        .unwrap();
+    assert!(compiler.compile_line("print(Math())\n", &env).is_some());
 }
 
 #[test]

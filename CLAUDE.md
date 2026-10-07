@@ -174,11 +174,13 @@ enforces these edges in `cargo test`.
       entry module last); import cycles and unknown or unreadable modules are compile errors. Errors in
       imported modules carry that module's path and are rendered from the sources the graph loaded
       (`Compiler::module_sources`); errors in the entry module carry no file
-    - `std/` paths are reserved for builtin modules
+    - `std/` paths name builtin modules; one not in `method_registry::builtin_modules()` is an
+      `UnknownModule` error listing the known ones
     - Every module in the graph compiles as its own unit, in graph order, each against a fresh
       `GlobalEnv` that shares the compile's `Symbols`, `next_decl_id` and `slot_count`. A file import
-      with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056); semantic
-      analysis still rejects a `std/` import with "modules are not supported yet"
+      with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056). A builtin
+      module has no chunk: its `ExportTable` is built from its registry rows (`ExportTable::builtin`)
+      and bound to the path's file stem (`std/pq` → `pq`)
     - The REPL's `GlobalEnv` remembers each compiled module's `ExportTable` by canonical path, so a
       module imported again on a later line, directly or by a new module, is not compiled again and
       its bindings resolve to the original slots
@@ -194,7 +196,8 @@ enforces these edges in `cargo test`.
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
       unknown module export, write to an export, module used as a value, wrong-arity export call
     - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
-      slot and arity for functions, variables, structs and enums. An `import` binds a compile-time `Module` symbol
+      slot and arity for functions, variables, structs and enums, registry index and arity for a builtin
+      module's natives (`Export::Native`, no slot). An `import` binds a compile-time `Module` symbol
       with no slot; `utils.name` resolves against the imported module's table. Enums are compile-time
       only exports and have no slot
 
@@ -202,7 +205,8 @@ enforces these edges in `cargo test`.
     - Traverses AST and emits bytecode, consuming `&Resolutions` — it never looks up a name by string,
       and maps each `DeclId` to a stack slot when it defines the local
     - Member access on a module becomes `GetGlobal` of the export's slot (plus `Call`/`TailCall` for a
-      call); an import itself emits nothing. Each module's chunk is named after its module path
+      call); a call of a builtin module's native emits the same native call as `print(x)`; an import
+      itself emits nothing. Each module's chunk is named after its module path
     - Produces Chunk objects containing instructions and constant pool
     - Compile-time state (locals, scope depth, loop contexts) lives in the per-function
       `FunctionCompiler`, not in the Chunk; upvalue captures come from `Resolutions`
@@ -219,10 +223,9 @@ enforces these edges in `cargo test`.
   frames below the top (`push_frame`/`pop_frame` save and restore it)
 - `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
   recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
-- Separate builtin values storage (e.g., Math namespace)
+- Separate builtin values storage (e.g., `args`)
 - Runs a program's module chunks in dependency order, then the entry as the script frame; globals live in one
-  shared area, so a module's exports are plain globals. Only `std/` imports are still refused ("modules are
-  not supported yet", E0053)
+  shared area, so a module's exports are plain globals
 
 **Bytecode Format** (`src/common/chunk/`)
 
@@ -253,7 +256,8 @@ enforces these edges in `cargo test`.
 **Standard Library** (`src/common/stdlib/`)
 
 - Native functions for built-in types
-- Math namespace with static methods
+- Builtin `std/` modules (`std/math`, `std/file`, `std/stdin`, `std/pq`), registered as `std/<name>` rows in the
+  method registry
 - String/Array/Map/Set/Range methods via method registry
 - Method registry (`src/common/method_registry.rs`) maps type+method to function index
 - Runtime `Invoke` dispatch of native methods goes through the per-compile `NativeMethodTable` held on the VM,
@@ -301,9 +305,9 @@ enforces these edges in `cargo test`.
 ### New Standard Library Function
 
 1. Implement function in appropriate `src/common/stdlib/*_functions.rs` file
-2. Register in method registry if it's a method (see `src/common/method_registry.rs`) — a new namespace (like
-   `Math`/`File`) is picked up automatically from there; a new runtime builtin value (like `args`) is declared in
-   `BUILTIN_VALUES` (`src/common/stdlib/mod.rs`) and constructed in `create_builtin_objects`
+2. Register in method registry if it's a method (see `src/common/method_registry.rs`) — a new builtin module (like
+   `std/math`) is a set of `std/<name>` rows, picked up automatically from there; a new runtime builtin value
+   (like `args`) is declared in `BUILTIN_VALUES` (`src/common/stdlib/mod.rs`) and constructed in `create_builtin_objects`
 3. For global functions, add to builtin initialization in VM
 4. Add tests in corresponding `src/common/stdlib/tests/` file
 
@@ -325,7 +329,7 @@ enforces these edges in `cargo test`.
 - **Error reporting**: Always include source location (line/column) from tokens
 - **Symbol tables**: Maintain proper lexical scope depth
 - **Name resolution**: Names shadow lexically — a local or user function named like a native (`print`,
-  `Math`, `File`) wins; the method registry is consulted only when a name resolves to nothing else
+  `Array`) wins; the method registry is consulted only when a name resolves to nothing else
 - **Bytecode emission**: Append-only except for jump address backpatching
 - **Opcode design**: Keep instruction set minimal and orthogonal
 

@@ -32,7 +32,7 @@ pub struct VirtualMachine {
     ip: usize,
     chunk: Rc<Chunk>,
     /// Runtime builtin values (e.g. `args`), stored separately from the
-    /// call stack. Math and File are namespaces, not values here.
+    /// call stack.
     builtin: Vec<Value>,
     #[cfg(any(test, debug_assertions, target_arch = "wasm32"))]
     string_buffer: String,

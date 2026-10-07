@@ -17,7 +17,7 @@ fn extract_numeric(
     }
 }
 
-/// Native implementation of Math.abs(x)
+/// Native implementation of math.abs(x)
 /// Returns the absolute value of a number, keeping an int an int.
 pub fn native_math_abs(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -42,7 +42,7 @@ fn integral_to_int(f: f64, method: &str) -> Result<Value, String> {
     Ok(Value::Int(f as i64))
 }
 
-/// Native implementation of Math.floor(x)
+/// Native implementation of math.floor(x)
 /// Returns the largest integer less than or equal to a number.
 pub fn native_math_floor(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -55,7 +55,7 @@ pub fn native_math_floor(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Native implementation of Math.ceil(x)
+/// Native implementation of math.ceil(x)
 /// Returns the smallest integer greater than or equal to a number.
 pub fn native_math_ceil(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -68,7 +68,7 @@ pub fn native_math_ceil(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Native implementation of Math.sqrt(x)
+/// Native implementation of math.sqrt(x)
 /// Returns the square root of a number
 pub fn native_math_sqrt(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -82,7 +82,7 @@ pub fn native_math_sqrt(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Number(n.sqrt()))
 }
 
-/// Native implementation of Math.min(...args)
+/// Native implementation of math.min(...args)
 /// Returns the smallest of the given numbers (variadic)
 pub fn native_math_min(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
@@ -101,7 +101,7 @@ pub fn native_math_min(args: &[Value]) -> Result<Value, String> {
     Ok(min_value.into_value())
 }
 
-/// Native implementation of Math.max(...args)
+/// Native implementation of math.max(...args)
 /// Returns the largest of the given numbers (variadic)
 pub fn native_math_max(args: &[Value]) -> Result<Value, String> {
     if args.is_empty() {
@@ -134,7 +134,7 @@ fn extract_int_operand(
     }
 }
 
-/// Native implementation of Math.div(a, b)
+/// Native implementation of math.div(a, b)
 /// Floor division on two ints: rounds the quotient toward negative infinity.
 pub fn native_math_div(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
@@ -161,7 +161,7 @@ pub fn native_math_div(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Int(floored))
 }
 
-/// Native implementation of Math.round(x)
+/// Native implementation of math.round(x)
 /// Rounds half away from zero, returns an int.
 pub fn native_math_round(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -174,7 +174,7 @@ pub fn native_math_round(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Native implementation of Math.sign(x)
+/// Native implementation of math.sign(x)
 /// Returns -1, 0 or 1 as an int; -0.0 is 0.
 pub fn native_math_sign(args: &[Value]) -> Result<Value, String> {
     if args.len() != 1 {
@@ -206,7 +206,7 @@ fn gcd_u64(mut a: u64, mut b: u64) -> u64 {
     a
 }
 
-/// Native implementation of Math.gcd(a, b)
+/// Native implementation of math.gcd(a, b)
 /// Greatest common divisor of two ints, always non-negative.
 pub fn native_math_gcd(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
@@ -222,7 +222,7 @@ pub fn native_math_gcd(args: &[Value]) -> Result<Value, String> {
         .map_err(|_| "integer overflow in gcd()".to_string())
 }
 
-/// Native implementation of Math.lcm(a, b)
+/// Native implementation of math.lcm(a, b)
 /// Least common multiple of two ints, always non-negative.
 pub fn native_math_lcm(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
@@ -246,7 +246,7 @@ pub fn native_math_lcm(args: &[Value]) -> Result<Value, String> {
         .map_err(|_| "integer overflow in lcm()".to_string())
 }
 
-/// Native implementation of Math.mod(a, b)
+/// Native implementation of math.mod(a, b)
 /// Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise.
 pub fn native_math_mod(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {

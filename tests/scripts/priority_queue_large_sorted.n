@@ -4,19 +4,21 @@
 // Expected:
 // 107381461775216
 
-val pq = PriorityQueue()
+import "std/pq"
+
+val queue = pq.new()
 var seed = 12345
 val n = 100000
 for i in 0..n {
     seed = (seed * 1103515245 + 12345) % 2147483648
-    pq.push(seed, seed)
+    queue.push(seed, seed)
 }
 
 var prev = -1
 var sorted = true
 var checksum = 0
 for i in 0..n {
-    val v = pq.pop()
+    val v = queue.pop()
     if v < prev {
         sorted = false
     }

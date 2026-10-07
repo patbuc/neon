@@ -12,15 +12,17 @@
 // 5
 // 5
 
-print(Math.min(5, 2, 8, 1))
-print(Math.max(5, 2, 8, 1))
-print(Math.min(3, 7))
-print(Math.max(3, 7))
-print(Math.min(42))
-print(Math.max(42))
-print(Math.min(-5, -2, -8))
-print(Math.max(-5, -2, -8))
-print(Math.min(10, -3, 5, -10))
-print(Math.max(10, -3, 5, -10))
-print(Math.min(5, 5, 5))
-print(Math.max(5, 5, 5))
+import "std/math"
+
+print(math.min(5, 2, 8, 1))
+print(math.max(5, 2, 8, 1))
+print(math.min(3, 7))
+print(math.max(3, 7))
+print(math.min(42))
+print(math.max(42))
+print(math.min(-5, -2, -8))
+print(math.max(-5, -2, -8))
+print(math.min(10, -3, 5, -10))
+print(math.max(10, -3, 5, -10))
+print(math.min(5, 5, 5))
+print(math.max(5, 5, 5))

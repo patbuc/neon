@@ -169,9 +169,8 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             vec![("Map.foo()\n".to_string(), None)]
         }
         CompilationErrorKind::LoopControlOutsideLoop => vec![("break\n".to_string(), None)],
-        CompilationErrorKind::NamespaceAsValue => vec![("Math\n".to_string(), None)],
-        CompilationErrorKind::UnknownNamespaceMethod => {
-            vec![("Math.bogus()\n".to_string(), None)]
+        CompilationErrorKind::NamespaceAsValue => {
+            vec![("import \"std/math\"\nval m = math\n".to_string(), None)]
         }
         CompilationErrorKind::UnknownMethod => vec![
             (
@@ -192,7 +191,9 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
                 .to_string(),
             None,
         )],
-        CompilationErrorKind::NotCallable => vec![("Math()\n".to_string(), None)],
+        CompilationErrorKind::NotCallable => {
+            vec![("import \"std/math\"\nmath()\n".to_string(), None)]
+        }
         CompilationErrorKind::TooFewArguments => vec![(
             "fn add(a, b) {\n    return a + b\n}\nadd(1)\n".to_string(),
             Some("but got 1"),
@@ -237,9 +238,6 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         CompilationErrorKind::ExportNotTopLevel => {
             vec![("if true {\n    export val x = 1\n}\n".to_string(), None)]
         }
-        CompilationErrorKind::ModulesUnsupported => {
-            vec![("import \"std/math\"\n".to_string(), None)]
-        }
         CompilationErrorKind::ImportCycle => {
             vec![("import \"b\"\n".to_string(), Some("a.n -> b.n -> a.n"))]
         }
@@ -247,10 +245,13 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "import \"b\"\n".to_string(),
             Some("file imports are not available in the browser build"),
         )],
-        CompilationErrorKind::UnknownModule => vec![(
-            "import \"missing\"\n".to_string(),
-            Some("missing.n"),
-        )],
+        CompilationErrorKind::UnknownModule => vec![
+            ("import \"missing\"\n".to_string(), Some("missing.n")),
+            (
+                "import \"std/nope\"\n".to_string(),
+                Some("unknown builtin module"),
+            ),
+        ],
         CompilationErrorKind::UnknownExport => vec![(
             "import \"b\"\nb.nope()\n".to_string(),
             Some("module 'b' has no export 'nope'"),
@@ -269,7 +270,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             Some("impl blocks must be in the struct's own module"),
         )],
         CompilationErrorKind::OptionalDotOnType => {
-            vec![("Math?.abs(-3)\n".to_string(), Some("'?.'"))]
+            vec![(
+                "enum E {\n    A\n}\nprint(E?.A)\n".to_string(),
+                Some("'?.'"),
+            )]
         }
         CompilationErrorKind::NonExhaustiveMatch => vec![(
             "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n"

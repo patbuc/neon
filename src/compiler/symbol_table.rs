@@ -19,9 +19,6 @@ pub enum SymbolKind {
     Enum { variants: Vec<EnumVariant> },
     /// Function parameter
     Parameter,
-    /// Built-in namespace (e.g. Math, File); usable only as `Name.method(...)`
-    /// or, for namespaces with a constructor, as a call `Name(...)`
-    Namespace,
     /// Runtime builtin value (e.g. `args`); index into `stdlib::BUILTIN_VALUES`
     Builtin { index: u32 },
     /// An imported file module; usable only as `name.export`

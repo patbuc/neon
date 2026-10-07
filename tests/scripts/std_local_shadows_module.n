@@ -1,0 +1,32 @@
+// std_local_shadows_module.n - a local or parameter named like an imported
+// std module wins over the module within its scope
+
+// Expected:
+// 3
+// local
+// param
+// 3
+
+import "std/math"
+
+struct Fake {
+    tag
+}
+
+impl Fake {
+    fn abs(self, x) = self.tag
+}
+
+fn viaLocal() {
+    val math = Fake("local")
+    return math.abs(-1)
+}
+
+fn viaParam(math) {
+    return math.abs(1)
+}
+
+print(math.abs(-3))
+print(viaLocal())
+print(viaParam(Fake("param")))
+print(math.abs(-3))

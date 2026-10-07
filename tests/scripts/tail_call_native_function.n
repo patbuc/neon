@@ -3,7 +3,9 @@
 // 1
 // 5
 
-fn absolute(x) = Math.abs(x)
+import "std/math"
+
+fn absolute(x) = math.abs(x)
 
 fn size(s) {
     return s.size()

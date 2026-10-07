@@ -3,5 +3,7 @@
 
 // Expected runtime error: div() division by zero
 
+import "std/math"
+
 print("before")
-print(Math.div(1, 0))
+print(math.div(1, 0))

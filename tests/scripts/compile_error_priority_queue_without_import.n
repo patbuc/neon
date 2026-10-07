@@ -1,0 +1,3 @@
+// Expected compile error: Undefined variable 'PriorityQueue'
+
+val queue = PriorityQueue()

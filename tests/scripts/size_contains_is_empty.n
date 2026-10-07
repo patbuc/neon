@@ -27,13 +27,15 @@
 // true
 // false
 
+import "std/pq"
+
 print("abc".size())
 print([1].size())
 print((1..3).size())
 print({"a": 1}.size())
 print(#{1}.size())
-val pq = PriorityQueue()
-print(pq.size())
+val queue = pq.new()
+print(queue.size())
 
 print("".isEmpty())
 print("abc".isEmpty())
@@ -45,7 +47,7 @@ print({}.isEmpty())
 print({"a": 1}.isEmpty())
 print(#{}.isEmpty())
 print(#{1}.isEmpty())
-print(PriorityQueue().isEmpty())
+print(pq.new().isEmpty())
 
 print("abc".contains("b"))
 print("abc".contains("z"))

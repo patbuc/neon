@@ -5,8 +5,10 @@
 // 0
 // 1
 
-print(Math.round(2.5))
-print(Math.round(-2.5))
-print(Math.sign(-4))
-print(Math.sign(0))
-print(Math.sign(4))
+import "std/math"
+
+print(math.round(2.5))
+print(math.round(-2.5))
+print(math.sign(-4))
+print(math.sign(0))
+print(math.sign(4))

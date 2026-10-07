@@ -496,3 +496,17 @@ fn runtime_error_in_impl_line_rolls_back_methods() {
     );
     assert_eq!("11", vm.get_output());
 }
+
+#[test]
+fn keeps_a_std_import_across_lines() {
+    let mut vm = VirtualMachine::new();
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("import \"std/math\"".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(math.max(1, 5))".to_string())
+    );
+    assert_eq!("5", vm.get_output());
+}

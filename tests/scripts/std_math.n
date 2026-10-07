@@ -1,0 +1,14 @@
+// std_math.n - calls into the builtin std/math module
+
+// Expected:
+// 7
+// 2
+// 1
+// 4
+
+import "std/math"
+
+print(math.max(3, 7, 2))
+print(math.min(3, 7, 2))
+print(math.abs(-1))
+print(math.sqrt(16))

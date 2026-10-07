@@ -454,74 +454,6 @@ fn f() {
     }
 
     #[test]
-    fn local_val_named_math_is_not_a_native_call() {
-        let (ast, res) = analyze(
-            r#"
-struct MathLike {
-    abs
-}
-fn f() {
-    val Math = MathLike(fn(x) { return "local abs" })
-    return Math.abs(-1)
-}
-"#,
-        );
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let call_id = find_call(&idx, "Math.abs", 0);
-        assert!(res.native(call_id).is_none());
-
-        let decl = res.decl(find_decl(&idx, "Math"));
-        let use_id = find_var(&idx, "Math", 0);
-        assert_eq!(res.res(use_id), Res::Local(decl));
-    }
-
-    #[test]
-    fn toplevel_math_abs_call_is_native() {
-        let (ast, res) = analyze("print(Math.abs(-1))\n");
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let call_id = find_call(&idx, "Math.abs", 0);
-        assert!(res.native(call_id).is_some());
-    }
-
-    #[test]
-    fn file_constructor_call_is_native() {
-        let (ast, res) = analyze("val f = File(\"x.txt\")\n");
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let call_id = find_call(&idx, "File", 0);
-        assert_eq!(
-            res.native(call_id),
-            crate::common::method_registry::get_native_method_index("File", "new")
-        );
-    }
-
-    #[test]
-    fn local_file_shadows_native_constructor() {
-        let (ast, res) = analyze(
-            r#"
-fn f() {
-    val File = fn(p) { return p }
-    return File("x")
-}
-"#,
-        );
-        let mut idx = Index::default();
-        index_stmts(&ast, &mut idx);
-
-        let call_id = find_call(&idx, "File", 0);
-        assert!(res.native(call_id).is_none());
-
-        let decl = res.decl(find_decl(&idx, "File"));
-        let use_id = find_var(&idx, "File", 0);
-        assert_eq!(res.res(use_id), Res::Local(decl));
-    }
-
-    #[test]
     fn method_call_captures_receiver_before_argument() {
         let (ast, res) = analyze(
             r#"
@@ -2170,63 +2102,32 @@ while (true) {
 }
 
 // =============================================================================
-// Builtin Namespace Tests (Math, File)
+// Builtin Module Tests (std/math, std/file)
 // =============================================================================
 
 #[test]
-fn test_math_as_value_is_namespace_error() {
-    let program = "val m = Math\n";
-    let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message == "'Math' is a namespace, not a value"));
+fn test_std_module_as_value_is_error() {
+    assert_compile_error(
+        "import \"std/math\"\nval m = math\n",
+        "'math' is a module, not a value",
+    );
 }
 
 #[test]
-fn test_file_as_value_is_namespace_error() {
-    let program = "val f = File\n";
-    let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message == "'File' is a namespace, not a value"));
+fn test_file_without_import_is_undefined_variable() {
+    let errors = assert_compile_error("val f = File\n", "Undefined variable 'File'");
+    assert_eq!(errors[0].kind, CompilationErrorKind::UndefinedVariable);
 }
 
 #[test]
-fn test_print_math_is_namespace_error() {
-    let program = "print(Math)\n";
-    let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message == "'Math' is a namespace, not a value"));
+fn test_array_as_value_is_undefined_variable() {
+    let errors = assert_compile_error("val a = Array\n", "Undefined variable 'Array'");
+    assert_eq!(errors[0].kind, CompilationErrorKind::UndefinedVariable);
 }
 
 #[test]
-fn test_math_static_method_call_still_works() {
-    let program = "print(Math.sqrt(4))\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_file_constructor_call_still_works() {
-    let program = "val f = File(\"x.txt\")\n";
-    let mut parser = Parser::new(program);
-    let ast = parser.parse().unwrap();
-
-    let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
-
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_file_constructor_wrong_arity() {
-    let program = "val f = File(\"x.txt\", \"y.txt\")\n";
+fn test_std_file_open_wrong_arity() {
+    let program = "import \"std/file\"\nval f = file.open(\"x.txt\", \"y.txt\")\n";
     let errors = compile_errors(program);
     assert!(errors
         .iter()
@@ -2234,12 +2135,12 @@ fn test_file_constructor_wrong_arity() {
 }
 
 #[test]
-fn test_calling_math_namespace_is_not_a_function_error() {
-    let program = "val m = Math(1)\n";
+fn test_calling_std_module_is_not_a_function_error() {
+    let program = "import \"std/math\"\nval m = math(1)\n";
     let errors = compile_errors(program);
     assert!(errors
         .iter()
-        .any(|e| e.message == "'Math' is not a function"));
+        .any(|e| e.message == "'math' is not a function"));
 }
 
 #[test]
@@ -3091,6 +2992,19 @@ val x = Map.second({})
 }
 
 #[test]
+fn test_unknown_static_method_on_builtin_type_is_compile_error() {
+    let errors = compile_errors("val x = String.nope(1)\n");
+    assert!(
+        errors.iter().any(|e| {
+            e.kind == CompilationErrorKind::StaticCallOnBuiltinType
+                && e.message == "Type 'String' has no static method 'nope'"
+        }),
+        "got {:#?}",
+        errors
+    );
+}
+
+#[test]
 fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
     let program = "val args = 5\n";
     let errors = compile_errors(program);
@@ -3414,18 +3328,6 @@ fn test_impl_on_enum_is_compile_error() {
     assert!(errors[0].message.contains("'Color'"));
 }
 
-/// `?.` on a namespace, enum, or struct type name is nonsensical (none of
-/// those are ever nil), so it should be a compile error.
-#[test]
-fn test_optional_dot_on_namespace_is_compile_error() {
-    let errors = compile_errors("Math?.abs(-3)\n");
-    assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
-        "expected a '?.' compile error, got {:#?}",
-        errors
-    );
-}
-
 #[test]
 fn test_enum_payload_constructor_too_few_arguments_is_compile_error() {
     let errors = compile_errors("enum Shape {\n    Rect(w, h)\n}\nprint(Shape.Rect(1))\n");
@@ -3511,7 +3413,9 @@ fn test_enum_values_with_payload_variant_is_compile_error() {
 fn test_optional_dot_on_enum_static_call_is_compile_error() {
     let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.values()\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );
@@ -3521,7 +3425,9 @@ fn test_optional_dot_on_enum_static_call_is_compile_error() {
 fn test_optional_dot_on_enum_variant_is_compile_error() {
     let errors = compile_errors("enum Color {\n    Red\n    Green\n}\nColor?.Red\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );
@@ -3531,7 +3437,9 @@ fn test_optional_dot_on_enum_variant_is_compile_error() {
 fn test_optional_dot_on_struct_type_name_is_compile_error() {
     let errors = compile_errors("struct P {\n    x\n}\nP?.x\n");
     assert!(
-        errors.iter().any(|e| e.message.contains("'?.'")),
+        errors
+            .iter()
+            .any(|e| e.message == "Cannot use '?.' on a type"),
         "expected a '?.' compile error, got {:#?}",
         errors
     );
@@ -3970,15 +3878,6 @@ fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
         errors,
         vec!["Enum 'Color' has no variant named 'Purple'".to_string()]
     );
-}
-
-#[test]
-fn test_import_reports_modules_not_supported_yet() {
-    let errors: Vec<String> = compile_errors("import \"std/math\"\n")
-        .into_iter()
-        .map(|e| e.message)
-        .collect();
-    assert_eq!(errors, vec!["modules are not supported yet".to_string()]);
 }
 
 #[test]
