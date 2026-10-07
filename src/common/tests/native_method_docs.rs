@@ -57,7 +57,11 @@ fn parse_skill_methods(text: &str) -> BTreeSet<(String, String)> {
         if let Some(rest) = trimmed.strip_prefix("- **") {
             let (header, body) = rest.split_once("**").expect("bullet missing closing **");
             let header = header.trim_end_matches(':');
-            section_types = header.split('/').map(|t| t.trim().to_string()).collect();
+            section_types = if header.starts_with("std/") {
+                vec![header.trim().to_string()]
+            } else {
+                header.split('/').map(|t| t.trim().to_string()).collect()
+            };
             in_bullet = section_types != vec!["Global".to_string()];
             if in_bullet {
                 for token in backtick_tokens(body) {

@@ -247,10 +247,13 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "import \"b\"\n".to_string(),
             Some("file imports are not available in the browser build"),
         )],
-        CompilationErrorKind::UnknownModule => vec![(
-            "import \"missing\"\n".to_string(),
-            Some("missing.n"),
-        )],
+        CompilationErrorKind::UnknownModule => vec![
+            ("import \"missing\"\n".to_string(), Some("missing.n")),
+            (
+                "import \"std/nope\"\n".to_string(),
+                Some("unknown builtin module"),
+            ),
+        ],
         CompilationErrorKind::UnknownExport => vec![(
             "import \"b\"\nb.nope()\n".to_string(),
             Some("module 'b' has no export 'nope'"),

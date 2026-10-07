@@ -892,9 +892,9 @@ print(math.square(5))     // 25
   `as` name. A file name that isn't an identifier, like `my-math`, needs `as`.
 - A path is relative to the importing file, and may start with `./`, `../` or
   `/`. `.n` is appended unless the path already ends in `.n`. In the REPL,
-  paths resolve from the current directory. The `std/` prefix is reserved for
-  the standard library's modules, which can't be imported yet: `import "std/…"`
-  reports "modules are not supported yet".
+  paths resolve from the current directory. A `std/` path imports one of the
+  builtin modules (`std/math`, `std/file`, `std/stdin`, `std/pq`; see
+  [Standard Library](#standard-library)); any other `std/` path is a compile error.
 - Exports are reached as `utils.name`. They are read-only from outside:
   `utils.counter = 5` and `utils.counter += 1` are compile errors. They are
   live, so `utils.counter` sees the updates the module makes.
@@ -1060,6 +1060,58 @@ the same name inside a function still shadows it, same as any other name.
 
 - `print(value, ...)` - Output values to stdout (variadic)
 - `sleep(ms)` - Block the current thread for `ms` milliseconds
+
+The builtin modules are imported like any other module and bound to their last path segment:
+`import "std/math"` binds `math`, and `import "std/math" as m` binds `m`.
+
+### std/math Methods
+
+- `math.abs(n)` - Absolute value (keeps ints as ints)
+- `math.floor(n)` - Round down, returns an int (runtime error if the result doesn't fit in `i64` or is NaN)
+- `math.ceil(n)` - Round up, returns an int (same error cases as `floor`)
+- `math.sqrt(n)` - Square root
+- `math.min(a, b, ...)` - Minimum value (variadic, keeps ints as ints)
+- `math.max(a, b, ...)` - Maximum value (variadic, keeps ints as ints)
+- `math.div(a, b)` - Floor division on two ints, returns an int; errors on a float argument, division by
+  zero, or overflow
+- `math.round(n)` - Round half away from zero, returns an int (same error cases as `floor`)
+- `math.sign(n)` - `-1`, `0` or `1` as an int (`-0.0` is `0`; `NaN` is a runtime error)
+- `math.gcd(a, b)` - Greatest common divisor of two ints, always non-negative
+- `math.lcm(a, b)` - Least common multiple of two ints, always non-negative
+- `math.mod(a, b)` - Euclidean modulo in `[0, |b|)`: an int for two ints, a float otherwise
+
+**Example:**
+```neon
+import "std/math"
+
+print(math.abs(-5))        // 5
+print(math.max(3, 7, 2))   // 7
+print(math.div(7, 2))      // 3, integer division
+```
+
+### std/file Methods
+
+- `file.open(path)` - Open a file handle for `path`; returns a `File` (see [File](#file) for its methods)
+
+### std/stdin Methods
+
+- `stdin.read()` - All remaining standard input as a string, read to EOF (`""` once EOF is reached)
+- `stdin.readLines()` - Array of lines from standard input, split the same way as `File.readLines()`
+
+### std/pq Methods
+
+- `pq.new()` - New, empty min-priority-queue; returns a `PriorityQueue` (see
+  [PriorityQueue Methods](#priorityqueue-methods) for its methods)
+
+**Example:**
+```neon
+import "std/pq"
+
+val queue = pq.new()
+queue.push(2, "b")
+queue.push(1, "a")
+print(queue.pop())   // a
+```
 
 ### Math (Static Methods)
 

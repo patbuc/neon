@@ -174,7 +174,8 @@ enforces these edges in `cargo test`.
       entry module last); import cycles and unknown or unreadable modules are compile errors. Errors in
       imported modules carry that module's path and are rendered from the sources the graph loaded
       (`Compiler::module_sources`); errors in the entry module carry no file
-    - `std/` paths are reserved for builtin modules
+    - `std/` paths name builtin modules; one not in `method_registry::builtin_modules()` is an
+      `UnknownModule` error listing the known ones
     - Every module in the graph compiles as its own unit, in graph order, each against a fresh
       `GlobalEnv` that shares the compile's `Symbols`, `next_decl_id` and `slot_count`. A file import
       with no entry location (in-process `interpret`, wasm) is rejected by the graph (E0056); semantic

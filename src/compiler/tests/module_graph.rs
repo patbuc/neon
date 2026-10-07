@@ -432,3 +432,30 @@ fn rejects_a_file_import_when_no_entry_path_is_given_with_the_documented_message
         .expect("std import should pass through");
     assert!(graph.modules()[0].builtin);
 }
+
+#[test]
+fn rejects_unknown_std_module_listing_the_builtin_ones() {
+    let source = "val x = 1\nimport \"std/nope\"\n";
+
+    let Err(errors) = ModuleGraph::build(source, EntryLocation::Directory(PathBuf::new())) else {
+        panic!("unknown std module should be rejected");
+    };
+
+    assert_eq!(1, errors.len());
+    assert_eq!(CompilationErrorKind::UnknownModule, errors[0].kind);
+    assert_eq!(
+        "unknown builtin module 'std/nope' (expected one of std/file, std/math, std/pq, std/stdin)",
+        errors[0].message
+    );
+    assert_eq!(2, errors[0].location.line);
+}
+
+#[test]
+fn builds_a_graph_for_std_math() {
+    let graph = ModuleGraph::build(
+        "import \"std/math\"\n",
+        EntryLocation::Directory(PathBuf::new()),
+    );
+
+    assert!(graph.is_ok());
+}

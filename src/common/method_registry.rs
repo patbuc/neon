@@ -1481,6 +1481,135 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: 0,
         },
     ),
+    // Builtin module functions, keyed by module path
+    (
+        "std/math",
+        "abs",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_abs,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "floor",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_floor,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "ceil",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_ceil,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "sqrt",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_sqrt,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "min",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_min,
+            arity: VARIADIC_ARITY,
+        },
+    ),
+    (
+        "std/math",
+        "max",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_max,
+            arity: VARIADIC_ARITY,
+        },
+    ),
+    (
+        "std/math",
+        "div",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_div,
+            arity: 2,
+        },
+    ),
+    (
+        "std/math",
+        "round",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_round,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "sign",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_sign,
+            arity: 1,
+        },
+    ),
+    (
+        "std/math",
+        "gcd",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_gcd,
+            arity: 2,
+        },
+    ),
+    (
+        "std/math",
+        "lcm",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_lcm,
+            arity: 2,
+        },
+    ),
+    (
+        "std/math",
+        "mod",
+        NativeCallable::StaticMethod {
+            function: stdlib::math_functions::native_math_mod,
+            arity: 2,
+        },
+    ),
+    (
+        "std/stdin",
+        "read",
+        NativeCallable::StaticMethod {
+            function: stdlib::stdin_functions::native_stdin_read,
+            arity: 0,
+        },
+    ),
+    (
+        "std/stdin",
+        "readLines",
+        NativeCallable::StaticMethod {
+            function: stdlib::stdin_functions::native_stdin_read_lines,
+            arity: 0,
+        },
+    ),
+    (
+        "std/file",
+        "open",
+        NativeCallable::StaticMethod {
+            function: stdlib::file_functions::native_file_constructor,
+            arity: 1,
+        },
+    ),
+    (
+        "std/pq",
+        "new",
+        NativeCallable::StaticMethod {
+            function: stdlib::priority_queue_functions::native_priority_queue_constructor,
+            arity: 0,
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
@@ -1609,6 +1738,7 @@ pub fn namespaces() -> Vec<&'static str> {
         .iter()
         .filter(|(type_name, _, callable)| {
             !type_name.is_empty()
+                && !type_name.starts_with("std/")
                 && matches!(
                     callable,
                     NativeCallable::StaticMethod { .. }
@@ -1621,6 +1751,18 @@ pub fn namespaces() -> Vec<&'static str> {
     names.sort_unstable();
     names.dedup();
     names
+}
+
+/// The paths of the builtin `std/` modules, sorted.
+pub fn builtin_modules() -> Vec<&'static str> {
+    let mut paths: Vec<&'static str> = NATIVE_METHODS
+        .iter()
+        .map(|(type_name, _, _)| *type_name)
+        .filter(|type_name| type_name.starts_with("std/"))
+        .collect();
+    paths.sort_unstable();
+    paths.dedup();
+    paths
 }
 
 /// The arity of a namespace's constructor (e.g. `File.new`), if it has one.

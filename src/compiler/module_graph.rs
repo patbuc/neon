@@ -1,6 +1,7 @@
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
+use crate::common::method_registry::builtin_modules;
 use crate::common::SourceLocation;
 use crate::compiler::ast::{NodeId, Stmt};
 use crate::compiler::parser::Parser;
@@ -111,6 +112,9 @@ fn load(
         } = stmt
         {
             if import.starts_with("std/") {
+                if !builtin_modules().contains(&import.as_str()) {
+                    return Err(unknown_builtin_module_error(import, *location, file));
+                }
                 let builtin = PathBuf::from(import.as_str());
                 if visited.insert(builtin.clone()) {
                     modules.push(Module {
@@ -239,6 +243,25 @@ fn unknown_module_error(
             CompilationPhase::Parse,
             CompilationErrorKind::UnknownModule,
             format!("cannot find module '{import}' (tried {})", tried.display()),
+            location,
+        )],
+        file,
+    )
+}
+
+fn unknown_builtin_module_error(
+    import: &str,
+    location: SourceLocation,
+    file: Option<&Path>,
+) -> Vec<CompilationError> {
+    attach_file(
+        vec![CompilationError::new(
+            CompilationPhase::Parse,
+            CompilationErrorKind::UnknownModule,
+            format!(
+                "unknown builtin module '{import}' (expected one of {})",
+                builtin_modules().join(", ")
+            ),
             location,
         )],
         file,
