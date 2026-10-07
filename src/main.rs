@@ -39,6 +39,9 @@ fn main() {
                 }
                 check_file(&args[2]);
             }
+            "-e" => {
+                run_eval(args[2].clone(), args[3..].to_vec());
+            }
             "fmt" => {
                 fmt_command(&args[2..]);
             }
@@ -126,17 +129,27 @@ fn print_prompt() {
     }
 }
 
-#[allow(clippy::print_stderr)]
 fn run_file(path: &str, args: Vec<String>) {
     let source = read_file(path);
     let mut vm = VirtualMachine::with_args(args);
 
     let result: InterpretResult = vm.interpret_file(Path::new(path), source);
+    finish_run(&vm, result, path);
+}
+
+fn run_eval(snippet: String, args: Vec<String>) {
+    let mut vm = VirtualMachine::with_args(args);
+    let result = vm.interpret(snippet);
+    finish_run(&vm, result, "<eval>");
+}
+
+#[allow(clippy::print_stderr)]
+fn finish_run(vm: &VirtualMachine, result: InterpretResult, name: &str) {
     let exit_code = match result {
         InterpretResult::Ok => None,
         InterpretResult::CompileError => {
             // Print formatted compilation errors
-            let formatted_errors = vm.get_formatted_errors(path);
+            let formatted_errors = vm.get_formatted_errors(name);
             eprintln!("{}", formatted_errors);
             Some(65)
         }

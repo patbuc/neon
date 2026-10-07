@@ -1230,3 +1230,15 @@ fn help_lists_version_flag() {
 
     assert!(String::from_utf8_lossy(&output.stdout).contains("--version"));
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn eval_flag_runs_snippet() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["-e", "print(1 + 2)"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    assert_eq!("3\n", String::from_utf8_lossy(&output.stdout));
+}
