@@ -691,14 +691,15 @@ impl ObjEnumVariant {
 }
 
 impl Value {
-    /// Clones the value, copying scalars inline instead of calling `Clone`.
+    /// Clones the value, copying scalars bitwise instead of calling `Clone`.
     #[inline(always)]
     pub(crate) fn copy_or_clone(&self) -> Value {
         match self {
-            Value::Number(n) => Value::Number(*n),
-            Value::Int(i) => Value::Int(*i),
-            Value::Boolean(b) => Value::Boolean(*b),
-            Value::Nil => Value::Nil,
+            // SAFETY: these variants own no heap data and have no drop glue, so a bitwise
+            // duplicate is a valid, independent Value.
+            Value::Number(_) | Value::Int(_) | Value::Boolean(_) | Value::Nil => unsafe {
+                std::ptr::read(self)
+            },
             _ => self.clone(),
         }
     }

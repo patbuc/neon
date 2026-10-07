@@ -1257,11 +1257,11 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_set_local(&mut self, index: u16) -> OpResult {
         let (index, absolute_index) = self.read_local_slot(index);
-        if absolute_index >= self.stack.len() {
-            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
-        }
         let value = self.peek(0).copy_or_clone();
-        std::mem::replace(&mut self.stack[absolute_index], value).discard();
+        let Some(slot) = self.stack.get_mut(absolute_index) else {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        };
+        std::mem::replace(slot, value).discard();
         Ok(())
     }
 
@@ -1270,11 +1270,11 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_store_local(&mut self, index: u16) -> OpResult {
         let (index, absolute_index) = self.read_local_slot(index);
-        if absolute_index >= self.stack.len() {
-            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
-        }
         let value = self.pop();
-        std::mem::replace(&mut self.stack[absolute_index], value).discard();
+        let Some(slot) = self.stack.get_mut(absolute_index) else {
+            return Err(self.runtime_error(format!("Invalid local slot {}", index)));
+        };
+        std::mem::replace(slot, value).discard();
         Ok(())
     }
 
@@ -1299,9 +1299,7 @@ impl VirtualMachine {
             let index = index as usize;
 
             let upvalue = if is_local {
-                let absolute_index =
-                    (self.current_frame().slot_start + 1 + index as isize) as usize;
-                self.capture_upvalue(absolute_index)
+                self.capture_upvalue(self.frame_base + index)
             } else {
                 if index >= self.current_frame().closure.upvalues.len() {
                     return Err(self.runtime_error(format!("Invalid upvalue index {}", index)));
@@ -1396,23 +1394,21 @@ impl VirtualMachine {
         });
     }
 
-    /// Returns a local-slot operand with its absolute stack index. Locals
-    /// start at `slot_start + 1`, which is 0 for the script frame
-    /// (`slot_start` is -1).
+    /// Returns a local-slot operand with its absolute stack index.
     #[inline(always)]
     fn read_local_slot(&self, index: u16) -> (usize, usize) {
         let index = index as usize;
-        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        let absolute_index = self.frame_base + index;
         (index, absolute_index)
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_get_local(&mut self, index: u16) -> OpResult {
         let (index, absolute_index) = self.read_local_slot(index);
-        if absolute_index >= self.stack.len() {
+        let Some(value) = self.stack.get(absolute_index) else {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
-        }
-        self.push(self.stack[absolute_index].copy_or_clone());
+        };
+        self.push(value.copy_or_clone());
         Ok(())
     }
 
@@ -1564,7 +1560,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_get_local_field(&mut self, index: u16, symbol: u16) -> OpResult {
         let index = index as usize;
-        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        let absolute_index = self.frame_base + index;
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }
@@ -1595,7 +1591,7 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_store_local_field(&mut self, index: u16, symbol: u16) -> OpResult {
         let index = index as usize;
-        let absolute_index = (self.current_frame().slot_start + 1 + index as isize) as usize;
+        let absolute_index = self.frame_base + index;
         if absolute_index >= self.stack.len() {
             return Err(self.runtime_error(format!("Invalid local slot {}", index)));
         }

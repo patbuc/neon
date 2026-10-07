@@ -30,6 +30,8 @@ pub struct VirtualMachine {
     /// The running (top) frame's instruction pointer and chunk; its
     /// `CallFrame.ip` is only kept current for the frames below it.
     ip: usize,
+    /// Absolute stack index of the running frame's local 0.
+    frame_base: usize,
     chunk: Rc<Chunk>,
     /// Runtime builtin values (e.g. `args`), stored separately from the
     /// call stack.
