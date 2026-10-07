@@ -1,6 +1,8 @@
 // Expected:
 // -169026909
 
+import "std/math"
+
 struct Body {
     x
     y
@@ -50,7 +52,7 @@ fn advance(bodies, dt) {
             val dy = bi.y - bj.y
             val dz = bi.z - bj.z
             val d2 = dx * dx + dy * dy + dz * dz
-            val mag = dt / (d2 * Math.sqrt(d2))
+            val mag = dt / (d2 * math.sqrt(d2))
             bi.vx = bi.vx - dx * bj.mass * mag
             bi.vy = bi.vy - dy * bj.mass * mag
             bi.vz = bi.vz - dz * bj.mass * mag
@@ -84,7 +86,7 @@ fn energy(bodies) {
             val dx = bi.x - bj.x
             val dy = bi.y - bj.y
             val dz = bi.z - bj.z
-            val distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+            val distance = math.sqrt(dx * dx + dy * dy + dz * dz)
             e = e - (bi.mass * bj.mass) / distance
             j = j + 1
         }
@@ -104,4 +106,4 @@ while step < n {
     step = step + 1
 }
 
-print(Math.floor(energy(bodies) * 1000000000))
+print(math.floor(energy(bodies) * 1000000000))

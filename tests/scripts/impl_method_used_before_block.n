@@ -3,6 +3,8 @@
 // Expected:
 // 5
 
+import "std/math"
+
 struct Point {
     x
     y
@@ -16,6 +18,6 @@ print(compute(Point(3, 4)))
 
 impl Point {
     fn len(self) {
-        return Math.sqrt(self.x * self.x + self.y * self.y)
+        return math.sqrt(self.x * self.x + self.y * self.y)
     }
 }

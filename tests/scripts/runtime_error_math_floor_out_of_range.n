@@ -3,5 +3,7 @@
 
 // Expected runtime error: floor() result is out of range
 
+import "std/math"
+
 print("before")
-print(Math.floor(1e300))
+print(math.floor(1e300))

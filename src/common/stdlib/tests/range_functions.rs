@@ -43,7 +43,8 @@ fn test_range_step_zero_is_runtime_error() {
 #[test]
 fn test_range_sum_keeps_int_variant() {
     let program = r#"
-        print(Math.div((1..4).sum(), 1))
+        import "std/math"
+        print(math.div((1..4).sum(), 1))
     "#;
 
     let mut vm = VirtualMachine::new();

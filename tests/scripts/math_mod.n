@@ -3,6 +3,8 @@
 // 1
 // 0.5
 
-print(Math.mod(-7, 3))
-print(Math.mod(7, -3))
-print(Math.mod(-7.5, 2))
+import "std/math"
+
+print(math.mod(-7, 3))
+print(math.mod(7, -3))
+print(math.mod(-7.5, 2))

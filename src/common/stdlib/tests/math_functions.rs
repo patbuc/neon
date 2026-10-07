@@ -5,13 +5,14 @@ use crate::common::Value;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================
-// Math.abs(), Math.floor(), Math.ceil() - Keep ints exact
+// math.abs(), math.floor(), math.ceil() - Keep ints exact
 // ============================================================================
 
 #[test]
 fn test_math_abs_keeps_int() {
     let program = r#"
-        print(Math.abs(-9007199254740993))
+        import "std/math"
+        print(math.abs(-9007199254740993))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -22,8 +23,9 @@ fn test_math_abs_keeps_int() {
 #[test]
 fn test_math_floor_ceil_keep_int() {
     let program = r#"
-        print(Math.floor(9007199254740993))
-        print(Math.ceil(9007199254740993))
+        import "std/math"
+        print(math.floor(9007199254740993))
+        print(math.ceil(9007199254740993))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -34,8 +36,9 @@ fn test_math_floor_ceil_keep_int() {
 #[test]
 fn test_math_floor_ceil_int() {
     let program = r#"
-        print(Math.div(Math.floor(2.7), 1))
-        print(Math.div(Math.ceil(2.1), 1))
+        import "std/math"
+        print(math.div(math.floor(2.7), 1))
+        print(math.div(math.ceil(2.1), 1))
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -44,17 +47,18 @@ fn test_math_floor_ceil_int() {
 }
 
 // ============================================================================
-// Math.min() / Math.max() - Keep the winning variant, compare exactly
+// math.min() / math.max() - Keep the winning variant, compare exactly
 // ============================================================================
 
 #[test]
 fn test_math_min_max_keep_variant() {
     let program = r#"
-        print(Math.max(9007199254740993, 1).toString())
-        print(Math.min(-9007199254740993, -1).toString())
-        print(Math.min(9007199254740993, 1).toString())
-        print(Math.max(1, 2.5).toString())
-        print(Math.min(1, 2.5).toString())
+        import "std/math"
+        print(math.max(9007199254740993, 1).toString())
+        print(math.min(-9007199254740993, -1).toString())
+        print(math.min(9007199254740993, 1).toString())
+        print(math.max(1, 2.5).toString())
+        print(math.min(1, 2.5).toString())
     "#;
 
     let mut vm = VirtualMachine::new();
@@ -66,7 +70,7 @@ fn test_math_min_max_keep_variant() {
 }
 
 // ============================================================================
-// Math.round() - Success Cases
+// math.round() - Success Cases
 // ============================================================================
 
 #[test]
@@ -104,7 +108,7 @@ fn test_math_round_out_of_range() {
 }
 
 // ============================================================================
-// Math.sign() - Success Cases
+// math.sign() - Success Cases
 // ============================================================================
 
 #[test]
@@ -142,7 +146,7 @@ fn test_math_sign_nan() {
 }
 
 // ============================================================================
-// Math.gcd() - Success Cases
+// math.gcd() - Success Cases
 // ============================================================================
 
 #[test]
@@ -181,7 +185,7 @@ fn test_math_gcd_overflow() {
 }
 
 // ============================================================================
-// Math.lcm() - Success Cases
+// math.lcm() - Success Cases
 // ============================================================================
 
 #[test]
@@ -216,7 +220,7 @@ fn test_math_lcm_overflow() {
 }
 
 // ============================================================================
-// Math.mod() - Success Cases
+// math.mod() - Success Cases
 // ============================================================================
 
 #[test]

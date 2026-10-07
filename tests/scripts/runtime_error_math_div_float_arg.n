@@ -3,5 +3,7 @@
 
 // Expected runtime error: div() expects two integers, got float
 
+import "std/math"
+
 print("before")
-print(Math.div(1.5, 1))
+print(math.div(1.5, 1))

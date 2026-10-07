@@ -3,10 +3,12 @@
 
 // Expected runtime error: div() division by zero
 
+import "std/math"
+
 print("before")
 Array(3) {
     if it == 1 {
-        return Math.div(1, 0)
+        return math.div(1, 0)
     }
     it
 }

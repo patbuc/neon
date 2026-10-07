@@ -10,28 +10,31 @@
 // -1
 
 // Basic integer division
-print(Math.floor(10 / 3))
+
+import "std/math"
+
+print(math.floor(10 / 3))
 
 // Another basic case
-print(Math.floor(7 / 2))
+print(math.floor(7 / 2))
 
 // Floor division with negative dividend (rounds toward negative infinity)
-print(Math.floor(-7 / 2))
+print(math.floor(-7 / 2))
 
 // Even division
-print(Math.floor(10 / 4))
+print(math.floor(10 / 4))
 
 // Larger numbers
-print(Math.floor(25 / 5))
+print(math.floor(25 / 5))
 
 // Negative divisor
-print(Math.floor(10 / -4))
+print(math.floor(10 / -4))
 
 // Both positive, result is 1
-print(Math.floor(5 / 4))
+print(math.floor(5 / 4))
 
 // Small dividend
-print(Math.floor(1 / 2))
+print(math.floor(1 / 2))
 
 // Negative dividend, positive divisor
-print(Math.floor(-1 / 2))
+print(math.floor(-1 / 2))

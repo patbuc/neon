@@ -7,10 +7,12 @@
 // 3
 // 5
 
-print(Math.sqrt(4))
-print(Math.sqrt(2))
-print(Math.sqrt(0))
-print(Math.sqrt(100))
-print(Math.sqrt(1))
-print(Math.sqrt(9))
-print(Math.sqrt(25))
+import "std/math"
+
+print(math.sqrt(4))
+print(math.sqrt(2))
+print(math.sqrt(0))
+print(math.sqrt(100))
+print(math.sqrt(1))
+print(math.sqrt(9))
+print(math.sqrt(25))
