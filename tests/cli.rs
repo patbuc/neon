@@ -1183,3 +1183,17 @@ fn run_renders_an_entry_parse_error_with_the_relative_path_typed() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("--> syn.n:2:"), "{stderr}");
 }
+
+#[test]
+fn version_flag_prints_neon_version_and_exits_zero() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    assert_eq!(
+        format!("neon {}\n", env!("NEON_VERSION")),
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
