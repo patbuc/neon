@@ -9,10 +9,9 @@
 // 0
 // -1
 
-// Basic integer division
-
 import "std/math"
 
+// Basic integer division
 print(math.floor(10 / 3))
 
 // Another basic case

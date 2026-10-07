@@ -126,8 +126,9 @@ pub struct SemanticAnalyzer {
     // with many overflowing names doesn't produce one error per name.
     too_many_symbols_reported: bool,
     // DeclIds below this were seeded by `new()` itself (builtin values)
-    // rather than declared by the program; `snapshot_env` excludes them so a later REPL line can't redeclare a builtin, since a fresh
-    // analyzer re-seeds them anyway.
+    // rather than declared by the program; `snapshot_env` excludes them so a
+    // later REPL line can't redeclare a builtin, since a fresh analyzer
+    // re-seeds them anyway.
     builtin_decl_count: u32,
     // Export table of the module each file `import` resolved to, by the
     // import's node id.
@@ -2103,13 +2104,11 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     self.resolve_expr(arg);
                 }
-                if crate::common::method_registry::is_static_method(name, method) {
-                    if let Some(index) =
-                        crate::common::method_registry::get_native_method_index(name, method)
-                    {
-                        self.resolutions.record_native(id, index);
-                        return;
-                    }
+                if let Some(index) =
+                    crate::common::method_registry::static_method_index(name, method)
+                {
+                    self.resolutions.record_native(id, index);
+                    return;
                 }
                 let message = if crate::common::method_registry::has_static_methods(name) {
                     format!("Type '{}' has no static method '{}'", name, method)
@@ -2200,9 +2199,7 @@ impl SemanticAnalyzer {
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index(name, "new")
                 {
-                    let arity = crate::common::method_registry::NATIVE_METHODS[index]
-                        .2
-                        .arity();
+                    let arity = crate::common::method_registry::native_arity(index);
                     self.validate_arity("Function", name, arity, arguments.len(), location);
                     self.resolutions.record_native(id, index);
                     for arg in arguments {

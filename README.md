@@ -730,7 +730,7 @@ print(pt.x)  // 15
 ```
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
-`Set`, `Number`, `Boolean`, `File`).
+`Set`, `Number`, `Boolean`, `File`, `PriorityQueue`).
 
 #### Methods
 
@@ -1087,7 +1087,9 @@ The builtin modules are imported like any other module and bound to their last p
 ```neon
 import "std/math"
 
-print(math.abs(-5))        // 5
+val abs = math.abs         // exports are values
+print(abs(-5))             // 5
+print([-1, 2].map(math.abs))  // [1, 2]
 print(math.sqrt(16))       // 4
 print(math.max(3, 7, 2))   // 7
 print(math.div(7, 2))      // 3, integer division

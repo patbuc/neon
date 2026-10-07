@@ -1521,6 +1521,11 @@ pub(crate) fn get_native_method_by_index(index: usize) -> Option<&'static Native
     NATIVE_METHODS.get(index).map(|(_, _, callable)| callable)
 }
 
+/// The arity of the native callable at this registry index.
+pub fn native_arity(index: usize) -> u8 {
+    NATIVE_METHODS[index].2.arity()
+}
+
 /// The display label for the native callable at this registry index: the
 /// function name for a global, `"{Type}.new"` for a constructor, or the
 /// bare method name for a static method.
@@ -1579,11 +1584,14 @@ pub fn builtin_modules() -> Vec<&'static str> {
     paths
 }
 
-pub fn is_static_method(type_name: &str, method_name: &str) -> bool {
-    matches!(
-        get_native_method_by_name(type_name, method_name),
-        Some(NativeCallable::StaticMethod { .. })
-    )
+/// The registry index of a static method, or None if there is no such
+/// static method.
+pub fn static_method_index(type_name: &str, method_name: &str) -> Option<usize> {
+    NATIVE_METHODS.iter().position(|(t, m, callable)| {
+        *t == type_name
+            && *m == method_name
+            && matches!(callable, NativeCallable::StaticMethod { .. })
+    })
 }
 
 pub fn has_static_methods(type_name: &str) -> bool {

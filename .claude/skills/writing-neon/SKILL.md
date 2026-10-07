@@ -83,7 +83,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   variant values.
 - `import` and `export` are keywords. `import "path"` and `import "path" as name`
   are top level only. The path resolves relative to the importing file (the current
-  directory in the REPL) with `.n` appended (`std/` is reserved for builtin modules), and a missing file or an
+  directory in the REPL) with `.n` appended, and a missing file or an
   import cycle is a compile error. A file name that isn't an identifier (`my-utils`) needs `as`.
   Exports are reached as `utils.name` (or the `as` alias) and are
   read-only from outside the module. An unknown export, a module used as a value (`print(utils)`) and a
@@ -184,7 +184,7 @@ This is the full list. Anything not here, like `keys` on
 arrays, `toFixed`, or `String(x)`, doesn't exist. Add a
 helper with `impl Array { fn name(self) { ... } }` if you need one.
 The `std/` entries are builtin modules: `import "std/math"` binds `math`,
-then call `math.abs(x)`.
+then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.abs)`.
 
 - **Global:** `print(a, b, ...)`, `sleep(ms)`, `args` (array of script arguments, strings)
 - **String:** `size`, `isEmpty`, `substring(start, end)`, `replace(old, new)`,
