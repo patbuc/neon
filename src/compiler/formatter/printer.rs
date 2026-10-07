@@ -386,13 +386,13 @@ impl<'a> Printer<'a> {
             Stmt::Import {
                 raw_path, alias, ..
             } => {
-                self.write(&format!("import \"{}\"", raw_path));
+                self.write(&format!("use \"{}\"", raw_path));
                 if let Some(alias) = alias {
                     self.write(&format!(" as {}", alias));
                 }
             }
             Stmt::Export { declaration, .. } => {
-                self.write("export ");
+                self.write("pub ");
                 self.print_stmt_body(declaration);
             }
             Stmt::Break { .. } => self.write("break"),

@@ -5,8 +5,8 @@
 // main
 // 5
 
-import "a"
-import "b"
+use "a"
+use "b"
 
 print("main")
 print(a.fa() + b.fb())

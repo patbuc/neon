@@ -1,6 +1,6 @@
 // Expected compile error: 5:12 E0059 impl blocks must be in the struct's own module
 
-import "utils"
+use "utils"
 
 impl utils.Point {
     fn m(self) {

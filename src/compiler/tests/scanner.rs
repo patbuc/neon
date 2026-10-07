@@ -485,9 +485,15 @@ fn can_scan_all_keywords() {
 }
 
 #[test]
-fn scans_import_and_export_as_keywords() {
-    assert_first_token("import", TokenType::Import, "import");
-    assert_first_token("export", TokenType::Export, "export");
+fn scans_use_and_pub_as_keywords() {
+    assert_first_token("use", TokenType::Use, "use");
+    assert_first_token("pub", TokenType::Pub, "pub");
+}
+
+#[test]
+fn scans_import_and_export_as_identifiers() {
+    assert_first_token("import", TokenType::Identifier, "import");
+    assert_first_token("export", TokenType::Identifier, "export");
 }
 
 #[test]

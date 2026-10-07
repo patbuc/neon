@@ -1,6 +1,6 @@
 // Expected:
 // 2
 
-import "a"
+use "a"
 
 print([1, 2, 3].second())

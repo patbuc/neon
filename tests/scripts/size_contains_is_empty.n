@@ -27,7 +27,7 @@
 // true
 // false
 
-import "std/pq"
+use "std/pq"
 
 print("abc".size())
 print([1].size())

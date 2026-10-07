@@ -4,8 +4,8 @@
 // 2
 // 39
 
-import "a"
-import "b"
+use "a"
+use "b"
 
 val m1 = 10
 val m2 = 20

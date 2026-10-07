@@ -3,7 +3,7 @@
 
 // Expected runtime error: mod() division by zero
 
-import "std/math"
+use "std/math"
 
 print("before")
 print(math.mod(1, 0))

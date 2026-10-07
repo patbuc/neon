@@ -3,7 +3,7 @@
 // 2
 // 2
 
-import "utils"
+use "utils"
 
 val next = utils.make()
 print(next())

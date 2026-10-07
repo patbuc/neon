@@ -1,7 +1,7 @@
-import "c"
+use "c"
 
 print("b loaded")
 
-export fn fb() {
+pub fn fb() {
     return c.one + 2
 }

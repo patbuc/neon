@@ -4,4 +4,4 @@ impl Array {
     }
 }
 
-export val loaded = true
+pub val loaded = true

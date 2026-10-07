@@ -1,7 +1,7 @@
-import "c"
+use "c"
 
 print("a loaded")
 
-export fn fa() {
+pub fn fa() {
     return c.one + 1
 }

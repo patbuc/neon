@@ -43,7 +43,7 @@ fn test_range_step_zero_is_runtime_error() {
 #[test]
 fn test_range_sum_keeps_int_variant() {
     let program = r#"
-        import "std/math"
+        use "std/math"
         print(math.div((1..4).sum(), 1))
     "#;
 

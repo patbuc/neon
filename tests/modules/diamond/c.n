@@ -1,3 +1,3 @@
 print("c loaded")
 
-export val one = 1
+pub val one = 1

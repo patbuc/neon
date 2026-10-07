@@ -12,7 +12,7 @@
 // 5
 // 5
 
-import "std/math"
+use "std/math"
 
 print(math.min(5, 2, 8, 1))
 print(math.max(5, 2, 8, 1))

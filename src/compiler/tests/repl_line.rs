@@ -261,16 +261,13 @@ fn second_line_declares_math_as_a_plain_name() {
 #[test]
 fn resolves_module_member_on_line_after_import() {
     let dir = TempDir::new("repl_import");
-    fs::write(
-        dir.0.join("utils.n"),
-        "export fn double(x) { return x * 2 }\n",
-    )
-    .expect("Failed to write utils.n");
+    fs::write(dir.0.join("utils.n"), "pub fn double(x) { return x * 2 }\n")
+        .expect("Failed to write utils.n");
     let mut compiler = Compiler::new();
     let entry = || EntryLocation::Directory(dir.0.clone());
 
     let first = compiler
-        .compile_entry("import \"utils\"\n", entry(), &GlobalEnv::default())
+        .compile_entry("use \"utils\"\n", entry(), &GlobalEnv::default())
         .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
 
     let second = compiler
@@ -297,15 +294,15 @@ fn resolves_module_member_on_line_after_import() {
 #[test]
 fn reimporting_a_module_on_a_later_line_reuses_its_slots() {
     let dir = TempDir::new("repl_reimport");
-    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    fs::write(dir.0.join("a.n"), "pub var counter = 0\n").expect("Failed to write a.n");
     let mut compiler = Compiler::new();
     let entry = || EntryLocation::Directory(dir.0.clone());
 
     let first = compiler
-        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .compile_entry("use \"a\"\n", entry(), &GlobalEnv::default())
         .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
     let second = compiler
-        .compile_entry("import \"a\"\n", entry(), &first.env)
+        .compile_entry("use \"a\"\n", entry(), &first.env)
         .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
     let third = compiler
         .compile_entry("val y = 1\nprint(a.counter)\n", entry(), &second.env)
@@ -322,20 +319,20 @@ fn reimporting_a_module_on_a_later_line_reuses_its_slots() {
 #[test]
 fn module_importing_an_earlier_lines_module_reads_its_slots() {
     let dir = TempDir::new("repl_transitive_import");
-    fs::write(dir.0.join("a.n"), "export var counter = 0\n").expect("Failed to write a.n");
+    fs::write(dir.0.join("a.n"), "pub var counter = 0\n").expect("Failed to write a.n");
     fs::write(
         dir.0.join("b.n"),
-        "import \"a\"\nexport fn get() { return a.counter }\n",
+        "use \"a\"\npub fn get() { return a.counter }\n",
     )
     .expect("Failed to write b.n");
     let mut compiler = Compiler::new();
     let entry = || EntryLocation::Directory(dir.0.clone());
 
     let first = compiler
-        .compile_entry("import \"a\"\n", entry(), &GlobalEnv::default())
+        .compile_entry("use \"a\"\n", entry(), &GlobalEnv::default())
         .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
     let second = compiler
-        .compile_entry("import \"b\"\n", entry(), &first.env)
+        .compile_entry("use \"b\"\n", entry(), &first.env)
         .unwrap_or_else(|| panic!("{:?}", compiler.get_structured_errors()));
 
     let b_chunk = second.modules.last().expect("b should be compiled");

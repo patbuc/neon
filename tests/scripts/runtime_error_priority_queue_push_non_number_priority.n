@@ -3,7 +3,7 @@
 
 // Expected runtime error: push() priority must be a number, got string
 
-import "std/pq"
+use "std/pq"
 
 print("before")
 val queue = pq.new()

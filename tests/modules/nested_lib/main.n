@@ -3,8 +3,8 @@
 // 7
 // 42
 
-import "lib/utils"
-import "lib/utils" as u
+use "lib/utils"
+use "lib/utils" as u
 
 print(utils.double(21))
 print(utils.triplePlusOne(2))

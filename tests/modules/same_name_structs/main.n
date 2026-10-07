@@ -4,8 +4,8 @@
 // false
 // true
 
-import "a"
-import "b"
+use "a"
+use "b"
 
 print(a.make().tag())
 print(b.make().tag())

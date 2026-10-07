@@ -4,7 +4,7 @@
 // 5
 // 0
 
-import "std/math"
+use "std/math"
 
 struct Point {
     x

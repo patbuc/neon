@@ -5,7 +5,7 @@
 // b
 // nil
 
-import "std/pq"
+use "std/pq"
 
 val queue = pq.new()
 queue.push(2, "b")

@@ -1,5 +1,5 @@
-export var counter = 0
+pub var counter = 0
 
-export fn bump() {
+pub fn bump() {
     counter = counter + 1
 }

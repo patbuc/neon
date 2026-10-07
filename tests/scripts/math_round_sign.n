@@ -5,7 +5,7 @@
 // 0
 // 1
 
-import "std/math"
+use "std/math"
 
 print(math.round(2.5))
 print(math.round(-2.5))

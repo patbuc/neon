@@ -2090,7 +2090,7 @@ while (true) {
 #[test]
 fn test_std_module_as_value_is_error() {
     assert_compile_error(
-        "import \"std/math\"\nval m = math\n",
+        "use \"std/math\"\nval m = math\n",
         "'math' is a module, not a value",
     );
 }
@@ -2109,7 +2109,7 @@ fn test_array_as_value_is_undefined_variable() {
 
 #[test]
 fn test_std_file_open_wrong_arity() {
-    let program = "import \"std/file\"\nval f = file.open(\"x.txt\", \"y.txt\")\n";
+    let program = "use \"std/file\"\nval f = file.open(\"x.txt\", \"y.txt\")\n";
     let errors = compile_errors(program);
     assert!(errors
         .iter()
@@ -2118,7 +2118,7 @@ fn test_std_file_open_wrong_arity() {
 
 #[test]
 fn test_calling_std_module_is_not_a_function_error() {
-    let program = "import \"std/math\"\nval m = math(1)\n";
+    let program = "use \"std/math\"\nval m = math(1)\n";
     let errors = compile_errors(program);
     assert!(errors
         .iter()
@@ -3856,7 +3856,7 @@ fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
 
 #[test]
 fn test_compiler_resolves_imports_before_semantic_analysis() {
-    let errors = compile_errors("val x = 1\nimport \"b\"\n");
+    let errors = compile_errors("val x = 1\nuse \"b\"\n");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::FileImportUnavailable);
     assert_eq!(

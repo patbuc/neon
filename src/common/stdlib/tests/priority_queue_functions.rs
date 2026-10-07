@@ -8,7 +8,7 @@ use crate::vm::{InterpretResult, VirtualMachine};
 #[test]
 fn test_priority_queue_empty() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         print(queue.pop())
         print(queue.peek())
@@ -23,7 +23,7 @@ fn test_priority_queue_empty() {
 #[test]
 fn test_priority_queue_is_empty() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         print(queue.isEmpty())
         queue.push(1, "a")
@@ -38,7 +38,7 @@ fn test_priority_queue_is_empty() {
 #[test]
 fn test_priority_queue_mixed_int_float_priorities() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         queue.push(2, "int")
         queue.push(1.5, "float")
@@ -56,7 +56,7 @@ fn test_priority_queue_extreme_priorities() {
     // Ints near +-2^63 and the float infinities must still compare exactly
     // against each other, not round-trip through a lossy f64 conversion.
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         queue.push(9223372036854775807, "int max")
         queue.push(-9223372036854775807 - 1, "int min")
@@ -78,7 +78,7 @@ fn test_priority_queue_extreme_priorities() {
 #[test]
 fn test_priority_queue_nan_priority() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         queue.push(0.0 / 0.0, "x")
     "#;
@@ -93,7 +93,7 @@ fn test_priority_queue_nan_priority() {
 #[test]
 fn test_priority_queue_non_number_priority() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         queue.push("not a number", "x")
     "#;
@@ -108,7 +108,7 @@ fn test_priority_queue_non_number_priority() {
 #[test]
 fn test_priority_queue_push_wrong_arg_count() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         queue.push(1)
     "#;
@@ -123,7 +123,7 @@ fn test_priority_queue_push_wrong_arg_count() {
 #[test]
 fn test_priority_queue_constructor_wrong_arg_count() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new(1)
     "#;
 
@@ -134,7 +134,7 @@ fn test_priority_queue_constructor_wrong_arg_count() {
     );
 
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val make = pq.new
         make(1)
     "#;
@@ -152,7 +152,7 @@ fn test_priority_queue_constructor_wrong_arg_count() {
 #[test]
 fn test_priority_queue_not_a_map_key() {
     let program = r#"
-        import "std/pq"
+        use "std/pq"
         val queue = pq.new()
         val m = {}
         m[queue] = 1

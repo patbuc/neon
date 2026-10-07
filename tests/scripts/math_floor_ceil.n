@@ -16,7 +16,7 @@
 // 0
 // 1
 
-import "std/math"
+use "std/math"
 
 print(math.floor(3.7))
 print(math.ceil(3.2))

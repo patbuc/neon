@@ -388,12 +388,12 @@ fn failed_line_forgets_an_assigned_global_type() {
 fn keeps_a_repl_import_across_lines() {
     let dir = ModuleDir::new(
         "keeps_import",
-        "print(\"loaded\")\nexport fn double(x) { return x * 2 }\n",
+        "print(\"loaded\")\npub fn double(x) { return x * 2 }\n",
     );
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line_in("import \"utils\"".to_string(), &dir.0)
+        vm.interpret_line_in("use \"utils\"".to_string(), &dir.0)
     );
     assert_eq!(
         InterpretResult::Ok,
@@ -406,12 +406,12 @@ fn keeps_a_repl_import_across_lines() {
 fn rolls_back_a_repl_import_after_a_runtime_error_on_the_line() {
     let dir = ModuleDir::new(
         "rollback_import",
-        "print(\"loaded\")\nexport fn double(x) { return x * 2 }\n",
+        "print(\"loaded\")\npub fn double(x) { return x * 2 }\n",
     );
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::RuntimeError,
-        vm.interpret_line_in("import \"utils\"\nprint([1][5])".to_string(), &dir.0)
+        vm.interpret_line_in("use \"utils\"\nprint([1][5])".to_string(), &dir.0)
     );
     assert_eq!(
         InterpretResult::CompileError,
@@ -419,10 +419,7 @@ fn rolls_back_a_repl_import_after_a_runtime_error_on_the_line() {
     );
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line_in(
-            "import \"utils\"\nprint(utils.double(2))".to_string(),
-            &dir.0
-        )
+        vm.interpret_line_in("use \"utils\"\nprint(utils.double(2))".to_string(), &dir.0)
     );
     assert_eq!("loaded\nloaded\n4", vm.get_output());
 }
@@ -431,12 +428,12 @@ fn rolls_back_a_repl_import_after_a_runtime_error_on_the_line() {
 fn keeps_the_stack_after_a_runtime_error_inside_an_imported_module() {
     let dir = ModuleDir::new(
         "rollback_module_error",
-        "export fn double(x) { return x * 2 }\n[1][5]\n",
+        "pub fn double(x) { return x * 2 }\n[1][5]\n",
     );
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::RuntimeError,
-        vm.interpret_line_in("import \"utils\"".to_string(), &dir.0)
+        vm.interpret_line_in("use \"utils\"".to_string(), &dir.0)
     );
     assert_eq!(
         InterpretResult::Ok,
@@ -449,7 +446,7 @@ fn keeps_the_stack_after_a_runtime_error_inside_an_imported_module() {
 fn keeps_earlier_globals_after_a_module_error_on_a_line_declaring_globals() {
     let dir = ModuleDir::new(
         "rollback_module_error_globals",
-        "export fn double(x) { return x * 2 }\n[1][5]\n",
+        "pub fn double(x) { return x * 2 }\n[1][5]\n",
     );
     let mut vm = VirtualMachine::new();
     assert_eq!(
@@ -458,7 +455,7 @@ fn keeps_earlier_globals_after_a_module_error_on_a_line_declaring_globals() {
     );
     assert_eq!(
         InterpretResult::RuntimeError,
-        vm.interpret_line_in("import \"utils\"\nval z = 1\nval w = 2".to_string(), &dir.0)
+        vm.interpret_line_in("use \"utils\"\nval z = 1\nval w = 2".to_string(), &dir.0)
     );
     assert_eq!(
         InterpretResult::Ok,
@@ -502,7 +499,7 @@ fn keeps_a_std_import_across_lines() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("import \"std/math\"".to_string())
+        vm.interpret_line("use \"std/math\"".to_string())
     );
     assert_eq!(
         InterpretResult::Ok,

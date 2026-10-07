@@ -1,21 +1,21 @@
-export enum Kind {
+pub enum Kind {
     Circle
     Square
 }
 
-export struct Shape {
+pub struct Shape {
     kind
     size
 }
 
-export var created = 0
+pub var created = 0
 
-export fn make(kind, size) {
+pub fn make(kind, size) {
     created += 1
     Shape(kind, size)
 }
 
-export fn area(shape) {
+pub fn area(shape) {
     match shape.kind {
         Kind.Circle -> 3 * shape.size * shape.size
         Kind.Square -> shape.size * shape.size

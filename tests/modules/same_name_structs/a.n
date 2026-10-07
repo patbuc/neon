@@ -1,4 +1,4 @@
-export struct Point {
+pub struct Point {
     x
 }
 
@@ -8,6 +8,6 @@ impl Point {
     }
 }
 
-export fn make() {
+pub fn make() {
     return Point(1)
 }

@@ -1,6 +1,6 @@
-export var counter = 0
+pub var counter = 0
 
-export fn make() {
+pub fn make() {
     return fn() {
         counter = counter + 1
         return counter
