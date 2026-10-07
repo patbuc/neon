@@ -1396,8 +1396,7 @@ impl VirtualMachine {
     }
 
     /// Peeks the top of the stack and errors unless it holds an Array of
-    /// exactly `n` elements; otherwise a
-    /// no-op.
+    /// exactly `n` elements; otherwise a no-op.
     #[inline(always)]
     pub(in crate::vm) fn op_check_tuple(&mut self, n: u16) -> OpResult {
         let n = n as usize;
