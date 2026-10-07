@@ -1110,7 +1110,7 @@ impl VirtualMachine {
         let index = index as usize;
         let slot = self.stack.last_mut().expect("operand is on the stack");
         match (&mut *slot, self.chunk.constant(index)) {
-            (Value::Int(a), &Value::Int(c)) if c != 0 && c != -1 => {
+            (Value::Int(a), &Value::Int(c)) if c != 0 => {
                 *a %= c;
                 return Ok(());
             }

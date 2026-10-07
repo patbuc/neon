@@ -62,7 +62,9 @@ impl OpCode {
             | OpCode::GreaterConstant
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
-            | OpCode::LessEqualConstant => 0,
+            | OpCode::LessEqualConstant
+            | OpCode::ModuloConstant
+            | OpCode::MultiplyConstant => 0,
             OpCode::Dup => 1,
             OpCode::Dup2 => 2,
             OpCode::JumpIfNotNil | OpCode::JumpIfNil => 0,
@@ -80,8 +82,6 @@ impl OpCode {
             | OpCode::LessEqualConstantJumpIfFalse => -1,
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
-            OpCode::ModuloConstant => 0,
-            OpCode::MultiplyConstant => 0,
         }
     }
 
@@ -373,11 +373,9 @@ pub(crate) enum OpCode {
     /// constant at the 16-bit pool index that precedes the jump operand.
     LessEqualConstantJumpIfFalse,
 
-    /// `Modulo` with a number-literal right operand: a 16-bit constant-pool
-    /// index replaces pushing it.
+    /// `Modulo` by a number literal.
     ModuloConstant,
 
-    /// `Multiply` with a number-literal right operand: a 16-bit constant-pool
-    /// index replaces pushing it.
+    /// `Multiply` by a number literal.
     MultiplyConstant,
 }
