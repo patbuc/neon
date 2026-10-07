@@ -1047,8 +1047,8 @@ fn repl_ends_at_eof_without_exit() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains('1'),
-        "expected stdout to contain 1:\n{}",
+        stdout.contains(">> 1"),
+        "expected stdout to contain the printed 1:\n{}",
         stdout
     );
 }
@@ -1061,13 +1061,13 @@ fn repl_exit_stops_before_eof() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains('2'),
-        "expected stdout to contain 2:\n{}",
+        stdout.contains(">> 2"),
+        "expected stdout to contain the printed 2:\n{}",
         stdout
     );
     assert!(
-        !stdout.contains('3'),
-        "expected stdout not to contain 3:\n{}",
+        !stdout.contains(">> 3"),
+        "expected stdout not to contain the printed 3:\n{}",
         stdout
     );
 }
