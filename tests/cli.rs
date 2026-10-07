@@ -1213,3 +1213,29 @@ fn short_version_flag_matches_long_flag() {
     assert_eq!(long.status.code(), short.status.code());
     assert_eq!(long.stdout, short.stdout);
 }
+
+#[test]
+fn version_flag_ignores_further_arguments() {
+    let plain = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+    let extra = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["--version", "foo.n", "bar"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(plain.status.code(), extra.status.code());
+    assert_eq!(plain.stdout, extra.stdout);
+    assert!(extra.stderr.is_empty());
+}
+
+#[test]
+fn help_lists_version_flag() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--version"));
+}
