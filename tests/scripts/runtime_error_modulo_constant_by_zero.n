@@ -1,0 +1,11 @@
+// Modulo of a variable by a literal zero, which compiles to the fused
+// ModuloConstant opcode, raises the same error as unfused modulo
+
+// Expected:
+// before
+
+// Expected runtime error: modulo by zero
+
+val x = 5
+print("before")
+print(x % 0)

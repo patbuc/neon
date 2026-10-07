@@ -1608,6 +1608,7 @@ impl<'a> CodeGenerator<'a> {
         let fused = match operator {
             BinaryOp::Add => Some(OpCode::AddConstant),
             BinaryOp::Subtract => Some(OpCode::SubtractConstant),
+            BinaryOp::Modulo => Some(OpCode::ModuloConstant),
             BinaryOp::Greater => Some(OpCode::GreaterConstant),
             BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
             BinaryOp::Less => Some(OpCode::LessConstant),

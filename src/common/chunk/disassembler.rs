@@ -152,6 +152,9 @@ impl Chunk {
                 self.local_field_instruction(OpCode::StoreLocalField, offset, out)
             }
             OpCode::AddConstant => self.constant_instruction(OpCode::AddConstant, offset, out),
+            OpCode::ModuloConstant => {
+                self.constant_instruction(OpCode::ModuloConstant, offset, out)
+            }
             OpCode::SubtractConstant => {
                 self.constant_instruction(OpCode::SubtractConstant, offset, out)
             }

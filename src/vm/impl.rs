@@ -461,6 +461,7 @@ impl VirtualMachine {
                 }
                 Instr::AddConstant(index) => self.op_add_constant(index)?,
                 Instr::SubtractConstant(index) => self.op_subtract_constant(index)?,
+                Instr::ModuloConstant(index) => self.op_modulo_constant(index)?,
                 Instr::GreaterConstant(index) => {
                     self.op_compare_constant(index, Comparison::Greater)?
                 }

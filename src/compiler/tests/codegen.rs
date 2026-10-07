@@ -675,6 +675,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::SetUpvalue
             | OpCode::AddConstant
             | OpCode::SubtractConstant
+            | OpCode::ModuloConstant
             | OpCode::GreaterConstant
             | OpCode::GreaterEqualConstant
             | OpCode::LessConstant
@@ -1603,4 +1604,25 @@ export fn f() {
 }
 "#;
     assert_eq!(run(program), "5");
+}
+
+#[test]
+fn modulo_by_literal_compiles_to_modulo_constant() {
+    let program = "val a = 1\nval b = a % 7\n";
+    let ops = op_codes(&compile(program).unwrap());
+
+    assert!(ops.contains(&OpCode::ModuloConstant), "{ops:?}");
+    assert!(!ops.contains(&OpCode::Modulo), "{ops:?}");
+}
+
+#[test]
+fn modulo_constant_disassembles_with_its_constant() {
+    let chunk = compile("val a = 1\nval b = a % 7\n").unwrap();
+
+    let disassembly = disassemble(&chunk);
+
+    assert!(
+        disassembly.contains("| ModuloConstant 03 '7'"),
+        "{disassembly}"
+    );
 }
