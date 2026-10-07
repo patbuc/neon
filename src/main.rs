@@ -22,6 +22,9 @@ fn main() {
             "help" | "--help" | "-h" => {
                 print_help();
             }
+            "--version" | "-V" => {
+                print_version();
+            }
             "--tokens" => {
                 if args.len() < 3 {
                     eprintln!("Usage: neon --tokens <file>");
@@ -356,6 +359,11 @@ fn read_file(path: &str) -> String {
 }
 
 #[allow(clippy::print_stdout)]
+fn print_version() {
+    println!("neon {}", env!("NEON_VERSION"));
+}
+
+#[allow(clippy::print_stdout)]
 fn print_help() {
     println!(
         "Neon {} - a toy language you didn't wait for",
@@ -367,6 +375,7 @@ fn print_help() {
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
+    println!("  neon --version, -V       Print the version");
     println!("  neon help                Show this help message");
     println!();
     println!("Examples:");

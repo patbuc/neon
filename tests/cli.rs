@@ -1183,3 +1183,59 @@ fn run_renders_an_entry_parse_error_with_the_relative_path_typed() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("--> syn.n:2:"), "{stderr}");
 }
+
+#[test]
+fn version_flag_prints_neon_version_and_exits_zero() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(output.status.success());
+    assert_eq!(
+        format!("neon {}\n", env!("NEON_VERSION")),
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn short_version_flag_matches_long_flag() {
+    let long = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+    let short = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("-V")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(short.status.success());
+    assert_eq!(long.status.code(), short.status.code());
+    assert_eq!(long.stdout, short.stdout);
+}
+
+#[test]
+fn version_flag_ignores_further_arguments() {
+    let plain = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--version")
+        .output()
+        .expect("Failed to run neon binary");
+    let extra = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .args(["--version", "foo.n", "bar"])
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(plain.status.code(), extra.status.code());
+    assert_eq!(plain.stdout, extra.stdout);
+    assert!(extra.stderr.is_empty());
+}
+
+#[test]
+fn help_lists_version_flag() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--version"));
+}
