@@ -46,6 +46,9 @@ fn main() {
                 }
                 run_source(args[2].clone(), args[3..].to_vec(), "<eval>");
             }
+            "-" => {
+                run_source(read_stdin(), args[2..].to_vec(), "<stdin>");
+            }
             "fmt" => {
                 fmt_command(&args[2..]);
             }
@@ -145,6 +148,18 @@ fn run_source(source: String, args: Vec<String>, name: &str) {
     let mut vm = VirtualMachine::with_args(args);
     let result = vm.interpret(source);
     finish_run(&vm, result, name);
+}
+
+#[allow(clippy::print_stderr)]
+fn read_stdin() -> String {
+    let mut source = String::new();
+    match io::stdin().read_to_string(&mut source) {
+        Ok(_) => source,
+        Err(err) => {
+            eprintln!("Failed to read stdin: {}", err);
+            exit(74);
+        }
+    }
 }
 
 #[allow(clippy::print_stderr)]
@@ -392,6 +407,7 @@ fn print_help() {
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check <file.n>    Compile without executing");
     println!("  neon -e <code> [args...]  Run a snippet");
+    println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
     println!("  neon --version, -V       Print the version");
     println!("  neon help                Show this help message");

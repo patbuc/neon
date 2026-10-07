@@ -1338,3 +1338,101 @@ fn help_lists_eval_flag() {
 
     assert!(String::from_utf8_lossy(&output.stdout).contains("neon -e"));
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_runs_program_from_stdin() {
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print(1 + 2)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
+
+    assert!(output.status.success());
+    assert_eq!("3\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_passes_trailing_arguments_as_args() {
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-", "a", "b"]);
+        },
+        b"print(args)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
+
+    assert!(output.status.success());
+    assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_reports_compile_error_with_exit_65() {
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print(missing)\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(Some(65), output.status.code());
+    assert!(stderr.contains("<stdin>"), "stderr was: {}", stderr);
+    assert!(
+        stderr.contains("undefined variable 'missing'"),
+        "stderr was: {}",
+        stderr
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_reports_runtime_error_with_exit_70() {
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"print([1][5])\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
+
+    assert_eq!(Some(70), output.status.code());
+    assert!(!output.stderr.is_empty());
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_rejects_file_module_import() {
+    let output = spawn_neon_with_stdin(
+        |command| {
+            command.args(["-"]);
+        },
+        b"use \"utils\" as u\nprint(u.double(1))\n",
+    )
+    .wait_with_output()
+    .expect("Failed to wait on child");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(Some(65), output.status.code());
+    assert!(stderr.contains("E0056"), "stderr was: {}", stderr);
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn help_lists_stdin_dash() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("neon - [args...]"));
+}
