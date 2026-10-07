@@ -194,6 +194,7 @@ fn invalid_opcode_byte_halts() {
     let mut vm = VirtualMachine::new();
     let result = vm.run_chunk(chunk);
     assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("Unknown opcode 0xff"));
 }
 
 #[test]

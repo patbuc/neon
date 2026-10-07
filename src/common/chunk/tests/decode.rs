@@ -74,3 +74,57 @@ fn unknown_opcode_decodes_to_invalid() {
 
     assert_eq!(vec![Instr::Invalid(0xFF)], chunk.code);
 }
+
+#[test]
+fn truncated_operand_decodes_to_invalid() {
+    let mut chunk = Chunk::new("truncated");
+    chunk.write_op_code(OpCode::Nil, 1, 1);
+    chunk.write_indexed(OpCode::Closure, 3, 2, 1);
+    chunk.write_u8(2);
+    chunk.write_u8(1);
+    chunk.write_u16(4);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![Instr::Nil, Instr::Invalid(OpCode::Closure as u8)],
+        chunk.code
+    );
+    assert!(chunk.closure_upvalues.is_empty());
+}
+
+#[test]
+fn jump_to_invalid_byte_targets_invalid() {
+    let mut chunk = Chunk::new("jump_to_invalid");
+    let jump = chunk.emit_jump(OpCode::Jump, 1, 1);
+    chunk.write_op_code(OpCode::Nil, 2, 1);
+    chunk.patch_jump(jump);
+    chunk.write_u8(0xFF);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![Instr::Jump(2), Instr::Nil, Instr::Invalid(0xFF)],
+        chunk.code
+    );
+}
+
+#[test]
+fn jump_into_an_operand_decodes_to_invalid() {
+    let mut chunk = Chunk::new("jump_into_operand");
+    chunk.write_op_code(OpCode::Jump, 1, 1);
+    chunk.write_u32(1);
+    chunk.write_indexed(OpCode::GetLocal, 7, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Invalid(OpCode::Jump as u8),
+            Instr::GetLocal(7),
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
