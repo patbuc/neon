@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 mod functions;
+mod jit_spike;
 mod r#impl;
 #[cfg(test)]
 mod tests;
