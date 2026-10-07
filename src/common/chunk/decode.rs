@@ -29,6 +29,26 @@ pub(crate) enum Instr {
     GetLocal(u16),
     JumpIfFalse(u32),
     PopJumpIfFalse(u32),
+    GreaterJumpIfFalse(u32),
+    GreaterEqualJumpIfFalse(u32),
+    LessJumpIfFalse(u32),
+    LessEqualJumpIfFalse(u32),
+    GreaterConstantJumpIfFalse {
+        constant: u16,
+        target: u32,
+    },
+    GreaterEqualConstantJumpIfFalse {
+        constant: u16,
+        target: u32,
+    },
+    LessConstantJumpIfFalse {
+        constant: u16,
+        target: u32,
+    },
+    LessEqualConstantJumpIfFalse {
+        constant: u16,
+        target: u32,
+    },
     Jump(u32),
     Loop(u32),
     Call(u8),
@@ -146,6 +166,16 @@ impl Instr {
             Instr::GetLocal(_) => OpCode::GetLocal,
             Instr::JumpIfFalse(_) => OpCode::JumpIfFalse,
             Instr::PopJumpIfFalse(_) => OpCode::PopJumpIfFalse,
+            Instr::GreaterJumpIfFalse(_) => OpCode::GreaterJumpIfFalse,
+            Instr::GreaterEqualJumpIfFalse(_) => OpCode::GreaterEqualJumpIfFalse,
+            Instr::LessJumpIfFalse(_) => OpCode::LessJumpIfFalse,
+            Instr::LessEqualJumpIfFalse(_) => OpCode::LessEqualJumpIfFalse,
+            Instr::GreaterConstantJumpIfFalse { .. } => OpCode::GreaterConstantJumpIfFalse,
+            Instr::GreaterEqualConstantJumpIfFalse { .. } => {
+                OpCode::GreaterEqualConstantJumpIfFalse
+            }
+            Instr::LessConstantJumpIfFalse { .. } => OpCode::LessConstantJumpIfFalse,
+            Instr::LessEqualConstantJumpIfFalse { .. } => OpCode::LessEqualConstantJumpIfFalse,
             Instr::Jump(_) => OpCode::Jump,
             Instr::Loop(_) => OpCode::Loop,
             Instr::Call(_) => OpCode::Call,
@@ -262,6 +292,38 @@ impl Chunk {
                 OpCode::GetLocal => (Instr::GetLocal(u16_at(1)), 3),
                 OpCode::JumpIfFalse => (Instr::JumpIfFalse(0), 5),
                 OpCode::PopJumpIfFalse => (Instr::PopJumpIfFalse(0), 5),
+                OpCode::GreaterJumpIfFalse => (Instr::GreaterJumpIfFalse(0), 5),
+                OpCode::GreaterEqualJumpIfFalse => (Instr::GreaterEqualJumpIfFalse(0), 5),
+                OpCode::LessJumpIfFalse => (Instr::LessJumpIfFalse(0), 5),
+                OpCode::LessEqualJumpIfFalse => (Instr::LessEqualJumpIfFalse(0), 5),
+                OpCode::GreaterConstantJumpIfFalse => (
+                    Instr::GreaterConstantJumpIfFalse {
+                        constant: u16_at(1),
+                        target: 0,
+                    },
+                    7,
+                ),
+                OpCode::GreaterEqualConstantJumpIfFalse => (
+                    Instr::GreaterEqualConstantJumpIfFalse {
+                        constant: u16_at(1),
+                        target: 0,
+                    },
+                    7,
+                ),
+                OpCode::LessConstantJumpIfFalse => (
+                    Instr::LessConstantJumpIfFalse {
+                        constant: u16_at(1),
+                        target: 0,
+                    },
+                    7,
+                ),
+                OpCode::LessEqualConstantJumpIfFalse => (
+                    Instr::LessEqualConstantJumpIfFalse {
+                        constant: u16_at(1),
+                        target: 0,
+                    },
+                    7,
+                ),
                 OpCode::Jump => (Instr::Jump(0), 5),
                 OpCode::JumpIfNotNil => (Instr::JumpIfNotNil(0), 5),
                 OpCode::JumpIfNil => (Instr::JumpIfNil(0), 5),
@@ -395,8 +457,18 @@ impl Chunk {
                 OpCode::Jump
                 | OpCode::JumpIfFalse
                 | OpCode::PopJumpIfFalse
+                | OpCode::GreaterJumpIfFalse
+                | OpCode::GreaterEqualJumpIfFalse
+                | OpCode::LessJumpIfFalse
+                | OpCode::LessEqualJumpIfFalse
                 | OpCode::JumpIfNotNil
                 | OpCode::JumpIfNil => Some((pos + 5).checked_add(u32_at(1) as usize)),
+                OpCode::GreaterConstantJumpIfFalse
+                | OpCode::GreaterEqualConstantJumpIfFalse
+                | OpCode::LessConstantJumpIfFalse
+                | OpCode::LessEqualConstantJumpIfFalse => {
+                    Some((pos + 7).checked_add(u32_at(3) as usize))
+                }
                 OpCode::Loop => Some((pos + 5).checked_sub(u32_at(1) as usize)),
                 _ => None,
             };
@@ -422,6 +494,14 @@ impl Chunk {
                 Instr::Jump(t)
                 | Instr::JumpIfFalse(t)
                 | Instr::PopJumpIfFalse(t)
+                | Instr::GreaterJumpIfFalse(t)
+                | Instr::GreaterEqualJumpIfFalse(t)
+                | Instr::LessJumpIfFalse(t)
+                | Instr::LessEqualJumpIfFalse(t)
+                | Instr::GreaterConstantJumpIfFalse { target: t, .. }
+                | Instr::GreaterEqualConstantJumpIfFalse { target: t, .. }
+                | Instr::LessConstantJumpIfFalse { target: t, .. }
+                | Instr::LessEqualConstantJumpIfFalse { target: t, .. }
                 | Instr::JumpIfNotNil(t)
                 | Instr::JumpIfNil(t)
                 | Instr::Loop(t) => *t = target,

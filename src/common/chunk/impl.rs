@@ -99,6 +99,21 @@ impl Chunk {
         self.instructions.len() as u32 - 4
     }
 
+    /// Like `emit_jump`, for a jump that carries a 16-bit constant index
+    /// before its offset.
+    pub(crate) fn emit_constant_jump(
+        &mut self,
+        op_code: OpCode,
+        index: u16,
+        line: u32,
+        column: u32,
+    ) -> u32 {
+        self.write_op_code(op_code, line, column);
+        self.write_u16(index);
+        self.write_u32(0xFFFF_FFFF);
+        self.instructions.len() as u32 - 4
+    }
+
     pub(crate) fn patch_jump(&mut self, offset: u32) {
         let jump = self.instructions.len() as u32 - offset - 4;
         let offset = offset as usize;

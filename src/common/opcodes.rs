@@ -70,6 +70,14 @@ impl OpCode {
             OpCode::IsArrayOfLen => 0,
             OpCode::IsNumber => 0,
             OpCode::PopJumpIfFalse => -1,
+            OpCode::GreaterJumpIfFalse
+            | OpCode::GreaterEqualJumpIfFalse
+            | OpCode::LessJumpIfFalse
+            | OpCode::LessEqualJumpIfFalse => -2,
+            OpCode::GreaterConstantJumpIfFalse
+            | OpCode::GreaterEqualConstantJumpIfFalse
+            | OpCode::LessConstantJumpIfFalse
+            | OpCode::LessEqualConstantJumpIfFalse => -1,
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
         }
@@ -77,7 +85,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 77] = [
+        const OPCODES: [OpCode; 85] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -155,6 +163,14 @@ impl OpCode {
             OpCode::TailInvoke,
             OpCode::IsNumber,
             OpCode::PopJumpIfFalse,
+            OpCode::GreaterJumpIfFalse,
+            OpCode::GreaterEqualJumpIfFalse,
+            OpCode::LessJumpIfFalse,
+            OpCode::LessEqualJumpIfFalse,
+            OpCode::GreaterConstantJumpIfFalse,
+            OpCode::GreaterEqualConstantJumpIfFalse,
+            OpCode::LessConstantJumpIfFalse,
+            OpCode::LessEqualConstantJumpIfFalse,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -325,4 +341,18 @@ pub(crate) enum OpCode {
     /// false-like. Emitted for conditions whose value is not needed after
     /// the branch, unlike `JumpIfFalse`, which `and`/`or` use.
     PopJumpIfFalse,
+
+    /// A comparison fused into `PopJumpIfFalse`: pops both operands and
+    /// jumps by the 32-bit operand unless the comparison holds.
+    GreaterJumpIfFalse,
+    GreaterEqualJumpIfFalse,
+    LessJumpIfFalse,
+    LessEqualJumpIfFalse,
+
+    /// Like the comparison jumps above, with a number-literal right operand:
+    /// a 16-bit constant-pool index, then the 32-bit jump.
+    GreaterConstantJumpIfFalse,
+    GreaterEqualConstantJumpIfFalse,
+    LessConstantJumpIfFalse,
+    LessEqualConstantJumpIfFalse,
 }

@@ -77,7 +77,17 @@ impl Chunk {
             OpCode::GetGlobal => self.variable_instruction(OpCode::GetGlobal, offset, out),
             OpCode::SetGlobal => self.variable_instruction(OpCode::SetGlobal, offset, out),
             OpCode::JumpIfFalse => self.jump_instruction(instruction, offset, out),
-            OpCode::PopJumpIfFalse => self.jump_instruction(instruction, offset, out),
+            OpCode::PopJumpIfFalse
+            | OpCode::GreaterJumpIfFalse
+            | OpCode::GreaterEqualJumpIfFalse
+            | OpCode::LessJumpIfFalse
+            | OpCode::LessEqualJumpIfFalse => self.jump_instruction(instruction, offset, out),
+            OpCode::GreaterConstantJumpIfFalse
+            | OpCode::GreaterEqualConstantJumpIfFalse
+            | OpCode::LessConstantJumpIfFalse
+            | OpCode::LessEqualConstantJumpIfFalse => {
+                self.constant_jump_instruction(instruction, offset, out)
+            }
             OpCode::JumpIfNotNil => self.jump_instruction(instruction, offset, out),
             OpCode::JumpIfNil => self.jump_instruction(instruction, offset, out),
             OpCode::NoMatchArm => self.simple_instruction(OpCode::NoMatchArm, offset, out),
@@ -218,6 +228,22 @@ impl Chunk {
             offset + 5 + jump as usize
         );
         offset + 5
+    }
+
+    fn constant_jump_instruction(&self, op_code: OpCode, offset: usize, out: &mut String) -> usize {
+        let index = self.read_u16(offset + 1) as usize;
+        let constant = self.read_constant(index);
+        let jump = self.read_u32(offset + 3);
+        let _ = writeln!(
+            out,
+            "{:?} {:02} '{}' {:04x} -> {:04x}",
+            op_code,
+            index,
+            constant,
+            offset,
+            offset + 7 + jump as usize
+        );
+        offset + 7
     }
 
     fn loop_instruction(&self, offset: usize, out: &mut String) -> usize {
