@@ -130,6 +130,7 @@ cargo run -- --check script.n   # Compile without running
 cargo run -- fmt path...         # Format .n files in place, recursing into directories
 cargo run -- fmt --check path... # Print files that would change, exit 1 if any
 cargo run -- fmt -               # Format stdin, write to stdout
+cargo run -- --version          # Print the version (also -V)
 cargo run                       # Start REPL
 ```
 
