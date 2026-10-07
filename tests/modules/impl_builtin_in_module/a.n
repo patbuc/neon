@@ -1,0 +1,7 @@
+impl Array {
+    fn second(self) {
+        return self[1]
+    }
+}
+
+export val loaded = true
