@@ -713,6 +713,47 @@ fn op_codes(chunk: &Chunk) -> Vec<OpCode> {
 }
 
 #[test]
+fn and_or_keep_jump_if_false() {
+    let program = "val a = 1\nval b = 2\nval c = a && b\nval d = a || b\n";
+    let ops = op_codes(&compile(program).unwrap());
+
+    assert_eq!(
+        2,
+        ops.iter().filter(|op| **op == OpCode::JumpIfFalse).count()
+    );
+    assert!(!ops.contains(&OpCode::PopJumpIfFalse), "{ops:?}");
+}
+
+#[test]
+fn test_two_operand_fused_jump_bytecode() {
+    let program = "val a = 1\nval b = 2\nif a < b { print(1) }\n";
+    let chunk = compile(program).unwrap();
+
+    let expected = r#"=== <main>  ===
+0000      1 Constant 00 '<uninitialized>'
+0003      2 Constant 01 '<uninitialized>'
+0006      1 Constant 02 '1'
+0009      | SetLocal 00
+000c      | Pop
+000d      2 Constant 03 '2'
+0010      | SetLocal 01
+0013      | Pop
+0014      3 GetLocal 00
+0017      | GetLocal 01
+001a      | LessJumpIfFalse 001a -> 0028
+001f      | Constant 04 '<native fn print>'
+0022      | Constant 02 '1'
+0025      | Call (args: 1)
+0027      | Pop
+0028      4 Nil
+0029      | Return
+=== </main> ===
+"#;
+
+    assert_eq!(disassemble(&chunk), expected);
+}
+
+#[test]
 fn test_comparison_conditions_fuse_into_jumps() {
     let program = "val a = 1\nval b = 2\nif a < b { print(1) }\nwhile a >= 2.5 { print(2) }\n";
     let ops = op_codes(&compile(program).unwrap());
