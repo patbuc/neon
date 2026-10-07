@@ -1662,3 +1662,34 @@ fn create_range_nan_bound_halts() {
         error.message
     );
 }
+
+#[test]
+fn fused_comparison_jump_reports_the_comparison_error() {
+    for op in ["<", "<=", ">", ">="] {
+        for right in ["1", "n"] {
+            // Both comparisons start at the same column.
+            let plain = format!("val s = \"a\"\nval n = 1\nval b = s {op} {right}");
+            let fused = format!("val s = \"a\"\nval n = 1\nif      s {op} {right} {{ print(1) }}");
+
+            let mut errors = Vec::new();
+            for program in [plain, fused] {
+                let mut vm = VirtualMachine::new();
+                assert_eq!(
+                    InterpretResult::RuntimeError,
+                    vm.interpret(program.clone()),
+                    "expected runtime error for: {}",
+                    program
+                );
+                let error = vm.get_runtime_error().unwrap();
+                errors.push((error.message.clone(), error.location));
+            }
+
+            assert_eq!(
+                "Operands of a comparison must be two numbers or two strings, got string and number",
+                errors[0].0
+            );
+            assert_eq!(Some(3), errors[0].1.map(|(line, _)| line));
+            assert_eq!(errors[0], errors[1], "`s {op} {right}`");
+        }
+    }
+}
