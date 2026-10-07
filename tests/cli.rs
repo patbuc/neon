@@ -1338,3 +1338,27 @@ fn help_lists_eval_flag() {
 
     assert!(String::from_utf8_lossy(&output.stdout).contains("neon -e"));
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn dash_runs_program_from_stdin() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn neon binary");
+
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"print(1 + 2)\n")
+        .expect("Failed to write stdin");
+
+    let output = child.wait_with_output().expect("Failed to wait on child");
+
+    assert!(output.status.success());
+    assert_eq!("3\n", String::from_utf8_lossy(&output.stdout));
+}
