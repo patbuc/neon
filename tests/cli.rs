@@ -524,19 +524,13 @@ fn run_repl_with_stdin(stdin_input: &[u8]) -> std::process::Output {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn stdin_read_lines_splits_like_file() {
-    let output = run_script_with_stdin("print(Stdin.readLines())\n", b"a\nb\n");
+    let output = run_script_with_stdin(
+        "import \"std/stdin\"\nprint(stdin.readLines())\n",
+        b"a\nb\n",
+    );
 
     assert!(output.status.success());
     assert_eq!("[a, b]\n", String::from_utf8_lossy(&output.stdout));
-}
-
-#[cfg(not(feature = "disassemble"))]
-#[test]
-fn stdin_read_returns_full_piped_text() {
-    let output = run_script_with_stdin("print(Stdin.read())\n", b"a\nb\n");
-
-    assert!(output.status.success());
-    assert_eq!("a\nb\n\n", String::from_utf8_lossy(&output.stdout));
 }
 
 #[cfg(not(feature = "disassemble"))]
@@ -551,7 +545,10 @@ fn std_stdin_read_returns_full_piped_text() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn stdin_read_on_empty_input_returns_empty_string() {
-    let output = run_script_with_stdin("print(\"[\" + Stdin.read() + \"]\")\n", b"");
+    let output = run_script_with_stdin(
+        "import \"std/stdin\"\nprint(\"[\" + stdin.read() + \"]\")\n",
+        b"",
+    );
 
     assert!(output.status.success());
     assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
@@ -560,7 +557,8 @@ fn stdin_read_on_empty_input_returns_empty_string() {
 #[cfg(not(feature = "disassemble"))]
 #[test]
 fn stdin_second_read_after_eof_returns_empty_string() {
-    let script = "val first = Stdin.read()\nprint(\"[\" + Stdin.read() + \"]\")\n";
+    let script =
+        "import \"std/stdin\"\nval first = stdin.read()\nprint(\"[\" + stdin.read() + \"]\")\n";
     let output = run_script_with_stdin(script, b"hi");
 
     assert!(output.status.success());
