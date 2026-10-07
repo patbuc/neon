@@ -1062,9 +1062,14 @@ fn test_non_existent_method_shows_available_methods() {
 val x = [1, 2, 3].notAMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Available methods:")));
+    assert_eq!(errors.len(), 1, "errors: {:#?}", errors);
+    assert_eq!(
+        errors[0].message,
+        "Type 'Array' has no method named 'notAMethod'"
+    );
+    let help = errors[0].help.as_deref().expect("help present");
+    assert!(help.starts_with("available methods: "), "help: {help}");
+    assert!(help.contains("push"), "help: {help}");
 }
 
 #[test]
@@ -3296,7 +3301,7 @@ fn test_enum_unknown_static_method_is_compile_error() {
     assert_eq!(errors[0].location.line, 4);
     assert!(errors[0].message.contains("'Color'"));
     assert!(errors[0].message.contains("'names'"));
-    assert!(errors[0].message.contains("values"));
+    assert_eq!(errors[0].help.as_deref(), Some("available methods: values"));
 }
 
 #[test]

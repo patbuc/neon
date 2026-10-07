@@ -99,6 +99,7 @@ pub struct CompilationError {
     pub message: String,
     pub location: SourceLocation,
     pub file: Option<PathBuf>,
+    pub help: Option<String>,
 }
 
 impl CompilationError {
@@ -114,11 +115,17 @@ impl CompilationError {
             message: message.into(),
             location,
             file: None,
+            help: None,
         }
     }
 
     pub fn with_file(mut self, file: &Path) -> Self {
         self.file = Some(file.to_path_buf());
+        self
+    }
+
+    pub fn with_help(mut self, help: impl Into<String>) -> Self {
+        self.help = Some(help.into());
         self
     }
 }
