@@ -90,6 +90,24 @@ impl ErrorRenderer {
         // Render source lines
         output.push_str(&self.render_snippet(&snippet, error.location.column));
 
+        if let Some(help) = &error.help {
+            let line_num_width = snippet
+                .lines
+                .iter()
+                .map(|l| l.line_number)
+                .max()
+                .unwrap_or(0)
+                .to_string()
+                .len();
+            output.push_str(&format!(
+                "{}{} {}: {}\n",
+                " ".repeat(line_num_width + 2),
+                self.colorize("=", "blue", true),
+                self.colorize("help", "cyan", true),
+                help
+            ));
+        }
+
         output
     }
 
@@ -241,5 +259,48 @@ mod tests {
             "{}",
             output
         );
+    }
+
+    #[test]
+    fn renders_help_as_a_help_line_after_the_source_excerpt() {
+        let renderer = ErrorRenderer::new(false);
+        let error = CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::UndefinedVariable,
+            "Undefined variable 'x'",
+            SourceLocation {
+                offset: 2,
+                line: 2,
+                column: 1,
+            },
+        )
+        .with_help("available methods: push, pop");
+
+        let output = renderer.render_errors(&[error], "a\nx\n", "test.n");
+
+        assert!(
+            output.contains("^\n   = help: available methods: push, pop\n"),
+            "{}",
+            output
+        );
+    }
+
+    #[test]
+    fn renders_no_help_line_for_an_error_without_help() {
+        let renderer = ErrorRenderer::new(false);
+        let error = CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::UndefinedVariable,
+            "Undefined variable 'x'",
+            SourceLocation {
+                offset: 2,
+                line: 2,
+                column: 1,
+            },
+        );
+
+        let output = renderer.render_errors(&[error], "a\nx\n", "test.n");
+
+        assert!(!output.contains("= help"), "{}", output);
     }
 }
