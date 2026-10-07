@@ -682,6 +682,42 @@ impl VirtualMachine {
         }
     }
 
+    /// Whether `a <wanted> b`, or the runtime error message when the
+    /// operands can't be compared.
+    #[inline(always)]
+    fn compare_values(a: &Value, b: &Value, wanted: &Comparison) -> Result<bool, String> {
+        let is_match = match (a, b) {
+            (Value::Number(x), Value::Number(y)) => match wanted {
+                Comparison::Greater => *x > *y,
+                Comparison::GreaterEqual => *x >= *y,
+                Comparison::Less => *x < *y,
+                Comparison::LessEqual => *x <= *y,
+            },
+            (Value::Int(x), Value::Int(y)) => Self::ordering_matches(Some(x.cmp(y)), wanted),
+            (Value::Int(i), Value::Number(n)) => {
+                Self::ordering_matches(compare_int_and_float(*i, *n), wanted)
+            }
+            (Value::Number(n), Value::Int(i)) => Self::ordering_matches(
+                compare_int_and_float(*i, *n).map(std::cmp::Ordering::reverse),
+                wanted,
+            ),
+            (Value::String(sa), Value::String(sb)) => match wanted {
+                Comparison::Greater => **sa > **sb,
+                Comparison::GreaterEqual => **sa >= **sb,
+                Comparison::Less => **sa < **sb,
+                Comparison::LessEqual => **sa <= **sb,
+            },
+            _ => {
+                return Err(format!(
+                    "Operands of a comparison must be two numbers or two strings, got {} and {}",
+                    a.type_name(),
+                    b.type_name()
+                ));
+            }
+        };
+        Ok(is_match)
+    }
+
     #[inline(always)]
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_compare(&mut self, wanted: Comparison) -> OpResult {
@@ -691,35 +727,9 @@ impl VirtualMachine {
             .stack
             .last_mut()
             .expect("binary operand a is on the stack below b");
-        let is_match = match (&*a, &b) {
-            (Value::Number(x), Value::Number(y)) => match wanted {
-                Comparison::Greater => *x > *y,
-                Comparison::GreaterEqual => *x >= *y,
-                Comparison::Less => *x < *y,
-                Comparison::LessEqual => *x <= *y,
-            },
-            (Value::Int(x), Value::Int(y)) => Self::ordering_matches(Some(x.cmp(y)), &wanted),
-            (Value::Int(i), Value::Number(n)) => {
-                Self::ordering_matches(compare_int_and_float(*i, *n), &wanted)
-            }
-            (Value::Number(n), Value::Int(i)) => Self::ordering_matches(
-                compare_int_and_float(*i, *n).map(std::cmp::Ordering::reverse),
-                &wanted,
-            ),
-            (Value::String(sa), Value::String(sb)) => match wanted {
-                Comparison::Greater => **sa > **sb,
-                Comparison::GreaterEqual => **sa >= **sb,
-                Comparison::Less => **sa < **sb,
-                Comparison::LessEqual => **sa <= **sb,
-            },
-            (_, other) => {
-                let message = format!(
-                    "Operands of a comparison must be two numbers or two strings, got {} and {}",
-                    a.type_name(),
-                    other.type_name()
-                );
-                return Err(self.runtime_error(message));
-            }
+        let is_match = match Self::compare_values(a, &b, &wanted) {
+            Ok(is_match) => is_match,
+            Err(message) => return Err(self.runtime_error(message)),
         };
         b.discard();
         std::mem::replace(a, boolean!(is_match)).discard();
