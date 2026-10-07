@@ -91,9 +91,12 @@ pub struct SemanticAnalyzer {
     // the known static type, or None if the type is unknown.
     type_env: Vec<HashMap<String, Option<StaticType>>>,
     loop_depth: u32,
-    // Methods contributed by `impl` blocks, keyed by type name (a struct or
-    // a builtin type) then method name.
-    struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
+    // Methods contributed by `impl` blocks, keyed by the struct's
+    // declaration then method name.
+    struct_methods: HashMap<DeclId, HashMap<String, MethodSignature>>,
+    // Methods contributed by `impl` blocks on a builtin type, keyed by type
+    // name then method name.
+    builtin_methods: HashMap<String, HashMap<String, MethodSignature>>,
     resolutions: Resolutions,
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
@@ -176,6 +179,7 @@ impl SemanticAnalyzer {
             type_env,
             loop_depth: 0,
             struct_methods: HashMap::new(),
+            builtin_methods: HashMap::new(),
             resolutions: Resolutions::default(),
             next_decl_id,
             function_frames: vec![FunctionResolution::default()],
@@ -195,6 +199,7 @@ impl SemanticAnalyzer {
             .seed_globals(env.globals.values().cloned());
         self.type_env[0].extend(env.types.clone());
         self.struct_methods = env.struct_methods.clone();
+        self.builtin_methods = env.builtin_methods.clone();
         self.resolutions
             .seed(env.symbols.clone(), env.immutable.clone());
         self.next_decl_id = self.next_decl_id.max(env.next_decl_id);
@@ -249,6 +254,7 @@ impl SemanticAnalyzer {
                 .next()
                 .expect("type_env always starts with the global scope"),
             struct_methods: self.struct_methods,
+            builtin_methods: self.builtin_methods,
             symbols,
             next_decl_id: self.next_decl_id,
             decl_slots,
@@ -414,11 +420,12 @@ impl SemanticAnalyzer {
         for stmt in statements {
             if let Stmt::Impl {
                 type_name,
+                type_id,
                 methods,
                 location,
             } = stmt
             {
-                self.collect_impl_block(type_name, methods, *location);
+                self.collect_impl_block(type_name, *type_id, methods, *location);
             }
         }
     }
@@ -490,18 +497,32 @@ impl SemanticAnalyzer {
     /// builtin type, flagging an impl for an undefined type, a method
     /// already defined for this type, one shadowing a field name, or one
     /// shadowing a native method (builtin types only).
-    fn collect_impl_block(&mut self, type_name: &str, methods: &[Stmt], location: SourceLocation) {
+    fn collect_impl_block(
+        &mut self,
+        type_name: &str,
+        type_id: NodeId,
+        methods: &[Stmt],
+        location: SourceLocation,
+    ) {
         self.intern_name(type_name, location);
         let is_builtin_type =
             crate::common::method_registry::BUILTIN_TYPE_NAMES.contains(&type_name);
-        let field_names = if is_builtin_type {
-            Vec::new()
+        let (struct_decl, field_names) = if is_builtin_type {
+            (None, Vec::new())
         } else {
             match self.symbol_table.resolve(type_name) {
-                Some(Symbol {
-                    kind: SymbolKind::Struct { fields },
-                    ..
-                }) => fields.clone(),
+                Some(
+                    symbol @ Symbol {
+                        kind: SymbolKind::Struct { fields },
+                        decl_id,
+                        ..
+                    },
+                ) => {
+                    let use_ = SymbolUse::from(symbol);
+                    let resolved = (Some(*decl_id), fields.clone());
+                    self.record_symbol_use(type_id, use_);
+                    resolved
+                }
                 Some(Symbol {
                     kind: SymbolKind::Enum { .. },
                     ..
@@ -578,10 +599,13 @@ impl SemanticAnalyzer {
                 continue;
             }
 
-            let entry = self
-                .struct_methods
-                .entry(type_name.to_string())
-                .or_default();
+            let entry = match struct_decl {
+                Some(decl_id) => self.struct_methods.entry(decl_id).or_default(),
+                None => self
+                    .builtin_methods
+                    .entry(type_name.to_string())
+                    .or_default(),
+            };
             if entry.contains_key(name) {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -1052,6 +1076,7 @@ impl SemanticAnalyzer {
                 type_name,
                 methods,
                 location,
+                ..
             } => {
                 // Resolve method bodies here, at the impl's textual position,
                 // so they see top-level val/var like other script-level code.
@@ -2851,8 +2876,7 @@ impl SemanticAnalyzer {
         call_kind: MethodCallKind,
     ) {
         let signature = self
-            .struct_methods
-            .get(struct_name)
+            .struct_methods_of(struct_name)
             .and_then(|methods| methods.get(method).copied());
 
         if let Some(signature) = signature {
@@ -2909,8 +2933,7 @@ impl SemanticAnalyzer {
         }
 
         let candidates: Vec<String> = self
-            .struct_methods
-            .get(struct_name)
+            .struct_methods_of(struct_name)
             .map(|methods| methods.keys().cloned().collect())
             .unwrap_or_default();
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
@@ -2955,7 +2978,7 @@ impl SemanticAnalyzer {
 
         // A user method contributed by an `impl` block on this builtin type.
         if let Some(signature) = self
-            .struct_methods
+            .builtin_methods
             .get(object_type)
             .and_then(|methods| methods.get(method).copied())
         {
@@ -2974,7 +2997,7 @@ impl SemanticAnalyzer {
                 .into_iter()
                 .map(String::from)
                 .collect();
-        if let Some(user_methods) = self.struct_methods.get(object_type) {
+        if let Some(user_methods) = self.builtin_methods.get(object_type) {
             candidates.extend(user_methods.keys().cloned());
         }
         let candidate_refs: Vec<&str> = candidates.iter().map(String::as_str).collect();
@@ -2987,6 +3010,18 @@ impl SemanticAnalyzer {
             error_message,
             location,
         ));
+    }
+
+    /// The `impl` methods of the struct `struct_name` resolves to, if any.
+    fn struct_methods_of(&self, struct_name: &str) -> Option<&HashMap<String, MethodSignature>> {
+        match self.symbol_table.resolve(struct_name) {
+            Some(Symbol {
+                kind: SymbolKind::Struct { .. },
+                decl_id,
+                ..
+            }) => self.struct_methods.get(decl_id),
+            _ => None,
+        }
     }
 
     /// True when `struct_name` is a known struct type declaring a field

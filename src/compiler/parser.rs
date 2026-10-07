@@ -959,6 +959,7 @@ impl Parser {
             return None;
         }
         let type_name = self.previous_token.token.clone();
+        let type_id = self.next_id();
         let location = self.current_location();
 
         if !self.consume(TokenType::LeftBrace, "Expect '{' after type name.") {
@@ -1001,6 +1002,7 @@ impl Parser {
 
         Some(Stmt::Impl {
             type_name,
+            type_id,
             methods,
             location,
         })

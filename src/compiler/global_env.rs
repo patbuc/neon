@@ -14,7 +14,8 @@ use std::path::PathBuf;
 pub(crate) struct GlobalEnv {
     pub(crate) globals: HashMap<String, Symbol>,
     pub(crate) types: HashMap<String, Option<StaticType>>,
-    pub(crate) struct_methods: HashMap<String, HashMap<String, MethodSignature>>,
+    pub(crate) struct_methods: HashMap<DeclId, HashMap<String, MethodSignature>>,
+    pub(crate) builtin_methods: HashMap<String, HashMap<String, MethodSignature>>,
     pub(crate) symbols: Symbols,
     pub(crate) next_decl_id: u32,
     pub(crate) decl_slots: HashMap<DeclId, u32>,
@@ -27,8 +28,9 @@ pub(crate) struct GlobalEnv {
 
 impl GlobalEnv {
     /// Rolls back a line that compiled but failed at runtime: keeps this
-    /// env's names, types, struct methods and immutability, but takes
-    /// `after`'s slot count, next decl id and symbols, which are append-only.
+    /// env's names, types, struct and builtin methods and immutability, but
+    /// takes `after`'s slot count, next decl id and symbols, which are
+    /// append-only.
     ///
     /// A name's static type is forgotten (set to unknown) if the failed
     /// line recorded a different one for it - it may have assigned, or
