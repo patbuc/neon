@@ -1,0 +1,23 @@
+// Expected:
+// returned
+// caught outer
+
+fn f() {
+    try {
+        return "returned"
+    } catch (e) {
+        return "stale"
+    }
+}
+
+fn g() {
+    val r = f()
+    print(r)
+    throw "late"
+}
+
+try {
+    g()
+} catch (e) {
+    print("caught outer")
+}

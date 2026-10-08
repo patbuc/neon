@@ -1,0 +1,21 @@
+// Expected:
+// caught outer
+
+fn run() {
+    try {
+        for i in 0..3 {
+            if i == 1 {
+                throw "next"
+            }
+            try {
+                continue
+            } catch (e) {
+                print("stale inner")
+            }
+        }
+    } catch (e) {
+        print("caught outer")
+    }
+}
+
+run()

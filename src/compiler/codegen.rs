@@ -39,6 +39,9 @@ struct LoopContext {
     /// down to this, which also accounts for transient values above the
     /// loop's locals (e.g. an if-expression branch's own transients).
     entry_stack_height: u32,
+    /// Number of enclosing try bodies when the loop was entered; break/continue
+    /// end the ones entered since.
+    try_depth: u32,
 }
 
 enum LoopExit {
@@ -61,6 +64,8 @@ struct FunctionCompiler {
     locals: Vec<Local>,
     scope_depth: u32,
     loop_contexts: Vec<LoopContext>,
+    /// Number of try bodies enclosing the code being generated.
+    try_depth: u32,
     reported_overflows: HashSet<&'static str>,
     constant_keys: HashMap<ConstantKey, u32>,
     /// Operand-stack height, tracked by applying each emitted opcode's
@@ -84,6 +89,7 @@ impl FunctionCompiler {
             locals: Vec::new(),
             scope_depth: 0,
             loop_contexts: Vec::new(),
+            try_depth: 0,
             reported_overflows: HashSet::new(),
             constant_keys: HashMap::new(),
             stack_height: 0,
@@ -1120,12 +1126,14 @@ impl<'a> CodeGenerator<'a> {
         // Push loop context for break/continue tracking
         let depth = self.current().scope_depth;
         let entry_stack_height = self.current().stack_height;
+        let try_depth = self.current().try_depth;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
             entry_stack_height,
+            try_depth,
         });
 
         let exit_jump = self.generate_condition_jump(condition, location);
@@ -1163,6 +1171,9 @@ impl<'a> CodeGenerator<'a> {
             Some(value) => self.generate_expr_in_tail(value, true),
             None => self.emit_op_code(OpCode::Nil, location),
         }
+        for _ in 0..self.current().try_depth {
+            self.emit_op_code(OpCode::EndTry, location);
+        }
         self.emit_op_code(OpCode::Return, location);
     }
 
@@ -1177,7 +1188,7 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
-            } if tail && in_function => match callee.as_ref() {
+            } if tail && in_function && self.current().try_depth == 0 => match callee.as_ref() {
                 Expr::GetField {
                     object,
                     field,
@@ -1247,14 +1258,17 @@ impl<'a> CodeGenerator<'a> {
         // Emit a Jump opcode and record it for later patching. For continue,
         // this allows jumping to the right place, just before the Loop
         // instruction.
-        let (depth, entry_stack_height) = {
+        let (depth, entry_stack_height, try_depth) = {
             let context = self
                 .current()
                 .loop_contexts
                 .last()
                 .expect("semantic pass guarantees a loop context");
-            (context.depth, context.entry_stack_height)
+            (context.depth, context.entry_stack_height, context.try_depth)
         };
+        for _ in try_depth..self.current().try_depth {
+            self.emit_op_code(OpCode::EndTry, location);
+        }
         self.emit_loop_exit_pops(depth, entry_stack_height, location);
 
         let jump_index = self.emit_jump(OpCode::Jump, location);
@@ -1337,12 +1351,14 @@ impl<'a> CodeGenerator<'a> {
         // - 1 so break/continue also pop the loop variable itself.
         let depth = self.current().scope_depth - 1;
         let entry_stack_height = self.current().stack_height;
+        let try_depth = self.current().try_depth;
         self.current().loop_contexts.push(LoopContext {
             loop_start,
             break_jumps: Vec::new(),
             continue_jumps: Vec::new(),
             depth,
             entry_stack_height,
+            try_depth,
         });
 
         // Check if iterator has more elements (pushes true if more, false if done)
@@ -1435,7 +1451,9 @@ impl<'a> CodeGenerator<'a> {
         //   Pop                      ; the caught value
         //   end:
         let catch_jump = self.emit_jump(OpCode::BeginTry, location);
+        self.current().try_depth += 1;
         self.generate_stmt(body);
+        self.current().try_depth -= 1;
         self.emit_op_code(OpCode::EndTry, location);
         let end_jump = self.emit_jump(OpCode::Jump, location);
 
