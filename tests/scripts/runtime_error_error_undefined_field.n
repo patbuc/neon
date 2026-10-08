@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: Undefined field 'mesage'.
+
+fn mesage(e) {
+    e.mesage
+}
+
+print("before")
+mesage(Error("x"))

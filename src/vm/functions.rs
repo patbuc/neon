@@ -1544,7 +1544,11 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
-            Value::Error(error) if &*self.symbol_name(symbol) == "message" => {
+            Value::Error(error) => {
+                let name = self.symbol_name(symbol);
+                if &*name != "message" {
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
                 Value::String(Rc::new(error.message.clone()))
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
@@ -1583,7 +1587,11 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
-            Value::Error(error) if &*self.symbol_name(symbol) == "message" => {
+            Value::Error(error) => {
+                let name = self.symbol_name(symbol);
+                if &*name != "message" {
+                    return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
+                }
                 Value::String(Rc::new(error.message.clone()))
             }
             _ => return Err(self.runtime_error("Only instances have fields.")),
@@ -1678,7 +1686,7 @@ impl VirtualMachine {
         ))
     }
 
-    /// Looks up an interned name by symbol id, for use on an error path only.
+    /// Looks up an interned name by symbol id.
     fn symbol_name(&self, symbol: u16) -> Rc<str> {
         self.chunk.symbols[symbol as usize].clone()
     }

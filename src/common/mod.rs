@@ -435,7 +435,7 @@ pub enum Value {
     Error(Rc<ObjError>),
 }
 
-/// An `Error` value.
+/// The payload of an `Error(message)` value; `message` is its only field.
 pub struct ObjError {
     pub message: String,
 }
