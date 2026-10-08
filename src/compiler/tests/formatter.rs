@@ -995,7 +995,10 @@ fn test_nested_try_catch_indents() {
 
 #[test]
 fn test_try_empty_catch_block() {
-    check("try {\nthrow 1\n} catch (e) {\n}\n", "try {\n    throw 1\n} catch (e) {}\n");
+    check(
+        "try {\nthrow 1\n} catch (e) {\n}\n",
+        "try {\n    throw 1\n} catch (e) {}\n",
+    );
 }
 
 #[test]
