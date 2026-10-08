@@ -1,0 +1,35 @@
+// Expected:
+// 12
+// [  at inner (line 12)]
+// [  at middle (line 17)]
+// [  at <script> (line 29)]
+// 12
+// [  at inner (line 12)]
+// [  at middle (line 17)]
+// [  at <script> (line 29)]
+
+fn inner() {
+    throw Error("thrown")
+}
+
+fn middle() {
+    try {
+        inner()
+        print("unreachable")
+    } catch (e) {
+        print(e.line)
+        for line in e.trace().split("\n") {
+            print("[" + line + "]")
+        }
+        throw e
+    }
+}
+
+try {
+    middle()
+} catch (e) {
+    print(e.line)
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}
