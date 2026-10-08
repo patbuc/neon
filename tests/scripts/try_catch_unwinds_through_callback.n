@@ -1,0 +1,22 @@
+// Expected:
+// caught boom
+// 1000
+// 6
+
+fn main() {
+    val base = 1000
+    var sum = 0
+    try {
+        val xs = [1, 2, 3]
+        sum = 1 + xs.map { x ->
+            val y = x * 2
+            throw "boom"
+            y
+        }.size()
+    } catch (e) {
+        print("caught " + e)
+    }
+    print(base)
+    print(sum + 6)
+}
+main()
