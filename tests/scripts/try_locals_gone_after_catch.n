@@ -1,0 +1,28 @@
+// Expected:
+// 42
+// caught boom
+// 42
+// 100
+// 200
+// 42
+
+fn main() {
+    var reader = nil
+    try {
+        var secret = 42
+        reader = fn() {
+            secret
+        }
+        print(reader())
+        throw "boom"
+    } catch (e) {
+        print("caught " + e)
+    }
+    val a = 100
+    val b = 200
+    print(reader())
+    print(a)
+    print(b)
+    print(reader())
+}
+main()
