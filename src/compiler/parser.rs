@@ -1140,6 +1140,8 @@ impl Parser {
         })
     }
 
+    /// Reports "Expect '{' after condition" unless the current token starts
+    /// a block, shared by `require_block_body` and `if_expr_block`.
     fn require_left_brace(&mut self) -> bool {
         if self.check(TokenType::LeftBrace) {
             true
@@ -1232,7 +1234,7 @@ impl Parser {
     fn try_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
 
-        let body = Box::new(self.braced_block("Expect '{' after 'try'.")?);
+        let body = Box::new(self.try_block("Expect '{' after 'try'.")?);
         if !self.consume(TokenType::Catch, "Expect 'catch' after try block.") {
             return None;
         }
@@ -1250,7 +1252,7 @@ impl Parser {
         if !self.consume(TokenType::RightParen, "Expect ')' after catch parameter.") {
             return None;
         }
-        let catch_body = Box::new(self.braced_block("Expect '{' after catch parameter.")?);
+        let catch_body = Box::new(self.try_block("Expect '{' after catch parameter.")?);
         self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
 
         Some(Stmt::Try {
@@ -1261,7 +1263,7 @@ impl Parser {
         })
     }
 
-    fn braced_block(&mut self, message: &str) -> Option<Stmt> {
+    fn try_block(&mut self, message: &str) -> Option<Stmt> {
         if !self.consume(TokenType::LeftBrace, message) {
             return None;
         }
@@ -2072,7 +2074,7 @@ impl Parser {
 
         let condition = self.without_trailing_block(|parser| parser.expression(false))?;
         let brace_location = self.current_token_location();
-        let then_branch = Box::new(self.braced_block("Expect '{' after condition")?);
+        let then_branch = Box::new(self.if_expr_block()?);
         if self.continues_expression_after_block() {
             self.report_trailing_block_in_condition(brace_location);
             return None;
@@ -2085,9 +2087,7 @@ impl Parser {
         let else_branch = if self.match_token(TokenType::If) {
             Box::new(IfExprElse::If(self.if_expression()?))
         } else if self.check(TokenType::LeftBrace) {
-            Box::new(IfExprElse::Block(
-                self.braced_block("Expect '{' after condition")?,
-            ))
+            Box::new(IfExprElse::Block(self.if_expr_block()?))
         } else {
             self.report_error_at_current(
                 CompilationErrorKind::ExpectedToken,
@@ -2100,6 +2100,22 @@ impl Parser {
             condition: Box::new(condition),
             then_branch,
             else_branch,
+            location,
+        })
+    }
+
+    /// Parses a `{ ... }` branch of an if-expression as a `Stmt::Block`,
+    /// without requiring a statement terminator after the closing brace -
+    /// the branch sits inside a larger expression, which may continue past it.
+    fn if_expr_block(&mut self) -> Option<Stmt> {
+        if !self.require_left_brace() {
+            return None;
+        }
+        self.advance();
+        let location = self.current_location();
+        let statements = self.parse_block_body()?;
+        Some(Stmt::Block {
+            statements,
             location,
         })
     }
