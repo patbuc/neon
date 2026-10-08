@@ -156,6 +156,29 @@ fn check_mode_prints_nothing_and_exits_zero_on_success() {
 }
 
 #[test]
+fn check_mode_accepts_try_catch_throw() {
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("neon_cli_test_check_mode_try_catch_throw.n");
+
+    let mut file = fs::File::create(&script_path).expect("Failed to create test script");
+    file.write_all(b"try {\n    throw 1\n} catch (e) {\n    print(e)\n}\n")
+        .expect("Failed to write test script");
+    drop(file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_file(&script_path).ok();
+
+    assert!(output.status.success());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
 fn check_mode_reports_same_compile_error_as_running() {
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join("neon_cli_test_check_mode_reports_compile_error.n");
