@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 pub(crate) mod array_functions;
 pub(crate) mod boolean_functions;
+pub(crate) mod error_functions;
 pub(crate) mod file_functions;
 pub(crate) mod map_functions;
 pub(crate) mod math_functions;

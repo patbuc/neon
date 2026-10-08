@@ -1544,6 +1544,9 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::Error(error) if &*self.symbol_name(symbol) == "message" => {
+                Value::String(Rc::new(error.message.clone()))
+            }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1580,6 +1583,9 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::Error(error) if &*self.symbol_name(symbol) == "message" => {
+                Value::String(Rc::new(error.message.clone()))
+            }
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 

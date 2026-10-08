@@ -1370,6 +1370,11 @@ print(queue.pop())   // c
 print(queue.pop())   // nil
 ```
 
+### Error Methods
+
+- `Error(message)` - New error value; its `message` field holds `message`, and it prints as
+  `Error: <message>`
+
 ### Type Conversions
 
 **Number Methods:**

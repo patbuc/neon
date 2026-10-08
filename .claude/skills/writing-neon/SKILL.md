@@ -212,6 +212,7 @@ then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.
 - **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
 - **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
+- **Error:** `Error(message)` - an error value with a message field; prints as "Error: <message>"
 - **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
   `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`
 - **std/file:** `file.open(path)` - returns a File

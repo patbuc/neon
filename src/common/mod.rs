@@ -432,6 +432,12 @@ pub enum Value {
     File(Rc<String>),
     Range(Rc<ObjRange>),
     PriorityQueue(Rc<RefCell<ObjPriorityQueue>>),
+    Error(Rc<ObjError>),
+}
+
+/// An `Error` value.
+pub struct ObjError {
+    pub message: String,
 }
 
 /// A min-heap of `(priority, value)` entries, ordered by `priority` then by
@@ -811,6 +817,10 @@ impl Value {
         Value::File(Rc::new(path))
     }
 
+    pub(crate) fn new_error(message: String) -> Self {
+        Value::Error(Rc::new(ObjError { message }))
+    }
+
     pub(crate) fn new_range(start: i64, end: i64, inclusive: bool) -> Self {
         Value::Range(Rc::new(ObjRange {
             start,
@@ -843,6 +853,7 @@ impl Value {
             Value::File(_) => "file",
             Value::Range(_) => "range",
             Value::PriorityQueue(_) => "priority queue",
+            Value::Error(_) => "error",
         }
     }
 }
@@ -976,6 +987,7 @@ impl Value {
                 }
             }
             Value::PriorityQueue(pq) => write!(f, "PriorityQueue(size={})", pq.borrow().len()),
+            Value::Error(error) => write!(f, "Error: {}", error.message),
         }
     }
 
@@ -1033,6 +1045,7 @@ impl Value {
             (Value::File(a), Value::File(b)) => a == b,
             (Value::Range(a), Value::Range(b)) => a == b,
             (Value::PriorityQueue(a), Value::PriorityQueue(b)) => Rc::ptr_eq(a, b),
+            (Value::Error(a), Value::Error(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }

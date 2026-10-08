@@ -1,0 +1,18 @@
+// Expected:
+// Error: x
+// x
+
+// Expected runtime error: Undefined field 'message'.
+
+struct Point {
+    x
+}
+
+fn msg(x) {
+    return x.message
+}
+
+val e = Error("x")
+print(e)
+print(e.message)
+msg(Point(1))

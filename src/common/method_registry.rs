@@ -1468,6 +1468,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: 0,
         },
     ),
+    // Error constructor
+    (
+        "Error",
+        "new",
+        NativeCallable::StaticMethod {
+            function: stdlib::error_functions::native_error_constructor,
+            arity: 1,
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
