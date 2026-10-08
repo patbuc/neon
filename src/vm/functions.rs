@@ -2,8 +2,8 @@ use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
-    ObjNativeFunction, ObjStruct, Value,
+    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjError,
+    ObjInstance, ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{find_method_entry, ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
@@ -1545,17 +1545,7 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
-            Value::Error(error) => {
-                let name = self.symbol_name(symbol);
-                match &*name {
-                    "message" => Value::String(Rc::new(error.message.clone())),
-                    "line" => match error.thrown_at.get().and_then(|at| at.location) {
-                        Some((line, _)) => int!(line as i64),
-                        None => Value::Nil,
-                    },
-                    _ => return Err(self.runtime_error(format!("Undefined field '{}'.", name))),
-                }
-            }
+            Value::Error(error) => self.error_field(error, symbol)?,
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1592,17 +1582,7 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
-            Value::Error(error) => {
-                let name = self.symbol_name(symbol);
-                match &*name {
-                    "message" => Value::String(Rc::new(error.message.clone())),
-                    "line" => match error.thrown_at.get().and_then(|at| at.location) {
-                        Some((line, _)) => int!(line as i64),
-                        None => Value::Nil,
-                    },
-                    _ => return Err(self.runtime_error(format!("Undefined field '{}'.", name))),
-                }
-            }
+            Value::Error(error) => self.error_field(error, symbol)?,
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1693,6 +1673,18 @@ impl VirtualMachine {
             "Cannot assign to field '{}' of an enum variant.",
             name
         ))
+    }
+
+    fn error_field(&self, error: &ObjError, symbol: u16) -> Result<Value, RuntimeError> {
+        let name = self.symbol_name(symbol);
+        match &*name {
+            "message" => Ok(Value::String(Rc::new(error.message.clone()))),
+            "line" => Ok(match error.thrown_at.get().and_then(|at| at.location) {
+                Some((line, _)) => int!(line as i64),
+                None => Value::Nil,
+            }),
+            _ => Err(self.runtime_error(format!("Undefined field '{}'.", name))),
+        }
     }
 
     /// Looks up an interned name by symbol id.

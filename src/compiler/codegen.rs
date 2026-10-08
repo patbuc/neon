@@ -1082,7 +1082,10 @@ impl<'a> CodeGenerator<'a> {
 
     fn always_exits(stmt: &Stmt) -> bool {
         match stmt {
-            Stmt::Break { .. } | Stmt::Continue { .. } | Stmt::Return { .. } => true,
+            Stmt::Break { .. }
+            | Stmt::Continue { .. }
+            | Stmt::Return { .. }
+            | Stmt::Throw { .. } => true,
             Stmt::Block { statements, .. } => statements.last().is_some_and(Self::always_exits),
             _ => false,
         }

@@ -3,7 +3,7 @@ use crate::common::method_registry::native_method_table;
 #[cfg(feature = "opcode-stats")]
 use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
-use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, Value};
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
@@ -13,6 +13,7 @@ use crate::vm::{Handler, InterpretResult, VirtualMachine};
 use crate::{boolean, common, is_false_like, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -272,7 +273,7 @@ impl VirtualMachine {
     }
 
     /// Unwinds to the innermost handler that belongs to this loop (one set
-    /// up in a frame at or above `target_depth`) and resumes at its catch
+    /// up in a frame deeper than `target_depth`) and resumes at its catch
     /// target with the caught value on the stack. Without one, the error
     /// goes on to the caller.
     fn catch_error(&mut self, error: RuntimeError, target_depth: usize) -> OpResult {
@@ -292,13 +293,10 @@ impl VirtualMachine {
         self.stack.truncate(handler.stack_height);
         let caught = match error.thrown {
             Some(thrown) => thrown,
-            None => {
-                let caught = Value::new_error(error.message.clone());
-                if let Value::Error(obj) = &caught {
-                    let _ = obj.thrown_at.set(error);
-                }
-                caught
-            }
+            None => Value::Error(Rc::new(ObjError {
+                message: error.message.clone(),
+                thrown_at: OnceCell::from(error),
+            })),
         };
         self.push(caught);
         self.ip = handler.catch_ip;
