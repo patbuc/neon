@@ -16,6 +16,12 @@
 //^^^^^^^^ keyword.control.neon
   return a
 //^^^^^^ keyword.control.neon
+  try { }
+//^^^ keyword.control.neon
+  catch (e) { }
+//^^^^^ keyword.control.neon
+  throw a
+//^^^^^ keyword.control.neon
   fn add(a, b) {
 //^^ storage.type.neon
 //   ^^^ entity.name.function.neon

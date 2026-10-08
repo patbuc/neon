@@ -88,6 +88,15 @@ macro_rules! extract_receiver {
         }
     };
 
+    // Error extraction
+    ($args:expr, Error, $method:expr) => {
+        match $args.get(0) {
+            Some(Value::Error(e)) => Ok(e),
+            Some(_) => Err(format!("{}() can only be called on errors", $method)),
+            None => Err(format!("{}() can only be called on errors", $method)),
+        }
+    };
+
     // Number extraction (direct from Value)
     ($args:expr, Number, $method:expr) => {
         match $args.get(0) {

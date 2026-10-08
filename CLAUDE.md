@@ -238,7 +238,7 @@ enforces these edges in `cargo test`.
 - The running frame's `ip` and chunk live in `VirtualMachine.ip`/`chunk`; `CallFrame.ip` is only current for the
   frames below the top (`push_frame`/`pop_frame` save and restore it)
 - `TailCall`/`TailInvoke` reuse the running frame for a call in tail position (codegen emits them there), so tail
-  recursion isn't bounded by `MAX_FRAMES`; the replaced frame vanishes from runtime-error traces
+  recursion isn't bounded by `MAX_FRAMES` (except in a `try` body, where codegen emits plain calls); the replaced frame vanishes from runtime-error traces
 - Separate builtin values storage (e.g., `args`)
 - Runs a program's module chunks in dependency order, then the entry as the script frame; globals live in one
   shared area, so a module's exports are plain globals

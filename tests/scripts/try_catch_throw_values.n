@@ -1,0 +1,23 @@
+// Expected:
+// boom
+// true
+// after string
+// 42
+// 43
+// after number
+
+try {
+    throw "boom"
+} catch (e) {
+    print(e)
+    print(e == "boom")
+}
+print("after string")
+
+try {
+    throw 42
+} catch (e) {
+    print(e)
+    print(e + 1)
+}
+print("after number")

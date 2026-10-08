@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: Only instances have fields.
+
+print("before")
+try {
+    throw "boom"
+} catch (e) {
+    e.message
+}

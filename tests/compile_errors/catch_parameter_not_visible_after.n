@@ -1,0 +1,6 @@
+// Expected compile error: 6:7 E0013 Undefined variable 'e'
+try {
+    throw 2
+} catch (e) {
+}
+print(e)

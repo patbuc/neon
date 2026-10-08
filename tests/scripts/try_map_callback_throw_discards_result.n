@@ -1,0 +1,33 @@
+// Expected:
+// caught inner
+// caught inner
+// caught inner
+// caught outer
+// 7
+// 8
+
+fn main() {
+    var result = 7
+    val xs = [1, 2, 3]
+    val ys = xs.map { x ->
+        try {
+            throw "inner"
+        } catch (e) {
+            print("caught " + e)
+        }
+        x * 2
+    }
+    try {
+        result = xs.map { x ->
+            if x == 2 {
+                throw "outer"
+            }
+            x
+        }
+    } catch (e) {
+        print("caught " + e)
+    }
+    print(result)
+    print(ys.size() + 5)
+}
+main()

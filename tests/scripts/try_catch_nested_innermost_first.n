@@ -1,0 +1,58 @@
+// Expected:
+// inner caught a
+// outer caught b
+// 5
+// 0
+// inner caught c
+// 1
+// 2
+// 3
+// outer caught d
+
+fn thrower(msg) {
+    val pad = 1
+    throw msg
+}
+
+fn nested() {
+    val keep = 5
+    try {
+        try {
+            thrower("a")
+        } catch (e) {
+            print("inner caught " + e)
+            thrower("b")
+        }
+        print("unreachable")
+    } catch (e) {
+        print("outer caught " + e)
+    }
+    print(keep)
+}
+nested()
+
+fn looped() {
+    var count = 0
+    try {
+        for i in 0..3 {
+            try {
+                if i == 1 {
+                    thrower("c")
+                }
+            } catch (e) {
+                print("inner caught " + e)
+            }
+            print(i)
+            count = count + 1
+        }
+        print(count)
+        try {
+            thrower("x")
+        } catch (e) {
+            thrower("d")
+        }
+    } catch (e) {
+        print("outer caught " + e)
+    }
+}
+looped()

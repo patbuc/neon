@@ -3,16 +3,17 @@ use crate::common::method_registry::native_method_table;
 #[cfg(feature = "opcode-stats")]
 use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
-use crate::common::{CallFrame, Chunk, ObjClosure, ObjFunction, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, Value};
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
-use crate::vm::{InterpretResult, VirtualMachine};
+use crate::vm::{Handler, InterpretResult, VirtualMachine};
 use crate::{boolean, common, is_false_like, nil};
 #[cfg(not(target_arch = "wasm32"))]
 use log::info;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -39,6 +40,7 @@ impl VirtualMachine {
             source: String::new(),
             module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
+            handlers: Vec::new(),
             native_call_depth: 0,
             builtin_methods: std::array::from_fn(|_| Vec::new()),
             method_journal: None,
@@ -182,6 +184,7 @@ impl VirtualMachine {
 
         self.call_frames.clear();
         self.open_upvalues.clear();
+        self.handlers.clear();
         self.native_call_depth = 0;
         self.runtime_error = None;
         self.method_journal = Some(Vec::new());
@@ -232,7 +235,18 @@ impl VirtualMachine {
     pub(in crate::vm) fn run_script(&mut self, target_depth: usize) -> InterpretResult {
         match self.run_until(target_depth) {
             Ok(()) => InterpretResult::Ok,
-            Err(e) => {
+            Err(mut e) => {
+                if let Some(thrown) = e.thrown.take() {
+                    match &thrown {
+                        Value::Error(obj) => {
+                            if let Some(origin) = obj.thrown_at.get() {
+                                e = origin.clone();
+                            }
+                            e.message = obj.message.clone();
+                        }
+                        _ => e.message = format!("Uncaught: {}", thrown),
+                    }
+                }
                 self.runtime_error = Some(e);
                 InterpretResult::RuntimeError
             }
@@ -250,6 +264,47 @@ impl VirtualMachine {
                 .expect("run_until(0) runs the script frame, which is always on the stack");
             frame.closure.function.chunk.disassemble_chunk();
         }
+        loop {
+            match self.run_loop(target_depth) {
+                Err(error) => self.catch_error(error, target_depth)?,
+                Ok(()) => return Ok(()),
+            }
+        }
+    }
+
+    /// Unwinds to the innermost handler that belongs to this loop (one set
+    /// up in a frame deeper than `target_depth`) and resumes at its catch
+    /// target with the caught value on the stack. Without one, the error
+    /// goes on to the caller.
+    fn catch_error(&mut self, error: RuntimeError, target_depth: usize) -> OpResult {
+        let Some(handler) = self
+            .handlers
+            .last()
+            .copied()
+            .filter(|handler| handler.frame_depth > target_depth)
+        else {
+            return Err(error);
+        };
+        self.handlers.pop();
+        self.close_upvalues_above(handler.stack_height);
+        while self.call_frames.len() > handler.frame_depth {
+            self.pop_frame();
+        }
+        self.stack.truncate(handler.stack_height);
+        let caught = match error.thrown {
+            Some(thrown) => thrown,
+            None => Value::Error(Rc::new(ObjError {
+                message: error.message.clone(),
+                thrown_at: OnceCell::from(error),
+            })),
+        };
+        self.push(caught);
+        self.ip = handler.catch_ip;
+        Ok(())
+    }
+
+    #[inline(always)]
+    fn run_loop(&mut self, target_depth: usize) -> OpResult {
         loop {
             let instr = self.chunk.code[self.ip];
 
@@ -474,6 +529,23 @@ impl VirtualMachine {
                 Instr::LessEqualConstant(index) => {
                     self.op_compare_constant(index, Comparison::LessEqual)?
                 }
+                Instr::BeginTry(catch_ip) => self.handlers.push(Handler {
+                    catch_ip: catch_ip as usize,
+                    frame_depth: self.call_frames.len(),
+                    stack_height: self.stack.len(),
+                }),
+                Instr::EndTry => {
+                    self.handlers.pop();
+                }
+                Instr::Throw => {
+                    let thrown = self.pop();
+                    let mut error = self.runtime_error(String::new());
+                    if let Value::Error(obj) = &thrown {
+                        let _ = obj.thrown_at.set(error.clone());
+                    }
+                    error.thrown = Some(thrown);
+                    return Err(error);
+                }
                 Instr::Dup => self.push(self.peek(0).copy_or_clone()),
                 Instr::Dup2 => {
                     let second = self.peek(1).copy_or_clone();
@@ -602,6 +674,7 @@ impl VirtualMachine {
             file,
             frames,
             omitted_frames,
+            thrown: None,
         }
     }
 
@@ -717,6 +790,7 @@ impl VirtualMachine {
         self.stack.clear();
         self.runtime_error = None;
         self.open_upvalues.clear();
+        self.handlers.clear();
         self.native_call_depth = 0;
         self.builtin_methods.iter_mut().for_each(Vec::clear);
         self.method_journal = None;

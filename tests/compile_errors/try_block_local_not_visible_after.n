@@ -1,0 +1,7 @@
+// Expected compile error: 7:7 E0013 Undefined variable 'secret'
+try {
+    val secret = 1
+    throw 2
+} catch (e) {
+}
+print(secret)

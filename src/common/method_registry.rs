@@ -1468,6 +1468,25 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: 0,
         },
     ),
+    // Error instance methods
+    (
+        "Error",
+        "trace",
+        NativeCallable::InstanceMethod {
+            function: stdlib::error_functions::native_error_trace,
+            arity: 0,
+            returns: Some(StaticType::String),
+        },
+    ),
+    // Error constructor
+    (
+        "Error",
+        "new",
+        NativeCallable::StaticMethod {
+            function: stdlib::error_functions::native_error_constructor,
+            arity: 1,
+        },
+    ),
 ];
 
 /// HashMap for O(1) method lookups at runtime
@@ -1560,7 +1579,7 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
+pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
     "Array",
     "String",
     "Map",
@@ -1570,6 +1589,7 @@ pub const BUILTIN_TYPE_NAMES: [&str; 9] = [
     "File",
     "Range",
     "PriorityQueue",
+    "Error",
 ];
 
 /// The paths of the builtin `std/` modules, sorted.

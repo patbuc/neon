@@ -1,0 +1,9 @@
+// Expected:
+// 3
+
+try {
+    throw 2
+} catch (e) {
+    val e = 3
+    print(e)
+}

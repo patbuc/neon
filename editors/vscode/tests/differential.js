@@ -15,6 +15,7 @@ const neonBin = process.env.NEON_BIN || path.join(repoRoot, 'target', 'debug', '
 
 const KEYWORD_FAMILY = {
   Break: 'keyword.control.neon',
+  Catch: 'keyword.control.neon',
   Continue: 'keyword.control.neon',
   Else: 'keyword.control.neon',
   For: 'keyword.control.neon',
@@ -23,6 +24,8 @@ const KEYWORD_FAMILY = {
   Match: 'keyword.control.neon',
   Pub: 'keyword.control.neon',
   Return: 'keyword.control.neon',
+  Throw: 'keyword.control.neon',
+  Try: 'keyword.control.neon',
   Use: 'keyword.control.neon',
   While: 'keyword.control.neon',
   Fn: 'storage.type.neon',

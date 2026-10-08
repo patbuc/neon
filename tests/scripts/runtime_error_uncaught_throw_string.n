@@ -1,0 +1,7 @@
+// Expected:
+// before
+
+// Expected runtime error: Uncaught: boom
+
+print("before")
+throw "boom"

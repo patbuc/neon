@@ -1,0 +1,2 @@
+// Expected compile error: 2:6 E0006 Expect expression
+throw

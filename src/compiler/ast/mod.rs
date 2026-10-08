@@ -483,6 +483,16 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
+    Try {
+        body: Box<Stmt>,
+        catch_binding: Binding,
+        catch_body: Box<Stmt>,
+        location: SourceLocation,
+    },
+    Throw {
+        value: Expr,
+        location: SourceLocation,
+    },
     Break {
         location: SourceLocation,
     },

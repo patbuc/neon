@@ -82,12 +82,14 @@ impl OpCode {
             | OpCode::LessEqualConstantJumpIfFalse => -1,
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
+            OpCode::BeginTry | OpCode::EndTry => 0,
+            OpCode::Throw => -1,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 87] = [
+        const OPCODES: [OpCode; 90] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -175,6 +177,9 @@ impl OpCode {
             OpCode::LessEqualConstantJumpIfFalse,
             OpCode::ModuloConstant,
             OpCode::MultiplyConstant,
+            OpCode::BeginTry,
+            OpCode::EndTry,
+            OpCode::Throw,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -378,4 +383,15 @@ pub(crate) enum OpCode {
 
     /// `Multiply` by a number literal.
     MultiplyConstant,
+
+    /// Pushes an exception handler that records the 32-bit jump operand as
+    /// the catch target, the running frame and the current stack height.
+    BeginTry,
+
+    /// Pops the innermost exception handler.
+    EndTry,
+
+    /// Pops a value and raises it as an error for the innermost handler to
+    /// catch.
+    Throw,
 }

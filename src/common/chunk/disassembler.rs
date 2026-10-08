@@ -173,6 +173,9 @@ impl Chunk {
             }
             OpCode::Dup => self.simple_instruction(OpCode::Dup, offset, out),
             OpCode::Dup2 => self.simple_instruction(OpCode::Dup2, offset, out),
+            OpCode::BeginTry => self.jump_instruction(instruction, offset, out),
+            OpCode::EndTry => self.simple_instruction(OpCode::EndTry, offset, out),
+            OpCode::Throw => self.simple_instruction(OpCode::Throw, offset, out),
         }
     }
 

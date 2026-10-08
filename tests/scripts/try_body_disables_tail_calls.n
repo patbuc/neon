@@ -1,0 +1,24 @@
+// Expected:
+// 0
+// Stack overflow
+
+fn plain(n) {
+    if n == 0 {
+        return 0
+    }
+    return plain(n - 1)
+}
+
+fn guarded(n) {
+    try {
+        if n == 0 {
+            return 0
+        }
+        return guarded(n - 1)
+    } catch (e) {
+        return e.message
+    }
+}
+
+print(plain(1100000))
+print(guarded(1100000))

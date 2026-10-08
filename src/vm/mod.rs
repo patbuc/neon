@@ -18,6 +18,15 @@ pub enum InterpretResult {
     RuntimeError,
 }
 
+/// An exception handler set up by `BeginTry`.
+#[derive(Clone, Copy)]
+struct Handler {
+    catch_ip: usize,
+    /// Length of `call_frames` when the handler was pushed.
+    frame_depth: usize,
+    stack_height: usize,
+}
+
 pub struct VirtualMachine {
     #[cfg(test)]
     pub(crate) call_frames: Vec<CallFrame>,
@@ -45,6 +54,8 @@ pub struct VirtualMachine {
     /// Upvalues still pointing at a live stack slot, so closures created
     /// from the same slot share one cell instead of each getting their own.
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
+    /// Active `try` blocks, innermost last.
+    handlers: Vec<Handler>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
     /// User methods from `impl` blocks on builtin types, indexed by builtin

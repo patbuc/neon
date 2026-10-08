@@ -498,6 +498,8 @@ impl Parser {
                         | TokenType::Var
                         | TokenType::For
                         | TokenType::While
+                        | TokenType::Try
+                        | TokenType::Throw
                         | TokenType::Use
                         | TokenType::Pub
                         | TokenType::Return => {
@@ -526,6 +528,8 @@ impl Parser {
                     | TokenType::For
                     | TokenType::If
                     | TokenType::While
+                    | TokenType::Try
+                    | TokenType::Throw
                     | TokenType::Use
                     | TokenType::Pub
                     | TokenType::Return => return,
@@ -1037,6 +1041,10 @@ impl Parser {
             self.while_statement()
         } else if self.match_token(TokenType::For) {
             self.for_statement()
+        } else if self.match_token(TokenType::Try) {
+            self.try_statement()
+        } else if self.match_token(TokenType::Throw) {
+            self.throw_statement()
         } else if self.match_token(TokenType::Return) {
             self.return_statement()
         } else if self.match_token(TokenType::Break) {
@@ -1223,6 +1231,57 @@ impl Parser {
         })
     }
 
+    fn try_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+
+        let body = Box::new(self.try_block("Expect '{' after 'try'.")?);
+        if !self.consume(TokenType::Catch, "Expect 'catch' after try block.") {
+            return None;
+        }
+        if !self.consume(TokenType::LeftParen, "Expect '(' after 'catch'.") {
+            return None;
+        }
+        if !self.consume(TokenType::Identifier, "Expect catch parameter name.") {
+            return None;
+        }
+        let catch_binding = Binding {
+            name: self.previous_token.token.clone(),
+            id: self.next_id(),
+            location: self.current_location(),
+        };
+        if !self.consume(TokenType::RightParen, "Expect ')' after catch parameter.") {
+            return None;
+        }
+        let catch_body = Box::new(self.try_block("Expect '{' after catch parameter.")?);
+        self.consume_statement_end("Expecting '\\n' or '\\0' at end of block.");
+
+        Some(Stmt::Try {
+            body,
+            catch_binding,
+            catch_body,
+            location,
+        })
+    }
+
+    fn try_block(&mut self, message: &str) -> Option<Stmt> {
+        if !self.consume(TokenType::LeftBrace, message) {
+            return None;
+        }
+        let location = self.current_location();
+        let statements = self.parse_block_body()?;
+        Some(Stmt::Block {
+            statements,
+            location,
+        })
+    }
+
+    fn throw_statement(&mut self) -> Option<Stmt> {
+        let location = self.current_location();
+        let value = self.expression(false)?;
+        self.consume_statement_end("Expecting '\\n' or '\\0' at end of statement.");
+        Some(Stmt::Throw { value, location })
+    }
+
     fn return_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         if self.check(TokenType::NewLine)
@@ -1278,6 +1337,8 @@ impl Parser {
                 | TokenType::Pub
                 | TokenType::For
                 | TokenType::While
+                | TokenType::Try
+                | TokenType::Throw
                 | TokenType::Return
                 | TokenType::Break
                 | TokenType::Continue

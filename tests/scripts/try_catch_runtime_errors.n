@@ -1,0 +1,77 @@
+// Expected:
+// Error: div() division by zero
+// div() division by zero
+// Error: Undefined field 'y'.
+// Undefined field 'y'.
+// Error: Array index out of bounds: index 5 (normalized: 5) on array of length 2.
+// Array index out of bounds: index 5 (normalized: 5) on array of length 2.
+// Error: File not found: missing
+// File not found: missing
+// Error: variable 'y' used before initialization
+// variable 'y' used before initialization
+// Error: Stack overflow
+// Stack overflow
+
+use "std/file"
+use "std/math"
+
+struct P {
+    x
+}
+
+fn getY(p) {
+    return p.y
+}
+
+fn readY() {
+    return y
+}
+
+fn recurse(n) {
+    return 1 + recurse(n + 1)
+}
+
+try {
+    math.div(1, 0)
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+try {
+    getY(P(1))
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+try {
+    val a = [1, 2]
+    a[5]
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+try {
+    file.open("missing").read()
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+try {
+    readY()
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+try {
+    recurse(0)
+} catch (e) {
+    print(e)
+    print(e.message)
+}
+
+val y = 2

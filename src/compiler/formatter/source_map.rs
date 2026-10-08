@@ -294,6 +294,8 @@ impl SourceMap {
                 None => self.stmt_last_token(then_branch),
             },
             Stmt::While { body, .. } | Stmt::ForIn { body, .. } => self.stmt_last_token(body),
+            Stmt::Try { catch_body, .. } => self.stmt_last_token(catch_body),
+            Stmt::Throw { value, .. } => self.last_token(value),
             Stmt::Return { value, location } => match value {
                 Some(value) => self.last_token(value),
                 None => self.at(location),
@@ -327,6 +329,8 @@ fn stmt_location(stmt: &Stmt) -> &SourceLocation {
         | Stmt::While { location, .. }
         | Stmt::Return { location, .. }
         | Stmt::ForIn { location, .. }
+        | Stmt::Try { location, .. }
+        | Stmt::Throw { location, .. }
         | Stmt::Break { location }
         | Stmt::Continue { location }
         | Stmt::Import { location, .. }

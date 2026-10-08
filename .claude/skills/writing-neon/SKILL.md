@@ -113,7 +113,10 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   destructure a tuple pattern (`val (a, b) = [1, 2]`), `_` skipping a
   position; a non-array or wrong-size value is a runtime error (`Cannot
   destructure number into 2 names`). `break`/`continue` exist.
-- No `switch`, `do`/`while`, `try`/`catch`, or `throw`.
+- No `switch` or `do`/`while`.
+- `try { } catch (e) { }` and `throw <any value>`; `e` is exactly what was thrown, and runtime errors
+  arrive as `Error` values (`Error(msg)`, `.message`, `.line`, `.trace()`). No `finally`. An uncaught
+  throw exits 70.
 - `match x { pattern, pattern -> body ... }` is an expression and a statement.
   A pattern is a number/string/bool/`nil` literal, `Enum.Variant`, an integer
   range (`1..5`, `1..=5`), `_`, or a bare name that binds the value
@@ -212,6 +215,7 @@ then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.
 - **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
 - **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
+- **Error:** `Error(message)` - an error value with message and line fields (line is nil until it is thrown) and a `trace()` method; prints as "Error: <message>"
 - **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
   `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`
 - **std/file:** `file.open(path)` - returns a File

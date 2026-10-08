@@ -1,0 +1,3 @@
+// Expected compile error: 3:8 E0018 Struct name 'Error' is reserved for a builtin type
+
+struct Error { a }

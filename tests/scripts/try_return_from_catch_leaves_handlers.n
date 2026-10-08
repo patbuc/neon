@@ -1,0 +1,29 @@
+// Expected:
+// returned
+// caught late
+
+fn f(depth) {
+    if depth > 0 {
+        print(f(depth - 1))
+        throw "late"
+    }
+    try {
+        try {
+            throw "first"
+        } catch (e) {
+            try {
+                return "returned"
+            } catch (e2) {
+                return "stale inner ${e2}"
+            }
+        }
+    } catch (e) {
+        return "stale outer ${e}"
+    }
+}
+
+try {
+    f(1)
+} catch (e) {
+    print("caught ${e}")
+}

@@ -1,0 +1,48 @@
+// Expected:
+// break done
+// caught after break
+// continue done
+// caught after continue
+
+fn breaks() {
+    try {
+        for i in 0..3 {
+            try {
+                try {
+                    break
+                } catch (e) {
+                    print("stale inner")
+                }
+            } catch (e) {
+                print("stale outer")
+            }
+        }
+        print("break done")
+        throw "after break"
+    } catch (e) {
+        print("caught ${e}")
+    }
+}
+
+fn continues() {
+    try {
+        for i in 0..3 {
+            try {
+                try {
+                    continue
+                } catch (e) {
+                    print("stale inner")
+                }
+            } catch (e) {
+                print("stale outer")
+            }
+        }
+        print("continue done")
+        throw "after continue"
+    } catch (e) {
+        print("caught ${e}")
+    }
+}
+
+breaks()
+continues()

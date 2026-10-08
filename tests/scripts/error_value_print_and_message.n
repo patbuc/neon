@@ -1,0 +1,26 @@
+// Expected:
+// Error: x
+// x
+// y
+// z
+
+// Expected runtime error: Undefined field 'message'.
+
+struct Point {
+    x
+}
+
+fn msg(x) {
+    return x.message
+}
+
+fn make(m) {
+    return Error(m)
+}
+
+val e = Error("x")
+print(e)
+print(e.message)
+print(Error("y").message)
+print(make("z").message)
+msg(Point(1))

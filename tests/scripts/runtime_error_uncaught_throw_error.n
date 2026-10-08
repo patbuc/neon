@@ -1,0 +1,15 @@
+// Expected:
+// before
+
+// Expected runtime error: x
+
+fn inner() {
+    throw Error("x")
+}
+
+fn outer() {
+    inner()
+}
+
+print("before")
+outer()

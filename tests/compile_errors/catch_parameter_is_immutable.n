@@ -1,0 +1,6 @@
+// Expected compile error: 5:5 E0015 Cannot assign to immutable variable 'e'
+try {
+    throw 2
+} catch (e) {
+    e = 5
+}

@@ -1,0 +1,15 @@
+// Expected:
+// returned
+
+// Expected runtime error: Uncaught: late
+
+fn f() {
+    try {
+        return "returned"
+    } catch (e) {
+        return "stale"
+    }
+}
+
+print(f())
+throw "late"

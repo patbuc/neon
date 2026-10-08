@@ -461,6 +461,21 @@ impl<'a> Printer<'a> {
                 self.write(" ");
                 self.print_stmt(body);
             }
+            Stmt::Try {
+                body,
+                catch_binding,
+                catch_body,
+                ..
+            } => {
+                self.write("try ");
+                self.print_stmt(body);
+                self.write(&format!(" catch ({}) ", catch_binding.name));
+                self.print_stmt(catch_body);
+            }
+            Stmt::Throw { value, .. } => {
+                self.write("throw ");
+                self.print_expr(value);
+            }
             Stmt::Struct {
                 name,
                 fields,

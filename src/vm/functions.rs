@@ -2,8 +2,8 @@ use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjInstance,
-    ObjNativeFunction, ObjStruct, Value,
+    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjError,
+    ObjInstance, ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{find_method_entry, ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
@@ -68,6 +68,7 @@ const BOOLEAN_SYMBOL: u16 = 5;
 const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
 const PRIORITY_QUEUE_SYMBOL: u16 = 8;
+const ERROR_SYMBOL: u16 = 9;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -1544,6 +1545,7 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::Error(error) => self.error_field(error, symbol)?,
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1580,6 +1582,7 @@ impl VirtualMachine {
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 }
             },
+            Value::Error(error) => self.error_field(error, symbol)?,
             _ => return Err(self.runtime_error("Only instances have fields.")),
         };
 
@@ -1672,7 +1675,19 @@ impl VirtualMachine {
         ))
     }
 
-    /// Looks up an interned name by symbol id, for use on an error path only.
+    fn error_field(&self, error: &ObjError, symbol: u16) -> Result<Value, RuntimeError> {
+        let name = self.symbol_name(symbol);
+        match &*name {
+            "message" => Ok(Value::String(Rc::new(error.message.clone()))),
+            "line" => Ok(match error.thrown_at.get().and_then(|at| at.location) {
+                Some((line, _)) => int!(line as i64),
+                None => Value::Nil,
+            }),
+            _ => Err(self.runtime_error(format!("Undefined field '{}'.", name))),
+        }
+    }
+
+    /// Looks up an interned name by symbol id.
     fn symbol_name(&self, symbol: u16) -> Rc<str> {
         self.chunk.symbols[symbol as usize].clone()
     }
@@ -2039,6 +2054,7 @@ impl VirtualMachine {
             Value::File(_) => Some(TypeName::Builtin(FILE_SYMBOL)),
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
             Value::PriorityQueue(_) => Some(TypeName::Builtin(PRIORITY_QUEUE_SYMBOL)),
+            Value::Error(_) => Some(TypeName::Builtin(ERROR_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.
@@ -2129,5 +2145,6 @@ mod tests {
             BUILTIN_TYPE_NAMES[PRIORITY_QUEUE_SYMBOL as usize],
             "PriorityQueue"
         );
+        assert_eq!(BUILTIN_TYPE_NAMES[ERROR_SYMBOL as usize], "Error");
     }
 }

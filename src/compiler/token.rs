@@ -59,6 +59,7 @@ pub(crate) enum TokenType {
     Number,
 
     Break,
+    Catch,
     Continue,
     Else,
     Enum,
@@ -73,7 +74,9 @@ pub(crate) enum TokenType {
     Nil,
     Return,
     Struct,
+    Throw,
     True,
+    Try,
     Val,
     Var,
     While,

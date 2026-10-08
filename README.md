@@ -313,7 +313,8 @@ last expression (including `fn f() = expr`). When an `if`/`else` expression, a `
 ternary is in tail position, so are its branches and arms. Parentheses don't change tail
 position. Method calls count too, including a closure stored in a field. Operands of `&&`, `||` and `??` and script-level code are not tail
 positions. A tail call to a native function, a struct constructor or a native method behaves
-like a call followed by a return.
+like a call followed by a return. Calls inside a `try` body are never tail calls, so deep
+recursion through `return f(...)` there hits the frame limit.
 
 ```neon
 fn count(n, limit) = n >= limit ? n : count(n + 1, limit)
@@ -631,6 +632,33 @@ arm's value.
 - If no arm matches, the program stops with a runtime error
   (`No match arm for <value>`).
 
+### Errors
+
+```neon
+try {
+    val n = parse(input)
+    print(n)
+} catch (e) {
+    print("failed: " + e.message)
+}
+
+throw Error("bad input")
+throw "any value"
+```
+
+- `throw <value>` throws any value. The nearest enclosing `try` runs its `catch (e)` block, and `e` is
+  exactly what was thrown. Unwinding crosses function calls and callbacks.
+- A runtime error (division by zero, a bad index, a missing file, ...) is catchable too; it arrives as an
+  `Error` value whose `message` is the text the uncaught error would show.
+- An `Error` records its `line` and `trace()` when it is first thrown or raised, and keeps them when
+  rethrown with `throw e`.
+- `return`, `break` and `continue` leave a `try` or `catch` block normally. Locals declared in the `try` are
+  gone in the `catch`. There is no `finally`.
+- Calls inside a `try` body are never tail calls, so deep recursion through `return f(...)` there overflows
+  the stack.
+- An uncaught `Error` ends the program with exit code 70 and reports `[line:col] <message>` plus the
+  trace. Any other thrown value reports `Uncaught: <value>` the same way.
+
 ### Operators
 
 **Arithmetic:**
@@ -730,7 +758,7 @@ print(pt.x)  // 15
 ```
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
-`Set`, `Number`, `Boolean`, `File`, `PriorityQueue`).
+`Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).
 
 #### Methods
 
@@ -767,8 +795,8 @@ print(Point.origin().x)   // 0
   code that appears before their `impl` block. A method body can see
   functions, structs, builtins, and top-level variables.
 
-A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`)
-can have an `impl` block too, adding an instance method callable on any value
+A builtin type (`Array`, `String`, `Map`, `Set`, `Number`, `Boolean`, `File`,
+`Error`) can have an `impl` block too, adding an instance method callable on any value
 of that type. A method can't share a name with a native method of the type -
 that's a compile error, since a native method can never be redefined. Unlike
 a struct, a builtin type only supports instance methods; every method must
@@ -1369,6 +1397,15 @@ print(queue.pop())   // b
 print(queue.pop())   // c
 print(queue.pop())   // nil
 ```
+
+### Error Methods
+
+- `Error(message)` - New error value; it prints as `Error: <message>`
+- `trace()` - The call trace captured when the error was first thrown or raised, one
+  `  at <function> (line <n>)` line per frame, innermost first; `""` if it never was
+
+An `Error` has two fields: `message`, the text given to `Error(message)`, and `line`, the line of that
+capture, or `nil` if it never was thrown.
 
 ### Type Conversions
 

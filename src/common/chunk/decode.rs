@@ -136,6 +136,9 @@ pub(crate) enum Instr {
         arg_count: u8,
     },
     IsNumber,
+    BeginTry(u32),
+    EndTry,
+    Throw,
     /// A byte that is no opcode; executing it is a runtime error. Decoding
     /// stops here, since the width of what follows is unknown.
     Invalid(u8),
@@ -234,6 +237,9 @@ impl Instr {
             Instr::TailCall(_) => OpCode::TailCall,
             Instr::TailInvoke { .. } => OpCode::TailInvoke,
             Instr::IsNumber => OpCode::IsNumber,
+            Instr::BeginTry(_) => OpCode::BeginTry,
+            Instr::EndTry => OpCode::EndTry,
+            Instr::Throw => OpCode::Throw,
             Instr::Invalid(_) => return None,
         })
     }
@@ -453,6 +459,9 @@ impl Chunk {
                     4,
                 ),
                 OpCode::IsNumber => (Instr::IsNumber, 1),
+                OpCode::BeginTry => (Instr::BeginTry(0), 5),
+                OpCode::EndTry => (Instr::EndTry, 1),
+                OpCode::Throw => (Instr::Throw, 1),
             };
             if pos + width > bytes.len() {
                 closure_upvalues.truncate(upvalues_start);
@@ -468,7 +477,8 @@ impl Chunk {
                 | OpCode::LessJumpIfFalse
                 | OpCode::LessEqualJumpIfFalse
                 | OpCode::JumpIfNotNil
-                | OpCode::JumpIfNil => Some((pos + 5).checked_add(u32_at(1) as usize)),
+                | OpCode::JumpIfNil
+                | OpCode::BeginTry => Some((pos + 5).checked_add(u32_at(1) as usize)),
                 OpCode::GreaterConstantJumpIfFalse
                 | OpCode::GreaterEqualConstantJumpIfFalse
                 | OpCode::LessConstantJumpIfFalse
@@ -510,6 +520,7 @@ impl Chunk {
                 | Instr::LessEqualConstantJumpIfFalse { target: t, .. }
                 | Instr::JumpIfNotNil(t)
                 | Instr::JumpIfNil(t)
+                | Instr::BeginTry(t)
                 | Instr::Loop(t) => *t = target,
                 other => unreachable!("recorded jump at a non-jump instruction {other:?}"),
             }

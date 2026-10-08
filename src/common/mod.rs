@@ -1,6 +1,7 @@
+use crate::common::runtime_error::RuntimeError;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, BinaryHeap};
 use std::fmt::{Display, Formatter};
@@ -432,6 +433,15 @@ pub enum Value {
     File(Rc<String>),
     Range(Rc<ObjRange>),
     PriorityQueue(Rc<RefCell<ObjPriorityQueue>>),
+    Error(Rc<ObjError>),
+}
+
+/// The payload of an `Error(message)` value. `thrown_at` is where the
+/// error was first thrown or raised; it stays empty until then and later
+/// throws keep the first capture.
+pub struct ObjError {
+    pub message: String,
+    pub thrown_at: OnceCell<RuntimeError>,
 }
 
 /// A min-heap of `(priority, value)` entries, ordered by `priority` then by
@@ -811,6 +821,13 @@ impl Value {
         Value::File(Rc::new(path))
     }
 
+    pub(crate) fn new_error(message: String) -> Self {
+        Value::Error(Rc::new(ObjError {
+            message,
+            thrown_at: OnceCell::new(),
+        }))
+    }
+
     pub(crate) fn new_range(start: i64, end: i64, inclusive: bool) -> Self {
         Value::Range(Rc::new(ObjRange {
             start,
@@ -843,6 +860,7 @@ impl Value {
             Value::File(_) => "file",
             Value::Range(_) => "range",
             Value::PriorityQueue(_) => "priority queue",
+            Value::Error(_) => "error",
         }
     }
 }
@@ -976,6 +994,7 @@ impl Value {
                 }
             }
             Value::PriorityQueue(pq) => write!(f, "PriorityQueue(size={})", pq.borrow().len()),
+            Value::Error(error) => write!(f, "Error: {}", error.message),
         }
     }
 
@@ -1033,6 +1052,7 @@ impl Value {
             (Value::File(a), Value::File(b)) => a == b,
             (Value::Range(a), Value::Range(b)) => a == b,
             (Value::PriorityQueue(a), Value::PriorityQueue(b)) => Rc::ptr_eq(a, b),
+            (Value::Error(a), Value::Error(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }

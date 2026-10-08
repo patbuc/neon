@@ -97,6 +97,17 @@ mod resolutions {
                 index_expr(collection, idx);
                 index_stmt(body, idx);
             }
+            Stmt::Try {
+                body,
+                catch_binding,
+                catch_body,
+                ..
+            } => {
+                index_stmt(body, idx);
+                idx.decls.push((&catch_binding.name, catch_binding.id));
+                index_stmt(catch_body, idx);
+            }
+            Stmt::Throw { value, .. } => index_expr(value, idx),
             Stmt::Export { declaration, .. } => index_stmt(declaration, idx),
             Stmt::Break { .. } | Stmt::Continue { .. } | Stmt::Import { .. } => {}
         }
