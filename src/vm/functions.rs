@@ -2145,5 +2145,6 @@ mod tests {
             BUILTIN_TYPE_NAMES[PRIORITY_QUEUE_SYMBOL as usize],
             "PriorityQueue"
         );
+        assert_eq!(BUILTIN_TYPE_NAMES[ERROR_SYMBOL as usize], "Error");
     }
 }
