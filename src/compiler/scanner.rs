@@ -26,6 +26,7 @@ pub(in crate::compiler) struct Interpolation {
 
 pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("break", TokenType::Break),
+    ("catch", TokenType::Catch),
     ("continue", TokenType::Continue),
     ("else", TokenType::Else),
     ("enum", TokenType::Enum),
@@ -40,7 +41,9 @@ pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("pub", TokenType::Pub),
     ("return", TokenType::Return),
     ("struct", TokenType::Struct),
+    ("throw", TokenType::Throw),
     ("true", TokenType::True),
+    ("try", TokenType::Try),
     ("use", TokenType::Use),
     ("val", TokenType::Val),
     ("var", TokenType::Var),

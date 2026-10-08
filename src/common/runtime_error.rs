@@ -1,3 +1,4 @@
+use crate::common::Value;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -14,7 +15,8 @@ pub(crate) const TRACE_EDGE_FRAMES: usize = 10;
 /// line/column where it occurred (when known), and the call chain that led there,
 /// innermost frame first. Past `TRACE_EDGE_FRAMES * 2 + 1` frames, only
 /// the innermost and outermost `TRACE_EDGE_FRAMES` are kept in `frames`, and
-/// `omitted_frames` records how many were left out.
+/// `omitted_frames` records how many were left out. `thrown` holds the value
+/// of a `throw`, which a `catch` receives as is.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeError {
     pub message: String,
@@ -22,6 +24,7 @@ pub struct RuntimeError {
     pub file: Option<Rc<str>>,
     pub frames: Vec<TraceFrame>,
     pub omitted_frames: usize,
+    pub thrown: Option<Value>,
 }
 
 impl Display for RuntimeError {

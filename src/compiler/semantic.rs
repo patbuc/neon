@@ -1173,6 +1173,17 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_for_in_statement(pattern, collection, body);
             }
+            Stmt::Try {
+                body,
+                catch_binding,
+                catch_body,
+                ..
+            } => {
+                self.resolve_try_statement(body, catch_binding, catch_body);
+            }
+            Stmt::Throw { value, .. } => {
+                self.resolve_expr(value);
+            }
         }
     }
 
@@ -1775,6 +1786,22 @@ impl SemanticAnalyzer {
         self.loop_depth -= 1;
 
         // Exit the loop scope
+        self.exit_scope();
+    }
+
+    fn resolve_try_statement(&mut self, body: &Stmt, catch_binding: &Binding, catch_body: &Stmt) {
+        self.resolve_stmt(body);
+
+        self.enter_scope();
+        self.define_type(&catch_binding.name, None);
+        self.declare_symbol(
+            catch_binding.id,
+            catch_binding.name.clone(),
+            SymbolKind::Value,
+            false,
+            catch_binding.location,
+        );
+        self.resolve_stmt(catch_body);
         self.exit_scope();
     }
 
@@ -3280,6 +3307,16 @@ fn stmt_references_it(stmt: &Stmt) -> bool {
             condition, body, ..
         } => expr_references_it(condition) || stmt_references_it(body),
         Stmt::Return { value, .. } => value.as_ref().is_some_and(expr_references_it),
+        Stmt::Throw { value, .. } => expr_references_it(value),
+        Stmt::Try {
+            body,
+            catch_binding,
+            catch_body,
+            ..
+        } => {
+            stmt_references_it(body)
+                || (catch_binding.name != "it" && stmt_references_it(catch_body))
+        }
         Stmt::ForIn {
             pattern,
             collection,

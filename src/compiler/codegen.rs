@@ -1418,6 +1418,37 @@ impl<'a> CodeGenerator<'a> {
         self.end_scope(location);
     }
 
+    fn generate_try_stmt(
+        &mut self,
+        body: &Stmt,
+        catch_binding: &Binding,
+        catch_body: &Stmt,
+        location: SourceLocation,
+    ) {
+        // Bytecode structure:
+        //   BeginTry catch_target
+        //   <body>
+        //   EndTry
+        //   Jump end
+        //   catch_target:            ; the VM pushes the caught value here
+        //   <catch body with the caught value as a local>
+        //   Pop                      ; the caught value
+        //   end:
+        let catch_jump = self.emit_jump(OpCode::BeginTry, location);
+        self.generate_stmt(body);
+        self.emit_op_code(OpCode::EndTry, location);
+        let end_jump = self.emit_jump(OpCode::Jump, location);
+
+        self.patch_jump(catch_jump);
+        self.adjust_stack_height(1);
+        self.current().scope_depth += 1;
+        self.bind_decl_local(self.resolutions.decl(catch_binding.id), location);
+        self.generate_stmt(catch_body);
+        self.end_scope(location);
+
+        self.patch_jump(end_jump);
+    }
+
     fn generate_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Val {
@@ -1498,6 +1529,18 @@ impl<'a> CodeGenerator<'a> {
                 location,
             } => {
                 self.generate_for_in_stmt(pattern, collection, body, *location);
+            }
+            Stmt::Try {
+                body,
+                catch_binding,
+                catch_body,
+                location,
+            } => {
+                self.generate_try_stmt(body, catch_binding, catch_body, *location);
+            }
+            Stmt::Throw { value, location } => {
+                self.generate_expr(value);
+                self.emit_op_code(OpCode::Throw, *location);
             }
         }
     }
