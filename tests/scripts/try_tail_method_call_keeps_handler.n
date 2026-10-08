@@ -1,0 +1,24 @@
+// Expected:
+// caught boom
+
+struct Box {
+    v
+}
+
+impl Box {
+    fn m(self) {
+        val a = 1
+        val b = 2
+        throw "boom"
+    }
+}
+
+fn f(o) {
+    try {
+        return o.m()
+    } catch (e) {
+        return "caught ${e}"
+    }
+}
+
+print(f(Box(1)))

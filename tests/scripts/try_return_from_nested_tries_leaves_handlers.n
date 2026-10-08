@@ -8,9 +8,13 @@ fn f(depth) {
         throw "late"
     }
     try {
-        return "returned"
+        try {
+            return "returned"
+        } catch (e) {
+            return "stale inner ${e}"
+        }
     } catch (e) {
-        return "stale ${e}"
+        return "stale outer ${e}"
     }
 }
 
