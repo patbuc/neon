@@ -971,3 +971,37 @@ fn test_match_underscore_rest_formats_as_bare_rest() {
         "val x = match c {\n    [.., 1] -> 1\n    _ -> 0\n}\n",
     );
 }
+
+#[test]
+fn test_try_catch_formats_canonically() {
+    check(
+        "try   {\nprint(1)\n}   catch(e){\nprint(e)\n}\n",
+        "try {\n    print(1)\n} catch (e) {\n    print(e)\n}\n",
+    );
+}
+
+#[test]
+fn test_throw_formats_canonically() {
+    check("throw   x\n", "throw x\n");
+}
+
+#[test]
+fn test_nested_try_catch_indents() {
+    check(
+        "fn f() {\ntry {\ntry {\nthrow 1\n} catch (a) {\nthrow a\n}\n} catch (b) {\nprint(b)\n}\n}\n",
+        "fn f() {\n    try {\n        try {\n            throw 1\n        } catch (a) {\n            throw a\n        }\n    } catch (b) {\n        print(b)\n    }\n}\n",
+    );
+}
+
+#[test]
+fn test_try_empty_catch_block() {
+    check("try {\nthrow 1\n} catch (e) {\n}\n", "try {\n    throw 1\n} catch (e) {}\n");
+}
+
+#[test]
+fn test_try_catch_comment_inside_kept() {
+    check(
+        "try {\n// before\nthrow 1\n} catch (e) {\n// handled\n}\n",
+        "try {\n    // before\n    throw 1\n} catch (e) {\n    // handled\n}\n",
+    );
+}

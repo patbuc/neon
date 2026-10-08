@@ -1,0 +1,12 @@
+// impl_builtin_error.n - a user method dispatches on an Error value
+
+// Expected:
+// failed: boom
+
+impl Error {
+    fn describe(self) {
+        return "failed: " + self.message
+    }
+}
+
+print(Error("boom").describe())
