@@ -1,6 +1,7 @@
+use crate::common::runtime_error::RuntimeError;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, BinaryHeap};
 use std::fmt::{Display, Formatter};
@@ -435,9 +436,12 @@ pub enum Value {
     Error(Rc<ObjError>),
 }
 
-/// The payload of an `Error(message)` value; `message` is its only field.
+/// The payload of an `Error(message)` value. `thrown_at` is where the
+/// error was first thrown or raised; it stays empty until then and later
+/// throws keep the first capture.
 pub struct ObjError {
     pub message: String,
+    pub thrown_at: OnceCell<RuntimeError>,
 }
 
 /// A min-heap of `(priority, value)` entries, ordered by `priority` then by
@@ -818,7 +822,10 @@ impl Value {
     }
 
     pub(crate) fn new_error(message: String) -> Self {
-        Value::Error(Rc::new(ObjError { message }))
+        Value::Error(Rc::new(ObjError {
+            message,
+            thrown_at: OnceCell::new(),
+        }))
     }
 
     pub(crate) fn new_range(start: i64, end: i64, inclusive: bool) -> Self {

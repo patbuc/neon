@@ -1374,6 +1374,9 @@ print(queue.pop())   // nil
 
 - `Error(message)` - New error value; its `message` field holds `message`, and it prints as
   `Error: <message>`
+- `trace()` - The call trace captured when the error was first thrown or raised, one
+  `  at <function> (line <n>)` line per frame, innermost first; `""` if it never was. The `line` field
+  holds the line of that capture, or `nil`
 
 ### Type Conversions
 

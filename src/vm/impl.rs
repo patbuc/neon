@@ -234,7 +234,10 @@ impl VirtualMachine {
     pub(in crate::vm) fn run_script(&mut self, target_depth: usize) -> InterpretResult {
         match self.run_until(target_depth) {
             Ok(()) => InterpretResult::Ok,
-            Err(e) => {
+            Err(mut e) => {
+                if let Some(thrown) = &e.thrown {
+                    e.message = format!("Uncaught: {}", thrown);
+                }
                 self.runtime_error = Some(e);
                 InterpretResult::RuntimeError
             }
@@ -279,9 +282,16 @@ impl VirtualMachine {
             self.pop_frame();
         }
         self.stack.truncate(handler.stack_height);
-        let caught = error
-            .thrown
-            .unwrap_or_else(|| Value::new_error(error.message));
+        let caught = match error.thrown {
+            Some(thrown) => thrown,
+            None => {
+                let caught = Value::new_error(error.message.clone());
+                if let Value::Error(obj) = &caught {
+                    let _ = obj.thrown_at.set(error);
+                }
+                caught
+            }
+        };
         self.push(caught);
         self.ip = handler.catch_ip;
         Ok(())
@@ -523,7 +533,10 @@ impl VirtualMachine {
                 }
                 Instr::Throw => {
                     let thrown = self.pop();
-                    let mut error = self.runtime_error(format!("Uncaught: {}", thrown));
+                    let mut error = self.runtime_error(String::new());
+                    if let Value::Error(obj) = &thrown {
+                        let _ = obj.thrown_at.set(error.clone());
+                    }
                     error.thrown = Some(thrown);
                     return Err(error);
                 }

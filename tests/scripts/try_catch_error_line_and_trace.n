@@ -1,0 +1,45 @@
+// Expected:
+// 12
+// [  at inner (line 12)]
+// [  at middle (line 16)]
+// [  at <script> (line 30)]
+// 21
+// [  at pick (line 21)]
+// [  at outer (line 25)]
+// [  at <script> (line 39)]
+
+fn inner() {
+    throw Error("thrown")
+}
+
+fn middle() {
+    inner()
+    print("unreachable")
+}
+
+fn pick(a) {
+    return a[5]
+}
+
+fn outer(a) {
+    val v = pick(a)
+    return v
+}
+
+try {
+    middle()
+} catch (e) {
+    print(e.line)
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}
+
+try {
+    outer([1, 2])
+} catch (e) {
+    print(e.line)
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}
