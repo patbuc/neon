@@ -1,0 +1,19 @@
+// Expected:
+// caught
+
+// Expected runtime error: x
+
+fn f() {
+    throw Error("x")
+}
+
+fn g() {
+    try {
+        f()
+    } catch (e) {
+        print("caught")
+        throw e
+    }
+}
+
+g()

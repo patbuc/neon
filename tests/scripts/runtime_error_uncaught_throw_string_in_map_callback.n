@@ -1,0 +1,9 @@
+// Expected:
+// before
+
+// Expected runtime error: Uncaught: boom
+
+print("before")
+val xs = [1, 2, 3].map(fn(x) {
+    throw "boom"
+})

@@ -235,8 +235,16 @@ impl VirtualMachine {
         match self.run_until(target_depth) {
             Ok(()) => InterpretResult::Ok,
             Err(mut e) => {
-                if let Some(thrown) = &e.thrown {
-                    e.message = format!("Uncaught: {}", thrown);
+                if let Some(thrown) = e.thrown.take() {
+                    match &thrown {
+                        Value::Error(obj) => {
+                            if let Some(origin) = obj.thrown_at.get() {
+                                e = origin.clone();
+                            }
+                            e.message = obj.message.clone();
+                        }
+                        _ => e.message = format!("Uncaught: {}", thrown),
+                    }
                 }
                 self.runtime_error = Some(e);
                 InterpretResult::RuntimeError

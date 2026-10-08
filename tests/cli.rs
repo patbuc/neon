@@ -1459,3 +1459,86 @@ fn help_lists_stdin_dash() {
 
     assert!(String::from_utf8_lossy(&output.stdout).contains("neon - [args...]"));
 }
+
+#[allow(clippy::expect_used)]
+fn run_script_file(name: &str, source: &str) -> (std::process::Output, std::path::PathBuf) {
+    let script_path = std::env::temp_dir().join(name);
+    fs::write(&script_path, source).expect("Failed to write test script");
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg(&script_path)
+        .output()
+        .expect("Failed to run neon binary");
+    fs::remove_file(&script_path).ok();
+    (output, script_path)
+}
+
+#[test]
+fn run_file_reports_uncaught_throw_error_with_message_and_throw_site_trace() {
+    let (output, script_path) = run_script_file(
+        "neon_cli_test_uncaught_throw_error.n",
+        "fn inner() {\n  throw Error(\"x\")\n}\nfn outer() {\n  inner()\n  print(\"unreachable\")\n}\nouter()\n",
+    );
+
+    assert_eq!(70, output.status.code().unwrap());
+    let path = script_path.display();
+    let expected = format!(
+        "[{path}:2:3] x\n  at inner ({path}:2)\n  at outer ({path}:5)\n  at <script> ({path}:8)\n"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    #[cfg(feature = "opcode-stats")]
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    #[cfg(not(feature = "opcode-stats"))]
+    assert_eq!(expected, stderr);
+}
+
+#[test]
+fn run_file_reports_uncaught_throw_string_as_uncaught() {
+    let (output, script_path) = run_script_file(
+        "neon_cli_test_uncaught_throw_string.n",
+        "val a = 1\nthrow \"boom\"\n",
+    );
+
+    assert_eq!(70, output.status.code().unwrap());
+    let path = script_path.display();
+    let expected = format!("[{path}:2:1] Uncaught: boom\n  at <script> ({path}:2)\n");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    #[cfg(feature = "opcode-stats")]
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    #[cfg(not(feature = "opcode-stats"))]
+    assert_eq!(expected, stderr);
+}
+
+#[test]
+fn run_file_reports_uncaught_throw_string_from_a_map_callback() {
+    let (output, script_path) = run_script_file(
+        "neon_cli_test_uncaught_throw_string_map_callback.n",
+        "val xs = [1].map(fn(x) {\n  throw \"boom\"\n})\n",
+    );
+
+    assert_eq!(70, output.status.code().unwrap());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let path = script_path.display();
+    assert!(
+        stderr.starts_with(&format!("[{path}:2:3] Uncaught: boom\n")),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn run_file_reports_a_rethrown_error_at_its_original_throw_site() {
+    let (output, script_path) = run_script_file(
+        "neon_cli_test_uncaught_rethrow_error.n",
+        "fn f() {\n  throw Error(\"x\")\n}\nfn g() {\n  try {\n    f()\n  } catch (e) {\n    throw e\n  }\n}\ng()\n",
+    );
+
+    assert_eq!(70, output.status.code().unwrap());
+    let path = script_path.display();
+    let expected = format!(
+        "[{path}:2:3] x\n  at f ({path}:2)\n  at g ({path}:6)\n  at <script> ({path}:11)\n"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    #[cfg(feature = "opcode-stats")]
+    assert!(stderr.starts_with(&expected), "{stderr}");
+    #[cfg(not(feature = "opcode-stats"))]
+    assert_eq!(expected, stderr);
+}
