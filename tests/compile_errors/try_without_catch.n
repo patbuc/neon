@@ -1,0 +1,4 @@
+// Expected compile error: 4:2 E0005 Expect 'catch' after try block.
+try {
+    print(1)
+}

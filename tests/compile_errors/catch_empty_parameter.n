@@ -1,0 +1,5 @@
+// Expected compile error: 4:10 E0005 Expect catch parameter name.
+try {
+    throw 1
+} catch () {
+}

@@ -1,0 +1,6 @@
+// Expected compile error: 4:9 E0005 Expect '(' after 'catch'.
+try {
+    print(1)
+} catch {
+    print(2)
+}

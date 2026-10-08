@@ -1,0 +1,11 @@
+// Expected:
+// 2
+// 1
+
+val e = 1
+try {
+    throw 2
+} catch (e) {
+    print(e)
+}
+print(e)
