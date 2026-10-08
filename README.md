@@ -313,7 +313,8 @@ last expression (including `fn f() = expr`). When an `if`/`else` expression, a `
 ternary is in tail position, so are its branches and arms. Parentheses don't change tail
 position. Method calls count too, including a closure stored in a field. Operands of `&&`, `||` and `??` and script-level code are not tail
 positions. A tail call to a native function, a struct constructor or a native method behaves
-like a call followed by a return.
+like a call followed by a return. Calls inside a `try` body are never tail calls, so deep
+recursion through `return f(...)` there hits the frame limit.
 
 ```neon
 fn count(n, limit) = n >= limit ? n : count(n + 1, limit)
@@ -653,6 +654,8 @@ throw "any value"
   rethrown with `throw e`.
 - `return`, `break` and `continue` leave a `try` or `catch` block normally. Locals declared in the `try` are
   gone in the `catch`. There is no `finally`.
+- Calls inside a `try` body are never tail calls, so deep recursion through `return f(...)` there overflows
+  the stack.
 - An uncaught `Error` ends the program with exit code 70 and reports `[line:col] <message>` plus the
   trace. Any other thrown value reports `Uncaught: <value>` the same way.
 
