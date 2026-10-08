@@ -1,0 +1,11 @@
+// Expected:
+// x
+// after try
+
+try {
+    throw Error("x")
+    print("not reached")
+} catch (e) {
+    print(e.message)
+}
+print("after try")
