@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 BENCHES_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -43,6 +44,12 @@ class CpuModelTest(unittest.TestCase):
             f.flush()
             self.assertEqual(
                 run.cpu_model(f.name), "Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"
+            )
+
+    def test_processor_fallback(self):
+        with mock.patch("platform.processor", return_value="x86_64-test"):
+            self.assertEqual(
+                run.cpu_model("/nonexistent/cpuinfo"), "x86_64-test"
             )
 
 

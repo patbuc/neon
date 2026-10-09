@@ -12,6 +12,7 @@ if not getattr(sys.flags, "safe_path", False):
 import argparse
 import json
 import os
+import platform
 import statistics
 import subprocess
 import time
@@ -40,7 +41,11 @@ def positive_int(value):
 
 
 def cpu_model(path):
-    with open(path) as f:
+    try:
+        f = open(path)
+    except FileNotFoundError:
+        return platform.processor()
+    with f:
         for line in f:
             key, _, value = line.partition(":")
             if key.strip() == "model name":
