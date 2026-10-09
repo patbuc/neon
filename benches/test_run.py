@@ -1,5 +1,6 @@
 import importlib.util
 import io
+import json
 import os
 import sys
 import tempfile
@@ -106,6 +107,24 @@ class MainOutputTest(unittest.TestCase):
         table_start = next(i for i, line in enumerate(lines) if line.startswith("| Benchmark"))
         self.assertGreater(table_start, 0, "no line before the table")
         self.assertEqual(lines[table_start - 1], "CPU: Test CPU @ 1GHz")
+
+    def test_extra_on_every_json_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out_json = os.path.join(tmp, "out.json")
+            argv = ["run.py", "fib", "--runs", "1", "--json", out_json]
+            env = {k: v for k, v in os.environ.items() if k != "GITHUB_STEP_SUMMARY"}
+            with mock.patch("sys.argv", argv), \
+                    mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(run.os.path, "isfile", return_value=True), \
+                    mock.patch.object(run, "run_once", return_value=(0.01, "42")), \
+                    mock.patch.object(run, "cpu_model", return_value="Test CPU @ 1GHz"), \
+                    mock.patch("sys.stdout", new_callable=io.StringIO):
+                run.main()
+            with open(out_json) as f:
+                entries = json.load(f)
+        self.assertEqual(len(entries), 3)
+        for entry in entries:
+            self.assertEqual(entry.get("extra"), "CPU: Test CPU @ 1GHz", entry["name"])
 
 
 if __name__ == "__main__":

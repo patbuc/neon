@@ -182,6 +182,8 @@ def main():
                 f.write("\n" + "\n".join(f"- {failure}" for failure in failures) + "\n")
         sys.exit(1)
 
+    for entry in json_entries:
+        entry["extra"] = f"CPU: {cpu}"
     with open(args.json, "w") as f:
         json.dump(json_entries, f, indent=2)
 
