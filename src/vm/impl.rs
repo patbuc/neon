@@ -730,9 +730,11 @@ impl VirtualMachine {
             .join("\n")
     }
 
-    /// Executed-opcode histogram, one `<name> <count>` line per opcode that
-    /// ran, followed (after a blank line, when any pair ran) by one
-    /// `Prev->Next <count>` line per executed opcode pair.
+    /// Executed-instruction histogram, one `<name> <count>` line per
+    /// instruction that ran (named by its `Instr` variant, so a fused
+    /// instruction appears under its fused name), followed (after a blank
+    /// line, when any pair ran) by one `Prev->Next <count>` line per
+    /// executed instruction pair, named the same way.
     #[cfg(feature = "opcode-stats")]
     pub fn opcode_stats_report(&self) -> String {
         let mut counts: Vec<(String, u64)> = self

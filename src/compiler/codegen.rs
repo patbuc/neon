@@ -897,17 +897,8 @@ impl<'a> CodeGenerator<'a> {
     /// Stores the value on top of the stack into `id`'s target without
     /// leaving it on the stack, used for assignment as a statement.
     fn generate_store_without_push(&mut self, id: NodeId, location: SourceLocation) {
-        match self.resolutions.res(id) {
-            Res::Local(decl) => {
-                let slot = self.decl_slot(decl);
-                self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
-                self.emit_op_code(OpCode::Pop, location);
-            }
-            _ => {
-                self.emit_variable_set(id, location);
-                self.emit_op_code(OpCode::Pop, location);
-            }
-        }
+        self.emit_variable_set(id, location);
+        self.emit_op_code(OpCode::Pop, location);
     }
 
     /// Generates the new value of a compound assignment: reads `read_id`,
@@ -926,8 +917,7 @@ impl<'a> CodeGenerator<'a> {
     /// Generates `object; Dup; GetField field; value; operator`, leaving
     /// `[.., instance, result]` on the stack so the caller can finish with
     /// `SetField` (followed by `Pop` in statement position); `object`
-    /// evaluates exactly once. Returns the field's
-    /// symbol id.
+    /// evaluates exactly once. Returns the field's symbol id.
     fn generate_field_compound_assign_value(
         &mut self,
         object: &Expr,
