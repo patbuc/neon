@@ -411,18 +411,6 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn emit_get_local_field(&mut self, slot: u32, symbol: u32, location: SourceLocation) {
-        let Some(slot) = self.checked_index(slot, "locals", location) else {
-            return;
-        };
-        let Some(symbol) = self.checked_index(symbol, "symbols", location) else {
-            return;
-        };
-        self.emit_op_code(OpCode::GetLocalField, location);
-        self.current_chunk().write_u16(slot);
-        self.current_chunk().write_u16(symbol);
-    }
-
     fn emit_store_local_field(&mut self, slot: u32, symbol: u32, location: SourceLocation) {
         let Some(slot) = self.checked_index(slot, "locals", location) else {
             return;
@@ -2030,15 +2018,6 @@ impl<'a> CodeGenerator<'a> {
                     }
                 }
                 let symbol = self.resolutions.symbol(field);
-                if let Expr::Variable { id, .. } = object.as_ref() {
-                    if let Res::Local(decl) = self.resolutions.res(*id) {
-                        if !self.resolutions.is_checked(*id) {
-                            let slot = self.decl_slot(decl);
-                            self.emit_get_local_field(slot, symbol as u32, *location);
-                            return;
-                        }
-                    }
-                }
                 self.generate_expr(object);
                 self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", *location);
             }

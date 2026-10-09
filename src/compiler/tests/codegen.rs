@@ -395,7 +395,7 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
 }
 
 #[test]
-fn test_local_field_read_emits_get_local_field() {
+fn test_local_field_read_compiles_to_get_local_then_get_field() {
     let program = r#"
     struct P { value }
     fn get(p) {
@@ -405,8 +405,12 @@ fn test_local_field_read_emits_get_local_field() {
     "#;
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetLocalField"));
-    assert!(!disassembly.contains("GetField"));
+    let ops: Vec<&str> = disassembly
+        .lines()
+        .filter_map(|line| line.split_whitespace().find(|w| w.starts_with("Get")))
+        .collect();
+    assert!(!ops.contains(&"GetLocalField"));
+    assert!(ops.windows(2).any(|w| w == ["GetLocal", "GetField"]));
 }
 
 #[test]
