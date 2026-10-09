@@ -247,8 +247,9 @@ enforces these edges in `cargo test`.
 
 - Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, the
   symbol table shared by every chunk of the compile, and `file`, the unit's source file when known
-- `Chunk::decode` fills `code`, `instr_lines` (one location per instruction, read by `instr_line_info`) and
-  `closure_upvalues`; jump targets become instruction indices. Decode also fuses adjacent instructions into one
+- `Chunk::decode` fills `code`, `instr_lines` (one location per instruction, read by `instr_line_info`),
+  `closure_upvalues`, and `fused_field_lines` (the field-access location of a fused `*LocalField`, used when its
+  field read fails); jump targets become instruction indices. Decode also fuses adjacent instructions into one
   `Instr` (`GetLocal`+`GetField` → `GetLocalField`, `SetLocal`+`Pop` → `StoreLocal`, `SetField`+`Pop` →
   `StoreField`), never across a jump target, keeping the failing part's location, so `code` isn't one-to-one with
   the bytecode
