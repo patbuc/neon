@@ -48,7 +48,7 @@ fn for_in_loop_runs_loop_opcode_once_per_iteration() {
 
     let report = vm.opcode_stats_report();
     assert_eq!(10, count_for(&report, "Loop"));
-    assert_eq!(10, count_for(&report, "AddConstant"));
+    assert_eq!(10, count_for(&report, "GetLocalAddConstant"));
 }
 
 #[test]
@@ -61,8 +61,8 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
 
     let report = vm.opcode_stats_report();
     let section = pair_section(&report);
-    assert_eq!(10, count_for(section, "GetLocal->AddConstant"));
-    assert_eq!(10, count_for(section, "AddConstant->Pop"));
+    assert_eq!(10, count_for(section, "IteratorNext->GetLocalAddConstant"));
+    assert_eq!(10, count_for(section, "GetLocalAddConstant->Pop"));
 
     let entries = parse_entries(section);
     let counts: Vec<u64> = entries.iter().map(|(_, count)| *count).collect();
@@ -70,11 +70,10 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // These six pairs all execute 10 times; ties break by ascending name.
+    // These five pairs all execute 10 times; ties break by ascending name.
     let expected = [
-        "AddConstant->Pop",
-        "GetLocal->AddConstant",
-        "IteratorNext->GetLocal",
+        "GetLocalAddConstant->Pop",
+        "IteratorNext->GetLocalAddConstant",
         "Loop->IteratorDone",
         "Pop->Loop",
         "PopJumpIfFalse->IteratorNext",
@@ -141,9 +140,9 @@ fn report_is_sorted_descending_with_tie_break_by_name() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // AddConstant, GetLocal, Loop, and IteratorNext all execute 10 times;
+    // GetLocalAddConstant, Loop, and IteratorNext all execute 10 times;
     // ties break by ascending name.
-    let expected = ["AddConstant", "GetLocal", "IteratorNext", "Loop"];
+    let expected = ["GetLocalAddConstant", "IteratorNext", "Loop"];
     let tied: Vec<&str> = entries
         .iter()
         .filter(|(_, count)| *count == 10)

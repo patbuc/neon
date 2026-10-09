@@ -349,6 +349,10 @@ fn variant_index(instr: Instr) -> usize {
         Instr::AddLocalField { .. } => 96,
         Instr::SubtractLocalField { .. } => 97,
         Instr::DivideLocalField { .. } => 98,
+        Instr::GetLocalAddConstant { .. } => 99,
+        Instr::GetLocalSubtractConstant { .. } => 100,
+        Instr::GetLocalMultiplyConstant { .. } => 101,
+        Instr::GetLocalModuloConstant { .. } => 102,
     }
 }
 
@@ -488,10 +492,26 @@ fn name_matches_the_variant_name() {
         Instr::AddLocalField { slot: 1, symbol: 1 },
         Instr::SubtractLocalField { slot: 1, symbol: 1 },
         Instr::DivideLocalField { slot: 1, symbol: 1 },
+        Instr::GetLocalAddConstant {
+            slot: 1,
+            constant: 1,
+        },
+        Instr::GetLocalSubtractConstant {
+            slot: 1,
+            constant: 1,
+        },
+        Instr::GetLocalMultiplyConstant {
+            slot: 1,
+            constant: 1,
+        },
+        Instr::GetLocalModuloConstant {
+            slot: 1,
+            constant: 1,
+        },
     ];
     let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
     seen.sort_unstable();
-    assert_eq!((0..99).collect::<Vec<_>>(), seen);
+    assert_eq!((0..103).collect::<Vec<_>>(), seen);
 
     for instr in samples {
         let debug = format!("{instr:?}");
@@ -682,6 +702,26 @@ fn a_number_constant_left_of_subtract_decodes_without_a_constant_operand_instruc
 }
 
 #[test]
+fn a_literal_left_operand_decodes_without_a_local_fusion() {
+    let mut chunk = Chunk::new("five minus one");
+    let five = chunk.write_constant(Value::Int(5), 1, 1) as u16;
+    let one = chunk.write_constant(Value::Int(1), 2, 1) as u16;
+    chunk.write_op_code(OpCode::Subtract, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Constant(five),
+            Instr::SubtractConstant(one),
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
 fn a_string_constant_followed_by_add_decodes_unfused() {
     let mut chunk = Chunk::new("string add");
     let index = chunk.write_constant(Value::String(Rc::new("a".to_string())), 2, 1) as u16;
@@ -692,6 +732,122 @@ fn a_string_constant_followed_by_add_decodes_unfused() {
 
     assert_eq!(
         vec![Instr::Constant(index), Instr::Add, Instr::Return],
+        chunk.code
+    );
+}
+
+#[test]
+fn get_local_a_number_constant_and_subtract_decode_to_get_local_subtract_constant() {
+    let pool = [Value::Int(7), Value::Number(2.5)];
+    for value in pool {
+        let mut chunk = Chunk::new("fused local subtract constant");
+        chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+        let constant = chunk.write_constant(value, 2, 1) as u16;
+        chunk.write_op_code(OpCode::Subtract, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(
+            vec![
+                Instr::GetLocalSubtractConstant { slot: 3, constant },
+                Instr::Return
+            ],
+            chunk.code
+        );
+        assert_eq!(2, chunk.instr_lines.len());
+        assert_eq!(3, chunk.instr_line_info(0).unwrap().line);
+        assert_eq!(4, chunk.instr_line_info(1).unwrap().line);
+    }
+}
+
+#[test]
+fn add_subtract_multiply_and_modulo_each_fuse_a_local_left_operand_with_a_number_constant() {
+    let cases = [
+        (
+            OpCode::Add,
+            Instr::GetLocalAddConstant {
+                slot: 2,
+                constant: 0,
+            },
+        ),
+        (
+            OpCode::Subtract,
+            Instr::GetLocalSubtractConstant {
+                slot: 2,
+                constant: 0,
+            },
+        ),
+        (
+            OpCode::Multiply,
+            Instr::GetLocalMultiplyConstant {
+                slot: 2,
+                constant: 0,
+            },
+        ),
+        (
+            OpCode::Modulo,
+            Instr::GetLocalModuloConstant {
+                slot: 2,
+                constant: 0,
+            },
+        ),
+    ];
+    for (op, fused) in cases {
+        let mut chunk = Chunk::new("fused local constant operator");
+        chunk.write_indexed(OpCode::GetLocal, 2, 1, 1);
+        chunk.write_constant(Value::Int(7), 2, 1);
+        chunk.write_op_code(op, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(vec![fused, Instr::Return], chunk.code);
+        assert_eq!(2, chunk.instr_lines.len());
+        assert_eq!(3, chunk.instr_line_info(0).unwrap().line);
+    }
+}
+
+#[test]
+fn a_local_constant_operator_run_with_a_jump_target_inside_it_decodes_unfused() {
+    let mut chunk = Chunk::new("jump to constant");
+    let jump = chunk.emit_jump(OpCode::Jump, 1, 1);
+    chunk.write_indexed(OpCode::GetLocal, 3, 2, 1);
+    chunk.patch_jump(jump);
+    let constant = chunk.write_constant(Value::Int(7), 3, 1) as u16;
+    chunk.write_op_code(OpCode::Subtract, 4, 1);
+    chunk.write_op_code(OpCode::Return, 5, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Jump(2),
+            Instr::GetLocal(3),
+            Instr::SubtractConstant(constant),
+            Instr::Return
+        ],
+        chunk.code
+    );
+
+    let mut chunk = Chunk::new("jump to operator");
+    let jump = chunk.emit_jump(OpCode::Jump, 1, 1);
+    chunk.write_indexed(OpCode::GetLocal, 3, 2, 1);
+    let constant = chunk.write_constant(Value::Int(7), 3, 1) as u16;
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Subtract, 4, 1);
+    chunk.write_op_code(OpCode::Return, 5, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Jump(3),
+            Instr::GetLocal(3),
+            Instr::Constant(constant),
+            Instr::Subtract,
+            Instr::Return
+        ],
         chunk.code
     );
 }

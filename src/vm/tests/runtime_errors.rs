@@ -240,6 +240,37 @@ fn add_int_overflow_with_a_literal_right_operand() {
 }
 
 #[test]
+fn int_overflow_through_a_fused_local_constant_reports_the_operator_location() {
+    let cases = [
+        (
+            "a + 1",
+            "9223372036854775807",
+            "[3:14] integer overflow in +",
+        ),
+        (
+            "a - 1",
+            "-9223372036854775807 - 1",
+            "[3:14] integer overflow in -",
+        ),
+        (
+            "a * 2",
+            "9223372036854775807",
+            "[3:14] integer overflow in *",
+        ),
+    ];
+    for (expr, arg, expected) in cases {
+        let program =
+            format!("fn f(a) {{\n    val b = 0\n    return {expr}\n}}\nprint(f({arg}))\n");
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(InterpretResult::RuntimeError, result, "{expr}");
+        let errors = vm.get_runtime_errors();
+        assert_eq!(Some(expected), errors.lines().next(), "{expr}: {errors}");
+    }
+}
+
+#[test]
 fn bad_operand_type_errors() {
     let cases: &[(&str, &str)] = &[
         (

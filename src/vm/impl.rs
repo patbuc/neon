@@ -516,6 +516,18 @@ impl VirtualMachine {
                 Instr::SubtractConstant(index) => self.op_subtract_constant(index)?,
                 Instr::ModuloConstant(index) => self.op_modulo_constant(index)?,
                 Instr::MultiplyConstant(index) => self.op_multiply_constant(index)?,
+                Instr::GetLocalAddConstant { slot, constant } => {
+                    self.op_get_local_add_constant(slot, constant)?
+                }
+                Instr::GetLocalSubtractConstant { slot, constant } => {
+                    self.op_get_local_subtract_constant(slot, constant)?
+                }
+                Instr::GetLocalMultiplyConstant { slot, constant } => {
+                    self.op_get_local_multiply_constant(slot, constant)?
+                }
+                Instr::GetLocalModuloConstant { slot, constant } => {
+                    self.op_get_local_modulo_constant(slot, constant)?
+                }
                 Instr::AddLocal(slot) => self.op_add_local(slot)?,
                 Instr::SubtractLocal(slot) => self.op_subtract_local(slot)?,
                 Instr::MultiplyLocal(slot) => self.op_multiply_local(slot)?,
