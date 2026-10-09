@@ -1,4 +1,4 @@
-// A number literal as the right operand of +, -, <, <=, >, >= compiles to a
+// A number literal as the right operand of +, -, <, <=, >, >= decodes to a
 // constant-operand opcode (AddConstant, SubtractConstant, ...). Check the
 // results still match the generic form, including a float literal and a
 // negative result.

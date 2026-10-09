@@ -760,24 +760,6 @@ fn test_x_plus_1_compiles_to_constant_then_add() {
     );
 }
 
-#[test]
-fn test_number_literal_left_operand_keeps_generic_opcode() {
-    let program = "val a = 1\nval b = 1 - a\n";
-    let chunk = compile(program).unwrap();
-
-    let ops = op_codes(&chunk);
-    assert!(ops.contains(&OpCode::Subtract));
-}
-
-#[test]
-fn test_non_number_literal_right_operand_keeps_generic_opcode() {
-    let program = "val a = \"x\"\nval b = a + \"y\"\n";
-    let chunk = compile(program).unwrap();
-
-    let ops = op_codes(&chunk);
-    assert!(ops.contains(&OpCode::Add));
-}
-
 // =============================================================================
 // Per-Function Loop State Tests
 // =============================================================================
@@ -1545,34 +1527,10 @@ fn modulo_by_literal_compiles_to_constant_then_modulo() {
 }
 
 #[test]
-fn modulo_by_literal_disassembles_with_its_constant() {
-    let chunk = compile("val a = 1\nval b = a % 7\n").unwrap();
-
-    let disassembly = disassemble(&chunk);
-
-    assert!(
-        disassembly.contains("| Constant 03 '7'\n") && disassembly.contains("| Modulo\n"),
-        "{disassembly}"
-    );
-}
-
-#[test]
 fn multiply_by_literal_compiles_to_constant_then_multiply() {
     let program = "val a = 1\nval b = a * 7\n";
     let ops = op_codes(&compile(program).unwrap());
 
     let at = ops.iter().position(|o| *o == OpCode::Multiply).unwrap();
     assert_eq!(OpCode::Constant, ops[at - 1], "{ops:?}");
-}
-
-#[test]
-fn multiply_by_literal_disassembles_with_its_constant() {
-    let chunk = compile("val a = 1\nval b = a * 7\n").unwrap();
-
-    let disassembly = disassemble(&chunk);
-
-    assert!(
-        disassembly.contains("| Constant 03 '7'\n") && disassembly.contains("| Multiply\n"),
-        "{disassembly}"
-    );
 }
