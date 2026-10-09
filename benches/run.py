@@ -39,6 +39,14 @@ def positive_int(value):
     return ivalue
 
 
+def cpu_model(path):
+    with open(path) as f:
+        for line in f:
+            key, _, value = line.partition(":")
+            if key.strip() == "model name":
+                return value.strip()
+
+
 def run_once(cmd):
     start = time.perf_counter()
     result = subprocess.run(cmd, capture_output=True, text=True)
