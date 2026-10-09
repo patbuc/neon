@@ -1,0 +1,69 @@
+// Expected:
+// 4.5
+// 2.25
+// 1.5
+// 12
+// 19
+// -2
+// 2147483648
+// 9223372036854775807
+
+fn numberByInt() {
+    var x = 1.5
+    x += 1
+    x = x + 2
+    return x
+}
+
+fn intByNumber() {
+    var n = 1
+    n += 0.5
+    return n
+}
+
+fn intSum() {
+    var n = 5
+    n += 7
+    return n
+}
+
+fn intSumAssign() {
+    var n = 5
+    n += 7
+    n = n + 7
+    return n
+}
+
+fn intNegative() {
+    var n = 3
+    n += -5
+    return n
+}
+
+fn intPastThirtyTwoBits() {
+    var n = 2147483647
+    n += 1
+    return n
+}
+
+fn intToLimit() {
+    var n = 9223372036854775806
+    n += 1
+    return n
+}
+
+fn numberByNumber() {
+    var x = 1.5
+    x += 0.25
+    x = x + 0.5
+    return x
+}
+
+print(numberByInt())
+print(numberByNumber())
+print(intByNumber())
+print(intSum())
+print(intSumAssign())
+print(intNegative())
+print(intPastThirtyTwoBits())
+print(intToLimit())

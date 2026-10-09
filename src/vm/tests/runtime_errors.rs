@@ -271,6 +271,31 @@ fn int_overflow_through_a_fused_local_constant_reports_the_operator_location() {
 }
 
 #[test]
+fn int_overflow_in_increment_local_reports_the_operator_location() {
+    let cases = [
+        ("i = i + 1", "[3:11] integer overflow in +"),
+        ("i = i +\n        1", "[3:11] integer overflow in +"),
+        ("i += 1", "[3:5] integer overflow in +"),
+        ("print(i += 1)", "[3:11] integer overflow in +"),
+    ];
+    for (statement, expected) in cases {
+        let program = format!(
+            "fn f() {{\n    var i = 9223372036854775807\n    {statement}\n    return i\n}}\nf()\n"
+        );
+
+        let mut vm = VirtualMachine::new();
+        let result = vm.interpret(program);
+        assert_eq!(InterpretResult::RuntimeError, result, "{statement}");
+        let errors = vm.get_runtime_errors();
+        assert_eq!(
+            Some(expected),
+            errors.lines().next(),
+            "{statement}: {errors}"
+        );
+    }
+}
+
+#[test]
 fn bad_operand_type_errors() {
     let cases: &[(&str, &str)] = &[
         (
