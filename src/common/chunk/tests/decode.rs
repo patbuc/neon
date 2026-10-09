@@ -193,3 +193,18 @@ fn get_local_followed_by_get_field_decodes_to_one_get_local_field() {
     assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
     assert_eq!(2, chunk.instr_line_info(1).unwrap().line);
 }
+
+#[test]
+fn set_local_followed_by_pop_decodes_to_one_store_local() {
+    let mut chunk = Chunk::new("fused store");
+    chunk.write_indexed(OpCode::SetLocal, 3, 1, 1);
+    chunk.write_op_code(OpCode::Pop, 1, 5);
+    chunk.write_op_code(OpCode::Return, 2, 1);
+
+    chunk.decode();
+
+    assert_eq!(vec![Instr::StoreLocal(3), Instr::Return], chunk.code);
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(2, chunk.instr_line_info(1).unwrap().line);
+}

@@ -251,6 +251,7 @@ fn fused(first: Instr, second: Instr) -> Option<Instr> {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
             Some(Instr::GetLocalField { slot, symbol })
         }
+        (Instr::SetLocal(slot), Instr::Pop) => Some(Instr::StoreLocal(slot)),
         _ => None,
     }
 }
