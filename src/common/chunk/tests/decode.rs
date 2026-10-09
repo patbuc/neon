@@ -223,3 +223,25 @@ fn set_field_followed_by_pop_decodes_to_one_store_field() {
     assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
     assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
 }
+
+#[test]
+fn a_pair_whose_second_instruction_is_a_jump_target_decodes_unfused() {
+    let mut chunk = Chunk::new("jump into pair");
+    let jump = chunk.emit_jump(OpCode::Jump, 1, 1);
+    chunk.write_indexed(OpCode::SetLocal, 3, 2, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Pop, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Jump(2),
+            Instr::SetLocal(3),
+            Instr::Pop,
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
