@@ -356,6 +356,34 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
         }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
+        (Instr::Greater, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::GreaterJumpIfFalse(target), Keep::First))
+        }
+        (Instr::GreaterEqual, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::GreaterEqualJumpIfFalse(target), Keep::First))
+        }
+        (Instr::Less, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::LessJumpIfFalse(target), Keep::First))
+        }
+        (Instr::LessEqual, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::LessEqualJumpIfFalse(target), Keep::First))
+        }
+        (Instr::GreaterConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::GreaterConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::GreaterEqualConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::GreaterEqualConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::LessConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::LessConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::LessEqualConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::LessEqualConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
         (Instr::Constant(index), second)
             if matches!(
                 constants.get(index as usize),
@@ -492,38 +520,6 @@ impl Chunk {
                 OpCode::GetLocal => (Instr::GetLocal(u16_at(1)), 3),
                 OpCode::JumpIfFalse => (Instr::JumpIfFalse(0), 5),
                 OpCode::PopJumpIfFalse => (Instr::PopJumpIfFalse(0), 5),
-                OpCode::GreaterJumpIfFalse => (Instr::GreaterJumpIfFalse(0), 5),
-                OpCode::GreaterEqualJumpIfFalse => (Instr::GreaterEqualJumpIfFalse(0), 5),
-                OpCode::LessJumpIfFalse => (Instr::LessJumpIfFalse(0), 5),
-                OpCode::LessEqualJumpIfFalse => (Instr::LessEqualJumpIfFalse(0), 5),
-                OpCode::GreaterConstantJumpIfFalse => (
-                    Instr::GreaterConstantJumpIfFalse {
-                        constant: u16_at(1),
-                        target: 0,
-                    },
-                    7,
-                ),
-                OpCode::GreaterEqualConstantJumpIfFalse => (
-                    Instr::GreaterEqualConstantJumpIfFalse {
-                        constant: u16_at(1),
-                        target: 0,
-                    },
-                    7,
-                ),
-                OpCode::LessConstantJumpIfFalse => (
-                    Instr::LessConstantJumpIfFalse {
-                        constant: u16_at(1),
-                        target: 0,
-                    },
-                    7,
-                ),
-                OpCode::LessEqualConstantJumpIfFalse => (
-                    Instr::LessEqualConstantJumpIfFalse {
-                        constant: u16_at(1),
-                        target: 0,
-                    },
-                    7,
-                ),
                 OpCode::Jump => (Instr::Jump(0), 5),
                 OpCode::JumpIfNotNil => (Instr::JumpIfNotNil(0), 5),
                 OpCode::JumpIfNil => (Instr::JumpIfNil(0), 5),
@@ -645,19 +641,9 @@ impl Chunk {
                 OpCode::Jump
                 | OpCode::JumpIfFalse
                 | OpCode::PopJumpIfFalse
-                | OpCode::GreaterJumpIfFalse
-                | OpCode::GreaterEqualJumpIfFalse
-                | OpCode::LessJumpIfFalse
-                | OpCode::LessEqualJumpIfFalse
                 | OpCode::JumpIfNotNil
                 | OpCode::JumpIfNil
                 | OpCode::BeginTry => Some((pos + 5).checked_add(u32_at(1) as usize)),
-                OpCode::GreaterConstantJumpIfFalse
-                | OpCode::GreaterEqualConstantJumpIfFalse
-                | OpCode::LessConstantJumpIfFalse
-                | OpCode::LessEqualConstantJumpIfFalse => {
-                    Some((pos + 7).checked_add(u32_at(3) as usize))
-                }
                 OpCode::Loop => Some((pos + 5).checked_sub(u32_at(1) as usize)),
                 _ => None,
             };

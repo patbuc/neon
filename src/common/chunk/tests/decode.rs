@@ -60,31 +60,6 @@ fn pop_jump_if_false_decodes_to_instruction_index() {
 }
 
 #[test]
-fn constant_compare_jump_decodes_constant_and_target() {
-    let mut chunk = Chunk::new("compare jump");
-    chunk.write_op_code(OpCode::Nil, 1, 1);
-    let jump = chunk.emit_constant_jump(OpCode::LessConstantJumpIfFalse, 9, 2, 1);
-    chunk.write_op_code(OpCode::Nil, 3, 1);
-    chunk.patch_jump(jump);
-    chunk.write_op_code(OpCode::Return, 4, 1);
-
-    chunk.decode();
-
-    assert_eq!(
-        vec![
-            Instr::Nil,
-            Instr::LessConstantJumpIfFalse {
-                constant: 9,
-                target: 3,
-            },
-            Instr::Nil,
-            Instr::Return,
-        ],
-        chunk.code
-    );
-}
-
-#[test]
 fn closure_upvalues_decode_into_side_table() {
     let mut chunk = Chunk::new("closure");
     chunk.write_indexed(OpCode::Closure, 3, 1, 1);
@@ -919,6 +894,217 @@ fn a_local_constant_operator_run_with_a_jump_target_inside_it_decodes_unfused() 
             Instr::Constant(constant),
             Instr::Subtract,
             Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn less_followed_by_pop_jump_if_false_decodes_to_less_jump_if_false() {
+    let mut chunk = Chunk::new("less jump");
+    chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+    chunk.write_indexed(OpCode::GetLocal, 2, 1, 5);
+    chunk.write_op_code(OpCode::Less, 2, 3);
+    let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 3, 1);
+    chunk.write_op_code(OpCode::Nil, 4, 1);
+    chunk.write_indexed(OpCode::SetLocal, 3, 5, 1);
+    chunk.write_op_code(OpCode::Pop, 5, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 6, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(1),
+            Instr::GetLocal(2),
+            Instr::LessJumpIfFalse(5),
+            Instr::Nil,
+            Instr::StoreLocal(3),
+            Instr::Return,
+        ],
+        chunk.code
+    );
+    assert_eq!(6, chunk.instr_lines.len());
+    assert_eq!(2, chunk.instr_line_info(2).unwrap().line);
+    assert_eq!(3, chunk.instr_line_info(2).unwrap().column);
+}
+
+#[test]
+fn greater_greater_equal_and_less_equal_each_fuse_into_their_jump() {
+    let table = [
+        (OpCode::Greater, Instr::GreaterJumpIfFalse(3)),
+        (OpCode::GreaterEqual, Instr::GreaterEqualJumpIfFalse(3)),
+        (OpCode::LessEqual, Instr::LessEqualJumpIfFalse(3)),
+    ];
+    for (compare, fused) in table {
+        let mut chunk = Chunk::new("compare jump");
+        chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+        chunk.write_indexed(OpCode::GetLocal, 2, 1, 5);
+        chunk.write_op_code(compare, 2, 3);
+        let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 3, 1);
+        chunk.patch_jump(jump);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(
+            vec![Instr::GetLocal(1), Instr::GetLocal(2), fused, Instr::Return],
+            chunk.code
+        );
+        assert_eq!(2, chunk.instr_line_info(2).unwrap().line);
+    }
+}
+
+#[test]
+fn a_number_constant_compare_and_pop_jump_if_false_decode_to_constant_jump_if_false() {
+    type Fused = fn(u16, u32) -> Instr;
+    let table: [(OpCode, Fused); 4] = [
+        (OpCode::Greater, |constant, target| {
+            Instr::GreaterConstantJumpIfFalse { constant, target }
+        }),
+        (OpCode::GreaterEqual, |constant, target| {
+            Instr::GreaterEqualConstantJumpIfFalse { constant, target }
+        }),
+        (OpCode::Less, |constant, target| {
+            Instr::LessConstantJumpIfFalse { constant, target }
+        }),
+        (OpCode::LessEqual, |constant, target| {
+            Instr::LessEqualConstantJumpIfFalse { constant, target }
+        }),
+    ];
+    for (compare, fused) in table {
+        for value in [Value::Int(10), Value::Number(2.5)] {
+            let mut chunk = Chunk::new("constant compare jump");
+            chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+            let constant = chunk.write_constant(value, 1, 5) as u16;
+            chunk.write_op_code(compare, 2, 3);
+            let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 3, 1);
+            chunk.write_op_code(OpCode::Nil, 4, 1);
+            chunk.patch_jump(jump);
+            chunk.write_op_code(OpCode::Return, 5, 1);
+
+            chunk.decode();
+
+            assert_eq!(
+                vec![
+                    Instr::GetLocal(1),
+                    fused(constant, 3),
+                    Instr::Nil,
+                    Instr::Return,
+                ],
+                chunk.code,
+                "{compare:?}"
+            );
+            assert_eq!(2, chunk.instr_line_info(1).unwrap().line);
+            assert_eq!(3, chunk.instr_line_info(1).unwrap().column);
+        }
+    }
+}
+
+#[test]
+fn a_pop_jump_if_false_that_is_a_jump_target_keeps_its_comparison_unfused() {
+    let mut chunk = Chunk::new("shared jump target");
+    chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+    let skip = chunk.emit_jump(OpCode::JumpIfFalse, 1, 3);
+    chunk.write_op_code(OpCode::Pop, 1, 4);
+    chunk.write_indexed(OpCode::GetLocal, 2, 1, 6);
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 10);
+    chunk.write_op_code(OpCode::Less, 1, 8);
+    chunk.patch_jump(skip);
+    let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 1, 12);
+    chunk.write_op_code(OpCode::Nil, 2, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(1),
+            Instr::JumpIfFalse(6),
+            Instr::Pop,
+            Instr::GetLocal(2),
+            Instr::GetLocal(3),
+            Instr::Less,
+            Instr::PopJumpIfFalse(8),
+            Instr::Nil,
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn a_loop_back_to_the_start_of_a_fused_compare_jump_resolves() {
+    let mut chunk = Chunk::new("loop to compare");
+    chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+    let start = chunk.instruction_count() as u32;
+    let constant = chunk.write_constant(Value::Int(10), 2, 1) as u16;
+    chunk.write_op_code(OpCode::Less, 2, 3);
+    let jump = chunk.emit_jump(OpCode::PopJumpIfFalse, 2, 5);
+    chunk.emit_loop(start, 3, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(1),
+            Instr::LessConstantJumpIfFalse {
+                constant,
+                target: 3
+            },
+            Instr::Loop(1),
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn a_comparison_used_as_a_value_decodes_unfused() {
+    let mut chunk = Chunk::new("compare value");
+    chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+    chunk.write_indexed(OpCode::GetLocal, 2, 1, 5);
+    chunk.write_op_code(OpCode::Less, 2, 3);
+    chunk.write_indexed(OpCode::SetLocal, 3, 2, 8);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(1),
+            Instr::GetLocal(2),
+            Instr::Less,
+            Instr::SetLocal(3),
+            Instr::Return,
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn a_comparison_followed_by_jump_if_false_decodes_unfused() {
+    let mut chunk = Chunk::new("compare jump if false");
+    chunk.write_indexed(OpCode::GetLocal, 1, 1, 1);
+    chunk.write_indexed(OpCode::GetLocal, 2, 1, 5);
+    chunk.write_op_code(OpCode::Less, 2, 3);
+    let jump = chunk.emit_jump(OpCode::JumpIfFalse, 3, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(1),
+            Instr::GetLocal(2),
+            Instr::Less,
+            Instr::JumpIfFalse(4),
+            Instr::Return,
         ],
         chunk.code
     );
