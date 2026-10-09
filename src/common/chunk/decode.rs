@@ -245,20 +245,22 @@ impl Instr {
     }
 }
 
-/// The instruction that replaces `first` followed by `second`, if they fuse.
-fn fused(first: Instr, second: Instr) -> Option<Instr> {
+/// The instruction that replaces `first` followed by `second`, if they fuse,
+/// and whether it keeps the line of `first` rather than of `second`.
+fn fused(first: Instr, second: Instr) -> Option<(Instr, bool)> {
     match (first, second) {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
-            Some(Instr::GetLocalField { slot, symbol })
+            Some((Instr::GetLocalField { slot, symbol }, false))
         }
-        (Instr::SetLocal(slot), Instr::Pop) => Some(Instr::StoreLocal(slot)),
+        (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), false)),
+        (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), true)),
         _ => None,
     }
 }
 
 /// Replaces adjacent instructions that `fused` accepts with one, unless the
-/// second is a jump target. A fused instruction keeps the line of the second
-/// one, the one whose handler can fail. Returns each old index's new index,
+/// second is a jump target. A fused instruction keeps the line of the part
+/// whose handler can fail, as `fused` says. Returns each old index's new index,
 /// with one extra entry for the end of the code.
 fn fuse(
     code: &mut Vec<Instr>,
@@ -273,11 +275,13 @@ fn fuse(
             .last()
             .filter(|_| !jump_targets[i])
             .and_then(|&previous| fused(previous, instr));
-        if let Some(fusion) = fusion {
+        if let Some((fusion, keep_first_line)) = fusion {
             let last = new_code.len() - 1;
             new_index.push(last as u32);
             new_code[last] = fusion;
-            new_lines[last] = instr_lines[i];
+            if !keep_first_line {
+                new_lines[last] = instr_lines[i];
+            }
         } else {
             new_index.push(new_code.len() as u32);
             new_code.push(instr);
