@@ -245,15 +245,22 @@ impl Instr {
     }
 }
 
+/// Which part of a fusion supplies the fused instruction's location.
+#[derive(Clone, Copy)]
+enum Keep {
+    First,
+    Second,
+}
+
 /// The instruction that replaces `first` followed by `second`, if they fuse,
-/// and whether it keeps the line of `first` rather than of `second`.
-fn fused(first: Instr, second: Instr) -> Option<(Instr, bool)> {
+/// and which part's location it keeps: the one whose handler can fail.
+fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
     match (first, second) {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
-            Some((Instr::GetLocalField { slot, symbol }, false))
+            Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
         }
-        (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), false)),
-        (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), true)),
+        (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
+        (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
         _ => None,
     }
 }
@@ -275,11 +282,11 @@ fn fuse(
             .last()
             .filter(|_| !jump_targets[i])
             .and_then(|&previous| fused(previous, instr));
-        if let Some((fusion, keep_first_line)) = fusion {
+        if let Some((fusion, keep)) = fusion {
             let last = new_code.len() - 1;
             new_index.push(last as u32);
             new_code[last] = fusion;
-            if !keep_first_line {
+            if let Keep::Second = keep {
                 new_lines[last] = instr_lines[i];
             }
         } else {
@@ -547,26 +554,29 @@ impl Chunk {
             index_of[pos] = code.len() as u32;
         }
 
+        // Each jump's target as an old instruction index; None if it is no
+        // instruction boundary.
+        let jumps: Vec<(usize, Option<usize>, u8)> = jumps
+            .into_iter()
+            .map(|(at, target_offset, byte)| {
+                let target = target_offset
+                    .and_then(|offset| index_of.get(offset).copied())
+                    .filter(|&target| target != u32::MAX)
+                    .map(|target| target as usize);
+                (at, target, byte)
+            })
+            .collect();
         let mut jump_targets = vec![false; code.len() + 1];
-        for &(_, target_offset, _) in &jumps {
-            let target = target_offset.and_then(|offset| index_of.get(offset).copied());
-            if let Some(target) = target.filter(|&target| target != u32::MAX) {
-                jump_targets[target as usize] = true;
+        for &(_, target, _) in &jumps {
+            if let Some(target) = target {
+                jump_targets[target] = true;
             }
         }
         let new_index = fuse(&mut code, &mut instr_lines, &jump_targets);
-        for entry in index_of.iter_mut().filter(|entry| **entry != u32::MAX) {
-            *entry = new_index[*entry as usize];
-        }
-        for (at, _, _) in jumps.iter_mut() {
-            *at = new_index[*at] as usize;
-        }
 
-        for (at, target_offset, byte) in jumps {
-            let target = target_offset
-                .and_then(|offset| index_of.get(offset).copied())
-                .filter(|&target| target != u32::MAX);
-            let Some(target) = target else {
+        for (at, target, byte) in jumps {
+            let at = new_index[at] as usize;
+            let Some(target) = target.map(|target| new_index[target]) else {
                 code[at] = Instr::Invalid(byte);
                 continue;
             };
