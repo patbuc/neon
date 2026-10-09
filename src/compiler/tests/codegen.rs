@@ -1553,3 +1553,25 @@ fn i_plus_equals_one_as_a_statement_decodes_to_increment_local() {
         assert!(function_has_increment_local(&chunk), "{statement}");
     }
 }
+
+fn function_has_local_less_constant_jump_if_false(chunk: &Chunk) -> bool {
+    chunk
+        .constants
+        .values
+        .iter()
+        .any(|constant| match constant {
+            Value::Function(function) => function
+                .chunk
+                .code
+                .iter()
+                .any(|instr| matches!(instr, Instr::LocalLessConstantJumpIfFalse { .. })),
+            _ => false,
+        })
+}
+
+#[test]
+fn a_while_i_less_than_ten_condition_fuses() {
+    let program = "fn count() {\n    var i = 0\n    while i < 10 {\n        i += 1\n    }\n    return i\n}\ncount()\n";
+    let chunk = compile(program).unwrap();
+    assert!(function_has_local_less_constant_jump_if_false(&chunk));
+}

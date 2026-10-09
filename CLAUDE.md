@@ -253,7 +253,8 @@ enforces these edges in `cargo test`.
   `SetField`+`Pop` → `StoreField`, `GetLocal`+`Add`/`Subtract`/`Multiply`/`Divide` → `*Local`, `GetLocalField`+operator
   → `*LocalField`, `Constant`+`Add`/`Subtract`/`Multiply`/`Modulo`/`Greater`/`GreaterEqual`/`Less`/`LessEqual` →
   `*Constant` when the pool entry is a Number or Int, a comparison followed by `PopJumpIfFalse` →
-  `<Cmp>JumpIfFalse`, and a `<Cmp>Constant` followed by it → `<Cmp>ConstantJumpIfFalse`), never across a jump target,
+  `<Cmp>JumpIfFalse`, and a `<Cmp>Constant` followed by it → `<Cmp>ConstantJumpIfFalse`, and that after a `GetLocal` of slot ≤ 255 →
+  `Local<Cmp>ConstantJumpIfFalse`), never across a jump target,
   keeping the failing part's location, so `code` isn't one-to-one with the bytecode. The pass cascades: a fused result
   is tried again with the instruction before it, so `GetLocal` + number `Constant` +
   `Add`/`Subtract`/`Multiply`/`Modulo` becomes `GetLocal<Op>Constant`, and that followed by a `StoreLocal` of the same

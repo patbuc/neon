@@ -774,6 +774,37 @@ impl VirtualMachine {
         Ok(is_match)
     }
 
+    /// Like `op_compare_constant_and_pop`, with local `slot` as the left
+    /// operand. Anything but a Number pair or an Int pair takes the unfused
+    /// path so its result and error match.
+    #[inline(always)]
+    pub(in crate::vm) fn op_local_compare_constant_and_pop(
+        &mut self,
+        slot: u8,
+        index: u16,
+        wanted: Comparison,
+    ) -> Result<bool, RuntimeError> {
+        let local = self.frame_base + slot as usize;
+        match (self.stack.get(local), self.chunk.constant(index as usize)) {
+            (Some(&Value::Number(a)), &Value::Number(c)) => Ok(match wanted {
+                Comparison::Greater => a > c,
+                Comparison::GreaterEqual => a >= c,
+                Comparison::Less => a < c,
+                Comparison::LessEqual => a <= c,
+            }),
+            (Some(&Value::Int(a)), &Value::Int(c)) => Ok(match wanted {
+                Comparison::Greater => a > c,
+                Comparison::GreaterEqual => a >= c,
+                Comparison::Less => a < c,
+                Comparison::LessEqual => a <= c,
+            }),
+            _ => {
+                self.op_get_local(slot as u16)?;
+                self.op_compare_constant_and_pop(index, wanted)
+            }
+        }
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_equal(&mut self) {
         let b = self.pop();
