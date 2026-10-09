@@ -356,6 +356,34 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
         }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
+        (Instr::Greater, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::GreaterJumpIfFalse(target), Keep::First))
+        }
+        (Instr::GreaterEqual, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::GreaterEqualJumpIfFalse(target), Keep::First))
+        }
+        (Instr::Less, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::LessJumpIfFalse(target), Keep::First))
+        }
+        (Instr::LessEqual, Instr::PopJumpIfFalse(target)) => {
+            Some((Instr::LessEqualJumpIfFalse(target), Keep::First))
+        }
+        (Instr::GreaterConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::GreaterConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::GreaterEqualConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::GreaterEqualConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::LessConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::LessConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
+        (Instr::LessEqualConstant(constant), Instr::PopJumpIfFalse(target)) => Some((
+            Instr::LessEqualConstantJumpIfFalse { constant, target },
+            Keep::First,
+        )),
         (Instr::Constant(index), second)
             if matches!(
                 constants.get(index as usize),
