@@ -1157,6 +1157,32 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn op_multiply_local(&mut self, slot: u16) -> OpResult {
+        let local = self.frame_base + slot as usize;
+        if let Some((top, below)) = self.stack.split_last_mut() {
+            match (top, below.get(local)) {
+                (Value::Number(a), Some(&Value::Number(c))) => {
+                    *a *= c;
+                    return Ok(());
+                }
+                (Value::Int(a), Some(&Value::Int(c))) => {
+                    return match a.checked_mul(c) {
+                        Some(r) => {
+                            *a = r;
+                            Ok(())
+                        }
+                        None => Err(self.overflow_error("*")),
+                    };
+                }
+                _ => {}
+            }
+        }
+        self.op_get_local(slot)?;
+        self.op_multiply()?;
+        Ok(())
+    }
+
+    #[inline(always)]
     #[allow(clippy::expect_used)]
     pub(in crate::vm) fn op_subtract_constant(&mut self, index: u16) -> OpResult {
         let index = index as usize;

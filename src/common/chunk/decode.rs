@@ -119,6 +119,7 @@ pub(crate) enum Instr {
     LessEqualConstant(u16),
     ModuloConstant(u16),
     MultiplyConstant(u16),
+    MultiplyLocal(u16),
     Dup,
     Dup2,
     JumpIfNotNil(u32),
@@ -224,6 +225,7 @@ impl Instr {
             Instr::LessEqualConstant(_) => "LessEqualConstant",
             Instr::ModuloConstant(_) => "ModuloConstant",
             Instr::MultiplyConstant(_) => "MultiplyConstant",
+            Instr::MultiplyLocal(_) => "MultiplyLocal",
             Instr::Dup => "Dup",
             Instr::Dup2 => "Dup2",
             Instr::JumpIfNotNil(_) => "JumpIfNotNil",
@@ -256,6 +258,9 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
     match (first, second) {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
             Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::Multiply) => {
+            Some((Instr::MultiplyLocal(slot), Keep::Second))
         }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),

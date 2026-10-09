@@ -516,6 +516,7 @@ impl VirtualMachine {
                 Instr::SubtractConstant(index) => self.op_subtract_constant(index)?,
                 Instr::ModuloConstant(index) => self.op_modulo_constant(index)?,
                 Instr::MultiplyConstant(index) => self.op_multiply_constant(index)?,
+                Instr::MultiplyLocal(slot) => self.op_multiply_local(slot)?,
                 Instr::GreaterConstant(index) => {
                     self.op_compare_constant(index, Comparison::Greater)?
                 }

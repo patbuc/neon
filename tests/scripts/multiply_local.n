@@ -1,0 +1,18 @@
+// Expected:
+// 30
+// 7.5
+// 7.5
+
+fn product(a, b) {
+    return a * b
+}
+
+fn productLocals(x, y) {
+    val a = x
+    val b = y
+    return a * b
+}
+
+print(product(5, 6))
+print(product(2.5, 3.0))
+print(productLocals(2.5, 3))

@@ -340,6 +340,7 @@ fn variant_index(instr: Instr) -> usize {
         Instr::EndTry => 88,
         Instr::Throw => 89,
         Instr::Invalid(_) => 90,
+        Instr::MultiplyLocal(_) => 91,
     }
 }
 
@@ -471,10 +472,11 @@ fn name_matches_the_variant_name() {
         Instr::EndTry,
         Instr::Throw,
         Instr::Invalid(1),
+        Instr::MultiplyLocal(1),
     ];
     let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
     seen.sort_unstable();
-    assert_eq!((0..91).collect::<Vec<_>>(), seen);
+    assert_eq!((0..92).collect::<Vec<_>>(), seen);
 
     for instr in samples {
         let debug = format!("{instr:?}");
@@ -484,4 +486,19 @@ fn name_matches_the_variant_name() {
             _ => assert_eq!(Some(variant), instr.name()),
         }
     }
+}
+
+#[test]
+fn get_local_followed_by_multiply_decodes_to_multiply_local() {
+    let mut chunk = Chunk::new("fused multiply");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    chunk.write_op_code(OpCode::Multiply, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(vec![Instr::MultiplyLocal(3), Instr::Return], chunk.code);
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(2, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
 }
