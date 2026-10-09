@@ -1,5 +1,5 @@
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, LineInfo};
+use crate::common::{Chunk, LineInfo, Value};
 
 /// One decoded instruction. Jump targets are absolute instruction indices;
 /// `Closure.upvalues` is the start of its `(is_local, index)` run in
@@ -284,7 +284,7 @@ enum Keep {
 /// The instruction that replaces `first` followed by `second`, if they fuse,
 /// and which part's location it keeps: the one whose handler can fail, or
 /// both when both can.
-fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
+fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Keep)> {
     match (first, second) {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
             Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
@@ -311,6 +311,25 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
         }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
+        (Instr::Constant(index), second)
+            if matches!(
+                constants.get(index as usize),
+                Some(Value::Number(_) | Value::Int(_))
+            ) =>
+        {
+            let fusion = match second {
+                Instr::Add => Instr::AddConstant(index),
+                Instr::Subtract => Instr::SubtractConstant(index),
+                Instr::Multiply => Instr::MultiplyConstant(index),
+                Instr::Modulo => Instr::ModuloConstant(index),
+                Instr::Greater => Instr::GreaterConstant(index),
+                Instr::GreaterEqual => Instr::GreaterEqualConstant(index),
+                Instr::Less => Instr::LessConstant(index),
+                Instr::LessEqual => Instr::LessEqualConstant(index),
+                _ => return None,
+            };
+            Some((fusion, Keep::Second))
+        }
         _ => None,
     }
 }
@@ -325,6 +344,7 @@ fn fuse(
     instr_lines: &mut Vec<Option<LineInfo>>,
     field_lines: &mut Vec<(u32, Option<LineInfo>)>,
     jump_targets: &[bool],
+    constants: &[Value],
 ) -> Vec<u32> {
     let mut new_code: Vec<Instr> = Vec::with_capacity(code.len());
     let mut new_lines = Vec::with_capacity(instr_lines.len());
@@ -333,7 +353,7 @@ fn fuse(
         let fusion = new_code
             .last()
             .filter(|_| !jump_targets[i])
-            .and_then(|&previous| fused(previous, instr));
+            .and_then(|&previous| fused(previous, instr, constants));
         if let Some((fusion, keep)) = fusion {
             let last = new_code.len() - 1;
             new_index.push(last as u32);
@@ -626,6 +646,7 @@ impl Chunk {
             &mut instr_lines,
             &mut fused_field_lines,
             &jump_targets,
+            &self.constants.values,
         );
 
         for (at, target, byte) in jumps {
