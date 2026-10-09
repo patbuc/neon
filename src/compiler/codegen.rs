@@ -618,76 +618,10 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Emits `condition` and a jump, taken when it is false-like, that pops
-    /// it on both paths. A `<`, `<=`, `>` or `>=` condition fuses into the
-    /// jump. Returns the jump to patch.
+    /// it on both paths. Returns the jump to patch.
     fn generate_condition_jump(&mut self, condition: &Expr, location: SourceLocation) -> u32 {
-        let mut condition = condition;
-        while let Expr::Grouping { expr, .. } = condition {
-            condition = expr;
-        }
-        if let Expr::Binary {
-            left,
-            operator,
-            right,
-            location: compare_location,
-        } = condition
-        {
-            let fused = match operator {
-                BinaryOp::Greater => Some((
-                    OpCode::GreaterJumpIfFalse,
-                    OpCode::GreaterConstantJumpIfFalse,
-                )),
-                BinaryOp::GreaterEqual => Some((
-                    OpCode::GreaterEqualJumpIfFalse,
-                    OpCode::GreaterEqualConstantJumpIfFalse,
-                )),
-                BinaryOp::Less => Some((OpCode::LessJumpIfFalse, OpCode::LessConstantJumpIfFalse)),
-                BinaryOp::LessEqual => Some((
-                    OpCode::LessEqualJumpIfFalse,
-                    OpCode::LessEqualConstantJumpIfFalse,
-                )),
-                _ => None,
-            };
-            if let Some((op_code, constant_op_code)) = fused {
-                self.generate_expr(left);
-                if let Some(constant) = Self::number_literal(right) {
-                    return self.emit_constant_jump(constant_op_code, constant, *compare_location);
-                }
-                self.generate_expr(right);
-                return self.emit_jump(op_code, *compare_location);
-            }
-        }
         self.generate_expr(condition);
         self.emit_jump(OpCode::PopJumpIfFalse, location)
-    }
-
-    fn emit_constant_jump(
-        &mut self,
-        op_code: OpCode,
-        constant: Value,
-        location: SourceLocation,
-    ) -> u32 {
-        let index = self.add_constant(constant);
-        // An index past u16 is reported as a compile error; 0 only keeps the
-        // jump patchable.
-        let index = self
-            .checked_index(index, "constants", location)
-            .unwrap_or(0);
-        let offset =
-            self.current_chunk()
-                .emit_constant_jump(op_code, index, location.line, location.column);
-        self.adjust_stack_height(op_code.stack_effect());
-        offset
-    }
-
-    /// The value of a number literal, which a `*ConstantJumpIfFalse` opcode
-    /// takes from the constant pool instead of the stack.
-    fn number_literal(expr: &Expr) -> Option<Value> {
-        match expr {
-            Expr::Number { value, .. } => Some(number!(*value)),
-            Expr::Int { value, .. } => Some(int!(*value)),
-            _ => None,
-        }
     }
 
     fn patch_jump(&mut self, offset: u32) {

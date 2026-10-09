@@ -114,16 +114,13 @@ fn test_else_if_bytecode_multiple_branches() {
     let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
-    let less_jump_count = ops
-        .iter()
-        .filter(|op| **op == OpCode::LessConstantJumpIfFalse)
-        .count();
+    let less_jump_count = ops.iter().filter(|op| **op == OpCode::Less).count();
     let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
-    // We should have 4 LessConstantJumpIfFalse (one for each condition)
+    // We should have 4 Less (one for each condition)
     assert_eq!(
         less_jump_count, 4,
-        "Expected 4 LessConstantJumpIfFalse instructions for all conditions"
+        "Expected 4 Less instructions for all conditions"
     );
 
     // We should have 4 Jump instructions (one after each then-branch)
@@ -606,19 +603,11 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::SetUpvalue => 2,
             OpCode::JumpIfFalse
             | OpCode::PopJumpIfFalse
-            | OpCode::GreaterJumpIfFalse
-            | OpCode::GreaterEqualJumpIfFalse
-            | OpCode::LessJumpIfFalse
-            | OpCode::LessEqualJumpIfFalse
             | OpCode::JumpIfNotNil
             | OpCode::JumpIfNil
             | OpCode::Jump
             | OpCode::Loop => 4,
             OpCode::StoreLocalField => 4,
-            OpCode::GreaterConstantJumpIfFalse
-            | OpCode::GreaterEqualConstantJumpIfFalse
-            | OpCode::LessConstantJumpIfFalse
-            | OpCode::LessEqualConstantJumpIfFalse => 6,
             OpCode::Closure => {
                 // 2-byte constant index, then a 1-byte upvalue count and
                 // that many (is_local, index) pairs (1 + 2 bytes each).
@@ -665,13 +654,14 @@ fn test_two_operand_fused_jump_bytecode() {
 0013      | Pop
 0014      3 GetLocal 00
 0017      | GetLocal 01
-001a      | LessJumpIfFalse 001a -> 0028
-001f      | Constant 04 '<native fn print>'
-0022      | Constant 02 '1'
-0025      | Call (args: 1)
-0027      | Pop
-0028      4 Nil
-0029      | Return
+001a      | Less
+001b      | PopJumpIfFalse 001b -> 0029
+0020      | Constant 04 '<native fn print>'
+0023      | Constant 02 '1'
+0026      | Call (args: 1)
+0028      | Pop
+0029      4 Nil
+002a      | Return
 === </main> ===
 "#;
 
@@ -679,15 +669,21 @@ fn test_two_operand_fused_jump_bytecode() {
 }
 
 #[test]
-fn test_comparison_conditions_fuse_into_jumps() {
-    let program = "val a = 1\nval b = 2\nif a < b { print(1) }\nwhile a >= 2.5 { print(2) }\n";
-    let ops = op_codes(&compile(program).unwrap());
+fn test_if_comparison_compiles_to_comparison_then_pop_jump_if_false() {
+    let register = compile("val a = 1\nval b = 2\nif a < b { print(1) }\n").unwrap();
+    let literal = compile("val n = 1\nif n < 10 { print(1) }\n").unwrap();
 
-    assert!(ops.contains(&OpCode::LessJumpIfFalse));
-    assert!(ops.contains(&OpCode::GreaterEqualConstantJumpIfFalse));
-    for op in [OpCode::Less, OpCode::PopJumpIfFalse] {
-        assert!(!ops.contains(&op), "unexpected {op:?} in {ops:?}");
-    }
+    let register_ops = opcode_names(&disassemble(&register)).join(" ");
+    let literal_ops = opcode_names(&disassemble(&literal)).join(" ");
+
+    assert!(
+        register_ops.contains("GetLocal GetLocal Less PopJumpIfFalse"),
+        "{register_ops}"
+    );
+    assert!(
+        literal_ops.contains("GetLocal Constant Less PopJumpIfFalse"),
+        "{literal_ops}"
+    );
 }
 
 #[test]
@@ -833,29 +829,31 @@ fn test_while_break_continue_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 GetLocal 00
-000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004f
-0014      4 GetLocal 00
-0017      | Constant 03 '1'
-001a      | Add
-001b      | SetLocal 00
-001e      | Pop
-001f      5 GetLocal 00
-0022      | Constant 04 '2'
-0025      | Equal
-0026      | PopJumpIfFalse 0026 -> 0030
-002b      | Jump 002b -> 004a
-0030      6 GetLocal 00
-0033      | Constant 05 '5'
-0036      | Equal
-0037      | PopJumpIfFalse 0037 -> 0041
-003c      | Jump 003c -> 004f
-0041      7 Constant 06 '<native fn print>'
-0044      | GetLocal 00
-0047      | Call (args: 1)
-0049      6 Pop
-004a      3 Loop 004a -> 000a
-004f      9 Nil
-0050      | Return
+000d      | Constant 02 '10'
+0010      | Less
+0011      | PopJumpIfFalse 0011 -> 0051
+0016      4 GetLocal 00
+0019      | Constant 03 '1'
+001c      | Add
+001d      | SetLocal 00
+0020      | Pop
+0021      5 GetLocal 00
+0024      | Constant 04 '2'
+0027      | Equal
+0028      | PopJumpIfFalse 0028 -> 0032
+002d      | Jump 002d -> 004c
+0032      6 GetLocal 00
+0035      | Constant 05 '5'
+0038      | Equal
+0039      | PopJumpIfFalse 0039 -> 0043
+003e      | Jump 003e -> 0051
+0043      7 Constant 06 '<native fn print>'
+0046      | GetLocal 00
+0049      | Call (args: 1)
+004b      6 Pop
+004c      3 Loop 004c -> 000a
+0051      9 Nil
+0052      | Return
 === </main> ===
 "#;
 
@@ -927,30 +925,32 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0045
-001c      5 GetLocal 01
-001f      | Constant 04 '1'
-0022      | Add
-0023      | SetLocal 01
-0026      | Pop
-0027      7 GetLocal 01
-002a      | Constant 05 '10'
-002d      | Multiply
-002e      8 Closure 06 '<fn anonymous>'
+0015      | Constant 03 '3'
+0018      | Less
+0019      | PopJumpIfFalse 0019 -> 0047
+001e      5 GetLocal 01
+0021      | Constant 04 '1'
+0024      | Add
+0025      | SetLocal 01
+0028      | Pop
+0029      7 GetLocal 01
+002c      | Constant 05 '10'
+002f      | Multiply
+0030      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0035      | SetLocal 00
-0038      | Pop
-0039      9 CloseUpvalue
-003a      | Jump 003a -> 0045
-003f      6 CloseUpvalue
-0040      4 Loop 0040 -> 0012
-0045     12 Constant 07 '<native fn print>'
-0048      | GetLocal 00
-004b      | Call (args: 0)
-004d      | Call (args: 1)
-004f     11 Pop
-0050     13 Nil
-0051      | Return
+0037      | SetLocal 00
+003a      | Pop
+003b      9 CloseUpvalue
+003c      | Jump 003c -> 0047
+0041      6 CloseUpvalue
+0042      4 Loop 0042 -> 0012
+0047     12 Constant 07 '<native fn print>'
+004a      | GetLocal 00
+004d      | Call (args: 0)
+004f      | Call (args: 1)
+0051     11 Pop
+0052     13 Nil
+0053      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
