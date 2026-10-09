@@ -44,12 +44,19 @@ def cpu_model(path):
     try:
         f = open(path)
     except FileNotFoundError:
-        return platform.processor()
-    with f:
-        for line in f:
-            key, _, value = line.partition(":")
-            if key.strip() == "model name":
-                return value.strip()
+        model = platform.processor()
+    else:
+        model = None
+        with f:
+            for line in f:
+                key, _, value = line.partition(":")
+                if key.strip() == "model name":
+                    model = value.strip()
+                    break
+    if not model:
+        print("could not determine the CPU model", file=sys.stderr)
+        sys.exit(1)
+    return model
 
 
 def run_once(cmd):

@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import os
 import sys
 import tempfile
@@ -51,6 +52,24 @@ class CpuModelTest(unittest.TestCase):
             self.assertEqual(
                 run.cpu_model("/nonexistent/cpuinfo"), "x86_64-test"
             )
+
+    def test_no_model_name_exits(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".cpuinfo") as f:
+            f.write("processor\t: 0\nvendor_id\t: GenuineIntel\n")
+            f.flush()
+            with mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+                with self.assertRaises(SystemExit) as cm:
+                    run.cpu_model(f.name)
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIn("CPU model", err.getvalue())
+
+    def test_empty_processor_exits(self):
+        with mock.patch("platform.processor", return_value=""):
+            with mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+                with self.assertRaises(SystemExit) as cm:
+                    run.cpu_model("/nonexistent/cpuinfo")
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIn("CPU model", err.getvalue())
 
 
 if __name__ == "__main__":
