@@ -1,4 +1,5 @@
 use super::helpers::{assert_compile_error, compile, disassemble, run};
+use crate::common::chunk::Instr;
 use crate::common::opcodes::OpCode;
 use crate::common::{Chunk, Value};
 use crate::compiler::codegen::CodeGenerator;
@@ -1533,4 +1534,29 @@ fn multiply_by_literal_compiles_to_constant_then_multiply() {
 
     let at = ops.iter().position(|o| *o == OpCode::Multiply).unwrap();
     assert_eq!(OpCode::Constant, ops[at - 1], "{ops:?}");
+}
+
+fn function_has_increment_local(chunk: &Chunk) -> bool {
+    chunk
+        .constants
+        .values
+        .iter()
+        .any(|constant| match constant {
+            Value::Function(function) => function
+                .chunk
+                .code
+                .iter()
+                .any(|instr| matches!(instr, Instr::IncrementLocal { .. })),
+            _ => false,
+        })
+}
+
+#[test]
+fn i_plus_equals_one_as_a_statement_decodes_to_increment_local() {
+    for statement in ["i += 1", "i = i + 1"] {
+        let program =
+            format!("fn count() {{\n    var i = 0\n    {statement}\n    return i\n}}\ncount()\n");
+        let chunk = compile(&program).unwrap();
+        assert!(function_has_increment_local(&chunk), "{statement}");
+    }
 }

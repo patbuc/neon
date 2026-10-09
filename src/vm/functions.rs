@@ -1189,6 +1189,31 @@ impl VirtualMachine {
         self.op_add_constant(index)
     }
 
+    /// `slot = slot + constant` in place. Anything but an Int pair or a
+    /// Number pair takes the unfused path so its result and error match.
+    #[inline(always)]
+    pub(in crate::vm) fn op_increment_local(&mut self, slot: u16, index: u16) -> OpResult {
+        let local = self.frame_base + slot as usize;
+        match (
+            self.stack.get_mut(local),
+            self.chunk.constant(index as usize),
+        ) {
+            (Some(Value::Number(a)), &Value::Number(c)) => {
+                *a += c;
+                return Ok(());
+            }
+            (Some(Value::Int(a)), &Value::Int(c)) => {
+                if let Some(r) = a.checked_add(c) {
+                    *a = r;
+                    return Ok(());
+                }
+            }
+            _ => {}
+        }
+        self.op_get_local_add_constant(slot, index)?;
+        self.op_store_local(slot)
+    }
+
     #[inline(always)]
     pub(in crate::vm) fn op_get_local_subtract_constant(
         &mut self,
