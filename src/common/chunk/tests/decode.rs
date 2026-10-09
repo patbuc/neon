@@ -344,6 +344,10 @@ fn variant_index(instr: Instr) -> usize {
         Instr::AddLocal(_) => 92,
         Instr::SubtractLocal(_) => 93,
         Instr::DivideLocal(_) => 94,
+        Instr::MultiplyLocalField { .. } => 95,
+        Instr::AddLocalField { .. } => 96,
+        Instr::SubtractLocalField { .. } => 97,
+        Instr::DivideLocalField { .. } => 98,
     }
 }
 
@@ -479,10 +483,14 @@ fn name_matches_the_variant_name() {
         Instr::AddLocal(1),
         Instr::SubtractLocal(1),
         Instr::DivideLocal(1),
+        Instr::MultiplyLocalField { slot: 1, symbol: 1 },
+        Instr::AddLocalField { slot: 1, symbol: 1 },
+        Instr::SubtractLocalField { slot: 1, symbol: 1 },
+        Instr::DivideLocalField { slot: 1, symbol: 1 },
     ];
     let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
     seen.sort_unstable();
-    assert_eq!((0..95).collect::<Vec<_>>(), seen);
+    assert_eq!((0..99).collect::<Vec<_>>(), seen);
 
     for instr in samples {
         let debug = format!("{instr:?}");
@@ -528,6 +536,54 @@ fn get_local_followed_by_add_subtract_divide_decodes_to_local_variants() {
         assert_eq!(2, chunk.instr_lines.len());
         assert_eq!(2, chunk.instr_line_info(0).unwrap().line);
         assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
+    }
+}
+
+#[test]
+fn get_local_get_field_and_multiply_decode_to_multiply_local_field() {
+    let mut chunk = Chunk::new("fused multiply field");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    chunk.write_indexed(OpCode::GetField, 9, 2, 1);
+    chunk.write_op_code(OpCode::Multiply, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::MultiplyLocalField { slot: 3, symbol: 9 },
+            Instr::Return
+        ],
+        chunk.code
+    );
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(3, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(4, chunk.instr_line_info(1).unwrap().line);
+}
+
+#[test]
+fn get_local_get_field_and_add_subtract_divide_decode_to_local_field_variants() {
+    let cases = [
+        (OpCode::Add, Instr::AddLocalField { slot: 3, symbol: 9 }),
+        (
+            OpCode::Subtract,
+            Instr::SubtractLocalField { slot: 3, symbol: 9 },
+        ),
+        (OpCode::Divide, Instr::DivideLocalField { slot: 3, symbol: 9 }),
+    ];
+    for (op, fused) in cases {
+        let mut chunk = Chunk::new("fused arithmetic field");
+        chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+        chunk.write_indexed(OpCode::GetField, 9, 2, 1);
+        chunk.write_op_code(op, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(vec![fused, Instr::Return], chunk.code);
+        assert_eq!(2, chunk.instr_lines.len());
+        assert_eq!(3, chunk.instr_line_info(0).unwrap().line);
+        assert_eq!(4, chunk.instr_line_info(1).unwrap().line);
     }
 }
 

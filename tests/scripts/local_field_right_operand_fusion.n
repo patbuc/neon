@@ -1,0 +1,30 @@
+// A struct field read from a local as the right operand of +, -, * and /
+// gives the same results as the generic form, with Number and Int fields.
+
+// Expected:
+// 12.5
+// 10
+// 2.5
+// 0
+// 25
+// 7.5
+// 2
+// 7
+
+struct Body {
+    mass
+    count
+}
+
+fn compute(a, p) {
+    print(a * p.mass)
+    print(a + p.count)
+    print(a - p.mass)
+    print(a - p.count)
+    print(a * p.count)
+    print(a + p.mass)
+    print(a / p.mass)
+    print(a / p.count + 6)
+}
+
+compute(5, Body(2.5, 5))

@@ -123,6 +123,22 @@ pub(crate) enum Instr {
     AddLocal(u16),
     SubtractLocal(u16),
     DivideLocal(u16),
+    MultiplyLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    AddLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    SubtractLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    DivideLocalField {
+        slot: u16,
+        symbol: u16,
+    },
     Dup,
     Dup2,
     JumpIfNotNil(u32),
@@ -232,6 +248,10 @@ impl Instr {
             Instr::AddLocal(_) => "AddLocal",
             Instr::SubtractLocal(_) => "SubtractLocal",
             Instr::DivideLocal(_) => "DivideLocal",
+            Instr::MultiplyLocalField { .. } => "MultiplyLocalField",
+            Instr::AddLocalField { .. } => "AddLocalField",
+            Instr::SubtractLocalField { .. } => "SubtractLocalField",
+            Instr::DivideLocalField { .. } => "DivideLocalField",
             Instr::Dup => "Dup",
             Instr::Dup2 => "Dup2",
             Instr::JumpIfNotNil(_) => "JumpIfNotNil",
@@ -273,6 +293,18 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
             Some((Instr::SubtractLocal(slot), Keep::Second))
         }
         (Instr::GetLocal(slot), Instr::Divide) => Some((Instr::DivideLocal(slot), Keep::Second)),
+        (Instr::GetLocalField { slot, symbol }, Instr::Multiply) => {
+            Some((Instr::MultiplyLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Add) => {
+            Some((Instr::AddLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Subtract) => {
+            Some((Instr::SubtractLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Divide) => {
+            Some((Instr::DivideLocalField { slot, symbol }, Keep::Second))
+        }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
         _ => None,
