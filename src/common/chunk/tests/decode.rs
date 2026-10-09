@@ -702,6 +702,26 @@ fn a_number_constant_left_of_subtract_decodes_without_a_constant_operand_instruc
 }
 
 #[test]
+fn a_literal_left_operand_decodes_without_a_local_fusion() {
+    let mut chunk = Chunk::new("five minus one");
+    let five = chunk.write_constant(Value::Int(5), 1, 1) as u16;
+    let one = chunk.write_constant(Value::Int(1), 2, 1) as u16;
+    chunk.write_op_code(OpCode::Subtract, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Constant(five),
+            Instr::SubtractConstant(one),
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
 fn a_string_constant_followed_by_add_decodes_unfused() {
     let mut chunk = Chunk::new("string add");
     let index = chunk.write_constant(Value::String(Rc::new("a".to_string())), 2, 1) as u16;

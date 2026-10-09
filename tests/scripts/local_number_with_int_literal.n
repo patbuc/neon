@@ -1,0 +1,30 @@
+// Expected:
+// 4.5
+// 7.5
+// 16.5
+// 1.5
+// 4.5
+// 7.5
+// 16.5
+// 1.5
+
+fn fused(x) {
+    print(x - 1)
+    print(x + 2)
+    print(x * 3)
+    print(x % 4)
+}
+
+fn unfused(x) {
+    val one = 1
+    val two = 2
+    val three = 3
+    val four = 4
+    print(x - one)
+    print(x + two)
+    print(x * three)
+    print(x % four)
+}
+
+fused(5.5)
+unfused(5.5)

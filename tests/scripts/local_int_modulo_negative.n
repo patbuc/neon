@@ -1,0 +1,23 @@
+// Expected:
+// -3
+// 0
+// -3
+// 0
+// 3
+// 3
+
+fn fused(i) {
+    return i % 4
+}
+
+fn unfused(i) {
+    val four = 4
+    return i % four
+}
+
+print(fused(-7))
+print(fused(-8))
+print(unfused(-7))
+print(unfused(-8))
+print(fused(7))
+print(unfused(7))
