@@ -66,6 +66,12 @@ Prints a Markdown table (mean, stddev, min, median per language, and the Neon/Py
 `bench-results.json` in `benchmark-action/github-action-benchmark`'s `customSmallerIsBetter` format. Exits non-zero
 naming the benchmark if the Neon and Python checksums differ.
 
+It also prints `CPU: <model>` above the table (and in the GitHub step summary) and sets `"extra": "CPU: <model>"` on
+every JSON entry, so the chart tooltip names the runner's CPU. Shared runners vary in hardware, so compare points
+from the same CPU. The model is the first `model name` line of `/proc/cpuinfo`, else `platform.processor()`; the run
+exits 1 if neither gives one. Test `run.py` from the repo root with `python3 -m unittest benches.test_run` (CI
+doesn't run these).
+
 To add a pair: write `benches/<name>.n` and `benches/<name>.py` implementing the same algorithm like for like (the
 Python side uses plain loops/classes, not numpy), then add `"<name>": SIZE` to `BENCHMARKS` in `benches/run.py`.
 Both scripts read the problem size from the first argument with a small inline default, e.g.

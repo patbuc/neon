@@ -87,3 +87,6 @@ Temporary Items
 ## Copilot
 .idea/copilot.*
 coverage/
+
+## Python
+__pycache__/

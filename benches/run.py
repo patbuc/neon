@@ -12,6 +12,7 @@ if not getattr(sys.flags, "safe_path", False):
 import argparse
 import json
 import os
+import platform
 import statistics
 import subprocess
 import time
@@ -37,6 +38,23 @@ def positive_int(value):
     if ivalue < 1:
         raise argparse.ArgumentTypeError(f"--runs must be >= 1, got {ivalue}")
     return ivalue
+
+
+def cpu_model(path):
+    try:
+        with open(path) as f:
+            model = None
+            for line in f:
+                key, _, value = line.partition(":")
+                if key.strip() == "model name":
+                    model = value.strip()
+                    break
+    except FileNotFoundError:
+        model = platform.processor()
+    if not model:
+        print("could not determine the CPU model", file=sys.stderr)
+        sys.exit(1)
+    return model
 
 
 def run_once(cmd):
@@ -74,10 +92,11 @@ def stats_cells(s):
     return f"{s['mean']:.3f} ms | {s['stddev']:.3f} ms | {s['min']:.3f} ms | {s['median']:.3f} ms"
 
 
-def json_entry(name, unit, value, stddev=None):
+def json_entry(name, unit, value, extra, stddev=None):
     entry = {"name": name, "unit": unit, "value": value}
     if stddev is not None:
         entry["range"] = f"± {stddev:.3f}"
+    entry["extra"] = extra
     return entry
 
 
@@ -101,6 +120,8 @@ def main():
     if not os.path.isfile(NEON_BIN):
         print(f"missing {NEON_BIN} — run `cargo build --release` first", file=sys.stderr)
         sys.exit(1)
+
+    cpu_line = f"CPU: {cpu_model('/proc/cpuinfo')}"
 
     failures = []
     rows = []
@@ -131,9 +152,9 @@ def main():
 
         rows.append((name, neon_stats, python_stats, ratio))
 
-        json_entries.append(json_entry(f"{name} neon (ms)", "ms", neon_stats["mean"], neon_stats["stddev"]))
-        json_entries.append(json_entry(f"{name} python (ms)", "ms", python_stats["mean"], python_stats["stddev"]))
-        json_entries.append(json_entry(f"{name} neon/python", "ratio", ratio))
+        json_entries.append(json_entry(f"{name} neon (ms)", "ms", neon_stats["mean"], cpu_line, neon_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} python (ms)", "ms", python_stats["mean"], cpu_line, python_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} neon/python", "ratio", ratio, cpu_line))
 
     table_lines = [
         "| Benchmark | Neon mean | Neon stddev | Neon min | Neon median | "
@@ -144,12 +165,13 @@ def main():
         table_lines.append(f"| {name} | {stats_cells(neon_stats)} | {stats_cells(python_stats)} | {ratio:.3f} |")
     table = "\n".join(table_lines)
 
+    print(cpu_line)
     print(table)
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
-            f.write(table + "\n")
+            f.write(f"{cpu_line}\n" + table + "\n")
 
     if failures:
         for failure in failures:
