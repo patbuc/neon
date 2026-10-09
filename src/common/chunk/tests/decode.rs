@@ -1,6 +1,7 @@
 use crate::common::chunk::Instr;
 use crate::common::opcodes::OpCode;
-use crate::common::Chunk;
+use crate::common::{Chunk, Value};
+use std::rc::Rc;
 
 #[test]
 fn instr_fits_in_eight_bytes() {
@@ -607,6 +608,90 @@ fn a_local_read_followed_by_check_initialized_decodes_unfused() {
             Instr::Multiply,
             Instr::Return
         ],
+        chunk.code
+    );
+}
+
+#[test]
+fn a_number_constant_followed_by_add_decodes_to_add_constant() {
+    let pool = [Value::Int(7), Value::Number(2.5)];
+    for value in pool {
+        let mut chunk = Chunk::new("fused add constant");
+        chunk.write_op_code(OpCode::Nil, 1, 1);
+        let index = chunk.write_constant(value, 2, 1) as u16;
+        chunk.write_op_code(OpCode::Add, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(
+            vec![Instr::Nil, Instr::AddConstant(index), Instr::Return],
+            chunk.code
+        );
+        assert_eq!(3, chunk.instr_lines.len());
+        assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
+        assert_eq!(4, chunk.instr_line_info(2).unwrap().line);
+    }
+}
+
+#[test]
+fn subtract_multiply_modulo_greater_greater_equal_less_and_less_equal_each_fuse_a_number_constant()
+{
+    let cases = [
+        (OpCode::Subtract, Instr::SubtractConstant(0)),
+        (OpCode::Multiply, Instr::MultiplyConstant(0)),
+        (OpCode::Modulo, Instr::ModuloConstant(0)),
+        (OpCode::Greater, Instr::GreaterConstant(0)),
+        (OpCode::GreaterEqual, Instr::GreaterEqualConstant(0)),
+        (OpCode::Less, Instr::LessConstant(0)),
+        (OpCode::LessEqual, Instr::LessEqualConstant(0)),
+    ];
+    for (op, fused) in cases {
+        let mut chunk = Chunk::new("fused constant operator");
+        chunk.write_constant(Value::Int(7), 2, 1);
+        chunk.write_op_code(op, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(vec![fused, Instr::Return], chunk.code);
+        assert_eq!(2, chunk.instr_lines.len());
+        assert_eq!(3, chunk.instr_line_info(0).unwrap().line);
+        assert_eq!(4, chunk.instr_line_info(1).unwrap().line);
+    }
+}
+
+#[test]
+fn a_number_constant_left_of_subtract_decodes_without_a_constant_operand_instruction() {
+    let mut chunk = Chunk::new("one minus x");
+    let index = chunk.write_constant(Value::Int(1), 1, 1) as u16;
+    chunk.write_indexed(OpCode::GetLocal, 0, 2, 1);
+    chunk.write_op_code(OpCode::Subtract, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Constant(index),
+            Instr::SubtractLocal(0),
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn a_string_constant_followed_by_add_decodes_unfused() {
+    let mut chunk = Chunk::new("string add");
+    let index = chunk.write_constant(Value::String(Rc::new("a".to_string())), 2, 1) as u16;
+    chunk.write_op_code(OpCode::Add, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![Instr::Constant(index), Instr::Add, Instr::Return],
         chunk.code
     );
 }

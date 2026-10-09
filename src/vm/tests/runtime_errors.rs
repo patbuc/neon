@@ -225,6 +225,21 @@ fn add_int_overflow_with_non_constant_operands() {
 }
 
 #[test]
+fn add_int_overflow_with_a_literal_right_operand() {
+    let program = r#"
+        fn f(a) {
+            return a + 1
+        }
+        print(f(9223372036854775807))
+        "#;
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    assert!(vm.get_runtime_errors().contains("integer overflow in +"));
+}
+
+#[test]
 fn bad_operand_type_errors() {
     let cases: &[(&str, &str)] = &[
         (

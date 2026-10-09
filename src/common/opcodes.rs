@@ -54,14 +54,6 @@ impl OpCode {
             OpCode::CheckInitialized => 0,
             OpCode::CheckTuple => 0,
             OpCode::StoreLocalField => -1,
-            OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant
-            | OpCode::ModuloConstant
-            | OpCode::MultiplyConstant => 0,
             OpCode::Dup => 1,
             OpCode::Dup2 => 2,
             OpCode::JumpIfNotNil | OpCode::JumpIfNil => 0,
@@ -86,7 +78,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 87] = [
+        const OPCODES: [OpCode; 79] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -143,12 +135,6 @@ impl OpCode {
             OpCode::CheckInitialized,
             OpCode::CheckTuple,
             OpCode::StoreLocalField,
-            OpCode::AddConstant,
-            OpCode::SubtractConstant,
-            OpCode::GreaterConstant,
-            OpCode::GreaterEqualConstant,
-            OpCode::LessConstant,
-            OpCode::LessEqualConstant,
             OpCode::Dup,
             OpCode::Dup2,
             OpCode::JumpIfNotNil,
@@ -169,8 +155,6 @@ impl OpCode {
             OpCode::GreaterEqualConstantJumpIfFalse,
             OpCode::LessConstantJumpIfFalse,
             OpCode::LessEqualConstantJumpIfFalse,
-            OpCode::ModuloConstant,
-            OpCode::MultiplyConstant,
             OpCode::BeginTry,
             OpCode::EndTry,
             OpCode::Throw,
@@ -271,15 +255,6 @@ pub(crate) enum OpCode {
     /// slot, then a 16-bit symbol id. Stack `[.., value]` -> `[..]`.
     StoreLocalField,
 
-    /// Binary operators whose right operand is a number literal: a 16-bit
-    /// constant-pool index replaces pushing it.
-    AddConstant,
-    SubtractConstant,
-    GreaterConstant,
-    GreaterEqualConstant,
-    LessConstant,
-    LessEqualConstant,
-
     /// Copies the top of the stack, pushing the copy.
     Dup,
     /// Copies the top two values of the stack, pushing the copies in the
@@ -360,12 +335,6 @@ pub(crate) enum OpCode {
     /// Pops `a` and jumps by the 32-bit operand unless `a` <= the number
     /// constant at the 16-bit pool index that precedes the jump operand.
     LessEqualConstantJumpIfFalse,
-
-    /// `Modulo` by a number literal.
-    ModuloConstant,
-
-    /// `Multiply` by a number literal.
-    MultiplyConstant,
 
     /// Pushes an exception handler that records the 32-bit jump operand as
     /// the catch target, the running frame and the current stack height.

@@ -680,8 +680,8 @@ impl<'a> CodeGenerator<'a> {
         offset
     }
 
-    /// The value of a number literal, which a `*Constant` opcode takes from
-    /// the constant pool instead of the stack.
+    /// The value of a number literal, which a `*ConstantJumpIfFalse` opcode
+    /// takes from the constant pool instead of the stack.
     fn number_literal(expr: &Expr) -> Option<Value> {
         match expr {
             Expr::Number { value, .. } => Some(number!(*value)),
@@ -1640,33 +1640,14 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    /// Emits `operator` applied to the operand already on top of the stack
-    /// and `right`: a single fused `<op>Constant` instruction when `right`
-    /// is a number literal and the operator supports fusion, otherwise
-    /// `right`'s code followed by the plain binary opcode.
+    /// Emits `right`'s code followed by `operator`, applied to the operand
+    /// already on top of the stack.
     fn generate_binary_op_tail(
         &mut self,
         operator: &BinaryOp,
         right: &Expr,
         location: SourceLocation,
     ) {
-        let fused = match operator {
-            BinaryOp::Add => Some(OpCode::AddConstant),
-            BinaryOp::Subtract => Some(OpCode::SubtractConstant),
-            BinaryOp::Modulo => Some(OpCode::ModuloConstant),
-            BinaryOp::Multiply => Some(OpCode::MultiplyConstant),
-            BinaryOp::Greater => Some(OpCode::GreaterConstant),
-            BinaryOp::GreaterEqual => Some(OpCode::GreaterEqualConstant),
-            BinaryOp::Less => Some(OpCode::LessConstant),
-            BinaryOp::LessEqual => Some(OpCode::LessEqualConstant),
-            _ => None,
-        };
-        if let (Some(op_code), Some(constant)) = (fused, Self::number_literal(right)) {
-            let index = self.add_constant(constant);
-            self.emit_index_op(op_code, index, "constants", location);
-            return;
-        }
-
         self.generate_expr(right);
 
         match operator {
