@@ -1,0 +1,59 @@
+fn int_boundary() {
+    val a = 5
+    if a < 5 {
+        print("lt")
+    } else {
+        print("not lt")
+    }
+    if a <= 5 {
+        print("le")
+    } else {
+        print("not le")
+    }
+    if a > 5 {
+        print("gt")
+    } else {
+        print("not gt")
+    }
+    if a >= 5 {
+        print("ge")
+    } else {
+        print("not ge")
+    }
+}
+
+fn number_boundary() {
+    val a = 2.5
+    if a < 2.5 {
+        print("lt")
+    } else {
+        print("not lt")
+    }
+    if a <= 2.5 {
+        print("le")
+    } else {
+        print("not le")
+    }
+    if a > 2.5 {
+        print("gt")
+    } else {
+        print("not gt")
+    }
+    if a >= 2.5 {
+        print("ge")
+    } else {
+        print("not ge")
+    }
+}
+
+int_boundary()
+number_boundary()
+// Expected:
+// not lt
+// le
+// not gt
+// ge
+// not lt
+// le
+// not gt
+// ge

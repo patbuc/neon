@@ -1,0 +1,12 @@
+fn f(s) {
+    if s < 3 {
+        return 1
+    }
+    return 0
+}
+
+print("before")
+print(f("a"))
+// Expected:
+// before
+// Expected runtime error: Operands of a comparison must be two numbers or two strings, got string and number
