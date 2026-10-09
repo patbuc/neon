@@ -116,7 +116,7 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - No `switch` or `do`/`while`.
 - `try { } catch (e) { }` and `throw <any value>`; `e` is exactly what was thrown, and runtime errors
   arrive as `Error` values (`Error(msg)`, `.message`, `.line`, `.trace()`). No `finally`. An uncaught
-  throw exits 70.
+  throw exits 70. Calls inside a `try` body aren't tail calls; put the recursive call after the `try`.
 - `match x { pattern, pattern -> body ... }` is an expression and a statement.
   A pattern is a number/string/bool/`nil` literal, `Enum.Variant`, an integer
   range (`1..5`, `1..=5`), `_`, or a bare name that binds the value
