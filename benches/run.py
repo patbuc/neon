@@ -92,10 +92,11 @@ def stats_cells(s):
     return f"{s['mean']:.3f} ms | {s['stddev']:.3f} ms | {s['min']:.3f} ms | {s['median']:.3f} ms"
 
 
-def json_entry(name, unit, value, stddev=None):
+def json_entry(name, unit, value, extra, stddev=None):
     entry = {"name": name, "unit": unit, "value": value}
     if stddev is not None:
         entry["range"] = f"± {stddev:.3f}"
+    entry["extra"] = extra
     return entry
 
 
@@ -120,7 +121,7 @@ def main():
         print(f"missing {NEON_BIN} — run `cargo build --release` first", file=sys.stderr)
         sys.exit(1)
 
-    cpu = cpu_model("/proc/cpuinfo")
+    cpu_line = f"CPU: {cpu_model('/proc/cpuinfo')}"
 
     failures = []
     rows = []
@@ -151,9 +152,9 @@ def main():
 
         rows.append((name, neon_stats, python_stats, ratio))
 
-        json_entries.append(json_entry(f"{name} neon (ms)", "ms", neon_stats["mean"], neon_stats["stddev"]))
-        json_entries.append(json_entry(f"{name} python (ms)", "ms", python_stats["mean"], python_stats["stddev"]))
-        json_entries.append(json_entry(f"{name} neon/python", "ratio", ratio))
+        json_entries.append(json_entry(f"{name} neon (ms)", "ms", neon_stats["mean"], cpu_line, neon_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} python (ms)", "ms", python_stats["mean"], cpu_line, python_stats["stddev"]))
+        json_entries.append(json_entry(f"{name} neon/python", "ratio", ratio, cpu_line))
 
     table_lines = [
         "| Benchmark | Neon mean | Neon stddev | Neon min | Neon median | "
@@ -164,13 +165,13 @@ def main():
         table_lines.append(f"| {name} | {stats_cells(neon_stats)} | {stats_cells(python_stats)} | {ratio:.3f} |")
     table = "\n".join(table_lines)
 
-    print(f"CPU: {cpu}")
+    print(cpu_line)
     print(table)
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
-            f.write(f"CPU: {cpu}\n" + table + "\n")
+            f.write(f"{cpu_line}\n" + table + "\n")
 
     if failures:
         for failure in failures:
@@ -180,8 +181,6 @@ def main():
                 f.write("\n" + "\n".join(f"- {failure}" for failure in failures) + "\n")
         sys.exit(1)
 
-    for entry in json_entries:
-        entry["extra"] = f"CPU: {cpu}"
     with open(args.json, "w") as f:
         json.dump(json_entries, f, indent=2)
 
