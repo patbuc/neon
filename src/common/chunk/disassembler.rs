@@ -146,26 +146,6 @@ impl Chunk {
             OpCode::StoreLocalField => {
                 self.local_field_instruction(OpCode::StoreLocalField, offset, out)
             }
-            OpCode::AddConstant => self.constant_instruction(OpCode::AddConstant, offset, out),
-            OpCode::ModuloConstant => {
-                self.constant_instruction(OpCode::ModuloConstant, offset, out)
-            }
-            OpCode::MultiplyConstant => {
-                self.constant_instruction(OpCode::MultiplyConstant, offset, out)
-            }
-            OpCode::SubtractConstant => {
-                self.constant_instruction(OpCode::SubtractConstant, offset, out)
-            }
-            OpCode::GreaterConstant => {
-                self.constant_instruction(OpCode::GreaterConstant, offset, out)
-            }
-            OpCode::GreaterEqualConstant => {
-                self.constant_instruction(OpCode::GreaterEqualConstant, offset, out)
-            }
-            OpCode::LessConstant => self.constant_instruction(OpCode::LessConstant, offset, out),
-            OpCode::LessEqualConstant => {
-                self.constant_instruction(OpCode::LessEqualConstant, offset, out)
-            }
             OpCode::Dup => self.simple_instruction(OpCode::Dup, offset, out),
             OpCode::Dup2 => self.simple_instruction(OpCode::Dup2, offset, out),
             OpCode::BeginTry => self.jump_instruction(instruction, offset, out),

@@ -583,6 +583,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::Add
             | OpCode::Subtract
             | OpCode::Multiply
+            | OpCode::Modulo
             | OpCode::Less
             | OpCode::CloseUpvalue
             | OpCode::Dup
@@ -601,15 +602,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::GetField
             | OpCode::SetField
             | OpCode::GetUpvalue
-            | OpCode::SetUpvalue
-            | OpCode::AddConstant
-            | OpCode::SubtractConstant
-            | OpCode::ModuloConstant
-            | OpCode::MultiplyConstant
-            | OpCode::GreaterConstant
-            | OpCode::GreaterEqualConstant
-            | OpCode::LessConstant
-            | OpCode::LessEqualConstant => 2,
+            | OpCode::SetUpvalue => 2,
             OpCode::JumpIfFalse
             | OpCode::PopJumpIfFalse
             | OpCode::GreaterJumpIfFalse
@@ -691,11 +684,7 @@ fn test_comparison_conditions_fuse_into_jumps() {
 
     assert!(ops.contains(&OpCode::LessJumpIfFalse));
     assert!(ops.contains(&OpCode::GreaterEqualConstantJumpIfFalse));
-    for op in [
-        OpCode::Less,
-        OpCode::GreaterEqualConstant,
-        OpCode::PopJumpIfFalse,
-    ] {
+    for op in [OpCode::Less, OpCode::PopJumpIfFalse] {
         assert!(!ops.contains(&op), "unexpected {op:?} in {ops:?}");
     }
 }
@@ -737,31 +726,38 @@ fn test_greater_equal_less_equal_opcodes() {
 }
 
 #[test]
-fn test_number_literal_right_operand_fuses_into_constant_opcode() {
+fn test_number_literal_right_operand_emits_constant_then_operator() {
     let program = "val a = 1\nval b = a - 1\nval c = a <= 1\nval d = a >= 1\nval e = a < 1\nval f = a > 1\nval g = a + 1\n";
-    let chunk = compile(program).unwrap();
+    let ops = op_codes(&compile(program).unwrap());
 
-    let ops = op_codes(&chunk);
-    let fused = [
-        OpCode::SubtractConstant,
-        OpCode::LessEqualConstant,
-        OpCode::GreaterEqualConstant,
-        OpCode::LessConstant,
-        OpCode::GreaterConstant,
-        OpCode::AddConstant,
-    ];
-    for op in fused {
-        assert!(ops.contains(&op), "expected {:?} in {:?}", op, ops);
-    }
     for op in [
         OpCode::Subtract,
         OpCode::LessEqual,
         OpCode::GreaterEqual,
         OpCode::Less,
         OpCode::Greater,
+        OpCode::Add,
     ] {
-        assert!(!ops.contains(&op), "expected no {:?} in {:?}", op, ops);
+        let at = ops.iter().position(|o| *o == op).unwrap();
+        assert_eq!(OpCode::Constant, ops[at - 1], "{op:?} in {ops:?}");
     }
+}
+
+#[test]
+fn test_x_plus_1_compiles_to_constant_then_add() {
+    let program = r#"
+    fn f(x) {
+        return x + 1
+    }
+    f(1)
+    "#;
+    let disassembly = disassemble(&compile(program).unwrap());
+    let ops = opcode_names(&disassembly);
+
+    assert!(
+        ops.windows(2).any(|w| w == ["Constant", "Add"]),
+        "{disassembly}"
+    );
 }
 
 #[test]
@@ -771,7 +767,6 @@ fn test_number_literal_left_operand_keeps_generic_opcode() {
 
     let ops = op_codes(&chunk);
     assert!(ops.contains(&OpCode::Subtract));
-    assert!(!ops.contains(&OpCode::SubtractConstant));
 }
 
 #[test]
@@ -781,7 +776,6 @@ fn test_non_number_literal_right_operand_keeps_generic_opcode() {
 
     let ops = op_codes(&chunk);
     assert!(ops.contains(&OpCode::Add));
-    assert!(!ops.contains(&OpCode::AddConstant));
 }
 
 // =============================================================================
@@ -856,28 +850,29 @@ fn test_while_break_continue_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 GetLocal 00
-000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004e
+000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004f
 0014      4 GetLocal 00
-0017      | AddConstant 03 '1'
-001a      | SetLocal 00
-001d      | Pop
-001e      5 GetLocal 00
-0021      | Constant 04 '2'
-0024      | Equal
-0025      | PopJumpIfFalse 0025 -> 002f
-002a      | Jump 002a -> 0049
-002f      6 GetLocal 00
-0032      | Constant 05 '5'
-0035      | Equal
-0036      | PopJumpIfFalse 0036 -> 0040
-003b      | Jump 003b -> 004e
-0040      7 Constant 06 '<native fn print>'
-0043      | GetLocal 00
-0046      | Call (args: 1)
-0048      6 Pop
-0049      3 Loop 0049 -> 000a
-004e      9 Nil
-004f      | Return
+0017      | Constant 03 '1'
+001a      | Add
+001b      | SetLocal 00
+001e      | Pop
+001f      5 GetLocal 00
+0022      | Constant 04 '2'
+0025      | Equal
+0026      | PopJumpIfFalse 0026 -> 0030
+002b      | Jump 002b -> 004a
+0030      6 GetLocal 00
+0033      | Constant 05 '5'
+0036      | Equal
+0037      | PopJumpIfFalse 0037 -> 0041
+003c      | Jump 003c -> 004f
+0041      7 Constant 06 '<native fn print>'
+0044      | GetLocal 00
+0047      | Call (args: 1)
+0049      6 Pop
+004a      3 Loop 004a -> 000a
+004f      9 Nil
+0050      | Return
 === </main> ===
 "#;
 
@@ -949,28 +944,30 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0043
+0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0045
 001c      5 GetLocal 01
-001f      | AddConstant 04 '1'
-0022      | SetLocal 01
-0025      | Pop
-0026      7 GetLocal 01
-0029      | MultiplyConstant 05 '10'
-002c      8 Closure 06 '<fn anonymous>'
+001f      | Constant 04 '1'
+0022      | Add
+0023      | SetLocal 01
+0026      | Pop
+0027      7 GetLocal 01
+002a      | Constant 05 '10'
+002d      | Multiply
+002e      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0033      | SetLocal 00
-0036      | Pop
-0037      9 CloseUpvalue
-0038      | Jump 0038 -> 0043
-003d      6 CloseUpvalue
-003e      4 Loop 003e -> 0012
-0043     12 Constant 07 '<native fn print>'
-0046      | GetLocal 00
-0049      | Call (args: 0)
-004b      | Call (args: 1)
-004d     11 Pop
-004e     13 Nil
-004f      | Return
+0035      | SetLocal 00
+0038      | Pop
+0039      9 CloseUpvalue
+003a      | Jump 003a -> 0045
+003f      6 CloseUpvalue
+0040      4 Loop 0040 -> 0012
+0045     12 Constant 07 '<native fn print>'
+0048      | GetLocal 00
+004b      | Call (args: 0)
+004d      | Call (args: 1)
+004f     11 Pop
+0050     13 Nil
+0051      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00
@@ -1539,43 +1536,43 @@ pub fn f() {
 }
 
 #[test]
-fn modulo_by_literal_compiles_to_modulo_constant() {
+fn modulo_by_literal_compiles_to_constant_then_modulo() {
     let program = "val a = 1\nval b = a % 7\n";
     let ops = op_codes(&compile(program).unwrap());
 
-    assert!(ops.contains(&OpCode::ModuloConstant), "{ops:?}");
-    assert!(!ops.contains(&OpCode::Modulo), "{ops:?}");
+    let at = ops.iter().position(|o| *o == OpCode::Modulo).unwrap();
+    assert_eq!(OpCode::Constant, ops[at - 1], "{ops:?}");
 }
 
 #[test]
-fn modulo_constant_disassembles_with_its_constant() {
+fn modulo_by_literal_disassembles_with_its_constant() {
     let chunk = compile("val a = 1\nval b = a % 7\n").unwrap();
 
     let disassembly = disassemble(&chunk);
 
     assert!(
-        disassembly.contains("| ModuloConstant 03 '7'"),
+        disassembly.contains("| Constant 03 '7'\n") && disassembly.contains("| Modulo\n"),
         "{disassembly}"
     );
 }
 
 #[test]
-fn multiply_by_literal_compiles_to_multiply_constant() {
+fn multiply_by_literal_compiles_to_constant_then_multiply() {
     let program = "val a = 1\nval b = a * 7\n";
     let ops = op_codes(&compile(program).unwrap());
 
-    assert!(ops.contains(&OpCode::MultiplyConstant), "{ops:?}");
-    assert!(!ops.contains(&OpCode::Multiply), "{ops:?}");
+    let at = ops.iter().position(|o| *o == OpCode::Multiply).unwrap();
+    assert_eq!(OpCode::Constant, ops[at - 1], "{ops:?}");
 }
 
 #[test]
-fn multiply_constant_disassembles_with_its_constant() {
+fn multiply_by_literal_disassembles_with_its_constant() {
     let chunk = compile("val a = 1\nval b = a * 7\n").unwrap();
 
     let disassembly = disassemble(&chunk);
 
     assert!(
-        disassembly.contains("| MultiplyConstant 03 '7'"),
+        disassembly.contains("| Constant 03 '7'\n") && disassembly.contains("| Multiply\n"),
         "{disassembly}"
     );
 }

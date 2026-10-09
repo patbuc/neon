@@ -251,7 +251,8 @@ enforces these edges in `cargo test`.
   `closure_upvalues`, and `fused_field_lines`; jump targets become instruction indices. Decode also fuses adjacent
   instructions into one `Instr` (`GetLocal`+`GetField` → `GetLocalField`, `SetLocal`+`Pop` → `StoreLocal`,
   `SetField`+`Pop` → `StoreField`, `GetLocal`+`Add`/`Subtract`/`Multiply`/`Divide` → `*Local`, `GetLocalField`+operator
-  → `*LocalField`), never across a jump target, keeping the failing part's location, so `code` isn't one-to-one with
+  → `*LocalField`, `Constant`+`Add`/`Subtract`/`Multiply`/`Modulo`/`Greater`/`GreaterEqual`/`Less`/`LessEqual` →
+  `*Constant` when the pool entry is a Number or Int), never across a jump target, keeping the failing part's location, so `code` isn't one-to-one with
   the bytecode. A `*LocalField` keeps the operator's location in `instr_lines` and the field read's in
   `fused_field_lines`, which it uses when the field read fails
 - Constants pool stores literals referenced by index
