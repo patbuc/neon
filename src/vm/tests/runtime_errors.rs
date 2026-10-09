@@ -1734,7 +1734,7 @@ fn error_in_fused_local_field_read_reports_the_get_field_location() {
 }
 
 #[test]
-fn error_in_fused_field_store_reports_the_set_field_location() {
+fn error_in_field_store_statement_reports_the_set_field_location() {
     let program = "fn run() {\n    var a = 5\n    a\n        .value = 1\n}\nrun()";
 
     let mut vm = VirtualMachine::new();

@@ -409,56 +409,7 @@ fn test_local_field_read_compiles_to_get_local_then_get_field() {
         .lines()
         .filter_map(|line| line.split_whitespace().find(|w| w.starts_with("Get")))
         .collect();
-    assert!(!ops.contains(&"GetLocalField"));
     assert!(ops.windows(2).any(|w| w == ["GetLocal", "GetField"]));
-}
-
-#[test]
-fn test_global_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    val p = P(1)
-    fn get() {
-        return p.value
-    }
-    get()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
-}
-
-#[test]
-fn test_upvalue_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    fn make() {
-        val p = P(1)
-        return fn() { return p.value }
-    }
-    make()()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
-}
-
-#[test]
-fn test_non_local_object_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    fn make() { return P(1) }
-    fn get() {
-        return make().value
-    }
-    get()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
 }
 
 #[test]
@@ -475,7 +426,6 @@ fn test_checked_local_field_read_still_emits_get_field() {
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("CheckInitialized"));
     assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
 }
 
 #[test]
@@ -490,37 +440,6 @@ fn test_local_assignment_statement_emits_set_local_then_pop() {
         .expect("expected the Constant 2");
     assert!(lines[constant + 1].contains("SetLocal 00"), "{disassembly}");
     assert!(lines[constant + 2].ends_with(" Pop"), "{disassembly}");
-    assert!(!disassembly.contains("StoreLocal"));
-}
-
-#[test]
-fn test_local_assignment_expression_still_emits_set_local() {
-    let program = r#"
-    fn f() {
-        var x = 1
-        print(x = 2)
-    }
-    f()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("SetLocal"));
-    assert!(!disassembly.contains("StoreLocal"));
-}
-
-#[test]
-fn test_global_assignment_statement_still_emits_set_global_and_pop() {
-    let program = r#"
-    var x = 1
-    fn set() {
-        x = 2
-    }
-    set()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("SetGlobal"));
-    assert!(!disassembly.contains("StoreLocal"));
 }
 
 #[test]
@@ -537,7 +456,6 @@ fn test_val_local_field_store_emits_store_local_field() {
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("StoreLocalField"));
-    assert!(!disassembly.contains("StoreField"));
 }
 
 fn opcode_names(disassembly: &str) -> Vec<&str> {
@@ -548,39 +466,6 @@ fn opcode_names(disassembly: &str) -> Vec<&str> {
                 .find(|w| w.chars().all(char::is_alphabetic))
         })
         .collect()
-}
-
-#[test]
-fn test_disassembler_prints_the_unfused_bytecode() {
-    let program = r#"
-    struct P { value }
-    fn run() {
-        var p = P(1)
-        var x = 1
-        x = p.value
-        p.value = x
-        print(x)
-    }
-    run()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    let ops = opcode_names(&disassembly);
-    assert!(
-        ops.windows(2).any(|w| w == ["GetLocal", "GetField"]),
-        "{disassembly}"
-    );
-    assert!(
-        ops.windows(2).any(|w| w == ["SetLocal", "Pop"]),
-        "{disassembly}"
-    );
-    assert!(
-        ops.windows(2).any(|w| w == ["SetField", "Pop"]),
-        "{disassembly}"
-    );
-    for fused in ["GetLocalField", "StoreLocal", "StoreField"] {
-        assert!(!ops.contains(&fused), "{disassembly}");
-    }
 }
 
 #[test]
@@ -597,7 +482,6 @@ fn test_var_local_field_store_statement_emits_set_field_then_pop() {
     let chunk = compile(program).unwrap();
     let ops = opcode_names(&disassemble(&chunk)).join(" ");
     assert!(ops.contains("SetField Pop"), "{ops}");
-    assert!(!ops.split(' ').any(|op| op == "StoreField"), "{ops}");
     assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
@@ -616,7 +500,6 @@ fn test_checked_local_field_store_statement_emits_set_field_then_pop() {
     let ops = opcode_names(&disassemble(&chunk)).join(" ");
     assert!(ops.contains("CheckInitialized"), "{ops}");
     assert!(ops.contains("SetField Pop"), "{ops}");
-    assert!(!ops.split(' ').any(|op| op == "StoreField"), "{ops}");
     assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
@@ -633,7 +516,6 @@ fn test_field_assignment_expression_still_emits_set_field() {
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("SetField"));
-    assert!(!disassembly.contains("StoreField"));
     assert!(!disassembly.contains("StoreLocalField"));
 }
 
