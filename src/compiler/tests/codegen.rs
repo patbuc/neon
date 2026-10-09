@@ -114,12 +114,11 @@ fn test_else_if_bytecode_multiple_branches() {
     let chunk = compile(program).unwrap();
 
     let ops = op_codes(&chunk);
-    let less_jump_count = ops.iter().filter(|op| **op == OpCode::Less).count();
+    let less_count = ops.iter().filter(|op| **op == OpCode::Less).count();
     let jump_count = ops.iter().filter(|op| **op == OpCode::Jump).count();
 
-    // We should have 4 Less (one for each condition)
     assert_eq!(
-        less_jump_count, 4,
+        less_count, 4,
         "Expected 4 Less instructions for all conditions"
     );
 
@@ -639,7 +638,7 @@ fn and_or_keep_jump_if_false() {
 }
 
 #[test]
-fn test_two_operand_fused_jump_bytecode() {
+fn test_two_operand_condition_bytecode() {
     let program = "val a = 1\nval b = 2\nif a < b { print(1) }\n";
     let chunk = compile(program).unwrap();
 
@@ -670,16 +669,10 @@ fn test_two_operand_fused_jump_bytecode() {
 
 #[test]
 fn test_if_comparison_compiles_to_comparison_then_pop_jump_if_false() {
-    let register = compile("val a = 1\nval b = 2\nif a < b { print(1) }\n").unwrap();
     let literal = compile("val n = 1\nif n < 10 { print(1) }\n").unwrap();
 
-    let register_ops = opcode_names(&disassemble(&register)).join(" ");
     let literal_ops = opcode_names(&disassemble(&literal)).join(" ");
 
-    assert!(
-        register_ops.contains("GetLocal GetLocal Less PopJumpIfFalse"),
-        "{register_ops}"
-    );
     assert!(
         literal_ops.contains("GetLocal Constant Less PopJumpIfFalse"),
         "{literal_ops}"
