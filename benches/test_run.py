@@ -89,6 +89,24 @@ class MainOutputTest(unittest.TestCase):
         self.assertGreater(table_start, 0, "no line before the table")
         self.assertEqual(lines[table_start - 1], "CPU: Test CPU @ 1GHz")
 
+    def test_cpu_line_before_table_in_step_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = os.path.join(tmp, "summary.md")
+            argv = ["run.py", "fib", "--runs", "1", "--json", os.path.join(tmp, "out.json")]
+            env = {**os.environ, "GITHUB_STEP_SUMMARY": summary}
+            with mock.patch("sys.argv", argv), \
+                    mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(run.os.path, "isfile", return_value=True), \
+                    mock.patch.object(run, "run_once", return_value=(0.01, "42")), \
+                    mock.patch.object(run, "cpu_model", return_value="Test CPU @ 1GHz"), \
+                    mock.patch("sys.stdout", new_callable=io.StringIO):
+                run.main()
+            with open(summary) as f:
+                lines = f.read().splitlines()
+        table_start = next(i for i, line in enumerate(lines) if line.startswith("| Benchmark"))
+        self.assertGreater(table_start, 0, "no line before the table")
+        self.assertEqual(lines[table_start - 1], "CPU: Test CPU @ 1GHz")
+
 
 if __name__ == "__main__":
     unittest.main()

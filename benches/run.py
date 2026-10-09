@@ -172,7 +172,7 @@ def main():
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a") as f:
-            f.write(table + "\n")
+            f.write(f"CPU: {cpu}\n" + table + "\n")
 
     if failures:
         for failure in failures:
