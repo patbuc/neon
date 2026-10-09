@@ -405,13 +405,6 @@ impl Chunk {
                 OpCode::SetGlobal => (Instr::SetGlobal(u16_at(1)), 3),
                 OpCode::GetField => (Instr::GetField(u16_at(1)), 3),
                 OpCode::SetField => (Instr::SetField(u16_at(1)), 3),
-                OpCode::GetLocalField => (
-                    Instr::GetLocalField {
-                        slot: u16_at(1),
-                        symbol: u16_at(3),
-                    },
-                    5,
-                ),
                 OpCode::CreateMap => (Instr::CreateMap(u16_at(1)), 3),
                 OpCode::CreateArray => (Instr::CreateArray(u16_at(1)), 3),
                 OpCode::CreateSet => (Instr::CreateSet(u16_at(1)), 3),
@@ -475,8 +468,6 @@ impl Chunk {
                 ),
                 OpCode::CheckInitialized => (Instr::CheckInitialized, 1),
                 OpCode::CheckTuple => (Instr::CheckTuple(u16_at(1)), 3),
-                OpCode::StoreLocal => (Instr::StoreLocal(u16_at(1)), 3),
-                OpCode::StoreField => (Instr::StoreField(u16_at(1)), 3),
                 OpCode::StoreLocalField => (
                     Instr::StoreLocalField {
                         slot: u16_at(1),

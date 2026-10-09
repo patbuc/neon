@@ -551,6 +551,39 @@ fn opcode_names(disassembly: &str) -> Vec<&str> {
 }
 
 #[test]
+fn test_disassembler_prints_the_unfused_bytecode() {
+    let program = r#"
+    struct P { value }
+    fn run() {
+        var p = P(1)
+        var x = 1
+        x = p.value
+        p.value = x
+        print(x)
+    }
+    run()
+    "#;
+    let chunk = compile(program).unwrap();
+    let disassembly = disassemble(&chunk);
+    let ops = opcode_names(&disassembly);
+    assert!(
+        ops.windows(2).any(|w| w == ["GetLocal", "GetField"]),
+        "{disassembly}"
+    );
+    assert!(
+        ops.windows(2).any(|w| w == ["SetLocal", "Pop"]),
+        "{disassembly}"
+    );
+    assert!(
+        ops.windows(2).any(|w| w == ["SetField", "Pop"]),
+        "{disassembly}"
+    );
+    for fused in ["GetLocalField", "StoreLocal", "StoreField"] {
+        assert!(!ops.contains(&fused), "{disassembly}");
+    }
+}
+
+#[test]
 fn test_var_local_field_store_statement_emits_set_field_then_pop() {
     let program = r#"
     struct P { value }
@@ -679,14 +712,12 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             OpCode::CreateArray => 2,
             OpCode::Constant
             | OpCode::SetLocal
-            | OpCode::StoreLocal
             | OpCode::GetLocal
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetBuiltin
             | OpCode::GetField
             | OpCode::SetField
-            | OpCode::StoreField
             | OpCode::GetUpvalue
             | OpCode::SetUpvalue
             | OpCode::AddConstant
@@ -707,7 +738,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::JumpIfNil
             | OpCode::Jump
             | OpCode::Loop => 4,
-            OpCode::GetLocalField | OpCode::StoreLocalField => 4,
+            OpCode::StoreLocalField => 4,
             OpCode::GreaterConstantJumpIfFalse
             | OpCode::GreaterEqualConstantJumpIfFalse
             | OpCode::LessConstantJumpIfFalse

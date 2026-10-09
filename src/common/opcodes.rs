@@ -32,7 +32,6 @@ impl OpCode {
             OpCode::SetGlobal => 0,
             OpCode::GetField => 0,
             OpCode::SetField => -1,
-            OpCode::GetLocalField => 1,
             OpCode::CreateMap | OpCode::CreateArray | OpCode::CreateSet => 0,
             OpCode::GetIndex => -1,
             OpCode::SetIndex => -2,
@@ -54,8 +53,6 @@ impl OpCode {
             OpCode::DefineBuiltinMethod => -1,
             OpCode::CheckInitialized => 0,
             OpCode::CheckTuple => 0,
-            OpCode::StoreLocal => -1,
-            OpCode::StoreField => -2,
             OpCode::StoreLocalField => -1,
             OpCode::AddConstant
             | OpCode::SubtractConstant
@@ -89,7 +86,7 @@ impl OpCode {
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 90] = [
+        const OPCODES: [OpCode; 87] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -121,7 +118,6 @@ impl OpCode {
             OpCode::SetGlobal,
             OpCode::GetField,
             OpCode::SetField,
-            OpCode::GetLocalField,
             OpCode::CreateMap,
             OpCode::CreateArray,
             OpCode::CreateSet,
@@ -146,8 +142,6 @@ impl OpCode {
             OpCode::DefineBuiltinMethod,
             OpCode::CheckInitialized,
             OpCode::CheckTuple,
-            OpCode::StoreLocal,
-            OpCode::StoreField,
             OpCode::StoreLocalField,
             OpCode::AddConstant,
             OpCode::SubtractConstant,
@@ -223,10 +217,6 @@ pub(crate) enum OpCode {
     SetGlobal,
     GetField,
     SetField,
-    /// Fused `GetLocal` + `GetField`: a 16-bit local slot, then a 16-bit
-    /// symbol id.
-    GetLocalField,
-
     CreateMap,
     CreateArray,
     CreateSet,
@@ -277,13 +267,6 @@ pub(crate) enum OpCode {
     /// extracting each name.
     CheckTuple,
 
-    /// Statement-position `SetLocal`: moves the top of stack into a 16-bit
-    /// local slot without pushing it back.
-    StoreLocal,
-    /// Statement-position `SetField`: a 16-bit symbol id. Stack
-    /// `[.., instance, value]` -> `[..]`, moving `value` into the field
-    /// instead of pushing it back.
-    StoreField,
     /// Statement-position fused `GetLocal` + `SetField`: a 16-bit local
     /// slot, then a 16-bit symbol id. Stack `[.., value]` -> `[..]`.
     StoreLocalField,
