@@ -900,7 +900,8 @@ impl<'a> CodeGenerator<'a> {
         match self.resolutions.res(id) {
             Res::Local(decl) => {
                 let slot = self.decl_slot(decl);
-                self.emit_index_op(OpCode::StoreLocal, slot, "locals", location);
+                self.emit_index_op(OpCode::SetLocal, slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
             }
             _ => {
                 self.emit_variable_set(id, location);
@@ -2243,8 +2244,8 @@ impl<'a> CodeGenerator<'a> {
         match else_branch {
             IfExprElse::If(expr) => {
                 self.generate_expr_in_tail(expr, tail);
-                // StoreLocal pops the value, unlike SetLocal.
-                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+                self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
             }
             IfExprElse::Block(stmt) => {
                 self.generate_if_expr_branch(stmt, hidden_slot, tail);
@@ -2291,8 +2292,8 @@ impl<'a> CodeGenerator<'a> {
             }
             None => self.emit_op_code(OpCode::Nil, branch_location),
         }
-        // StoreLocal pops the value, unlike SetLocal.
-        self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", branch_location);
+        self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", branch_location);
+        self.emit_op_code(OpCode::Pop, branch_location);
         self.end_scope(branch_location);
         self.current().transient_offset = previous_offset;
     }
@@ -2395,8 +2396,8 @@ impl<'a> CodeGenerator<'a> {
         match body {
             MatchArmBody::Expr(expr) => {
                 self.generate_expr_in_tail(expr, tail);
-                // StoreLocal pops the value, unlike SetLocal.
-                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+                self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
             }
             MatchArmBody::Block(stmt) => self.generate_if_expr_branch(stmt, hidden_slot, tail),
         }
@@ -2449,7 +2450,8 @@ impl<'a> CodeGenerator<'a> {
                 unreachable!("an alternative binds the names the arm declared")
             };
             self.emit_match_subject(hidden_slot, &path, binding.location);
-            self.emit_index_op(OpCode::StoreLocal, *slot, "locals", binding.location);
+            self.emit_index_op(OpCode::SetLocal, *slot, "locals", binding.location);
+            self.emit_op_code(OpCode::Pop, binding.location);
         }
         self.emit_op_code(OpCode::True, location);
         self.patch_jump(no_match_jump);
