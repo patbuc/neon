@@ -119,6 +119,22 @@ pub(crate) enum Instr {
     LessEqualConstant(u16),
     ModuloConstant(u16),
     MultiplyConstant(u16),
+    GetLocalAddConstant {
+        slot: u16,
+        constant: u16,
+    },
+    GetLocalSubtractConstant {
+        slot: u16,
+        constant: u16,
+    },
+    GetLocalMultiplyConstant {
+        slot: u16,
+        constant: u16,
+    },
+    GetLocalModuloConstant {
+        slot: u16,
+        constant: u16,
+    },
     AddLocal(u16),
     SubtractLocal(u16),
     MultiplyLocal(u16),
@@ -244,6 +260,10 @@ impl Instr {
             Instr::LessEqualConstant(_) => "LessEqualConstant",
             Instr::ModuloConstant(_) => "ModuloConstant",
             Instr::MultiplyConstant(_) => "MultiplyConstant",
+            Instr::GetLocalAddConstant { .. } => "GetLocalAddConstant",
+            Instr::GetLocalSubtractConstant { .. } => "GetLocalSubtractConstant",
+            Instr::GetLocalMultiplyConstant { .. } => "GetLocalMultiplyConstant",
+            Instr::GetLocalModuloConstant { .. } => "GetLocalModuloConstant",
             Instr::AddLocal(_) => "AddLocal",
             Instr::SubtractLocal(_) => "SubtractLocal",
             Instr::MultiplyLocal(_) => "MultiplyLocal",
@@ -309,6 +329,21 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
         (Instr::GetLocalField { slot, symbol }, Instr::Divide) => {
             Some((Instr::DivideLocalField { slot, symbol }, Keep::Both))
         }
+        (Instr::GetLocal(slot), Instr::AddConstant(constant)) => {
+            Some((Instr::GetLocalAddConstant { slot, constant }, Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::SubtractConstant(constant)) => Some((
+            Instr::GetLocalSubtractConstant { slot, constant },
+            Keep::Second,
+        )),
+        (Instr::GetLocal(slot), Instr::MultiplyConstant(constant)) => Some((
+            Instr::GetLocalMultiplyConstant { slot, constant },
+            Keep::Second,
+        )),
+        (Instr::GetLocal(slot), Instr::ModuloConstant(constant)) => Some((
+            Instr::GetLocalModuloConstant { slot, constant },
+            Keep::Second,
+        )),
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
         (Instr::Constant(index), second)
@@ -335,10 +370,12 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
 }
 
 /// Replaces adjacent instructions that `fused` accepts with one, unless the
-/// second is a jump target. A fused instruction keeps the line of the part
-/// whose handler can fail, as `fused` says; when both can, the first part's
-/// line goes into `field_lines` under the fused instruction's index. Returns
-/// each old index's new index, with one extra entry for the end of the code.
+/// second starts at a jump target. Each fusion is tried again with the
+/// instruction before it, so a run of three or more can fuse. A fused
+/// instruction keeps the line of the part whose handler can fail, as `fused`
+/// says; when both can, the first part's line goes into `field_lines` under
+/// the fused instruction's index. Returns each old index's new index, with
+/// one extra entry for the end of the code.
 fn fuse(
     code: &mut Vec<Instr>,
     instr_lines: &mut Vec<Option<LineInfo>>,
@@ -348,29 +385,39 @@ fn fuse(
 ) -> Vec<u32> {
     let mut new_code: Vec<Instr> = Vec::with_capacity(code.len());
     let mut new_lines = Vec::with_capacity(instr_lines.len());
-    let mut new_index = Vec::with_capacity(code.len() + 1);
+    // The old index of each new instruction's first part.
+    let mut starts: Vec<usize> = Vec::with_capacity(code.len());
     for (i, &instr) in code.iter().enumerate() {
-        let fusion = new_code
-            .last()
-            .filter(|_| !jump_targets[i])
-            .and_then(|&previous| fused(previous, instr, constants));
-        if let Some((fusion, keep)) = fusion {
+        new_code.push(instr);
+        new_lines.push(instr_lines[i]);
+        starts.push(i);
+        while new_code.len() >= 2 {
             let last = new_code.len() - 1;
-            new_index.push(last as u32);
-            new_code[last] = fusion;
+            if jump_targets[starts[last]] {
+                break;
+            }
+            let Some((fusion, keep)) = fused(new_code[last - 1], new_code[last], constants) else {
+                break;
+            };
+            new_code.pop();
+            starts.pop();
+            let line = new_lines.pop().flatten();
+            let first = last - 1;
+            new_code[first] = fusion;
             match keep {
                 Keep::First => {}
-                Keep::Second => new_lines[last] = instr_lines[i],
+                Keep::Second => new_lines[first] = line,
                 Keep::Both => {
-                    field_lines.push((last as u32, new_lines[last]));
-                    new_lines[last] = instr_lines[i];
+                    field_lines.push((first as u32, new_lines[first]));
+                    new_lines[first] = line;
                 }
             }
-        } else {
-            new_index.push(new_code.len() as u32);
-            new_code.push(instr);
-            new_lines.push(instr_lines[i]);
         }
+    }
+    let mut new_index = Vec::with_capacity(code.len() + 1);
+    for (new, &start) in starts.iter().enumerate() {
+        let end = starts.get(new + 1).copied().unwrap_or(code.len());
+        new_index.extend((start..end).map(|_| new as u32));
     }
     new_index.push(new_code.len() as u32);
     *code = new_code;

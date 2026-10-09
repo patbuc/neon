@@ -1156,6 +1156,78 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Pushes the operator applied to local `slot` and constant `index`.
+    /// Returns false, touching nothing, when they are not a Number pair or an
+    /// Int pair, or `int_op` gives None.
+    #[inline(always)]
+    fn arithmetic_local_constant(
+        &mut self,
+        slot: u16,
+        index: u16,
+        float_op: fn(f64, f64) -> f64,
+        int_op: fn(i64, i64) -> Option<i64>,
+    ) -> bool {
+        let local = self.frame_base + slot as usize;
+        let result = match (self.stack.get(local), self.chunk.constant(index as usize)) {
+            (Some(&Value::Number(a)), &Value::Number(c)) => Value::Number(float_op(a, c)),
+            (Some(&Value::Int(a)), &Value::Int(c)) => match int_op(a, c) {
+                Some(r) => Value::Int(r),
+                None => return false,
+            },
+            _ => return false,
+        };
+        self.push(result);
+        true
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_get_local_add_constant(&mut self, slot: u16, index: u16) -> OpResult {
+        if self.arithmetic_local_constant(slot, index, |a, b| a + b, i64::checked_add) {
+            return Ok(());
+        }
+        self.op_get_local(slot)?;
+        self.op_add_constant(index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_get_local_subtract_constant(
+        &mut self,
+        slot: u16,
+        index: u16,
+    ) -> OpResult {
+        if self.arithmetic_local_constant(slot, index, |a, b| a - b, i64::checked_sub) {
+            return Ok(());
+        }
+        self.op_get_local(slot)?;
+        self.op_subtract_constant(index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_get_local_multiply_constant(
+        &mut self,
+        slot: u16,
+        index: u16,
+    ) -> OpResult {
+        if self.arithmetic_local_constant(slot, index, |a, b| a * b, i64::checked_mul) {
+            return Ok(());
+        }
+        self.op_get_local(slot)?;
+        self.op_multiply_constant(index)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_get_local_modulo_constant(
+        &mut self,
+        slot: u16,
+        index: u16,
+    ) -> OpResult {
+        if self.arithmetic_local_constant(slot, index, |a, b| a % b, i64::checked_rem) {
+            return Ok(());
+        }
+        self.op_get_local(slot)?;
+        self.op_modulo_constant(index)
+    }
+
     /// Applies the operator to the top of the stack and local `slot` in
     /// place. Returns false, touching nothing, when the operands are not a
     /// Number pair or an Int pair with an `int_op`.

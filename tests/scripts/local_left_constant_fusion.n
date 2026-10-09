@@ -1,0 +1,50 @@
+// A local on the left of +, -, * or % with a number literal on the right
+// decodes to one fused instruction. Check Int and float locals still give the
+// generic results, including a negative result and an Int modulo.
+
+// Expected:
+// 4
+// 6
+// 15
+// 1
+// 4.5
+// 6.5
+// 16.5
+// 1.5
+// -2
+// -1
+// 4.5
+// 7
+// 11
+// 0.5
+
+fn int_ops(n) {
+    print(n - 1)
+    print(n + 1)
+    print(n * 3)
+    print(n % 4)
+}
+
+fn float_ops(x) {
+    print(x - 1)
+    print(x + 1)
+    print(x * 3)
+    print(x % 4)
+}
+
+fn float_literals(x) {
+    print(x - 1.0)
+    print(x + 1.5)
+    print(x * 2.0)
+    print(x % 2.5)
+}
+
+fn negative(i) {
+    print(i - 5)
+}
+
+int_ops(5)
+float_ops(5.5)
+negative(3)
+negative(4)
+float_literals(5.5)
