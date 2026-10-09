@@ -517,6 +517,9 @@ impl VirtualMachine {
                 Instr::ModuloConstant(index) => self.op_modulo_constant(index)?,
                 Instr::MultiplyConstant(index) => self.op_multiply_constant(index)?,
                 Instr::MultiplyLocal(slot) => self.op_multiply_local(slot)?,
+                Instr::AddLocal(slot) => self.op_add_local(slot)?,
+                Instr::SubtractLocal(slot) => self.op_subtract_local(slot)?,
+                Instr::DivideLocal(slot) => self.op_divide_local(slot)?,
                 Instr::GreaterConstant(index) => {
                     self.op_compare_constant(index, Comparison::Greater)?
                 }

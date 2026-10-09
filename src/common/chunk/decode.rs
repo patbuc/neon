@@ -120,6 +120,9 @@ pub(crate) enum Instr {
     ModuloConstant(u16),
     MultiplyConstant(u16),
     MultiplyLocal(u16),
+    AddLocal(u16),
+    SubtractLocal(u16),
+    DivideLocal(u16),
     Dup,
     Dup2,
     JumpIfNotNil(u32),
@@ -226,6 +229,9 @@ impl Instr {
             Instr::ModuloConstant(_) => "ModuloConstant",
             Instr::MultiplyConstant(_) => "MultiplyConstant",
             Instr::MultiplyLocal(_) => "MultiplyLocal",
+            Instr::AddLocal(_) => "AddLocal",
+            Instr::SubtractLocal(_) => "SubtractLocal",
+            Instr::DivideLocal(_) => "DivideLocal",
             Instr::Dup => "Dup",
             Instr::Dup2 => "Dup2",
             Instr::JumpIfNotNil(_) => "JumpIfNotNil",
@@ -262,6 +268,11 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
         (Instr::GetLocal(slot), Instr::Multiply) => {
             Some((Instr::MultiplyLocal(slot), Keep::Second))
         }
+        (Instr::GetLocal(slot), Instr::Add) => Some((Instr::AddLocal(slot), Keep::Second)),
+        (Instr::GetLocal(slot), Instr::Subtract) => {
+            Some((Instr::SubtractLocal(slot), Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::Divide) => Some((Instr::DivideLocal(slot), Keep::Second)),
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
         _ => None,

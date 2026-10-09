@@ -1157,6 +1157,72 @@ impl VirtualMachine {
     }
 
     #[inline(always)]
+    pub(in crate::vm) fn op_add_local(&mut self, slot: u16) -> OpResult {
+        let local = self.frame_base + slot as usize;
+        if let Some((top, below)) = self.stack.split_last_mut() {
+            match (top, below.get(local)) {
+                (Value::Number(a), Some(&Value::Number(c))) => {
+                    *a += c;
+                    return Ok(());
+                }
+                (Value::Int(a), Some(&Value::Int(c))) => {
+                    return match a.checked_add(c) {
+                        Some(r) => {
+                            *a = r;
+                            Ok(())
+                        }
+                        None => Err(self.overflow_error("+")),
+                    };
+                }
+                _ => {}
+            }
+        }
+        self.op_get_local(slot)?;
+        self.op_add()?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_subtract_local(&mut self, slot: u16) -> OpResult {
+        let local = self.frame_base + slot as usize;
+        if let Some((top, below)) = self.stack.split_last_mut() {
+            match (top, below.get(local)) {
+                (Value::Number(a), Some(&Value::Number(c))) => {
+                    *a -= c;
+                    return Ok(());
+                }
+                (Value::Int(a), Some(&Value::Int(c))) => {
+                    return match a.checked_sub(c) {
+                        Some(r) => {
+                            *a = r;
+                            Ok(())
+                        }
+                        None => Err(self.overflow_error("-")),
+                    };
+                }
+                _ => {}
+            }
+        }
+        self.op_get_local(slot)?;
+        self.op_subtract()?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_divide_local(&mut self, slot: u16) -> OpResult {
+        let local = self.frame_base + slot as usize;
+        if let Some((top, below)) = self.stack.split_last_mut() {
+            if let (Value::Number(a), Some(&Value::Number(c))) = (top, below.get(local)) {
+                *a /= c;
+                return Ok(());
+            }
+        }
+        self.op_get_local(slot)?;
+        self.op_divide()?;
+        Ok(())
+    }
+
+    #[inline(always)]
     pub(in crate::vm) fn op_multiply_local(&mut self, slot: u16) -> OpResult {
         let local = self.frame_base + slot as usize;
         if let Some((top, below)) = self.stack.split_last_mut() {
