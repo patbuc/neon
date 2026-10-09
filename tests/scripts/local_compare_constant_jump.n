@@ -1,0 +1,81 @@
+fn fact(n) {
+    if n <= 1 {
+        return 1
+    }
+    return n * fact(n - 1)
+}
+
+fn count_to_ten() {
+    var i = 0
+    while i < 10 {
+        i += 1
+    }
+    return i
+}
+
+fn count_to_float() {
+    var i = 0.5
+    while i < 3.5 {
+        i += 1.0
+    }
+    return i
+}
+
+fn countdown() {
+    var n = 5
+    var steps = 0
+    while n > 0 {
+        n -= 1
+        steps += 1
+    }
+    return steps
+}
+
+fn at_least(n) {
+    if n >= 2.5 {
+        return "yes"
+    }
+    return "no"
+}
+
+fn at_most(n) {
+    if n <= 2 {
+        return "yes"
+    }
+    return "no"
+}
+
+fn greater(n) {
+    if n > 2 {
+        return "yes"
+    }
+    return "no"
+}
+
+print(fact(5))
+print(count_to_ten())
+print(count_to_float())
+print(countdown())
+print(at_least(3))
+print(at_least(2.5))
+print(at_least(2))
+print(at_most(2))
+print(at_most(2.5))
+print(at_most(1.5))
+print(greater(2))
+print(greater(2.5))
+print(greater(3))
+// Expected:
+// 120
+// 10
+// 3.5
+// 5
+// yes
+// yes
+// no
+// yes
+// no
+// yes
+// no
+// yes
+// yes

@@ -49,6 +49,26 @@ pub(crate) enum Instr {
         constant: u16,
         target: u32,
     },
+    LocalGreaterConstantJumpIfFalse {
+        slot: u8,
+        constant: u16,
+        target: u32,
+    },
+    LocalGreaterEqualConstantJumpIfFalse {
+        slot: u8,
+        constant: u16,
+        target: u32,
+    },
+    LocalLessConstantJumpIfFalse {
+        slot: u8,
+        constant: u16,
+        target: u32,
+    },
+    LocalLessEqualConstantJumpIfFalse {
+        slot: u8,
+        constant: u16,
+        target: u32,
+    },
     Jump(u32),
     Loop(u32),
     Call(u8),
@@ -219,6 +239,12 @@ impl Instr {
             Instr::GreaterEqualConstantJumpIfFalse { .. } => "GreaterEqualConstantJumpIfFalse",
             Instr::LessConstantJumpIfFalse { .. } => "LessConstantJumpIfFalse",
             Instr::LessEqualConstantJumpIfFalse { .. } => "LessEqualConstantJumpIfFalse",
+            Instr::LocalGreaterConstantJumpIfFalse { .. } => "LocalGreaterConstantJumpIfFalse",
+            Instr::LocalGreaterEqualConstantJumpIfFalse { .. } => {
+                "LocalGreaterEqualConstantJumpIfFalse"
+            }
+            Instr::LocalLessConstantJumpIfFalse { .. } => "LocalLessConstantJumpIfFalse",
+            Instr::LocalLessEqualConstantJumpIfFalse { .. } => "LocalLessEqualConstantJumpIfFalse",
             Instr::Jump(_) => "Jump",
             Instr::Loop(_) => "Loop",
             Instr::Call(_) => "Call",
@@ -384,6 +410,54 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
             Instr::LessEqualConstantJumpIfFalse { constant, target },
             Keep::First,
         )),
+        (Instr::GetLocal(slot), Instr::GreaterConstantJumpIfFalse { constant, target })
+            if slot <= u8::MAX as u16 =>
+        {
+            Some((
+                Instr::LocalGreaterConstantJumpIfFalse {
+                    slot: slot as u8,
+                    constant,
+                    target,
+                },
+                Keep::Second,
+            ))
+        }
+        (Instr::GetLocal(slot), Instr::GreaterEqualConstantJumpIfFalse { constant, target })
+            if slot <= u8::MAX as u16 =>
+        {
+            Some((
+                Instr::LocalGreaterEqualConstantJumpIfFalse {
+                    slot: slot as u8,
+                    constant,
+                    target,
+                },
+                Keep::Second,
+            ))
+        }
+        (Instr::GetLocal(slot), Instr::LessConstantJumpIfFalse { constant, target })
+            if slot <= u8::MAX as u16 =>
+        {
+            Some((
+                Instr::LocalLessConstantJumpIfFalse {
+                    slot: slot as u8,
+                    constant,
+                    target,
+                },
+                Keep::Second,
+            ))
+        }
+        (Instr::GetLocal(slot), Instr::LessEqualConstantJumpIfFalse { constant, target })
+            if slot <= u8::MAX as u16 =>
+        {
+            Some((
+                Instr::LocalLessEqualConstantJumpIfFalse {
+                    slot: slot as u8,
+                    constant,
+                    target,
+                },
+                Keep::Second,
+            ))
+        }
         (Instr::Constant(index), second)
             if matches!(
                 constants.get(index as usize),
@@ -702,6 +776,10 @@ impl Chunk {
                 | Instr::GreaterEqualConstantJumpIfFalse { target: t, .. }
                 | Instr::LessConstantJumpIfFalse { target: t, .. }
                 | Instr::LessEqualConstantJumpIfFalse { target: t, .. }
+                | Instr::LocalGreaterConstantJumpIfFalse { target: t, .. }
+                | Instr::LocalGreaterEqualConstantJumpIfFalse { target: t, .. }
+                | Instr::LocalLessConstantJumpIfFalse { target: t, .. }
+                | Instr::LocalLessEqualConstantJumpIfFalse { target: t, .. }
                 | Instr::JumpIfNotNil(t)
                 | Instr::JumpIfNil(t)
                 | Instr::BeginTry(t)

@@ -412,6 +412,58 @@ impl VirtualMachine {
                         continue;
                     }
                 }
+                Instr::LocalGreaterConstantJumpIfFalse {
+                    slot,
+                    constant,
+                    target,
+                } => {
+                    if !self.op_local_compare_constant_and_pop(
+                        slot,
+                        constant,
+                        Comparison::Greater,
+                    )? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LocalGreaterEqualConstantJumpIfFalse {
+                    slot,
+                    constant,
+                    target,
+                } => {
+                    if !self.op_local_compare_constant_and_pop(
+                        slot,
+                        constant,
+                        Comparison::GreaterEqual,
+                    )? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LocalLessConstantJumpIfFalse {
+                    slot,
+                    constant,
+                    target,
+                } => {
+                    if !self.op_local_compare_constant_and_pop(slot, constant, Comparison::Less)? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
+                Instr::LocalLessEqualConstantJumpIfFalse {
+                    slot,
+                    constant,
+                    target,
+                } => {
+                    if !self.op_local_compare_constant_and_pop(
+                        slot,
+                        constant,
+                        Comparison::LessEqual,
+                    )? {
+                        self.ip = target as usize;
+                        continue;
+                    }
+                }
                 Instr::JumpIfNotNil(target) => {
                     if !matches!(self.peek(0), Value::Nil) {
                         self.ip = target as usize;

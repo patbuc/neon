@@ -1,0 +1,34 @@
+fn nan_checks() {
+    val zero = 0.0
+    var x = zero / zero
+    x += 0.0
+    if x < 1.0 {
+        print("lt true")
+    } else {
+        print("lt false")
+    }
+    if x <= 1.0 {
+        print("le true")
+    } else {
+        print("le false")
+    }
+    if x > 1.0 {
+        print("gt true")
+    } else {
+        print("gt false")
+    }
+    if x >= 1.0 {
+        print("ge true")
+    } else {
+        print("ge false")
+    }
+    print(x == x)
+}
+
+nan_checks()
+// Expected:
+// lt false
+// le false
+// gt false
+// ge false
+// false
