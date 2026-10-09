@@ -102,16 +102,16 @@ Most VM code inlines into `VirtualMachine::run_script`, so read costs per source
 rather than per function. For per-instruction costs, add `--dump-instr=yes`; that works on a plain release build
 too.
 
-For a coarser view, the `opcode-stats` feature counts executed opcodes:
+For a coarser view, the `opcode-stats` feature counts executed instructions:
 
 ```bash
 cargo run --release --features opcode-stats -- benches/fib.n
 ```
 
-Prints one line per executed opcode with its count to stderr after the script finishes, sorted by count
-descending; stdout is unchanged. A second section follows after a blank line, one `Prev->Next <count>` line per
-executed opcode pair (consecutive opcodes across calls, returns, and native callbacks), sorted the same way. The
-Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every pull request,
+Prints one line per executed instruction with its count to stderr after the script finishes, sorted by count
+descending (ties by name); stdout is unchanged. A second section follows after a blank line, one `Prev->Next <count>`
+line per executed instruction pair (consecutive instructions across calls, returns, and native callbacks), sorted the
+same way. The Features workflow (`.github/workflows/features.yml`) runs clippy and tests with this feature on every pull request,
 every push to `main`, and on demand.
 
 ### Versioning
@@ -248,7 +248,10 @@ enforces these edges in `cargo test`.
 - Chunk: name, bytecode instructions, constant pool, a line table of `LineInfo` entries, the
   symbol table shared by every chunk of the compile, and `file`, the unit's source file when known
 - `Chunk::decode` fills `code`, `instr_lines` (one location per instruction, read by `instr_line_info`) and
-  `closure_upvalues`; jump targets become instruction indices
+  `closure_upvalues`; jump targets become instruction indices. Decode also fuses adjacent instructions into one
+  `Instr` (`GetLocal`+`GetField` → `GetLocalField`, `SetLocal`+`Pop` → `StoreLocal`, `SetField`+`Pop` →
+  `StoreField`), never across a jump target, keeping the failing part's location, so `code` isn't one-to-one with
+  the bytecode
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting;
   runtime errors and call-trace frames also name `Chunk.file` when it is set (errors in REPL lines and in-process

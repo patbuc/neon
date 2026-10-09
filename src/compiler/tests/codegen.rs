@@ -395,7 +395,7 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
 }
 
 #[test]
-fn test_local_field_read_emits_get_local_field() {
+fn test_local_field_read_compiles_to_get_local_then_get_field() {
     let program = r#"
     struct P { value }
     fn get(p) {
@@ -405,56 +405,11 @@ fn test_local_field_read_emits_get_local_field() {
     "#;
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetLocalField"));
-    assert!(!disassembly.contains("GetField"));
-}
-
-#[test]
-fn test_global_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    val p = P(1)
-    fn get() {
-        return p.value
-    }
-    get()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
-}
-
-#[test]
-fn test_upvalue_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    fn make() {
-        val p = P(1)
-        return fn() { return p.value }
-    }
-    make()()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
-}
-
-#[test]
-fn test_non_local_object_field_read_still_emits_get_field() {
-    let program = r#"
-    struct P { value }
-    fn make() { return P(1) }
-    fn get() {
-        return make().value
-    }
-    get()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
+    let ops: Vec<&str> = disassembly
+        .lines()
+        .filter_map(|line| line.split_whitespace().find(|w| w.starts_with("Get")))
+        .collect();
+    assert!(ops.windows(2).any(|w| w == ["GetLocal", "GetField"]));
 }
 
 #[test]
@@ -471,52 +426,20 @@ fn test_checked_local_field_read_still_emits_get_field() {
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("CheckInitialized"));
     assert!(disassembly.contains("GetField"));
-    assert!(!disassembly.contains("GetLocalField"));
 }
 
 #[test]
-fn test_local_assignment_statement_emits_store_local() {
-    let program = r#"
-    fn f() {
-        var x = 1
-        x = 2
-        return x
-    }
-    f()
-    "#;
+fn test_local_assignment_statement_emits_set_local_then_pop() {
+    let program = "var x = 1\nx = 2\nprint(x)\n";
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("StoreLocal"));
-}
-
-#[test]
-fn test_local_assignment_expression_still_emits_set_local() {
-    let program = r#"
-    fn f() {
-        var x = 1
-        print(x = 2)
-    }
-    f()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("SetLocal"));
-    assert!(!disassembly.contains("StoreLocal"));
-}
-
-#[test]
-fn test_global_assignment_statement_still_emits_set_global_and_pop() {
-    let program = r#"
-    var x = 1
-    fn set() {
-        x = 2
-    }
-    set()
-    "#;
-    let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("SetGlobal"));
-    assert!(!disassembly.contains("StoreLocal"));
+    let lines: Vec<&str> = disassembly.lines().collect();
+    let constant = lines
+        .iter()
+        .position(|line| line.contains("Constant") && line.contains("'2'"))
+        .expect("expected the Constant 2");
+    assert!(lines[constant + 1].contains("SetLocal 00"), "{disassembly}");
+    assert!(lines[constant + 2].ends_with(" Pop"), "{disassembly}");
 }
 
 #[test]
@@ -533,11 +456,20 @@ fn test_val_local_field_store_emits_store_local_field() {
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("StoreLocalField"));
-    assert!(!disassembly.contains("StoreField"));
+}
+
+fn opcode_names(disassembly: &str) -> Vec<&str> {
+    disassembly
+        .lines()
+        .filter_map(|line| {
+            line.split_whitespace()
+                .find(|w| w.chars().all(char::is_alphabetic))
+        })
+        .collect()
 }
 
 #[test]
-fn test_var_local_field_store_still_emits_store_field() {
+fn test_var_local_field_store_statement_emits_set_field_then_pop() {
     let program = r#"
     struct P { value }
     fn set() {
@@ -548,13 +480,13 @@ fn test_var_local_field_store_still_emits_store_field() {
     set()
     "#;
     let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("StoreField"));
-    assert!(!disassembly.contains("StoreLocalField"));
+    let ops = opcode_names(&disassemble(&chunk)).join(" ");
+    assert!(ops.contains("SetField Pop"), "{ops}");
+    assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
 #[test]
-fn test_checked_local_field_store_still_emits_store_field() {
+fn test_checked_local_field_store_statement_emits_set_field_then_pop() {
     // `a` is written before its declaration runs, so it needs CheckInitialized
     // and can't be fused into StoreLocalField.
     let program = r#"
@@ -565,10 +497,10 @@ fn test_checked_local_field_store_still_emits_store_field() {
     get()
     "#;
     let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("CheckInitialized"));
-    assert!(disassembly.contains("StoreField"));
-    assert!(!disassembly.contains("StoreLocalField"));
+    let ops = opcode_names(&disassemble(&chunk)).join(" ");
+    assert!(ops.contains("CheckInitialized"), "{ops}");
+    assert!(ops.contains("SetField Pop"), "{ops}");
+    assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
 #[test]
@@ -584,7 +516,6 @@ fn test_field_assignment_expression_still_emits_set_field() {
     let chunk = compile(program).unwrap();
     let disassembly = disassemble(&chunk);
     assert!(disassembly.contains("SetField"));
-    assert!(!disassembly.contains("StoreField"));
     assert!(!disassembly.contains("StoreLocalField"));
 }
 
@@ -663,14 +594,12 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             OpCode::CreateArray => 2,
             OpCode::Constant
             | OpCode::SetLocal
-            | OpCode::StoreLocal
             | OpCode::GetLocal
             | OpCode::GetGlobal
             | OpCode::SetGlobal
             | OpCode::GetBuiltin
             | OpCode::GetField
             | OpCode::SetField
-            | OpCode::StoreField
             | OpCode::GetUpvalue
             | OpCode::SetUpvalue
             | OpCode::AddConstant
@@ -691,7 +620,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::JumpIfNil
             | OpCode::Jump
             | OpCode::Loop => 4,
-            OpCode::GetLocalField | OpCode::StoreLocalField => 4,
+            OpCode::StoreLocalField => 4,
             OpCode::GreaterConstantJumpIfFalse
             | OpCode::GreaterEqualConstantJumpIfFalse
             | OpCode::LessConstantJumpIfFalse
@@ -927,27 +856,28 @@ fn test_while_break_continue_bytecode() {
 0006      | SetLocal 00
 0009      | Pop
 000a      3 GetLocal 00
-000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004d
+000d      | LessConstantJumpIfFalse 02 '10' 000d -> 004e
 0014      4 GetLocal 00
 0017      | AddConstant 03 '1'
-001a      | StoreLocal 00
-001d      5 GetLocal 00
-0020      | Constant 04 '2'
-0023      | Equal
-0024      | PopJumpIfFalse 0024 -> 002e
-0029      | Jump 0029 -> 0048
-002e      6 GetLocal 00
-0031      | Constant 05 '5'
-0034      | Equal
-0035      | PopJumpIfFalse 0035 -> 003f
-003a      | Jump 003a -> 004d
-003f      7 Constant 06 '<native fn print>'
-0042      | GetLocal 00
-0045      | Call (args: 1)
-0047      6 Pop
-0048      3 Loop 0048 -> 000a
-004d      9 Nil
-004e      | Return
+001a      | SetLocal 00
+001d      | Pop
+001e      5 GetLocal 00
+0021      | Constant 04 '2'
+0024      | Equal
+0025      | PopJumpIfFalse 0025 -> 002f
+002a      | Jump 002a -> 0049
+002f      6 GetLocal 00
+0032      | Constant 05 '5'
+0035      | Equal
+0036      | PopJumpIfFalse 0036 -> 0040
+003b      | Jump 003b -> 004e
+0040      7 Constant 06 '<native fn print>'
+0043      | GetLocal 00
+0046      | Call (args: 1)
+0048      6 Pop
+0049      3 Loop 0049 -> 000a
+004e      9 Nil
+004f      | Return
 === </main> ===
 "#;
 
@@ -1019,26 +949,28 @@ fn test_closure_capturing_block_local_with_break_bytecode() {
 000e      | SetLocal 01
 0011      | Pop
 0012      4 GetLocal 01
-0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0041
+0015      | LessConstantJumpIfFalse 03 '3' 0015 -> 0043
 001c      5 GetLocal 01
 001f      | AddConstant 04 '1'
-0022      | StoreLocal 01
-0025      7 GetLocal 01
-0028      | MultiplyConstant 05 '10'
-002b      8 Closure 06 '<fn anonymous>'
+0022      | SetLocal 01
+0025      | Pop
+0026      7 GetLocal 01
+0029      | MultiplyConstant 05 '10'
+002c      8 Closure 06 '<fn anonymous>'
       |                     local 02
-0032      | StoreLocal 00
-0035      9 CloseUpvalue
-0036      | Jump 0036 -> 0041
-003b      6 CloseUpvalue
-003c      4 Loop 003c -> 0012
-0041     12 Constant 07 '<native fn print>'
-0044      | GetLocal 00
-0047      | Call (args: 0)
-0049      | Call (args: 1)
-004b     11 Pop
-004c     13 Nil
-004d      | Return
+0033      | SetLocal 00
+0036      | Pop
+0037      9 CloseUpvalue
+0038      | Jump 0038 -> 0043
+003d      6 CloseUpvalue
+003e      4 Loop 003e -> 0012
+0043     12 Constant 07 '<native fn print>'
+0046      | GetLocal 00
+0049      | Call (args: 0)
+004b      | Call (args: 1)
+004d     11 Pop
+004e     13 Nil
+004f      | Return
 === </main> ===
 === <function_anonymous>  ===
 0000      8 GetUpvalue 00

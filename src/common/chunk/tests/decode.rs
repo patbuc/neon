@@ -175,3 +175,313 @@ fn jump_into_an_operand_decodes_to_invalid() {
         chunk.code
     );
 }
+
+#[test]
+fn get_local_followed_by_get_field_decodes_to_one_get_local_field() {
+    let mut chunk = Chunk::new("fused field");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    chunk.write_indexed(OpCode::GetField, 9, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![Instr::GetLocalField { slot: 3, symbol: 9 }, Instr::Return],
+        chunk.code
+    );
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(2, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
+}
+
+#[test]
+fn set_local_followed_by_pop_decodes_to_one_store_local() {
+    let mut chunk = Chunk::new("fused store");
+    chunk.write_indexed(OpCode::SetLocal, 3, 1, 1);
+    chunk.write_op_code(OpCode::Pop, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(vec![Instr::StoreLocal(3), Instr::Return], chunk.code);
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
+}
+
+#[test]
+fn set_field_followed_by_pop_decodes_to_one_store_field() {
+    let mut chunk = Chunk::new("fused field store");
+    chunk.write_indexed(OpCode::SetField, 4, 1, 1);
+    chunk.write_op_code(OpCode::Pop, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(vec![Instr::StoreField(4), Instr::Return], chunk.code);
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
+}
+
+#[test]
+fn a_pair_whose_second_instruction_is_a_jump_target_decodes_unfused() {
+    let mut chunk = Chunk::new("jump into pair");
+    let jump = chunk.emit_jump(OpCode::Jump, 1, 1);
+    chunk.write_indexed(OpCode::SetLocal, 3, 2, 1);
+    chunk.patch_jump(jump);
+    chunk.write_op_code(OpCode::Pop, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::Jump(2),
+            Instr::SetLocal(3),
+            Instr::Pop,
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[cfg(feature = "opcode-stats")]
+fn variant_index(instr: Instr) -> usize {
+    match instr {
+        Instr::Return => 0,
+        Instr::Constant(_) => 1,
+        Instr::Negate => 2,
+        Instr::Add => 3,
+        Instr::Subtract => 4,
+        Instr::Multiply => 5,
+        Instr::Divide => 6,
+        Instr::Modulo => 7,
+        Instr::Exponent => 8,
+        Instr::Nil => 9,
+        Instr::True => 10,
+        Instr::False => 11,
+        Instr::Equal => 12,
+        Instr::Greater => 13,
+        Instr::GreaterEqual => 14,
+        Instr::Less => 15,
+        Instr::LessEqual => 16,
+        Instr::Not => 17,
+        Instr::Pop => 18,
+        Instr::SetLocal(_) => 19,
+        Instr::GetLocal(_) => 20,
+        Instr::JumpIfFalse(_) => 21,
+        Instr::PopJumpIfFalse(_) => 22,
+        Instr::GreaterJumpIfFalse(_) => 23,
+        Instr::GreaterEqualJumpIfFalse(_) => 24,
+        Instr::LessJumpIfFalse(_) => 25,
+        Instr::LessEqualJumpIfFalse(_) => 26,
+        Instr::GreaterConstantJumpIfFalse { .. } => 27,
+        Instr::GreaterEqualConstantJumpIfFalse { .. } => 28,
+        Instr::LessConstantJumpIfFalse { .. } => 29,
+        Instr::LessEqualConstantJumpIfFalse { .. } => 30,
+        Instr::Jump(_) => 31,
+        Instr::Loop(_) => 32,
+        Instr::Call(_) => 33,
+        Instr::Invoke { .. } => 34,
+        Instr::GetBuiltin(_) => 35,
+        Instr::GetGlobal(_) => 36,
+        Instr::SetGlobal(_) => 37,
+        Instr::GetField(_) => 38,
+        Instr::SetField(_) => 39,
+        Instr::GetLocalField { .. } => 40,
+        Instr::CreateMap(_) => 41,
+        Instr::CreateArray(_) => 42,
+        Instr::CreateSet(_) => 43,
+        Instr::GetIndex => 44,
+        Instr::SetIndex => 45,
+        Instr::GetIterator { .. } => 46,
+        Instr::IteratorNext(_) => 47,
+        Instr::IteratorDone(_) => 48,
+        Instr::CreateRange { .. } => 49,
+        Instr::ToString => 50,
+        Instr::BitwiseAnd => 51,
+        Instr::BitwiseOr => 52,
+        Instr::BitwiseXor => 53,
+        Instr::BitwiseNot => 54,
+        Instr::LeftShift => 55,
+        Instr::RightShift => 56,
+        Instr::Closure { .. } => 57,
+        Instr::GetUpvalue(_) => 58,
+        Instr::SetUpvalue(_) => 59,
+        Instr::CloseUpvalue => 60,
+        Instr::DefineMethod { .. } => 61,
+        Instr::DefineBuiltinMethod { .. } => 62,
+        Instr::CheckInitialized => 63,
+        Instr::CheckTuple(_) => 64,
+        Instr::StoreLocal(_) => 65,
+        Instr::StoreField(_) => 66,
+        Instr::StoreLocalField { .. } => 67,
+        Instr::AddConstant(_) => 68,
+        Instr::SubtractConstant(_) => 69,
+        Instr::GreaterConstant(_) => 70,
+        Instr::GreaterEqualConstant(_) => 71,
+        Instr::LessConstant(_) => 72,
+        Instr::LessEqualConstant(_) => 73,
+        Instr::ModuloConstant(_) => 74,
+        Instr::MultiplyConstant(_) => 75,
+        Instr::Dup => 76,
+        Instr::Dup2 => 77,
+        Instr::JumpIfNotNil(_) => 78,
+        Instr::JumpIfNil(_) => 79,
+        Instr::NoMatchArm => 80,
+        Instr::EnumConstruct(_) => 81,
+        Instr::IsArrayOfLen { .. } => 82,
+        Instr::IsVariant(_) => 83,
+        Instr::TailCall(_) => 84,
+        Instr::TailInvoke { .. } => 85,
+        Instr::IsNumber => 86,
+        Instr::BeginTry(_) => 87,
+        Instr::EndTry => 88,
+        Instr::Throw => 89,
+        Instr::Invalid(_) => 90,
+    }
+}
+
+#[cfg(feature = "opcode-stats")]
+#[test]
+fn name_matches_the_variant_name() {
+    let samples = [
+        Instr::Return,
+        Instr::Constant(1),
+        Instr::Negate,
+        Instr::Add,
+        Instr::Subtract,
+        Instr::Multiply,
+        Instr::Divide,
+        Instr::Modulo,
+        Instr::Exponent,
+        Instr::Nil,
+        Instr::True,
+        Instr::False,
+        Instr::Equal,
+        Instr::Greater,
+        Instr::GreaterEqual,
+        Instr::Less,
+        Instr::LessEqual,
+        Instr::Not,
+        Instr::Pop,
+        Instr::SetLocal(1),
+        Instr::GetLocal(1),
+        Instr::JumpIfFalse(1),
+        Instr::PopJumpIfFalse(1),
+        Instr::GreaterJumpIfFalse(1),
+        Instr::GreaterEqualJumpIfFalse(1),
+        Instr::LessJumpIfFalse(1),
+        Instr::LessEqualJumpIfFalse(1),
+        Instr::GreaterConstantJumpIfFalse {
+            constant: 1,
+            target: 1,
+        },
+        Instr::GreaterEqualConstantJumpIfFalse {
+            constant: 1,
+            target: 1,
+        },
+        Instr::LessConstantJumpIfFalse {
+            constant: 1,
+            target: 1,
+        },
+        Instr::LessEqualConstantJumpIfFalse {
+            constant: 1,
+            target: 1,
+        },
+        Instr::Jump(1),
+        Instr::Loop(1),
+        Instr::Call(1),
+        Instr::Invoke {
+            method_symbol: 1,
+            arg_count: 1,
+        },
+        Instr::GetBuiltin(1),
+        Instr::GetGlobal(1),
+        Instr::SetGlobal(1),
+        Instr::GetField(1),
+        Instr::SetField(1),
+        Instr::GetLocalField { slot: 1, symbol: 1 },
+        Instr::CreateMap(1),
+        Instr::CreateArray(1),
+        Instr::CreateSet(1),
+        Instr::GetIndex,
+        Instr::SetIndex,
+        Instr::GetIterator { pairs: true },
+        Instr::IteratorNext(1),
+        Instr::IteratorDone(1),
+        Instr::CreateRange { inclusive: true },
+        Instr::ToString,
+        Instr::BitwiseAnd,
+        Instr::BitwiseOr,
+        Instr::BitwiseXor,
+        Instr::BitwiseNot,
+        Instr::LeftShift,
+        Instr::RightShift,
+        Instr::Closure {
+            const_index: 1,
+            upvalue_count: 1,
+            upvalues: 1,
+        },
+        Instr::GetUpvalue(1),
+        Instr::SetUpvalue(1),
+        Instr::CloseUpvalue,
+        Instr::DefineMethod {
+            type_symbol: 1,
+            method_symbol: 1,
+            takes_self: true,
+        },
+        Instr::DefineBuiltinMethod {
+            type_symbol: 1,
+            method_symbol: 1,
+            takes_self: true,
+        },
+        Instr::CheckInitialized,
+        Instr::CheckTuple(1),
+        Instr::StoreLocal(1),
+        Instr::StoreField(1),
+        Instr::StoreLocalField { slot: 1, symbol: 1 },
+        Instr::AddConstant(1),
+        Instr::SubtractConstant(1),
+        Instr::GreaterConstant(1),
+        Instr::GreaterEqualConstant(1),
+        Instr::LessConstant(1),
+        Instr::LessEqualConstant(1),
+        Instr::ModuloConstant(1),
+        Instr::MultiplyConstant(1),
+        Instr::Dup,
+        Instr::Dup2,
+        Instr::JumpIfNotNil(1),
+        Instr::JumpIfNil(1),
+        Instr::NoMatchArm,
+        Instr::EnumConstruct(1),
+        Instr::IsArrayOfLen {
+            length: 1,
+            at_least: true,
+        },
+        Instr::IsVariant(1),
+        Instr::TailCall(1),
+        Instr::TailInvoke {
+            method_symbol: 1,
+            arg_count: 1,
+        },
+        Instr::IsNumber,
+        Instr::BeginTry(1),
+        Instr::EndTry,
+        Instr::Throw,
+        Instr::Invalid(1),
+    ];
+    let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
+    seen.sort_unstable();
+    assert_eq!((0..91).collect::<Vec<_>>(), seen);
+
+    for instr in samples {
+        let debug = format!("{instr:?}");
+        let variant = debug.split(['(', ' ']).next().unwrap();
+        match instr {
+            Instr::Invalid(_) => assert_eq!(None, instr.name()),
+            _ => assert_eq!(Some(variant), instr.name()),
+        }
+    }
+}

@@ -411,18 +411,6 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn emit_get_local_field(&mut self, slot: u32, symbol: u32, location: SourceLocation) {
-        let Some(slot) = self.checked_index(slot, "locals", location) else {
-            return;
-        };
-        let Some(symbol) = self.checked_index(symbol, "symbols", location) else {
-            return;
-        };
-        self.emit_op_code(OpCode::GetLocalField, location);
-        self.current_chunk().write_u16(slot);
-        self.current_chunk().write_u16(symbol);
-    }
-
     fn emit_store_local_field(&mut self, slot: u32, symbol: u32, location: SourceLocation) {
         let Some(slot) = self.checked_index(slot, "locals", location) else {
             return;
@@ -909,16 +897,8 @@ impl<'a> CodeGenerator<'a> {
     /// Stores the value on top of the stack into `id`'s target without
     /// leaving it on the stack, used for assignment as a statement.
     fn generate_store_without_push(&mut self, id: NodeId, location: SourceLocation) {
-        match self.resolutions.res(id) {
-            Res::Local(decl) => {
-                let slot = self.decl_slot(decl);
-                self.emit_index_op(OpCode::StoreLocal, slot, "locals", location);
-            }
-            _ => {
-                self.emit_variable_set(id, location);
-                self.emit_op_code(OpCode::Pop, location);
-            }
-        }
+        self.emit_variable_set(id, location);
+        self.emit_op_code(OpCode::Pop, location);
     }
 
     /// Generates the new value of a compound assignment: reads `read_id`,
@@ -936,9 +916,8 @@ impl<'a> CodeGenerator<'a> {
 
     /// Generates `object; Dup; GetField field; value; operator`, leaving
     /// `[.., instance, result]` on the stack so the caller can finish with
-    /// `SetField` (expression position) or `StoreField` (statement
-    /// position); `object` evaluates exactly once. Returns the field's
-    /// symbol id.
+    /// `SetField` (followed by `Pop` in statement position); `object`
+    /// evaluates exactly once. Returns the field's symbol id.
     fn generate_field_compound_assign_value(
         &mut self,
         object: &Expr,
@@ -1019,7 +998,8 @@ impl<'a> CodeGenerator<'a> {
                 }
                 self.generate_expr(object);
                 self.generate_expr(value);
-                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
             Expr::CompoundAssignField {
                 object,
@@ -1037,7 +1017,8 @@ impl<'a> CodeGenerator<'a> {
                     *location,
                     *operator_location,
                 );
-                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
             _ => {
                 self.generate_expr(expr);
@@ -2030,15 +2011,6 @@ impl<'a> CodeGenerator<'a> {
                     }
                 }
                 let symbol = self.resolutions.symbol(field);
-                if let Expr::Variable { id, .. } = object.as_ref() {
-                    if let Res::Local(decl) = self.resolutions.res(*id) {
-                        if !self.resolutions.is_checked(*id) {
-                            let slot = self.decl_slot(decl);
-                            self.emit_get_local_field(slot, symbol as u32, *location);
-                            return;
-                        }
-                    }
-                }
                 self.generate_expr(object);
                 self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", *location);
             }
@@ -2264,8 +2236,8 @@ impl<'a> CodeGenerator<'a> {
         match else_branch {
             IfExprElse::If(expr) => {
                 self.generate_expr_in_tail(expr, tail);
-                // StoreLocal pops the value, unlike SetLocal.
-                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+                self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
             }
             IfExprElse::Block(stmt) => {
                 self.generate_if_expr_branch(stmt, hidden_slot, tail);
@@ -2312,8 +2284,8 @@ impl<'a> CodeGenerator<'a> {
             }
             None => self.emit_op_code(OpCode::Nil, branch_location),
         }
-        // StoreLocal pops the value, unlike SetLocal.
-        self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", branch_location);
+        self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", branch_location);
+        self.emit_op_code(OpCode::Pop, branch_location);
         self.end_scope(branch_location);
         self.current().transient_offset = previous_offset;
     }
@@ -2416,8 +2388,8 @@ impl<'a> CodeGenerator<'a> {
         match body {
             MatchArmBody::Expr(expr) => {
                 self.generate_expr_in_tail(expr, tail);
-                // StoreLocal pops the value, unlike SetLocal.
-                self.emit_index_op(OpCode::StoreLocal, hidden_slot, "locals", location);
+                self.emit_index_op(OpCode::SetLocal, hidden_slot, "locals", location);
+                self.emit_op_code(OpCode::Pop, location);
             }
             MatchArmBody::Block(stmt) => self.generate_if_expr_branch(stmt, hidden_slot, tail),
         }
@@ -2470,7 +2442,8 @@ impl<'a> CodeGenerator<'a> {
                 unreachable!("an alternative binds the names the arm declared")
             };
             self.emit_match_subject(hidden_slot, &path, binding.location);
-            self.emit_index_op(OpCode::StoreLocal, *slot, "locals", binding.location);
+            self.emit_index_op(OpCode::SetLocal, *slot, "locals", binding.location);
+            self.emit_op_code(OpCode::Pop, binding.location);
         }
         self.emit_op_code(OpCode::True, location);
         self.patch_jump(no_match_jump);

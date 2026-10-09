@@ -1721,3 +1721,25 @@ fn constant_operand_arithmetic_reports_the_unfused_error() {
         assert_eq!(errors[0], errors[1], "`s {op} 2`");
     }
 }
+
+#[test]
+fn error_in_fused_local_field_read_reports_the_get_field_location() {
+    let program = "fn run() {\n    val a = 5\n    print(a\n        .value)\n}\nrun()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("[4:9] Only instances have fields.", error.to_string());
+}
+
+#[test]
+fn error_in_field_store_statement_reports_the_set_field_location() {
+    let program = "fn run() {\n    var a = 5\n    a\n        .value = 1\n}\nrun()";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("[4:9] Only instances have fields.", error.to_string());
+}

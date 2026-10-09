@@ -146,103 +146,157 @@ pub(crate) enum Instr {
 
 impl Instr {
     #[cfg(feature = "opcode-stats")]
-    pub(crate) fn opcode(self) -> Option<OpCode> {
+    pub(crate) fn name(self) -> Option<&'static str> {
         Some(match self {
-            Instr::Return => OpCode::Return,
-            Instr::Constant(_) => OpCode::Constant,
-            Instr::Negate => OpCode::Negate,
-            Instr::Add => OpCode::Add,
-            Instr::Subtract => OpCode::Subtract,
-            Instr::Multiply => OpCode::Multiply,
-            Instr::Divide => OpCode::Divide,
-            Instr::Modulo => OpCode::Modulo,
-            Instr::Exponent => OpCode::Exponent,
-            Instr::Nil => OpCode::Nil,
-            Instr::True => OpCode::True,
-            Instr::False => OpCode::False,
-            Instr::Equal => OpCode::Equal,
-            Instr::Greater => OpCode::Greater,
-            Instr::GreaterEqual => OpCode::GreaterEqual,
-            Instr::Less => OpCode::Less,
-            Instr::LessEqual => OpCode::LessEqual,
-            Instr::Not => OpCode::Not,
-            Instr::Pop => OpCode::Pop,
-            Instr::SetLocal(_) => OpCode::SetLocal,
-            Instr::GetLocal(_) => OpCode::GetLocal,
-            Instr::JumpIfFalse(_) => OpCode::JumpIfFalse,
-            Instr::PopJumpIfFalse(_) => OpCode::PopJumpIfFalse,
-            Instr::GreaterJumpIfFalse(_) => OpCode::GreaterJumpIfFalse,
-            Instr::GreaterEqualJumpIfFalse(_) => OpCode::GreaterEqualJumpIfFalse,
-            Instr::LessJumpIfFalse(_) => OpCode::LessJumpIfFalse,
-            Instr::LessEqualJumpIfFalse(_) => OpCode::LessEqualJumpIfFalse,
-            Instr::GreaterConstantJumpIfFalse { .. } => OpCode::GreaterConstantJumpIfFalse,
-            Instr::GreaterEqualConstantJumpIfFalse { .. } => {
-                OpCode::GreaterEqualConstantJumpIfFalse
-            }
-            Instr::LessConstantJumpIfFalse { .. } => OpCode::LessConstantJumpIfFalse,
-            Instr::LessEqualConstantJumpIfFalse { .. } => OpCode::LessEqualConstantJumpIfFalse,
-            Instr::Jump(_) => OpCode::Jump,
-            Instr::Loop(_) => OpCode::Loop,
-            Instr::Call(_) => OpCode::Call,
-            Instr::Invoke { .. } => OpCode::Invoke,
-            Instr::GetBuiltin(_) => OpCode::GetBuiltin,
-            Instr::GetGlobal(_) => OpCode::GetGlobal,
-            Instr::SetGlobal(_) => OpCode::SetGlobal,
-            Instr::GetField(_) => OpCode::GetField,
-            Instr::SetField(_) => OpCode::SetField,
-            Instr::GetLocalField { .. } => OpCode::GetLocalField,
-            Instr::CreateMap(_) => OpCode::CreateMap,
-            Instr::CreateArray(_) => OpCode::CreateArray,
-            Instr::CreateSet(_) => OpCode::CreateSet,
-            Instr::GetIndex => OpCode::GetIndex,
-            Instr::SetIndex => OpCode::SetIndex,
-            Instr::GetIterator { .. } => OpCode::GetIterator,
-            Instr::IteratorNext(_) => OpCode::IteratorNext,
-            Instr::IteratorDone(_) => OpCode::IteratorDone,
-            Instr::CreateRange { .. } => OpCode::CreateRange,
-            Instr::ToString => OpCode::ToString,
-            Instr::BitwiseAnd => OpCode::BitwiseAnd,
-            Instr::BitwiseOr => OpCode::BitwiseOr,
-            Instr::BitwiseXor => OpCode::BitwiseXor,
-            Instr::BitwiseNot => OpCode::BitwiseNot,
-            Instr::LeftShift => OpCode::LeftShift,
-            Instr::RightShift => OpCode::RightShift,
-            Instr::Closure { .. } => OpCode::Closure,
-            Instr::GetUpvalue(_) => OpCode::GetUpvalue,
-            Instr::SetUpvalue(_) => OpCode::SetUpvalue,
-            Instr::CloseUpvalue => OpCode::CloseUpvalue,
-            Instr::DefineMethod { .. } => OpCode::DefineMethod,
-            Instr::DefineBuiltinMethod { .. } => OpCode::DefineBuiltinMethod,
-            Instr::CheckInitialized => OpCode::CheckInitialized,
-            Instr::CheckTuple(_) => OpCode::CheckTuple,
-            Instr::StoreLocal(_) => OpCode::StoreLocal,
-            Instr::StoreField(_) => OpCode::StoreField,
-            Instr::StoreLocalField { .. } => OpCode::StoreLocalField,
-            Instr::AddConstant(_) => OpCode::AddConstant,
-            Instr::SubtractConstant(_) => OpCode::SubtractConstant,
-            Instr::GreaterConstant(_) => OpCode::GreaterConstant,
-            Instr::GreaterEqualConstant(_) => OpCode::GreaterEqualConstant,
-            Instr::LessConstant(_) => OpCode::LessConstant,
-            Instr::LessEqualConstant(_) => OpCode::LessEqualConstant,
-            Instr::ModuloConstant(_) => OpCode::ModuloConstant,
-            Instr::MultiplyConstant(_) => OpCode::MultiplyConstant,
-            Instr::Dup => OpCode::Dup,
-            Instr::Dup2 => OpCode::Dup2,
-            Instr::JumpIfNotNil(_) => OpCode::JumpIfNotNil,
-            Instr::JumpIfNil(_) => OpCode::JumpIfNil,
-            Instr::NoMatchArm => OpCode::NoMatchArm,
-            Instr::EnumConstruct(_) => OpCode::EnumConstruct,
-            Instr::IsArrayOfLen { .. } => OpCode::IsArrayOfLen,
-            Instr::IsVariant(_) => OpCode::IsVariant,
-            Instr::TailCall(_) => OpCode::TailCall,
-            Instr::TailInvoke { .. } => OpCode::TailInvoke,
-            Instr::IsNumber => OpCode::IsNumber,
-            Instr::BeginTry(_) => OpCode::BeginTry,
-            Instr::EndTry => OpCode::EndTry,
-            Instr::Throw => OpCode::Throw,
+            Instr::Return => "Return",
+            Instr::Constant(_) => "Constant",
+            Instr::Negate => "Negate",
+            Instr::Add => "Add",
+            Instr::Subtract => "Subtract",
+            Instr::Multiply => "Multiply",
+            Instr::Divide => "Divide",
+            Instr::Modulo => "Modulo",
+            Instr::Exponent => "Exponent",
+            Instr::Nil => "Nil",
+            Instr::True => "True",
+            Instr::False => "False",
+            Instr::Equal => "Equal",
+            Instr::Greater => "Greater",
+            Instr::GreaterEqual => "GreaterEqual",
+            Instr::Less => "Less",
+            Instr::LessEqual => "LessEqual",
+            Instr::Not => "Not",
+            Instr::Pop => "Pop",
+            Instr::SetLocal(_) => "SetLocal",
+            Instr::GetLocal(_) => "GetLocal",
+            Instr::JumpIfFalse(_) => "JumpIfFalse",
+            Instr::PopJumpIfFalse(_) => "PopJumpIfFalse",
+            Instr::GreaterJumpIfFalse(_) => "GreaterJumpIfFalse",
+            Instr::GreaterEqualJumpIfFalse(_) => "GreaterEqualJumpIfFalse",
+            Instr::LessJumpIfFalse(_) => "LessJumpIfFalse",
+            Instr::LessEqualJumpIfFalse(_) => "LessEqualJumpIfFalse",
+            Instr::GreaterConstantJumpIfFalse { .. } => "GreaterConstantJumpIfFalse",
+            Instr::GreaterEqualConstantJumpIfFalse { .. } => "GreaterEqualConstantJumpIfFalse",
+            Instr::LessConstantJumpIfFalse { .. } => "LessConstantJumpIfFalse",
+            Instr::LessEqualConstantJumpIfFalse { .. } => "LessEqualConstantJumpIfFalse",
+            Instr::Jump(_) => "Jump",
+            Instr::Loop(_) => "Loop",
+            Instr::Call(_) => "Call",
+            Instr::Invoke { .. } => "Invoke",
+            Instr::GetBuiltin(_) => "GetBuiltin",
+            Instr::GetGlobal(_) => "GetGlobal",
+            Instr::SetGlobal(_) => "SetGlobal",
+            Instr::GetField(_) => "GetField",
+            Instr::SetField(_) => "SetField",
+            Instr::GetLocalField { .. } => "GetLocalField",
+            Instr::CreateMap(_) => "CreateMap",
+            Instr::CreateArray(_) => "CreateArray",
+            Instr::CreateSet(_) => "CreateSet",
+            Instr::GetIndex => "GetIndex",
+            Instr::SetIndex => "SetIndex",
+            Instr::GetIterator { .. } => "GetIterator",
+            Instr::IteratorNext(_) => "IteratorNext",
+            Instr::IteratorDone(_) => "IteratorDone",
+            Instr::CreateRange { .. } => "CreateRange",
+            Instr::ToString => "ToString",
+            Instr::BitwiseAnd => "BitwiseAnd",
+            Instr::BitwiseOr => "BitwiseOr",
+            Instr::BitwiseXor => "BitwiseXor",
+            Instr::BitwiseNot => "BitwiseNot",
+            Instr::LeftShift => "LeftShift",
+            Instr::RightShift => "RightShift",
+            Instr::Closure { .. } => "Closure",
+            Instr::GetUpvalue(_) => "GetUpvalue",
+            Instr::SetUpvalue(_) => "SetUpvalue",
+            Instr::CloseUpvalue => "CloseUpvalue",
+            Instr::DefineMethod { .. } => "DefineMethod",
+            Instr::DefineBuiltinMethod { .. } => "DefineBuiltinMethod",
+            Instr::CheckInitialized => "CheckInitialized",
+            Instr::CheckTuple(_) => "CheckTuple",
+            Instr::StoreLocal(_) => "StoreLocal",
+            Instr::StoreField(_) => "StoreField",
+            Instr::StoreLocalField { .. } => "StoreLocalField",
+            Instr::AddConstant(_) => "AddConstant",
+            Instr::SubtractConstant(_) => "SubtractConstant",
+            Instr::GreaterConstant(_) => "GreaterConstant",
+            Instr::GreaterEqualConstant(_) => "GreaterEqualConstant",
+            Instr::LessConstant(_) => "LessConstant",
+            Instr::LessEqualConstant(_) => "LessEqualConstant",
+            Instr::ModuloConstant(_) => "ModuloConstant",
+            Instr::MultiplyConstant(_) => "MultiplyConstant",
+            Instr::Dup => "Dup",
+            Instr::Dup2 => "Dup2",
+            Instr::JumpIfNotNil(_) => "JumpIfNotNil",
+            Instr::JumpIfNil(_) => "JumpIfNil",
+            Instr::NoMatchArm => "NoMatchArm",
+            Instr::EnumConstruct(_) => "EnumConstruct",
+            Instr::IsArrayOfLen { .. } => "IsArrayOfLen",
+            Instr::IsVariant(_) => "IsVariant",
+            Instr::TailCall(_) => "TailCall",
+            Instr::TailInvoke { .. } => "TailInvoke",
+            Instr::IsNumber => "IsNumber",
+            Instr::BeginTry(_) => "BeginTry",
+            Instr::EndTry => "EndTry",
+            Instr::Throw => "Throw",
             Instr::Invalid(_) => return None,
         })
     }
+}
+
+/// Which part of a fusion supplies the fused instruction's location.
+#[derive(Clone, Copy)]
+enum Keep {
+    First,
+    Second,
+}
+
+/// The instruction that replaces `first` followed by `second`, if they fuse,
+/// and which part's location it keeps: the one whose handler can fail.
+fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
+    match (first, second) {
+        (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
+            Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
+        (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
+        _ => None,
+    }
+}
+
+/// Replaces adjacent instructions that `fused` accepts with one, unless the
+/// second is a jump target. A fused instruction keeps the line of the part
+/// whose handler can fail, as `fused` says. Returns each old index's new index,
+/// with one extra entry for the end of the code.
+fn fuse(
+    code: &mut Vec<Instr>,
+    instr_lines: &mut Vec<Option<LineInfo>>,
+    jump_targets: &[bool],
+) -> Vec<u32> {
+    let mut new_code: Vec<Instr> = Vec::with_capacity(code.len());
+    let mut new_lines = Vec::with_capacity(instr_lines.len());
+    let mut new_index = Vec::with_capacity(code.len() + 1);
+    for (i, &instr) in code.iter().enumerate() {
+        let fusion = new_code
+            .last()
+            .filter(|_| !jump_targets[i])
+            .and_then(|&previous| fused(previous, instr));
+        if let Some((fusion, keep)) = fusion {
+            let last = new_code.len() - 1;
+            new_index.push(last as u32);
+            new_code[last] = fusion;
+            if let Keep::Second = keep {
+                new_lines[last] = instr_lines[i];
+            }
+        } else {
+            new_index.push(new_code.len() as u32);
+            new_code.push(instr);
+            new_lines.push(instr_lines[i]);
+        }
+    }
+    new_index.push(new_code.len() as u32);
+    *code = new_code;
+    *instr_lines = new_lines;
+    new_index
 }
 
 impl Chunk {
@@ -351,13 +405,6 @@ impl Chunk {
                 OpCode::SetGlobal => (Instr::SetGlobal(u16_at(1)), 3),
                 OpCode::GetField => (Instr::GetField(u16_at(1)), 3),
                 OpCode::SetField => (Instr::SetField(u16_at(1)), 3),
-                OpCode::GetLocalField => (
-                    Instr::GetLocalField {
-                        slot: u16_at(1),
-                        symbol: u16_at(3),
-                    },
-                    5,
-                ),
                 OpCode::CreateMap => (Instr::CreateMap(u16_at(1)), 3),
                 OpCode::CreateArray => (Instr::CreateArray(u16_at(1)), 3),
                 OpCode::CreateSet => (Instr::CreateSet(u16_at(1)), 3),
@@ -421,8 +468,6 @@ impl Chunk {
                 ),
                 OpCode::CheckInitialized => (Instr::CheckInitialized, 1),
                 OpCode::CheckTuple => (Instr::CheckTuple(u16_at(1)), 3),
-                OpCode::StoreLocal => (Instr::StoreLocal(u16_at(1)), 3),
-                OpCode::StoreField => (Instr::StoreField(u16_at(1)), 3),
                 OpCode::StoreLocalField => (
                     Instr::StoreLocalField {
                         slot: u16_at(1),
@@ -498,11 +543,29 @@ impl Chunk {
             index_of[pos] = code.len() as u32;
         }
 
-        for (at, target_offset, byte) in jumps {
-            let target = target_offset
-                .and_then(|offset| index_of.get(offset).copied())
-                .filter(|&target| target != u32::MAX);
-            let Some(target) = target else {
+        // Each jump's target as an old instruction index; None if it is no
+        // instruction boundary.
+        let jumps: Vec<(usize, Option<usize>, u8)> = jumps
+            .into_iter()
+            .map(|(at, target_offset, byte)| {
+                let target = target_offset
+                    .and_then(|offset| index_of.get(offset).copied())
+                    .filter(|&target| target != u32::MAX)
+                    .map(|target| target as usize);
+                (at, target, byte)
+            })
+            .collect();
+        let mut jump_targets = vec![false; code.len() + 1];
+        for &(_, target, _) in &jumps {
+            if let Some(target) = target {
+                jump_targets[target] = true;
+            }
+        }
+        let new_index = fuse(&mut code, &mut instr_lines, &jump_targets);
+
+        for (at, target, byte) in jumps {
+            let at = new_index[at] as usize;
+            let Some(target) = target.map(|target| new_index[target]) else {
                 code[at] = Instr::Invalid(byte);
                 continue;
             };

@@ -1,4 +1,3 @@
-use crate::common::opcodes::OpCode;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 fn run(program: &str) -> VirtualMachine {
@@ -71,27 +70,21 @@ fn for_in_loop_counts_and_orders_opcode_pairs() {
     sorted.sort_by(|a, b| b.cmp(a));
     assert_eq!(sorted, counts);
 
-    // These six pairs all execute 10 times; ties break by ascending
-    // (prev byte, next byte).
-    let mut expected = [
-        (OpCode::GetLocal, OpCode::AddConstant),
-        (OpCode::AddConstant, OpCode::Pop),
-        (OpCode::Pop, OpCode::Loop),
-        (OpCode::PopJumpIfFalse, OpCode::IteratorNext),
-        (OpCode::Loop, OpCode::IteratorDone),
-        (OpCode::IteratorNext, OpCode::GetLocal),
+    // These six pairs all execute 10 times; ties break by ascending name.
+    let expected = [
+        "AddConstant->Pop",
+        "GetLocal->AddConstant",
+        "IteratorNext->GetLocal",
+        "Loop->IteratorDone",
+        "Pop->Loop",
+        "PopJumpIfFalse->IteratorNext",
     ];
-    expected.sort_by_key(|(prev, next)| (*prev as u8, *next as u8));
-    let expected: Vec<String> = expected
-        .iter()
-        .map(|(prev, next)| format!("{:?}->{:?}", prev, next))
-        .collect();
     let tied: Vec<&str> = entries
         .iter()
         .filter(|(_, count)| *count == 10)
         .map(|(name, _)| *name)
         .collect();
-    assert_eq!(expected, tied);
+    assert_eq!(expected.as_slice(), tied.as_slice());
 }
 
 #[test]
@@ -106,11 +99,31 @@ fn opcode_pairs_span_call_and_return() {
     let report = vm.opcode_stats_report();
     let section = pair_section(&report);
     assert_eq!(1, count_for(section, "Call->GetLocal"));
-    assert_eq!(1, count_for(section, "Return->SetLocal"));
+    assert_eq!(1, count_for(section, "Return->StoreLocal"));
 }
 
 #[test]
-fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
+fn counts_a_fused_instruction_under_its_fused_name() {
+    let vm = run(r#"
+        struct P {
+            value
+        }
+        fn read(p) {
+            return p.value
+        }
+        val p = P(1)
+        for i in 0..7 {
+            read(p)
+        }
+        "#);
+
+    let report = vm.opcode_stats_report();
+    assert_eq!(7, count_for(&report, "GetLocalField"));
+    assert_eq!(7, count_for(pair_section(&report), "Call->GetLocalField"));
+}
+
+#[test]
+fn report_is_sorted_descending_with_tie_break_by_name() {
     let vm = run(r#"
         for i in 0..10 {
             val x = i + 1
@@ -129,19 +142,12 @@ fn report_is_sorted_descending_with_tie_break_by_opcode_byte() {
     assert_eq!(sorted, counts);
 
     // AddConstant, GetLocal, Loop, and IteratorNext all execute 10 times;
-    // ties break by ascending opcode byte.
-    let mut expected = [
-        OpCode::AddConstant,
-        OpCode::GetLocal,
-        OpCode::Loop,
-        OpCode::IteratorNext,
-    ];
-    expected.sort_by_key(|op| *op as u8);
-    let expected: Vec<String> = expected.iter().map(|op| format!("{:?}", op)).collect();
+    // ties break by ascending name.
+    let expected = ["AddConstant", "GetLocal", "IteratorNext", "Loop"];
     let tied: Vec<&str> = entries
         .iter()
         .filter(|(_, count)| *count == 10)
         .map(|(name, _)| *name)
         .collect();
-    assert_eq!(expected, tied);
+    assert_eq!(expected.as_slice(), tied.as_slice());
 }

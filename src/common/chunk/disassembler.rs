@@ -113,9 +113,6 @@ impl Chunk {
             OpCode::Modulo => self.simple_instruction(instruction, offset, out),
             OpCode::GetField => self.field_instruction(OpCode::GetField, offset, out),
             OpCode::SetField => self.field_instruction(OpCode::SetField, offset, out),
-            OpCode::GetLocalField => {
-                self.local_field_instruction(OpCode::GetLocalField, offset, out)
-            }
             OpCode::CreateMap => self.create_map_instruction(offset, out),
             OpCode::CreateArray => self.create_array_instruction(offset, out),
             OpCode::CreateSet => self.create_set_instruction(offset, out),
@@ -146,8 +143,6 @@ impl Chunk {
                 self.simple_instruction(OpCode::CheckInitialized, offset, out)
             }
             OpCode::CheckTuple => self.variable_instruction(OpCode::CheckTuple, offset, out),
-            OpCode::StoreLocal => self.variable_instruction(OpCode::StoreLocal, offset, out),
-            OpCode::StoreField => self.field_instruction(OpCode::StoreField, offset, out),
             OpCode::StoreLocalField => {
                 self.local_field_instruction(OpCode::StoreLocalField, offset, out)
             }
