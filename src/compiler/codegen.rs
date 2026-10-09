@@ -925,8 +925,8 @@ impl<'a> CodeGenerator<'a> {
 
     /// Generates `object; Dup; GetField field; value; operator`, leaving
     /// `[.., instance, result]` on the stack so the caller can finish with
-    /// `SetField` (expression position) or `StoreField` (statement
-    /// position); `object` evaluates exactly once. Returns the field's
+    /// `SetField` (followed by `Pop` in statement position); `object`
+    /// evaluates exactly once. Returns the field's
     /// symbol id.
     fn generate_field_compound_assign_value(
         &mut self,
@@ -1008,7 +1008,8 @@ impl<'a> CodeGenerator<'a> {
                 }
                 self.generate_expr(object);
                 self.generate_expr(value);
-                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
             Expr::CompoundAssignField {
                 object,
@@ -1026,7 +1027,8 @@ impl<'a> CodeGenerator<'a> {
                     *location,
                     *operator_location,
                 );
-                self.emit_index_op(OpCode::StoreField, symbol as u32, "symbols", *location);
+                self.emit_index_op(OpCode::SetField, symbol as u32, "symbols", *location);
+                self.emit_op_code(OpCode::Pop, *location);
             }
             _ => {
                 self.generate_expr(expr);

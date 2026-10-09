@@ -540,8 +540,18 @@ fn test_val_local_field_store_emits_store_local_field() {
     assert!(!disassembly.contains("StoreField"));
 }
 
+fn opcode_names(disassembly: &str) -> Vec<&str> {
+    disassembly
+        .lines()
+        .filter_map(|line| {
+            line.split_whitespace()
+                .find(|w| w.chars().all(char::is_alphabetic))
+        })
+        .collect()
+}
+
 #[test]
-fn test_var_local_field_store_still_emits_store_field() {
+fn test_var_local_field_store_statement_emits_set_field_then_pop() {
     let program = r#"
     struct P { value }
     fn set() {
@@ -552,13 +562,14 @@ fn test_var_local_field_store_still_emits_store_field() {
     set()
     "#;
     let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("StoreField"));
-    assert!(!disassembly.contains("StoreLocalField"));
+    let ops = opcode_names(&disassemble(&chunk)).join(" ");
+    assert!(ops.contains("SetField Pop"), "{ops}");
+    assert!(!ops.split(' ').any(|op| op == "StoreField"), "{ops}");
+    assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
 #[test]
-fn test_checked_local_field_store_still_emits_store_field() {
+fn test_checked_local_field_store_statement_emits_set_field_then_pop() {
     // `a` is written before its declaration runs, so it needs CheckInitialized
     // and can't be fused into StoreLocalField.
     let program = r#"
@@ -569,10 +580,11 @@ fn test_checked_local_field_store_still_emits_store_field() {
     get()
     "#;
     let chunk = compile(program).unwrap();
-    let disassembly = disassemble(&chunk);
-    assert!(disassembly.contains("CheckInitialized"));
-    assert!(disassembly.contains("StoreField"));
-    assert!(!disassembly.contains("StoreLocalField"));
+    let ops = opcode_names(&disassemble(&chunk)).join(" ");
+    assert!(ops.contains("CheckInitialized"), "{ops}");
+    assert!(ops.contains("SetField Pop"), "{ops}");
+    assert!(!ops.split(' ').any(|op| op == "StoreField"), "{ops}");
+    assert!(!ops.contains("StoreLocalField"), "{ops}");
 }
 
 #[test]
