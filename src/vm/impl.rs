@@ -1,7 +1,5 @@
 use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
-#[cfg(feature = "opcode-stats")]
-use crate::common::opcodes::OpCode;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
 use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, Value};
 use crate::compiler::compiler_impl::Compiled;
@@ -47,9 +45,9 @@ impl VirtualMachine {
             native_methods: Vec::new(),
             repl_env: GlobalEnv::default(),
             #[cfg(feature = "opcode-stats")]
-            opcode_counts: [0; 256],
+            opcode_counts: HashMap::new(),
             #[cfg(feature = "opcode-stats")]
-            opcode_pair_counts: vec![0; 256 * 256],
+            opcode_pair_counts: HashMap::new(),
             #[cfg(feature = "opcode-stats")]
             last_opcode: None,
         }
@@ -309,13 +307,12 @@ impl VirtualMachine {
             let instr = self.chunk.code[self.ip];
 
             #[cfg(feature = "opcode-stats")]
-            if let Some(op_code) = instr.opcode() {
-                let byte = op_code as u8;
-                self.opcode_counts[byte as usize] += 1;
+            if let Some(name) = instr.name() {
+                *self.opcode_counts.entry(name).or_insert(0) += 1;
                 if let Some(prev) = self.last_opcode {
-                    self.opcode_pair_counts[prev as usize * 256 + byte as usize] += 1;
+                    *self.opcode_pair_counts.entry((prev, name)).or_insert(0) += 1;
                 }
-                self.last_opcode = Some(byte);
+                self.last_opcode = Some(name);
             }
 
             match instr {
@@ -737,49 +734,25 @@ impl VirtualMachine {
     /// ran, followed (after a blank line, when any pair ran) by one
     /// `Prev->Next <count>` line per executed opcode pair.
     #[cfg(feature = "opcode-stats")]
-    #[allow(clippy::expect_used)]
     pub fn opcode_stats_report(&self) -> String {
-        let mut counts: Vec<(u8, u64)> = self
+        let mut counts: Vec<(String, u64)> = self
             .opcode_counts
             .iter()
-            .enumerate()
-            .filter(|&(_, &count)| count > 0)
-            .map(|(byte, &count)| (byte as u8, count))
+            .map(|(name, &count)| (name.to_string(), count))
             .collect();
         counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let mut report = Self::pad_and_join(&counts);
 
-        let opcode_lines: Vec<(String, u64)> = counts
-            .into_iter()
-            .map(|(byte, count)| {
-                let op_code = OpCode::from_u8(byte)
-                    .expect("byte came from a count recorded for an executed opcode");
-                (format!("{:?}", op_code), count)
-            })
-            .collect();
-        let mut report = Self::pad_and_join(&opcode_lines);
-
-        let mut pairs: Vec<(usize, u64)> = self
+        let mut pairs: Vec<(String, u64)> = self
             .opcode_pair_counts
             .iter()
-            .enumerate()
-            .filter(|&(_, &count)| count > 0)
-            .map(|(index, &count)| (index, count))
+            .map(|((prev, next), &count)| (format!("{}->{}", prev, next), count))
             .collect();
         pairs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
         if !pairs.is_empty() {
-            let pair_lines: Vec<(String, u64)> = pairs
-                .into_iter()
-                .map(|(index, count)| {
-                    let prev = OpCode::from_u8((index / 256) as u8)
-                        .expect("index came from a count recorded for an executed opcode pair");
-                    let next = OpCode::from_u8((index % 256) as u8)
-                        .expect("index came from a count recorded for an executed opcode pair");
-                    (format!("{:?}->{:?}", prev, next), count)
-                })
-                .collect();
             report.push_str("\n\n");
-            report.push_str(&Self::pad_and_join(&pair_lines));
+            report.push_str(&Self::pad_and_join(&pairs));
         }
 
         report
@@ -797,8 +770,8 @@ impl VirtualMachine {
         self.repl_env = GlobalEnv::default();
         #[cfg(feature = "opcode-stats")]
         {
-            self.opcode_counts = [0; 256];
-            self.opcode_pair_counts.fill(0);
+            self.opcode_counts.clear();
+            self.opcode_pair_counts.clear();
             self.last_opcode = None;
         }
     }

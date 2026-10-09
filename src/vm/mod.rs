@@ -3,6 +3,8 @@ use crate::common::runtime_error::RuntimeError;
 use crate::common::{CallFrame, Chunk, MethodEntry, ObjStruct, Upvalue, Value};
 use crate::compiler::global_env::GlobalEnv;
 use std::cell::RefCell;
+#[cfg(feature = "opcode-stats")]
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -70,16 +72,15 @@ pub struct VirtualMachine {
     native_methods: NativeMethodTable,
     /// Globals, symbols and slot layout the REPL has accumulated so far.
     repl_env: GlobalEnv,
-    /// Execution count per opcode byte, for the `opcode-stats` histogram.
+    /// Execution count per instruction name, for the `opcode-stats` histogram.
     #[cfg(feature = "opcode-stats")]
-    opcode_counts: [u64; 256],
-    /// Execution count per consecutive opcode pair, indexed `prev * 256 +
-    /// next`.
+    opcode_counts: HashMap<&'static str, u64>,
+    /// Execution count per consecutive instruction-name pair.
     #[cfg(feature = "opcode-stats")]
-    opcode_pair_counts: Vec<u64>,
-    /// The previously executed opcode byte, for pairing with the next one.
+    opcode_pair_counts: HashMap<(&'static str, &'static str), u64>,
+    /// The previously executed instruction's name, for pairing with the next one.
     #[cfg(feature = "opcode-stats")]
-    last_opcode: Option<u8>,
+    last_opcode: Option<&'static str>,
 }
 
 // Test-only methods
