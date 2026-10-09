@@ -42,17 +42,15 @@ def positive_int(value):
 
 def cpu_model(path):
     try:
-        f = open(path)
-    except FileNotFoundError:
-        model = platform.processor()
-    else:
-        model = None
-        with f:
+        with open(path) as f:
+            model = None
             for line in f:
                 key, _, value = line.partition(":")
                 if key.strip() == "model name":
                     model = value.strip()
                     break
+    except FileNotFoundError:
+        model = platform.processor()
     if not model:
         print("could not determine the CPU model", file=sys.stderr)
         sys.exit(1)
