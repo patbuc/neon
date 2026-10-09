@@ -1,0 +1,15 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in *
+
+struct Box {
+    count
+}
+
+fn mul(a, p) {
+    return a * p.count
+}
+
+print("before")
+print(mul(9223372036854775807, Box(2)))

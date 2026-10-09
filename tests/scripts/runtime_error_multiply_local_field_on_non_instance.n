@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: Only instances have fields.
+
+fn mul(a, p) {
+    return a * p.mass
+}
+
+print("before")
+print(mul(2, 3))

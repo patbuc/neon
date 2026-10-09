@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in *
+
+fn mul(a, b) {
+    return a * b
+}
+
+print("before")
+print(mul(9223372036854775807, 2))

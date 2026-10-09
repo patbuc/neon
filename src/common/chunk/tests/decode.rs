@@ -569,7 +569,10 @@ fn get_local_get_field_and_add_subtract_divide_decode_to_local_field_variants() 
             OpCode::Subtract,
             Instr::SubtractLocalField { slot: 3, symbol: 9 },
         ),
-        (OpCode::Divide, Instr::DivideLocalField { slot: 3, symbol: 9 }),
+        (
+            OpCode::Divide,
+            Instr::DivideLocalField { slot: 3, symbol: 9 },
+        ),
     ];
     for (op, fused) in cases {
         let mut chunk = Chunk::new("fused arithmetic field");
