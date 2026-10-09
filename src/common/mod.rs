@@ -57,6 +57,9 @@ pub struct Chunk {
     /// location per decoded instruction.
     pub(crate) code: Vec<chunk::Instr>,
     pub(crate) instr_lines: Vec<Option<LineInfo>>,
+    /// The field read's location for each fused `*LocalField` arithmetic
+    /// instruction, by instruction index, in index order.
+    pub(crate) fused_field_lines: Vec<(u32, Option<LineInfo>)>,
     pub(crate) closure_upvalues: Vec<(bool, u16)>,
     /// Field, method, and type names interned during semantic analysis,
     /// indexed by symbol id. Shared by every chunk of one compile.

@@ -1278,7 +1278,8 @@ impl VirtualMachine {
         if self.arithmetic_local_field(slot, symbol, |a, b| a + b, Some(i64::checked_add), "+")? {
             return Ok(());
         }
-        self.op_get_local_field(slot, symbol)?;
+        self.op_get_local_field(slot, symbol)
+            .map_err(|error| self.at_fused_field(error))?;
         self.op_add()
     }
 
@@ -1287,7 +1288,8 @@ impl VirtualMachine {
         if self.arithmetic_local_field(slot, symbol, |a, b| a - b, Some(i64::checked_sub), "-")? {
             return Ok(());
         }
-        self.op_get_local_field(slot, symbol)?;
+        self.op_get_local_field(slot, symbol)
+            .map_err(|error| self.at_fused_field(error))?;
         self.op_subtract()
     }
 
@@ -1296,7 +1298,8 @@ impl VirtualMachine {
         if self.arithmetic_local_field(slot, symbol, |a, b| a * b, Some(i64::checked_mul), "*")? {
             return Ok(());
         }
-        self.op_get_local_field(slot, symbol)?;
+        self.op_get_local_field(slot, symbol)
+            .map_err(|error| self.at_fused_field(error))?;
         self.op_multiply()
     }
 
@@ -1305,7 +1308,8 @@ impl VirtualMachine {
         if self.arithmetic_local_field(slot, symbol, |a, b| a / b, None, "/")? {
             return Ok(());
         }
-        self.op_get_local_field(slot, symbol)?;
+        self.op_get_local_field(slot, symbol)
+            .map_err(|error| self.at_fused_field(error))?;
         self.op_divide()
     }
 

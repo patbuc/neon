@@ -626,6 +626,17 @@ impl VirtualMachine {
         self.build_runtime_error(message, 0)
     }
 
+    /// Moves `error`, raised by the field read of a fused `*LocalField`
+    /// arithmetic instruction, to that field read's location.
+    pub(in crate::vm) fn at_fused_field(&self, mut error: RuntimeError) -> RuntimeError {
+        let info = self.chunk.fused_field_line_info(self.ip);
+        error.location = info.map(|i| (i.line, i.column));
+        if let Some(frame) = error.frames.first_mut() {
+            frame.line = info.map(|i| i.line);
+        }
+        error
+    }
+
     /// Like `runtime_error`, but for a failure raised while dispatching a
     /// call, whose `ip` has already moved past the CALL the same way a
     /// caller frame's has.
