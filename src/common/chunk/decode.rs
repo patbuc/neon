@@ -245,6 +245,50 @@ impl Instr {
     }
 }
 
+/// The instruction that replaces `first` followed by `second`, if they fuse.
+fn fused(first: Instr, second: Instr) -> Option<Instr> {
+    match (first, second) {
+        (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
+            Some(Instr::GetLocalField { slot, symbol })
+        }
+        _ => None,
+    }
+}
+
+/// Replaces adjacent instructions that `fused` accepts with one, unless the
+/// second is a jump target. A fused instruction keeps the line of the second
+/// one, the one whose handler can fail. Returns each old index's new index,
+/// with one extra entry for the end of the code.
+fn fuse(
+    code: &mut Vec<Instr>,
+    instr_lines: &mut Vec<Option<LineInfo>>,
+    jump_targets: &[bool],
+) -> Vec<u32> {
+    let mut new_code: Vec<Instr> = Vec::with_capacity(code.len());
+    let mut new_lines = Vec::with_capacity(instr_lines.len());
+    let mut new_index = Vec::with_capacity(code.len() + 1);
+    for (i, &instr) in code.iter().enumerate() {
+        let fusion = new_code
+            .last()
+            .filter(|_| !jump_targets[i])
+            .and_then(|&previous| fused(previous, instr));
+        if let Some(fusion) = fusion {
+            let last = new_code.len() - 1;
+            new_index.push(last as u32);
+            new_code[last] = fusion;
+            new_lines[last] = instr_lines[i];
+        } else {
+            new_index.push(new_code.len() as u32);
+            new_code.push(instr);
+            new_lines.push(instr_lines[i]);
+        }
+    }
+    new_index.push(new_code.len() as u32);
+    *code = new_code;
+    *instr_lines = new_lines;
+    new_index
+}
+
 impl Chunk {
     /// Decodes `instructions` into `code`, with one `instr_lines` entry per
     /// instruction. Runs once, when the chunk becomes immutable.
@@ -496,6 +540,21 @@ impl Chunk {
         }
         if pos == bytes.len() {
             index_of[pos] = code.len() as u32;
+        }
+
+        let mut jump_targets = vec![false; code.len() + 1];
+        for &(_, target_offset, _) in &jumps {
+            let target = target_offset.and_then(|offset| index_of.get(offset).copied());
+            if let Some(target) = target.filter(|&target| target != u32::MAX) {
+                jump_targets[target as usize] = true;
+            }
+        }
+        let new_index = fuse(&mut code, &mut instr_lines, &jump_targets);
+        for entry in index_of.iter_mut().filter(|entry| **entry != u32::MAX) {
+            *entry = new_index[*entry as usize];
+        }
+        for (at, _, _) in jumps.iter_mut() {
+            *at = new_index[*at] as usize;
         }
 
         for (at, target_offset, byte) in jumps {

@@ -175,3 +175,21 @@ fn jump_into_an_operand_decodes_to_invalid() {
         chunk.code
     );
 }
+
+#[test]
+fn get_local_followed_by_get_field_decodes_to_one_get_local_field() {
+    let mut chunk = Chunk::new("fused field");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    chunk.write_indexed(OpCode::GetField, 9, 1, 5);
+    chunk.write_op_code(OpCode::Return, 2, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![Instr::GetLocalField { slot: 3, symbol: 9 }, Instr::Return],
+        chunk.code
+    );
+    assert_eq!(2, chunk.instr_lines.len());
+    assert_eq!(1, chunk.instr_line_info(0).unwrap().line);
+    assert_eq!(2, chunk.instr_line_info(1).unwrap().line);
+}
