@@ -1,0 +1,7 @@
+// Expected:
+// foobar
+fn join(s, t) {
+    return s + t
+}
+
+print(join("foo", "bar"))

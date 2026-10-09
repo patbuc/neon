@@ -119,6 +119,26 @@ pub(crate) enum Instr {
     LessEqualConstant(u16),
     ModuloConstant(u16),
     MultiplyConstant(u16),
+    AddLocal(u16),
+    SubtractLocal(u16),
+    MultiplyLocal(u16),
+    DivideLocal(u16),
+    AddLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    SubtractLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    MultiplyLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    DivideLocalField {
+        slot: u16,
+        symbol: u16,
+    },
     Dup,
     Dup2,
     JumpIfNotNil(u32),
@@ -224,6 +244,14 @@ impl Instr {
             Instr::LessEqualConstant(_) => "LessEqualConstant",
             Instr::ModuloConstant(_) => "ModuloConstant",
             Instr::MultiplyConstant(_) => "MultiplyConstant",
+            Instr::AddLocal(_) => "AddLocal",
+            Instr::SubtractLocal(_) => "SubtractLocal",
+            Instr::MultiplyLocal(_) => "MultiplyLocal",
+            Instr::DivideLocal(_) => "DivideLocal",
+            Instr::AddLocalField { .. } => "AddLocalField",
+            Instr::SubtractLocalField { .. } => "SubtractLocalField",
+            Instr::MultiplyLocalField { .. } => "MultiplyLocalField",
+            Instr::DivideLocalField { .. } => "DivideLocalField",
             Instr::Dup => "Dup",
             Instr::Dup2 => "Dup2",
             Instr::JumpIfNotNil(_) => "JumpIfNotNil",
@@ -248,14 +276,38 @@ impl Instr {
 enum Keep {
     First,
     Second,
+    /// Both parts can fail: the second's location, with the first's kept in
+    /// `Chunk::fused_field_lines`.
+    Both,
 }
 
 /// The instruction that replaces `first` followed by `second`, if they fuse,
-/// and which part's location it keeps: the one whose handler can fail.
+/// and which part's location it keeps: the one whose handler can fail, or
+/// both when both can.
 fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
     match (first, second) {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
             Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::Add) => Some((Instr::AddLocal(slot), Keep::Second)),
+        (Instr::GetLocal(slot), Instr::Subtract) => {
+            Some((Instr::SubtractLocal(slot), Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::Multiply) => {
+            Some((Instr::MultiplyLocal(slot), Keep::Second))
+        }
+        (Instr::GetLocal(slot), Instr::Divide) => Some((Instr::DivideLocal(slot), Keep::Second)),
+        (Instr::GetLocalField { slot, symbol }, Instr::Add) => {
+            Some((Instr::AddLocalField { slot, symbol }, Keep::Both))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Subtract) => {
+            Some((Instr::SubtractLocalField { slot, symbol }, Keep::Both))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Multiply) => {
+            Some((Instr::MultiplyLocalField { slot, symbol }, Keep::Both))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Divide) => {
+            Some((Instr::DivideLocalField { slot, symbol }, Keep::Both))
         }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
@@ -265,11 +317,13 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
 
 /// Replaces adjacent instructions that `fused` accepts with one, unless the
 /// second is a jump target. A fused instruction keeps the line of the part
-/// whose handler can fail, as `fused` says. Returns each old index's new index,
-/// with one extra entry for the end of the code.
+/// whose handler can fail, as `fused` says; when both can, the first part's
+/// line goes into `field_lines` under the fused instruction's index. Returns
+/// each old index's new index, with one extra entry for the end of the code.
 fn fuse(
     code: &mut Vec<Instr>,
     instr_lines: &mut Vec<Option<LineInfo>>,
+    field_lines: &mut Vec<(u32, Option<LineInfo>)>,
     jump_targets: &[bool],
 ) -> Vec<u32> {
     let mut new_code: Vec<Instr> = Vec::with_capacity(code.len());
@@ -284,8 +338,13 @@ fn fuse(
             let last = new_code.len() - 1;
             new_index.push(last as u32);
             new_code[last] = fusion;
-            if let Keep::Second = keep {
-                new_lines[last] = instr_lines[i];
+            match keep {
+                Keep::First => {}
+                Keep::Second => new_lines[last] = instr_lines[i],
+                Keep::Both => {
+                    field_lines.push((last as u32, new_lines[last]));
+                    new_lines[last] = instr_lines[i];
+                }
             }
         } else {
             new_index.push(new_code.len() as u32);
@@ -561,7 +620,13 @@ impl Chunk {
                 jump_targets[target] = true;
             }
         }
-        let new_index = fuse(&mut code, &mut instr_lines, &jump_targets);
+        let mut fused_field_lines = Vec::new();
+        let new_index = fuse(
+            &mut code,
+            &mut instr_lines,
+            &mut fused_field_lines,
+            &jump_targets,
+        );
 
         for (at, target, byte) in jumps {
             let at = new_index[at] as usize;
@@ -591,6 +656,7 @@ impl Chunk {
 
         self.code = code;
         self.instr_lines = instr_lines;
+        self.fused_field_lines = fused_field_lines;
         self.closure_upvalues = closure_upvalues;
     }
 
@@ -598,5 +664,14 @@ impl Chunk {
     /// for a byte offset.
     pub(crate) fn instr_line_info(&self, index: usize) -> Option<LineInfo> {
         self.instr_lines.get(index).copied().flatten()
+    }
+
+    /// The source location of the field read fused into instruction `index`.
+    pub(crate) fn fused_field_line_info(&self, index: usize) -> Option<LineInfo> {
+        let index = index as u32;
+        self.fused_field_lines
+            .binary_search_by_key(&index, |&(at, _)| at)
+            .ok()
+            .and_then(|i| self.fused_field_lines[i].1)
     }
 }

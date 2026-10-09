@@ -516,6 +516,20 @@ impl VirtualMachine {
                 Instr::SubtractConstant(index) => self.op_subtract_constant(index)?,
                 Instr::ModuloConstant(index) => self.op_modulo_constant(index)?,
                 Instr::MultiplyConstant(index) => self.op_multiply_constant(index)?,
+                Instr::AddLocal(slot) => self.op_add_local(slot)?,
+                Instr::SubtractLocal(slot) => self.op_subtract_local(slot)?,
+                Instr::MultiplyLocal(slot) => self.op_multiply_local(slot)?,
+                Instr::DivideLocal(slot) => self.op_divide_local(slot)?,
+                Instr::AddLocalField { slot, symbol } => self.op_add_local_field(slot, symbol)?,
+                Instr::SubtractLocalField { slot, symbol } => {
+                    self.op_subtract_local_field(slot, symbol)?
+                }
+                Instr::MultiplyLocalField { slot, symbol } => {
+                    self.op_multiply_local_field(slot, symbol)?
+                }
+                Instr::DivideLocalField { slot, symbol } => {
+                    self.op_divide_local_field(slot, symbol)?
+                }
                 Instr::GreaterConstant(index) => {
                     self.op_compare_constant(index, Comparison::Greater)?
                 }
@@ -610,6 +624,17 @@ impl VirtualMachine {
 
     pub(in crate::vm) fn runtime_error(&self, message: impl Into<String>) -> RuntimeError {
         self.build_runtime_error(message, 0)
+    }
+
+    /// Moves `error`, raised by the field read of a fused `*LocalField`
+    /// arithmetic instruction, to that field read's location.
+    pub(in crate::vm) fn at_fused_field(&self, mut error: RuntimeError) -> RuntimeError {
+        let info = self.chunk.fused_field_line_info(self.ip);
+        error.location = info.map(|i| (i.line, i.column));
+        if let Some(frame) = error.frames.first_mut() {
+            frame.line = info.map(|i| i.line);
+        }
+        error
     }
 
     /// Like `runtime_error`, but for a failure raised while dispatching a

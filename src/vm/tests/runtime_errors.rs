@@ -1743,3 +1743,51 @@ fn error_in_field_store_statement_reports_the_set_field_location() {
     let error = vm.get_runtime_error().unwrap();
     assert_eq!("[4:9] Only instances have fields.", error.to_string());
 }
+
+#[test]
+fn error_in_fused_local_field_operand_on_non_instance_reports_the_get_field_location() {
+    let program = "fn run(a, p) {\n    return a *\n        p\n            .mass\n}\nrun(2, 3)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("[4:13] Only instances have fields.", error.to_string());
+    assert_eq!(Some(4), error.frames[0].line);
+}
+
+#[test]
+fn error_in_second_fused_local_field_operand_reports_its_own_get_field_location() {
+    let program = "struct Body {\n    mass\n}\nfn run(a, b, p, q) {\n    val x = a * p.mass\n    return b +\n        q\n            .mass\n}\nrun(1, 2, Body(3), 4)";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("[8:13] Only instances have fields.", error.to_string());
+}
+
+#[test]
+fn error_in_fused_local_field_operand_on_missing_field_reports_the_get_field_location() {
+    let program = "struct Body {\n    mass\n}\nfn run(a, p) {\n    return a *\n        p\n            .size\n}\nrun(2, Body(1))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!("[7:13] Undefined field 'size'.", error.to_string());
+}
+
+#[test]
+fn error_in_fused_local_field_operand_on_string_field_reports_the_operator_location() {
+    let program = "struct Body {\n    name\n}\nfn run(a, p) {\n    return a *\n        p\n            .name\n}\nrun(2, Body(\"x\"))";
+
+    let mut vm = VirtualMachine::new();
+    let result = vm.interpret(program.to_string());
+    assert_eq!(InterpretResult::RuntimeError, result);
+    let error = vm.get_runtime_error().unwrap();
+    assert_eq!(
+        "[5:14] Operands of '*' must be numbers, got number and string",
+        error.to_string()
+    );
+}

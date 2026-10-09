@@ -1,0 +1,36 @@
+// Expected:
+// 12.5
+// 10
+// 2.5
+// 0
+// 25
+// 7.5
+// 2
+// 7
+// 12.5
+// 9
+// 2.5
+// 1
+// 20
+// 7.5
+// 2
+// 7.25
+
+struct Body {
+    mass
+    count
+}
+
+fn compute(a, p) {
+    print(a * p.mass)
+    print(a + p.count)
+    print(a - p.mass)
+    print(a - p.count)
+    print(a * p.count)
+    print(a + p.mass)
+    print(a / p.mass)
+    print(a / p.count + 6)
+}
+
+compute(5, Body(2.5, 5))
+compute(5.0, Body(2.5, 4.0))
