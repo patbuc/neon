@@ -680,8 +680,8 @@ impl<'a> CodeGenerator<'a> {
         offset
     }
 
-    /// The value of a number literal, which a `*Constant` opcode takes from
-    /// the constant pool instead of the stack.
+    /// The value of a number literal, which a `*ConstantJumpIfFalse` opcode
+    /// takes from the constant pool instead of the stack.
     fn number_literal(expr: &Expr) -> Option<Value> {
         match expr {
             Expr::Number { value, .. } => Some(number!(*value)),
