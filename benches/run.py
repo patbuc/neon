@@ -122,6 +122,8 @@ def main():
         print(f"missing {NEON_BIN} — run `cargo build --release` first", file=sys.stderr)
         sys.exit(1)
 
+    cpu = cpu_model("/proc/cpuinfo")
+
     failures = []
     rows = []
     json_entries = []
@@ -164,6 +166,7 @@ def main():
         table_lines.append(f"| {name} | {stats_cells(neon_stats)} | {stats_cells(python_stats)} | {ratio:.3f} |")
     table = "\n".join(table_lines)
 
+    print(f"CPU: {cpu}")
     print(table)
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
