@@ -1156,96 +1156,79 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Applies the operator to the top of the stack and local `slot` in
+    /// place. Returns false, touching nothing, when the operands are not a
+    /// Number pair or an Int pair with an `int_op`.
     #[inline(always)]
-    pub(in crate::vm) fn op_add_local(&mut self, slot: u16) -> OpResult {
+    fn arithmetic_local(
+        &mut self,
+        slot: u16,
+        float_op: fn(f64, f64) -> f64,
+        int_op: Option<fn(i64, i64) -> Option<i64>>,
+        op: &str,
+    ) -> Result<bool, RuntimeError> {
         let local = self.frame_base + slot as usize;
+        let mut overflowed = false;
         if let Some((top, below)) = self.stack.split_last_mut() {
             match (top, below.get(local)) {
                 (Value::Number(a), Some(&Value::Number(c))) => {
-                    *a += c;
-                    return Ok(());
+                    *a = float_op(*a, c);
+                    return Ok(true);
                 }
                 (Value::Int(a), Some(&Value::Int(c))) => {
-                    return match a.checked_add(c) {
-                        Some(r) => {
-                            *a = r;
-                            Ok(())
+                    if let Some(int_op) = int_op {
+                        match int_op(*a, c) {
+                            Some(r) => {
+                                *a = r;
+                                return Ok(true);
+                            }
+                            None => overflowed = true,
                         }
-                        None => Err(self.overflow_error("+")),
-                    };
+                    }
                 }
                 _ => {}
             }
         }
+        if overflowed {
+            return Err(self.overflow_error(op));
+        }
+        Ok(false)
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_add_local(&mut self, slot: u16) -> OpResult {
+        if self.arithmetic_local(slot, |a, b| a + b, Some(i64::checked_add), "+")? {
+            return Ok(());
+        }
         self.op_get_local(slot)?;
-        self.op_add()?;
-        Ok(())
+        self.op_add()
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_subtract_local(&mut self, slot: u16) -> OpResult {
-        let local = self.frame_base + slot as usize;
-        if let Some((top, below)) = self.stack.split_last_mut() {
-            match (top, below.get(local)) {
-                (Value::Number(a), Some(&Value::Number(c))) => {
-                    *a -= c;
-                    return Ok(());
-                }
-                (Value::Int(a), Some(&Value::Int(c))) => {
-                    return match a.checked_sub(c) {
-                        Some(r) => {
-                            *a = r;
-                            Ok(())
-                        }
-                        None => Err(self.overflow_error("-")),
-                    };
-                }
-                _ => {}
-            }
+        if self.arithmetic_local(slot, |a, b| a - b, Some(i64::checked_sub), "-")? {
+            return Ok(());
         }
         self.op_get_local(slot)?;
-        self.op_subtract()?;
-        Ok(())
-    }
-
-    #[inline(always)]
-    pub(in crate::vm) fn op_divide_local(&mut self, slot: u16) -> OpResult {
-        let local = self.frame_base + slot as usize;
-        if let Some((top, below)) = self.stack.split_last_mut() {
-            if let (Value::Number(a), Some(&Value::Number(c))) = (top, below.get(local)) {
-                *a /= c;
-                return Ok(());
-            }
-        }
-        self.op_get_local(slot)?;
-        self.op_divide()?;
-        Ok(())
+        self.op_subtract()
     }
 
     #[inline(always)]
     pub(in crate::vm) fn op_multiply_local(&mut self, slot: u16) -> OpResult {
-        let local = self.frame_base + slot as usize;
-        if let Some((top, below)) = self.stack.split_last_mut() {
-            match (top, below.get(local)) {
-                (Value::Number(a), Some(&Value::Number(c))) => {
-                    *a *= c;
-                    return Ok(());
-                }
-                (Value::Int(a), Some(&Value::Int(c))) => {
-                    return match a.checked_mul(c) {
-                        Some(r) => {
-                            *a = r;
-                            Ok(())
-                        }
-                        None => Err(self.overflow_error("*")),
-                    };
-                }
-                _ => {}
-            }
+        if self.arithmetic_local(slot, |a, b| a * b, Some(i64::checked_mul), "*")? {
+            return Ok(());
         }
         self.op_get_local(slot)?;
-        self.op_multiply()?;
-        Ok(())
+        self.op_multiply()
+    }
+
+    #[inline(always)]
+    pub(in crate::vm) fn op_divide_local(&mut self, slot: u16) -> OpResult {
+        if self.arithmetic_local(slot, |a, b| a / b, None, "/")? {
+            return Ok(());
+        }
+        self.op_get_local(slot)?;
+        self.op_divide()
     }
 
     /// Applies the operator to the top of the stack and field `symbol` of the

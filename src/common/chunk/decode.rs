@@ -119,19 +119,19 @@ pub(crate) enum Instr {
     LessEqualConstant(u16),
     ModuloConstant(u16),
     MultiplyConstant(u16),
-    MultiplyLocal(u16),
     AddLocal(u16),
     SubtractLocal(u16),
+    MultiplyLocal(u16),
     DivideLocal(u16),
-    MultiplyLocalField {
-        slot: u16,
-        symbol: u16,
-    },
     AddLocalField {
         slot: u16,
         symbol: u16,
     },
     SubtractLocalField {
+        slot: u16,
+        symbol: u16,
+    },
+    MultiplyLocalField {
         slot: u16,
         symbol: u16,
     },
@@ -244,13 +244,13 @@ impl Instr {
             Instr::LessEqualConstant(_) => "LessEqualConstant",
             Instr::ModuloConstant(_) => "ModuloConstant",
             Instr::MultiplyConstant(_) => "MultiplyConstant",
-            Instr::MultiplyLocal(_) => "MultiplyLocal",
             Instr::AddLocal(_) => "AddLocal",
             Instr::SubtractLocal(_) => "SubtractLocal",
+            Instr::MultiplyLocal(_) => "MultiplyLocal",
             Instr::DivideLocal(_) => "DivideLocal",
-            Instr::MultiplyLocalField { .. } => "MultiplyLocalField",
             Instr::AddLocalField { .. } => "AddLocalField",
             Instr::SubtractLocalField { .. } => "SubtractLocalField",
+            Instr::MultiplyLocalField { .. } => "MultiplyLocalField",
             Instr::DivideLocalField { .. } => "DivideLocalField",
             Instr::Dup => "Dup",
             Instr::Dup2 => "Dup2",
@@ -285,22 +285,22 @@ fn fused(first: Instr, second: Instr) -> Option<(Instr, Keep)> {
         (Instr::GetLocal(slot), Instr::GetField(symbol)) => {
             Some((Instr::GetLocalField { slot, symbol }, Keep::Second))
         }
-        (Instr::GetLocal(slot), Instr::Multiply) => {
-            Some((Instr::MultiplyLocal(slot), Keep::Second))
-        }
         (Instr::GetLocal(slot), Instr::Add) => Some((Instr::AddLocal(slot), Keep::Second)),
         (Instr::GetLocal(slot), Instr::Subtract) => {
             Some((Instr::SubtractLocal(slot), Keep::Second))
         }
-        (Instr::GetLocal(slot), Instr::Divide) => Some((Instr::DivideLocal(slot), Keep::Second)),
-        (Instr::GetLocalField { slot, symbol }, Instr::Multiply) => {
-            Some((Instr::MultiplyLocalField { slot, symbol }, Keep::Second))
+        (Instr::GetLocal(slot), Instr::Multiply) => {
+            Some((Instr::MultiplyLocal(slot), Keep::Second))
         }
+        (Instr::GetLocal(slot), Instr::Divide) => Some((Instr::DivideLocal(slot), Keep::Second)),
         (Instr::GetLocalField { slot, symbol }, Instr::Add) => {
             Some((Instr::AddLocalField { slot, symbol }, Keep::Second))
         }
         (Instr::GetLocalField { slot, symbol }, Instr::Subtract) => {
             Some((Instr::SubtractLocalField { slot, symbol }, Keep::Second))
+        }
+        (Instr::GetLocalField { slot, symbol }, Instr::Multiply) => {
+            Some((Instr::MultiplyLocalField { slot, symbol }, Keep::Second))
         }
         (Instr::GetLocalField { slot, symbol }, Instr::Divide) => {
             Some((Instr::DivideLocalField { slot, symbol }, Keep::Second))
