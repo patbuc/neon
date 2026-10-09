@@ -135,6 +135,10 @@ pub(crate) enum Instr {
         slot: u16,
         constant: u16,
     },
+    IncrementLocal {
+        slot: u16,
+        constant: u16,
+    },
     AddLocal(u16),
     SubtractLocal(u16),
     MultiplyLocal(u16),
@@ -264,6 +268,7 @@ impl Instr {
             Instr::GetLocalSubtractConstant { .. } => "GetLocalSubtractConstant",
             Instr::GetLocalMultiplyConstant { .. } => "GetLocalMultiplyConstant",
             Instr::GetLocalModuloConstant { .. } => "GetLocalModuloConstant",
+            Instr::IncrementLocal { .. } => "IncrementLocal",
             Instr::AddLocal(_) => "AddLocal",
             Instr::SubtractLocal(_) => "SubtractLocal",
             Instr::MultiplyLocal(_) => "MultiplyLocal",
@@ -344,6 +349,11 @@ fn fused(first: Instr, second: Instr, constants: &[Value]) -> Option<(Instr, Kee
             Instr::GetLocalModuloConstant { slot, constant },
             Keep::Second,
         )),
+        (Instr::GetLocalAddConstant { slot, constant }, Instr::StoreLocal(target))
+            if target == slot =>
+        {
+            Some((Instr::IncrementLocal { slot, constant }, Keep::First))
+        }
         (Instr::SetLocal(slot), Instr::Pop) => Some((Instr::StoreLocal(slot), Keep::First)),
         (Instr::SetField(symbol), Instr::Pop) => Some((Instr::StoreField(symbol), Keep::First)),
         (Instr::Constant(index), second)

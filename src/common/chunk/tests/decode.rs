@@ -211,6 +211,73 @@ fn set_local_followed_by_pop_decodes_to_one_store_local() {
 }
 
 #[test]
+fn get_local_a_number_constant_add_and_store_local_of_the_same_slot_decode_to_increment_local() {
+    let pool = [Value::Int(1), Value::Number(2.5)];
+    for value in pool {
+        let mut chunk = Chunk::new("increment local");
+        chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+        let constant = chunk.write_constant(value, 1, 1) as u16;
+        chunk.write_op_code(OpCode::Add, 2, 1);
+        chunk.write_indexed(OpCode::SetLocal, 3, 3, 1);
+        chunk.write_op_code(OpCode::Pop, 3, 1);
+        chunk.write_op_code(OpCode::Return, 4, 1);
+
+        chunk.decode();
+
+        assert_eq!(
+            vec![Instr::IncrementLocal { slot: 3, constant }, Instr::Return],
+            chunk.code
+        );
+        assert_eq!(2, chunk.instr_lines.len());
+        assert_eq!(2, chunk.instr_line_info(0).unwrap().line);
+        assert_eq!(4, chunk.instr_line_info(1).unwrap().line);
+    }
+}
+
+#[test]
+fn a_store_into_a_different_slot_decodes_without_increment_local() {
+    let mut chunk = Chunk::new("store elsewhere");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    let constant = chunk.write_constant(Value::Int(1), 1, 1) as u16;
+    chunk.write_op_code(OpCode::Add, 2, 1);
+    chunk.write_indexed(OpCode::SetLocal, 4, 3, 1);
+    chunk.write_op_code(OpCode::Pop, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocalAddConstant { slot: 3, constant },
+            Instr::StoreLocal(4),
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
+fn an_assignment_used_as_an_expression_decodes_without_increment_local() {
+    let mut chunk = Chunk::new("assignment expression");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    let constant = chunk.write_constant(Value::Int(1), 1, 1) as u16;
+    chunk.write_op_code(OpCode::Add, 2, 1);
+    chunk.write_indexed(OpCode::SetLocal, 3, 3, 1);
+    chunk.write_op_code(OpCode::Return, 4, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocalAddConstant { slot: 3, constant },
+            Instr::SetLocal(3),
+            Instr::Return
+        ],
+        chunk.code
+    );
+}
+
+#[test]
 fn set_field_followed_by_pop_decodes_to_one_store_field() {
     let mut chunk = Chunk::new("fused field store");
     chunk.write_indexed(OpCode::SetField, 4, 1, 1);
@@ -353,6 +420,7 @@ fn variant_index(instr: Instr) -> usize {
         Instr::GetLocalSubtractConstant { .. } => 100,
         Instr::GetLocalMultiplyConstant { .. } => 101,
         Instr::GetLocalModuloConstant { .. } => 102,
+        Instr::IncrementLocal { .. } => 103,
     }
 }
 
@@ -508,10 +576,14 @@ fn name_matches_the_variant_name() {
             slot: 1,
             constant: 1,
         },
+        Instr::IncrementLocal {
+            slot: 1,
+            constant: 1,
+        },
     ];
     let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
     seen.sort_unstable();
-    assert_eq!((0..103).collect::<Vec<_>>(), seen);
+    assert_eq!((0..104).collect::<Vec<_>>(), seen);
 
     for instr in samples {
         let debug = format!("{instr:?}");

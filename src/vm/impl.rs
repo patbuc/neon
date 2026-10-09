@@ -528,6 +528,9 @@ impl VirtualMachine {
                 Instr::GetLocalModuloConstant { slot, constant } => {
                     self.op_get_local_modulo_constant(slot, constant)?
                 }
+                Instr::IncrementLocal { slot, constant } => {
+                    self.op_increment_local(slot, constant)?
+                }
                 Instr::AddLocal(slot) => self.op_add_local(slot)?,
                 Instr::SubtractLocal(slot) => self.op_subtract_local(slot)?,
                 Instr::MultiplyLocal(slot) => self.op_multiply_local(slot)?,

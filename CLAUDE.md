@@ -255,7 +255,7 @@ enforces these edges in `cargo test`.
   `*Constant` when the pool entry is a Number or Int), never across a jump target, keeping the failing part's
   location, so `code` isn't one-to-one with the bytecode. The pass cascades: a fused result is tried again with the
   instruction before it, so `GetLocal` + number `Constant` + `Add`/`Subtract`/`Multiply`/`Modulo` becomes
-  `GetLocal<Op>Constant`; no part of a fusion may be a jump target. A `*LocalField` keeps the operator's location in
+  `GetLocal<Op>Constant`, and that followed by a `StoreLocal` of the same slot becomes `IncrementLocal`; no part of a fusion may be a jump target. A `*LocalField` keeps the operator's location in
   `instr_lines` and the field read's in `fused_field_lines`, which it uses when the field read fails
 - Constants pool stores literals referenced by index
 - `LineInfo { ip, line, column }` maps instruction offsets to source line/column for error reporting;
