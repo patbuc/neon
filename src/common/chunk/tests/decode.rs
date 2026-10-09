@@ -530,3 +530,24 @@ fn get_local_followed_by_add_subtract_divide_decodes_to_local_variants() {
         assert_eq!(3, chunk.instr_line_info(1).unwrap().line);
     }
 }
+
+#[test]
+fn a_local_read_followed_by_check_initialized_decodes_unfused() {
+    let mut chunk = Chunk::new("checked read");
+    chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);
+    chunk.write_op_code(OpCode::CheckInitialized, 1, 1);
+    chunk.write_op_code(OpCode::Multiply, 2, 1);
+    chunk.write_op_code(OpCode::Return, 3, 1);
+
+    chunk.decode();
+
+    assert_eq!(
+        vec![
+            Instr::GetLocal(3),
+            Instr::CheckInitialized,
+            Instr::Multiply,
+            Instr::Return
+        ],
+        chunk.code
+    );
+}

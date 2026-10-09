@@ -1,0 +1,11 @@
+// Expected:
+// before
+
+// Expected runtime error: integer overflow in +
+
+fn add(a, b) {
+    return a + b
+}
+
+print("before")
+print(add(9223372036854775807, 1))

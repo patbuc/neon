@@ -1,0 +1,14 @@
+// Expected:
+// before
+
+// Expected runtime error: variable 'x' used before initialization
+
+fn get() {
+    print("before")
+    print(2 * x)
+    fn x() {
+        return 1
+    }
+}
+
+get()

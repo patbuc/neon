@@ -1,0 +1,21 @@
+// Expected:
+// 7.5
+// 3.5
+// 7.5
+// -2.5
+// 2.5
+// 0.4
+// 2.5
+// 1.2
+fn mix(n, x) {
+    print(2.5 * n)
+    print(n + 0.5)
+    print(x * n)
+    print(x - 5)
+    print(5 - x)
+    print(2 / 5.0)
+    print(x + n - 3)
+    print(n / x)
+}
+
+mix(3, 2.5)
