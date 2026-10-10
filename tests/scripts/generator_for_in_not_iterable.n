@@ -1,0 +1,9 @@
+// Expected:
+// before
+
+// Expected runtime error: Cannot iterate over type: 5. Only arrays, maps, sets, ranges, strings, and generators are iterable.
+
+print("before")
+for x in 5 {
+    print(x)
+}

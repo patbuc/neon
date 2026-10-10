@@ -1,0 +1,17 @@
+// Expected:
+// start
+
+// Expected runtime error: Generator is already running.
+
+val box = []
+
+fn gen() {
+    print("start")
+    for x in box[0] {
+        print(x)
+    }
+    yield 1
+}
+
+box.push(gen())
+box[0].next()

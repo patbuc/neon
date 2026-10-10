@@ -1,0 +1,23 @@
+// Expected:
+// 1
+// 10
+// [  at gen (line 10)]
+// [  at <script> (line 15)]
+
+fn gen() {
+    val a = [1]
+    yield 1
+    yield a[5]
+}
+
+val g = gen()
+try {
+    for x in g {
+        print(x)
+    }
+} catch (e) {
+    print(e.line)
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}
