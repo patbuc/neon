@@ -80,6 +80,7 @@ pub(crate) enum TokenType {
     Val,
     Var,
     While,
+    Yield,
     In,
 
     Error(CompilationErrorKind),

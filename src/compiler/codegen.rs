@@ -1766,6 +1766,7 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_expr(&mut self, expr: &Expr) {
         match expr {
+            Expr::Yield { .. } => unimplemented!("code generation for yield"),
             Expr::Number {
                 value, location, ..
             } => {
