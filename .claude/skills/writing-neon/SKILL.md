@@ -197,7 +197,7 @@ then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.
   `toUpperCase`, `toLowerCase`, `toInt`, `toFloat`, `toBool`
 - **Number:** `toString`, `toInt`, `toFloat`
 - **Boolean:** `toString`
-- **Array:** `Array(n, init)`, `push`, `pop`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
+- **Array:** `Array(n, init)`, `push`, `pop`, `removeAt`, `size`, `isEmpty`, `contains`, `sort()` / `sort(cmp)`,
   `reverse`, `slice(start, end)`, `join(sep)`, `indexOf`, `sum`, `min`, `max`,
   `map(fn)`, `filter(fn)`, `reduce(initial, fn)`, `forEach(fn)`, `flatMap(fn)`,
   `find(fn)`, `some(fn)`, `every(fn)`, `flat()`, `copy()`, `take(n)`, `drop(n)`,

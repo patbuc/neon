@@ -1223,6 +1223,7 @@ for ch in "abc" {
 
 - `.push(value)` - Add element to end
 - `.pop()` - Remove and return the last element (`nil` if empty)
+- `.removeAt(index)` - Remove and return the element at `index`; negative indices count from the end, out of range is a runtime error
 - `.size()` - Get array length
 - `.isEmpty()` - Whether the array has no elements
 - `.contains(value)` - Check if contains value
