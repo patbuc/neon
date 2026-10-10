@@ -1187,7 +1187,6 @@ impl SemanticAnalyzer {
         }
     }
 
-    #[allow(clippy::expect_used)]
     fn resolve_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Number { .. }
@@ -1317,18 +1316,14 @@ impl SemanticAnalyzer {
                 self.resolve_function_body(*id, params, body, *location, None, *implicit_it);
             }
             Expr::Yield { value, location } => {
-                if self.function_frames.len() == 1 {
-                    self.push_error(CompilationError::new(
+                match self.function_frames.as_mut_slice() {
+                    [_, .., function] => function.is_generator = true,
+                    _ => self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::YieldOutsideFunction,
                         "'yield' outside a function",
                         *location,
-                    ));
-                } else {
-                    self.function_frames
-                        .last_mut()
-                        .expect("a function frame is always open")
-                        .is_generator = true;
+                    )),
                 }
                 if let Some(value) = value {
                     self.resolve_expr(value);

@@ -673,7 +673,7 @@ impl VirtualMachine {
         let segment = self.stack.split_off(callee_index);
         self.push(Value::Generator(Rc::new(ObjGenerator {
             closure,
-            state: Cell::new(GeneratorState::Suspended),
+            state: Cell::new(GeneratorState::NotStarted),
             segment: RefCell::new(segment),
             ip: Cell::new(0),
             upvalues: RefCell::new(Vec::new()),
@@ -694,7 +694,7 @@ impl VirtualMachine {
             return Err(self.arity_error(arg_count, 0, false, "next"));
         }
         match generator.state.get() {
-            GeneratorState::Suspended => {}
+            GeneratorState::NotStarted | GeneratorState::Suspended => {}
             GeneratorState::Running => {
                 return Err(self.call_error("Generator is already running."));
             }
@@ -703,7 +703,7 @@ impl VirtualMachine {
 
         self.stack.truncate(receiver_index);
         self.stack.append(&mut generator.segment.borrow_mut());
-        if generator.ip.get() > 0 {
+        if generator.state.get() == GeneratorState::Suspended {
             // The value of the `yield` expression the generator stopped at.
             self.push(Value::Nil);
         }
@@ -747,18 +747,8 @@ impl VirtualMachine {
         };
 
         let mut captured = generator.upvalues.borrow_mut();
-        let stack = &self.stack;
-        self.open_upvalues.retain(|upvalue| {
-            let index = match *upvalue.borrow() {
-                Upvalue::Open(index) => index,
-                Upvalue::Closed(_) => return false,
-            };
-            if index < slot_start {
-                return true;
-            }
-            *upvalue.borrow_mut() = Upvalue::Closed(stack[index].clone());
+        self.close_upvalues_from(slot_start, |index, upvalue| {
             captured.push((index - slot_start, Rc::clone(upvalue)));
-            false
         });
         drop(captured);
 
@@ -1825,6 +1815,17 @@ impl VirtualMachine {
         if self.open_upvalues.is_empty() {
             return;
         }
+        self.close_upvalues_from(stack_index, |_, _| {});
+    }
+
+    /// Closes the open upvalues at or above `stack_index`, calling `closed`
+    /// with the stack index and cell of each one it closes.
+    #[inline]
+    fn close_upvalues_from(
+        &mut self,
+        stack_index: usize,
+        mut closed: impl FnMut(usize, &Rc<RefCell<Upvalue>>),
+    ) {
         let stack = &self.stack;
         self.open_upvalues.retain(|upvalue| {
             let index = match *upvalue.borrow() {
@@ -1835,6 +1836,7 @@ impl VirtualMachine {
                 return true;
             }
             *upvalue.borrow_mut() = Upvalue::Closed(stack[index].clone());
+            closed(index, upvalue);
             false
         });
     }

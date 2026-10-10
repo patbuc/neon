@@ -97,6 +97,15 @@ macro_rules! extract_receiver {
         }
     };
 
+    // Generator extraction
+    ($args:expr, Generator, $method:expr) => {
+        match $args.get(0) {
+            Some(Value::Generator(g)) => Ok(g),
+            Some(_) => Err(format!("{}() can only be called on generators", $method)),
+            None => Err(format!("{}() can only be called on generators", $method)),
+        }
+    };
+
     // Number extraction (direct from Value)
     ($args:expr, Number, $method:expr) => {
         match $args.get(0) {

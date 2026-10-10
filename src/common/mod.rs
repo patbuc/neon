@@ -442,6 +442,7 @@ pub enum Value {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum GeneratorState {
+    NotStarted,
     Suspended,
     Running,
     Done,
