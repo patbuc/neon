@@ -59,8 +59,9 @@ pub struct VirtualMachine {
     /// Active `try` blocks, innermost last.
     handlers: Vec<Handler>,
     /// The generators resumed by `next()` and not yet suspended or finished,
-    /// innermost last, each with the call frame depth it runs at.
-    running_generators: Vec<(usize, Rc<crate::common::ObjGenerator>)>,
+    /// innermost last, each with the call frame depth it runs at and, when a
+    /// for-in loop resumed it, the stack slot stashing its yielded value.
+    running_generators: Vec<(usize, Rc<crate::common::ObjGenerator>, Option<usize>)>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
     /// User methods from `impl` blocks on builtin types, indexed by builtin

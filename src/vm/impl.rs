@@ -275,7 +275,7 @@ impl VirtualMachine {
     }
 
     fn discard_frames(&mut self) {
-        for (_, generator) in self.running_generators.drain(..) {
+        for (_, generator, _) in self.running_generators.drain(..) {
             generator.state.set(GeneratorState::Done);
         }
         self.call_frames.clear();
@@ -542,7 +542,11 @@ impl VirtualMachine {
                 Instr::SetIndex => self.op_set_index()?,
                 Instr::GetIterator { pairs } => self.op_get_iterator(pairs)?,
                 Instr::IteratorNext(slot) => self.op_iterator_next(slot)?,
-                Instr::IteratorDone(slot) => self.op_iterator_done(slot)?,
+                Instr::IteratorDone(slot) => {
+                    if self.op_iterator_done(slot)? {
+                        continue;
+                    }
+                }
                 Instr::CreateRange { inclusive } => self.op_create_range(inclusive)?,
                 Instr::ToString => self.op_to_string(),
                 Instr::BitwiseAnd => self.op_bitwise_and()?,
@@ -679,23 +683,24 @@ impl VirtualMachine {
         self.push_frame(Rc::clone(&generator.closure), slot_start);
         self.ip = generator.ip.get();
         self.running_generators
-            .push((self.call_frames.len(), Rc::clone(generator)));
+            .push((self.call_frames.len(), Rc::clone(generator), None));
     }
 
     /// Marks the generator running in the top frame, if any, as done and
-    /// stops tracking it.
+    /// stops tracking it. Returns whether a for-in loop resumed it.
     #[cold]
     #[inline(never)]
-    pub(in crate::vm) fn finish_running_generator(&mut self) {
+    pub(in crate::vm) fn finish_running_generator(&mut self) -> bool {
         let depth = self.call_frames.len();
-        if self
+        match self
             .running_generators
-            .last()
-            .is_some_and(|(frame_depth, _)| *frame_depth == depth)
+            .pop_if(|(frame_depth, _, _)| *frame_depth == depth)
         {
-            if let Some((_, generator)) = self.running_generators.pop() {
+            Some((_, generator, for_in_stash)) => {
                 generator.state.set(GeneratorState::Done);
+                for_in_stash.is_some()
             }
+            None => false,
         }
     }
 
