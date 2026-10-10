@@ -458,6 +458,10 @@ print(g.next())    // 0
 print(g.next())    // 1
 print(g.next())    // done
 print(g.isDone())  // true
+
+for x in count(3) {
+    print(x)       // 0, 1, 2
+}
 ```
 
 - `next()` runs the body to the next `yield` and returns the yielded value. When the body ends, `next()`
@@ -471,7 +475,8 @@ print(g.isDone())  // true
 - `yield` outside any function is a compile error (E0060).
 - `impl Generator { ... }` adds methods to every generator, like `impl` on other builtin types.
 - A generator prints as `<generator>`.
-- `for` loops cannot iterate a generator yet; call `next()` and check `isDone()`.
+- `for x in gen` resumes the generator once per element and binds only yielded values; the `return` value is
+  dropped. `break` leaves the generator suspended, and a finished generator iterates zero times.
 
 ### Control Flow
 

@@ -316,7 +316,8 @@ enforces these edges in `cargo test`.
 - **Locals**: Tracked per-function in the code generator's `FunctionCompiler` — scope depth and capture
   status for closures
 - **For-in State**: Each for-in loop keeps its collection and index in two hidden locals, which
-  `IteratorDone`/`IteratorNext` address by slot
+  `IteratorDone`/`IteratorNext` address by slot. Over a generator, `IteratorDone` resumes it (`resume_for_in`,
+  `src/vm/functions.rs`) and its `Yield` stashes the value in the index slot; `Return` drops its value
 - **Builtin Storage**: Separate from call stack to avoid polluting stack frames
 
 ## Adding New Features
