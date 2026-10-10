@@ -543,9 +543,8 @@ impl VirtualMachine {
                 Instr::GetIterator { pairs } => self.op_get_iterator(pairs)?,
                 Instr::IteratorNext(slot) => self.op_iterator_next(slot)?,
                 Instr::IteratorDone(slot) => {
-                    if self.op_iterator_done(slot)? {
-                        continue;
-                    }
+                    self.op_iterator_done(slot)?;
+                    continue;
                 }
                 Instr::CreateRange { inclusive } => self.op_create_range(inclusive)?,
                 Instr::ToString => self.op_to_string(),

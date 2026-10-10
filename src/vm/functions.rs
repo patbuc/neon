@@ -735,29 +735,31 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// `IteratorDone` on a generator: resumes it at the top of the stack.
-    /// Its `Yield` stores the value in the `stash` slot and pushes `true`;
+    /// `IteratorDone` on the generator in `slot`: resumes it at the top of
+    /// the stack, advancing `ip` past the instruction.
+    /// Its `Yield` stores the value in the slot after it and pushes `true`;
     /// its `Return` drops the return value and pushes `false`. A finished
     /// generator ends the loop without running.
     #[cold]
     #[inline(never)]
-    fn resume_for_in(
-        &mut self,
-        generator: &Rc<ObjGenerator>,
-        stash: usize,
-    ) -> std::result::Result<bool, RuntimeError> {
+    fn resume_for_in(&mut self, slot: usize) -> OpResult {
+        let Value::Generator(generator) = &self.stack[slot] else {
+            return Err(self.runtime_error("Invalid iterator collection, not a generator."));
+        };
+        let generator = Rc::clone(generator);
+        let stash = slot + 1;
+        self.ip += 1;
         if generator.state.get() == GeneratorState::Done {
             self.push(boolean!(false));
-            return Ok(false);
+            return Ok(());
         }
-        self.ip += 1;
         self.check_frame_limit()?;
         let receiver_index = self.stack.len();
-        self.resume_generator(generator, receiver_index, 0)?;
+        self.resume_generator(&generator, receiver_index, 0)?;
         if let Some((_, _, for_in_stash)) = self.running_generators.last_mut() {
             *for_in_stash = Some(stash);
         }
-        Ok(true)
+        Ok(())
     }
 
     /// Yield: `[.., slots..., value]` -> `[.., value]` in the caller's frame,
@@ -2452,34 +2454,34 @@ impl VirtualMachine {
         Ok(slot)
     }
 
+    /// The index held in the hidden slot after the collection at `slot`.
+    #[inline(always)]
+    fn iterator_index(&self, slot: usize) -> std::result::Result<i64, RuntimeError> {
+        match &self.stack[slot + 1] {
+            Value::Int(i) => Ok(*i),
+            other => Err(self.runtime_error(format!(
+                "Invalid iterator index, got {}.",
+                other.type_name()
+            ))),
+        }
+    }
+
     /// IteratorDone: Check if iteration is complete for the hidden iterator
     /// slots starting at the given local slot (collection, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows PopJumpIfFalse to exit the loop when done
-    /// Returns true when it resumed a generator, whose frame is now running
-    /// and the dispatch loop must not advance `ip`.
+    /// Advances `ip` itself, so the dispatch loop does not: resuming a
+    /// generator replaces the running frame.
     #[inline(always)]
-    pub(in crate::vm) fn op_iterator_done(
-        &mut self,
-        slot: u16,
-    ) -> std::result::Result<bool, RuntimeError> {
+    pub(in crate::vm) fn op_iterator_done(&mut self, slot: u16) -> OpResult {
         let slot = self.read_iterator_slot(slot)?;
-        if let Value::Generator(generator) = &self.stack[slot] {
-            let generator = Rc::clone(generator);
-            return self.resume_for_in(&generator, slot + 1);
-        }
-        let index = match &self.stack[slot + 1] {
-            Value::Int(i) => *i,
-            other => {
-                return Err(self.runtime_error(format!(
-                    "Invalid iterator index, got {}.",
-                    other.type_name()
-                )));
-            }
-        };
         let has_more = match &self.stack[slot] {
-            Value::Array(array_ref) => index < array_ref.borrow().len() as i64,
-            Value::Range(range) => index < range.len(),
+            Value::Array(array_ref) => self.iterator_index(slot)? < array_ref.borrow().len() as i64,
+            Value::Range(range) => self.iterator_index(slot)? < range.len(),
+            Value::Generator(_) => {
+                self.resume_for_in(slot)?;
+                return Ok(());
+            }
             other => {
                 return Err(self.runtime_error(format!(
                     "Invalid iterator collection, got {}.",
@@ -2489,7 +2491,8 @@ impl VirtualMachine {
         };
 
         self.push(boolean!(has_more));
-        Ok(false)
+        self.ip += 1;
+        Ok(())
     }
 
     /// IteratorNext: Get the next element from the iterator held in the
@@ -2498,33 +2501,26 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_iterator_next(&mut self, slot: u16) -> OpResult {
         let slot = self.read_iterator_slot(slot)?;
-        if matches!(self.stack[slot], Value::Generator(_)) {
-            let value = std::mem::replace(&mut self.stack[slot + 1], Value::Nil);
-            self.push(value);
-            return Ok(());
-        }
-        let index = match &self.stack[slot + 1] {
-            Value::Int(i) => *i,
-            other => {
-                return Err(self.runtime_error(format!(
-                    "Invalid iterator index, got {}.",
-                    other.type_name()
-                )));
-            }
-        };
-        let value = match &self.stack[slot] {
+        let (value, index) = match &self.stack[slot] {
             Value::Array(array_ref) => {
+                let index = self.iterator_index(slot)?;
                 let array = array_ref.borrow();
                 if index >= array.len() as i64 {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
-                array[index as usize].clone()
+                (array[index as usize].clone(), index)
             }
             Value::Range(range) => {
+                let index = self.iterator_index(slot)?;
                 if index >= range.len() {
                     return Err(self.runtime_error("Iterator exhausted"));
                 }
-                Value::Int(range.get(index))
+                (Value::Int(range.get(index)), index)
+            }
+            Value::Generator(_) => {
+                let value = std::mem::replace(&mut self.stack[slot + 1], Value::Nil);
+                self.push(value);
+                return Ok(());
             }
             other => {
                 return Err(self.runtime_error(format!(
