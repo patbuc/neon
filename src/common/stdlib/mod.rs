@@ -6,6 +6,7 @@ pub(crate) mod array_functions;
 pub(crate) mod boolean_functions;
 pub(crate) mod error_functions;
 pub(crate) mod file_functions;
+pub(crate) mod generator_functions;
 pub(crate) mod map_functions;
 pub(crate) mod math_functions;
 pub(crate) mod number_functions;

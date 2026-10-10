@@ -477,6 +477,16 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             arity: 2,
         },
     ),
+    // Generator instance methods
+    (
+        "Generator",
+        "next",
+        NativeCallable::InstanceMethod {
+            function: stdlib::generator_functions::native_generator_next,
+            arity: 0,
+            returns: None,
+        },
+    ),
     // Range instance methods
     (
         "Range",
@@ -1597,7 +1607,7 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
+pub const BUILTIN_TYPE_NAMES: [&str; 11] = [
     "Array",
     "String",
     "Map",
@@ -1608,6 +1618,7 @@ pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
     "Range",
     "PriorityQueue",
     "Error",
+    "Generator",
 ];
 
 /// The paths of the builtin `std/` modules, sorted.

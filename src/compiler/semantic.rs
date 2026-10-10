@@ -1187,6 +1187,7 @@ impl SemanticAnalyzer {
         }
     }
 
+    #[allow(clippy::expect_used)]
     fn resolve_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Number { .. }
@@ -1323,6 +1324,11 @@ impl SemanticAnalyzer {
                         "'yield' outside a function",
                         *location,
                     ));
+                } else {
+                    self.function_frames
+                        .last_mut()
+                        .expect("a function frame is always open")
+                        .is_generator = true;
                 }
                 if let Some(value) = value {
                     self.resolve_expr(value);

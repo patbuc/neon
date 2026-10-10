@@ -1426,6 +1426,10 @@ print(queue.pop())   // nil
 An `Error` has two fields: `message`, the text given to `Error(message)`, and `line`, the line of that
 capture, or `nil` if it never was thrown.
 
+### Generator Methods
+
+- `.next()` - Run the generator to its next `yield` and return the yielded value
+
 ### Type Conversions
 
 **Number Methods:**

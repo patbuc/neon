@@ -2,14 +2,14 @@ use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjError,
-    ObjInstance, ObjNativeFunction, ObjStruct, Value,
+    compare_int_and_float, f64_fits_i64, GeneratorState, MapKey, NativeCallError, NativeContext,
+    ObjError, ObjGenerator, ObjInstance, ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{find_method_entry, ObjClosure, Upvalue};
 use crate::vm::VirtualMachine;
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub(in crate::vm) type OpResult = std::result::Result<(), RuntimeError>;
@@ -69,6 +69,7 @@ const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
 const PRIORITY_QUEUE_SYMBOL: u16 = 8;
 const ERROR_SYMBOL: u16 = 9;
+const GENERATOR_SYMBOL: u16 = 10;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -200,6 +201,10 @@ impl VirtualMachine {
             return Ok(false);
         };
 
+        if closure.function.is_generator {
+            self.call_closure(arg_count, closure)?;
+            return Ok(false);
+        }
         self.reuse_frame(callable_index, arg_count, closure, false)?;
         Ok(true)
     }
@@ -230,6 +235,10 @@ impl VirtualMachine {
                 method_symbol,
             ) {
                 MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                    if closure.function.is_generator {
+                        self.call_closure_with(arg_count, closure, exclude_self)?;
+                        return Ok(false);
+                    }
                     self.reuse_frame(receiver_index, arg_count, closure, exclude_self)?;
                     return Ok(true);
                 }
@@ -239,6 +248,7 @@ impl VirtualMachine {
         }
 
         self.check_frame_limit()?;
+        let frame_depth = self.call_frames.len();
         match self.dispatch_native_method_or_field(
             &receiver,
             type_name,
@@ -246,7 +256,7 @@ impl VirtualMachine {
             method_symbol,
             arg_count,
         )? {
-            Some(Value::Closure(closure)) => {
+            Some(Value::Closure(closure)) if !closure.function.is_generator => {
                 self.reuse_frame(receiver_index, arg_count, closure, false)?;
                 Ok(true)
             }
@@ -254,7 +264,9 @@ impl VirtualMachine {
                 self.dispatch_call_value(callable, arg_count)?;
                 Ok(false)
             }
-            None => Ok(false),
+            // A resumed generator pushed its frame; its result reaches the
+            // `Return` that follows this instruction.
+            None => Ok(self.call_frames.len() > frame_depth),
         }
     }
 
@@ -404,6 +416,13 @@ impl VirtualMachine {
         method_symbol: u16,
         arg_count: usize,
     ) -> Result<Option<Value>, RuntimeError> {
+        if let Value::Generator(generator) = receiver {
+            if &*self.symbol_name(method_symbol) == "next" {
+                self.resume_generator(generator, receiver_index, arg_count)?;
+                return Ok(None);
+            }
+        }
+
         if let Some(type_name) = &type_name {
             let native = match type_name {
                 TypeName::Builtin(type_symbol) => self
@@ -624,7 +643,76 @@ impl VirtualMachine {
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
+        if closure.function.is_generator {
+            self.create_generator(closure, slot_start as usize);
+            return Ok(());
+        }
+
         self.push_frame(closure, slot_start);
+        Ok(())
+    }
+
+    /// Replaces the callee slot and its arguments, from `callee_index` up,
+    /// with a suspended generator that holds them.
+    fn create_generator(&mut self, closure: Rc<ObjClosure>, callee_index: usize) {
+        let segment = self.stack.split_off(callee_index);
+        self.push(Value::Generator(Rc::new(ObjGenerator {
+            closure,
+            state: Cell::new(GeneratorState::Suspended),
+            segment: RefCell::new(segment),
+            ip: Cell::new(0),
+        })));
+    }
+
+    /// `generator.next()`: puts the generator's frame back on the frame
+    /// stack in place of the receiver at `receiver_index`. The dispatch loop
+    /// runs it from there; `Yield` or `Return` leaves the result on the stack.
+    fn resume_generator(
+        &mut self,
+        generator: &Rc<ObjGenerator>,
+        receiver_index: usize,
+        arg_count: usize,
+    ) -> OpResult {
+        if arg_count != 0 {
+            return Err(self.arity_error(arg_count, 0, false, "next"));
+        }
+        match generator.state.get() {
+            GeneratorState::Suspended => {}
+            GeneratorState::Running => {
+                return Err(self.call_error("Generator is already running."));
+            }
+            GeneratorState::Done => return Err(self.call_error("Generator is finished.")),
+        }
+
+        self.stack.truncate(receiver_index);
+        self.stack.append(&mut generator.segment.borrow_mut());
+        if generator.ip.get() > 0 {
+            // The value of the `yield` expression the generator stopped at.
+            self.push(Value::Nil);
+        }
+        generator.state.set(GeneratorState::Running);
+        self.push_generator_frame(generator, receiver_index as isize);
+        Ok(())
+    }
+
+    /// Yield: `[.., slots..., value]` -> `[.., value]` in the caller's frame,
+    /// with the frame's slots saved in the generator.
+    pub(in crate::vm) fn op_yield(&mut self) -> OpResult {
+        let value = self.pop();
+        let frame = self.current_frame();
+        let Some(generator) = frame.generator.clone() else {
+            return Err(self.runtime_error("'yield' outside a running generator."));
+        };
+        let slot_start = frame.slot_start as usize;
+
+        generator.ip.set(self.ip + 1);
+        generator.state.set(GeneratorState::Suspended);
+        generator
+            .segment
+            .borrow_mut()
+            .extend(self.stack.drain(slot_start..));
+        self.pop_frame();
+        self.push(value);
         Ok(())
     }
 
@@ -650,7 +738,11 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_return(&mut self) {
         let return_value = self.pop();
-        let slot_start = self.current_frame().slot_start;
+        let frame = self.current_frame();
+        let slot_start = frame.slot_start;
+        if let Some(generator) = &frame.generator {
+            generator.state.set(GeneratorState::Done);
+        }
         self.pop_frame();
 
         // A local captured by a closure that outlives this call must keep
@@ -2340,6 +2432,7 @@ impl VirtualMachine {
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
             Value::PriorityQueue(_) => Some(TypeName::Builtin(PRIORITY_QUEUE_SYMBOL)),
             Value::Error(_) => Some(TypeName::Builtin(ERROR_SYMBOL)),
+            Value::Generator(_) => Some(TypeName::Builtin(GENERATOR_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.

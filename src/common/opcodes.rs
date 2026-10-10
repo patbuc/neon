@@ -64,13 +64,14 @@ impl OpCode {
             OpCode::IsVariant => 0,
             OpCode::EnumConstruct => 0,
             OpCode::BeginTry | OpCode::EndTry => 0,
+            OpCode::Yield => 0,
             OpCode::Throw => -1,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 71] = [
+        const OPCODES: [OpCode; 72] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -141,6 +142,7 @@ impl OpCode {
             OpCode::PopJumpIfFalse,
             OpCode::BeginTry,
             OpCode::EndTry,
+            OpCode::Yield,
             OpCode::Throw,
         ];
         OPCODES.get(value as usize).copied()
@@ -298,6 +300,12 @@ pub(crate) enum OpCode {
 
     /// Pops the innermost exception handler.
     EndTry,
+
+    /// Suspends the running generator: pops the yielded value, saves the
+    /// frame's stack segment into the generator, and hands the value to the
+    /// `next()` caller. Resuming pushes nil as the value of the `yield`
+    /// expression.
+    Yield,
 
     /// Pops a value and raises it as an error for the innermost handler to
     /// catch.

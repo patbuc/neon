@@ -1,7 +1,7 @@
 use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
-use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, Value};
+use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, ObjGenerator, Value};
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
@@ -141,6 +141,7 @@ impl VirtualMachine {
             name: "<script>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            is_generator: false,
         });
         let script_closure = Rc::new(ObjClosure {
             function: script_function,
@@ -615,6 +616,10 @@ impl VirtualMachine {
                 Instr::EndTry => {
                     self.handlers.pop();
                 }
+                Instr::Yield => {
+                    self.op_yield()?;
+                    continue;
+                }
                 Instr::Throw => {
                     let thrown = self.pop();
                     let mut error = self.runtime_error(String::new());
@@ -650,7 +655,24 @@ impl VirtualMachine {
             closure,
             ip: 0,
             slot_start,
+            generator: None,
         });
+    }
+
+    /// Makes `generator`'s closure the running frame at the generator's
+    /// saved instruction.
+    #[allow(clippy::expect_used)]
+    pub(in crate::vm) fn push_generator_frame(
+        &mut self,
+        generator: &Rc<ObjGenerator>,
+        slot_start: isize,
+    ) {
+        self.push_frame(Rc::clone(&generator.closure), slot_start);
+        self.ip = generator.ip.get();
+        self.call_frames
+            .last_mut()
+            .expect("push_frame just pushed a frame")
+            .generator = Some(Rc::clone(generator));
     }
 
     /// Drops the running frame and resumes its caller, if any.

@@ -99,6 +99,7 @@ impl VirtualMachine {
             name: "<test>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            is_generator: false,
         });
         let test_closure = Rc::new(ObjClosure {
             function: test_function,
