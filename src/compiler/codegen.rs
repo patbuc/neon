@@ -782,11 +782,10 @@ impl<'a> CodeGenerator<'a> {
         // Enter function scope
         self.current().scope_depth += 1;
 
-        let resolutions = self.resolutions;
-
         // Define parameters as local variables in the function scope. The
         // caller already pushed them onto the stack before Call/Invoke ran,
         // so no opcode in this chunk accounts for them; do it here instead.
+        let resolutions = self.resolutions;
         for &decl in &resolutions.function(id).params {
             self.current().stack_height += 1;
             self.bind_local(decl);
