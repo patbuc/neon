@@ -73,6 +73,29 @@ pub fn native_array_remove_at(args: &[Value]) -> Result<Value, String> {
     Ok(array.remove(actual_index as usize))
 }
 
+/// Native implementation of Array.remove(value)
+/// Removes the first element equal to value; returns whether one was removed
+pub fn native_array_remove(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "remove() expects 1 argument (value), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "remove")?;
+    let value = &args[1];
+
+    let mut array = array_ref.borrow_mut();
+    match array.iter().position(|e| e == value) {
+        Some(idx) => {
+            array.remove(idx);
+            Ok(Value::Boolean(true))
+        }
+        None => Ok(Value::Boolean(false)),
+    }
+}
+
 /// Native implementation of Array.size()
 /// Returns the number of elements in the array
 pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
