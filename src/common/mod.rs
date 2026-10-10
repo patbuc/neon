@@ -457,6 +457,9 @@ pub struct ObjGenerator {
     /// Upvalues captured over the frame's slots, each with its slot offset
     /// from the frame base. They are closed while suspended.
     pub upvalues: RefCell<Vec<(usize, Rc<RefCell<Upvalue>>)>>,
+    /// The `try` handlers open at the yield, innermost last, as the catch
+    /// target and the stack height from the frame base.
+    pub handlers: RefCell<Vec<(usize, usize)>>,
 }
 
 /// The payload of an `Error(message)` value. `thrown_at` is where the

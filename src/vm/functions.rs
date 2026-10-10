@@ -6,7 +6,7 @@ use crate::common::{
     ObjError, ObjGenerator, ObjInstance, ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{find_method_entry, ObjClosure, Upvalue};
-use crate::vm::VirtualMachine;
+use crate::vm::{Handler, VirtualMachine};
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
@@ -662,6 +662,7 @@ impl VirtualMachine {
             segment: RefCell::new(segment),
             ip: Cell::new(0),
             upvalues: RefCell::new(Vec::new()),
+            handlers: RefCell::new(Vec::new()),
         })));
     }
 
@@ -701,6 +702,19 @@ impl VirtualMachine {
         }
         generator.state.set(GeneratorState::Running);
         self.push_generator_frame(generator, receiver_index as isize);
+        let frame_depth = self.call_frames.len();
+        self.handlers
+            .extend(
+                generator
+                    .handlers
+                    .borrow_mut()
+                    .drain(..)
+                    .map(|(catch_ip, stack_offset)| Handler {
+                        catch_ip,
+                        frame_depth,
+                        stack_height: receiver_index + stack_offset,
+                    }),
+            );
         Ok(())
     }
 
@@ -729,6 +743,18 @@ impl VirtualMachine {
             false
         });
         drop(captured);
+
+        let frame_depth = self.call_frames.len();
+        let first_owned = self
+            .handlers
+            .iter()
+            .rposition(|handler| handler.frame_depth < frame_depth)
+            .map_or(0, |index| index + 1);
+        generator.handlers.borrow_mut().extend(
+            self.handlers
+                .drain(first_owned..)
+                .map(|handler| (handler.catch_ip, handler.stack_height - slot_start)),
+        );
 
         generator.ip.set(self.ip + 1);
         generator.state.set(GeneratorState::Suspended);
