@@ -454,6 +454,9 @@ pub struct ObjGenerator {
     pub state: Cell<GeneratorState>,
     pub segment: RefCell<Vec<Value>>,
     pub ip: Cell<usize>,
+    /// Upvalues captured over the frame's slots, each with its slot offset
+    /// from the frame base. They are closed while suspended.
+    pub upvalues: RefCell<Vec<(usize, Rc<RefCell<Upvalue>>)>>,
 }
 
 /// The payload of an `Error(message)` value. `thrown_at` is where the

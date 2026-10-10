@@ -661,6 +661,7 @@ impl VirtualMachine {
             state: Cell::new(GeneratorState::Suspended),
             segment: RefCell::new(segment),
             ip: Cell::new(0),
+            upvalues: RefCell::new(Vec::new()),
         })));
     }
 
@@ -690,6 +691,14 @@ impl VirtualMachine {
             // The value of the `yield` expression the generator stopped at.
             self.push(Value::Nil);
         }
+        for (offset, upvalue) in generator.upvalues.borrow_mut().drain(..) {
+            let slot = receiver_index + offset;
+            if let Upvalue::Closed(value) = &*upvalue.borrow() {
+                self.stack[slot] = value.clone();
+            }
+            *upvalue.borrow_mut() = Upvalue::Open(slot);
+            self.open_upvalues.push(upvalue);
+        }
         generator.state.set(GeneratorState::Running);
         self.push_generator_frame(generator, receiver_index as isize);
         Ok(())
@@ -704,6 +713,22 @@ impl VirtualMachine {
             return Err(self.runtime_error("'yield' outside a running generator."));
         };
         let slot_start = frame.slot_start as usize;
+
+        let mut captured = generator.upvalues.borrow_mut();
+        let stack = &self.stack;
+        self.open_upvalues.retain(|upvalue| {
+            let index = match *upvalue.borrow() {
+                Upvalue::Open(index) => index,
+                Upvalue::Closed(_) => return false,
+            };
+            if index < slot_start {
+                return true;
+            }
+            *upvalue.borrow_mut() = Upvalue::Closed(stack[index].clone());
+            captured.push((index - slot_start, Rc::clone(upvalue)));
+            false
+        });
+        drop(captured);
 
         generator.ip.set(self.ip + 1);
         generator.state.set(GeneratorState::Suspended);
