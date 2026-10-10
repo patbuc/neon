@@ -735,15 +735,40 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// `IteratorDone` on a generator: resumes it at the top of the stack.
+    /// Its `Yield` stores the value in the `stash` slot and pushes `true`;
+    /// its `Return` drops the return value and pushes `false`. A finished
+    /// generator ends the loop without running.
+    #[cold]
+    #[inline(never)]
+    fn resume_for_in(
+        &mut self,
+        generator: &Rc<ObjGenerator>,
+        stash: usize,
+    ) -> std::result::Result<bool, RuntimeError> {
+        if generator.state.get() == GeneratorState::Done {
+            self.push(boolean!(false));
+            return Ok(false);
+        }
+        self.ip += 1;
+        self.check_frame_limit()?;
+        let receiver_index = self.stack.len();
+        self.resume_generator(generator, receiver_index, 0)?;
+        if let Some((_, _, for_in_stash)) = self.running_generators.last_mut() {
+            *for_in_stash = Some(stash);
+        }
+        Ok(true)
+    }
+
     /// Yield: `[.., slots..., value]` -> `[.., value]` in the caller's frame,
     /// with the frame's slots saved in the generator.
     pub(in crate::vm) fn op_yield(&mut self) -> OpResult {
         let value = self.pop();
         let slot_start = self.current_frame().slot_start as usize;
         let frame_depth = self.call_frames.len();
-        let Some((_, generator)) = self
+        let Some((_, generator, for_in_stash)) = self
             .running_generators
-            .pop_if(|(depth, _)| *depth == frame_depth)
+            .pop_if(|(depth, _, _)| *depth == frame_depth)
         else {
             return Err(self.runtime_error("'yield' outside a running generator."));
         };
@@ -772,7 +797,12 @@ impl VirtualMachine {
             .borrow_mut()
             .extend(self.stack.drain(slot_start..));
         self.pop_frame();
-        self.push(value);
+        if let Some(stash) = for_in_stash {
+            self.stack[stash] = value;
+            self.push(boolean!(true));
+        } else {
+            self.push(value);
+        }
         Ok(())
     }
 
@@ -797,10 +827,10 @@ impl VirtualMachine {
 
     #[inline(always)]
     pub(in crate::vm) fn op_return(&mut self) {
-        let return_value = self.pop();
+        let mut return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
-        if !self.running_generators.is_empty() {
-            self.finish_running_generator();
+        if !self.running_generators.is_empty() && self.finish_running_generator() {
+            return_value = boolean!(false);
         }
         self.pop_frame();
 
@@ -2364,7 +2394,9 @@ impl VirtualMachine {
     /// GetIterator: Convert a collection to an iterator
     /// Pops the collection and pushes two hidden locals: the iterable
     /// collection (arrays and ranges as-is, map keys or set elements
-    /// collected into a new array) followed by the starting index, 0.
+    /// collected into a new array) followed by the starting index, 0. A
+    /// generator is kept as-is, and its second slot stashes the value
+    /// `IteratorDone` resumed it for.
     #[inline(always)]
     pub(in crate::vm) fn op_get_iterator(&mut self, pairs: bool) -> OpResult {
         let collection = self.pop();
@@ -2372,6 +2404,7 @@ impl VirtualMachine {
         let iterator_value = match &collection {
             Value::Array(_) => collection,
             Value::Range(_) => collection,
+            Value::Generator(_) => collection,
             Value::Map(map_ref) => {
                 let map = map_ref.borrow();
                 if pairs {
@@ -2396,7 +2429,7 @@ impl VirtualMachine {
             Value::String(s) => crate::common::stdlib::string_functions::string_chars_array(s),
             _ => {
                 return Err(self.runtime_error(format!(
-                    "Cannot iterate over type: {}. Only arrays, maps, sets, ranges, and strings are iterable.",
+                    "Cannot iterate over type: {}. Only arrays, maps, sets, ranges, strings, and generators are iterable.",
                     collection
                 )));
             }
@@ -2423,9 +2456,18 @@ impl VirtualMachine {
     /// slots starting at the given local slot (collection, then index).
     /// Pushes false if done (no more elements), true if not done (more elements remain)
     /// This inverted logic allows PopJumpIfFalse to exit the loop when done
+    /// Returns true when it resumed a generator, whose frame is now running
+    /// and the dispatch loop must not advance `ip`.
     #[inline(always)]
-    pub(in crate::vm) fn op_iterator_done(&mut self, slot: u16) -> OpResult {
+    pub(in crate::vm) fn op_iterator_done(
+        &mut self,
+        slot: u16,
+    ) -> std::result::Result<bool, RuntimeError> {
         let slot = self.read_iterator_slot(slot)?;
+        if let Value::Generator(generator) = &self.stack[slot] {
+            let generator = Rc::clone(generator);
+            return self.resume_for_in(&generator, slot + 1);
+        }
         let index = match &self.stack[slot + 1] {
             Value::Int(i) => *i,
             other => {
@@ -2447,7 +2489,7 @@ impl VirtualMachine {
         };
 
         self.push(boolean!(has_more));
-        Ok(())
+        Ok(false)
     }
 
     /// IteratorNext: Get the next element from the iterator held in the
@@ -2456,6 +2498,11 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_iterator_next(&mut self, slot: u16) -> OpResult {
         let slot = self.read_iterator_slot(slot)?;
+        if matches!(self.stack[slot], Value::Generator(_)) {
+            let value = std::mem::replace(&mut self.stack[slot + 1], Value::Nil);
+            self.push(value);
+            return Ok(());
+        }
         let index = match &self.stack[slot + 1] {
             Value::Int(i) => *i,
             other => {
