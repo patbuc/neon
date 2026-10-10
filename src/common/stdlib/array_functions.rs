@@ -46,6 +46,33 @@ pub fn native_array_pop(args: &[Value]) -> Result<Value, String> {
     Ok(array.pop().unwrap_or(Value::Nil))
 }
 
+/// Native implementation of Array.removeAt(index)
+/// Removes and returns the element at index; negative indices count from the end
+pub fn native_array_remove_at(args: &[Value]) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            "removeAt() expects 1 argument (index), got {}",
+            args.len() - 1
+        ));
+    }
+
+    let array_ref = extract_receiver!(args, Array, "removeAt")?;
+    let index = extract_integer_arg(args, 1, "index", "removeAt")?;
+
+    let mut array = array_ref.borrow_mut();
+    let len = array.len() as i64;
+    let actual_index = if index < 0 { len + index } else { index };
+
+    if actual_index < 0 || actual_index >= len {
+        return Err(format!(
+            "Array index out of bounds: index {} (normalized: {}) on array of length {}.",
+            index, actual_index, len
+        ));
+    }
+
+    Ok(array.remove(actual_index as usize))
+}
+
 /// Native implementation of Array.size()
 /// Returns the number of elements in the array
 pub fn native_array_size(args: &[Value]) -> Result<Value, String> {
