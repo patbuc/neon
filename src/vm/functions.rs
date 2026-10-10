@@ -12,6 +12,17 @@ use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+/// What `dispatch_native_method_or_field` did.
+enum NativeDispatch {
+    /// A native ran and its result is on the stack.
+    Returned,
+    /// A generator's frame was pushed; its result will be on the stack once
+    /// it yields or returns.
+    Resumed,
+    /// A callable instance field for the caller to call.
+    Callable(Value),
+}
+
 pub(in crate::vm) type OpResult = std::result::Result<(), RuntimeError>;
 
 /// Coerces an index `Value` to a number, normalizes a negative index against
@@ -186,7 +197,8 @@ impl VirtualMachine {
     }
 
     /// TailCall: `Call` followed by `Return`, except that a closure callee
-    /// takes over the running frame. Returns whether it did; otherwise the
+    /// takes over the running frame. Returns true when the dispatch loop
+    /// should carry on in the callee without returning; false when the
     /// callee's result is on the stack for the caller to return.
     #[inline(never)]
     pub(in crate::vm) fn op_tail_call(&mut self, arg_count: u8) -> Result<bool, RuntimeError> {
@@ -210,9 +222,11 @@ impl VirtualMachine {
     }
 
     /// TailInvoke: `Invoke` followed by `Return`, except that a user-defined
-    /// method or a closure in an instance field takes over the running frame.
-    /// Returns whether it did; otherwise the callee's result is on the stack
-    /// for the caller to return.
+    /// method or a closure in an instance field takes over the running frame,
+    /// and a resumed generator runs in a frame of its own. Returns true when
+    /// the dispatch loop should carry on in that frame without returning (a
+    /// resumed generator's result reaches the `Return` that follows); false
+    /// when the callee's result is on the stack for the caller to return.
     #[inline(never)]
     pub(in crate::vm) fn op_tail_invoke(
         &mut self,
@@ -248,7 +262,6 @@ impl VirtualMachine {
         }
 
         self.check_frame_limit()?;
-        let frame_depth = self.call_frames.len();
         match self.dispatch_native_method_or_field(
             &receiver,
             type_name,
@@ -256,17 +269,16 @@ impl VirtualMachine {
             method_symbol,
             arg_count,
         )? {
-            Some(Value::Closure(closure)) if !closure.function.is_generator => {
+            NativeDispatch::Callable(Value::Closure(closure)) if !closure.function.is_generator => {
                 self.reuse_frame(receiver_index, arg_count, closure, false)?;
                 Ok(true)
             }
-            Some(callable) => {
+            NativeDispatch::Callable(callable) => {
                 self.dispatch_call_value(callable, arg_count)?;
                 Ok(false)
             }
-            // A resumed generator pushed its frame; its result reaches the
-            // `Return` that follows this instruction.
-            None => Ok(self.call_frames.len() > frame_depth),
+            NativeDispatch::Returned => Ok(false),
+            NativeDispatch::Resumed => Ok(true),
         }
     }
 
@@ -399,15 +411,16 @@ impl VirtualMachine {
             method_symbol,
             arg_count,
         )? {
-            Some(callable) => self.dispatch_call_value(callable, arg_count),
-            None => Ok(()),
+            NativeDispatch::Callable(callable) => self.dispatch_call_value(callable, arg_count),
+            NativeDispatch::Returned | NativeDispatch::Resumed => Ok(()),
         }
     }
 
     /// The rest of `dispatch_invoke` once no user method matched: runs a
-    /// native method, leaving its result on the stack, or returns a
-    /// callable instance field for the caller to call, with the receiver's
-    /// slot cleared to become the callee slot.
+    /// native method, leaving its result on the stack, resumes a generator
+    /// (`Generator.next()`) by pushing its frame, or returns a callable
+    /// instance field for the caller to call, with the receiver's slot
+    /// cleared to become the callee slot.
     fn dispatch_native_method_or_field(
         &mut self,
         receiver: &Value,
@@ -415,14 +428,7 @@ impl VirtualMachine {
         receiver_index: usize,
         method_symbol: u16,
         arg_count: usize,
-    ) -> Result<Option<Value>, RuntimeError> {
-        if let Value::Generator(generator) = receiver {
-            if &*self.symbol_name(method_symbol) == "next" {
-                self.resume_generator(generator, receiver_index, arg_count)?;
-                return Ok(None);
-            }
-        }
-
+    ) -> Result<NativeDispatch, RuntimeError> {
         if let Some(type_name) = &type_name {
             let native = match type_name {
                 TypeName::Builtin(type_symbol) => self
@@ -432,6 +438,12 @@ impl VirtualMachine {
                 TypeName::Struct(_) => None,
             };
             if let Some(native) = native {
+                if let (NativeCallable::ResumeGenerator, Value::Generator(generator)) =
+                    (native, receiver)
+                {
+                    self.resume_generator(generator, receiver_index, arg_count)?;
+                    return Ok(NativeDispatch::Resumed);
+                }
                 let result = match self.run_native_callable(
                     native,
                     receiver_index,
@@ -443,7 +455,7 @@ impl VirtualMachine {
                 };
                 self.stack.truncate(receiver_index);
                 self.push(result);
-                return Ok(None);
+                return Ok(NativeDispatch::Returned);
             }
         }
 
@@ -451,7 +463,7 @@ impl VirtualMachine {
             let field_value = inst.borrow().field(method_symbol).cloned();
             if let Some(field_value) = field_value {
                 self.stack[receiver_index] = Value::Nil;
-                return Ok(Some(field_value));
+                return Ok(NativeDispatch::Callable(field_value));
             }
         }
 
@@ -483,6 +495,9 @@ impl VirtualMachine {
             | NativeCallable::InstanceMethod { function, .. } => {
                 function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
             }
+            NativeCallable::ResumeGenerator => Err(NativeCallError::Message(
+                "Generator.next() is resumed by the VM.".to_string(),
+            )),
         }
     }
 

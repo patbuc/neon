@@ -38,6 +38,9 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
+    /// Generator.next(): the VM pushes the generator's frame itself, which a
+    /// native function cannot do.
+    ResumeGenerator,
 }
 
 impl NativeCallable {
@@ -47,6 +50,7 @@ impl NativeCallable {
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::ConstructorWithVm { arity, .. } => *arity,
+            NativeCallable::ResumeGenerator => 0,
         }
     }
 
@@ -54,7 +58,9 @@ impl NativeCallable {
         match self {
             NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
             NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
-            NativeCallable::StaticMethod { .. } | NativeCallable::ConstructorWithVm { .. } => None,
+            NativeCallable::StaticMethod { .. }
+            | NativeCallable::ConstructorWithVm { .. }
+            | NativeCallable::ResumeGenerator => None,
         }
     }
 }
@@ -478,15 +484,7 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         },
     ),
     // Generator instance methods
-    (
-        "Generator",
-        "next",
-        NativeCallable::InstanceMethod {
-            function: stdlib::generator_functions::native_generator_next,
-            arity: 0,
-            returns: None,
-        },
-    ),
+    ("Generator", "next", NativeCallable::ResumeGenerator),
     (
         "Generator",
         "isDone",
