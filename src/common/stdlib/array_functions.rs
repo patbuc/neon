@@ -86,10 +86,10 @@ pub fn native_array_remove(args: &[Value]) -> Result<Value, String> {
     let array_ref = extract_receiver!(args, Array, "remove")?;
     let value = &args[1];
 
-    let mut array = array_ref.borrow_mut();
-    match array.iter().position(|e| e == value) {
+    let position = array_ref.borrow().iter().position(|e| e == value);
+    match position {
         Some(idx) => {
-            array.remove(idx);
+            array_ref.borrow_mut().remove(idx);
             Ok(Value::Boolean(true))
         }
         None => Ok(Value::Boolean(false)),
