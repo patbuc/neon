@@ -1306,6 +1306,10 @@ impl Parser {
         let location = self.current_location();
         if self.check(TokenType::NewLine)
             || self.check(TokenType::RightBrace)
+            || self.check(TokenType::RightParen)
+            || self.check(TokenType::RightBracket)
+            || self.check(TokenType::Comma)
+            || self.check(TokenType::Colon)
             || self.check(TokenType::Eof)
         {
             return Some(Expr::Yield {
