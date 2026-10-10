@@ -1,0 +1,47 @@
+// Expected:
+// 1
+// [  at helper (line 12)]
+// [  at <script> (line 32)]
+// 2
+// 20
+// true
+// Generator is finished.
+
+fn helper(n) {
+    val a = [n]
+    return a[5]
+}
+
+fn gen(n) {
+    yield n
+    return helper(n)
+}
+
+fn helper2(n) {
+    return n * 10
+}
+
+fn gen2(n) {
+    yield n
+    return helper2(n)
+}
+
+val g = gen(1)
+print(g.next())
+try {
+    g.next()
+} catch (e) {
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}
+
+val g2 = gen2(2)
+print(g2.next())
+print(g2.next())
+print(g2.isDone())
+try {
+    g2.next()
+} catch (e) {
+    print(e.message)
+}

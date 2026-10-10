@@ -77,8 +77,6 @@ struct FunctionCompiler {
     /// if-expression, generates its own branches). Saved and restored
     /// around each if-expression branch.
     transient_offset: u32,
-    /// A generator's frame is saved and resumed, so it never tail-calls.
-    is_generator: bool,
 }
 
 impl FunctionCompiler {
@@ -96,7 +94,6 @@ impl FunctionCompiler {
             constant_keys: HashMap::new(),
             stack_height: 0,
             transient_offset: 0,
-            is_generator: false,
         }
     }
 
@@ -786,7 +783,6 @@ impl<'a> CodeGenerator<'a> {
         self.current().scope_depth += 1;
 
         let resolutions = self.resolutions;
-        self.current().is_generator = resolutions.function(id).is_generator;
 
         // Define parameters as local variables in the function scope. The
         // caller already pushed them onto the stack before Call/Invoke ran,
@@ -1109,7 +1105,7 @@ impl<'a> CodeGenerator<'a> {
     /// return value, so a call here reuses the caller's frame and the
     /// branches of a conditional, if, or match are tail positions too.
     fn generate_expr_in_tail(&mut self, expr: &Expr, tail: bool) {
-        let in_function = self.functions.len() > 1 && !self.current().is_generator;
+        let in_function = self.functions.len() > 1;
         match expr {
             Expr::Call {
                 callee,
