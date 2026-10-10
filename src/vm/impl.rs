@@ -41,6 +41,7 @@ impl VirtualMachine {
             module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
             handlers: Vec::new(),
+            running_generators: Vec::new(),
             native_call_depth: 0,
             builtin_methods: std::array::from_fn(|_| Vec::new()),
             method_journal: None,
@@ -274,10 +275,8 @@ impl VirtualMachine {
     }
 
     fn discard_frames(&mut self) {
-        for frame in &self.call_frames {
-            if let Some(generator) = &frame.generator {
-                generator.state.set(GeneratorState::Done);
-            }
+        for (_, generator) in self.running_generators.drain(..) {
+            generator.state.set(GeneratorState::Done);
         }
         self.call_frames.clear();
     }
@@ -298,9 +297,7 @@ impl VirtualMachine {
         self.handlers.pop();
         self.close_upvalues_above(handler.stack_height);
         while self.call_frames.len() > handler.frame_depth {
-            if let Some(generator) = &self.current_frame().generator {
-                generator.state.set(GeneratorState::Done);
-            }
+            self.finish_running_generator();
             self.pop_frame();
         }
         self.stack.truncate(handler.stack_height);
@@ -669,13 +666,11 @@ impl VirtualMachine {
             closure,
             ip: 0,
             slot_start,
-            generator: None,
         });
     }
 
     /// Makes `generator`'s closure the running frame at the generator's
     /// saved instruction.
-    #[allow(clippy::expect_used)]
     pub(in crate::vm) fn push_generator_frame(
         &mut self,
         generator: &Rc<ObjGenerator>,
@@ -683,10 +678,25 @@ impl VirtualMachine {
     ) {
         self.push_frame(Rc::clone(&generator.closure), slot_start);
         self.ip = generator.ip.get();
-        self.call_frames
-            .last_mut()
-            .expect("push_frame just pushed a frame")
-            .generator = Some(Rc::clone(generator));
+        self.running_generators
+            .push((self.call_frames.len(), Rc::clone(generator)));
+    }
+
+    /// Marks the generator running in the top frame, if any, as done and
+    /// stops tracking it.
+    #[cold]
+    #[inline(never)]
+    pub(in crate::vm) fn finish_running_generator(&mut self) {
+        let depth = self.call_frames.len();
+        if self
+            .running_generators
+            .last()
+            .is_some_and(|(frame_depth, _)| *frame_depth == depth)
+        {
+            if let Some((_, generator)) = self.running_generators.pop() {
+                generator.state.set(GeneratorState::Done);
+            }
+        }
     }
 
     /// Drops the running frame and resumes its caller, if any.

@@ -903,8 +903,6 @@ pub struct CallFrame {
     pub closure: Rc<ObjClosure>,
     pub ip: usize,
     pub slot_start: isize, // Can be -1 for script frame
-    /// The generator this frame runs, if it was resumed by `next()`.
-    pub generator: Option<Rc<ObjGenerator>>,
 }
 
 impl PartialEq for ObjFunction {

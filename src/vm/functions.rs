@@ -722,11 +722,14 @@ impl VirtualMachine {
     /// with the frame's slots saved in the generator.
     pub(in crate::vm) fn op_yield(&mut self) -> OpResult {
         let value = self.pop();
-        let frame = self.current_frame();
-        let Some(generator) = frame.generator.clone() else {
+        let slot_start = self.current_frame().slot_start as usize;
+        let frame_depth = self.call_frames.len();
+        let Some((_, generator)) = self
+            .running_generators
+            .pop_if(|(depth, _)| *depth == frame_depth)
+        else {
             return Err(self.runtime_error("'yield' outside a running generator."));
         };
-        let slot_start = frame.slot_start as usize;
 
         let mut captured = generator.upvalues.borrow_mut();
         let stack = &self.stack;
@@ -744,7 +747,6 @@ impl VirtualMachine {
         });
         drop(captured);
 
-        let frame_depth = self.call_frames.len();
         let first_owned = self
             .handlers
             .iter()
@@ -789,10 +791,9 @@ impl VirtualMachine {
     #[inline(always)]
     pub(in crate::vm) fn op_return(&mut self) {
         let return_value = self.pop();
-        let frame = self.current_frame();
-        let slot_start = frame.slot_start;
-        if let Some(generator) = &frame.generator {
-            generator.state.set(GeneratorState::Done);
+        let slot_start = self.current_frame().slot_start;
+        if !self.running_generators.is_empty() {
+            self.finish_running_generator();
         }
         self.pop_frame();
 
