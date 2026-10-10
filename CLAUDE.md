@@ -287,6 +287,11 @@ enforces these edges in `cargo test`.
 - Strings are `Rc<String>` so `Value` stays 16 bytes
 - `Uninitialized` marks a hoisted global/block-level slot before its declaration runs
 - Range is an immutable `Rc<ObjRange>` of integer bounds; for-in iterates it without allocating an array
+- Generator is an `Rc<ObjGenerator>`: a function whose own body has `yield` (`Function.is_generator`) returns one
+  from the call instead of running. `next()` (`src/vm/functions.rs`) resumes it by pushing its saved frame onto the
+  frame stack, with no Rust recursion; the `Yield` opcode saves the frame, its stack slice, open upvalues and `try`
+  handlers back into the generator and returns the value to the `next()` caller. States are Suspended, Running,
+  Done; `next()` on the last two is a runtime error
 
 **Standard Library** (`src/common/stdlib/`)
 

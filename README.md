@@ -438,6 +438,41 @@ print(outer())  // 1
 `val`/`var` declared in a block stay ordered: a nested function can't name a
 block variable declared after it.
 
+### Generators
+
+A function whose own body contains `yield` is a generator. This holds for named functions, function literals
+and `impl` methods. Calling it checks the arguments but runs none of the body; it returns a `Generator`.
+
+```neon
+fn count(limit) {
+    var i = 0
+    while i < limit {
+        yield i
+        i += 1
+    }
+    return "done"
+}
+
+val g = count(2)
+print(g.next())    // 0
+print(g.next())    // 1
+print(g.next())    // done
+print(g.isDone())  // true
+```
+
+- `next()` runs the body to the next `yield` and returns the yielded value. When the body ends, `next()`
+  returns its `return` value (`nil` if there is none) and the generator is done.
+- `yield` is an expression whose value is always `nil`. Its operand is optional, and like `return` it ends
+  at the newline: a bare `yield` yields `nil`.
+- A `yield` inside a nested function belongs to that function, not the enclosing one.
+- Calling `next()` on a finished generator, or on one that is already running, is a runtime error.
+- An error thrown inside the body reaches the caller of `next()` and finishes the generator. A `yield`
+  inside `try` works, and closures over the generator's locals stay valid between calls.
+- `yield` outside any function is a compile error (E0060).
+- `impl Generator { ... }` adds methods to every generator, like `impl` on other builtin types.
+- A generator prints as `<generator>`.
+- `for` loops cannot iterate a generator yet; call `next()` and check `isDone()`.
+
 ### Control Flow
 
 **If/Else:**
@@ -1428,7 +1463,8 @@ capture, or `nil` if it never was thrown.
 
 ### Generator Methods
 
-- `.next()` - Run the generator to its next `yield` and return the yielded value
+- `.next()` - Run the generator to its next `yield` and return the yielded value; at the end of the body,
+  return its `return` value (`nil` if none). A runtime error on a finished or running generator
 - `.isDone()` - `true` once a `next()` has run the generator past its end
 
 ### Type Conversions

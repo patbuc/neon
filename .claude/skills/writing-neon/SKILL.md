@@ -160,6 +160,19 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - `a?.f` / `a?.m(args)` is nil if `a` is nil (call args aren't evaluated), else the field or
   method call. Not assignable.
 
+**Generators**
+- A function (`fn`, function literal, `impl` method) whose own body contains `yield` is a generator.
+  Calling it runs nothing and returns a `Generator`; `g.next()` runs to the next `yield` and returns
+  its value, or at the end of the body returns the `return` value (nil if none).
+- `yield` is an expression that evaluates to nil (`val r = yield 1` gives `r == nil`). The operand is
+  optional and, like `return`, ends at the newline: a bare `yield` yields nil.
+- A `yield` in a nested function belongs to that function. `yield` outside a function is E0060.
+- `next()` on a finished generator, or one already running, is a runtime error; `isDone()` becomes true
+  only after the `next()` that runs past the end, so don't test it before the last `next()` expecting true.
+- An error thrown inside propagates to the `next()` caller and finishes the generator. `yield` inside
+  `try` works.
+- `for x in gen()` is not supported yet; loop with `next()` and `isDone()`. `print(g)` shows `<generator>`.
+
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.
 - Map keys (and set elements) can be strings, numbers, booleans, enum variants (payload fields must be valid keys too), or arrays. An
@@ -215,7 +228,7 @@ then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.
 - **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
 - **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
-- **Generator:** `next()` - resumes a generator function until its next yield, `isDone()` - true once `next()` ran past the end
+- **Generator:** `next()` - resumes a generator function until its next yield (returns the yielded value, or the body's return value, nil if none, at the end); error on a finished or running generator. `isDone()` - true once `next()` ran past the end
 - **Error:** `Error(message)` - an error value with message and line fields (line is nil until it is thrown) and a `trace()` method; prints as "Error: <message>"
 - **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
   `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`
