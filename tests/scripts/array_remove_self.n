@@ -1,0 +1,7 @@
+// Expected:
+// false
+// [[1], 2]
+
+val a = [[1], 2]
+print(a.remove(a))
+print(a)

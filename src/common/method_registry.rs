@@ -101,6 +101,24 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
     ),
     (
         "Array",
+        "removeAt",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_remove_at,
+            arity: 1,
+            returns: None,
+        },
+    ),
+    (
+        "Array",
+        "remove",
+        NativeCallable::InstanceMethod {
+            function: stdlib::array_functions::native_array_remove,
+            arity: 1,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
+    (
+        "Array",
         "size",
         NativeCallable::InstanceMethod {
             function: stdlib::array_functions::native_array_size,

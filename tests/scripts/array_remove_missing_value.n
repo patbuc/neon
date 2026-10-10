@@ -1,0 +1,7 @@
+// Expected:
+// false
+// [1, 2, 3]
+
+val arr = [1, 2, 3]
+print(arr.remove(4))
+print(arr)
