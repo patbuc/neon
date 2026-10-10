@@ -1,0 +1,12 @@
+// Expected:
+// 1
+// nil
+
+fn gen() {
+    val r = yield 1
+    print(r)
+}
+
+val g = gen()
+print(g.next())
+g.next()

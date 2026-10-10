@@ -1,0 +1,15 @@
+// Expected:
+// 1
+// 2
+
+fn outer() {
+    return fn() {
+        yield 1
+        yield 2
+    }
+}
+
+val inner = outer()
+val g = inner()
+print(g.next())
+print(g.next())
