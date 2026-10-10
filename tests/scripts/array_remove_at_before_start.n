@@ -1,0 +1,8 @@
+// Expected:
+// before
+
+// Expected runtime error: Array index out of bounds: index -4 (normalized: -1) on array of length 3.
+
+val arr = [1, 2, 3]
+print("before")
+arr.removeAt(-4)
