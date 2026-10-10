@@ -487,6 +487,15 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
             returns: None,
         },
     ),
+    (
+        "Generator",
+        "isDone",
+        NativeCallable::InstanceMethod {
+            function: stdlib::generator_functions::native_generator_is_done,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
+        },
+    ),
     // Range instance methods
     (
         "Range",

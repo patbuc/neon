@@ -215,7 +215,7 @@ then call `math.abs(x)`. Exports are values: `val abs = math.abs`, `xs.map(math.
 - **File:** `read`, `readLines`, `write(text)` (creates the file; errors if it exists)
 - **PriorityQueue:** `push(priority, value)`, `pop`, `peek`, `size`, `isEmpty` -
   min-heap where priority must be a number; equal priorities pop in insertion order
-- **Generator:** `next()` - resumes a generator function until its next yield
+- **Generator:** `next()` - resumes a generator function until its next yield, `isDone()` - true once `next()` ran past the end
 - **Error:** `Error(message)` - an error value with message and line fields (line is nil until it is thrown) and a `trace()` method; prints as "Error: <message>"
 - **std/math:** `math.abs`, `math.floor`, `math.ceil`, `math.sqrt`, `math.min(...)`, `math.max(...)`,
   `math.div(a, b)`, `math.round`, `math.sign`, `math.gcd(a, b)`, `math.lcm(a, b)`, `math.mod(a, b)`

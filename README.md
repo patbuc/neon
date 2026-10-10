@@ -1429,6 +1429,7 @@ capture, or `nil` if it never was thrown.
 ### Generator Methods
 
 - `.next()` - Run the generator to its next `yield` and return the yielded value
+- `.isDone()` - `true` once a `next()` has run the generator past its end
 
 ### Type Conversions
 
