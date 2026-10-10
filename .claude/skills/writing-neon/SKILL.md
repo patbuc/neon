@@ -171,7 +171,9 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   only after the `next()` that runs past the end, so don't test it before the last `next()` expecting true.
 - An error thrown inside propagates to the `next()` caller and finishes the generator. `yield` inside
   `try` works.
-- `for x in gen()` is not supported yet; loop with `next()` and `isDone()`. `print(g)` shows `<generator>`.
+- `for x in gen` resumes the generator per element and binds only yielded values (the `return` value is
+  dropped); `break` leaves it suspended; a finished generator iterates zero times. `print(g)` shows
+  `<generator>`.
 
 **Collections**
 - `{}` is an empty map; `#{}` is an empty set; `#{1, 2}` is a set literal.
