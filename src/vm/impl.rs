@@ -217,7 +217,7 @@ impl VirtualMachine {
                         self.stack[slot as usize] = Value::Uninitialized(Rc::new(name.clone()));
                     }
                 }
-                self.call_frames.clear();
+                self.discard_frames();
                 self.native_call_depth = 0;
                 for r#struct in method_journal.into_iter().rev() {
                     r#struct.methods.borrow_mut().pop();
@@ -271,6 +271,15 @@ impl VirtualMachine {
                 Ok(()) => return Ok(()),
             }
         }
+    }
+
+    fn discard_frames(&mut self) {
+        for frame in &self.call_frames {
+            if let Some(generator) = &frame.generator {
+                generator.state.set(GeneratorState::Done);
+            }
+        }
+        self.call_frames.clear();
     }
 
     /// Unwinds to the innermost handler that belongs to this loop (one set
@@ -880,7 +889,7 @@ impl VirtualMachine {
     }
 
     fn reset(&mut self) {
-        self.call_frames.clear();
+        self.discard_frames();
         self.stack.clear();
         self.runtime_error = None;
         self.open_upvalues.clear();

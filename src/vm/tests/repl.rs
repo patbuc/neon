@@ -507,3 +507,34 @@ fn keeps_a_std_import_across_lines() {
     );
     assert_eq!("5", vm.get_output());
 }
+
+#[test]
+fn generator_unwound_by_a_runtime_error_is_done() {
+    let mut vm = VirtualMachine::new();
+    for line in [
+        "fn gen() { yield 1\n throw Error(\"boom\") }",
+        "val g = gen()",
+        "g.next()",
+    ] {
+        assert_eq!(InterpretResult::Ok, vm.interpret_line(line.to_string()));
+    }
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret_line("g.next()".to_string())
+    );
+    assert_eq!(
+        InterpretResult::Ok,
+        vm.interpret_line("print(g.isDone())".to_string())
+    );
+    assert_eq!("true", vm.get_output());
+    assert_eq!(
+        InterpretResult::RuntimeError,
+        vm.interpret_line("g.next()".to_string())
+    );
+    assert_eq!(
+        "Generator is finished.",
+        vm.get_runtime_error()
+            .map(|e| e.message.as_str())
+            .unwrap_or("")
+    );
+}
