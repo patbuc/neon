@@ -1,0 +1,18 @@
+// Expected:
+// 1
+// 2
+// 3
+// true
+
+fn numbers() {
+    yield 1
+    yield 2
+    yield 3
+    return 99
+}
+
+val gen = numbers()
+for x in gen {
+    print(x)
+}
+print(gen.isDone())

@@ -1,0 +1,41 @@
+// Expected:
+// 0
+// 3
+// 4
+// 1
+// 2
+// 3
+// 4
+
+fn numbers() {
+    yield 1
+    yield 2
+    yield 3
+    yield 4
+}
+
+val done = numbers()
+for x in done {}
+var count = 0
+for x in done {
+    count += 1
+}
+print(count)
+
+val partial = numbers()
+partial.next()
+partial.next()
+for x in partial {
+    print(x + 0)
+}
+
+val shared = numbers()
+for x in shared {
+    print(x)
+    if x == 2 {
+        break
+    }
+}
+for x in shared {
+    print(x)
+}
