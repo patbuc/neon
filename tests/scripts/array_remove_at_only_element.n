@@ -1,0 +1,7 @@
+// Expected:
+// 7
+// []
+
+val arr = [7]
+print(arr.removeAt(0))
+print(arr)
