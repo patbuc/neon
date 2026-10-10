@@ -1,0 +1,29 @@
+// Expected:
+// 1
+// 2
+// 0
+// 3
+// nil
+// true
+
+fn gen() {
+    yield 1
+    yield 2
+    yield 3
+}
+
+fn pull(g) {
+    return g.next()
+}
+
+fn maybe(g, c) {
+    return c ? g.next() : 0
+}
+
+val g = gen()
+print(pull(g))
+print(pull(g))
+print(maybe(g, false))
+print(maybe(g, true))
+print(pull(g))
+print(g.isDone())

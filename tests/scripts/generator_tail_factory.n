@@ -1,0 +1,43 @@
+// Expected:
+// made
+// started
+// 1
+// 2
+// 10
+// 11
+// true
+
+fn count(n) {
+    print("started")
+    yield n
+    yield n + 1
+}
+
+struct Source {
+    base
+}
+
+impl Source {
+    fn items(self) {
+        yield self.base
+        yield self.base + 1
+    }
+}
+
+fn make(n) {
+    return count(n)
+}
+
+fn fromSource(s) {
+    return s.items()
+}
+
+val a = make(1)
+print("made")
+print(a.next())
+print(a.next())
+val b = fromSource(Source(10))
+print(b.next())
+print(b.next())
+b.next()
+print(b.isDone())
