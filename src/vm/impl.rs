@@ -1,7 +1,9 @@
 use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
-use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, ObjGenerator, Value};
+use crate::common::{
+    CallFrame, Chunk, GeneratorState, ObjClosure, ObjError, ObjFunction, ObjGenerator, Value,
+};
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
@@ -287,6 +289,9 @@ impl VirtualMachine {
         self.handlers.pop();
         self.close_upvalues_above(handler.stack_height);
         while self.call_frames.len() > handler.frame_depth {
+            if let Some(generator) = &self.current_frame().generator {
+                generator.state.set(GeneratorState::Done);
+            }
             self.pop_frame();
         }
         self.stack.truncate(handler.stack_height);
