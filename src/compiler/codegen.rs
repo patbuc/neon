@@ -819,7 +819,12 @@ impl<'a> CodeGenerator<'a> {
             .pop()
             .expect("this function pushed a function compiler above");
         let arity = resolutions.function(id).params.len();
-        let function_value = Value::new_function(name.to_string(), arity as u8, compiler.chunk);
+        let function_value = Value::new_function(
+            name.to_string(),
+            arity as u8,
+            resolutions.function(id).is_generator,
+            compiler.chunk,
+        );
 
         // Wrap the function in a closure.
         let const_index = self.current_chunk().add_constant(function_value);
@@ -1766,6 +1771,13 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_expr(&mut self, expr: &Expr) {
         match expr {
+            Expr::Yield { value, location } => {
+                match value {
+                    Some(value) => self.generate_expr(value),
+                    None => self.emit_op_code(OpCode::Nil, *location),
+                }
+                self.emit_op_code(OpCode::Yield, *location);
+            }
             Expr::Number {
                 value, location, ..
             } => {

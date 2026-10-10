@@ -1,0 +1,21 @@
+// Expected:
+// 1
+// 2
+// 3
+
+fn gen() {
+    var n = 0
+    yield fn() {
+        n += 1
+    }
+    yield n
+    yield n
+}
+
+val g = gen()
+val inc = g.next()
+inc()
+print(g.next())
+inc()
+print(g.next())
+print(inc())

@@ -1,0 +1,16 @@
+// Expected:
+// 1
+// 10
+
+fn double(x) {
+    return x * 2
+}
+
+fn gen(x) {
+    yield 1
+    return double(x)
+}
+
+val g = gen(5)
+print(g.next())
+print(g.next())

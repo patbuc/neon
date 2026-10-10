@@ -1,0 +1,17 @@
+// Expected:
+// [0, 1, 2]
+// 3
+
+fn count() {
+    var i = 0
+    while true {
+        yield i
+        i += 1
+    }
+}
+
+val g = count()
+print([1, 2, 3].map(fn(x) {
+    g.next()
+}))
+print(g.next())

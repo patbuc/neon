@@ -1,0 +1,18 @@
+// Expected:
+// false
+// false
+// true
+
+fn count(n) {
+    for i in 0..n {
+        yield i
+    }
+}
+
+val g = count(2)
+print(g.isDone())
+g.next()
+g.next()
+print(g.isDone())
+g.next()
+print(g.isDone())

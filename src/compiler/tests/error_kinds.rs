@@ -269,6 +269,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "impl a.B {\n}\n".to_string(),
             Some("impl blocks must be in the struct's own module"),
         )],
+        CompilationErrorKind::YieldOutsideFunction => vec![(
+            "yield 1\n".to_string(),
+            Some("'yield' outside a function"),
+        )],
         CompilationErrorKind::OptionalDotOnType => {
             vec![(
                 "enum E {\n    A\n}\nprint(E?.A)\n".to_string(),

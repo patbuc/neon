@@ -1,0 +1,21 @@
+// Expected:
+// in try
+// caught: oops
+// after
+// 2
+
+fn gen() {
+    try {
+        print("in try")
+        yield 1
+        throw Error("oops")
+    } catch (e) {
+        print("caught: " + e.message)
+    }
+    print("after")
+    yield 2
+}
+
+val g = gen()
+g.next()
+print(g.next())

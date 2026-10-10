@@ -28,6 +28,7 @@ const KEYWORD_FAMILY = {
   Try: 'keyword.control.neon',
   Use: 'keyword.control.neon',
   While: 'keyword.control.neon',
+  Yield: 'keyword.control.neon',
   Fn: 'storage.type.neon',
   Struct: 'storage.type.neon',
   Enum: 'storage.type.neon',

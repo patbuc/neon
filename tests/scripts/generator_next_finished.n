@@ -1,0 +1,14 @@
+// Expected:
+// 1
+// nil
+
+// Expected runtime error: Generator is finished.
+
+fn gen() {
+    yield 1
+}
+
+val g = gen()
+print(g.next())
+print(g.next())
+g.next()

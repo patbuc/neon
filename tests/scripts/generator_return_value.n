@@ -1,0 +1,20 @@
+// Expected:
+// 1
+// 7
+// nil
+
+fn with_value() {
+    yield 1
+    return 7
+}
+
+fn without_value() {
+    yield 1
+}
+
+val a = with_value()
+print(a.next())
+print(a.next())
+val b = without_value()
+b.next()
+print(b.next())

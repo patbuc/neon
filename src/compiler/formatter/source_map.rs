@@ -133,6 +133,7 @@ impl SourceMap {
             | Expr::SetLiteral { location, .. }
             | Expr::Function { location, .. }
             | Expr::If { location, .. }
+            | Expr::Yield { location, .. }
             | Expr::Match { location, .. } => self.at(location),
             Expr::Binary { left, .. } => self.first_token(left),
             Expr::Range { start, .. } => self.first_token(start),
@@ -183,6 +184,10 @@ impl SourceMap {
             Expr::Binary { right, .. } => self.last_token(right),
             Expr::Range { end, .. } => self.last_token(end),
             Expr::Unary { operand, .. } => self.last_token(operand),
+            Expr::Yield { value, location } => match value {
+                Some(value) => self.last_token(value),
+                None => self.at(location),
+            },
             Expr::Conditional { else_expr, .. } => self.last_token(else_expr),
             Expr::Function { location, .. } if self.is_block_lambda(location) => {
                 self.partner(self.at(location))

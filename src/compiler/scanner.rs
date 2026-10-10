@@ -48,6 +48,7 @@ pub(in crate::compiler) const KEYWORDS: &[(&str, TokenType)] = &[
     ("val", TokenType::Val),
     ("var", TokenType::Var),
     ("while", TokenType::While),
+    ("yield", TokenType::Yield),
 ];
 
 /// True when `name` would scan as a single identifier token.

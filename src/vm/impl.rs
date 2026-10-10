@@ -1,7 +1,9 @@
 use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
 use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
-use crate::common::{CallFrame, Chunk, ObjClosure, ObjError, ObjFunction, Value};
+use crate::common::{
+    CallFrame, Chunk, GeneratorState, ObjClosure, ObjError, ObjFunction, ObjGenerator, Value,
+};
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
@@ -39,6 +41,7 @@ impl VirtualMachine {
             module_sources: HashMap::new(),
             open_upvalues: Vec::new(),
             handlers: Vec::new(),
+            running_generators: Vec::new(),
             native_call_depth: 0,
             builtin_methods: std::array::from_fn(|_| Vec::new()),
             method_journal: None,
@@ -141,6 +144,7 @@ impl VirtualMachine {
             name: "<script>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            is_generator: false,
         });
         let script_closure = Rc::new(ObjClosure {
             function: script_function,
@@ -214,7 +218,7 @@ impl VirtualMachine {
                         self.stack[slot as usize] = Value::Uninitialized(Rc::new(name.clone()));
                     }
                 }
-                self.call_frames.clear();
+                self.discard_frames();
                 self.native_call_depth = 0;
                 for r#struct in method_journal.into_iter().rev() {
                     r#struct.methods.borrow_mut().pop();
@@ -270,6 +274,13 @@ impl VirtualMachine {
         }
     }
 
+    fn discard_frames(&mut self) {
+        for (_, generator) in self.running_generators.drain(..) {
+            generator.state.set(GeneratorState::Done);
+        }
+        self.call_frames.clear();
+    }
+
     /// Unwinds to the innermost handler that belongs to this loop (one set
     /// up in a frame deeper than `target_depth`) and resumes at its catch
     /// target with the caught value on the stack. Without one, the error
@@ -286,6 +297,7 @@ impl VirtualMachine {
         self.handlers.pop();
         self.close_upvalues_above(handler.stack_height);
         while self.call_frames.len() > handler.frame_depth {
+            self.finish_running_generator();
             self.pop_frame();
         }
         self.stack.truncate(handler.stack_height);
@@ -615,6 +627,10 @@ impl VirtualMachine {
                 Instr::EndTry => {
                     self.handlers.pop();
                 }
+                Instr::Yield => {
+                    self.op_yield()?;
+                    continue;
+                }
                 Instr::Throw => {
                     let thrown = self.pop();
                     let mut error = self.runtime_error(String::new());
@@ -651,6 +667,36 @@ impl VirtualMachine {
             ip: 0,
             slot_start,
         });
+    }
+
+    /// Makes `generator`'s closure the running frame at the generator's
+    /// saved instruction.
+    pub(in crate::vm) fn push_generator_frame(
+        &mut self,
+        generator: &Rc<ObjGenerator>,
+        slot_start: isize,
+    ) {
+        self.push_frame(Rc::clone(&generator.closure), slot_start);
+        self.ip = generator.ip.get();
+        self.running_generators
+            .push((self.call_frames.len(), Rc::clone(generator)));
+    }
+
+    /// Marks the generator running in the top frame, if any, as done and
+    /// stops tracking it.
+    #[cold]
+    #[inline(never)]
+    pub(in crate::vm) fn finish_running_generator(&mut self) {
+        let depth = self.call_frames.len();
+        if self
+            .running_generators
+            .last()
+            .is_some_and(|(frame_depth, _)| *frame_depth == depth)
+        {
+            if let Some((_, generator)) = self.running_generators.pop() {
+                generator.state.set(GeneratorState::Done);
+            }
+        }
     }
 
     /// Drops the running frame and resumes its caller, if any.
@@ -853,7 +899,7 @@ impl VirtualMachine {
     }
 
     fn reset(&mut self) {
-        self.call_frames.clear();
+        self.discard_frames();
         self.stack.clear();
         self.runtime_error = None;
         self.open_upvalues.clear();

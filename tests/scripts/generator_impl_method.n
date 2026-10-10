@@ -1,0 +1,18 @@
+// Expected:
+// 5
+// 6
+
+struct Counter {
+    n
+}
+
+impl Counter {
+    fn run(self) {
+        yield self.n
+        yield self.n + 1
+    }
+}
+
+val g = Counter(5).run()
+print(g.next())
+print(g.next())

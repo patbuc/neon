@@ -131,6 +131,11 @@ mod resolutions {
                 index_expr(right, idx);
             }
             Expr::Unary { operand, .. } => index_expr(operand, idx),
+            Expr::Yield { value, .. } => {
+                if let Some(value) = value {
+                    index_expr(value, idx);
+                }
+            }
             Expr::Call {
                 callee,
                 arguments,

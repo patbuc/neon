@@ -31,6 +31,8 @@ pub enum Capture {
 pub struct FunctionResolution {
     pub params: Vec<DeclId>,
     pub upvalues: Vec<Capture>,
+    /// Whether the function's own body contains a `yield`.
+    pub is_generator: bool,
 }
 
 /// Interns field, method, and type names into dense `u16` ids shared by

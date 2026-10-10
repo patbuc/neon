@@ -1,0 +1,40 @@
+// Expected:
+// 0
+// 1
+// 2
+// 10
+// 11
+// 12
+// 12
+// 13
+
+fn gen() {
+    var n = 0
+    val inc = fn() {
+        n += 1
+        n
+    }
+    val get = fn() {
+        n
+    }
+    yield get
+    print(inc())
+    yield inc
+    n = 10
+    print(get())
+    yield 0
+    print(inc())
+    yield 0
+    print(inc())
+}
+
+val g = gen()
+val get = g.next()
+print(get())
+val inc = g.next()
+print(inc())
+g.next()
+g.next()
+g.next()
+print(get())
+print(inc())

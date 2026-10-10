@@ -58,6 +58,9 @@ pub struct VirtualMachine {
     open_upvalues: Vec<Rc<RefCell<Upvalue>>>,
     /// Active `try` blocks, innermost last.
     handlers: Vec<Handler>,
+    /// The generators resumed by `next()` and not yet suspended or finished,
+    /// innermost last, each with the call frame depth it runs at.
+    running_generators: Vec<(usize, Rc<crate::common::ObjGenerator>)>,
     /// How many `call_value` calls are currently nested on the Rust stack.
     native_call_depth: usize,
     /// User methods from `impl` blocks on builtin types, indexed by builtin
@@ -99,6 +102,7 @@ impl VirtualMachine {
             name: "<test>".to_string(),
             arity: 0,
             chunk: Rc::new(chunk),
+            is_generator: false,
         });
         let test_closure = Rc::new(ObjClosure {
             function: test_function,

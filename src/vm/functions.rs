@@ -2,15 +2,26 @@ use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, MapKey, NativeCallError, NativeContext, ObjError,
-    ObjInstance, ObjNativeFunction, ObjStruct, Value,
+    compare_int_and_float, f64_fits_i64, GeneratorState, MapKey, NativeCallError, NativeContext,
+    ObjError, ObjGenerator, ObjInstance, ObjNativeFunction, ObjStruct, Value,
 };
 use crate::common::{find_method_entry, ObjClosure, Upvalue};
-use crate::vm::VirtualMachine;
+use crate::vm::{Handler, VirtualMachine};
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+
+/// What `dispatch_native_method_or_field` did.
+enum NativeDispatch {
+    /// A native ran and its result is on the stack.
+    Returned,
+    /// A generator's frame was pushed; its result will be on the stack once
+    /// it yields or returns.
+    Resumed,
+    /// A callable instance field for the caller to call.
+    Callable(Value),
+}
 
 pub(in crate::vm) type OpResult = std::result::Result<(), RuntimeError>;
 
@@ -69,6 +80,7 @@ const FILE_SYMBOL: u16 = 6;
 const RANGE_SYMBOL: u16 = 7;
 const PRIORITY_QUEUE_SYMBOL: u16 = 8;
 const ERROR_SYMBOL: u16 = 9;
+const GENERATOR_SYMBOL: u16 = 10;
 
 /// A receiver's type name for method dispatch: a fixed symbol id for
 /// builtin types, or the struct definition for an instance (cloning the
@@ -185,7 +197,8 @@ impl VirtualMachine {
     }
 
     /// TailCall: `Call` followed by `Return`, except that a closure callee
-    /// takes over the running frame. Returns whether it did; otherwise the
+    /// takes over the running frame. Returns true when the dispatch loop
+    /// should carry on in the callee without returning; false when the
     /// callee's result is on the stack for the caller to return.
     #[inline(never)]
     pub(in crate::vm) fn op_tail_call(&mut self, arg_count: u8) -> Result<bool, RuntimeError> {
@@ -200,14 +213,20 @@ impl VirtualMachine {
             return Ok(false);
         };
 
+        if closure.function.is_generator {
+            self.call_closure(arg_count, closure)?;
+            return Ok(false);
+        }
         self.reuse_frame(callable_index, arg_count, closure, false)?;
         Ok(true)
     }
 
     /// TailInvoke: `Invoke` followed by `Return`, except that a user-defined
-    /// method or a closure in an instance field takes over the running frame.
-    /// Returns whether it did; otherwise the callee's result is on the stack
-    /// for the caller to return.
+    /// method or a closure in an instance field takes over the running frame,
+    /// and a resumed generator runs in a frame of its own. Returns true when
+    /// the dispatch loop should carry on in that frame without returning (a
+    /// resumed generator's result reaches the `Return` that follows); false
+    /// when the callee's result is on the stack for the caller to return.
     #[inline(never)]
     pub(in crate::vm) fn op_tail_invoke(
         &mut self,
@@ -230,6 +249,10 @@ impl VirtualMachine {
                 method_symbol,
             ) {
                 MethodDispatch::Found(closure, arg_count, exclude_self) => {
+                    if closure.function.is_generator {
+                        self.call_closure_with(arg_count, closure, exclude_self)?;
+                        return Ok(false);
+                    }
                     self.reuse_frame(receiver_index, arg_count, closure, exclude_self)?;
                     return Ok(true);
                 }
@@ -246,15 +269,16 @@ impl VirtualMachine {
             method_symbol,
             arg_count,
         )? {
-            Some(Value::Closure(closure)) => {
+            NativeDispatch::Callable(Value::Closure(closure)) if !closure.function.is_generator => {
                 self.reuse_frame(receiver_index, arg_count, closure, false)?;
                 Ok(true)
             }
-            Some(callable) => {
+            NativeDispatch::Callable(callable) => {
                 self.dispatch_call_value(callable, arg_count)?;
                 Ok(false)
             }
-            None => Ok(false),
+            NativeDispatch::Returned => Ok(false),
+            NativeDispatch::Resumed => Ok(true),
         }
     }
 
@@ -387,15 +411,16 @@ impl VirtualMachine {
             method_symbol,
             arg_count,
         )? {
-            Some(callable) => self.dispatch_call_value(callable, arg_count),
-            None => Ok(()),
+            NativeDispatch::Callable(callable) => self.dispatch_call_value(callable, arg_count),
+            NativeDispatch::Returned | NativeDispatch::Resumed => Ok(()),
         }
     }
 
     /// The rest of `dispatch_invoke` once no user method matched: runs a
-    /// native method, leaving its result on the stack, or returns a
-    /// callable instance field for the caller to call, with the receiver's
-    /// slot cleared to become the callee slot.
+    /// native method, leaving its result on the stack, resumes a generator
+    /// (`Generator.next()`) by pushing its frame, or returns a callable
+    /// instance field for the caller to call, with the receiver's slot
+    /// cleared to become the callee slot.
     fn dispatch_native_method_or_field(
         &mut self,
         receiver: &Value,
@@ -403,7 +428,7 @@ impl VirtualMachine {
         receiver_index: usize,
         method_symbol: u16,
         arg_count: usize,
-    ) -> Result<Option<Value>, RuntimeError> {
+    ) -> Result<NativeDispatch, RuntimeError> {
         if let Some(type_name) = &type_name {
             let native = match type_name {
                 TypeName::Builtin(type_symbol) => self
@@ -413,6 +438,12 @@ impl VirtualMachine {
                 TypeName::Struct(_) => None,
             };
             if let Some(native) = native {
+                if let (NativeCallable::ResumeGenerator, Value::Generator(generator)) =
+                    (native, receiver)
+                {
+                    self.resume_generator(generator, receiver_index, arg_count)?;
+                    return Ok(NativeDispatch::Resumed);
+                }
                 let result = match self.run_native_callable(
                     native,
                     receiver_index,
@@ -424,7 +455,7 @@ impl VirtualMachine {
                 };
                 self.stack.truncate(receiver_index);
                 self.push(result);
-                return Ok(None);
+                return Ok(NativeDispatch::Returned);
             }
         }
 
@@ -432,7 +463,7 @@ impl VirtualMachine {
             let field_value = inst.borrow().field(method_symbol).cloned();
             if let Some(field_value) = field_value {
                 self.stack[receiver_index] = Value::Nil;
-                return Ok(Some(field_value));
+                return Ok(NativeDispatch::Callable(field_value));
             }
         }
 
@@ -463,6 +494,11 @@ impl VirtualMachine {
             NativeCallable::StaticMethod { function, .. }
             | NativeCallable::InstanceMethod { function, .. } => {
                 function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
+            }
+            NativeCallable::ResumeGenerator => {
+                unreachable!(
+                    "Generator.next() is resumed by dispatch_native_method_or_field, not run"
+                )
             }
         }
     }
@@ -624,7 +660,119 @@ impl VirtualMachine {
 
         let slot_start = self.stack.len() as isize - arg_count as isize - 1;
 
+        if closure.function.is_generator {
+            self.create_generator(closure, slot_start as usize);
+            return Ok(());
+        }
+
         self.push_frame(closure, slot_start);
+        Ok(())
+    }
+
+    /// Replaces the callee slot and its arguments, from `callee_index` up,
+    /// with a suspended generator that holds them.
+    fn create_generator(&mut self, closure: Rc<ObjClosure>, callee_index: usize) {
+        let segment = self.stack.split_off(callee_index);
+        self.push(Value::Generator(Rc::new(ObjGenerator {
+            closure,
+            state: Cell::new(GeneratorState::NotStarted),
+            segment: RefCell::new(segment),
+            ip: Cell::new(0),
+            upvalues: RefCell::new(Vec::new()),
+            handlers: RefCell::new(Vec::new()),
+        })));
+    }
+
+    /// `generator.next()`: puts the generator's frame back on the frame
+    /// stack in place of the receiver at `receiver_index`. The dispatch loop
+    /// runs it from there; `Yield` or `Return` leaves the result on the stack.
+    fn resume_generator(
+        &mut self,
+        generator: &Rc<ObjGenerator>,
+        receiver_index: usize,
+        arg_count: usize,
+    ) -> OpResult {
+        if arg_count != 0 {
+            return Err(self.arity_error(arg_count, 0, false, "next"));
+        }
+        match generator.state.get() {
+            GeneratorState::NotStarted | GeneratorState::Suspended => {}
+            GeneratorState::Running => {
+                return Err(self.call_error("Generator is already running."));
+            }
+            GeneratorState::Done => return Err(self.call_error("Generator is finished.")),
+        }
+
+        self.stack.truncate(receiver_index);
+        self.stack.append(&mut generator.segment.borrow_mut());
+        if generator.state.get() == GeneratorState::Suspended {
+            // The value of the `yield` expression the generator stopped at.
+            self.push(Value::Nil);
+        }
+        for (offset, upvalue) in generator.upvalues.borrow_mut().drain(..) {
+            let slot = receiver_index + offset;
+            if let Upvalue::Closed(value) = &*upvalue.borrow() {
+                self.stack[slot] = value.clone();
+            }
+            *upvalue.borrow_mut() = Upvalue::Open(slot);
+            self.open_upvalues.push(upvalue);
+        }
+        generator.state.set(GeneratorState::Running);
+        self.push_generator_frame(generator, receiver_index as isize);
+        let frame_depth = self.call_frames.len();
+        self.handlers
+            .extend(
+                generator
+                    .handlers
+                    .borrow_mut()
+                    .drain(..)
+                    .map(|(catch_ip, stack_offset)| Handler {
+                        catch_ip,
+                        frame_depth,
+                        stack_height: receiver_index + stack_offset,
+                    }),
+            );
+        Ok(())
+    }
+
+    /// Yield: `[.., slots..., value]` -> `[.., value]` in the caller's frame,
+    /// with the frame's slots saved in the generator.
+    pub(in crate::vm) fn op_yield(&mut self) -> OpResult {
+        let value = self.pop();
+        let slot_start = self.current_frame().slot_start as usize;
+        let frame_depth = self.call_frames.len();
+        let Some((_, generator)) = self
+            .running_generators
+            .pop_if(|(depth, _)| *depth == frame_depth)
+        else {
+            return Err(self.runtime_error("'yield' outside a running generator."));
+        };
+
+        let mut captured = generator.upvalues.borrow_mut();
+        self.close_upvalues_from(slot_start, |index, upvalue| {
+            captured.push((index - slot_start, Rc::clone(upvalue)));
+        });
+        drop(captured);
+
+        let first_owned = self
+            .handlers
+            .iter()
+            .rposition(|handler| handler.frame_depth < frame_depth)
+            .map_or(0, |index| index + 1);
+        generator.handlers.borrow_mut().extend(
+            self.handlers
+                .drain(first_owned..)
+                .map(|handler| (handler.catch_ip, handler.stack_height - slot_start)),
+        );
+
+        generator.ip.set(self.ip + 1);
+        generator.state.set(GeneratorState::Suspended);
+        generator
+            .segment
+            .borrow_mut()
+            .extend(self.stack.drain(slot_start..));
+        self.pop_frame();
+        self.push(value);
         Ok(())
     }
 
@@ -651,6 +799,9 @@ impl VirtualMachine {
     pub(in crate::vm) fn op_return(&mut self) {
         let return_value = self.pop();
         let slot_start = self.current_frame().slot_start;
+        if !self.running_generators.is_empty() {
+            self.finish_running_generator();
+        }
         self.pop_frame();
 
         // A local captured by a closure that outlives this call must keep
@@ -1666,6 +1817,17 @@ impl VirtualMachine {
         if self.open_upvalues.is_empty() {
             return;
         }
+        self.close_upvalues_from(stack_index, |_, _| {});
+    }
+
+    /// Closes the open upvalues at or above `stack_index`, calling `closed`
+    /// with the stack index and cell of each one it closes.
+    #[inline]
+    fn close_upvalues_from(
+        &mut self,
+        stack_index: usize,
+        mut closed: impl FnMut(usize, &Rc<RefCell<Upvalue>>),
+    ) {
         let stack = &self.stack;
         self.open_upvalues.retain(|upvalue| {
             let index = match *upvalue.borrow() {
@@ -1676,6 +1838,7 @@ impl VirtualMachine {
                 return true;
             }
             *upvalue.borrow_mut() = Upvalue::Closed(stack[index].clone());
+            closed(index, upvalue);
             false
         });
     }
@@ -2340,6 +2503,7 @@ impl VirtualMachine {
             Value::Range(_) => Some(TypeName::Builtin(RANGE_SYMBOL)),
             Value::PriorityQueue(_) => Some(TypeName::Builtin(PRIORITY_QUEUE_SYMBOL)),
             Value::Error(_) => Some(TypeName::Builtin(ERROR_SYMBOL)),
+            Value::Generator(_) => Some(TypeName::Builtin(GENERATOR_SYMBOL)),
             Value::Instance(inst) => Some(TypeName::Struct(Rc::clone(&inst.borrow().r#struct))),
             // The struct value itself (e.g. `Point` in `Point.origin()`)
             // dispatches static methods under the struct's own name.

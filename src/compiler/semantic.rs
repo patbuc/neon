@@ -1315,6 +1315,20 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_function_body(*id, params, body, *location, None, *implicit_it);
             }
+            Expr::Yield { value, location } => {
+                match self.function_frames.as_mut_slice() {
+                    [_, .., function] => function.is_generator = true,
+                    _ => self.push_error(CompilationError::new(
+                        CompilationPhase::Semantic,
+                        CompilationErrorKind::YieldOutsideFunction,
+                        "'yield' outside a function",
+                        *location,
+                    )),
+                }
+                if let Some(value) = value {
+                    self.resolve_expr(value);
+                }
+            }
             Expr::If {
                 condition,
                 then_branch,
@@ -2650,6 +2664,7 @@ impl SemanticAnalyzer {
             | Expr::ArrayLiteral { location, .. }
             | Expr::SetLiteral { location, .. }
             | Expr::Function { location, .. }
+            | Expr::Yield { location, .. }
             | Expr::If { location, .. }
             | Expr::Match { location, .. } => *location,
         }
@@ -3387,6 +3402,7 @@ fn expr_references_it(expr: &Expr) -> bool {
             ..
         } => expr_references_it(object) || expr_references_it(index) || expr_references_it(value),
         Expr::Range { start, end, .. } => expr_references_it(start) || expr_references_it(end),
+        Expr::Yield { value, .. } => value.as_deref().is_some_and(expr_references_it),
         Expr::Conditional {
             condition,
             then_expr,

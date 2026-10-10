@@ -1,0 +1,25 @@
+// Expected:
+// nil
+// nil
+// after print
+// nil
+// [nil, 1]
+// nil
+// nil
+// done
+
+fn g(c) {
+    print(yield)
+    print("after print")
+    val a = [yield, 1]
+    print(a)
+    val b = c ? yield : 0
+    print(b)
+    "done"
+}
+
+val gen = g(true)
+print(gen.next())
+print(gen.next())
+print(gen.next())
+print(gen.next())

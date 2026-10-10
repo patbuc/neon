@@ -1,7 +1,7 @@
 use crate::common::runtime_error::RuntimeError;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use std::cell::{OnceCell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, BinaryHeap};
 use std::fmt::{Display, Formatter};
@@ -437,6 +437,30 @@ pub enum Value {
     Range(Rc<ObjRange>),
     PriorityQueue(Rc<RefCell<ObjPriorityQueue>>),
     Error(Rc<ObjError>),
+    Generator(Rc<ObjGenerator>),
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum GeneratorState {
+    NotStarted,
+    Suspended,
+    Running,
+    Done,
+}
+
+/// A suspended call of a generator function. `segment` is the call's stack
+/// slots from its callee slot up, and `ip` the instruction to resume at.
+pub struct ObjGenerator {
+    pub closure: Rc<ObjClosure>,
+    pub state: Cell<GeneratorState>,
+    pub segment: RefCell<Vec<Value>>,
+    pub ip: Cell<usize>,
+    /// Upvalues captured over the frame's slots, each with its slot offset
+    /// from the frame base. They are closed while suspended.
+    pub upvalues: RefCell<Vec<(usize, Rc<RefCell<Upvalue>>)>>,
+    /// The `try` handlers open at the yield, innermost last, as the catch
+    /// target and the stack height from the frame base.
+    pub handlers: RefCell<Vec<(usize, usize)>>,
 }
 
 /// The payload of an `Error(message)` value. `thrown_at` is where the
@@ -563,6 +587,7 @@ pub struct ObjFunction {
     pub name: String,
     pub arity: u8,
     pub chunk: Rc<Chunk>,
+    pub is_generator: bool,
 }
 
 /// A function bundled with the values it closes over. This is the only
@@ -784,12 +809,18 @@ impl Value {
         }))
     }
 
-    pub(crate) fn new_function(name: String, arity: u8, mut chunk: Chunk) -> Self {
+    pub(crate) fn new_function(
+        name: String,
+        arity: u8,
+        is_generator: bool,
+        mut chunk: Chunk,
+    ) -> Self {
         chunk.decode();
         Value::Function(Rc::new(ObjFunction {
             name,
             arity,
             chunk: Rc::new(chunk),
+            is_generator,
         }))
     }
 
@@ -864,6 +895,7 @@ impl Value {
             Value::Range(_) => "range",
             Value::PriorityQueue(_) => "priority queue",
             Value::Error(_) => "error",
+            Value::Generator(_) => "generator",
         }
     }
 }
@@ -998,6 +1030,7 @@ impl Value {
             }
             Value::PriorityQueue(pq) => write!(f, "PriorityQueue(size={})", pq.borrow().len()),
             Value::Error(error) => write!(f, "Error: {}", error.message),
+            Value::Generator(_) => write!(f, "<generator>"),
         }
     }
 
@@ -1056,6 +1089,7 @@ impl Value {
             (Value::Range(a), Value::Range(b)) => a == b,
             (Value::PriorityQueue(a), Value::PriorityQueue(b)) => Rc::ptr_eq(a, b),
             (Value::Error(a), Value::Error(b)) => Rc::ptr_eq(a, b),
+            (Value::Generator(a), Value::Generator(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }

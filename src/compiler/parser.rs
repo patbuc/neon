@@ -1302,6 +1302,28 @@ impl Parser {
         })
     }
 
+    fn yield_expression(&mut self) -> Option<Expr> {
+        let location = self.current_location();
+        if self.check(TokenType::NewLine)
+            || self.check(TokenType::RightBrace)
+            || self.check(TokenType::RightParen)
+            || self.check(TokenType::RightBracket)
+            || self.check(TokenType::Comma)
+            || self.check(TokenType::Colon)
+            || self.check(TokenType::Eof)
+        {
+            return Some(Expr::Yield {
+                value: None,
+                location,
+            });
+        }
+        let value = self.expression(false)?;
+        Some(Expr::Yield {
+            value: Some(Box::new(value)),
+            location,
+        })
+    }
+
     fn break_statement(&mut self) -> Option<Stmt> {
         let location = self.current_location();
         self.consume_statement_end("Expecting '\\n' or '\\0' after 'break'.");
@@ -1399,6 +1421,7 @@ impl Parser {
             TokenType::Fn => self.lambda(),
             TokenType::If => self.if_expression(),
             TokenType::Match => self.match_expression(),
+            TokenType::Yield => self.yield_expression(),
             _ => {
                 self.report_error_at_previous(
                     CompilationErrorKind::ExpectedExpression,

@@ -198,6 +198,7 @@ pub(crate) enum Instr {
     IsNumber,
     BeginTry(u32),
     EndTry,
+    Yield,
     Throw,
     /// A byte that is no opcode; executing it is a runtime error. Decoding
     /// stops here, since the width of what follows is unknown.
@@ -316,6 +317,7 @@ impl Instr {
             Instr::IsNumber => "IsNumber",
             Instr::BeginTry(_) => "BeginTry",
             Instr::EndTry => "EndTry",
+            Instr::Yield => "Yield",
             Instr::Throw => "Throw",
             Instr::Invalid(_) => return None,
         })
@@ -704,6 +706,7 @@ impl Chunk {
                 OpCode::IsNumber => (Instr::IsNumber, 1),
                 OpCode::BeginTry => (Instr::BeginTry(0), 5),
                 OpCode::EndTry => (Instr::EndTry, 1),
+                OpCode::Yield => (Instr::Yield, 1),
                 OpCode::Throw => (Instr::Throw, 1),
             };
             if pos + width > bytes.len() {

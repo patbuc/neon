@@ -231,6 +231,11 @@ pub enum Expr {
         else_branch: Box<IfExprElse>,
         location: SourceLocation,
     },
+    /// `yield` or `yield value`; only valid inside a function body.
+    Yield {
+        value: Option<Box<Expr>>,
+        location: SourceLocation,
+    },
     /// `match scrutinee { pattern, pattern -> body ... }`.
     Match {
         scrutinee: Box<Expr>,

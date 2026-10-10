@@ -1,0 +1,13 @@
+// Expected:
+// nil
+// after
+// nil
+
+fn gen() {
+    yield
+    print("after")
+}
+
+val g = gen()
+print(g.next())
+print(g.next())

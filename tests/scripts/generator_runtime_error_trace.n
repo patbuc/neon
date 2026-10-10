@@ -1,0 +1,26 @@
+// Expected:
+// 10
+// [  at gen (line 10)]
+// [  at pull (line 14)]
+// [  at <script> (line 20)]
+
+fn gen() {
+    val a = [1]
+    yield 1
+    yield a[5]
+}
+
+fn pull(g) {
+    return g.next()
+}
+
+val g = gen()
+pull(g)
+try {
+    pull(g)
+} catch (e) {
+    print(e.line)
+    for line in e.trace().split("\n") {
+        print("[" + line + "]")
+    }
+}

@@ -38,6 +38,9 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
+    /// Generator.next(): has no native function; the VM resumes the generator
+    /// by pushing its saved frame.
+    ResumeGenerator,
 }
 
 impl NativeCallable {
@@ -47,6 +50,7 @@ impl NativeCallable {
             NativeCallable::InstanceMethod { arity, .. } => *arity,
             NativeCallable::InstanceMethodWithVm { arity, .. } => *arity,
             NativeCallable::ConstructorWithVm { arity, .. } => *arity,
+            NativeCallable::ResumeGenerator => 0,
         }
     }
 
@@ -54,7 +58,9 @@ impl NativeCallable {
         match self {
             NativeCallable::InstanceMethod { returns, .. } => returns.as_ref(),
             NativeCallable::InstanceMethodWithVm { returns, .. } => returns.as_ref(),
-            NativeCallable::StaticMethod { .. } | NativeCallable::ConstructorWithVm { .. } => None,
+            NativeCallable::StaticMethod { .. }
+            | NativeCallable::ConstructorWithVm { .. }
+            | NativeCallable::ResumeGenerator => None,
         }
     }
 }
@@ -475,6 +481,17 @@ pub(crate) const NATIVE_METHODS: &[(&str, &str, NativeCallable)] = &[
         NativeCallable::ConstructorWithVm {
             function: stdlib::array_functions::native_array_constructor,
             arity: 2,
+        },
+    ),
+    // Generator instance methods
+    ("Generator", "next", NativeCallable::ResumeGenerator),
+    (
+        "Generator",
+        "isDone",
+        NativeCallable::InstanceMethod {
+            function: stdlib::generator_functions::native_generator_is_done,
+            arity: 0,
+            returns: Some(StaticType::Boolean),
         },
     ),
     // Range instance methods
@@ -1597,7 +1614,7 @@ pub fn get_methods_for_type(type_name: &str) -> Vec<&'static str> {
 /// builtin values. A struct may not be declared under one of these names -
 /// the semantic pass infers types by name alone, so a user instance and a
 /// builtin value would otherwise be indistinguishable.
-pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
+pub const BUILTIN_TYPE_NAMES: [&str; 11] = [
     "Array",
     "String",
     "Map",
@@ -1608,6 +1625,7 @@ pub const BUILTIN_TYPE_NAMES: [&str; 10] = [
     "Range",
     "PriorityQueue",
     "Error",
+    "Generator",
 ];
 
 /// The paths of the builtin `std/` modules, sorted.

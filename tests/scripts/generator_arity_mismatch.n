@@ -1,0 +1,16 @@
+// Expected:
+// before
+
+// Expected runtime error: Expected 2 arguments but got 1 for 'gen'.
+
+fn gen(a, b) {
+    print("body")
+    yield a + b
+}
+
+fn apply(f) {
+    return f(1)
+}
+
+print("before")
+apply(gen)

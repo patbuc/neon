@@ -1,0 +1,21 @@
+// Expected:
+// 1
+// boom
+// true
+
+// Expected runtime error: Generator is finished.
+
+fn gen() {
+    yield 1
+    throw Error("boom")
+}
+
+val g = gen()
+print(g.next())
+try {
+    g.next()
+} catch (e) {
+    print(e.message)
+}
+print(g.isDone())
+g.next()

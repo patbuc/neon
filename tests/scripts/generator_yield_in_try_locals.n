@@ -1,0 +1,37 @@
+// Expected:
+// before try
+// in try 10
+// caught: oops 10
+// after 10 20 30
+// 2
+
+fn gen() {
+    val a = 10
+    var b = 0
+    try {
+        val t = a
+        print("in try " + t.toString())
+        yield 1
+        throw Error("oops")
+    } catch (e) {
+        b = 20
+        print("caught: " + e.message + " " + a.toString())
+        yield b
+    }
+    val c = 30
+    print("after " + a.toString() + " " + b.toString() + " " + c.toString())
+    yield 2
+}
+
+fn resume(g) {
+    val p = 1
+    val q = 2
+    val r = 3
+    g.next()
+    g.next()
+}
+
+print("before try")
+val g = gen()
+g.next()
+print(resume(g))

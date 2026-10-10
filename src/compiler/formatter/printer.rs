@@ -717,6 +717,9 @@ impl<'a> Printer<'a> {
                 self.has_top_level_trailing_block(left) || self.has_top_level_trailing_block(right)
             }
             Expr::Unary { operand, .. } => self.has_top_level_trailing_block(operand),
+            Expr::Yield { value, .. } => value
+                .as_ref()
+                .is_some_and(|value| self.has_top_level_trailing_block(value)),
             Expr::Range { start, end, .. } => {
                 self.has_top_level_trailing_block(start) || self.has_top_level_trailing_block(end)
             }
@@ -796,6 +799,13 @@ impl<'a> Printer<'a> {
                 self.write_space_or_continuation(location.line, self.map.first_line(right));
                 self.print_expr(right);
             }
+            Expr::Yield { value, .. } => match value {
+                Some(value) => {
+                    self.write("yield ");
+                    self.print_expr(value);
+                }
+                None => self.write("yield"),
+            },
             Expr::Unary {
                 operator, operand, ..
             } => {

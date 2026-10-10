@@ -1,0 +1,13 @@
+// Expected:
+// 0
+// 1
+
+fn count(n) {
+    for i in 0..n {
+        yield i
+    }
+}
+
+val g = count(2)
+print(g.next())
+print(g.next())

@@ -1,0 +1,2 @@
+// Expected compile error: 2:1 E0060 'yield' outside a function
+yield 1

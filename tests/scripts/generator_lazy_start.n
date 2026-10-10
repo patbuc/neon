@@ -1,0 +1,13 @@
+// Expected:
+// created
+// body
+// 1
+
+fn gen() {
+    print("body")
+    yield 1
+}
+
+val g = gen()
+print("created")
+print(g.next())
