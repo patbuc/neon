@@ -1,0 +1,22 @@
+// Expected:
+// 1 a
+// 1 b
+// 2 a
+// 2 b
+
+fn numbers() {
+    yield 1
+    yield 2
+}
+
+fn letters() {
+    yield "a"
+    yield "b"
+}
+
+val outer = numbers()
+for n in outer {
+    for c in letters() {
+        print("${n} ${c}")
+    }
+}
