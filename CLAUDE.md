@@ -290,8 +290,9 @@ enforces these edges in `cargo test`.
 - Generator is an `Rc<ObjGenerator>`: a function whose own body has `yield` (`Function.is_generator`) returns one
   from the call instead of running. `next()` (`src/vm/functions.rs`) resumes it by pushing its saved frame onto the
   frame stack, with no Rust recursion; the `Yield` opcode saves the frame, its stack slice, open upvalues and `try`
-  handlers back into the generator and returns the value to the `next()` caller. States are Suspended, Running,
-  Done; `next()` on the last two is a runtime error
+  handlers back into the generator and returns the value to the `next()` caller. States are NotStarted, Suspended,
+  Running, Done; `next()` on the last two is a runtime error. The VM tracks the generators it is running, with their
+  frame depth, in its `running_generators` stack, not on `CallFrame`
 
 **Standard Library** (`src/common/stdlib/`)
 

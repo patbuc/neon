@@ -495,9 +495,11 @@ impl VirtualMachine {
             | NativeCallable::InstanceMethod { function, .. } => {
                 function(&self.stack[args_start..args_end]).map_err(NativeCallError::Message)
             }
-            NativeCallable::ResumeGenerator => Err(NativeCallError::Message(
-                "Generator.next() is resumed by the VM.".to_string(),
-            )),
+            NativeCallable::ResumeGenerator => {
+                unreachable!(
+                    "Generator.next() is resumed by dispatch_native_method_or_field, not run"
+                )
+            }
         }
     }
 

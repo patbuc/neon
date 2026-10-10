@@ -38,8 +38,8 @@ pub(crate) enum NativeCallable {
         #[allow(dead_code)]
         arity: u8,
     },
-    /// Generator.next(): the VM pushes the generator's frame itself, which a
-    /// native function cannot do.
+    /// Generator.next(): has no native function; the VM resumes the generator
+    /// by pushing its saved frame.
     ResumeGenerator,
 }
 
