@@ -1,0 +1,6 @@
+val base = 7
+
+pub struct S {
+    var a = base
+    val b
+}
