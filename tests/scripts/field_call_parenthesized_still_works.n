@@ -4,7 +4,7 @@
 // 3
 
 struct S {
-    f
+    val f
 }
 
 val s = S { it + 1 }

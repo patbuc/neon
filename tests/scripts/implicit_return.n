@@ -19,7 +19,7 @@ val f = fn(x) {
 print(f(1))
 
 struct P {
-    x
+    val x
 }
 
 impl P {

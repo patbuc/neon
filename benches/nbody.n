@@ -4,13 +4,13 @@
 use "std/math"
 
 struct Body {
-    x
-    y
-    z
-    vx
-    vy
-    vz
-    mass
+    var x
+    var y
+    var z
+    var vx
+    var vy
+    var vz
+    val mass
 }
 
 val PI = 3.141592653589793

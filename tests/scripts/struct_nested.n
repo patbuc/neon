@@ -10,13 +10,13 @@
 
 // Define structs
 struct Point {
-    x
-    y
+    var x
+    var y
 }
 
 struct Line {
-    start
-    end
+    val start
+    val end
 }
 
 // Create nested instances

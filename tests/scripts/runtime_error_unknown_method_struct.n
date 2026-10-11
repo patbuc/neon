@@ -6,7 +6,7 @@
 // Expected runtime error: Unknown method 'foo' for type P
 
 struct P {
-    x
+    val x
 }
 
 fn callFoo(p) {

@@ -10,7 +10,7 @@
 use "std/math"
 
 struct Fake {
-    tag
+    val tag
 }
 
 impl Fake {

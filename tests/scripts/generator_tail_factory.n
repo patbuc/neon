@@ -14,7 +14,7 @@ fn count(n) {
 }
 
 struct Source {
-    base
+    val base
 }
 
 impl Source {

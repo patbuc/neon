@@ -14,7 +14,7 @@ fn counter() {
 }
 
 struct S {
-    f
+    val f
 }
 
 val s = S(counter())

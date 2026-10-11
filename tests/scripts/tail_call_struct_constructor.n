@@ -3,8 +3,8 @@
 // 2
 
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 fn make(x, y) {

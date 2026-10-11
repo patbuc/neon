@@ -8,13 +8,13 @@
 // 40
 
 struct Person {
-    name
-    age
+    var name
+    val age
 }
 
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 val p = Person("Alice", 30)

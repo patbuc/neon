@@ -2,8 +2,8 @@
 // 25774
 
 struct TreeNode {
-    left
-    right
+    val left
+    val right
 }
 
 fn make_tree(depth) {

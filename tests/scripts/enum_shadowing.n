@@ -6,7 +6,7 @@ enum Color {
 }
 
 struct Box {
-    Red
+    var Red
 }
 
 fn f() {

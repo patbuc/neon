@@ -2,7 +2,7 @@
 // 42
 
 struct Box {
-    label
+    val label
 }
 
 impl Box {

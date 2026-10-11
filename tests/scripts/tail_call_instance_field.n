@@ -2,7 +2,7 @@
 // done
 
 struct Loop {
-    step
+    var step
 }
 
 val l = Loop(nil)

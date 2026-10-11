@@ -3,7 +3,7 @@
 // 6
 
 struct Counter {
-    n
+    val n
 }
 
 impl Counter {

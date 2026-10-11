@@ -16,7 +16,7 @@ use "std/file"
 use "std/math"
 
 struct P {
-    x
+    val x
 }
 
 fn getY(p) {

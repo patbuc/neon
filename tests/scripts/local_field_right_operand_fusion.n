@@ -17,8 +17,8 @@
 // 7.25
 
 struct Body {
-    mass
-    count
+    val mass
+    val count
 }
 
 fn compute(a, p) {

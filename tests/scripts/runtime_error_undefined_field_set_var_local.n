@@ -4,7 +4,7 @@
 // Expected runtime error: Undefined field 'y'.
 
 struct P {
-    x
+    val x
 }
 
 fn setY(q) {

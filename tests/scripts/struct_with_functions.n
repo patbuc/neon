@@ -7,8 +7,8 @@
 
 // Define a struct
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 // Function that calculates distance squared from origin
