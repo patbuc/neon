@@ -2512,7 +2512,7 @@ impl SemanticAnalyzer {
         self.resolve_expr(value);
         if let Some(object_type) = self.infer_expr_type(object) {
             self.validate_struct_field(object_type.name(), field, location);
-            if self.is_val_field(object_type.name(), field) {
+            if self.receiver_is_fixed(object) && self.is_val_field(object_type.name(), field) {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::ImmutableAssignment,
@@ -3043,6 +3043,19 @@ impl SemanticAnalyzer {
             Some(members) => Some(members),
             None if self.is_struct_type(type_name) => Some(self.local_struct_members(type_name)),
             None => None,
+        }
+    }
+
+    /// True when the receiver can't be rebound, so its inferred type holds
+    /// on every path: a `val`, `self`, or a constructor call.
+    fn receiver_is_fixed(&self, object: &Expr) -> bool {
+        match object {
+            Expr::Variable { name, .. } => self
+                .symbol_table
+                .resolve(name)
+                .is_some_and(|symbol| !symbol.is_mutable),
+            Expr::Call { .. } => true,
+            _ => false,
         }
     }
 
