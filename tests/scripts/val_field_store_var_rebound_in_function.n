@@ -1,0 +1,29 @@
+// Expected:
+// 5
+// 6
+
+struct Point {
+    val x
+}
+
+struct Other {
+    var x
+}
+
+fn f() {
+    var p = Point(1)
+    var i = 0
+    while i < 2 {
+        if i == 1 {
+            p.x = 5
+            print(p.x)
+            val q = p
+            q.x = 6
+            print(q.x)
+        }
+        p = Other(2)
+        i += 1
+    }
+}
+
+f()
