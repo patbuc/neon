@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791692331555,
+  "lastUpdate": 1791692789556,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -26314,6 +26314,330 @@ window.BENCHMARK_DATA = {
           {
             "name": "bounce neon/python",
             "value": 1.4200574958980732,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a5d89187ece99e02ac0e089cc1ef7ebc4ca91e5",
+          "message": "Merge pull request #575 from patbuc/worktree-539-port-awfy-list\n\n539: Port the AWFY List benchmark",
+          "timestamp": "2026-10-11T06:24:22+02:00",
+          "tree_id": "8ece25511f5ca39f1c7639a4759a93930fc0cff2",
+          "url": "https://github.com/patbuc/neon/commit/4a5d89187ece99e02ac0e089cc1ef7ebc4ca91e5"
+        },
+        "date": 1791692788976,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 230.58980319999876,
+            "range": "± 1.683",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 186.53599820000295,
+            "range": "± 1.845",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.2361678465556099,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 157.35230880000302,
+            "range": "± 1.573",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 546.6072846000003,
+            "range": "± 9.507",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.2878708594510431,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 188.85241719999613,
+            "range": "± 1.351",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 312.1697057999995,
+            "range": "± 8.674",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.6049671498905466,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 105.3629873999995,
+            "range": "± 5.905",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 190.22999080000318,
+            "range": "± 3.737",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.5538715896315847,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 98.41586619999987,
+            "range": "± 1.027",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 111.02248240000279,
+            "range": "± 0.704",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 0.8864498799929319,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 344.1921645999997,
+            "range": "± 1.257",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 438.6163639999978,
+            "range": "± 6.263",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.7847225795707008,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 277.0580985999999,
+            "range": "± 1.026",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 425.1221787999981,
+            "range": "± 2.742",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.6517140540210299,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 200.3888097999976,
+            "range": "± 4.41",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 230.35277580000013,
+            "range": "± 3.604",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.8699214025273209,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 186.42887160000328,
+            "range": "± 3.925",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 243.472273200004,
+            "range": "± 12.264",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.7657088388329888,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "towers neon (ms)",
+            "value": 671.3307345999993,
+            "range": "± 74.26",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "towers python (ms)",
+            "value": 250.4146321999997,
+            "range": "± 2.798",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "towers neon/python",
+            "value": 2.6808766273043694,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "queens neon (ms)",
+            "value": 577.8884860000034,
+            "range": "± 2.955",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "queens python (ms)",
+            "value": 251.44634600000018,
+            "range": "± 2.088",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "queens neon/python",
+            "value": 2.2982576410158013,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "permute neon (ms)",
+            "value": 593.3047064000021,
+            "range": "± 41.581",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "permute python (ms)",
+            "value": 297.7966257999924,
+            "range": "± 4.479",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "permute neon/python",
+            "value": 1.9923150734369983,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "storage neon (ms)",
+            "value": 554.2445061999842,
+            "range": "± 6.001",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "storage python (ms)",
+            "value": 529.4761831999892,
+            "range": "± 3.244",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "storage neon/python",
+            "value": 1.0467789180814573,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "bounce neon (ms)",
+            "value": 590.4321326000002,
+            "range": "± 1.704",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "bounce python (ms)",
+            "value": 418.54916119999643,
+            "range": "± 3.669",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "bounce neon/python",
+            "value": 1.410663757889775,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "list neon (ms)",
+            "value": 684.9480323999956,
+            "range": "± 4.188",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "list python (ms)",
+            "value": 236.82787140000414,
+            "range": "± 0.763",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          },
+          {
+            "name": "list neon/python",
+            "value": 2.8921766190395424,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 7763 64-Core Processor"
           }
