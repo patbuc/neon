@@ -1,5 +1,7 @@
 // Expected:
 // true
+// 1
+// 2
 
 struct Point {
     val x
@@ -7,3 +9,6 @@ struct Point {
 }
 
 print(Point(x: 1, y: 2) == Point(1, 2))
+val p = Point(y: 2, x: 1)
+print(p.x)
+print(p.y)

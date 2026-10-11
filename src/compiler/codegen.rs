@@ -1630,7 +1630,7 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         let Some(index) = self.resolutions.native(id) else {
-            self.generate_regular_call_expr(callee, arguments, call_op, location);
+            self.generate_regular_call_expr(id, callee, arguments, call_op, location);
             return;
         };
         self.generate_native_call_expr(index, arguments, call_op, location);
@@ -1638,6 +1638,7 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_regular_call_expr(
         &mut self,
+        id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
         call_op: OpCode,
@@ -1646,8 +1647,19 @@ impl<'a> CodeGenerator<'a> {
         // Unified calling convention: [callable, args...]
         self.generate_expr(callee);
 
-        for arg in arguments {
-            self.generate_expr(arg);
+        match self.resolutions.struct_argument_fields(id) {
+            Some(fields) => {
+                let mut by_field: Vec<_> = arguments.iter().zip(fields).collect();
+                by_field.sort_by_key(|(_, field)| **field);
+                for (arg, _) in by_field {
+                    self.generate_expr(arg);
+                }
+            }
+            None => {
+                for arg in arguments {
+                    self.generate_expr(arg);
+                }
+            }
         }
 
         self.emit_call(call_op, arguments.len() as u8, location);

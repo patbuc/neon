@@ -1243,11 +1243,11 @@ impl SemanticAnalyzer {
             Expr::Call {
                 callee,
                 arguments,
+                named,
                 id,
                 location,
-                ..
             } => {
-                self.resolve_call_expr(*id, callee, arguments, *location);
+                self.resolve_call_expr(*id, callee, arguments, named, *location);
             }
             Expr::GetField {
                 object,
@@ -1959,6 +1959,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        named: &[String],
         location: SourceLocation,
     ) {
         // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
@@ -1971,7 +1972,7 @@ impl SemanticAnalyzer {
         {
             self.resolve_method_call(id, object, field, *optional, arguments, location);
         } else {
-            self.resolve_function_call(id, callee, arguments, location);
+            self.resolve_function_call(id, callee, arguments, named, location);
         }
     }
 
@@ -2239,6 +2240,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        named: &[String],
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
@@ -2276,11 +2278,41 @@ impl SemanticAnalyzer {
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
             self.validate_function_call(name, arguments, location);
+            if !named.is_empty() {
+                self.record_named_struct_arguments(id, name, arguments.len(), named);
+            }
         }
 
         // Resolve all arguments
         for arg in arguments {
             self.resolve_expr(arg);
+        }
+    }
+
+    fn record_named_struct_arguments(
+        &mut self,
+        id: NodeId,
+        struct_name: &str,
+        argument_count: usize,
+        named: &[String],
+    ) {
+        let Some(SymbolKind::Struct { fields, .. }) =
+            self.symbol_table.resolve(struct_name).map(|s| &s.kind)
+        else {
+            return;
+        };
+        let first_named = argument_count - named.len();
+        let positions: Option<Vec<usize>> = (0..first_named)
+            .map(Some)
+            .chain(
+                named
+                    .iter()
+                    .map(|name| fields.iter().position(|f| f == name)),
+            )
+            .collect();
+        if let Some(positions) = positions {
+            self.resolutions
+                .record_struct_argument_fields(id, positions);
         }
     }
 
