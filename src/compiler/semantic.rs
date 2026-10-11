@@ -2277,9 +2277,10 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            self.validate_function_call(name, arguments, location);
-            if !named.is_empty() {
-                self.record_named_struct_arguments(id, name, arguments.len(), named);
+            let unknown_field = !named.is_empty()
+                && self.record_named_struct_arguments(id, name, arguments.len(), named);
+            if !unknown_field {
+                self.validate_function_call(name, arguments, location);
             }
         }
 
@@ -2295,19 +2296,29 @@ impl SemanticAnalyzer {
         struct_name: &str,
         argument_count: usize,
         named: &[NamedArgument],
-    ) {
+    ) -> bool {
         let Some(SymbolKind::Struct { fields, .. }) = self
             .symbol_table
             .resolve(struct_name)
             .map(|s| s.kind.clone())
         else {
-            return;
+            return false;
         };
         let first_named = argument_count - named.len();
         let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
         let mut duplicate = false;
+        let mut unknown = false;
         for (name, location) in named {
             let position = fields.iter().position(|f| f == name);
+            if position.is_none() {
+                unknown = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownField,
+                    format!("'{}' has no field '{}'", struct_name, name),
+                    *location,
+                ));
+            }
             if position.is_some() && positions.contains(&position) {
                 duplicate = true;
                 self.push_error(CompilationError::new(
@@ -2328,6 +2339,7 @@ impl SemanticAnalyzer {
             self.resolutions
                 .record_struct_argument_fields(id, positions);
         }
+        unknown
     }
 
     fn resolve_get_field(
