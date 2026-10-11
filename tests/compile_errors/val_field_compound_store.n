@@ -1,0 +1,9 @@
+// Expected compile error: 9:2 E0015 Cannot modify immutable field 'Point.x'
+struct Point {
+    val x
+    var y
+}
+
+var p = Point(1, 2)
+p.y += 1
+p.x += 1

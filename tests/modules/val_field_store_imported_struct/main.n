@@ -1,0 +1,7 @@
+// Expected compile error: 7:2 E0015 Cannot modify immutable field 'Point.x'
+
+use "utils"
+
+val p = utils.Point(1, 2)
+p.y = 3
+p.x = 3

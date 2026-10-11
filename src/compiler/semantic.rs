@@ -9,8 +9,8 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
-    MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
+    MatchArmBody, MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -333,6 +333,7 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
+                            val_fields: val_field_names(fields),
                         },
                         false,
                         *location,
@@ -516,7 +517,7 @@ impl SemanticAnalyzer {
             match self.symbol_table.resolve(type_name) {
                 Some(
                     symbol @ Symbol {
-                        kind: SymbolKind::Struct { fields },
+                        kind: SymbolKind::Struct { fields, .. },
                         decl_id,
                         ..
                     },
@@ -1049,6 +1050,7 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
+                            val_fields: val_field_names(fields),
                         },
                         false,
                         *location,
@@ -2505,6 +2507,21 @@ impl SemanticAnalyzer {
         self.resolve_expr(value);
         if let Some(object_type) = self.infer_expr_type(object) {
             self.validate_struct_field(object_type.name(), field, location);
+            if self.is_val_field(object_type.name(), field) {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::ImmutableAssignment,
+                    format!(
+                        "Cannot modify immutable field '{}.{}'",
+                        object_type
+                            .name()
+                            .rsplit_once('.')
+                            .map_or(object_type.name(), |(_, bare)| bare),
+                        field
+                    ),
+                    location,
+                ));
+            }
         }
     }
 
@@ -3009,10 +3026,28 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn is_val_field(&self, struct_name: &str, field: &str) -> bool {
+        let val_fields = if let Some((module, name)) = struct_name.split_once('.') {
+            match self.module_export(module, name) {
+                Some(Export::Struct { val_fields, .. }) => val_fields,
+                _ => return false,
+            }
+        } else {
+            match self.symbol_table.resolve(struct_name) {
+                Some(Symbol {
+                    kind: SymbolKind::Struct { val_fields, .. },
+                    ..
+                }) => val_fields,
+                _ => return false,
+            }
+        };
+        val_fields.iter().any(|f| f == field)
+    }
+
     fn struct_fields(&self, struct_name: &str) -> &[String] {
         match self.symbol_table.resolve(struct_name) {
             Some(Symbol {
-                kind: SymbolKind::Struct { fields },
+                kind: SymbolKind::Struct { fields, .. },
                 ..
             }) => fields,
             _ => &[],
@@ -3059,7 +3094,7 @@ impl SemanticAnalyzer {
                         location,
                     );
                 }
-                SymbolKind::Struct { fields } => {
+                SymbolKind::Struct { fields, .. } => {
                     let arity = fields.len() as u8;
                     self.validate_arity(
                         "Function",

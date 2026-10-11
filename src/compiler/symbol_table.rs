@@ -14,7 +14,10 @@ pub enum SymbolKind {
     /// Function with arity
     Function { arity: u8 },
     /// Struct with field names
-    Struct { fields: Vec<String> },
+    Struct {
+        fields: Vec<String>,
+        val_fields: Vec<String>,
+    },
     /// Enum with its variants, in declaration order
     Enum { variants: Vec<EnumVariant> },
     /// Function parameter
