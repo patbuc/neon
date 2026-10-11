@@ -3069,7 +3069,22 @@ impl SemanticAnalyzer {
                 .symbol_table
                 .resolve(name)
                 .is_some_and(|symbol| self.fixed_decls.contains(&symbol.decl_id)),
-            Expr::Call { .. } => true,
+            Expr::Call { callee, .. } => match callee.as_ref() {
+                Expr::Variable { name, .. } => matches!(
+                    self.symbol_table.resolve(name),
+                    Some(Symbol {
+                        kind: SymbolKind::Struct { .. },
+                        ..
+                    })
+                ),
+                Expr::GetField { object, field, .. } => match object.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        matches!(self.module_export(name, field), Some(Export::Struct { .. }))
+                    }
+                    _ => false,
+                },
+                _ => false,
+            },
             _ => false,
         }
     }
