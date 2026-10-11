@@ -2290,6 +2290,10 @@ impl SemanticAnalyzer {
             }
         }
 
+        if !matches!(callee, Expr::Variable { .. }) && !named.is_empty() {
+            self.report_named_argument_not_struct(named);
+        }
+
         // Resolve all arguments
         for arg in arguments {
             self.resolve_expr(arg);
