@@ -1644,25 +1644,53 @@ impl<'a> CodeGenerator<'a> {
         call_op: OpCode,
         location: SourceLocation,
     ) {
-        // Unified calling convention: [callable, args...]
-        self.generate_expr(callee);
-
-        match self.resolutions.struct_argument_fields(id) {
-            Some(fields) => {
-                let mut by_field: Vec<_> = arguments.iter().zip(fields).collect();
-                by_field.sort_by_key(|(_, field)| **field);
-                for (arg, _) in by_field {
-                    self.generate_expr(arg);
-                }
-            }
-            None => {
-                for arg in arguments {
-                    self.generate_expr(arg);
-                }
+        if let Some(fields) = self.resolutions.struct_argument_fields(id) {
+            if fields.windows(2).any(|pair| pair[0] > pair[1]) {
+                self.generate_reordered_struct_call(callee, arguments, fields, location);
+                return;
             }
         }
 
+        // Unified calling convention: [callable, args...]
+        self.generate_expr(callee);
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
         self.emit_call(call_op, arguments.len() as u8, location);
+    }
+
+    /// Named struct construction with arguments out of field order. The
+    /// arguments are evaluated in source order into hidden stack slots, then
+    /// pushed in field order after the callee. The result replaces the first
+    /// hidden slot and the rest are popped. Always a plain call: the hidden
+    /// slots still need popping afterwards.
+    fn generate_reordered_struct_call(
+        &mut self,
+        callee: &Expr,
+        arguments: &[Expr],
+        fields: &[usize],
+        location: SourceLocation,
+    ) {
+        let first_slot = self.current().stack_height;
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+        self.generate_expr(callee);
+        let mut by_field: Vec<_> = fields.iter().enumerate().collect();
+        by_field.sort_by_key(|(_, field)| **field);
+        for (position, _) in by_field {
+            self.emit_index_op(
+                OpCode::GetLocal,
+                first_slot + position as u32,
+                "locals",
+                location,
+            );
+        }
+        self.emit_call(OpCode::Call, arguments.len() as u8, location);
+        self.emit_index_op(OpCode::SetLocal, first_slot, "locals", location);
+        for _ in 0..arguments.len() {
+            self.emit_op_code(OpCode::Pop, location);
+        }
     }
 
     /// Emits a call dispatched by registry index, known at compile time: a
