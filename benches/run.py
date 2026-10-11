@@ -27,6 +27,7 @@ BENCHMARKS = {
     "sieve": 1000000,
     "collections": 160000,
     "strings": 140000,
+    "towers": 100,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
