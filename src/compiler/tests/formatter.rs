@@ -354,6 +354,14 @@ fn test_struct_field_keyword_preserved() {
 }
 
 #[test]
+fn test_struct_field_default_preserved() {
+    check(
+        "struct Config {\n    val host\n    var retries = 3\n}\n",
+        "struct Config {\n    val host\n    var retries = 3\n}\n",
+    );
+}
+
+#[test]
 fn test_empty_struct() {
     check("struct E {}\n", "struct E {}\n");
 }

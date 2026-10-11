@@ -1,0 +1,6 @@
+// Expected compile error: 6:7 E0036 Function 'Config' expects 1 to 2 arguments but got 3
+struct Config {
+    val host
+    var retries = 3
+}
+Config("h", 5, 6)
