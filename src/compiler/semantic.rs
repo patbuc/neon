@@ -3465,7 +3465,7 @@ impl SemanticAnalyzer {
         if actual >= minimum && actual <= fields.len() {
             return;
         }
-        if minimum == fields.len() {
+        if default_fields.is_empty() {
             self.validate_arity("Function", name, fields.len() as u8, actual, location);
             return;
         }
@@ -3480,17 +3480,12 @@ impl SemanticAnalyzer {
                     format!("Missing field '{}' for '{}'", field, name),
                     location,
                 ));
-                return;
             }
+            return;
         }
-        let kind = if actual < minimum {
-            CompilationErrorKind::TooFewArguments
-        } else {
-            CompilationErrorKind::TooManyArguments
-        };
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
-            kind,
+            CompilationErrorKind::TooManyArguments,
             format!(
                 "Function '{}' expects {} to {} arguments but got {}",
                 name,
