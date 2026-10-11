@@ -2400,7 +2400,7 @@ impl SemanticAnalyzer {
             self.resolutions
                 .record_struct_argument_fields(id, positions);
         }
-        unknown || missing
+        unknown || missing || duplicate
     }
 
     fn resolve_get_field(
