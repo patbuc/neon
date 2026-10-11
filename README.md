@@ -826,6 +826,12 @@ compile error (`Cannot modify immutable field 'Point.x'`) when the receiver is a
 constructor call, `self` in a method, or a `val` bound from a constructor call
 (directly or through other `val`s), and a runtime error otherwise.
 
+`Point(..base, y: 5)` builds a new `Point` from `base`, taking every field from
+it except the named ones. `..base` must come first and only named arguments may
+follow it. The copy is shallow (fields holding arrays or instances stay shared
+with `base`), and it can replace `val` fields. A `base` that isn't an instance
+of the same struct is a runtime error (`'..' expects a Point but got String.`).
+
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 `Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).
 
