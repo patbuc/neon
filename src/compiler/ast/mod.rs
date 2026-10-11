@@ -13,6 +13,39 @@ pub struct StructField {
     pub name: String,
     pub mutable: bool,
     pub location: SourceLocation,
+    /// The `= expr` after the field name. It runs as the body of a
+    /// zero-parameter function recorded under `default_id`.
+    pub default: Option<Expr>,
+    pub default_id: NodeId,
+}
+
+impl StructField {
+    /// The default as the body of its synthetic function.
+    pub fn default_body(&self) -> Option<Vec<Stmt>> {
+        self.default.as_ref().map(|expr| {
+            vec![Stmt::Expression {
+                expr: expr.clone(),
+                location: self.location,
+            }]
+        })
+    }
+}
+
+pub fn default_field_names(fields: &[StructField]) -> Vec<String> {
+    fields
+        .iter()
+        .filter(|f| f.default.is_some())
+        .map(|f| f.name.clone())
+        .collect()
+}
+
+/// The fewest positional arguments a struct call accepts: one past the last
+/// field without a default.
+pub fn positional_minimum(fields: &[String], default_fields: &[String]) -> usize {
+    fields
+        .iter()
+        .rposition(|f| !default_fields.contains(f))
+        .map_or(0, |i| i + 1)
 }
 
 pub fn val_field_names(fields: &[StructField]) -> Vec<String> {

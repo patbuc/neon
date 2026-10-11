@@ -6,7 +6,7 @@ use crate::common::method_registry::BUILTIN_TYPE_NAMES;
 /// Code generator for the multi-pass compiler
 /// Generates bytecode from AST using the semantic pass's resolutions
 use crate::common::opcodes::OpCode;
-use crate::common::{Chunk, SourceLocation, Value};
+use crate::common::{Chunk, ObjClosure, SourceLocation, Value};
 use crate::compiler::ast::{
     BinaryOp, Binding, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId, PathStep,
     Pattern, Stmt, UnaryOp,
@@ -196,6 +196,7 @@ impl<'a> CodeGenerator<'a> {
         // order, so every slot is known before any body is compiled. A
         // val/var slot starts out holding the uninitialized sentinel, which
         // GetGlobal/SetGlobal reject until its statement runs.
+        let mut structs = Vec::new();
         for stmt in statements {
             match stmt.unexported() {
                 Stmt::Fn { id, location, .. } => {
@@ -225,6 +226,9 @@ impl<'a> CodeGenerator<'a> {
                         immutable,
                         name_symbol,
                     );
+                    if let Value::Struct(r#struct) = &struct_value {
+                        structs.push((Rc::clone(r#struct), fields));
+                    }
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);
@@ -257,6 +261,22 @@ impl<'a> CodeGenerator<'a> {
                 let slot = self.decl_slot(self.resolutions.decl(*id));
                 self.emit_index_op(OpCode::SetLocal, slot, "locals", *location);
                 self.emit_op_code(OpCode::Pop, *location);
+            }
+        }
+
+        // Field defaults only see module globals, so they are closures with
+        // no upvalues, attached to their struct at compile time.
+        for (r#struct, fields) in structs {
+            for (index, field) in fields.iter().enumerate() {
+                let Some(body) = field.default_body() else {
+                    continue;
+                };
+                let name = format!("{}.{}", r#struct.name, field.name);
+                if let Value::Function(function) =
+                    self.compile_function(field.default_id, &name, &body)
+                {
+                    r#struct.set_default(index, ObjClosure::new(function));
+                }
             }
         }
 
@@ -771,7 +791,6 @@ impl<'a> CodeGenerator<'a> {
     /// stack. Shared by named function declarations, which then store it
     /// into the variable defined for the name, and lambda expressions,
     /// which leave it as their expression value.
-    #[allow(clippy::expect_used)]
     fn generate_closure(
         &mut self,
         id: NodeId,
@@ -779,6 +798,18 @@ impl<'a> CodeGenerator<'a> {
         body: &[Stmt],
         location: SourceLocation,
     ) {
+        let function_value = self.compile_function(id, name, body);
+
+        // Wrap the function in a closure.
+        let const_index = self.current_chunk().add_constant(function_value);
+        self.emit_index_op(OpCode::Closure, const_index, "constants", location);
+
+        let resolutions = self.resolutions;
+        self.emit_upvalue_metadata(&resolutions.function(id).upvalues, location);
+    }
+
+    #[allow(clippy::expect_used)]
+    fn compile_function(&mut self, id: NodeId, name: &str, body: &[Stmt]) -> Value {
         self.functions.push(FunctionCompiler::new(
             &format!("function_{}", name),
             self.symbols.clone(),
@@ -825,18 +856,12 @@ impl<'a> CodeGenerator<'a> {
             .pop()
             .expect("this function pushed a function compiler above");
         let arity = resolutions.function(id).params.len();
-        let function_value = Value::new_function(
+        Value::new_function(
             name.to_string(),
             arity as u8,
             resolutions.function(id).is_generator,
             compiler.chunk,
-        );
-
-        // Wrap the function in a closure.
-        let const_index = self.current_chunk().add_constant(function_value);
-        self.emit_index_op(OpCode::Closure, const_index, "constants", location);
-
-        self.emit_upvalue_metadata(&resolutions.function(id).upvalues, location);
+        )
     }
 
     /// Stores the value on top of the stack into `id`'s target without

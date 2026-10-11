@@ -611,11 +611,11 @@ impl VirtualMachine {
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: Rc<ObjStruct>) -> OpResult {
-        if arg_count != r#struct.fields.len() {
+        let field_count = r#struct.fields.len();
+        if arg_count < r#struct.positional_minimum() || arg_count > field_count {
             return Err(self.call_error(format!(
                 "Expected {} fields but got {}.",
-                r#struct.fields.len(),
-                arg_count
+                field_count, arg_count
             )));
         }
 
@@ -623,7 +623,17 @@ impl VirtualMachine {
 
         // Unified calling convention: [struct_obj, args...]
         let stack_slice = &self.stack[stack_len - arg_count..stack_len];
-        let fields = stack_slice.to_vec();
+        let mut fields = stack_slice.to_vec();
+        for index in arg_count..field_count {
+            let Some(default) = r#struct.default(index) else {
+                unreachable!("positional_minimum covers every field without a default")
+            };
+            match self.call_value(Value::Closure(default), &[]) {
+                Ok(value) => fields.push(value),
+                Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
+                Err(NativeCallError::Runtime(e)) => return Err(e),
+            }
+        }
 
         let instance = ObjInstance { r#struct, fields };
 

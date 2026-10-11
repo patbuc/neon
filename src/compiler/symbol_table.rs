@@ -17,6 +17,7 @@ pub enum SymbolKind {
     Struct {
         fields: Vec<String>,
         val_fields: Vec<String>,
+        default_fields: Vec<String>,
     },
     /// Enum with its variants, in declaration order
     Enum { variants: Vec<EnumVariant> },

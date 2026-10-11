@@ -9,8 +9,9 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
-    MatchArmBody, MatchPattern, NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    default_field_names, positional_minimum, val_field_names, Binding, EnumVariant, Expr,
+    IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, NamedArgument, NodeId,
+    Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -339,6 +340,7 @@ impl SemanticAnalyzer {
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
                             val_fields: val_field_names(fields),
+                            default_fields: default_field_names(fields),
                         },
                         false,
                         *location,
@@ -1042,7 +1044,20 @@ impl SemanticAnalyzer {
                 location,
             } => {
                 // A top-level struct was already resolved in collect_declarations.
-                if self.symbol_table.current_depth() != 0 {
+                if self.symbol_table.current_depth() == 0 {
+                    for field in fields {
+                        if let Some(body) = field.default_body() {
+                            self.resolve_function_body(
+                                field.default_id,
+                                &[],
+                                &body,
+                                field.location,
+                                None,
+                                false,
+                            );
+                        }
+                    }
+                } else {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::StructNotTopLevel,
@@ -1056,6 +1071,7 @@ impl SemanticAnalyzer {
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
                             val_fields: val_field_names(fields),
+                            default_fields: default_field_names(fields),
                         },
                         false,
                         *location,
@@ -2124,7 +2140,11 @@ impl SemanticAnalyzer {
                     Some(Export::Function { arity, .. }) => {
                         self.validate_arity("Function", method, arity, arguments.len(), location);
                     }
-                    Some(Export::Struct { fields, .. }) => {
+                    Some(Export::Struct {
+                        fields,
+                        default_fields,
+                        ..
+                    }) => {
                         let reported = !named.is_empty()
                             && self.record_named_struct_arguments(
                                 id,
@@ -2135,10 +2155,10 @@ impl SemanticAnalyzer {
                                 location,
                             );
                         if !reported {
-                            self.validate_arity(
-                                "Function",
+                            self.validate_struct_arity(
                                 method,
-                                fields.len() as u8,
+                                &fields,
+                                &default_fields,
                                 arguments.len(),
                                 location,
                             );
@@ -3388,12 +3408,16 @@ impl SemanticAnalyzer {
                         location,
                     );
                 }
-                SymbolKind::Struct { fields, .. } => {
-                    let arity = fields.len() as u8;
-                    self.validate_arity(
-                        "Function",
+                SymbolKind::Struct {
+                    fields,
+                    default_fields,
+                    ..
+                } => {
+                    let (fields, default_fields) = (fields.clone(), default_fields.clone());
+                    self.validate_struct_arity(
                         function_name,
-                        arity,
+                        &fields,
+                        &default_fields,
                         arguments.len(),
                         location,
                     );
@@ -3415,6 +3439,41 @@ impl SemanticAnalyzer {
                 }
             }
         }
+    }
+
+    fn validate_struct_arity(
+        &mut self,
+        name: &str,
+        fields: &[String],
+        default_fields: &[String],
+        actual: usize,
+        location: SourceLocation,
+    ) {
+        let minimum = positional_minimum(fields, default_fields);
+        if actual >= minimum && actual <= fields.len() {
+            return;
+        }
+        if minimum == fields.len() {
+            self.validate_arity("Function", name, fields.len() as u8, actual, location);
+            return;
+        }
+        let kind = if actual < minimum {
+            CompilationErrorKind::TooFewArguments
+        } else {
+            CompilationErrorKind::TooManyArguments
+        };
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            kind,
+            format!(
+                "Function '{}' expects {} to {} arguments but got {}",
+                name,
+                minimum,
+                fields.len(),
+                actual
+            ),
+            location,
+        ));
     }
 
     fn validate_arity(
