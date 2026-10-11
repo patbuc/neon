@@ -1,5 +1,8 @@
 use crate::common::SourceLocation;
 
+/// The field name of a `name: value` call argument and where it is written.
+pub type NamedArgument = (String, SourceLocation);
+
 /// Stable identity for a name-use or name-declaration AST node, assigned by the parser.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
@@ -146,6 +149,9 @@ pub enum Expr {
     Call {
         callee: Box<Expr>,
         arguments: Vec<Expr>,
+        /// Field names, with the location of each name, of the last `named.len()` arguments,
+        /// written `name: value`.
+        named: Vec<NamedArgument>,
         id: NodeId,
         location: SourceLocation,
     },

@@ -1,0 +1,2 @@
+// Expected compile error: 2:1 E0013 Undefined variable 'nosuch'
+nosuch(x: 1)

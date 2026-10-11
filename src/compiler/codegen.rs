@@ -1117,6 +1117,7 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
+                ..
             } if tail && in_function && self.current().try_depth == 0 => match callee.as_ref() {
                 Expr::GetField {
                     object,
@@ -1629,7 +1630,7 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         let Some(index) = self.resolutions.native(id) else {
-            self.generate_regular_call_expr(callee, arguments, call_op, location);
+            self.generate_regular_call_expr(id, callee, arguments, call_op, location);
             return;
         };
         self.generate_native_call_expr(index, arguments, call_op, location);
@@ -1637,19 +1638,57 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_regular_call_expr(
         &mut self,
+        id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
         call_op: OpCode,
         location: SourceLocation,
     ) {
+        if let Some(fields) = self.resolutions.struct_argument_fields(id) {
+            self.generate_reordered_struct_call(
+                |this| this.generate_expr(callee),
+                arguments,
+                fields,
+                location,
+            );
+            return;
+        }
+
         // Unified calling convention: [callable, args...]
         self.generate_expr(callee);
-
         for arg in arguments {
             self.generate_expr(arg);
         }
-
         self.emit_call(call_op, arguments.len() as u8, location);
+    }
+
+    fn generate_reordered_struct_call(
+        &mut self,
+        generate_callee: impl FnOnce(&mut Self),
+        arguments: &[Expr],
+        fields: &[usize],
+        location: SourceLocation,
+    ) {
+        let first_slot = self.current().stack_height;
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+        generate_callee(self);
+        let mut by_field: Vec<_> = fields.iter().enumerate().collect();
+        by_field.sort_by_key(|(_, field)| **field);
+        for (position, _) in by_field {
+            self.emit_index_op(
+                OpCode::GetLocal,
+                first_slot + position as u32,
+                "locals",
+                location,
+            );
+        }
+        self.emit_call(OpCode::Call, arguments.len() as u8, location);
+        self.emit_index_op(OpCode::SetLocal, first_slot, "locals", location);
+        for _ in 0..arguments.len() {
+            self.emit_op_code(OpCode::Pop, location);
+        }
     }
 
     /// Emits a call dispatched by registry index, known at compile time: a
@@ -1707,6 +1746,15 @@ impl<'a> CodeGenerator<'a> {
                     OpCode::TailInvoke => OpCode::TailCall,
                     _ => OpCode::Call,
                 };
+                if let Some(fields) = self.resolutions.struct_argument_fields(id) {
+                    self.generate_reordered_struct_call(
+                        |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
+                        arguments,
+                        fields,
+                        location,
+                    );
+                    return;
+                }
                 self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
                 for arg in arguments {
                     self.generate_expr(arg);
@@ -1860,6 +1908,7 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
+                ..
             } => {
                 if let Expr::GetField {
                     object,

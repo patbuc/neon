@@ -1,0 +1,14 @@
+// Expected compile error: 10:22 E0062 Named arguments need a known struct
+// Expected compile error: 12:7 E0062 Named arguments need a known struct
+// Expected compile error: 13:5 E0062 Named arguments need a known struct
+// Expected compile error: 14:5 E0062 Named arguments need a known struct
+fn g() { return fn(a) { return a } }
+struct Point {
+    val x
+}
+fn h() { return Point(1) }
+(fn(a) { return a })(a: 3)
+val fs = [fn(x) { return x }]
+fs[0](x: 1)
+g()(x: 1)
+h()(x: 1)

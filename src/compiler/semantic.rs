@@ -10,7 +10,7 @@ use crate::common::SourceLocation;
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
     val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
-    MatchArmBody, MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    MatchArmBody, MatchPattern, NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -1243,10 +1243,11 @@ impl SemanticAnalyzer {
             Expr::Call {
                 callee,
                 arguments,
+                named,
                 id,
                 location,
             } => {
-                self.resolve_call_expr(*id, callee, arguments, *location);
+                self.resolve_call_expr(*id, callee, arguments, named, *location);
             }
             Expr::GetField {
                 object,
@@ -1958,6 +1959,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
@@ -1968,9 +1970,9 @@ impl SemanticAnalyzer {
             ..
         } = callee
         {
-            self.resolve_method_call(id, object, field, *optional, arguments, location);
+            self.resolve_method_call(id, object, field, *optional, arguments, named, location);
         } else {
-            self.resolve_function_call(id, callee, arguments, location);
+            self.resolve_function_call(id, callee, arguments, named, location);
         }
     }
 
@@ -2043,6 +2045,7 @@ impl SemanticAnalyzer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_method_call(
         &mut self,
         id: NodeId,
@@ -2050,9 +2053,15 @@ impl SemanticAnalyzer {
         method: &str,
         optional: bool,
         arguments: &[Expr],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
+        let module_receiver = !optional
+            && matches!(object, Expr::Variable { name, .. } if self.module_exports(name).is_some());
+        if !named.is_empty() && !module_receiver {
+            self.report_named_argument_not_struct(named);
+        }
         if optional && self.is_module_type(object) {
             for arg in arguments {
                 self.resolve_expr(arg);
@@ -2087,18 +2096,34 @@ impl SemanticAnalyzer {
 
             if !optional && self.module_exports(name).is_some() {
                 let export = self.resolve_module_member(*object_id, name, method, location);
+                if !named.is_empty()
+                    && matches!(export, Some(ref e) if !matches!(e, Export::Struct { .. }))
+                {
+                    self.report_named_argument_not_struct(named);
+                }
                 match export {
                     Some(Export::Function { arity, .. }) => {
                         self.validate_arity("Function", method, arity, arguments.len(), location);
                     }
                     Some(Export::Struct { fields, .. }) => {
-                        self.validate_arity(
-                            "Function",
-                            method,
-                            fields.len() as u8,
-                            arguments.len(),
-                            location,
-                        );
+                        let reported = !named.is_empty()
+                            && self.record_named_struct_arguments(
+                                id,
+                                method,
+                                &fields,
+                                arguments.len(),
+                                named,
+                                location,
+                            );
+                        if !reported {
+                            self.validate_arity(
+                                "Function",
+                                method,
+                                fields.len() as u8,
+                                arguments.len(),
+                                location,
+                            );
+                        }
                     }
                     Some(Export::Enum { .. }) => {
                         self.push_enum_as_value_error(method, location);
@@ -2238,28 +2263,27 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
             if self.symbol_table.resolve(name).is_none() {
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
-                if let Some(index) =
-                    crate::common::method_registry::get_native_method_index("", name)
-                {
-                    self.resolutions.record_native(id, index);
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                    return;
-                }
-
+                let function = crate::common::method_registry::get_native_method_index("", name);
                 // Likewise a builtin type's constructor, e.g. Array(n).
-                if let Some(index) =
-                    crate::common::method_registry::get_native_method_index(name, "new")
-                {
-                    let arity = crate::common::method_registry::native_arity(index);
-                    self.validate_arity("Function", name, arity, arguments.len(), location);
+                let constructor = match function {
+                    Some(_) => None,
+                    None => crate::common::method_registry::get_native_method_index(name, "new"),
+                };
+                if let Some(index) = function.or(constructor) {
+                    if !named.is_empty() {
+                        self.report_named_argument_not_struct(named);
+                    }
+                    if let Some(index) = constructor {
+                        let arity = crate::common::method_registry::native_arity(index);
+                        self.validate_arity("Function", name, arity, arguments.len(), location);
+                    }
                     self.resolutions.record_native(id, index);
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2274,13 +2298,110 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            self.validate_function_call(name, arguments, location);
+            let skip_arity_check = if named.is_empty() {
+                false
+            } else {
+                match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
+                    Some(SymbolKind::Struct { fields, .. }) => {
+                        let fields = fields.clone();
+                        self.record_named_struct_arguments(
+                            id,
+                            name,
+                            &fields,
+                            arguments.len(),
+                            named,
+                            location,
+                        )
+                    }
+                    Some(_) => {
+                        self.report_named_argument_not_struct(named);
+                        true
+                    }
+                    None => true,
+                }
+            };
+            if !skip_arity_check {
+                self.validate_function_call(name, arguments, location);
+            }
+        } else if !named.is_empty() {
+            self.report_named_argument_not_struct(named);
         }
 
         // Resolve all arguments
         for arg in arguments {
             self.resolve_expr(arg);
         }
+    }
+
+    fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::NamedArgumentNotStruct,
+            "Named arguments need a known struct".to_string(),
+            named[0].1,
+        ));
+    }
+
+    fn record_named_struct_arguments(
+        &mut self,
+        id: NodeId,
+        struct_name: &str,
+        fields: &[String],
+        argument_count: usize,
+        named: &[NamedArgument],
+        location: SourceLocation,
+    ) -> bool {
+        let first_named = argument_count - named.len();
+        let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
+        let mut duplicate = false;
+        let mut unknown = false;
+        for (name, location) in named {
+            let position = fields.iter().position(|f| f == name);
+            if position.is_none() {
+                unknown = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownField,
+                    format!("'{}' has no field '{}'", struct_name, name),
+                    *location,
+                ));
+            }
+            if position.is_some() && positions.contains(&position) {
+                duplicate = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateArgument,
+                    format!("Field '{}' given twice", name),
+                    *location,
+                ));
+            }
+            positions.push(position);
+        }
+        let positions: Option<Vec<usize>> = if duplicate {
+            None
+        } else {
+            positions.into_iter().collect()
+        };
+        let mut missing = false;
+        if let Some(positions) = positions {
+            if let Some(field) = (0..fields.len())
+                .find(|field| !positions.contains(field))
+                .map(|field| &fields[field])
+            {
+                missing = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::TooFewArguments,
+                    format!("Missing field '{}' for '{}'", field, struct_name),
+                    location,
+                ));
+            }
+            if positions.windows(2).any(|pair| pair[0] > pair[1]) {
+                self.resolutions
+                    .record_struct_argument_fields(id, positions);
+            }
+        }
+        unknown || missing || duplicate
     }
 
     fn resolve_get_field(

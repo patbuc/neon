@@ -139,6 +139,9 @@ pub struct Resolutions {
     /// Global slot of the export a module member read names, keyed by the
     /// `Expr::Variable` node naming the module in `utils.counter`.
     module_members: HashMap<NodeId, u32>,
+    /// Keyed by the `Expr::Call` node of a struct construction with named
+    /// arguments: the field position each argument fills, in source order.
+    struct_argument_fields: HashMap<NodeId, Vec<usize>>,
 }
 
 impl Resolutions {
@@ -283,6 +286,17 @@ impl Resolutions {
     /// The enum `id` (an `Expr::Call` node) resolves to as a `values()` call, if any.
     pub fn enum_values_access(&self, id: NodeId) -> Option<&EnumValuesAccess> {
         self.enum_values_accesses.get(&id)
+    }
+
+    pub(crate) fn record_struct_argument_fields(&mut self, id: NodeId, fields: Vec<usize>) {
+        self.struct_argument_fields.insert(id, fields);
+    }
+
+    /// The field position each argument of the struct construction `id`
+    /// fills, in source order. Present only when its named arguments are
+    /// out of field order.
+    pub fn struct_argument_fields(&self, id: NodeId) -> Option<&[usize]> {
+        self.struct_argument_fields.get(&id).map(Vec::as_slice)
     }
 
     pub(crate) fn record_module_member(&mut self, id: NodeId, slot: u32) {

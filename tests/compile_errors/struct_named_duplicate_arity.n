@@ -1,0 +1,13 @@
+// Expected compile error: 12:13 E0061 Field 'x' given twice
+// Expected compile error: 13:10 E0061 Field 'x' given twice
+struct Point {
+    val x
+    val y
+}
+struct P3 {
+    val x
+    val y
+    val z
+}
+Point(x: 1, x: 2, y: 3)
+P3(x: 1, x: 2)

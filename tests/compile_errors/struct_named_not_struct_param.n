@@ -1,0 +1,2 @@
+// Expected compile error: 2:23 E0062 Named arguments need a known struct
+fn make(T) { return T(x: 1, y: 2) }

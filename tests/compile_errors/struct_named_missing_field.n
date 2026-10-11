@@ -1,0 +1,6 @@
+// Expected compile error: 6:6 E0035 Missing field 'y' for 'Point'
+struct Point {
+    val x
+    val y
+}
+Point(x: 1)

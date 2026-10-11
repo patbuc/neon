@@ -269,6 +269,14 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             "impl a.B {\n}\n".to_string(),
             Some("impl blocks must be in the struct's own module"),
         )],
+        CompilationErrorKind::DuplicateArgument => vec![(
+            "struct P {\n    val x\n}\nP(1, x: 2)\n".to_string(),
+            Some("Field 'x' given twice"),
+        )],
+        CompilationErrorKind::NamedArgumentNotStruct => vec![(
+            "fn make(T) { return T(x: 1, y: 2) }\n".to_string(),
+            Some("Named arguments need a known struct"),
+        )],
         CompilationErrorKind::YieldOutsideFunction => vec![(
             "yield 1\n".to_string(),
             Some("'yield' outside a function"),

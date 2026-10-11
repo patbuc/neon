@@ -1,0 +1,78 @@
+// Expected:
+// true
+// 1
+// 2
+// 1
+// 2
+// 3
+// eval 2
+// eval 1
+// 1
+// 2
+// eval 2
+// eval 1
+// 7
+// 1
+// 2
+// 1
+// 2
+// eval 2
+// eval 1
+// 1
+// 2
+
+struct Point {
+    val x
+    val y
+}
+
+print(Point(x: 1, y: 2) == Point(1, 2))
+val p = Point(y: 2, x: 1)
+print(p.x)
+print(p.y)
+
+struct P3 {
+    val x
+    val y
+    val z
+}
+
+val q = P3(1, z: 3, y: 2)
+print(q.x)
+print(q.y)
+print(q.z)
+
+fn trace(n) {
+    print("eval ${n}")
+    n
+}
+
+val traced = Point(y: trace(2), x: trace(1))
+print(traced.x)
+print(traced.y)
+
+fn build() {
+    val local = 7
+    val inner = Point(y: trace(2), x: trace(1))
+    print(local)
+    print(inner.x)
+    print(inner.y)
+}
+
+build()
+
+fn make(T) {
+    return T(1, 2)
+}
+
+val made = make(Point)
+print(made.x)
+print(made.y)
+
+fn mk() {
+    return Point(y: trace(2), x: trace(1))
+}
+
+val tail = mk()
+print(tail.x)
+print(tail.y)

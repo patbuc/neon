@@ -1,0 +1,6 @@
+// Expected compile error: 6:13 E0005 Positional argument after named argument
+struct Point {
+    val x
+    val y
+}
+Point(x: 1, 2)

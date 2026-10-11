@@ -1,0 +1,17 @@
+// Expected compile error: 14:6 E0062 Named arguments need a known struct
+// Expected compile error: 15:7 E0062 Named arguments need a known struct
+// Expected compile error: 16:14 E0062 Named arguments need a known struct
+// Expected compile error: 17:7 E0062 Named arguments need a known struct
+fn make(a) { return a }
+struct Point {
+    val x
+}
+impl Point {
+    fn get(self, a) { return a }
+    fn origin(a) { return a }
+}
+val p = Point(1)
+make(a: 1)
+p.get(a: 1)
+Point.origin(a: 1)
+print(a: 1)

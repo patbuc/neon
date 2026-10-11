@@ -6,8 +6,8 @@ use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
 use crate::compiler::ast::{
-    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId,
-    Pattern, Stmt, StructField, UnaryOp,
+    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern,
+    NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
@@ -373,15 +373,38 @@ impl Parser {
         })
     }
 
-    fn parse_arguments(&mut self) -> Option<Vec<Expr>> {
-        self.parse_expression_list(
+    fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<NamedArgument>)> {
+        let mut named = Vec::new();
+        let arguments = self.parse_comma_separated_list(
             TokenType::RightParen,
             Some((
                 crate::common::constants::MAX_CALL_ARGUMENTS,
                 CompilationErrorKind::TooManyCallArguments,
                 "Can't have more than 255 arguments.",
             )),
-        )
+            |parser| {
+                let location = parser.current_token_location();
+                let value = parser.expression(false)?;
+                match value {
+                    Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
+                        parser.skip_new_lines();
+                        named.push((name, location));
+                        parser.expression(false)
+                    }
+                    value => {
+                        if !named.is_empty() {
+                            parser.report_error(
+                                CompilationErrorKind::ExpectedToken,
+                                location,
+                                "Positional argument after named argument".to_string(),
+                            );
+                        }
+                        Some(value)
+                    }
+                }
+            },
+        )?;
+        Some((arguments, named))
     }
 
     fn current_location(&self) -> SourceLocation {
@@ -1847,7 +1870,7 @@ impl Parser {
 
     fn call(&mut self, callee: Expr) -> Option<Expr> {
         let location = self.current_location();
-        let arguments = self.parse_arguments()?;
+        let (arguments, named) = self.parse_arguments()?;
 
         if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
             return None;
@@ -1856,6 +1879,7 @@ impl Parser {
         Some(Expr::Call {
             callee: Box::new(callee),
             arguments,
+            named,
             id: self.next_id(),
             location,
         })
@@ -1899,7 +1923,7 @@ impl Parser {
         if self.check(TokenType::LeftParen) {
             self.advance(); // consume '('
             let method_location = self.current_location();
-            let arguments = self.parse_arguments()?;
+            let (arguments, named) = self.parse_arguments()?;
 
             if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
                 return None;
@@ -1916,6 +1940,7 @@ impl Parser {
             Some(Expr::Call {
                 callee: Box::new(get_field_expr),
                 arguments,
+                named,
                 id: self.next_id(),
                 location: method_location,
             })
@@ -2033,20 +2058,29 @@ impl Parser {
         let location = self.current_location();
         let lambda = self.block_lambda()?;
 
-        let (call_callee, mut arguments, call_location) = match callee {
+        let (call_callee, mut arguments, named, call_location) = match callee {
             Expr::Call {
                 callee,
                 arguments,
+                named,
                 location,
                 ..
-            } => (callee, arguments, location),
-            other => (Box::new(other), Vec::new(), location),
+            } => (callee, arguments, named, location),
+            other => (Box::new(other), Vec::new(), Vec::new(), location),
         };
+        if !named.is_empty() {
+            self.report_error(
+                CompilationErrorKind::ExpectedToken,
+                location,
+                "Positional argument after named argument".to_string(),
+            );
+        }
         arguments.push(lambda);
 
         Some(Expr::Call {
             callee: call_callee,
             arguments,
+            named,
             id: self.next_id(),
             location: call_location,
         })

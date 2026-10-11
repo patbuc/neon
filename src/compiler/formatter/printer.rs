@@ -829,6 +829,7 @@ impl<'a> Printer<'a> {
             Expr::Call {
                 callee,
                 arguments,
+                named,
                 location,
                 ..
             } => {
@@ -859,7 +860,12 @@ impl<'a> Printer<'a> {
                         open_line: self.map.line(open),
                         close_line: self.map.line(close),
                     };
+                    let first_named = regular_args.len().saturating_sub(named.len());
                     self.bracket_list(brackets, &spans, |printer, i| {
+                        if i >= first_named {
+                            printer.write(&named[i - first_named].0);
+                            printer.write(": ");
+                        }
                         printer.print_expr(&regular_args[i])
                     });
                 }

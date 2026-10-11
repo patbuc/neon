@@ -815,7 +815,13 @@ print(pt.y)  // 25
 ```
 
 Each field is declared `val` (fixed once constructed) or `var` (mutable).
-Construction is positional and sets every field. Storing to a `val` field is a
+Construction sets every field, positionally or by name: `Point(10, 20)`,
+`Point(x: 10, y: 20)`, or `Point(y: 20, x: 10)`. Positional arguments come
+first, then named ones; each field is given once, and all must be given.
+Arguments are evaluated left to right in source order. A struct exported from a
+module works the same way (`geo.Point(x: 1, y: 2)`). Named arguments need a
+callee that is statically a struct: not a function, method, native, or a struct
+held in a variable (`E0062`). Storing to a `val` field is a
 compile error (`Cannot modify immutable field 'Point.x'`) when the receiver is a
 constructor call, `self` in a method, or a `val` bound from a constructor call
 (directly or through other `val`s), and a runtime error otherwise.
