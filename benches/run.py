@@ -29,6 +29,7 @@ BENCHMARKS = {
     "strings": 140000,
     "towers": 100,
     "queens": 250,
+    "permute": 160,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

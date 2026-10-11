@@ -1,0 +1,50 @@
+// Expected:
+// 17320
+
+struct Permute {
+    var count
+    var v
+}
+
+impl Permute {
+    fn benchmark(self) {
+        self.count = 0
+        self.v = Array(6, 0)
+        self.permute(6)
+        self.count
+    }
+
+    fn permute(self, n) {
+        self.count += 1
+        if n != 0 {
+            val n1 = n - 1
+            self.permute(n1)
+            var i = n1
+            while i >= 0 {
+                self.swap(n1, i)
+                self.permute(n1)
+                self.swap(n1, i)
+                i -= 1
+            }
+        }
+    }
+
+    fn swap(self, i, j) {
+        val tmp = self.v[i]
+        self.v[i] = self.v[j]
+        self.v[j] = tmp
+    }
+}
+
+val iterations = args.size() > 0 ? args[0].toInt() : 2
+
+val permute = Permute(0, nil)
+var checksum = 0
+for _ in 0..iterations {
+    val result = permute.benchmark()
+    if result != 8660 {
+        throw "Permute verification failed"
+    }
+    checksum += result
+}
+print(checksum)
