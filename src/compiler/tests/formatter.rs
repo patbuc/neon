@@ -362,6 +362,12 @@ fn test_struct_field_default_preserved() {
 }
 
 #[test]
+fn test_struct_field_multiline_default_with_trailing_comment() {
+    let src = "struct Config {\n    var ports = [\n        80,\n        443,\n    ] // web\n}\n";
+    check(src, src);
+}
+
+#[test]
 fn test_empty_struct() {
     check("struct E {}\n", "struct E {}\n");
 }

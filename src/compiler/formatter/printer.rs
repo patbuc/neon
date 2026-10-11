@@ -488,7 +488,13 @@ impl<'a> Printer<'a> {
                 let (open, close) = self.map.braces_after(location);
                 let spans: Vec<(u32, u32)> = fields
                     .iter()
-                    .map(|field| (field.location.line, field.location.line))
+                    .map(|field| {
+                        let last = match &field.default {
+                            Some(default) => self.map.last_line(default),
+                            None => field.location.line,
+                        };
+                        (field.location.line, last)
+                    })
                     .collect();
                 self.braced_lines(
                     self.map.line(open),
