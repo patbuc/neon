@@ -66,12 +66,13 @@ impl OpCode {
             OpCode::BeginTry | OpCode::EndTry => 0,
             OpCode::Yield => 0,
             OpCode::Throw => -1,
+            OpCode::CheckUpdateBase => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 72] = [
+        const OPCODES: [OpCode; 73] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -144,6 +145,7 @@ impl OpCode {
             OpCode::EndTry,
             OpCode::Yield,
             OpCode::Throw,
+            OpCode::CheckUpdateBase,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -310,4 +312,9 @@ pub(crate) enum OpCode {
     /// Pops a value and raises it as an error for the innermost handler to
     /// catch.
     Throw,
+
+    /// Peeks the struct on top of the stack and the value under it, and
+    /// errors unless that value is an instance of the struct; otherwise a
+    /// no-op. Emitted for the `..base` of a struct update.
+    CheckUpdateBase,
 }

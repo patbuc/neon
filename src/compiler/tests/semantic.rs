@@ -148,6 +148,18 @@ mod resolutions {
                     index_expr(arg, idx);
                 }
             }
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                ..
+            } => {
+                index_expr(callee, idx);
+                index_expr(base, idx);
+                for arg in arguments {
+                    index_expr(arg, idx);
+                }
+            }
             Expr::GetField { object, .. } => index_expr(object, idx),
             Expr::SetField { object, value, .. }
             | Expr::CompoundAssignField { object, value, .. } => {

@@ -643,6 +643,7 @@ impl VirtualMachine {
                     error.thrown = Some(thrown);
                     return Err(error);
                 }
+                Instr::CheckUpdateBase => self.op_check_update_base()?,
                 Instr::Dup => self.push(self.peek(0).copy_or_clone()),
                 Instr::Dup2 => {
                     let second = self.peek(1).copy_or_clone();

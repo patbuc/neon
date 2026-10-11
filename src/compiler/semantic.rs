@@ -757,7 +757,7 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => self.infer_expr_type(expr),
 
             // Call expression
-            Expr::Call { callee, .. } => {
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // A constructor call on an exported struct, e.g.
@@ -1248,6 +1248,25 @@ impl SemanticAnalyzer {
                 location,
             } => {
                 self.resolve_call_expr(*id, callee, arguments, named, *location);
+            }
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                named,
+                id,
+                location,
+                base_location,
+            } => {
+                self.resolve_struct_update(
+                    *id,
+                    callee,
+                    base,
+                    arguments,
+                    named,
+                    *location,
+                    **base_location,
+                );
             }
             Expr::GetField {
                 object,
@@ -2258,6 +2277,21 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// The native a call of `name` dispatches to, with whether it is a
+    /// builtin type's constructor, when nothing else resolves the name.
+    fn native_callee(&self, name: &str) -> Option<(usize, bool)> {
+        if self.symbol_table.resolve(name).is_some() {
+            return None;
+        }
+        // A native global function (e.g. print) is the last resort.
+        if let Some(index) = crate::common::method_registry::get_native_method_index("", name) {
+            return Some((index, false));
+        }
+        // Likewise a builtin type's constructor, e.g. Array(n).
+        crate::common::method_registry::get_native_method_index(name, "new")
+            .map(|index| (index, true))
+    }
+
     fn resolve_function_call(
         &mut self,
         id: NodeId,
@@ -2267,29 +2301,19 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
-            if self.symbol_table.resolve(name).is_none() {
-                // Nothing resolves this name - a native global function
-                // (e.g. print) is the last resort.
-                let function = crate::common::method_registry::get_native_method_index("", name);
-                // Likewise a builtin type's constructor, e.g. Array(n).
-                let constructor = match function {
-                    Some(_) => None,
-                    None => crate::common::method_registry::get_native_method_index(name, "new"),
-                };
-                if let Some(index) = function.or(constructor) {
-                    if !named.is_empty() {
-                        self.report_named_argument_not_struct(named);
-                    }
-                    if let Some(index) = constructor {
-                        let arity = crate::common::method_registry::native_arity(index);
-                        self.validate_arity("Function", name, arity, arguments.len(), location);
-                    }
-                    self.resolutions.record_native(id, index);
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                    return;
+            if let Some((index, is_constructor)) = self.native_callee(name) {
+                if !named.is_empty() {
+                    self.report_named_argument_not_struct(named);
                 }
+                if is_constructor {
+                    let arity = crate::common::method_registry::native_arity(index);
+                    self.validate_arity("Function", name, arity, arguments.len(), location);
+                }
+                self.resolutions.record_native(id, index);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                return;
             }
         }
 
@@ -2333,28 +2357,104 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
-        self.push_error(CompilationError::new(
-            CompilationPhase::Semantic,
-            CompilationErrorKind::NamedArgumentNotStruct,
-            "Named arguments need a known struct".to_string(),
-            named[0].1,
-        ));
-    }
-
-    fn record_named_struct_arguments(
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_struct_update(
         &mut self,
         id: NodeId,
-        struct_name: &str,
-        fields: &[String],
-        argument_count: usize,
+        callee: &Expr,
+        base: &Expr,
+        arguments: &[Expr],
         named: &[NamedArgument],
         location: SourceLocation,
-    ) -> bool {
-        let first_named = argument_count - named.len();
-        let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
-        let mut duplicate = false;
+        base_location: SourceLocation,
+    ) {
+        let (fields, struct_name) = match callee {
+            Expr::GetField {
+                object,
+                field,
+                optional: false,
+                ..
+            } => match object.as_ref() {
+                Expr::Variable {
+                    name,
+                    id: object_id,
+                    ..
+                } if self.module_exports(name).is_some() => {
+                    match self.resolve_module_member(*object_id, name, field, location) {
+                        Some(Export::Struct { fields, .. }) => (Some(fields), field.as_str()),
+                        Some(_) => {
+                            self.report_named_argument_not_struct_at(base_location);
+                            (None, field.as_str())
+                        }
+                        None => (None, field.as_str()),
+                    }
+                }
+                _ => {
+                    self.resolve_expr(object);
+                    self.report_named_argument_not_struct_at(base_location);
+                    (None, field.as_str())
+                }
+            },
+            Expr::Variable { name, .. } => {
+                let native = self.native_callee(name).is_some();
+                if !native {
+                    self.resolve_expr(callee);
+                }
+                let fields = match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
+                    Some(SymbolKind::Struct { fields, .. }) => Some(fields.clone()),
+                    Some(_) => {
+                        self.report_named_argument_not_struct_at(base_location);
+                        None
+                    }
+                    None => {
+                        if native {
+                            self.report_named_argument_not_struct_at(base_location);
+                        }
+                        None
+                    }
+                };
+                (fields, name.as_str())
+            }
+            _ => {
+                match callee {
+                    Expr::GetField { object, .. } => self.resolve_expr(object),
+                    _ => self.resolve_expr(callee),
+                }
+                self.report_named_argument_not_struct_at(base_location);
+                (None, "")
+            }
+        };
+        self.resolve_expr(base);
+        for arg in arguments {
+            self.resolve_expr(arg);
+        }
+        let Some(fields) = fields else {
+            return;
+        };
+        self.check_named_fields(struct_name, &fields, Vec::new(), named);
+        let updates = fields
+            .iter()
+            .map(|field| {
+                self.intern_name(field, location);
+                let argument = named.iter().position(|(name, _)| name == field);
+                (field.clone(), argument)
+            })
+            .collect();
+        self.resolutions.record_struct_update(id, updates);
+    }
+
+    /// Reports unknown and duplicate fields among `named`. Returns each
+    /// name's field position after `positions`, which holds the fields
+    /// already given positionally.
+    fn check_named_fields(
+        &mut self,
+        struct_name: &str,
+        fields: &[String],
+        mut positions: Vec<Option<usize>>,
+        named: &[NamedArgument],
+    ) -> (Vec<Option<usize>>, bool, bool) {
         let mut unknown = false;
+        let mut duplicate = false;
         for (name, location) in named {
             let position = fields.iter().position(|f| f == name);
             if position.is_none() {
@@ -2377,6 +2477,35 @@ impl SemanticAnalyzer {
             }
             positions.push(position);
         }
+        (positions, unknown, duplicate)
+    }
+
+    fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
+        self.report_named_argument_not_struct_at(named[0].1);
+    }
+
+    fn report_named_argument_not_struct_at(&mut self, location: SourceLocation) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::NamedArgumentNotStruct,
+            "Named arguments need a known struct".to_string(),
+            location,
+        ));
+    }
+
+    fn record_named_struct_arguments(
+        &mut self,
+        id: NodeId,
+        struct_name: &str,
+        fields: &[String],
+        argument_count: usize,
+        named: &[NamedArgument],
+        location: SourceLocation,
+    ) -> bool {
+        let first_named = argument_count - named.len();
+        let positions = (0..first_named).map(Some).collect();
+        let (positions, unknown, duplicate) =
+            self.check_named_fields(struct_name, fields, positions, named);
         let positions: Option<Vec<usize>> = if duplicate {
             None
         } else {
@@ -2798,7 +2927,9 @@ impl SemanticAnalyzer {
     fn match_pattern_location(expr: &Expr) -> SourceLocation {
         match expr {
             Expr::Binary { left, .. } => Self::match_pattern_location(left),
-            Expr::Call { callee, .. } => Self::match_pattern_location(callee),
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
+                Self::match_pattern_location(callee)
+            }
             Expr::GetField { object, .. }
             | Expr::SetField { object, .. }
             | Expr::CompoundAssignField { object, .. }
@@ -3190,22 +3321,24 @@ impl SemanticAnalyzer {
                 .symbol_table
                 .resolve(name)
                 .is_some_and(|symbol| self.fixed_decls.contains(&symbol.decl_id)),
-            Expr::Call { callee, .. } => match callee.as_ref() {
-                Expr::Variable { name, .. } => matches!(
-                    self.symbol_table.resolve(name),
-                    Some(Symbol {
-                        kind: SymbolKind::Struct { .. },
-                        ..
-                    })
-                ),
-                Expr::GetField { object, field, .. } => match object.as_ref() {
-                    Expr::Variable { name, .. } => {
-                        matches!(self.module_export(name, field), Some(Export::Struct { .. }))
-                    }
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
+                match callee.as_ref() {
+                    Expr::Variable { name, .. } => matches!(
+                        self.symbol_table.resolve(name),
+                        Some(Symbol {
+                            kind: SymbolKind::Struct { .. },
+                            ..
+                        })
+                    ),
+                    Expr::GetField { object, field, .. } => match object.as_ref() {
+                        Expr::Variable { name, .. } => {
+                            matches!(self.module_export(name, field), Some(Export::Struct { .. }))
+                        }
+                        _ => false,
+                    },
                     _ => false,
-                },
-                _ => false,
-            },
+                }
+            }
             _ => false,
         }
     }
@@ -3568,6 +3701,16 @@ fn expr_references_it(expr: &Expr) -> bool {
         Expr::Call {
             callee, arguments, ..
         } => expr_references_it(callee) || arguments.iter().any(expr_references_it),
+        Expr::StructUpdate {
+            callee,
+            base,
+            arguments,
+            ..
+        } => {
+            expr_references_it(callee)
+                || expr_references_it(base)
+                || arguments.iter().any(expr_references_it)
+        }
         Expr::GetField { object, .. } => expr_references_it(object),
         Expr::SetField { object, value, .. } => {
             expr_references_it(object) || expr_references_it(value)

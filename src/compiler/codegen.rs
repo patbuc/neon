@@ -1691,6 +1691,50 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
+    /// Evaluates the base and the named values into temps, then builds the
+    /// struct through its constructor.
+    fn generate_struct_update(
+        &mut self,
+        id: NodeId,
+        callee: &Expr,
+        base: &Expr,
+        arguments: &[Expr],
+        location: SourceLocation,
+    ) {
+        let Some(fields) = self.resolutions.struct_update(id) else {
+            return;
+        };
+        let first_slot = self.current().stack_height;
+        self.generate_expr(base);
+        self.generate_expr(callee);
+        self.emit_op_code(OpCode::CheckUpdateBase, location);
+        self.emit_op_code(OpCode::Pop, location);
+        for arg in arguments {
+            self.generate_expr(arg);
+        }
+        self.generate_expr(callee);
+        for (field, argument) in fields {
+            match argument {
+                Some(position) => self.emit_index_op(
+                    OpCode::GetLocal,
+                    first_slot + 1 + *position as u32,
+                    "locals",
+                    location,
+                ),
+                None => {
+                    self.emit_index_op(OpCode::GetLocal, first_slot, "locals", location);
+                    let symbol = self.resolutions.symbol(field);
+                    self.emit_index_op(OpCode::GetField, symbol as u32, "symbols", location);
+                }
+            }
+        }
+        self.emit_call(OpCode::Call, fields.len() as u8, location);
+        self.emit_index_op(OpCode::SetLocal, first_slot, "locals", location);
+        for _ in 0..=arguments.len() {
+            self.emit_op_code(OpCode::Pop, location);
+        }
+    }
+
     /// Emits a call dispatched by registry index, known at compile time: a
     /// global function, a constructor, or a static method. The callable is
     /// pushed first (no callee/receiver is loaded), then the arguments.
@@ -1940,6 +1984,14 @@ impl<'a> CodeGenerator<'a> {
                     self.generate_call_expr(*id, callee, arguments, OpCode::Call, *location);
                 }
             }
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                id,
+                location,
+                ..
+            } => self.generate_struct_update(*id, callee, base, arguments, *location),
             Expr::GetField {
                 object,
                 field,

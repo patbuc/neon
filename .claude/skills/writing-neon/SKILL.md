@@ -73,6 +73,9 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   in a variable; E0062). Arguments evaluate left to right in source order.
   Storing to a `val` field is an error (E0015 at compile time when the receiver
   is a constructor call, `self`, or a `val` bound from one; else at runtime).
+- Struct update copies an instance with changes: `Point(..base, y: 5)`. `..base`
+  comes first, only named arguments follow, the copy is shallow, and it may
+  replace `val` fields. A base of another type is a runtime error.
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
   explicit first parameter. A method without `self` is static (`Point.origin()`).
   No classes, inheritance, `this`, or `new`.

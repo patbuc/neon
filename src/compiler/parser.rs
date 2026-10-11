@@ -373,8 +373,19 @@ impl Parser {
         })
     }
 
-    fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<NamedArgument>)> {
+    /// Parses call arguments. A leading `..base` is returned first, apart
+    /// from the arguments.
+    #[allow(clippy::type_complexity)]
+    fn parse_arguments(
+        &mut self,
+    ) -> Option<(
+        Option<(Expr, SourceLocation)>,
+        Vec<Expr>,
+        Vec<NamedArgument>,
+    )> {
         let mut named = Vec::new();
+        let mut dots_location = None;
+        let mut parsed = 0;
         let arguments = self.parse_comma_separated_list(
             TokenType::RightParen,
             Some((
@@ -384,6 +395,20 @@ impl Parser {
             )),
             |parser| {
                 let location = parser.current_token_location();
+                parsed += 1;
+                if parsed == 1 && parser.match_token(TokenType::DotDot) {
+                    dots_location = Some(location);
+                    return parser.expression(false);
+                }
+                if parser.check(TokenType::DotDot) {
+                    parser.report_error(
+                        CompilationErrorKind::ExpectedToken,
+                        location,
+                        "'..' must be the first argument".to_string(),
+                    );
+                    parser.advance();
+                    return parser.expression(false);
+                }
                 let value = parser.expression(false)?;
                 match value {
                     Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
@@ -392,7 +417,13 @@ impl Parser {
                         parser.expression(false)
                     }
                     value => {
-                        if !named.is_empty() {
+                        if dots_location.is_some() {
+                            parser.report_error(
+                                CompilationErrorKind::ExpectedToken,
+                                location,
+                                "Only named arguments may follow '..'".to_string(),
+                            );
+                        } else if !named.is_empty() {
                             parser.report_error(
                                 CompilationErrorKind::ExpectedToken,
                                 location,
@@ -404,7 +435,37 @@ impl Parser {
                 }
             },
         )?;
-        Some((arguments, named))
+        let mut arguments = arguments;
+        let base = dots_location.map(|dots| (arguments.remove(0), dots));
+        Some((base, arguments, named))
+    }
+
+    fn call_expr(
+        callee: Expr,
+        base: Option<(Expr, SourceLocation)>,
+        arguments: Vec<Expr>,
+        named: Vec<NamedArgument>,
+        id: NodeId,
+        location: SourceLocation,
+    ) -> Expr {
+        match base {
+            Some((base, base_location)) => Expr::StructUpdate {
+                callee: Box::new(callee),
+                base: Box::new(base),
+                arguments,
+                named,
+                id,
+                location,
+                base_location: Box::new(base_location),
+            },
+            None => Expr::Call {
+                callee: Box::new(callee),
+                arguments,
+                named,
+                id,
+                location,
+            },
+        }
     }
 
     fn current_location(&self) -> SourceLocation {
@@ -1870,19 +1931,20 @@ impl Parser {
 
     fn call(&mut self, callee: Expr) -> Option<Expr> {
         let location = self.current_location();
-        let (arguments, named) = self.parse_arguments()?;
+        let (base, arguments, named) = self.parse_arguments()?;
 
         if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
             return None;
         }
 
-        Some(Expr::Call {
-            callee: Box::new(callee),
+        Some(Self::call_expr(
+            callee,
+            base,
             arguments,
             named,
-            id: self.next_id(),
+            self.next_id(),
             location,
-        })
+        ))
     }
 
     fn dot(&mut self, object: Expr, can_assign: bool, optional: bool) -> Option<Expr> {
@@ -1923,7 +1985,7 @@ impl Parser {
         if self.check(TokenType::LeftParen) {
             self.advance(); // consume '('
             let method_location = self.current_location();
-            let (arguments, named) = self.parse_arguments()?;
+            let (base, arguments, named) = self.parse_arguments()?;
 
             if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
                 return None;
@@ -1937,13 +1999,14 @@ impl Parser {
                 location,
             };
 
-            Some(Expr::Call {
-                callee: Box::new(get_field_expr),
+            Some(Self::call_expr(
+                get_field_expr,
+                base,
                 arguments,
                 named,
-                id: self.next_id(),
-                location: method_location,
-            })
+                self.next_id(),
+                method_location,
+            ))
         } else if !optional && can_assign && self.match_token(TokenType::Equal) {
             self.skip_new_lines();
             let value = Box::new(self.expression(false)?);

@@ -401,6 +401,7 @@ fn variant_index(instr: Instr) -> usize {
         Instr::GetLocalModuloConstant { .. } => 102,
         Instr::IncrementLocal { .. } => 103,
         Instr::Yield => 108,
+        Instr::CheckUpdateBase => 109,
     }
 }
 
@@ -581,10 +582,11 @@ fn name_matches_the_variant_name() {
             constant: 1,
         },
         Instr::Yield,
+        Instr::CheckUpdateBase,
     ];
     let mut seen: Vec<usize> = samples.iter().map(|&instr| variant_index(instr)).collect();
     seen.sort_unstable();
-    assert_eq!((0..109).collect::<Vec<_>>(), seen);
+    assert_eq!((0..110).collect::<Vec<_>>(), seen);
 
     for instr in samples {
         let debug = format!("{instr:?}");

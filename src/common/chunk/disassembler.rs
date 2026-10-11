@@ -142,6 +142,9 @@ impl Chunk {
             OpCode::EndTry => self.simple_instruction(OpCode::EndTry, offset, out),
             OpCode::Yield => self.simple_instruction(OpCode::Yield, offset, out),
             OpCode::Throw => self.simple_instruction(OpCode::Throw, offset, out),
+            OpCode::CheckUpdateBase => {
+                self.simple_instruction(OpCode::CheckUpdateBase, offset, out)
+            }
         }
     }
 

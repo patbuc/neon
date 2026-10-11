@@ -155,6 +155,17 @@ pub enum Expr {
         id: NodeId,
         location: SourceLocation,
     },
+    /// `Point(..base, y: 5)`: a copy of `base` with the `named` fields
+    /// replaced. `arguments` are the named values, in source order.
+    StructUpdate {
+        callee: Box<Expr>,
+        base: Box<Expr>,
+        arguments: Vec<Expr>,
+        named: Vec<NamedArgument>,
+        id: NodeId,
+        location: SourceLocation,
+        base_location: Box<SourceLocation>,
+    },
     GetField {
         object: Box<Expr>,
         field: String,

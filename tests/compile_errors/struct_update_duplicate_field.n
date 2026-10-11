@@ -1,0 +1,7 @@
+// Expected compile error: 7:18 E0061 Field 'y' given twice
+struct Point {
+    val x
+    val y
+}
+val p = Point(1, 2)
+Point(..p, y: 1, y: 2)

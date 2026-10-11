@@ -1,0 +1,7 @@
+// Expected compile error: 7:12 E0005 Only named arguments may follow '..'
+struct Point {
+    val x
+    val y
+}
+val p = Point(x: 1, y: 2)
+Point(..p, 5)
