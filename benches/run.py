@@ -32,6 +32,7 @@ BENCHMARKS = {
     "permute": 160,
     "storage": 220,
     "bounce": 350,
+    "list": 250,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
