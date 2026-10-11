@@ -1245,6 +1245,7 @@ impl SemanticAnalyzer {
                 arguments,
                 id,
                 location,
+                ..
             } => {
                 self.resolve_call_expr(*id, callee, arguments, *location);
             }

@@ -1117,6 +1117,7 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
+                ..
             } if tail && in_function && self.current().try_depth == 0 => match callee.as_ref() {
                 Expr::GetField {
                     object,
@@ -1860,6 +1861,7 @@ impl<'a> CodeGenerator<'a> {
                 arguments,
                 id,
                 location,
+                ..
             } => {
                 if let Expr::GetField {
                     object,

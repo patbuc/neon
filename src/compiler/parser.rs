@@ -373,15 +373,38 @@ impl Parser {
         })
     }
 
-    fn parse_arguments(&mut self) -> Option<Vec<Expr>> {
-        self.parse_expression_list(
+    /// Parses call arguments: positional ones, then `name: value` ones. Returns
+    /// the values in source order and the names of the trailing named ones.
+    fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<String>)> {
+        let mut named = Vec::new();
+        let arguments = self.parse_comma_separated_list(
             TokenType::RightParen,
             Some((
                 crate::common::constants::MAX_CALL_ARGUMENTS,
                 CompilationErrorKind::TooManyCallArguments,
                 "Can't have more than 255 arguments.",
             )),
-        )
+            |parser| {
+                let value = parser.expression(false)?;
+                match value {
+                    Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
+                        parser.skip_new_lines();
+                        named.push(name);
+                        parser.expression(false)
+                    }
+                    value => {
+                        if !named.is_empty() {
+                            parser.report_error_at_current(
+                                CompilationErrorKind::ExpectedToken,
+                                "Positional argument after named argument".to_string(),
+                            );
+                        }
+                        Some(value)
+                    }
+                }
+            },
+        )?;
+        Some((arguments, named))
     }
 
     fn current_location(&self) -> SourceLocation {
@@ -1847,7 +1870,7 @@ impl Parser {
 
     fn call(&mut self, callee: Expr) -> Option<Expr> {
         let location = self.current_location();
-        let arguments = self.parse_arguments()?;
+        let (arguments, named) = self.parse_arguments()?;
 
         if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
             return None;
@@ -1856,6 +1879,7 @@ impl Parser {
         Some(Expr::Call {
             callee: Box::new(callee),
             arguments,
+            named,
             id: self.next_id(),
             location,
         })
@@ -1899,7 +1923,7 @@ impl Parser {
         if self.check(TokenType::LeftParen) {
             self.advance(); // consume '('
             let method_location = self.current_location();
-            let arguments = self.parse_arguments()?;
+            let (arguments, named) = self.parse_arguments()?;
 
             if !self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
                 return None;
@@ -1916,6 +1940,7 @@ impl Parser {
             Some(Expr::Call {
                 callee: Box::new(get_field_expr),
                 arguments,
+                named,
                 id: self.next_id(),
                 location: method_location,
             })
@@ -2033,20 +2058,22 @@ impl Parser {
         let location = self.current_location();
         let lambda = self.block_lambda()?;
 
-        let (call_callee, mut arguments, call_location) = match callee {
+        let (call_callee, mut arguments, named, call_location) = match callee {
             Expr::Call {
                 callee,
                 arguments,
+                named,
                 location,
                 ..
-            } => (callee, arguments, location),
-            other => (Box::new(other), Vec::new(), location),
+            } => (callee, arguments, named, location),
+            other => (Box::new(other), Vec::new(), Vec::new(), location),
         };
         arguments.push(lambda);
 
         Some(Expr::Call {
             callee: call_callee,
             arguments,
+            named,
             id: self.next_id(),
             location: call_location,
         })

@@ -146,6 +146,8 @@ pub enum Expr {
     Call {
         callee: Box<Expr>,
         arguments: Vec<Expr>,
+        /// Field names of the last `named.len()` arguments, written `name: value`.
+        named: Vec<String>,
         id: NodeId,
         location: SourceLocation,
     },
