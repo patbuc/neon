@@ -1,0 +1,16 @@
+// Expected:
+// 2
+
+// Expected runtime error: Cannot modify immutable field 'Point.x'.
+
+struct Point {
+    val x
+    var y
+}
+
+fn change(p) {
+    print(p.y)
+    p.x = 5
+}
+
+change(Point(1, 2))
