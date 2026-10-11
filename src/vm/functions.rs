@@ -612,10 +612,16 @@ impl VirtualMachine {
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: Rc<ObjStruct>) -> OpResult {
         let field_count = r#struct.fields.len();
-        if arg_count < r#struct.positional_minimum() || arg_count > field_count {
+        let minimum = r#struct.positional_minimum();
+        if arg_count < minimum || arg_count > field_count {
+            let expected = if minimum == field_count {
+                field_count.to_string()
+            } else {
+                format!("{} to {}", minimum, field_count)
+            };
             return Err(self.call_error(format!(
                 "Expected {} fields but got {}.",
-                field_count, arg_count
+                expected, arg_count
             )));
         }
 

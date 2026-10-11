@@ -1,0 +1,16 @@
+// Expected:
+// before
+
+// Expected runtime error: Expected 1 to 2 fields but got 0.
+
+struct Config {
+    val host
+    var retries = 3
+}
+
+fn make(T) {
+    return T()
+}
+
+print("before")
+make(Config)
