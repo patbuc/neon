@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791671382410,
+  "lastUpdate": 1791688501411,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -24588,6 +24588,210 @@ window.BENCHMARK_DATA = {
             "value": 0.8461176004639283,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a88bd821198e2ddf2f64f64c0848f85c3bffd06b",
+          "message": "Merge pull request #564 from patbuc/worktree-375-val-var-struct-fields\n\n375: Add val and var struct fields",
+          "timestamp": "2026-10-11T05:13:41+02:00",
+          "tree_id": "3d02b3a705247c434f2287c36c3c62a9765bf119",
+          "url": "https://github.com/patbuc/neon/commit/a88bd821198e2ddf2f64f64c0848f85c3bffd06b"
+        },
+        "date": 1791688500469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 156.4882295999979,
+            "range": "± 1.043",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 125.43691200000353,
+            "range": "± 1.882",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.2475452967145229,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 116.0905836000012,
+            "range": "± 0.767",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 361.48017900000013,
+            "range": "± 5.296",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.32115338639356256,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 131.18805340000108,
+            "range": "± 1.956",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 218.03798620000236,
+            "range": "± 7.59",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.601675220388729,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 68.90436520000094,
+            "range": "± 0.434",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 137.33803840000292,
+            "range": "± 5.674",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.5017136257568644,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 61.41203679999876,
+            "range": "± 0.859",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 67.20313399999611,
+            "range": "± 2.822",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 0.9138269771764262,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 223.80791399999964,
+            "range": "± 3.021",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 320.7081940000023,
+            "range": "± 2.909",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.6978553033166282,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 208.85537559999534,
+            "range": "± 4.591",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 305.86737959999937,
+            "range": "± 10.777",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.682829845644631,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 148.23708099999635,
+            "range": "± 3.19",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 170.4263386000008,
+            "range": "± 3.291",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.8698014768005797,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 136.1163566000016,
+            "range": "± 0.576",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 170.04064260000007,
+            "range": "± 2.546",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.8004930734130357,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) 6973P-C"
           }
         ]
       }
