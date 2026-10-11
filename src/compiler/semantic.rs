@@ -1970,6 +1970,9 @@ impl SemanticAnalyzer {
             ..
         } = callee
         {
+            if !named.is_empty() {
+                self.report_named_argument_not_struct(named);
+            }
             self.resolve_method_call(id, object, field, *optional, arguments, location);
         } else {
             self.resolve_function_call(id, callee, arguments, named, location);
@@ -2245,6 +2248,9 @@ impl SemanticAnalyzer {
     ) {
         if let Expr::Variable { name, .. } = callee {
             if self.symbol_table.resolve(name).is_none() {
+                if !named.is_empty() {
+                    self.report_named_argument_not_struct(named);
+                }
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
                 if let Some(index) =
@@ -2290,6 +2296,15 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::NamedArgumentNotStruct,
+            "Named arguments need a known struct".to_string(),
+            named[0].1,
+        ));
+    }
+
     fn record_named_struct_arguments(
         &mut self,
         id: NodeId,
@@ -2303,12 +2318,7 @@ impl SemanticAnalyzer {
             .resolve(struct_name)
             .map(|s| s.kind.clone())
         else {
-            self.push_error(CompilationError::new(
-                CompilationPhase::Semantic,
-                CompilationErrorKind::NamedArgumentNotStruct,
-                "Named arguments need a known struct".to_string(),
-                named[0].1,
-            ));
+            self.report_named_argument_not_struct(named);
             return true;
         };
         let first_named = argument_count - named.len();
