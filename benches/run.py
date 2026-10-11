@@ -33,6 +33,7 @@ BENCHMARKS = {
     "storage": 220,
     "bounce": 350,
     "list": 250,
+    "mandelbrot": 500,
 }
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
