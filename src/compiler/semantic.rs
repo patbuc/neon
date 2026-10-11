@@ -2306,9 +2306,10 @@ impl SemanticAnalyzer {
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
             let reported = !named.is_empty() && {
-                if let Some(SymbolKind::Struct { fields, .. }) =
-                    self.symbol_table.resolve(name).map(|s| s.kind.clone())
-                {
+                if let Some(fields) = self.symbol_table.resolve(name).and_then(|s| match &s.kind {
+                    SymbolKind::Struct { fields, .. } => Some(fields.clone()),
+                    _ => None,
+                }) {
                     self.record_named_struct_arguments(
                         id,
                         name,
@@ -2327,9 +2328,7 @@ impl SemanticAnalyzer {
             if !reported {
                 self.validate_function_call(name, arguments, location);
             }
-        }
-
-        if !matches!(callee, Expr::Variable { .. }) && !named.is_empty() {
+        } else if !named.is_empty() {
             self.report_named_argument_not_struct(named);
         }
 

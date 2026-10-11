@@ -150,7 +150,7 @@ pub enum Expr {
         callee: Box<Expr>,
         arguments: Vec<Expr>,
         /// Field names, with the location of each name, of the last `named.len()` arguments,
-        /// written `name: value`. A trailing block after named arguments is a parse error.
+        /// written `name: value`.
         named: Vec<NamedArgument>,
         id: NodeId,
         location: SourceLocation,
