@@ -1,0 +1,77 @@
+// Expected:
+// 16382
+
+struct TowersDisk {
+    val size
+    var next
+}
+
+struct Towers {
+    var piles
+    var movesDone
+}
+
+impl Towers {
+    fn pushDisk(self, disk, pile) {
+        val top = self.piles[pile]
+        if top != nil && disk.size >= top.size {
+            throw "Cannot put a big disk on a smaller one"
+        }
+        disk.next = top
+        self.piles[pile] = disk
+    }
+
+    fn popDiskFrom(self, pile) {
+        val top = self.piles[pile]
+        if top == nil {
+            throw "Attempting to remove a disk from an empty pile"
+        }
+        self.piles[pile] = top.next
+        top.next = nil
+        top
+    }
+
+    fn moveTopDisk(self, fromPile, toPile) {
+        self.pushDisk(self.popDiskFrom(fromPile), toPile)
+        self.movesDone += 1
+    }
+
+    fn buildTowerAt(self, pile, disks) {
+        var i = disks
+        while i >= 0 {
+            self.pushDisk(TowersDisk(i, nil), pile)
+            i -= 1
+        }
+    }
+
+    fn moveDisks(self, disks, fromPile, toPile) {
+        if disks == 1 {
+            self.moveTopDisk(fromPile, toPile)
+        } else {
+            val otherPile = (3 - fromPile) - toPile
+            self.moveDisks(disks - 1, fromPile, otherPile)
+            self.moveTopDisk(fromPile, toPile)
+            self.moveDisks(disks - 1, otherPile, toPile)
+        }
+    }
+}
+
+fn benchmark() {
+    val towers = Towers([nil, nil, nil], 0)
+    towers.buildTowerAt(0, 13)
+    towers.movesDone = 0
+    towers.moveDisks(13, 0, 1)
+    towers.movesDone
+}
+
+val iterations = args.size() > 0 ? args[0].toInt() : 2
+
+var checksum = 0
+for _ in 0..iterations {
+    val result = benchmark()
+    if result != 8191 {
+        throw "Towers verification failed: ${result}"
+    }
+    checksum += result
+}
+print(checksum)
