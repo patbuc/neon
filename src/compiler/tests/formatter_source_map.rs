@@ -85,7 +85,7 @@ fn test_fn_with_broken_params_lines() {
 
 #[test]
 fn test_struct_close_brace_line() {
-    let source = "struct P {\n    x\n    y\n}\n";
+    let source = "struct P {\n    val x\n    val y\n}\n";
     let mut parser = Parser::new(source);
     let stmts = parser.parse().expect("should parse");
     let map = SourceMap::new(source);
