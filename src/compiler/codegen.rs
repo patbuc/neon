@@ -1645,15 +1645,13 @@ impl<'a> CodeGenerator<'a> {
         location: SourceLocation,
     ) {
         if let Some(fields) = self.resolutions.struct_argument_fields(id) {
-            if fields.windows(2).any(|pair| pair[0] > pair[1]) {
-                self.generate_reordered_struct_call(
-                    |this| this.generate_expr(callee),
-                    arguments,
-                    fields,
-                    location,
-                );
-                return;
-            }
+            self.generate_reordered_struct_call(
+                |this| this.generate_expr(callee),
+                arguments,
+                fields,
+                location,
+            );
+            return;
         }
 
         // Unified calling convention: [callable, args...]
@@ -1664,8 +1662,6 @@ impl<'a> CodeGenerator<'a> {
         self.emit_call(call_op, arguments.len() as u8, location);
     }
 
-    /// Always a plain call, never a tail call: the hidden slots still need
-    /// popping afterwards.
     fn generate_reordered_struct_call(
         &mut self,
         generate_callee: impl FnOnce(&mut Self),
@@ -1751,15 +1747,13 @@ impl<'a> CodeGenerator<'a> {
                     _ => OpCode::Call,
                 };
                 if let Some(fields) = self.resolutions.struct_argument_fields(id) {
-                    if fields.windows(2).any(|pair| pair[0] > pair[1]) {
-                        self.generate_reordered_struct_call(
-                            |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
-                            arguments,
-                            fields,
-                            location,
-                        );
-                        return;
-                    }
+                    self.generate_reordered_struct_call(
+                        |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
+                        arguments,
+                        fields,
+                        location,
+                    );
+                    return;
                 }
                 self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
                 for arg in arguments {

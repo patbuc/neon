@@ -1970,15 +1970,6 @@ impl SemanticAnalyzer {
             ..
         } = callee
         {
-            let module_struct = !*optional
-                && matches!(
-                    object.as_ref(),
-                    Expr::Variable { name, .. }
-                        if matches!(self.module_export(name, field), Some(Export::Struct { .. }))
-                );
-            if !named.is_empty() && !module_struct {
-                self.report_named_argument_not_struct(named);
-            }
             self.resolve_method_call(id, object, field, *optional, arguments, named, location);
         } else {
             self.resolve_function_call(id, callee, arguments, named, location);
@@ -2066,6 +2057,11 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
+        let module_receiver = !optional
+            && matches!(object, Expr::Variable { name, .. } if self.module_exports(name).is_some());
+        if !named.is_empty() && !module_receiver {
+            self.report_named_argument_not_struct(named);
+        }
         if optional && self.is_module_type(object) {
             for arg in arguments {
                 self.resolve_expr(arg);
@@ -2100,6 +2096,9 @@ impl SemanticAnalyzer {
 
             if !optional && self.module_exports(name).is_some() {
                 let export = self.resolve_module_member(*object_id, name, method, location);
+                if !named.is_empty() && !matches!(export, Some(Export::Struct { .. })) {
+                    self.report_named_argument_not_struct(named);
+                }
                 match export {
                     Some(Export::Function { arity, .. }) => {
                         self.validate_arity("Function", method, arity, arguments.len(), location);
@@ -2269,27 +2268,25 @@ impl SemanticAnalyzer {
             if self.symbol_table.resolve(name).is_none() {
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
-                if let Some(index) =
-                    crate::common::method_registry::get_native_method_index("", name)
-                {
+                let native = crate::common::method_registry::get_native_method_index("", name)
+                    .map(|index| (index, None))
+                    .or_else(|| {
+                        // Likewise a builtin type's constructor, e.g. Array(n).
+                        crate::common::method_registry::get_native_method_index(name, "new").map(
+                            |index| {
+                                (
+                                    index,
+                                    Some(crate::common::method_registry::native_arity(index)),
+                                )
+                            },
+                        )
+                    });
+                if let Some((index, constructor_arity)) = native {
                     if !named.is_empty() {
                         self.report_named_argument_not_struct(named);
                     }
-                    self.resolutions.record_native(id, index);
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                    return;
-                }
-
-                // Likewise a builtin type's constructor, e.g. Array(n).
-                if let Some(index) =
-                    crate::common::method_registry::get_native_method_index(name, "new")
-                {
-                    let arity = crate::common::method_registry::native_arity(index);
-                    self.validate_arity("Function", name, arity, arguments.len(), location);
-                    if !named.is_empty() {
-                        self.report_named_argument_not_struct(named);
+                    if let Some(arity) = constructor_arity {
+                        self.validate_arity("Function", name, arity, arguments.len(), location);
                     }
                     self.resolutions.record_native(id, index);
                     for arg in arguments {
@@ -2305,27 +2302,33 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            let reported = !named.is_empty() && {
-                if let Some(fields) = self.symbol_table.resolve(name).and_then(|s| match &s.kind {
+            let struct_fields = self
+                .symbol_table
+                .resolve(name)
+                .map(|symbol| match &symbol.kind {
                     SymbolKind::Struct { fields, .. } => Some(fields.clone()),
                     _ => None,
-                }) {
-                    self.record_named_struct_arguments(
+                });
+            let skip_arity_check = if named.is_empty() {
+                false
+            } else {
+                match struct_fields {
+                    Some(Some(fields)) => self.record_named_struct_arguments(
                         id,
                         name,
                         &fields,
                         arguments.len(),
                         named,
                         location,
-                    )
-                } else {
-                    if self.symbol_table.resolve(name).is_some() {
+                    ),
+                    Some(None) => {
                         self.report_named_argument_not_struct(named);
+                        true
                     }
-                    true
+                    None => true,
                 }
             };
-            if !reported {
+            if !skip_arity_check {
                 self.validate_function_call(name, arguments, location);
             }
         } else if !named.is_empty() {
@@ -2401,8 +2404,10 @@ impl SemanticAnalyzer {
                     location,
                 ));
             }
-            self.resolutions
-                .record_struct_argument_fields(id, positions);
+            if positions.windows(2).any(|pair| pair[0] > pair[1]) {
+                self.resolutions
+                    .record_struct_argument_fields(id, positions);
+            }
         }
         unknown || missing || duplicate
     }
