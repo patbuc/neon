@@ -1659,11 +1659,8 @@ impl<'a> CodeGenerator<'a> {
         self.emit_call(call_op, arguments.len() as u8, location);
     }
 
-    /// Named struct construction with arguments out of field order. The
-    /// arguments are evaluated in source order into hidden stack slots, then
-    /// pushed in field order after the callee. The result replaces the first
-    /// hidden slot and the rest are popped. Always a plain call: the hidden
-    /// slots still need popping afterwards.
+    /// Always a plain call, never a tail call: the hidden slots still need
+    /// popping afterwards.
     fn generate_reordered_struct_call(
         &mut self,
         callee: &Expr,

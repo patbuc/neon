@@ -373,8 +373,6 @@ impl Parser {
         })
     }
 
-    /// Parses call arguments: positional ones, then `name: value` ones. Returns
-    /// the values in source order and the names of the trailing named ones.
     fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<NamedArgument>)> {
         let mut named = Vec::new();
         let arguments = self.parse_comma_separated_list(
@@ -2070,6 +2068,13 @@ impl Parser {
             } => (callee, arguments, named, location),
             other => (Box::new(other), Vec::new(), Vec::new(), location),
         };
+        if !named.is_empty() {
+            self.report_error(
+                CompilationErrorKind::ExpectedToken,
+                location,
+                "Positional argument after named argument".to_string(),
+            );
+        }
         arguments.push(lambda);
 
         Some(Expr::Call {
