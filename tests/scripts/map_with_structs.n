@@ -12,9 +12,9 @@
 
 // Define a struct
 struct Person {
-    name
-    age
-    city
+    val name
+    val age
+    val city
 }
 
 // Create a map of people with scores

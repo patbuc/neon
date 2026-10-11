@@ -916,8 +916,8 @@ fn test_array_chained_operations() {
 fn test_array_with_struct_values() {
     let program = r#"
         struct Point {
-            x
-            y
+            val x
+            val y
         }
 
         val points = [Point(1, 2), Point(3, 4), Point(5, 6)]
@@ -1304,7 +1304,7 @@ fn test_field_compound_assign_does_not_grow_stack() {
         let program = format!(
             r#"
             struct Box {{
-                n
+                var n
             }}
             val o = Box(0)
             var i = 0
@@ -1673,7 +1673,7 @@ fn structurally_cyclic_distinct_maps_are_equal() {
 fn self_referencing_instance_equals_itself() {
     let program = r#"
         struct Node {
-            next
+            var next
         }
         val p = Node(nil)
         p.next = p
@@ -1690,7 +1690,7 @@ fn self_referencing_instance_equals_itself() {
 fn structurally_cyclic_distinct_instances_are_equal() {
     let program = r#"
         struct Node {
-            next
+            var next
         }
         val p = Node(nil)
         p.next = p
@@ -1768,7 +1768,7 @@ fn method_call_with_255_arguments_compiles_and_runs() {
     let params: Vec<String> = (0..255).map(|i| format!("p{}", i)).collect();
     let args: Vec<String> = (0..255).map(|i| i.to_string()).collect();
     let program = format!(
-        "struct Point {{ x }}\nimpl Point {{\n    fn m({}) {{ return p254 }}\n}}\nprint(Point.m({}))",
+        "struct Point {{ val x }}\nimpl Point {{\n    fn m({}) {{ return p254 }}\n}}\nprint(Point.m({}))",
         params.join(", "),
         args.join(", ")
     );
@@ -1831,8 +1831,8 @@ fn undefined_variable_in_interpolation_reports_location() {
 fn calling_unknown_method_on_instance_is_runtime_error() {
     let program = r#"
         struct Point {
-            x
-            y
+            val x
+            val y
         }
 
         fn push_to(p) { p.push(5) }
@@ -2058,7 +2058,7 @@ fn nested_fn_reading_later_block_val_is_compile_error() {
 fn struct_methods_live_on_the_struct() {
     let mut vm = VirtualMachine::new();
     let result =
-        vm.interpret("struct Point { x }\nimpl Point { fn m(self) { return 1 } }".to_string());
+        vm.interpret("struct Point { val x }\nimpl Point { fn m(self) { return 1 } }".to_string());
     assert_eq!(InterpretResult::Ok, result);
 
     let point = vm

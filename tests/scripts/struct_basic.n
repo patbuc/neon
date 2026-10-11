@@ -10,8 +10,8 @@
 
 // Define a simple struct
 struct Point {
-    x
-    y
+    var x
+    val y
 }
 
 // Create an instance

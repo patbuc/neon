@@ -2,7 +2,7 @@
 // caught boom
 
 struct Box {
-    v
+    val v
 }
 
 impl Box {

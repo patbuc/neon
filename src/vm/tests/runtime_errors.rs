@@ -44,7 +44,7 @@ fn array_index_write_out_of_bounds_halts() {
 #[test]
 fn get_field_missing_halts() {
     let program = r#"
-        struct P { x }
+        struct P { val x }
         fn get_y(p) { return p.y }
         print(get_y(P(1)))
         "#;
@@ -57,7 +57,7 @@ fn get_field_missing_halts() {
 #[test]
 fn set_field_missing_halts() {
     let program = r#"
-        struct P { x }
+        struct P { val x }
         fn set_y(p) { p.y = 2 }
         set_y(P(1))
         "#;
@@ -96,7 +96,7 @@ fn create_set_invalid_element_reports_exactly_one_error() {
 #[test]
 fn nothing_after_a_runtime_error_executes() {
     let program = r#"
-        struct P { x }
+        struct P { val x }
         fn get_y(p) { return p.y }
         print(get_y(P(1)))
         print("after")
@@ -616,7 +616,7 @@ fn vm_is_usable_after_a_callback_error() {
 #[test]
 fn method_arity_error_excludes_self() {
     let program = r#"
-        struct Point { x y }
+        struct Point { val x val y }
         impl Point {
             fn dist(self, o) { return 1 }
         }
@@ -639,7 +639,7 @@ fn method_arity_error_excludes_self() {
 #[test]
 fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
     let program = r#"
-        struct Point { x y }
+        struct Point { val x val y }
         impl Point {
             fn len(self) { return self.x }
         }
@@ -660,7 +660,7 @@ fn undefined_method_on_unresolved_receiver_type_halts_at_runtime() {
 #[test]
 fn instance_call_on_static_method_halts_at_runtime() {
     let program = r#"
-        struct Point { x y }
+        struct Point { val x val y }
         impl Point {
             fn origin() { return Point(0, 0) }
         }
@@ -679,7 +679,7 @@ fn instance_call_on_static_method_halts_at_runtime() {
 #[test]
 fn static_call_on_instance_method_halts_at_runtime() {
     let program = r#"
-        struct Point { x y }
+        struct Point { val x val y }
         impl Point {
             fn len(self) { return self.x }
         }
@@ -698,7 +698,7 @@ fn static_call_on_instance_method_halts_at_runtime() {
 #[test]
 fn method_named_this_is_static_on_untyped_receiver_halts_at_runtime() {
     let program = r#"
-        struct Point { x y }
+        struct Point { val x val y }
         impl Point {
             fn len(this) { return this.x }
         }
@@ -717,7 +717,7 @@ fn method_named_this_is_static_on_untyped_receiver_halts_at_runtime() {
 #[test]
 fn call_field_holding_number_is_not_callable() {
     let program = r#"
-        struct S { f }
+        struct S { val f }
         fn call_f(s) { return s.f(2) }
         call_f(S(1))
         "#;
@@ -732,7 +732,7 @@ fn call_field_holding_number_is_not_callable() {
 #[test]
 fn call_name_that_is_neither_method_nor_field_is_unknown_method() {
     let program = r#"
-        struct S { f }
+        struct S { val f }
         fn call_g(s) { return s.g(2) }
         call_g(S(1))
         "#;
@@ -1253,7 +1253,7 @@ fn not_callable_error_through_a_nested_call_reports_the_call_site() {
 fn struct_field_count_error_through_a_nested_call_reports_the_call_site() {
     // Calling through a stored value, since a literal `P(1)` is an arity
     // error the compiler catches before this runs.
-    let program = "struct P { x y }\nval ctor = P\nfn h() {\n  ctor(1)\n  print(1)\n}\nh()";
+    let program = "struct P { val x val y }\nval ctor = P\nfn h() {\n  ctor(1)\n  print(1)\n}\nh()";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1280,7 +1280,7 @@ fn struct_field_count_error_through_a_nested_call_reports_the_call_site() {
 
 #[test]
 fn method_mismatch_error_through_a_nested_call_reports_the_call_site() {
-    let program = "struct Point { x y }\nimpl Point {\n    fn origin() { return Point(0, 0) }\n}\nfn call_origin(p) {\n  p.origin()\n  print(1)\n}\ncall_origin(Point(1, 2))";
+    let program = "struct Point { val x val y }\nimpl Point {\n    fn origin() { return Point(0, 0) }\n}\nfn call_origin(p) {\n  p.origin()\n  print(1)\n}\ncall_origin(Point(1, 2))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1554,7 +1554,7 @@ fn native_callback_error_from_a_nested_function_reports_every_frame() {
 
 #[test]
 fn get_local_field_unknown_field_location() {
-    let program = "struct P { x }\nfn get(p) {\n  return p.z\n}\nget(P(1))";
+    let program = "struct P { val x }\nfn get(p) {\n  return p.z\n}\nget(P(1))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1580,7 +1580,7 @@ fn get_local_field_non_instance_location() {
 
 #[test]
 fn store_local_field_unknown_field_location() {
-    let program = "struct P { x }\nfn set(p) {\n  p.z = 1\n}\nset(P(1))";
+    let program = "struct P { val x }\nfn set(p) {\n  p.z = 1\n}\nset(P(1))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1614,7 +1614,7 @@ fn compound_assignment_reports_operator_location_like_long_form() {
     let error = vm.get_runtime_error().unwrap();
     assert_eq!(Some((2, 14)), error.location);
 
-    let field_program = "struct O { n }\nval o = O(nil)\no.n += 1\n";
+    let field_program = "struct O { var n }\nval o = O(nil)\no.n += 1\n";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(field_program.to_string());
@@ -1625,7 +1625,7 @@ fn compound_assignment_reports_operator_location_like_long_form() {
 
 #[test]
 fn store_field_unknown_field_location() {
-    let program = "struct P { x }\nfn set(q) {\n  var p = q\n  p.z = 1\n}\nset(P(1))";
+    let program = "struct P { val x }\nfn set(q) {\n  var p = q\n  p.z = 1\n}\nset(P(1))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1861,7 +1861,7 @@ fn error_in_fused_local_field_operand_on_non_instance_reports_the_get_field_loca
 
 #[test]
 fn error_in_second_fused_local_field_operand_reports_its_own_get_field_location() {
-    let program = "struct Body {\n    mass\n}\nfn run(a, b, p, q) {\n    val x = a * p.mass\n    return b +\n        q\n            .mass\n}\nrun(1, 2, Body(3), 4)";
+    let program = "struct Body {\n    val mass\n}\nfn run(a, b, p, q) {\n    val x = a * p.mass\n    return b +\n        q\n            .mass\n}\nrun(1, 2, Body(3), 4)";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1872,7 +1872,7 @@ fn error_in_second_fused_local_field_operand_reports_its_own_get_field_location(
 
 #[test]
 fn error_in_fused_local_field_operand_on_missing_field_reports_the_get_field_location() {
-    let program = "struct Body {\n    mass\n}\nfn run(a, p) {\n    return a *\n        p\n            .size\n}\nrun(2, Body(1))";
+    let program = "struct Body {\n    val mass\n}\nfn run(a, p) {\n    return a *\n        p\n            .size\n}\nrun(2, Body(1))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
@@ -1883,7 +1883,7 @@ fn error_in_fused_local_field_operand_on_missing_field_reports_the_get_field_loc
 
 #[test]
 fn error_in_fused_local_field_operand_on_string_field_reports_the_operator_location() {
-    let program = "struct Body {\n    name\n}\nfn run(a, p) {\n    return a *\n        p\n            .name\n}\nrun(2, Body(\"x\"))";
+    let program = "struct Body {\n    val name\n}\nfn run(a, p) {\n    return a *\n        p\n            .name\n}\nrun(2, Body(\"x\"))";
 
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());

@@ -4,7 +4,7 @@
 // Expected runtime error: integer overflow in -
 
 struct Box {
-    count
+    val count
 }
 
 fn sub(a, p) {

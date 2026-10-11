@@ -2,7 +2,7 @@
 // 725637
 
 struct Counter {
-    value
+    var value
 }
 
 impl Counter {

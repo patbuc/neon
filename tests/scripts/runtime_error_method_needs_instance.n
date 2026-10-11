@@ -6,7 +6,7 @@
 // Expected runtime error: Method 'm' needs an instance; call it on a P value
 
 struct P {
-    x
+    val x
 }
 
 impl P {

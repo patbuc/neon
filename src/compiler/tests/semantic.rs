@@ -474,7 +474,7 @@ fn f() {
         let (ast, res) = analyze(
             r#"
 struct Obj {
-    m
+    val m
 }
 fn outer() {
     var a = Obj(fn(x) { return x })
@@ -533,8 +533,8 @@ fn outer() {
         let (ast, res) = analyze(
             r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn origin() {
@@ -575,8 +575,8 @@ for item in arr {
         let (ast, res) = analyze(
             r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -603,7 +603,7 @@ fn helper() {
     return 42
 }
 struct Circle {
-    r
+    val r
 }
 impl Circle {
     fn area(self) {
@@ -625,8 +625,8 @@ impl Circle {
         let (ast, res) = analyze(
             r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 val scale = 10
 impl Point {
@@ -1047,7 +1047,7 @@ val x = #{1}.has(1)
 #[test]
 fn test_struct_with_size_method_len_does_not_suggest_size() {
     let program = r#"
-struct S { a }
+struct S { val a }
 impl S {
     fn size(self) = 1
 }
@@ -2343,7 +2343,7 @@ print(result.toUpperCase())
 fn test_unknown_field_get_on_known_struct_is_compile_error() {
     let program = r#"
 struct P {
-    x
+    val x
 }
 val p = P(1)
 print(p.y)
@@ -2358,8 +2358,8 @@ print(p.y)
 fn test_unknown_field_set_on_known_struct_is_compile_error() {
     let program = r#"
 struct P {
-    x
-    y
+    val x
+    val y
 }
 val p = P(1, 2)
 p.z = 3
@@ -2374,8 +2374,8 @@ p.z = 3
 fn test_valid_field_get_set_on_known_struct_compiles() {
     let program = r#"
 struct P {
-    x
-    y
+    var x
+    val y
 }
 val p = P(1, 2)
 p.x = 5
@@ -2402,7 +2402,7 @@ fn test_static_call_on_field_name_is_compile_error() {
     // still an unknown method, even though s.f(...) on an instance is fine.
     let program = r#"
 struct S {
-    f
+    val f
 }
 S.f(1)
 "#;
@@ -2416,8 +2416,8 @@ S.f(1)
 fn test_field_access_on_untyped_parameter_does_not_false_positive() {
     let program = r#"
 struct Player {
-    name
-    score
+    val name
+    val score
 }
 fn get_score(p) {
     return p.score
@@ -2444,10 +2444,10 @@ fn test_var_reassigned_to_different_struct_stops_field_validation() {
     // field access after it is no longer checked, valid or not.
     let program = r#"
 struct A {
-    x
+    val x
 }
 struct B {
-    y
+    val y
 }
 var v = A(1)
 v = B(2)
@@ -2473,10 +2473,10 @@ fn test_conditionally_reassigned_struct_does_not_false_positive() {
     // struct's fields must still be considered valid afterward.
     let program = r#"
 struct P {
-    x
+    val x
 }
 struct Q {
-    y
+    val y
 }
 var p = P(1)
 if (false) {
@@ -2525,8 +2525,8 @@ print(s.toUpperCase())
 fn test_struct_constructor_wrong_arity_is_compile_error() {
     let program = r#"
 struct P {
-    x
-    y
+    val x
+    val y
 }
 val p = P(1, 2, 3)
 "#;
@@ -2540,8 +2540,8 @@ val p = P(1, 2, 3)
 fn test_struct_constructor_correct_arity_compiles() {
     let program = r#"
 struct P {
-    x
-    y
+    val x
+    val y
 }
 val p = P(1, 2)
 print(p.x)
@@ -2609,7 +2609,7 @@ impl Ghost {
 fn test_impl_method_named_like_field_is_compile_error() {
     let program = r#"
 struct Circle {
-    radius
+    val radius
 }
 impl Circle {
     fn radius(self) {
@@ -2625,8 +2625,8 @@ impl Circle {
 fn test_duplicate_method_in_one_impl_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2645,8 +2645,8 @@ impl Point {
 fn test_duplicate_method_across_two_impls_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2667,7 +2667,7 @@ impl Point {
 fn test_impl_inside_fn_is_compile_error() {
     let program = r#"
 struct Point {
-    x
+    val x
 }
 fn wrapper() {
     impl Point {
@@ -2685,7 +2685,7 @@ fn wrapper() {
 fn test_impl_inside_block_is_compile_error() {
     let program = r#"
 struct Point {
-    x
+    val x
 }
 if (true) {
     impl Point {
@@ -2701,7 +2701,7 @@ if (true) {
 
 #[test]
 fn test_struct_inside_fn_is_compile_error() {
-    let program = "fn f() {\n    struct P { x }\n    return P(1)\n}\nprint(f().x)\n";
+    let program = "fn f() {\n    struct P { val x }\n    return P(1)\n}\nprint(f().x)\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
@@ -2711,7 +2711,7 @@ fn test_struct_inside_fn_is_compile_error() {
 
 #[test]
 fn test_struct_inside_block_is_compile_error() {
-    let program = "if (true) {\n    struct P { x }\n    print(P(1).x)\n}\n";
+    let program = "if (true) {\n    struct P { val x }\n    print(P(1).x)\n}\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].location.line, 2);
@@ -2721,12 +2721,12 @@ fn test_struct_inside_block_is_compile_error() {
 
 #[test]
 fn test_duplicate_struct_field_is_compile_error() {
-    let program = "struct A {\n    x\n    x\n}\n";
+    let program = "struct A {\n    val x\n    val x\n}\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateField);
     assert_eq!(errors[0].location.line, 3);
-    assert_eq!(errors[0].location.column, 5);
+    assert_eq!(errors[0].location.column, 9);
     assert!(errors[0].message.contains("'A'"));
     assert!(errors[0].message.contains("'x'"));
 }
@@ -2735,8 +2735,8 @@ fn test_duplicate_struct_field_is_compile_error() {
 fn test_wrong_argument_count_to_method_names_method() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2754,8 +2754,8 @@ p.len(5)
 fn test_undefined_method_on_inferred_struct_suggests_correction() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2773,8 +2773,8 @@ p.lne()
 fn test_self_unknown_field_in_method_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2790,8 +2790,8 @@ impl Point {
 fn test_static_call_on_instance_method_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -2810,8 +2810,8 @@ Point.len()
 fn test_instance_call_on_static_method_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn origin() {
@@ -2831,8 +2831,8 @@ p.origin()
 fn test_method_named_this_is_static_typed_receiver_is_compile_error() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(this) {
@@ -2852,8 +2852,8 @@ p.len()
 fn test_wrong_argument_count_to_static_method_names_method() {
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn make(a, b) {
@@ -2872,7 +2872,7 @@ Point.make(1)
 fn test_struct_named_string_is_compile_error() {
     let program = r#"
 struct String {
-    v
+    val v
 }
 "#;
     let errors = compile_errors(program);
@@ -2883,7 +2883,7 @@ struct String {
 fn test_struct_named_array_is_compile_error() {
     let program = r#"
 struct Array {
-    v
+    val v
 }
 "#;
     let errors = compile_errors(program);
@@ -2892,7 +2892,7 @@ struct Array {
 
 #[test]
 fn test_duplicate_field_on_reserved_struct_name_reports_both() {
-    let program = "struct Array { x x }\n";
+    let program = "struct Array { val x val x }\n";
     let errors = compile_errors(program);
     assert!(errors
         .iter()
@@ -3166,8 +3166,8 @@ fn struct_fields_and_methods_get_symbol_ids() {
     // interning itself, isolating those sites from struct/impl interning.
     let program = r#"
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 impl Point {
     fn len(self) {
@@ -3261,7 +3261,7 @@ fn test_enum_inside_block_is_compile_error() {
 
 #[test]
 fn test_enum_name_clash_with_struct_is_duplicate_symbol() {
-    let program = "enum Color {\n    Red\n}\nstruct Color {\n    x\n}\n";
+    let program = "enum Color {\n    Red\n}\nstruct Color {\n    val x\n}\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].kind, CompilationErrorKind::DuplicateSymbol);
@@ -3279,7 +3279,7 @@ fn test_enum_name_clash_with_fn_is_duplicate_symbol() {
 
 #[test]
 fn test_enum_name_shadowed_by_local_resolves_as_struct_field() {
-    let program = "enum Color {\n    Red\n}\nstruct Box {\n    Red\n}\nfn f() {\n    val Color = Box(0)\n    print(Color.Red)\n}\nf()\n";
+    let program = "enum Color {\n    Red\n}\nstruct Box {\n    val Red\n}\nfn f() {\n    val Color = Box(0)\n    print(Color.Red)\n}\nf()\n";
     let mut parser = Parser::new(program);
     let ast = parser.parse().unwrap();
 
@@ -3438,7 +3438,7 @@ fn test_optional_dot_on_enum_variant_is_compile_error() {
 
 #[test]
 fn test_optional_dot_on_struct_type_name_is_compile_error() {
-    let errors = compile_errors("struct P {\n    x\n}\nP?.x\n");
+    let errors = compile_errors("struct P {\n    val x\n}\nP?.x\n");
     assert!(
         errors
             .iter()

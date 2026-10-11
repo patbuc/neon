@@ -64,7 +64,10 @@ fn function_reads_earlier_global() {
 fn struct_instantiated_across_lines() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
-        .compile_line("struct Point {\n    x\n    y\n}\n", &GlobalEnv::default())
+        .compile_line(
+            "struct Point {\n    val x\n    val y\n}\n",
+            &GlobalEnv::default(),
+        )
         .unwrap();
 
     let result = compiler.compile_line("val p = Point(1, 2)\n", &env);
@@ -75,7 +78,10 @@ fn struct_instantiated_across_lines() {
 fn field_symbol_ids_stable_across_lines() {
     let mut compiler = Compiler::new();
     let (first_chunk, env) = compiler
-        .compile_line("struct Point {\n    x\n    y\n}\n", &GlobalEnv::default())
+        .compile_line(
+            "struct Point {\n    val x\n    val y\n}\n",
+            &GlobalEnv::default(),
+        )
         .unwrap();
 
     let (second_chunk, _) = compiler
@@ -97,7 +103,10 @@ fn field_symbol_ids_stable_across_lines() {
 fn impl_for_earlier_struct_across_lines() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
-        .compile_line("struct Point {\n    x\n    y\n}\n", &GlobalEnv::default())
+        .compile_line(
+            "struct Point {\n    val x\n    val y\n}\n",
+            &GlobalEnv::default(),
+        )
         .unwrap();
 
     let result = compiler.compile_line(
@@ -112,7 +121,7 @@ fn static_method_across_lines() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
         .compile_line(
-            "struct Point {\n    x\n}\nimpl Point {\n    fn origin() {\n        return Point(0)\n    }\n}\n",
+            "struct Point {\n    val x\n}\nimpl Point {\n    fn origin() {\n        return Point(0)\n    }\n}\n",
             &GlobalEnv::default(),
         )
         .unwrap();
@@ -126,7 +135,7 @@ fn duplicate_method_across_lines() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
         .compile_line(
-            "struct Point {\n    x\n}\nimpl Point {\n    fn m(self) {\n        return self.x\n    }\n}\n",
+            "struct Point {\n    val x\n}\nimpl Point {\n    fn m(self) {\n        return self.x\n    }\n}\n",
             &GlobalEnv::default(),
         )
         .unwrap();
@@ -204,7 +213,7 @@ fn redeclare_earlier_global_allocates_new_slot() {
 fn redeclare_struct_name_rejected() {
     let mut compiler = Compiler::new();
     let (_, env) = compiler
-        .compile_line("struct Point {\n    x\n}\n", &GlobalEnv::default())
+        .compile_line("struct Point {\n    val x\n}\n", &GlobalEnv::default())
         .unwrap();
 
     let result = compiler.compile_line("val Point = 1\n", &env);

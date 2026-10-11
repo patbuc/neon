@@ -10,13 +10,13 @@
 
 // Define structs
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 struct Rectangle {
-    top_left
-    bottom_right
+    var top_left
+    var bottom_right
 }
 
 // Function to calculate rectangle area

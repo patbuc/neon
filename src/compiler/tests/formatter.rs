@@ -339,7 +339,10 @@ fn test_condition_parens_with_comment_are_kept() {
 
 #[test]
 fn test_struct_one_field_per_line() {
-    check("struct P { x y }\n", "struct P {\n    x\n    y\n}\n");
+    check(
+        "struct P { val x var y }\n",
+        "struct P {\n    val x\n    var y\n}\n",
+    );
 }
 
 #[test]
@@ -348,11 +351,6 @@ fn test_struct_field_keyword_preserved() {
         "struct Point {\n    val x\n    var y\n}\n",
         "struct Point {\n    val x\n    var y\n}\n",
     );
-}
-
-#[test]
-fn test_struct_bare_field_stays_bare() {
-    check("struct Point {\n    x\n}\n", "struct Point {\n    x\n}\n");
 }
 
 #[test]
@@ -970,7 +968,7 @@ fn test_import_and_export_unchanged() {
 fn test_export_multiline_with_trailing_comment_unchanged() {
     for source in [
         "pub fn f() {\n    print(1)\n} // after\n",
-        "pub struct P {\n    x\n    y\n} // after\n",
+        "pub struct P {\n    val x\n    val y\n} // after\n",
         "pub enum E {\n    A\n    B\n} // after\n",
     ] {
         check(source, source);

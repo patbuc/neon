@@ -861,15 +861,23 @@ impl Parser {
 
         if !self.check(TokenType::RightBrace) {
             loop {
-                let mutable = !self.match_token(TokenType::Val);
-                let bare = mutable && !self.match_token(TokenType::Var);
+                let mutable = if self.match_token(TokenType::Val) {
+                    false
+                } else if self.match_token(TokenType::Var) {
+                    true
+                } else {
+                    self.report_error_at_current(
+                        CompilationErrorKind::ExpectedToken,
+                        "Expect 'val' or 'var' before field name.".to_string(),
+                    );
+                    true
+                };
                 if !self.consume(TokenType::Identifier, "Expect field name.") {
                     break;
                 }
                 fields.push(StructField {
                     name: self.previous_token.token.clone(),
                     mutable,
-                    bare,
                     location: self.current_location(),
                 });
                 self.skip_new_lines();

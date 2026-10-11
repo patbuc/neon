@@ -4,8 +4,8 @@
 // 0
 
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 impl Point {

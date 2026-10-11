@@ -4,8 +4,8 @@ pub enum Kind {
 }
 
 pub struct Shape {
-    kind
-    size
+    val kind
+    val size
 }
 
 pub var created = 0

@@ -51,7 +51,7 @@ cargo run
 ```
 
 Run with no arguments to start an interactive REPL. It reads one physical line per entry, so a
-`struct`, `enum`, or `impl` body must fit on that line (e.g. `struct P { x }` or
+`struct`, `enum`, or `impl` body must fit on that line (e.g. `struct P { val x }` or
 `impl P { fn f(self) { return 1 } }`) — it can't be split across multiple lines the way a file can.
 Multiple statements can still share a line wherever the syntax allows it. It keeps state between
 entries:
@@ -885,7 +885,7 @@ not receive the instance - it's called with just the arguments given.
 
 ```neon
 struct Adder {
-    add
+    val add
 }
 
 val a = Adder(fn(x, y) { return x + y })
@@ -956,8 +956,8 @@ pub fn bump() {
 }
 
 pub struct Point {
-    x
-    y
+    val x
+    val y
 }
 ```
 

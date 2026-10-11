@@ -26,7 +26,7 @@ fn source_too_many_symbols() -> String {
     for i in 0..65527 {
         methods.push_str(&format!("fn m{}(self) {{}}\n", i));
     }
-    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+    format!("struct S {{ val x }}\nimpl S {{\n{}\n}}\n", methods)
 }
 
 /// Like `source_too_many_symbols`, but overflows by 100 names instead of 1,
@@ -36,7 +36,7 @@ fn source_many_too_many_symbols() -> String {
     for i in 0..65627 {
         methods.push_str(&format!("fn m{}(self) {{}}\n", i));
     }
-    format!("struct S {{ x }}\nimpl S {{\n{}\n}}\n", methods)
+    format!("struct S {{ val x }}\nimpl S {{\n{}\n}}\n", methods)
 }
 
 /// One input per known error-construction site for `kind`, each paired with
@@ -132,10 +132,10 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             vec![("print(b)\nval b = 1\n".to_string(), None)]
         }
         CompilationErrorKind::ReservedStructName => {
-            vec![("struct Array { x }\n".to_string(), None)]
+            vec![("struct Array { val x }\n".to_string(), None)]
         }
         CompilationErrorKind::StructNotTopLevel => vec![(
-            "fn f() {\n    struct S { x }\n}\nf()\n".to_string(),
+            "fn f() {\n    struct S { val x }\n}\nf()\n".to_string(),
             None,
         )],
         CompilationErrorKind::ImplNotTopLevel => vec![(
@@ -143,7 +143,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             None,
         )],
         CompilationErrorKind::DuplicateMethod => vec![(
-            "struct S { x }\nimpl S {\n    fn m(self) { return 1 }\n    fn m(self) { return 2 }\n}\n"
+            "struct S { val x }\nimpl S {\n    fn m(self) { return 1 }\n    fn m(self) { return 2 }\n}\n"
                 .to_string(),
             None,
         )],
@@ -158,7 +158,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             ),
         ],
         CompilationErrorKind::MethodFieldConflict => vec![(
-            "struct S { x }\nimpl S {\n    fn x(self) { return 1 }\n}\n".to_string(),
+            "struct S { val x }\nimpl S {\n    fn x(self) { return 1 }\n}\n".to_string(),
             None,
         )],
         CompilationErrorKind::StaticMethodOnBuiltinType => vec![(
@@ -174,20 +174,20 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
         }
         CompilationErrorKind::UnknownMethod => vec![
             (
-                "struct S { x }\nval s = S(1)\ns.bogus()\n".to_string(),
+                "struct S { val x }\nval s = S(1)\ns.bogus()\n".to_string(),
                 Some("'S'"),
             ),
             ("\"ab\".bogus()\n".to_string(), Some("'String'")),
         ],
         CompilationErrorKind::UnknownField => {
-            vec![("struct S { x }\nval s = S(1)\ns.y\n".to_string(), None)]
+            vec![("struct S { val x }\nval s = S(1)\ns.y\n".to_string(), None)]
         }
         CompilationErrorKind::MethodNeedsInstance => vec![(
-            "struct S { x }\nimpl S {\n    fn m(self) { return 1 }\n}\nS.m()\n".to_string(),
+            "struct S { val x }\nimpl S {\n    fn m(self) { return 1 }\n}\nS.m()\n".to_string(),
             None,
         )],
         CompilationErrorKind::MethodIsStatic => vec![(
-            "struct S { x }\nimpl S {\n    fn m(n) { return n }\n}\nval s = S(1)\ns.m(1)\n"
+            "struct S { val x }\nimpl S {\n    fn m(n) { return n }\n}\nval s = S(1)\ns.m(1)\n"
                 .to_string(),
             None,
         )],
@@ -203,7 +203,7 @@ fn sources_for(kind: CompilationErrorKind) -> Vec<(String, Option<&'static str>)
             Some("but got 3"),
         )],
         CompilationErrorKind::DuplicateField => {
-            vec![("struct A { x x }\n".to_string(), Some("'A'"))]
+            vec![("struct A { val x val x }\n".to_string(), Some("'A'"))]
         }
         CompilationErrorKind::LimitExceeded => vec![
             (

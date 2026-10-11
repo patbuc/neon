@@ -129,7 +129,7 @@ fn impl_blocks_accumulate_across_lines() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("struct Point {\n    x\n    y\n}".to_string())
+        vm.interpret_line("struct Point {\n    val x\n    val y\n}".to_string())
     );
     assert_eq!(
         InterpretResult::Ok,
@@ -155,7 +155,7 @@ fn failed_impl_line_adds_no_methods() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("struct Point {\n    x\n    y\n}".to_string())
+        vm.interpret_line("struct Point {\n    val x\n    val y\n}".to_string())
     );
     assert_eq!(
         InterpretResult::RuntimeError,
@@ -189,7 +189,7 @@ fn struct_defined_then_used_later() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("struct Point {\n    x\n    y\n}".to_string())
+        vm.interpret_line("struct Point {\n    val x\n    val y\n}".to_string())
     );
     assert_eq!(
         InterpretResult::Ok,
@@ -323,7 +323,7 @@ fn redeclaring_struct_name_errors() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("struct Point {\n    x\n    y\n}".to_string())
+        vm.interpret_line("struct Point {\n    val x\n    val y\n}".to_string())
     );
     assert_eq!(
         InterpretResult::CompileError,
@@ -340,7 +340,7 @@ fn redeclaring_val_as_struct_errors() {
     );
     assert_eq!(
         InterpretResult::CompileError,
-        vm.interpret_line("struct x {\n    a\n}".to_string())
+        vm.interpret_line("struct x {\n    val a\n}".to_string())
     );
 }
 
@@ -473,7 +473,7 @@ fn runtime_error_in_impl_line_rolls_back_methods() {
     let mut vm = VirtualMachine::new();
     assert_eq!(
         InterpretResult::Ok,
-        vm.interpret_line("struct Point {\n    x\n}".to_string())
+        vm.interpret_line("struct Point {\n    val x\n}".to_string())
     );
     assert_eq!(
         InterpretResult::RuntimeError,

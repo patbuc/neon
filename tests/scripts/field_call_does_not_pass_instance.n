@@ -5,7 +5,7 @@
 // 7
 
 struct S {
-    f
+    val f
 }
 
 val sum = S { a, b -> a + b }

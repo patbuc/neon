@@ -6,8 +6,8 @@
 use "std/math"
 
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 impl Point {

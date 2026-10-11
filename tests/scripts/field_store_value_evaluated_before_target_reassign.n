@@ -8,7 +8,7 @@
 // 5
 
 struct P {
-    x
+    var x
 }
 
 fn run() {

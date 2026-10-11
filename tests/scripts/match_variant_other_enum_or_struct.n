@@ -11,7 +11,7 @@ enum Other {
 }
 
 struct C {
-    radius
+    val radius
 }
 
 print(match Other.Circle(3) {

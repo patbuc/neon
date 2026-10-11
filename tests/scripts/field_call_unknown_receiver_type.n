@@ -4,7 +4,7 @@
 // 3
 
 struct S {
-    f
+    val f
 }
 
 fn callIt(p) {

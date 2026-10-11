@@ -7,7 +7,7 @@
 // Expected runtime error: Undefined field 'message'.
 
 struct Point {
-    x
+    val x
 }
 
 fn msg(x) {

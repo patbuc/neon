@@ -695,8 +695,8 @@ fn test_parse_complex_program() {
 fn test_parse_struct() {
     let program = r#"
         struct Point {
-            x
-            y
+            var x
+            var y
         }
 
         val p = Point()
@@ -862,7 +862,7 @@ fn test_block_body_recovers_from_multiple_errors() {
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware() {
     let program =
-        "struct P { x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
+        "struct P { val x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
@@ -872,7 +872,7 @@ fn test_impl_body_recovery_is_brace_depth_aware() {
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware_for_set_literals() {
     let program =
-        "struct P { x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
+        "struct P { val x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
@@ -3695,8 +3695,8 @@ fn test_node_ids_are_unique() {
                   var y = 1\n\
                   fn foo(a) { return a }\n\
                   struct Point {\n\
-                  \tx\n\
-                  \ty\n\
+                  \tval x\n\
+                  \tval y\n\
                   }\n\
                   for z in [1, 2] {\n\
                   \ty = foo(z)\n\
@@ -4007,7 +4007,7 @@ fn test_parse_one_line_block_statement() {
 
 #[test]
 fn test_parse_one_line_struct_two_fields() {
-    let mut parser = Parser::new("struct P { x y }\n");
+    let mut parser = Parser::new("struct P { val x val y }\n");
     let result = parser.parse();
     assert!(result.is_ok());
     let stmts = result.unwrap();
@@ -4420,7 +4420,7 @@ fn test_parse_export_wraps_declaration() {
     assert!(matches!(parse_export("pub val x = 1\n"), Stmt::Val { .. }));
     assert!(matches!(parse_export("pub var y = 2\n"), Stmt::Var { .. }));
     assert!(matches!(
-        parse_export("pub struct P { x }\n"),
+        parse_export("pub struct P { val x }\n"),
         Stmt::Struct { .. }
     ));
     assert!(matches!(

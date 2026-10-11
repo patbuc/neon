@@ -4,15 +4,15 @@
 
 // Define data structures
 struct Player {
-    name
-    score
-    health
+    val name
+    var score
+    val health
 }
 
 struct Game {
-    player1
-    player2
-    round
+    val player1
+    val player2
+    var round
 }
 
 // Create game state

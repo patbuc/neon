@@ -105,7 +105,7 @@ fn opcode_pairs_span_call_and_return() {
 fn counts_a_fused_instruction_under_its_fused_name() {
     let vm = run(r#"
         struct P {
-            value
+            val value
         }
         fn read(p) {
             return p.value

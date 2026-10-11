@@ -20,7 +20,7 @@ print("x${if cond {
 }}")
 
 struct Box {
-    f
+    var f
 }
 
 val o = Box(0)

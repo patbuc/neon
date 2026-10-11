@@ -6,7 +6,7 @@
 // Expected runtime error: Method 'm' is static; call it as P.m()
 
 struct P {
-    x
+    val x
 }
 
 impl P {

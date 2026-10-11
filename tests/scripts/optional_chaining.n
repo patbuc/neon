@@ -6,7 +6,7 @@
 // A
 
 struct User {
-    name
+    val name
 }
 
 impl User {

@@ -14,11 +14,11 @@
 // false
 
 struct Five {
-    a
-    b
-    c
-    d
-    e
+    var a
+    val b
+    val c
+    val d
+    var e
 }
 
 val f = Five(1, 2, 3, 4, 5)
@@ -37,8 +37,8 @@ print(f.d)
 print(f.e)
 
 struct Point {
-    x
-    y
+    val x
+    val y
 }
 
 val p1 = Point(1, 2)
@@ -48,8 +48,8 @@ print(p1 == p2)
 print(p1 == p3)
 
 struct Other {
-    x
-    y
+    val x
+    val y
 }
 
 val o1 = Other(1, 2)

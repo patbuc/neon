@@ -485,11 +485,7 @@ impl<'a> Printer<'a> {
                 let names: Vec<(String, u32)> = fields
                     .iter()
                     .map(|field| {
-                        let keyword = match (field.bare, field.mutable) {
-                            (true, _) => "",
-                            (false, true) => "var ",
-                            (false, false) => "val ",
-                        };
+                        let keyword = if field.mutable { "var " } else { "val " };
                         (format!("{keyword}{}", field.name), field.location.line)
                     })
                     .collect();

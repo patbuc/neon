@@ -9,7 +9,6 @@ pub struct NodeId(pub u32);
 pub struct StructField {
     pub name: String,
     pub mutable: bool,
-    pub bare: bool,
     pub location: SourceLocation,
 }
 

@@ -190,11 +190,11 @@ fn interns_a_field_name_used_in_two_modules_to_one_symbol_id() {
         &[
             (
                 "a.n",
-                "struct P {\n    x\n}\npub val p = P(1)\nprint(p.x)\n",
+                "struct P {\n    val x\n}\npub val p = P(1)\nprint(p.x)\n",
             ),
             (
                 "b.n",
-                "struct P {\n    x\n}\npub val p = P(2)\nprint(p.x)\n",
+                "struct P {\n    val x\n}\npub val p = P(2)\nprint(p.x)\n",
             ),
         ],
     )
@@ -423,7 +423,7 @@ fn rejects_an_import_and_a_val_binding_the_same_name() {
     );
 }
 
-const POINT_MODULE: &str = "pub struct Point {\n    x\n    y\n}\n";
+const POINT_MODULE: &str = "pub struct Point {\n    val x\n    val y\n}\n";
 
 #[test]
 fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
@@ -434,8 +434,9 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     )
     .expect("should compile");
 
-    let local_field =
-        compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1, 2)\nprint(p.z)\n");
+    let local_field = compile_errors(
+        "struct Point {\n    val x\n    val y\n}\nval p = Point(1, 2)\nprint(p.z)\n",
+    );
     assert_eq!(1, local_field.len(), "errors: {:#?}", local_field);
     let qualified_field = local_field[0].message.replace("'Point'", "'utils.Point'");
     assert_eq!(
@@ -450,12 +451,12 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     assert_one_error(&errors, local_field[0].kind, &qualified_field, 3);
     let errors = compile_errors_of(
         "struct_field_unknown_shadowed",
-        "use \"utils\"\nstruct Point {\n    z\n}\nval p = utils.Point(1, 2)\nprint(p.z)\n",
+        "use \"utils\"\nstruct Point {\n    val z\n}\nval p = utils.Point(1, 2)\nprint(p.z)\n",
         &[("utils.n", POINT_MODULE)],
     );
     assert_one_error(&errors, local_field[0].kind, &qualified_field, 6);
 
-    let local_arity = compile_errors("struct Point {\n    x\n    y\n}\nval p = Point(1)\n");
+    let local_arity = compile_errors("struct Point {\n    val x\n    val y\n}\nval p = Point(1)\n");
     assert_eq!(1, local_arity.len(), "errors: {:#?}", local_arity);
     let errors = compile_errors_of(
         "struct_ctor_arity",
@@ -465,8 +466,8 @@ fn validates_the_fields_of_an_exported_struct_constructed_from_the_importer() {
     assert_one_error(&errors, local_arity[0].kind, &local_arity[0].message, 2);
 }
 
-const POINT_METHODS_MODULE: &str = "pub struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
-const LOCAL_POINT_METHODS: &str = "struct Point {\n    x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
+const POINT_METHODS_MODULE: &str = "pub struct Point {\n    val x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
+const LOCAL_POINT_METHODS: &str = "struct Point {\n    val x\n}\nimpl Point {\n    fn make() {\n        return Point(1)\n    }\n    fn tag(self) {\n        return 1\n    }\n}\n";
 
 #[test]
 fn validates_method_calls_on_an_exported_struct() {

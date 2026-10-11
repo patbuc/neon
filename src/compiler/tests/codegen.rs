@@ -373,7 +373,7 @@ fn assert_no_string_constant_anywhere(chunk: &Chunk, s: &str) {
 #[test]
 fn test_field_and_method_access_do_not_use_the_constant_pool() {
     let program = r#"
-    struct P { value }
+    struct P { var value }
     impl P {
         fn m(self) { return self.value }
     }
@@ -394,7 +394,7 @@ fn test_field_and_method_access_do_not_use_the_constant_pool() {
 #[test]
 fn test_local_field_read_compiles_to_get_local_then_get_field() {
     let program = r#"
-    struct P { value }
+    struct P { val value }
     fn get(p) {
         return p.value
     }
@@ -442,7 +442,7 @@ fn test_local_assignment_statement_emits_set_local_then_pop() {
 #[test]
 fn test_val_local_field_store_emits_store_local_field() {
     let program = r#"
-    struct P { value }
+    struct P { var value }
     fn set() {
         val p = P(1)
         p.value = 2
@@ -468,7 +468,7 @@ fn opcode_names(disassembly: &str) -> Vec<&str> {
 #[test]
 fn test_var_local_field_store_statement_emits_set_field_then_pop() {
     let program = r#"
-    struct P { value }
+    struct P { var value }
     fn set() {
         var p = P(1)
         p.value = 2
@@ -503,7 +503,7 @@ fn test_checked_local_field_store_statement_emits_set_field_then_pop() {
 #[test]
 fn test_field_assignment_expression_still_emits_set_field() {
     let program = r#"
-    struct P { value }
+    struct P { var value }
     fn set() {
         val p = P(1)
         print(p.value = 2)
@@ -1413,7 +1413,7 @@ fn test_tail_expression_returns_directly() {
 fn test_field_compound_assign_emits_dup() {
     let program = r#"
     struct Box {
-        n
+        var n
     }
     fn f() {
         val o = Box(0)
@@ -1489,7 +1489,7 @@ y = y + 5
 pub fn double(n) {
     return n * 2
 }
-pub struct Point { a }
+pub struct Point { val a }
 pub enum Color { Red }
 print(x)
 print(y)

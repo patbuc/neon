@@ -10,11 +10,11 @@
 // 6
 
 struct Box {
-    f
+    var f
 }
 
 struct Nested {
-    inner
+    val inner
 }
 
 val o = Box(10)
@@ -33,7 +33,7 @@ val o3 = Box(1)
 print(o3.f += 2)
 
 struct Power {
-    n
+    var n
 }
 
 impl Power {
@@ -55,7 +55,7 @@ val n2 = Nested(Box(40))
 print(n2.inner.f += 2)
 
 struct Counter {
-    n
+    var n
 }
 
 var c = 0
