@@ -1,0 +1,5 @@
+// Expected compile error: 4:5 E0005 Expect 'val' or 'var' before field name.
+struct Point {
+    val x
+    y
+}

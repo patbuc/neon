@@ -339,7 +339,10 @@ fn test_condition_parens_with_comment_are_kept() {
 
 #[test]
 fn test_struct_one_field_per_line() {
-    check("struct P { x y }\n", "struct P {\n    x\n    y\n}\n");
+    check(
+        "struct P { val x var y }\n",
+        "struct P {\n    val x\n    var y\n}\n",
+    );
 }
 
 #[test]
@@ -348,11 +351,6 @@ fn test_struct_field_keyword_preserved() {
         "struct Point {\n    val x\n    var y\n}\n",
         "struct Point {\n    val x\n    var y\n}\n",
     );
-}
-
-#[test]
-fn test_struct_bare_field_stays_bare() {
-    check("struct Point {\n    x\n}\n", "struct Point {\n    x\n}\n");
 }
 
 #[test]
