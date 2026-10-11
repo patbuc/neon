@@ -68,14 +68,17 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
 - Struct fields are listed one per line as `val x` or `var y`, no commas or
   types: `struct Point {` / `val x` / `var y` / `}`. Construct with `Point(1, 2)` or by name,
   in any order: `Point(y: 2, x: 1)`, `geo.Point(x: 1, y: 2)`. Positional arguments
-  come first, then named; every field must be given. Named arguments need a
+  come first, then named; every field must be given unless it has a default
+  (`var retries = 3`, any field order; a defaulted field before a required one
+  is skipped only by name). The default is evaluated per construction in the
+  struct's module scope: globals yes, other fields no. Named arguments need a
   callee that is statically a struct (not a function, method, native, or a struct
   in a variable; E0062). Arguments evaluate left to right in source order.
   Storing to a `val` field is an error (E0015 at compile time when the receiver
   is a constructor call, `self`, or a `val` bound from one; else at runtime).
 - Struct update copies an instance with changes: `Point(..base, y: 5)`. `..base`
   comes first, only named arguments follow, the copy is shallow, and it may
-  replace `val` fields. A base of another type is a runtime error.
+  replace `val` fields; omitted fields come from `base`, not the default. A base of another type is a runtime error.
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
   explicit first parameter. A method without `self` is static (`Point.origin()`).
   No classes, inheritance, `this`, or `new`.
