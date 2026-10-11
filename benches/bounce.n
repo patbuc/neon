@@ -1,0 +1,100 @@
+// Expected:
+// 2662
+
+use "std/math"
+
+struct Random {
+    var seed
+}
+
+impl Random {
+    fn next(self) {
+        self.seed = (self.seed * 1309 + 13849) & 65535
+        self.seed
+    }
+}
+
+struct Ball {
+    var x
+    var y
+    var xVel
+    var yVel
+}
+
+impl Ball {
+    fn bounce(self) {
+        val xLimit = 500
+        val yLimit = 500
+        var bounced = false
+
+        self.x += self.xVel
+        self.y += self.yVel
+
+        if self.x > xLimit {
+            self.x = xLimit
+            self.xVel = -math.abs(self.xVel)
+            bounced = true
+        }
+
+        if self.x < 0 {
+            self.x = 0
+            self.xVel = math.abs(self.xVel)
+            bounced = true
+        }
+
+        if self.y > yLimit {
+            self.y = yLimit
+            self.yVel = -math.abs(self.yVel)
+            bounced = true
+        }
+
+        if self.y < 0 {
+            self.y = 0
+            self.yVel = math.abs(self.yVel)
+            bounced = true
+        }
+
+        bounced
+    }
+}
+
+fn newBall(random) {
+    val x = random.next() % 500
+    val y = random.next() % 500
+    val xVel = random.next() % 300 - 150
+    val yVel = random.next() % 300 - 150
+    Ball(x, y, xVel, yVel)
+}
+
+fn benchmark() {
+    val random = Random(74755)
+    val ballCount = 100
+    var bounces = 0
+    val balls = Array(ballCount, nil)
+
+    for i in 0..ballCount {
+        balls[i] = newBall(random)
+    }
+
+    for _ in 0..50 {
+        for ball in balls {
+            if ball.bounce() {
+                bounces += 1
+            }
+        }
+    }
+
+    bounces
+}
+
+val iterations = args.size() > 0 ? args[0].toInt() : 2
+
+var checksum = 0
+for _ in 0..iterations {
+    val result = benchmark()
+    if result != 1331 {
+        throw "Bounce verification failed"
+    }
+    checksum += result
+}
+print(checksum)
