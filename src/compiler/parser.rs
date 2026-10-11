@@ -394,6 +394,15 @@ impl Parser {
                     has_base = true;
                     return parser.expression(false);
                 }
+                if parser.check(TokenType::DotDot) {
+                    parser.report_error(
+                        CompilationErrorKind::ExpectedToken,
+                        location,
+                        "'..' must be the first argument".to_string(),
+                    );
+                    parser.advance();
+                    return parser.expression(false);
+                }
                 let value = parser.expression(false)?;
                 match value {
                     Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
@@ -402,7 +411,13 @@ impl Parser {
                         parser.expression(false)
                     }
                     value => {
-                        if !named.is_empty() {
+                        if has_base {
+                            parser.report_error(
+                                CompilationErrorKind::ExpectedToken,
+                                location,
+                                "Only named arguments may follow '..'".to_string(),
+                            );
+                        } else if !named.is_empty() {
                             parser.report_error(
                                 CompilationErrorKind::ExpectedToken,
                                 location,
