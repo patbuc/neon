@@ -3488,15 +3488,17 @@ impl SemanticAnalyzer {
             ));
             return;
         }
+        let expected = if minimum == fields.len() {
+            minimum.to_string()
+        } else {
+            format!("{} to {}", minimum, fields.len())
+        };
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
             CompilationErrorKind::TooManyArguments,
             format!(
-                "Function '{}' expects {} to {} arguments but got {}",
-                name,
-                minimum,
-                fields.len(),
-                actual
+                "Function '{}' expects {} arguments but got {}",
+                name, expected, actual
             ),
             location,
         ));
