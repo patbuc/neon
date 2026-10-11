@@ -1,0 +1,14 @@
+// Expected:
+// 1
+// 5
+// 1
+// 2
+
+use "geo"
+
+val p = geo.Point(x: 1, y: 2)
+val q = geo.Point(..p, y: 5)
+print(q.x)
+print(q.y)
+print(p.x)
+print(p.y)
