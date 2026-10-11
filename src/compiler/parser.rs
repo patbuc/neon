@@ -861,11 +861,16 @@ impl Parser {
 
         if !self.check(TokenType::RightBrace) {
             loop {
+                let mutable = !self.match_token(TokenType::Val);
+                if mutable {
+                    self.match_token(TokenType::Var);
+                }
                 if !self.consume(TokenType::Identifier, "Expect field name.") {
                     break;
                 }
                 fields.push(StructField {
                     name: self.previous_token.token.clone(),
+                    mutable,
                     location: self.current_location(),
                 });
                 self.skip_new_lines();

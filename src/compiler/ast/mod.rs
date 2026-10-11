@@ -4,10 +4,12 @@ use crate::common::SourceLocation;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
 
-/// A struct field and the location of its name.
+/// A struct field, whether it is mutable (`var` or a bare name; `val` is not),
+/// and the location of its name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,
+    pub mutable: bool,
     pub location: SourceLocation,
 }
 

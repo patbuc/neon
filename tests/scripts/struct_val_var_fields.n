@@ -1,0 +1,13 @@
+// Expected:
+// 1
+// 5
+
+struct Point {
+    val x
+    var y
+}
+
+val p = Point(1, 2)
+p.y = 5
+print(p.x)
+print(p.y)
