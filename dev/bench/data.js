@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791696845452,
+  "lastUpdate": 1791699027675,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -27328,6 +27328,350 @@ window.BENCHMARK_DATA = {
             "value": 0.7555498355427519,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2542ef1d606cdefe6a44c6d6cf39e50ed94b278f",
+          "message": "Merge pull request #578 from patbuc/worktree-570-struct-update-syntax\n\n570: Add struct update syntax",
+          "timestamp": "2026-10-11T08:08:01+02:00",
+          "tree_id": "07d517848a4c4af436e09e38ee2538b3562a414b",
+          "url": "https://github.com/patbuc/neon/commit/2542ef1d606cdefe6a44c6d6cf39e50ed94b278f"
+        },
+        "date": 1791699026464,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 226.6210182000009,
+            "range": "± 4.862",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 198.2458204000011,
+            "range": "± 7.711",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.143131379732229,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 178.11345240000378,
+            "range": "± 0.967",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 635.920132199999,
+            "range": "± 13.234",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.2800877710598829,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 190.91951139999992,
+            "range": "± 1.057",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 361.95316839999236,
+            "range": "± 13.436",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.5274702035181962,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 101.700756799994,
+            "range": "± 5.661",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 230.74444179999887,
+            "range": "± 13.147",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.4407506243991984,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 93.48118720000116,
+            "range": "± 0.638",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 118.2532386000048,
+            "range": "± 1.467",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 0.7905169305020401,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 298.79351860000156,
+            "range": "± 0.884",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 474.8688503999915,
+            "range": "± 6.59",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.6292127149387075,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 279.69955020000725,
+            "range": "± 0.566",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 504.85507719999987,
+            "range": "± 15.816",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.5540194856537085,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 224.73219159999758,
+            "range": "± 3.021",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 260.2010782000036,
+            "range": "± 8.903",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.8636866271063532,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 200.40863700000386,
+            "range": "± 2.844",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 274.7686690000023,
+            "range": "± 13.206",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.7293722305726282,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "towers neon (ms)",
+            "value": 561.4667811999993,
+            "range": "± 4.81",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "towers python (ms)",
+            "value": 281.18694879999566,
+            "range": "± 15.181",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "towers neon/python",
+            "value": 1.9967739740273749,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "queens neon (ms)",
+            "value": 565.6289392000019,
+            "range": "± 3.658",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "queens python (ms)",
+            "value": 266.2092249999944,
+            "range": "± 1.359",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "queens neon/python",
+            "value": 2.124753337154315,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "permute neon (ms)",
+            "value": 572.2522785999956,
+            "range": "± 10.575",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "permute python (ms)",
+            "value": 328.2883677999962,
+            "range": "± 1.635",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "permute neon/python",
+            "value": 1.7431390653129388,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "storage neon (ms)",
+            "value": 579.2630486000007,
+            "range": "± 5.128",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "storage python (ms)",
+            "value": 544.2087471999969,
+            "range": "± 12.128",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "storage neon/python",
+            "value": 1.0644133369416817,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "bounce neon (ms)",
+            "value": 560.4170937999982,
+            "range": "± 3.763",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "bounce python (ms)",
+            "value": 438.8490798000021,
+            "range": "± 4.767",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "bounce neon/python",
+            "value": 1.2770155381330608,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "list neon (ms)",
+            "value": 619.8005640000019,
+            "range": "± 14.246",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "list python (ms)",
+            "value": 232.30949780000287,
+            "range": "± 1.207",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "list neon/python",
+            "value": 2.667994937226343,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "mandelbrot neon (ms)",
+            "value": 856.7333445999964,
+            "range": "± 8.544",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "mandelbrot python (ms)",
+            "value": 1345.3385490000016,
+            "range": "± 48.478",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          },
+          {
+            "name": "mandelbrot neon/python",
+            "value": 0.6368161718377962,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
           }
         ]
       }
