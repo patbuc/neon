@@ -10,7 +10,7 @@ use crate::common::SourceLocation;
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
     val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
-    MatchArmBody, MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    MatchArmBody, MatchPattern, NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -1959,7 +1959,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
-        named: &[String],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
@@ -2240,7 +2240,7 @@ impl SemanticAnalyzer {
         id: NodeId,
         callee: &Expr,
         arguments: &[Expr],
-        named: &[String],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
@@ -2294,22 +2294,36 @@ impl SemanticAnalyzer {
         id: NodeId,
         struct_name: &str,
         argument_count: usize,
-        named: &[String],
+        named: &[NamedArgument],
     ) {
-        let Some(SymbolKind::Struct { fields, .. }) =
-            self.symbol_table.resolve(struct_name).map(|s| &s.kind)
+        let Some(SymbolKind::Struct { fields, .. }) = self
+            .symbol_table
+            .resolve(struct_name)
+            .map(|s| s.kind.clone())
         else {
             return;
         };
         let first_named = argument_count - named.len();
-        let positions: Option<Vec<usize>> = (0..first_named)
-            .map(Some)
-            .chain(
-                named
-                    .iter()
-                    .map(|name| fields.iter().position(|f| f == name)),
-            )
-            .collect();
+        let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
+        let mut duplicate = false;
+        for (name, location) in named {
+            let position = fields.iter().position(|f| f == name);
+            if position.is_some() && positions.contains(&position) {
+                duplicate = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateArgument,
+                    format!("Field '{}' given twice", name),
+                    *location,
+                ));
+            }
+            positions.push(position);
+        }
+        let positions: Option<Vec<usize>> = if duplicate {
+            None
+        } else {
+            positions.into_iter().collect()
+        };
         if let Some(positions) = positions {
             self.resolutions
                 .record_struct_argument_fields(id, positions);

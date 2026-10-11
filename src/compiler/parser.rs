@@ -6,8 +6,8 @@ use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
 use crate::compiler::ast::{
-    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern, NodeId,
-    Pattern, Stmt, StructField, UnaryOp,
+    BinaryOp, Binding, EnumVariant, Expr, IfExprElse, MatchArm, MatchArmBody, MatchPattern,
+    NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::token::TokenType;
 use crate::compiler::{Scanner, Token};
@@ -375,7 +375,7 @@ impl Parser {
 
     /// Parses call arguments: positional ones, then `name: value` ones. Returns
     /// the values in source order and the names of the trailing named ones.
-    fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<String>)> {
+    fn parse_arguments(&mut self) -> Option<(Vec<Expr>, Vec<NamedArgument>)> {
         let mut named = Vec::new();
         let arguments = self.parse_comma_separated_list(
             TokenType::RightParen,
@@ -390,7 +390,7 @@ impl Parser {
                 match value {
                     Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
                         parser.skip_new_lines();
-                        named.push(name);
+                        named.push((name, location));
                         parser.expression(false)
                     }
                     value => {

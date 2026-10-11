@@ -91,6 +91,7 @@ compilation_error_kinds! {
     InvalidImportName => "E0058",
     ImplOutsideOwnModule => "E0059",
     YieldOutsideFunction => "E0060",
+    DuplicateArgument => "E0061",
 }
 
 #[derive(Debug, Clone, PartialEq)]
