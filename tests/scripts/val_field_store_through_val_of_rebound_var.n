@@ -1,0 +1,21 @@
+// Expected:
+// 3
+
+struct Point {
+    val x
+}
+
+struct Other {
+    var x
+}
+
+var q = Point(1)
+
+fn f() {
+    val p = q
+    p.x = 3
+    print(p.x)
+}
+
+q = Other(1)
+f()

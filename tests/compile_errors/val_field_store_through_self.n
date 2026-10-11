@@ -1,0 +1,12 @@
+// Expected compile error: 10:13 E0015 Cannot modify immutable field 'Point.x'
+struct Point {
+    val x
+    var y
+}
+
+impl Point {
+    fn reset(self) {
+        self.y = 0
+        self.x = 3
+    }
+}

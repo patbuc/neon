@@ -216,9 +216,15 @@ impl<'a> CodeGenerator<'a> {
                         .iter()
                         .map(|f| self.resolutions.symbol(&f.name))
                         .collect();
+                    let immutable = fields.iter().map(|f| !f.mutable).collect();
                     let name_symbol = self.resolutions.symbol(name);
-                    let struct_value =
-                        Value::new_struct(name.clone(), field_names, field_symbols, name_symbol);
+                    let struct_value = Value::new_struct(
+                        name.clone(),
+                        field_names,
+                        field_symbols,
+                        immutable,
+                        name_symbol,
+                    );
                     self.emit_constant(struct_value, *location);
                     let decl = self.resolutions.decl(*id);
                     self.bind_decl_local(decl, *location);

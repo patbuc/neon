@@ -2087,6 +2087,9 @@ impl VirtualMachine {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
+                if instance.r#struct.is_immutable(field_index) {
+                    return Err(self.immutable_field_error(&instance.r#struct, symbol));
+                }
                 drop(std::mem::replace(&mut instance.fields[field_index], value));
             }
             Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
@@ -2108,6 +2111,9 @@ impl VirtualMachine {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
+                if instance.r#struct.is_immutable(index) {
+                    return Err(self.immutable_field_error(&instance.r#struct, symbol));
+                }
                 instance.fields[index] = value.copy_or_clone();
             }
             Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
@@ -2138,6 +2144,9 @@ impl VirtualMachine {
                     let name = self.symbol_name(symbol);
                     return Err(self.runtime_error(format!("Undefined field '{}'.", name)));
                 };
+                if instance.r#struct.is_immutable(index) {
+                    return Err(self.immutable_field_error(&instance.r#struct, symbol));
+                }
                 drop(std::mem::replace(&mut instance.fields[index], value));
             }
             Value::EnumVariant(_) => return Err(self.enum_field_assign_error(symbol)),
@@ -2145,6 +2154,14 @@ impl VirtualMachine {
         }
 
         Ok(())
+    }
+
+    fn immutable_field_error(&self, r#struct: &ObjStruct, symbol: u16) -> RuntimeError {
+        let name = self.symbol_name(symbol);
+        self.runtime_error(format!(
+            "Cannot modify immutable field '{}.{}'.",
+            r#struct.name, name
+        ))
     }
 
     fn enum_field_assign_error(&self, symbol: u16) -> RuntimeError {

@@ -8,7 +8,17 @@ pub struct NodeId(pub u32);
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,
+    pub mutable: bool,
+    pub bare: bool,
     pub location: SourceLocation,
+}
+
+pub fn val_field_names(fields: &[StructField]) -> Vec<String> {
+    fields
+        .iter()
+        .filter(|f| !f.mutable)
+        .map(|f| f.name.clone())
+        .collect()
 }
 
 /// An enum variant, its payload field names (empty for a unit variant), and

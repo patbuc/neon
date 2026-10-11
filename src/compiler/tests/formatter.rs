@@ -343,6 +343,19 @@ fn test_struct_one_field_per_line() {
 }
 
 #[test]
+fn test_struct_field_keyword_preserved() {
+    check(
+        "struct Point {\n    val x\n    var y\n}\n",
+        "struct Point {\n    val x\n    var y\n}\n",
+    );
+}
+
+#[test]
+fn test_struct_bare_field_stays_bare() {
+    check("struct Point {\n    x\n}\n", "struct Point {\n    x\n}\n");
+}
+
+#[test]
 fn test_empty_struct() {
     check("struct E {}\n", "struct E {}\n");
 }

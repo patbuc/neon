@@ -484,7 +484,14 @@ impl<'a> Printer<'a> {
             } => {
                 let names: Vec<(String, u32)> = fields
                     .iter()
-                    .map(|field| (field.name.clone(), field.location.line))
+                    .map(|field| {
+                        let keyword = match (field.bare, field.mutable) {
+                            (true, _) => "",
+                            (false, true) => "var ",
+                            (false, false) => "val ",
+                        };
+                        (format!("{keyword}{}", field.name), field.location.line)
+                    })
                     .collect();
                 self.print_named_braces("struct ", name, location, &names);
             }

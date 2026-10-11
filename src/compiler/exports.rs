@@ -1,5 +1,5 @@
 use crate::common::method_registry::NATIVE_METHODS;
-use crate::compiler::ast::{EnumVariant, Stmt};
+use crate::compiler::ast::{val_field_names, EnumVariant, Stmt};
 use crate::compiler::resolutions::{DeclId, Resolutions, Symbols};
 use crate::compiler::semantic::MethodSignature;
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ pub enum Export {
     },
     Struct {
         fields: Vec<String>,
+        val_fields: Vec<String>,
         methods: HashMap<String, MethodSignature>,
         slot: u32,
     },
@@ -97,6 +98,7 @@ impl ExportTable {
                     name,
                     Export::Struct {
                         fields: fields.iter().map(|f| f.name.clone()).collect(),
+                        val_fields: val_field_names(fields),
                         methods: struct_methods
                             .get(&resolutions.decl(*id))
                             .cloned()

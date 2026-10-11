@@ -9,8 +9,8 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
-    MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
+    MatchArmBody, MatchPattern, NodeId, Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -55,6 +55,7 @@ pub(crate) struct MethodSignature {
 struct StructMembers<'a> {
     methods: Option<&'a HashMap<String, MethodSignature>>,
     fields: &'a [String],
+    val_fields: &'a [String],
 }
 
 /// Which syntactic form a method call used.
@@ -133,6 +134,9 @@ pub struct SemanticAnalyzer {
     // Export table of the module each file `import` resolved to, by the
     // import's node id.
     imports: HashMap<NodeId, ExportTable>,
+    // `val`s bound from a fixed receiver, and typed `self` parameters: names
+    // whose inferred struct type holds on every path.
+    fixed_decls: HashSet<DeclId>,
 }
 
 impl SemanticAnalyzer {
@@ -178,6 +182,7 @@ impl SemanticAnalyzer {
             too_many_symbols_reported: false,
             builtin_decl_count: next_decl_id,
             imports: HashMap::new(),
+            fixed_decls: HashSet::new(),
         }
     }
 
@@ -333,6 +338,7 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
+                            val_fields: val_field_names(fields),
                         },
                         false,
                         *location,
@@ -516,7 +522,7 @@ impl SemanticAnalyzer {
             match self.symbol_table.resolve(type_name) {
                 Some(
                     symbol @ Symbol {
-                        kind: SymbolKind::Struct { fields },
+                        kind: SymbolKind::Struct { fields, .. },
                         decl_id,
                         ..
                     },
@@ -1049,6 +1055,7 @@ impl SemanticAnalyzer {
                         name.clone(),
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
+                            val_fields: val_field_names(fields),
                         },
                         false,
                         *location,
@@ -1565,6 +1572,9 @@ impl SemanticAnalyzer {
             });
             self.currently_initializing = previous;
             self.define_type(name, inferred_type.flatten());
+            if !is_mutable && initializer.is_some_and(|init| self.receiver_is_fixed(init)) {
+                self.fixed_decls.insert(decl_id);
+            }
             self.not_initialized_top_level.remove(&decl_id);
             return;
         }
@@ -1577,8 +1587,12 @@ impl SemanticAnalyzer {
             self.infer_expr_type(init)
         });
         self.define_type(name, inferred_type.flatten());
+        let is_fixed = !is_mutable && initializer.is_some_and(|init| self.receiver_is_fixed(init));
         // Then define the variable in current scope
-        self.declare_symbol(id, name.to_string(), kind, is_mutable, location);
+        let decl_id = self.declare_symbol(id, name.to_string(), kind, is_mutable, location);
+        if is_fixed {
+            self.fixed_decls.insert(decl_id);
+        }
     }
 
     /// Resolves `val (a, _, c) = expr` / `var (...)`: the initializer, then
@@ -1717,9 +1731,13 @@ impl SemanticAnalyzer {
             } else {
                 None
             };
+            let is_typed_self = param_type.is_some();
             self.define_type(param, param_type);
             let decl_id =
                 self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
+            if is_typed_self {
+                self.fixed_decls.insert(decl_id);
+            }
             self.function_frames
                 .last_mut()
                 .expect("just pushed")
@@ -2392,10 +2410,14 @@ impl SemanticAnalyzer {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
             Export::Struct {
-                fields, methods, ..
+                fields,
+                val_fields,
+                methods,
+                ..
             } => Some(StructMembers {
                 methods: Some(methods),
                 fields,
+                val_fields,
             }),
             _ => None,
         }
@@ -2505,6 +2527,21 @@ impl SemanticAnalyzer {
         self.resolve_expr(value);
         if let Some(object_type) = self.infer_expr_type(object) {
             self.validate_struct_field(object_type.name(), field, location);
+            if self.receiver_is_fixed(object) && self.is_val_field(object_type.name(), field) {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::ImmutableAssignment,
+                    format!(
+                        "Cannot modify immutable field '{}.{}'",
+                        object_type
+                            .name()
+                            .rsplit_once('.')
+                            .map_or(object_type.name(), |(_, bare)| bare),
+                        field
+                    ),
+                    location,
+                ));
+            }
         }
     }
 
@@ -2922,14 +2959,7 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
-        let members = match self.exported_struct_method_info(object_type) {
-            Some(members) => Some(members),
-            None if self.is_struct_type(object_type) => {
-                Some(self.local_struct_members(object_type))
-            }
-            None => None,
-        };
-        if let Some(members) = members {
+        if let Some(members) = self.struct_members(object_type) {
             let error = struct_method_call_error(
                 object_type,
                 &members,
@@ -2999,24 +3029,69 @@ impl SemanticAnalyzer {
     /// True when `struct_name` is a known struct type declaring a field
     /// named `field`.
     fn struct_has_field(&self, struct_name: &str, field: &str) -> bool {
-        self.struct_fields(struct_name).iter().any(|f| f == field)
+        self.local_struct_members(struct_name)
+            .fields
+            .iter()
+            .any(|f| f == field)
     }
 
     fn local_struct_members(&self, struct_name: &str) -> StructMembers<'_> {
+        let (fields, val_fields) = match self.symbol_table.resolve(struct_name) {
+            Some(Symbol {
+                kind:
+                    SymbolKind::Struct {
+                        fields, val_fields, ..
+                    },
+                ..
+            }) => (fields.as_slice(), val_fields.as_slice()),
+            _ => (&[][..], &[][..]),
+        };
         StructMembers {
             methods: self.struct_methods_of(struct_name),
-            fields: self.struct_fields(struct_name),
+            fields,
+            val_fields,
         }
     }
 
-    fn struct_fields(&self, struct_name: &str) -> &[String] {
-        match self.symbol_table.resolve(struct_name) {
-            Some(Symbol {
-                kind: SymbolKind::Struct { fields },
-                ..
-            }) => fields,
-            _ => &[],
+    fn struct_members(&self, type_name: &str) -> Option<StructMembers<'_>> {
+        match self.exported_struct_method_info(type_name) {
+            Some(members) => Some(members),
+            None if self.is_struct_type(type_name) => Some(self.local_struct_members(type_name)),
+            None => None,
         }
+    }
+
+    /// True when the receiver's inferred type holds on every path: a
+    /// constructor call, `self`, or a `val` bound from such a receiver.
+    fn receiver_is_fixed(&self, object: &Expr) -> bool {
+        match object {
+            Expr::Variable { name, .. } => self
+                .symbol_table
+                .resolve(name)
+                .is_some_and(|symbol| self.fixed_decls.contains(&symbol.decl_id)),
+            Expr::Call { callee, .. } => match callee.as_ref() {
+                Expr::Variable { name, .. } => matches!(
+                    self.symbol_table.resolve(name),
+                    Some(Symbol {
+                        kind: SymbolKind::Struct { .. },
+                        ..
+                    })
+                ),
+                Expr::GetField { object, field, .. } => match object.as_ref() {
+                    Expr::Variable { name, .. } => {
+                        matches!(self.module_export(name, field), Some(Export::Struct { .. }))
+                    }
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    fn is_val_field(&self, struct_name: &str, field: &str) -> bool {
+        self.struct_members(struct_name)
+            .is_some_and(|members| members.val_fields.iter().any(|f| f == field))
     }
 
     /// Check that a field access/set on a receiver of statically known
@@ -3059,7 +3134,7 @@ impl SemanticAnalyzer {
                         location,
                     );
                 }
-                SymbolKind::Struct { fields } => {
+                SymbolKind::Struct { fields, .. } => {
                     let arity = fields.len() as u8;
                     self.validate_arity(
                         "Function",

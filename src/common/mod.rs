@@ -649,6 +649,8 @@ pub struct ObjStruct {
     pub name: String,
     pub fields: Vec<String>,
     field_table: Vec<Option<u16>>,
+    /// Parallel to `fields`: true for a `val` field.
+    immutable: Vec<bool>,
     pub name_symbol: u16,
     /// Methods the struct's `impl` blocks define, appended by `DefineMethod`.
     pub(crate) methods: RefCell<Vec<MethodEntry>>,
@@ -681,6 +683,10 @@ impl ObjStruct {
             .copied()
             .flatten()
             .map(|index| index as usize)
+    }
+
+    pub(crate) fn is_immutable(&self, index: usize) -> bool {
+        self.immutable[index]
     }
 
     pub(crate) fn find_method(&self, method_symbol: u16) -> Option<MethodEntry> {
@@ -758,6 +764,7 @@ impl Value {
         name: String,
         fields: Vec<String>,
         field_symbols: Vec<u16>,
+        immutable: Vec<bool>,
         name_symbol: u16,
     ) -> Self {
         let field_table = ObjStruct::build_field_table(&field_symbols);
@@ -765,6 +772,7 @@ impl Value {
             name,
             fields,
             field_table,
+            immutable,
             name_symbol,
             methods: RefCell::new(Vec::new()),
         }))
