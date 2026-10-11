@@ -110,6 +110,9 @@ pub struct SemanticAnalyzer {
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
     function_frames: Vec<FunctionResolution>,
+    // The frame index of the synthetic function a struct field default runs
+    // in; a `yield` directly in it is outside any real function.
+    field_default_frame: Option<usize>,
     // Top-level val/var DeclIds whose declaration statement hasn't been
     // resolved yet; a direct script-level read/write/postfix-op naming one
     // is a compile error.
@@ -177,6 +180,7 @@ impl SemanticAnalyzer {
             resolutions: Resolutions::default(),
             next_decl_id,
             function_frames: vec![FunctionResolution::default()],
+            field_default_frame: None,
             not_initialized_top_level: HashSet::new(),
             currently_initializing: HashSet::new(),
             pending_block_fns: HashSet::new(),
@@ -1047,6 +1051,7 @@ impl SemanticAnalyzer {
                 if self.symbol_table.current_depth() == 0 {
                     for field in fields {
                         if let Some(body) = field.default_body() {
+                            self.field_default_frame = Some(self.function_frames.len());
                             self.resolve_function_body(
                                 field.default_id,
                                 &[],
@@ -1055,6 +1060,7 @@ impl SemanticAnalyzer {
                                 None,
                                 false,
                             );
+                            self.field_default_frame = None;
                         }
                     }
                 } else {
@@ -1359,8 +1365,10 @@ impl SemanticAnalyzer {
                 self.resolve_function_body(*id, params, body, *location, None, *implicit_it);
             }
             Expr::Yield { value, location } => {
+                let in_field_default =
+                    self.field_default_frame == Some(self.function_frames.len() - 1);
                 match self.function_frames.as_mut_slice() {
-                    [_, .., function] => function.is_generator = true,
+                    [_, .., function] if !in_field_default => function.is_generator = true,
                     _ => self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::YieldOutsideFunction,

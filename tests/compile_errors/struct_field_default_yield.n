@@ -1,0 +1,4 @@
+// Expected compile error: 3:13 E0060 'yield' outside a function
+struct G {
+    var g = yield 1
+}
