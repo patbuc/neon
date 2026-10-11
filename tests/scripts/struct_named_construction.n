@@ -2,6 +2,9 @@
 // true
 // 1
 // 2
+// 1
+// 2
+// 3
 
 struct Point {
     val x
@@ -12,3 +15,14 @@ print(Point(x: 1, y: 2) == Point(1, 2))
 val p = Point(y: 2, x: 1)
 print(p.x)
 print(p.y)
+
+struct P3 {
+    val x
+    val y
+    val z
+}
+
+val q = P3(1, z: 3, y: 2)
+print(q.x)
+print(q.y)
+print(q.z)
