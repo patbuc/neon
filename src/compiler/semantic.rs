@@ -2277,9 +2277,9 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            let unknown_field = !named.is_empty()
-                && self.record_named_struct_arguments(id, name, arguments.len(), named);
-            if !unknown_field {
+            let reported = !named.is_empty()
+                && self.record_named_struct_arguments(id, name, arguments.len(), named, location);
+            if !reported {
                 self.validate_function_call(name, arguments, location);
             }
         }
@@ -2296,6 +2296,7 @@ impl SemanticAnalyzer {
         struct_name: &str,
         argument_count: usize,
         named: &[NamedArgument],
+        location: SourceLocation,
     ) -> bool {
         let Some(SymbolKind::Struct { fields, .. }) = self
             .symbol_table
@@ -2335,11 +2336,24 @@ impl SemanticAnalyzer {
         } else {
             positions.into_iter().collect()
         };
+        let mut missing = false;
         if let Some(positions) = positions {
+            if let Some(field) = (0..fields.len())
+                .find(|field| !positions.contains(field))
+                .map(|field| &fields[field])
+            {
+                missing = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::TooFewArguments,
+                    format!("Missing field '{}' for '{}'", field, struct_name),
+                    location,
+                ));
+            }
             self.resolutions
                 .record_struct_argument_fields(id, positions);
         }
-        unknown
+        unknown || missing
     }
 
     fn resolve_get_field(
