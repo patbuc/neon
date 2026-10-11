@@ -597,6 +597,7 @@ fn instructions(chunk: &Chunk) -> Vec<(usize, OpCode)> {
             | OpCode::SetGlobal
             | OpCode::GetBuiltin
             | OpCode::GetField
+            | OpCode::GetFieldDefault
             | OpCode::SetField
             | OpCode::GetUpvalue
             | OpCode::SetUpvalue => 2,

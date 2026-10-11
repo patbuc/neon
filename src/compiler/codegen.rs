@@ -1699,17 +1699,24 @@ impl<'a> CodeGenerator<'a> {
             self.generate_expr(arg);
         }
         generate_callee(self);
-        let mut by_field: Vec<_> = fields.iter().enumerate().collect();
-        by_field.sort_by_key(|(_, field)| **field);
-        for (position, _) in by_field {
-            self.emit_index_op(
-                OpCode::GetLocal,
-                first_slot + position as u32,
-                "locals",
-                location,
-            );
+        let callee_slot = first_slot + arguments.len() as u32;
+        let field_count = fields.iter().max().map_or(0, |last| last + 1);
+        for field in 0..field_count {
+            match fields.iter().position(|given| *given == field) {
+                Some(position) => self.emit_index_op(
+                    OpCode::GetLocal,
+                    first_slot + position as u32,
+                    "locals",
+                    location,
+                ),
+                None => {
+                    self.emit_index_op(OpCode::GetLocal, callee_slot, "locals", location);
+                    self.emit_index_op(OpCode::GetFieldDefault, field as u32, "fields", location);
+                    self.emit_call(OpCode::Call, 0, location);
+                }
+            }
         }
-        self.emit_call(OpCode::Call, arguments.len() as u8, location);
+        self.emit_call(OpCode::Call, field_count as u8, location);
         self.emit_index_op(OpCode::SetLocal, first_slot, "locals", location);
         for _ in 0..arguments.len() {
             self.emit_op_code(OpCode::Pop, location);

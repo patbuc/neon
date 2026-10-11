@@ -2145,16 +2145,18 @@ impl SemanticAnalyzer {
                         default_fields,
                         ..
                     }) => {
-                        let reported = !named.is_empty()
+                        let named_call = !named.is_empty();
+                        let reported = named_call
                             && self.record_named_struct_arguments(
                                 id,
                                 method,
                                 &fields,
+                                &default_fields,
                                 arguments.len(),
                                 named,
                                 location,
                             );
-                        if !reported {
+                        if !named_call && !reported {
                             self.validate_struct_arity(
                                 method,
                                 &fields,
@@ -2346,16 +2348,22 @@ impl SemanticAnalyzer {
                 false
             } else {
                 match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
-                    Some(SymbolKind::Struct { fields, .. }) => {
-                        let fields = fields.clone();
+                    Some(SymbolKind::Struct {
+                        fields,
+                        default_fields,
+                        ..
+                    }) => {
+                        let (fields, default_fields) = (fields.clone(), default_fields.clone());
                         self.record_named_struct_arguments(
                             id,
                             name,
                             &fields,
+                            &default_fields,
                             arguments.len(),
                             named,
                             location,
-                        )
+                        );
+                        true
                     }
                     Some(_) => {
                         self.report_named_argument_not_struct(named);
@@ -2513,11 +2521,13 @@ impl SemanticAnalyzer {
         ));
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn record_named_struct_arguments(
         &mut self,
         id: NodeId,
         struct_name: &str,
         fields: &[String],
+        default_fields: &[String],
         argument_count: usize,
         named: &[NamedArgument],
         location: SourceLocation,
@@ -2534,7 +2544,9 @@ impl SemanticAnalyzer {
         let mut missing = false;
         if let Some(positions) = positions {
             if let Some(field) = (0..fields.len())
-                .find(|field| !positions.contains(field))
+                .find(|field| {
+                    !positions.contains(field) && !default_fields.contains(&fields[*field])
+                })
                 .map(|field| &fields[field])
             {
                 missing = true;
@@ -2545,7 +2557,7 @@ impl SemanticAnalyzer {
                     location,
                 ));
             }
-            if positions.windows(2).any(|pair| pair[0] > pair[1]) {
+            if positions.iter().enumerate().any(|(i, field)| i != *field) {
                 self.resolutions
                     .record_struct_argument_fields(id, positions);
             }

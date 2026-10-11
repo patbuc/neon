@@ -145,6 +145,9 @@ impl Chunk {
             OpCode::CheckUpdateBase => {
                 self.simple_instruction(OpCode::CheckUpdateBase, offset, out)
             }
+            OpCode::GetFieldDefault => {
+                self.variable_instruction(OpCode::GetFieldDefault, offset, out)
+            }
         }
     }
 

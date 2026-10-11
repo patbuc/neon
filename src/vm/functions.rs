@@ -2007,6 +2007,20 @@ impl VirtualMachine {
 
     /// Errors unless the value under the struct on top of the stack is an
     /// instance of that struct.
+    pub(in crate::vm) fn op_get_field_default(&mut self, index: u16) -> OpResult {
+        // [.., struct] -> [.., default_closure]
+        let default = match self.peek(0) {
+            Value::Struct(r#struct) => r#struct.default(index as usize),
+            _ => None,
+        };
+        let Some(default) = default else {
+            return Err(self.runtime_error("Field has no default.".to_string()));
+        };
+        self.pop();
+        self.push(Value::Closure(default));
+        Ok(())
+    }
+
     pub(in crate::vm) fn op_check_update_base(&mut self) -> OpResult {
         let Value::Struct(expected) = self.peek(0) else {
             return Err(self.runtime_error("'..' needs a struct.".to_string()));
