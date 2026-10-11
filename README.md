@@ -816,8 +816,9 @@ print(pt.y)  // 25
 
 Each field is declared `val` (fixed once constructed) or `var` (mutable).
 Construction is positional and sets every field. Storing to a `val` field is a
-compile error (`Cannot modify immutable field 'Point.x'`) where the receiver's
-struct is known, including `self` in methods, and a runtime error otherwise.
+compile error (`Cannot modify immutable field 'Point.x'`) when the receiver is a
+constructor call, `self` in a method, or a `val` bound from a constructor call
+(directly or through other `val`s), and a runtime error otherwise.
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 `Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).

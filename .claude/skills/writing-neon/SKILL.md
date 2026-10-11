@@ -67,8 +67,8 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   parenthesize the call instead.
 - Struct fields are listed one per line as `val x` or `var y`, no commas or
   types: `struct Point {` / `val x` / `var y` / `}`. Construct with `Point(1, 2)`.
-  Storing to a `val` field is an error (E0015 at compile time when the struct
-  is known, else at runtime).
+  Storing to a `val` field is an error (E0015 at compile time when the receiver
+  is a constructor call, `self`, or a `val` bound from one; else at runtime).
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an
   explicit first parameter. A method without `self` is static (`Point.origin()`).
   No classes, inheritance, `this`, or `new`.
