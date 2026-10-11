@@ -3457,6 +3457,20 @@ impl SemanticAnalyzer {
             self.validate_arity("Function", name, fields.len() as u8, actual, location);
             return;
         }
+        if actual < minimum {
+            if let Some(field) = fields[actual..]
+                .iter()
+                .find(|field| !default_fields.contains(field))
+            {
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::TooFewArguments,
+                    format!("Missing field '{}' for '{}'", field, name),
+                    location,
+                ));
+                return;
+            }
+        }
         let kind = if actual < minimum {
             CompilationErrorKind::TooFewArguments
         } else {
