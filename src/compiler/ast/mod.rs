@@ -4,8 +4,7 @@ use crate::common::SourceLocation;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
 
-/// A struct field, whether it is mutable (`var` or a bare name; `val` is not),
-/// whether it was written without `val` or `var`, and the location of its name.
+/// A struct field and the location of its name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,
@@ -14,7 +13,6 @@ pub struct StructField {
     pub location: SourceLocation,
 }
 
-/// The names of the `val` fields among `fields`.
 pub fn val_field_names(fields: &[StructField]) -> Vec<String> {
     fields
         .iter()
