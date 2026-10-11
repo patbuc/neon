@@ -1,0 +1,10 @@
+// Expected:
+// 7
+// 2
+
+use "lib"
+
+val base = 99
+val s = lib.S(b: 2)
+print(s.a)
+print(s.b)

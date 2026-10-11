@@ -1,0 +1,10 @@
+// Expected:
+// 7
+
+val base = 7
+
+struct Config {
+    var retries = base
+}
+
+print(Config().retries)

@@ -817,7 +817,8 @@ print(pt.y)  // 25
 Each field is declared `val` (fixed once constructed) or `var` (mutable).
 Construction sets every field, positionally or by name: `Point(10, 20)`,
 `Point(x: 10, y: 20)`, or `Point(y: 20, x: 10)`. Positional arguments come
-first, then named ones; each field is given once, and all must be given.
+first, then named ones; each field is given once, and all must be given
+unless it has a default (below).
 Arguments are evaluated left to right in source order. A struct exported from a
 module works the same way (`geo.Point(x: 1, y: 2)`). Named arguments need a
 callee that is statically a struct: not a function, method, native, or a struct
@@ -826,11 +827,19 @@ compile error (`Cannot modify immutable field 'Point.x'`) when the receiver is a
 constructor call, `self` in a method, or a `val` bound from a constructor call
 (directly or through other `val`s), and a runtime error otherwise.
 
+A field may carry a default, `var retries = 3`, and defaulted and required
+fields may come in any order. Positional arguments fill fields in order, so a
+defaulted field before a required one can only be skipped with named
+arguments. An omitted field takes its default, evaluated on every construction
+in the struct's defining module: module globals are visible, other fields are
+not. A dynamic call such as `T("h")` fills omitted trailing defaults at run
+time.
+
 `Point(..base, y: 5)` builds a new `Point` from `base`, taking every field from
-it except the named ones. `..base` must come first and only named arguments may
-follow it. The copy is shallow (fields holding arrays or instances stay shared
-with `base`), and it can replace `val` fields. A `base` that isn't an instance
-of the same struct is a runtime error (`'..' expects a Point but got String.`).
+it except the named ones (a default is not applied). `..base` must come first
+and only named arguments may follow it. The copy is shallow (fields holding
+arrays or instances stay shared with `base`), and it can replace `val` fields.
+A `base` that isn't an instance of the same struct is a runtime error (`'..' expects a Point but got String.`).
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 `Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).

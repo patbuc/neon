@@ -201,6 +201,7 @@ pub(crate) enum Instr {
     Yield,
     Throw,
     CheckUpdateBase,
+    GetFieldDefault(u16),
     /// A byte that is no opcode; executing it is a runtime error. Decoding
     /// stops here, since the width of what follows is unknown.
     Invalid(u8),
@@ -321,6 +322,7 @@ impl Instr {
             Instr::Yield => "Yield",
             Instr::Throw => "Throw",
             Instr::CheckUpdateBase => "CheckUpdateBase",
+            Instr::GetFieldDefault(_) => "GetFieldDefault",
             Instr::Invalid(_) => return None,
         })
     }
@@ -711,6 +713,7 @@ impl Chunk {
                 OpCode::Yield => (Instr::Yield, 1),
                 OpCode::Throw => (Instr::Throw, 1),
                 OpCode::CheckUpdateBase => (Instr::CheckUpdateBase, 1),
+                OpCode::GetFieldDefault => (Instr::GetFieldDefault(u16_at(1)), 3),
             };
             if pos + width > bytes.len() {
                 closure_upvalues.truncate(upvalues_start);

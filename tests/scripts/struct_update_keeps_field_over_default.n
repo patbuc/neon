@@ -1,0 +1,11 @@
+// Expected:
+// 5
+
+struct Config {
+    val host
+    var retries = 3
+}
+
+val c = Config("h", 5)
+val d = Config(..c)
+print(d.retries)

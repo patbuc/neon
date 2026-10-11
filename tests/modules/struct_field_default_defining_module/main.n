@@ -1,0 +1,7 @@
+// Expected:
+// 7
+
+use "lib"
+
+val base = 99
+print(lib.Config().retries)

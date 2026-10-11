@@ -644,6 +644,7 @@ impl VirtualMachine {
                     return Err(error);
                 }
                 Instr::CheckUpdateBase => self.op_check_update_base()?,
+                Instr::GetFieldDefault(index) => self.op_get_field_default(index)?,
                 Instr::Dup => self.push(self.peek(0).copy_or_clone()),
                 Instr::Dup2 => {
                     let second = self.peek(1).copy_or_clone();

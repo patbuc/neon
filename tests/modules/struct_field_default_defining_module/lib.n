@@ -1,0 +1,5 @@
+val base = 7
+
+pub struct Config {
+    var retries = base
+}

@@ -959,10 +959,27 @@ impl Parser {
                 if !self.consume(TokenType::Identifier, "Expect field name.") {
                     break;
                 }
+                let field_name = self.previous_token.token.clone();
+                let field_location = self.current_location();
+                let default = if self.match_token(TokenType::Equal) {
+                    match self.expression(false) {
+                        Some(expr) => Some(expr),
+                        None => break,
+                    }
+                } else {
+                    None
+                };
+                let default_id = self.next_id();
+                if default.is_some() {
+                    let end_location = self.current_location();
+                    self.end_locations.insert(default_id, end_location);
+                }
                 fields.push(StructField {
-                    name: self.previous_token.token.clone(),
+                    name: field_name,
                     mutable,
-                    location: self.current_location(),
+                    location: field_location,
+                    default,
+                    default_id,
                 });
                 self.skip_new_lines();
                 if self.check(TokenType::RightBrace) {

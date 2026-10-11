@@ -600,6 +600,15 @@ pub struct ObjClosure {
     pub upvalues: Vec<Rc<RefCell<Upvalue>>>,
 }
 
+impl ObjClosure {
+    pub(crate) fn new(function: Rc<ObjFunction>) -> Rc<Self> {
+        Rc::new(ObjClosure {
+            function,
+            upvalues: Vec::new(),
+        })
+    }
+}
+
 /// A variable captured by a closure. Open while the stack slot that holds
 /// it is still live; closed (its value copied out) once that slot's frame
 /// returns or the block that declared it exits.
@@ -654,6 +663,11 @@ pub struct ObjStruct {
     pub name_symbol: u16,
     /// Methods the struct's `impl` blocks define, appended by `DefineMethod`.
     pub(crate) methods: RefCell<Vec<MethodEntry>>,
+    /// Parallel to `fields`: the closure that computes an omitted field.
+    defaults: RefCell<Vec<Option<Rc<ObjClosure>>>>,
+    /// The fewest positional arguments a call accepts: one past the last
+    /// field without a default.
+    positional_minimum: Cell<usize>,
 }
 
 impl std::fmt::Debug for ObjStruct {
@@ -687,6 +701,24 @@ impl ObjStruct {
 
     pub(crate) fn is_immutable(&self, index: usize) -> bool {
         self.immutable[index]
+    }
+
+    pub(crate) fn set_default(&self, index: usize, default: Rc<ObjClosure>) {
+        let mut defaults = self.defaults.borrow_mut();
+        defaults[index] = Some(default);
+        let minimum = defaults
+            .iter()
+            .rposition(Option::is_none)
+            .map_or(0, |i| i + 1);
+        self.positional_minimum.set(minimum);
+    }
+
+    pub(crate) fn default(&self, index: usize) -> Option<Rc<ObjClosure>> {
+        self.defaults.borrow()[index].clone()
+    }
+
+    pub(crate) fn positional_minimum(&self) -> usize {
+        self.positional_minimum.get()
     }
 
     pub(crate) fn find_method(&self, method_symbol: u16) -> Option<MethodEntry> {
@@ -768,6 +800,7 @@ impl Value {
         name_symbol: u16,
     ) -> Self {
         let field_table = ObjStruct::build_field_table(&field_symbols);
+        let field_count = fields.len();
         Value::Struct(Rc::new(ObjStruct {
             name,
             fields,
@@ -775,6 +808,8 @@ impl Value {
             immutable,
             name_symbol,
             methods: RefCell::new(Vec::new()),
+            defaults: RefCell::new(vec![None; field_count]),
+            positional_minimum: Cell::new(field_count),
         }))
     }
 

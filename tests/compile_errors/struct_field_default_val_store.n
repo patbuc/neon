@@ -1,0 +1,6 @@
+// Expected compile error: 6:12 E0015 Cannot modify immutable field 'Config.retries'
+struct Config {
+    val host
+    val retries = 3
+}
+Config("h").retries = 4

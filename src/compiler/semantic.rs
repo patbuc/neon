@@ -9,8 +9,9 @@ use crate::common::SourceLocation;
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    val_field_names, Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm,
-    MatchArmBody, MatchPattern, NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp,
+    default_field_names, positional_minimum, val_field_names, Binding, EnumVariant, Expr,
+    IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, NamedArgument, NodeId,
+    Pattern, Stmt, StructField, UnaryOp,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -109,6 +110,9 @@ pub struct SemanticAnalyzer {
     next_decl_id: u32,
     // One frame per level of function nesting, outermost (the script) first.
     function_frames: Vec<FunctionResolution>,
+    // The frame index of the synthetic function a struct field default runs
+    // in; a `yield` directly in it is outside any real function.
+    field_default_frame: Option<usize>,
     // Top-level val/var DeclIds whose declaration statement hasn't been
     // resolved yet; a direct script-level read/write/postfix-op naming one
     // is a compile error.
@@ -176,6 +180,7 @@ impl SemanticAnalyzer {
             resolutions: Resolutions::default(),
             next_decl_id,
             function_frames: vec![FunctionResolution::default()],
+            field_default_frame: None,
             not_initialized_top_level: HashSet::new(),
             currently_initializing: HashSet::new(),
             pending_block_fns: HashSet::new(),
@@ -339,6 +344,7 @@ impl SemanticAnalyzer {
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
                             val_fields: val_field_names(fields),
+                            default_fields: default_field_names(fields),
                         },
                         false,
                         *location,
@@ -1042,7 +1048,22 @@ impl SemanticAnalyzer {
                 location,
             } => {
                 // A top-level struct was already resolved in collect_declarations.
-                if self.symbol_table.current_depth() != 0 {
+                if self.symbol_table.current_depth() == 0 {
+                    for field in fields {
+                        if let Some(body) = field.default_body() {
+                            self.field_default_frame = Some(self.function_frames.len());
+                            self.resolve_function_body(
+                                field.default_id,
+                                &[],
+                                &body,
+                                field.location,
+                                None,
+                                false,
+                            );
+                            self.field_default_frame = None;
+                        }
+                    }
+                } else {
                     self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::StructNotTopLevel,
@@ -1056,6 +1077,7 @@ impl SemanticAnalyzer {
                         SymbolKind::Struct {
                             fields: fields.iter().map(|f| f.name.clone()).collect(),
                             val_fields: val_field_names(fields),
+                            default_fields: default_field_names(fields),
                         },
                         false,
                         *location,
@@ -1343,8 +1365,10 @@ impl SemanticAnalyzer {
                 self.resolve_function_body(*id, params, body, *location, None, *implicit_it);
             }
             Expr::Yield { value, location } => {
+                let in_field_default =
+                    self.field_default_frame == Some(self.function_frames.len() - 1);
                 match self.function_frames.as_mut_slice() {
-                    [_, .., function] => function.is_generator = true,
+                    [_, .., function] if !in_field_default => function.is_generator = true,
                     _ => self.push_error(CompilationError::new(
                         CompilationPhase::Semantic,
                         CompilationErrorKind::YieldOutsideFunction,
@@ -2124,21 +2148,27 @@ impl SemanticAnalyzer {
                     Some(Export::Function { arity, .. }) => {
                         self.validate_arity("Function", method, arity, arguments.len(), location);
                     }
-                    Some(Export::Struct { fields, .. }) => {
-                        let reported = !named.is_empty()
-                            && self.record_named_struct_arguments(
+                    Some(Export::Struct {
+                        fields,
+                        default_fields,
+                        ..
+                    }) => {
+                        let named_call = !named.is_empty();
+                        if named_call {
+                            self.record_named_struct_arguments(
                                 id,
                                 method,
                                 &fields,
+                                &default_fields,
                                 arguments.len(),
                                 named,
                                 location,
                             );
-                        if !reported {
-                            self.validate_arity(
-                                "Function",
+                        } else {
+                            self.validate_struct_arity(
                                 method,
-                                fields.len() as u8,
+                                &fields,
+                                &default_fields,
                                 arguments.len(),
                                 location,
                             );
@@ -2326,16 +2356,22 @@ impl SemanticAnalyzer {
                 false
             } else {
                 match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
-                    Some(SymbolKind::Struct { fields, .. }) => {
-                        let fields = fields.clone();
+                    Some(SymbolKind::Struct {
+                        fields,
+                        default_fields,
+                        ..
+                    }) => {
+                        let (fields, default_fields) = (fields.clone(), default_fields.clone());
                         self.record_named_struct_arguments(
                             id,
                             name,
                             &fields,
+                            &default_fields,
                             arguments.len(),
                             named,
                             location,
-                        )
+                        );
+                        true
                     }
                     Some(_) => {
                         self.report_named_argument_not_struct(named);
@@ -2493,31 +2529,33 @@ impl SemanticAnalyzer {
         ));
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn record_named_struct_arguments(
         &mut self,
         id: NodeId,
         struct_name: &str,
         fields: &[String],
+        default_fields: &[String],
         argument_count: usize,
         named: &[NamedArgument],
         location: SourceLocation,
-    ) -> bool {
+    ) {
         let first_named = argument_count - named.len();
         let positions = (0..first_named).map(Some).collect();
-        let (positions, unknown, duplicate) =
+        let (positions, _, duplicate) =
             self.check_named_fields(struct_name, fields, positions, named);
         let positions: Option<Vec<usize>> = if duplicate {
             None
         } else {
             positions.into_iter().collect()
         };
-        let mut missing = false;
         if let Some(positions) = positions {
             if let Some(field) = (0..fields.len())
-                .find(|field| !positions.contains(field))
+                .find(|field| {
+                    !positions.contains(field) && !default_fields.contains(&fields[*field])
+                })
                 .map(|field| &fields[field])
             {
-                missing = true;
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::TooFewArguments,
@@ -2525,12 +2563,11 @@ impl SemanticAnalyzer {
                     location,
                 ));
             }
-            if positions.windows(2).any(|pair| pair[0] > pair[1]) {
+            if positions.iter().enumerate().any(|(i, field)| i != *field) {
                 self.resolutions
                     .record_struct_argument_fields(id, positions);
             }
         }
-        unknown || missing || duplicate
     }
 
     fn resolve_get_field(
@@ -3388,12 +3425,16 @@ impl SemanticAnalyzer {
                         location,
                     );
                 }
-                SymbolKind::Struct { fields, .. } => {
-                    let arity = fields.len() as u8;
-                    self.validate_arity(
-                        "Function",
+                SymbolKind::Struct {
+                    fields,
+                    default_fields,
+                    ..
+                } => {
+                    let (fields, default_fields) = (fields.clone(), default_fields.clone());
+                    self.validate_struct_arity(
                         function_name,
-                        arity,
+                        &fields,
+                        &default_fields,
                         arguments.len(),
                         location,
                     );
@@ -3415,6 +3456,52 @@ impl SemanticAnalyzer {
                 }
             }
         }
+    }
+
+    #[allow(clippy::expect_used)]
+    fn validate_struct_arity(
+        &mut self,
+        name: &str,
+        fields: &[String],
+        default_fields: &[String],
+        actual: usize,
+        location: SourceLocation,
+    ) {
+        let minimum = positional_minimum(fields, default_fields);
+        if actual >= minimum && actual <= fields.len() {
+            return;
+        }
+        if default_fields.is_empty() {
+            self.validate_arity("Function", name, fields.len() as u8, actual, location);
+            return;
+        }
+        if actual < minimum {
+            let field = fields[actual..]
+                .iter()
+                .find(|field| !default_fields.contains(field))
+                .expect("actual < minimum leaves a field without a default");
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::TooFewArguments,
+                format!("Missing field '{}' for '{}'", field, name),
+                location,
+            ));
+            return;
+        }
+        let expected = if minimum == fields.len() {
+            minimum.to_string()
+        } else {
+            format!("{} to {}", minimum, fields.len())
+        };
+        self.push_error(CompilationError::new(
+            CompilationPhase::Semantic,
+            CompilationErrorKind::TooManyArguments,
+            format!(
+                "Function '{}' expects {} arguments but got {}",
+                name, expected, actual
+            ),
+            location,
+        ));
     }
 
     fn validate_arity(

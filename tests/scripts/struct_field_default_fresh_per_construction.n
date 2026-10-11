@@ -1,0 +1,13 @@
+// Expected:
+// 1
+// 0
+
+struct Bag {
+    var items = []
+}
+
+val a = Bag()
+val b = Bag()
+a.items.push(1)
+print(a.items.size())
+print(b.items.size())

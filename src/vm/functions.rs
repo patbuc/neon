@@ -611,11 +611,17 @@ impl VirtualMachine {
     }
 
     fn instantiate_struct(&mut self, arg_count: usize, r#struct: Rc<ObjStruct>) -> OpResult {
-        if arg_count != r#struct.fields.len() {
+        let field_count = r#struct.fields.len();
+        let minimum = r#struct.positional_minimum();
+        if arg_count < minimum || arg_count > field_count {
+            let expected = if minimum == field_count {
+                field_count.to_string()
+            } else {
+                format!("{} to {}", minimum, field_count)
+            };
             return Err(self.call_error(format!(
                 "Expected {} fields but got {}.",
-                r#struct.fields.len(),
-                arg_count
+                expected, arg_count
             )));
         }
 
@@ -623,7 +629,17 @@ impl VirtualMachine {
 
         // Unified calling convention: [struct_obj, args...]
         let stack_slice = &self.stack[stack_len - arg_count..stack_len];
-        let fields = stack_slice.to_vec();
+        let mut fields = stack_slice.to_vec();
+        for index in arg_count..field_count {
+            let Some(default) = r#struct.default(index) else {
+                unreachable!("positional_minimum covers every field without a default")
+            };
+            match self.call_value(Value::Closure(default), &[]) {
+                Ok(value) => fields.push(value),
+                Err(NativeCallError::Message(error)) => return Err(self.call_error(error)),
+                Err(NativeCallError::Runtime(e)) => return Err(e),
+            }
+        }
 
         let instance = ObjInstance { r#struct, fields };
 
@@ -1993,6 +2009,22 @@ impl VirtualMachine {
                 n
             ))),
         }
+    }
+
+    /// Replaces the struct on top of the stack with the closure that computes
+    /// its field's default; errors if the field has none.
+    pub(in crate::vm) fn op_get_field_default(&mut self, index: u16) -> OpResult {
+        // [.., struct] -> [.., default_closure]
+        let default = match self.peek(0) {
+            Value::Struct(r#struct) => r#struct.default(index as usize),
+            _ => None,
+        };
+        let Some(default) = default else {
+            return Err(self.runtime_error("Field has no default.".to_string()));
+        };
+        self.pop();
+        self.push(Value::Closure(default));
+        Ok(())
     }
 
     /// Errors unless the value under the struct on top of the stack is an

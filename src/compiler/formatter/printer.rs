@@ -482,14 +482,34 @@ impl<'a> Printer<'a> {
                 location,
                 ..
             } => {
-                let names: Vec<(String, u32)> = fields
+                self.write("struct ");
+                self.write(name);
+                self.write(" ");
+                let (open, close) = self.map.braces_after(location);
+                let spans: Vec<(u32, u32)> = fields
                     .iter()
                     .map(|field| {
-                        let keyword = if field.mutable { "var " } else { "val " };
-                        (format!("{keyword}{}", field.name), field.location.line)
+                        let last = match &field.default {
+                            Some(default) => self.map.last_line(default),
+                            None => field.location.line,
+                        };
+                        (field.location.line, last)
                     })
                     .collect();
-                self.print_named_braces("struct ", name, location, &names);
+                self.braced_lines(
+                    self.map.line(open),
+                    self.map.line(close),
+                    &spans,
+                    |printer, i| {
+                        let field = &fields[i];
+                        printer.write(if field.mutable { "var " } else { "val " });
+                        printer.write(&field.name);
+                        if let Some(default) = &field.default {
+                            printer.write(" = ");
+                            printer.print_expr(default);
+                        }
+                    },
+                );
             }
             Stmt::Enum {
                 name,

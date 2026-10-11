@@ -67,12 +67,13 @@ impl OpCode {
             OpCode::Yield => 0,
             OpCode::Throw => -1,
             OpCode::CheckUpdateBase => 0,
+            OpCode::GetFieldDefault => 0,
         }
     }
 
     #[inline(always)]
     pub(crate) fn from_u8(value: u8) -> Option<OpCode> {
-        const OPCODES: [OpCode; 73] = [
+        const OPCODES: [OpCode; 74] = [
             OpCode::Return,
             OpCode::Constant,
             OpCode::Negate,
@@ -146,6 +147,7 @@ impl OpCode {
             OpCode::Yield,
             OpCode::Throw,
             OpCode::CheckUpdateBase,
+            OpCode::GetFieldDefault,
         ];
         OPCODES.get(value as usize).copied()
     }
@@ -317,4 +319,8 @@ pub(crate) enum OpCode {
     /// errors unless that value is an instance of the struct; otherwise a
     /// no-op. Emitted for the `..base` of a struct update.
     CheckUpdateBase,
+
+    /// Replaces the struct on top of the stack with the closure that computes
+    /// the default of the field at the operand index.
+    GetFieldDefault,
 }
