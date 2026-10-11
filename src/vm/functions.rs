@@ -2005,11 +2005,16 @@ impl VirtualMachine {
             Value::Instance(instance) if Rc::ptr_eq(&instance.borrow().r#struct, expected) => {
                 Ok(())
             }
-            other => Err(self.runtime_error(format!(
-                "'..' expects a {} but got {}.",
-                expected.name,
-                other.type_name()
-            ))),
+            other => {
+                let actual = match self.get_type_name(other) {
+                    Some(name) => name.to_string(),
+                    None => other.type_name().to_string(),
+                };
+                Err(self.runtime_error(format!(
+                    "'..' expects a {} but got {}.",
+                    expected.name, actual
+                )))
+            }
         }
     }
 

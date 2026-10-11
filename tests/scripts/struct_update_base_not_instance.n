@@ -1,0 +1,12 @@
+// Expected:
+// before
+
+// Expected runtime error: '..' expects a Point but got String.
+
+struct Point {
+    val x
+    val y
+}
+
+print("before")
+print(Point(.."s", y: 5))

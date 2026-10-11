@@ -1,0 +1,18 @@
+// Expected:
+// before
+
+// Expected runtime error: '..' expects a Point but got Other.
+
+struct Point {
+    val x
+    val y
+}
+
+struct Other {
+    val x
+    val y
+}
+
+val q = Other(1, 2)
+print("before")
+print(Point(..q, y: 5))
