@@ -385,6 +385,7 @@ impl Parser {
                 "Can't have more than 255 arguments.",
             )),
             |parser| {
+                let location = parser.current_token_location();
                 let value = parser.expression(false)?;
                 match value {
                     Expr::Variable { name, .. } if parser.match_token(TokenType::Colon) => {
@@ -394,8 +395,9 @@ impl Parser {
                     }
                     value => {
                         if !named.is_empty() {
-                            parser.report_error_at_current(
+                            parser.report_error(
                                 CompilationErrorKind::ExpectedToken,
+                                location,
                                 "Positional argument after named argument".to_string(),
                             );
                         }
