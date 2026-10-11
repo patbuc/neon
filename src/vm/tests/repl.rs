@@ -340,7 +340,7 @@ fn redeclaring_val_as_struct_errors() {
     );
     assert_eq!(
         InterpretResult::CompileError,
-        vm.interpret_line("struct x {\n    a\n}".to_string())
+        vm.interpret_line("struct x {\n    val a\n}".to_string())
     );
 }
 
