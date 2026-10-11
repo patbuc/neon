@@ -1,0 +1,64 @@
+// Expected:
+// 20
+
+struct Element {
+    val value
+    var next
+}
+
+impl Element {
+    fn length(self) {
+        if self.next == nil {
+            return 1
+        }
+        1 + self.next.length()
+    }
+}
+
+fn makeList(length) {
+    if length == 0 {
+        return nil
+    }
+    val e = Element(length, nil)
+    e.next = makeList(length - 1)
+    e
+}
+
+fn isShorterThan(x, y) {
+    var xTail = x
+    var yTail = y
+
+    while yTail != nil {
+        if xTail == nil {
+            return true
+        }
+        xTail = xTail.next
+        yTail = yTail.next
+    }
+
+    false
+}
+
+fn tail(x, y, z) {
+    if isShorterThan(y, x) {
+        return tail(tail(x.next, y, z), tail(y.next, z, x), tail(z.next, x, y))
+    }
+    z
+}
+
+fn benchmark() {
+    val result = tail(makeList(15), makeList(10), makeList(6))
+    result.length()
+}
+
+val iterations = args.size() > 0 ? args[0].toInt() : 2
+
+var checksum = 0
+for _ in 0..iterations {
+    val result = benchmark()
+    if result != 10 {
+        throw "List verification failed"
+    }
+    checksum += result
+}
+print(checksum)
