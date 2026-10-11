@@ -1,0 +1,8 @@
+pub struct Point {
+    val x
+    val y
+}
+
+pub fn make(x) {
+    return x
+}

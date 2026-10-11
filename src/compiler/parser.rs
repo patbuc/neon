@@ -376,8 +376,15 @@ impl Parser {
     /// Parses call arguments. A leading `..base` is returned first, apart
     /// from the arguments.
     #[allow(clippy::type_complexity)]
-    fn parse_arguments(&mut self) -> Option<(Option<Expr>, Vec<Expr>, Vec<NamedArgument>)> {
+    fn parse_arguments(
+        &mut self,
+    ) -> Option<(
+        Option<(Expr, SourceLocation)>,
+        Vec<Expr>,
+        Vec<NamedArgument>,
+    )> {
         let mut named = Vec::new();
+        let mut dots_location = None;
         let mut parsed = 0;
         let mut has_base = false;
         let arguments = self.parse_comma_separated_list(
@@ -392,6 +399,7 @@ impl Parser {
                 parsed += 1;
                 if parsed == 1 && parser.match_token(TokenType::DotDot) {
                     has_base = true;
+                    dots_location = Some(location);
                     return parser.expression(false);
                 }
                 if parser.check(TokenType::DotDot) {
@@ -430,26 +438,27 @@ impl Parser {
             },
         )?;
         let mut arguments = arguments;
-        let base = has_base.then(|| arguments.remove(0));
+        let base = dots_location.map(|dots| (arguments.remove(0), dots));
         Some((base, arguments, named))
     }
 
     fn call_expr(
         callee: Expr,
-        base: Option<Expr>,
+        base: Option<(Expr, SourceLocation)>,
         arguments: Vec<Expr>,
         named: Vec<NamedArgument>,
         id: NodeId,
         location: SourceLocation,
     ) -> Expr {
         match base {
-            Some(base) => Expr::StructUpdate {
+            Some((base, base_location)) => Expr::StructUpdate {
                 callee: Box::new(callee),
                 base: Box::new(base),
                 arguments,
                 named,
                 id,
                 location,
+                base_location: Box::new(base_location),
             },
             None => Expr::Call {
                 callee: Box::new(callee),

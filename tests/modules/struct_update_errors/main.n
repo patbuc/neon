@@ -1,0 +1,12 @@
+// Expected compile error: 9:10 E0062 Named arguments need a known struct
+// Expected compile error: 10:22 E0061 Field 'x' given twice
+// Expected compile error: 11:16 E0031 'Point' has no field 'z'
+// Expected compile error: 12:9 E0057 module 'geo' has no export 'nope'
+
+use "geo"
+
+val p = geo.Point(x: 1, y: 2)
+geo.make(..p)
+geo.Point(..p, x: 1, x: 2)
+geo.Point(..p, z: 2)
+geo.nope(..p)

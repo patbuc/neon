@@ -1,0 +1,8 @@
+// Expected compile error: 8:12 E0031 'Point' has no field 'z'
+struct Point {
+    val x
+    val y
+}
+val p = Point(1, 2)
+Point(..p, y: 1)
+Point(..p, z: 1)
