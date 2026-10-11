@@ -1970,10 +1970,16 @@ impl SemanticAnalyzer {
             ..
         } = callee
         {
-            if !named.is_empty() {
+            let module_struct = !*optional
+                && matches!(
+                    object.as_ref(),
+                    Expr::Variable { name, .. }
+                        if matches!(self.module_export(name, field), Some(Export::Struct { .. }))
+                );
+            if !named.is_empty() && !module_struct {
                 self.report_named_argument_not_struct(named);
             }
-            self.resolve_method_call(id, object, field, *optional, arguments, location);
+            self.resolve_method_call(id, object, field, *optional, arguments, named, location);
         } else {
             self.resolve_function_call(id, callee, arguments, named, location);
         }
@@ -2048,6 +2054,7 @@ impl SemanticAnalyzer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_method_call(
         &mut self,
         id: NodeId,
@@ -2055,6 +2062,7 @@ impl SemanticAnalyzer {
         method: &str,
         optional: bool,
         arguments: &[Expr],
+        named: &[NamedArgument],
         location: SourceLocation,
     ) {
         self.intern_name(method, location);
@@ -2097,13 +2105,24 @@ impl SemanticAnalyzer {
                         self.validate_arity("Function", method, arity, arguments.len(), location);
                     }
                     Some(Export::Struct { fields, .. }) => {
-                        self.validate_arity(
-                            "Function",
-                            method,
-                            fields.len() as u8,
-                            arguments.len(),
-                            location,
-                        );
+                        let reported = !named.is_empty()
+                            && self.record_named_struct_arguments(
+                                id,
+                                method,
+                                &fields,
+                                arguments.len(),
+                                named,
+                                location,
+                            );
+                        if !reported {
+                            self.validate_arity(
+                                "Function",
+                                method,
+                                fields.len() as u8,
+                                arguments.len(),
+                                location,
+                            );
+                        }
                     }
                     Some(Export::Enum { .. }) => {
                         self.push_enum_as_value_error(method, location);
@@ -2283,8 +2302,23 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            let reported = !named.is_empty()
-                && self.record_named_struct_arguments(id, name, arguments.len(), named, location);
+            let reported = !named.is_empty() && {
+                if let Some(SymbolKind::Struct { fields, .. }) =
+                    self.symbol_table.resolve(name).map(|s| s.kind.clone())
+                {
+                    self.record_named_struct_arguments(
+                        id,
+                        name,
+                        &fields,
+                        arguments.len(),
+                        named,
+                        location,
+                    )
+                } else {
+                    self.report_named_argument_not_struct(named);
+                    true
+                }
+            };
             if !reported {
                 self.validate_function_call(name, arguments, location);
             }
@@ -2313,18 +2347,11 @@ impl SemanticAnalyzer {
         &mut self,
         id: NodeId,
         struct_name: &str,
+        fields: &[String],
         argument_count: usize,
         named: &[NamedArgument],
         location: SourceLocation,
     ) -> bool {
-        let Some(SymbolKind::Struct { fields, .. }) = self
-            .symbol_table
-            .resolve(struct_name)
-            .map(|s| s.kind.clone())
-        else {
-            self.report_named_argument_not_struct(named);
-            return true;
-        };
         let first_named = argument_count - named.len();
         let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
         let mut duplicate = false;

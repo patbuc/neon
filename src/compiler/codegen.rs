@@ -1646,7 +1646,12 @@ impl<'a> CodeGenerator<'a> {
     ) {
         if let Some(fields) = self.resolutions.struct_argument_fields(id) {
             if fields.windows(2).any(|pair| pair[0] > pair[1]) {
-                self.generate_reordered_struct_call(callee, arguments, fields, location);
+                self.generate_reordered_struct_call(
+                    |this| this.generate_expr(callee),
+                    arguments,
+                    fields,
+                    location,
+                );
                 return;
             }
         }
@@ -1663,7 +1668,7 @@ impl<'a> CodeGenerator<'a> {
     /// popping afterwards.
     fn generate_reordered_struct_call(
         &mut self,
-        callee: &Expr,
+        generate_callee: impl FnOnce(&mut Self),
         arguments: &[Expr],
         fields: &[usize],
         location: SourceLocation,
@@ -1672,7 +1677,7 @@ impl<'a> CodeGenerator<'a> {
         for arg in arguments {
             self.generate_expr(arg);
         }
-        self.generate_expr(callee);
+        generate_callee(self);
         let mut by_field: Vec<_> = fields.iter().enumerate().collect();
         by_field.sort_by_key(|(_, field)| **field);
         for (position, _) in by_field {
@@ -1745,6 +1750,17 @@ impl<'a> CodeGenerator<'a> {
                     OpCode::TailInvoke => OpCode::TailCall,
                     _ => OpCode::Call,
                 };
+                if let Some(fields) = self.resolutions.struct_argument_fields(id) {
+                    if fields.windows(2).any(|pair| pair[0] > pair[1]) {
+                        self.generate_reordered_struct_call(
+                            |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
+                            arguments,
+                            fields,
+                            location,
+                        );
+                        return;
+                    }
+                }
                 self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
                 for arg in arguments {
                     self.generate_expr(arg);
