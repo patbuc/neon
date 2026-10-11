@@ -1,0 +1,52 @@
+// Expected:
+// 10922
+
+struct Random {
+    var seed
+}
+
+impl Random {
+    fn next(self) {
+        self.seed = (self.seed * 1309 + 13849) & 65535
+        self.seed
+    }
+}
+
+struct Storage {
+    var count
+}
+
+impl Storage {
+    fn benchmark(self) {
+        val random = Random(74755)
+        self.count = 0
+        self.buildTreeDepth(7, random)
+        self.count
+    }
+
+    fn buildTreeDepth(self, depth, random) {
+        self.count += 1
+        if depth == 1 {
+            Array(random.next() % 10 + 1, nil)
+        } else {
+            val arr = Array(4, nil)
+            for i in 0..4 {
+                arr[i] = self.buildTreeDepth(depth - 1, random)
+            }
+            arr
+        }
+    }
+}
+
+val iterations = args.size() > 0 ? args[0].toInt() : 2
+
+val storage = Storage(0)
+var checksum = 0
+for _ in 0..iterations {
+    val result = storage.benchmark()
+    if result != 5461 {
+        throw "Storage verification failed"
+    }
+    checksum += result
+}
+print(checksum)
