@@ -757,7 +757,7 @@ impl SemanticAnalyzer {
             Expr::Grouping { expr, .. } => self.infer_expr_type(expr),
 
             // Call expression
-            Expr::Call { callee, .. } => {
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
                 // Check if this is a method call: Call { callee: GetField { object, field }, arguments }
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // A constructor call on an exported struct, e.g.
@@ -3318,22 +3318,24 @@ impl SemanticAnalyzer {
                 .symbol_table
                 .resolve(name)
                 .is_some_and(|symbol| self.fixed_decls.contains(&symbol.decl_id)),
-            Expr::Call { callee, .. } => match callee.as_ref() {
-                Expr::Variable { name, .. } => matches!(
-                    self.symbol_table.resolve(name),
-                    Some(Symbol {
-                        kind: SymbolKind::Struct { .. },
-                        ..
-                    })
-                ),
-                Expr::GetField { object, field, .. } => match object.as_ref() {
-                    Expr::Variable { name, .. } => {
-                        matches!(self.module_export(name, field), Some(Export::Struct { .. }))
-                    }
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
+                match callee.as_ref() {
+                    Expr::Variable { name, .. } => matches!(
+                        self.symbol_table.resolve(name),
+                        Some(Symbol {
+                            kind: SymbolKind::Struct { .. },
+                            ..
+                        })
+                    ),
+                    Expr::GetField { object, field, .. } => match object.as_ref() {
+                        Expr::Variable { name, .. } => {
+                            matches!(self.module_export(name, field), Some(Export::Struct { .. }))
+                        }
+                        _ => false,
+                    },
                     _ => false,
-                },
-                _ => false,
-            },
+                }
+            }
             _ => false,
         }
     }

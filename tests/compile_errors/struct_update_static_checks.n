@@ -1,0 +1,12 @@
+// Expected compile error: 10:2 E0015 Cannot modify immutable field 'Q.a'
+// Expected compile error: 11:8 E0031 Struct 'Q' has no field named 'zz'
+// Expected compile error: 12:8 E0015 Cannot modify immutable field 'Q.a'
+struct Q {
+    val a
+    var b
+}
+val q0 = Q(1, 2)
+val q = Q(..q0, b: 5)
+q.a = 3
+Q(..q0).zz
+Q(..q0).a = 3
