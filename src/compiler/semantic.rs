@@ -55,6 +55,7 @@ pub(crate) struct MethodSignature {
 struct StructMembers<'a> {
     methods: Option<&'a HashMap<String, MethodSignature>>,
     fields: &'a [String],
+    val_fields: &'a [String],
 }
 
 /// Which syntactic form a method call used.
@@ -2394,10 +2395,14 @@ impl SemanticAnalyzer {
         let (module, name) = type_name.split_once('.')?;
         match self.module_export(module, name)? {
             Export::Struct {
-                fields, methods, ..
+                fields,
+                val_fields,
+                methods,
+                ..
             } => Some(StructMembers {
                 methods: Some(methods),
                 fields,
+                val_fields,
             }),
             _ => None,
         }
@@ -2939,14 +2944,7 @@ impl SemanticAnalyzer {
         arg_count: usize,
         location: SourceLocation,
     ) {
-        let members = match self.exported_struct_method_info(object_type) {
-            Some(members) => Some(members),
-            None if self.is_struct_type(object_type) => {
-                Some(self.local_struct_members(object_type))
-            }
-            None => None,
-        };
-        if let Some(members) = members {
+        if let Some(members) = self.struct_members(object_type) {
             let error = struct_method_call_error(
                 object_type,
                 &members,
@@ -3016,42 +3014,41 @@ impl SemanticAnalyzer {
     /// True when `struct_name` is a known struct type declaring a field
     /// named `field`.
     fn struct_has_field(&self, struct_name: &str, field: &str) -> bool {
-        self.struct_fields(struct_name).iter().any(|f| f == field)
+        self.local_struct_members(struct_name)
+            .fields
+            .iter()
+            .any(|f| f == field)
     }
 
     fn local_struct_members(&self, struct_name: &str) -> StructMembers<'_> {
+        let (fields, val_fields) = match self.symbol_table.resolve(struct_name) {
+            Some(Symbol {
+                kind:
+                    SymbolKind::Struct {
+                        fields, val_fields, ..
+                    },
+                ..
+            }) => (fields.as_slice(), val_fields.as_slice()),
+            _ => (&[][..], &[][..]),
+        };
         StructMembers {
             methods: self.struct_methods_of(struct_name),
-            fields: self.struct_fields(struct_name),
+            fields,
+            val_fields,
+        }
+    }
+
+    fn struct_members(&self, type_name: &str) -> Option<StructMembers<'_>> {
+        match self.exported_struct_method_info(type_name) {
+            Some(members) => Some(members),
+            None if self.is_struct_type(type_name) => Some(self.local_struct_members(type_name)),
+            None => None,
         }
     }
 
     fn is_val_field(&self, struct_name: &str, field: &str) -> bool {
-        let val_fields = if let Some((module, name)) = struct_name.split_once('.') {
-            match self.module_export(module, name) {
-                Some(Export::Struct { val_fields, .. }) => val_fields,
-                _ => return false,
-            }
-        } else {
-            match self.symbol_table.resolve(struct_name) {
-                Some(Symbol {
-                    kind: SymbolKind::Struct { val_fields, .. },
-                    ..
-                }) => val_fields,
-                _ => return false,
-            }
-        };
-        val_fields.iter().any(|f| f == field)
-    }
-
-    fn struct_fields(&self, struct_name: &str) -> &[String] {
-        match self.symbol_table.resolve(struct_name) {
-            Some(Symbol {
-                kind: SymbolKind::Struct { fields, .. },
-                ..
-            }) => fields,
-            _ => &[],
-        }
+        self.struct_members(struct_name)
+            .is_some_and(|members| members.val_fields.iter().any(|f| f == field))
     }
 
     /// Check that a field access/set on a receiver of statically known
