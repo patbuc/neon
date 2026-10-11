@@ -164,7 +164,6 @@ pub enum Expr {
         named: Vec<NamedArgument>,
         id: NodeId,
         location: SourceLocation,
-        /// Where the `..` sits; boxed to keep `Expr` small.
         base_location: Box<SourceLocation>,
     },
     GetField {

@@ -1249,8 +1249,24 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_call_expr(*id, callee, arguments, named, *location);
             }
-            Expr::StructUpdate { .. } => {
-                self.resolve_struct_update(expr);
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                named,
+                id,
+                location,
+                base_location,
+            } => {
+                self.resolve_struct_update(
+                    *id,
+                    callee,
+                    base,
+                    arguments,
+                    named,
+                    *location,
+                    **base_location,
+                );
             }
             Expr::GetField {
                 object,
@@ -2261,6 +2277,21 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// The native a call of `name` dispatches to, with whether it is a
+    /// builtin type's constructor, when nothing else resolves the name.
+    fn native_callee(&self, name: &str) -> Option<(usize, bool)> {
+        if self.symbol_table.resolve(name).is_some() {
+            return None;
+        }
+        // A native global function (e.g. print) is the last resort.
+        if let Some(index) = crate::common::method_registry::get_native_method_index("", name) {
+            return Some((index, false));
+        }
+        // Likewise a builtin type's constructor, e.g. Array(n).
+        crate::common::method_registry::get_native_method_index(name, "new")
+            .map(|index| (index, true))
+    }
+
     fn resolve_function_call(
         &mut self,
         id: NodeId,
@@ -2270,29 +2301,19 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) {
         if let Expr::Variable { name, .. } = callee {
-            if self.symbol_table.resolve(name).is_none() {
-                // Nothing resolves this name - a native global function
-                // (e.g. print) is the last resort.
-                let function = crate::common::method_registry::get_native_method_index("", name);
-                // Likewise a builtin type's constructor, e.g. Array(n).
-                let constructor = match function {
-                    Some(_) => None,
-                    None => crate::common::method_registry::get_native_method_index(name, "new"),
-                };
-                if let Some(index) = function.or(constructor) {
-                    if !named.is_empty() {
-                        self.report_named_argument_not_struct(named);
-                    }
-                    if let Some(index) = constructor {
-                        let arity = crate::common::method_registry::native_arity(index);
-                        self.validate_arity("Function", name, arity, arguments.len(), location);
-                    }
-                    self.resolutions.record_native(id, index);
-                    for arg in arguments {
-                        self.resolve_expr(arg);
-                    }
-                    return;
+            if let Some((index, is_constructor)) = self.native_callee(name) {
+                if !named.is_empty() {
+                    self.report_named_argument_not_struct(named);
                 }
+                if is_constructor {
+                    let arity = crate::common::method_registry::native_arity(index);
+                    self.validate_arity("Function", name, arity, arguments.len(), location);
+                }
+                self.resolutions.record_native(id, index);
+                for arg in arguments {
+                    self.resolve_expr(arg);
+                }
+                return;
             }
         }
 
@@ -2336,56 +2357,50 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn resolve_struct_update(&mut self, expr: &Expr) {
-        let Expr::StructUpdate {
-            callee,
-            base,
-            arguments,
-            named,
-            id,
-            location,
-            base_location,
-        } = expr
-        else {
-            return;
-        };
-        let (id, location, base_location) = (*id, *location, **base_location);
-        let (callee, base): (&Expr, &Expr) = (callee, base);
-        let fields = match callee {
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_struct_update(
+        &mut self,
+        id: NodeId,
+        callee: &Expr,
+        base: &Expr,
+        arguments: &[Expr],
+        named: &[NamedArgument],
+        location: SourceLocation,
+        base_location: SourceLocation,
+    ) {
+        let (fields, struct_name) = match callee {
             Expr::GetField {
                 object,
                 field,
                 optional: false,
                 ..
-            } if matches!(object.as_ref(), Expr::Variable { name, .. } if self.module_exports(name).is_some()) =>
-            {
-                let Expr::Variable {
+            } => match object.as_ref() {
+                Expr::Variable {
                     name,
                     id: object_id,
                     ..
-                } = object.as_ref()
-                else {
-                    return;
-                };
-                match self.resolve_module_member(*object_id, name, field, location) {
-                    Some(Export::Struct { fields, .. }) => Some(fields),
-                    Some(_) => {
-                        self.report_named_argument_not_struct_at(base_location);
-                        None
+                } if self.module_exports(name).is_some() => {
+                    match self.resolve_module_member(*object_id, name, field, location) {
+                        Some(Export::Struct { fields, .. }) => (Some(fields), field.as_str()),
+                        Some(_) => {
+                            self.report_named_argument_not_struct_at(base_location);
+                            (None, field.as_str())
+                        }
+                        None => (None, field.as_str()),
                     }
-                    None => None,
                 }
-            }
+                _ => {
+                    self.resolve_expr(object);
+                    self.report_named_argument_not_struct_at(base_location);
+                    (None, field.as_str())
+                }
+            },
             Expr::Variable { name, .. } => {
-                let native = self.symbol_table.resolve(name).is_none()
-                    && (crate::common::method_registry::get_native_method_index("", name)
-                        .is_some()
-                        || crate::common::method_registry::get_native_method_index(name, "new")
-                            .is_some());
+                let native = self.native_callee(name).is_some();
                 if !native {
                     self.resolve_expr(callee);
                 }
-                match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
+                let fields = match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
                     Some(SymbolKind::Struct { fields, .. }) => Some(fields.clone()),
                     Some(_) => {
                         self.report_named_argument_not_struct_at(base_location);
@@ -2397,7 +2412,8 @@ impl SemanticAnalyzer {
                         }
                         None
                     }
-                }
+                };
+                (fields, name.as_str())
             }
             _ => {
                 match callee {
@@ -2405,7 +2421,7 @@ impl SemanticAnalyzer {
                     _ => self.resolve_expr(callee),
                 }
                 self.report_named_argument_not_struct_at(base_location);
-                None
+                (None, "")
             }
         };
         self.resolve_expr(base);
@@ -2415,27 +2431,7 @@ impl SemanticAnalyzer {
         let Some(fields) = fields else {
             return;
         };
-        if let Some(struct_name) = Self::struct_update_name(callee) {
-            let mut seen: Vec<&str> = Vec::new();
-            for (name, name_location) in named {
-                if !fields.contains(name) {
-                    self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::UnknownField,
-                        format!("'{}' has no field '{}'", struct_name, name),
-                        *name_location,
-                    ));
-                } else if seen.contains(&name.as_str()) {
-                    self.push_error(CompilationError::new(
-                        CompilationPhase::Semantic,
-                        CompilationErrorKind::DuplicateArgument,
-                        format!("Field '{}' given twice", name),
-                        *name_location,
-                    ));
-                }
-                seen.push(name);
-            }
-        }
+        self.check_named_fields(struct_name, &fields, Vec::new(), named);
         let updates = fields
             .iter()
             .map(|field| {
@@ -2447,12 +2443,41 @@ impl SemanticAnalyzer {
         self.resolutions.record_struct_update(id, updates);
     }
 
-    fn struct_update_name(callee: &Expr) -> Option<&str> {
-        match callee {
-            Expr::Variable { name, .. } => Some(name),
-            Expr::GetField { field, .. } => Some(field),
-            _ => None,
+    /// Reports unknown and duplicate fields among `named`. Returns each
+    /// name's field position after `positions`, which holds the fields
+    /// already given positionally.
+    fn check_named_fields(
+        &mut self,
+        struct_name: &str,
+        fields: &[String],
+        mut positions: Vec<Option<usize>>,
+        named: &[NamedArgument],
+    ) -> (Vec<Option<usize>>, bool, bool) {
+        let mut unknown = false;
+        let mut duplicate = false;
+        for (name, location) in named {
+            let position = fields.iter().position(|f| f == name);
+            if position.is_none() {
+                unknown = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::UnknownField,
+                    format!("'{}' has no field '{}'", struct_name, name),
+                    *location,
+                ));
+            }
+            if position.is_some() && positions.contains(&position) {
+                duplicate = true;
+                self.push_error(CompilationError::new(
+                    CompilationPhase::Semantic,
+                    CompilationErrorKind::DuplicateArgument,
+                    format!("Field '{}' given twice", name),
+                    *location,
+                ));
+            }
+            positions.push(position);
         }
+        (positions, unknown, duplicate)
     }
 
     fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
@@ -2478,31 +2503,9 @@ impl SemanticAnalyzer {
         location: SourceLocation,
     ) -> bool {
         let first_named = argument_count - named.len();
-        let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
-        let mut duplicate = false;
-        let mut unknown = false;
-        for (name, location) in named {
-            let position = fields.iter().position(|f| f == name);
-            if position.is_none() {
-                unknown = true;
-                self.push_error(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::UnknownField,
-                    format!("'{}' has no field '{}'", struct_name, name),
-                    *location,
-                ));
-            }
-            if position.is_some() && positions.contains(&position) {
-                duplicate = true;
-                self.push_error(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::DuplicateArgument,
-                    format!("Field '{}' given twice", name),
-                    *location,
-                ));
-            }
-            positions.push(position);
-        }
+        let positions = (0..first_named).map(Some).collect();
+        let (positions, unknown, duplicate) =
+            self.check_named_fields(struct_name, fields, positions, named);
         let positions: Option<Vec<usize>> = if duplicate {
             None
         } else {

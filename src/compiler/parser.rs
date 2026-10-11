@@ -386,7 +386,6 @@ impl Parser {
         let mut named = Vec::new();
         let mut dots_location = None;
         let mut parsed = 0;
-        let mut has_base = false;
         let arguments = self.parse_comma_separated_list(
             TokenType::RightParen,
             Some((
@@ -398,7 +397,6 @@ impl Parser {
                 let location = parser.current_token_location();
                 parsed += 1;
                 if parsed == 1 && parser.match_token(TokenType::DotDot) {
-                    has_base = true;
                     dots_location = Some(location);
                     return parser.expression(false);
                 }
@@ -419,7 +417,7 @@ impl Parser {
                         parser.expression(false)
                     }
                     value => {
-                        if has_base {
+                        if dots_location.is_some() {
                             parser.report_error(
                                 CompilationErrorKind::ExpectedToken,
                                 location,

@@ -1692,7 +1692,7 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Evaluates the base and the named values into temps, then builds the
-    /// struct through its constructor so `val` fields stay unwritable.
+    /// struct through its constructor.
     fn generate_struct_update(
         &mut self,
         id: NodeId,
