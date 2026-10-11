@@ -2303,7 +2303,13 @@ impl SemanticAnalyzer {
             .resolve(struct_name)
             .map(|s| s.kind.clone())
         else {
-            return false;
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::NamedArgumentNotStruct,
+                "Named arguments need a known struct".to_string(),
+                named[0].1,
+            ));
+            return true;
         };
         let first_named = argument_count - named.len();
         let mut positions: Vec<Option<usize>> = (0..first_named).map(Some).collect();
