@@ -272,11 +272,12 @@ impl<'a> CodeGenerator<'a> {
                     continue;
                 };
                 let name = format!("{}.{}", r#struct.name, field.name);
-                if let Value::Function(function) =
+                let Value::Function(function) =
                     self.compile_function(field.default_id, &name, &body)
-                {
-                    r#struct.set_default(index, ObjClosure::new(function));
-                }
+                else {
+                    unreachable!("compile_function returns a function")
+                };
+                r#struct.set_default(index, ObjClosure::new(function));
             }
         }
 

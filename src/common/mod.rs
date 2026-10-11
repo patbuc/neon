@@ -665,6 +665,9 @@ pub struct ObjStruct {
     pub(crate) methods: RefCell<Vec<MethodEntry>>,
     /// Parallel to `fields`: the closure that computes an omitted field.
     defaults: RefCell<Vec<Option<Rc<ObjClosure>>>>,
+    /// The fewest positional arguments a call accepts: one past the last
+    /// field without a default.
+    positional_minimum: Cell<usize>,
 }
 
 impl std::fmt::Debug for ObjStruct {
@@ -701,21 +704,21 @@ impl ObjStruct {
     }
 
     pub(crate) fn set_default(&self, index: usize, default: Rc<ObjClosure>) {
-        self.defaults.borrow_mut()[index] = Some(default);
+        let mut defaults = self.defaults.borrow_mut();
+        defaults[index] = Some(default);
+        let minimum = defaults
+            .iter()
+            .rposition(Option::is_none)
+            .map_or(0, |i| i + 1);
+        self.positional_minimum.set(minimum);
     }
 
     pub(crate) fn default(&self, index: usize) -> Option<Rc<ObjClosure>> {
         self.defaults.borrow()[index].clone()
     }
 
-    /// The fewest positional arguments a call accepts: one past the last
-    /// field without a default.
     pub(crate) fn positional_minimum(&self) -> usize {
-        self.defaults
-            .borrow()
-            .iter()
-            .rposition(Option::is_none)
-            .map_or(0, |i| i + 1)
+        self.positional_minimum.get()
     }
 
     pub(crate) fn find_method(&self, method_symbol: u16) -> Option<MethodEntry> {
@@ -806,6 +809,7 @@ impl Value {
             name_symbol,
             methods: RefCell::new(Vec::new()),
             defaults: RefCell::new(vec![None; field_count]),
+            positional_minimum: Cell::new(field_count),
         }))
     }
 

@@ -2011,8 +2011,8 @@ impl VirtualMachine {
         }
     }
 
-    /// Errors unless the value under the struct on top of the stack is an
-    /// instance of that struct.
+    /// Replaces the struct on top of the stack with the closure that computes
+    /// its field's default; errors if the field has none.
     pub(in crate::vm) fn op_get_field_default(&mut self, index: u16) -> OpResult {
         // [.., struct] -> [.., default_closure]
         let default = match self.peek(0) {
@@ -2027,6 +2027,8 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// Errors unless the value under the struct on top of the stack is an
+    /// instance of that struct.
     pub(in crate::vm) fn op_check_update_base(&mut self) -> OpResult {
         let Value::Struct(expected) = self.peek(0) else {
             return Err(self.runtime_error("'..' needs a struct.".to_string()));

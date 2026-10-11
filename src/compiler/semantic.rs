@@ -2154,8 +2154,8 @@ impl SemanticAnalyzer {
                         ..
                     }) => {
                         let named_call = !named.is_empty();
-                        let reported = named_call
-                            && self.record_named_struct_arguments(
+                        if named_call {
+                            self.record_named_struct_arguments(
                                 id,
                                 method,
                                 &fields,
@@ -2164,7 +2164,7 @@ impl SemanticAnalyzer {
                                 named,
                                 location,
                             );
-                        if !named_call && !reported {
+                        } else {
                             self.validate_struct_arity(
                                 method,
                                 &fields,
@@ -2539,17 +2539,16 @@ impl SemanticAnalyzer {
         argument_count: usize,
         named: &[NamedArgument],
         location: SourceLocation,
-    ) -> bool {
+    ) {
         let first_named = argument_count - named.len();
         let positions = (0..first_named).map(Some).collect();
-        let (positions, unknown, duplicate) =
+        let (positions, _, duplicate) =
             self.check_named_fields(struct_name, fields, positions, named);
         let positions: Option<Vec<usize>> = if duplicate {
             None
         } else {
             positions.into_iter().collect()
         };
-        let mut missing = false;
         if let Some(positions) = positions {
             if let Some(field) = (0..fields.len())
                 .find(|field| {
@@ -2557,7 +2556,6 @@ impl SemanticAnalyzer {
                 })
                 .map(|field| &fields[field])
             {
-                missing = true;
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
                     CompilationErrorKind::TooFewArguments,
@@ -2570,7 +2568,6 @@ impl SemanticAnalyzer {
                     .record_struct_argument_fields(id, positions);
             }
         }
-        unknown || missing || duplicate
     }
 
     fn resolve_get_field(
@@ -3461,6 +3458,7 @@ impl SemanticAnalyzer {
         }
     }
 
+    #[allow(clippy::expect_used)]
     fn validate_struct_arity(
         &mut self,
         name: &str,
@@ -3478,17 +3476,16 @@ impl SemanticAnalyzer {
             return;
         }
         if actual < minimum {
-            if let Some(field) = fields[actual..]
+            let field = fields[actual..]
                 .iter()
                 .find(|field| !default_fields.contains(field))
-            {
-                self.push_error(CompilationError::new(
-                    CompilationPhase::Semantic,
-                    CompilationErrorKind::TooFewArguments,
-                    format!("Missing field '{}' for '{}'", field, name),
-                    location,
-                ));
-            }
+                .expect("actual < minimum leaves a field without a default");
+            self.push_error(CompilationError::new(
+                CompilationPhase::Semantic,
+                CompilationErrorKind::TooFewArguments,
+                format!("Missing field '{}' for '{}'", field, name),
+                location,
+            ));
             return;
         }
         self.push_error(CompilationError::new(

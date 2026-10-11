@@ -836,10 +836,10 @@ not. A dynamic call such as `T("h")` fills omitted trailing defaults at run
 time.
 
 `Point(..base, y: 5)` builds a new `Point` from `base`, taking every field from
-it except the named ones (a default is not applied). `..base` must come first and only named arguments may
-follow it. The copy is shallow (fields holding arrays or instances stay shared
-with `base`), and it can replace `val` fields. A `base` that isn't an instance
-of the same struct is a runtime error (`'..' expects a Point but got String.`).
+it except the named ones (a default is not applied). `..base` must come first
+and only named arguments may follow it. The copy is shallow (fields holding
+arrays or instances stay shared with `base`), and it can replace `val` fields.
+A `base` that isn't an instance of the same struct is a runtime error (`'..' expects a Point but got String.`).
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 `Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).
