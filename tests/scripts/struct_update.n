@@ -1,6 +1,19 @@
 // Expected:
 // 1
 // 5
+// 1
+// 2
+// 1
+// 3
+// 3
+// 3
+// 2
+// 4
+// 10
+// base
+// arg
+// 7
+// 2
 
 struct Point {
     val x
@@ -11,3 +24,56 @@ val p = Point(1, 2)
 val q = Point(..p, y: 5)
 print(q.x)
 print(q.y)
+
+// Plain copy is a distinct instance
+struct Cell {
+    var a
+    var b
+}
+
+val c1 = Cell(1, 2)
+val c2 = Cell(..c1)
+print(c2.a)
+print(c2.b)
+c2.a = 9
+print(c1.a)
+
+// Copy is shallow: the array field is shared
+struct Bag {
+    val items
+}
+
+val b1 = Bag([1, 2])
+val b2 = Bag(..b1)
+b2.items.push(3)
+print(b1.items.size())
+print(b1.items.last())
+
+// Named argument replaces a val field
+val r = Point(..p, x: 3)
+print(r.x)
+print(r.y)
+
+// Base can be any expression
+fn make() {
+    Point(4, 5)
+}
+
+val m = Point(..make(), y: 10)
+print(m.x)
+print(m.y)
+
+// Base is evaluated before the named arguments
+fn base() {
+    print("base")
+    Point(7, 8)
+}
+
+fn arg() {
+    print("arg")
+    2
+}
+
+val o = Point(..base(), y: arg())
+print(o.x)
+print(o.y)
