@@ -2096,7 +2096,9 @@ impl SemanticAnalyzer {
 
             if !optional && self.module_exports(name).is_some() {
                 let export = self.resolve_module_member(*object_id, name, method, location);
-                if !named.is_empty() && !matches!(export, Some(Export::Struct { .. })) {
+                if !named.is_empty()
+                    && matches!(export, Some(ref e) if !matches!(e, Export::Struct { .. }))
+                {
                     self.report_named_argument_not_struct(named);
                 }
                 match export {
