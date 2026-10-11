@@ -803,16 +803,21 @@ print("\${name}")       // ${name}
 
 ```neon
 struct Point {
-    x
-    y
+    val x
+    var y
 }
 
 val pt = Point(10, 20)
 print(pt.x)  // 10
 
-pt.x = 15    // Fields are mutable
-print(pt.x)  // 15
+pt.y = 25    // var fields are mutable
+print(pt.y)  // 25
 ```
+
+Each field is declared `val` (fixed once constructed) or `var` (mutable).
+Construction is positional and sets every field. Storing to a `val` field is a
+compile error (`Cannot modify immutable field 'Point.x'`) where the receiver's
+struct is known, including `self` in methods, and a runtime error otherwise.
 
 A struct can't be named after a builtin type (`Array`, `String`, `Map`,
 `Set`, `Number`, `Boolean`, `File`, `PriorityQueue`, `Error`).
