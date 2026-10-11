@@ -134,6 +134,9 @@ pub struct SemanticAnalyzer {
     // Export table of the module each file `import` resolved to, by the
     // import's node id.
     imports: HashMap<NodeId, ExportTable>,
+    // `val`s bound from a fixed receiver, and typed `self` parameters: names
+    // whose inferred struct type holds on every path.
+    fixed_decls: HashSet<DeclId>,
 }
 
 impl SemanticAnalyzer {
@@ -179,6 +182,7 @@ impl SemanticAnalyzer {
             too_many_symbols_reported: false,
             builtin_decl_count: next_decl_id,
             imports: HashMap::new(),
+            fixed_decls: HashSet::new(),
         }
     }
 
@@ -1568,6 +1572,9 @@ impl SemanticAnalyzer {
             });
             self.currently_initializing = previous;
             self.define_type(name, inferred_type.flatten());
+            if !is_mutable && initializer.is_some_and(|init| self.receiver_is_fixed(init)) {
+                self.fixed_decls.insert(decl_id);
+            }
             self.not_initialized_top_level.remove(&decl_id);
             return;
         }
@@ -1580,8 +1587,12 @@ impl SemanticAnalyzer {
             self.infer_expr_type(init)
         });
         self.define_type(name, inferred_type.flatten());
+        let is_fixed = !is_mutable && initializer.is_some_and(|init| self.receiver_is_fixed(init));
         // Then define the variable in current scope
-        self.declare_symbol(id, name.to_string(), kind, is_mutable, location);
+        let decl_id = self.declare_symbol(id, name.to_string(), kind, is_mutable, location);
+        if is_fixed {
+            self.fixed_decls.insert(decl_id);
+        }
     }
 
     /// Resolves `val (a, _, c) = expr` / `var (...)`: the initializer, then
@@ -1720,9 +1731,13 @@ impl SemanticAnalyzer {
             } else {
                 None
             };
+            let is_typed_self = param_type.is_some();
             self.define_type(param, param_type);
             let decl_id =
                 self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
+            if is_typed_self {
+                self.fixed_decls.insert(decl_id);
+            }
             self.function_frames
                 .last_mut()
                 .expect("just pushed")
@@ -3046,14 +3061,14 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// True when the receiver can't be rebound, so its inferred type holds
-    /// on every path: a `val`, `self`, or a constructor call.
+    /// True when the receiver's inferred type holds on every path: a
+    /// constructor call, `self`, or a `val` bound from such a receiver.
     fn receiver_is_fixed(&self, object: &Expr) -> bool {
         match object {
             Expr::Variable { name, .. } => self
                 .symbol_table
                 .resolve(name)
-                .is_some_and(|symbol| !symbol.is_mutable),
+                .is_some_and(|symbol| self.fixed_decls.contains(&symbol.decl_id)),
             Expr::Call { .. } => true,
             _ => false,
         }
