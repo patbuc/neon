@@ -760,18 +760,7 @@ impl Value {
         Value::Instance(Rc::new(RefCell::new(instance)))
     }
 
-    #[cfg(test)]
     pub(crate) fn new_struct(
-        name: String,
-        fields: Vec<String>,
-        field_symbols: Vec<u16>,
-        name_symbol: u16,
-    ) -> Self {
-        let immutable = vec![false; fields.len()];
-        Self::new_struct_with_mutability(name, fields, field_symbols, immutable, name_symbol)
-    }
-
-    pub(crate) fn new_struct_with_mutability(
         name: String,
         fields: Vec<String>,
         field_symbols: Vec<u16>,

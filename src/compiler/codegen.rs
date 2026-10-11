@@ -218,7 +218,7 @@ impl<'a> CodeGenerator<'a> {
                         .collect();
                     let immutable = fields.iter().map(|f| !f.mutable).collect();
                     let name_symbol = self.resolutions.symbol(name);
-                    let struct_value = Value::new_struct_with_mutability(
+                    let struct_value = Value::new_struct(
                         name.clone(),
                         field_names,
                         field_symbols,

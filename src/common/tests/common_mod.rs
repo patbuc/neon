@@ -389,6 +389,7 @@ fn struct_field_index_resolves_non_contiguous_symbols() {
         "Sparse".to_string(),
         vec!["a".to_string(), "b".to_string(), "c".to_string()],
         field_symbols,
+        vec![false; 3],
         0,
     );
     let Value::Struct(s) = value else {
