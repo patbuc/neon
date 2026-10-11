@@ -16,6 +16,10 @@
 // 2
 // 1
 // 2
+// eval 2
+// eval 1
+// 1
+// 2
 
 struct Point {
     val x
@@ -64,3 +68,11 @@ fn make(T) {
 val made = make(Point)
 print(made.x)
 print(made.y)
+
+fn mk() {
+    return Point(y: trace(2), x: trace(1))
+}
+
+val tail = mk()
+print(tail.x)
+print(tail.y)

@@ -3,6 +3,14 @@
 // 2
 // 1
 // 2
+// eval 2
+// eval 1
+// 1
+// 2
+// eval 2
+// eval 1
+// 1
+// 2
 
 use "geo"
 
@@ -12,3 +20,20 @@ print(a.y)
 val b = geo.Point(y: 2, x: 1)
 print(b.x)
 print(b.y)
+
+fn t(n) {
+    print("eval ${n}")
+    n
+}
+
+val c = geo.Point(y: t(2), x: t(1))
+print(c.x)
+print(c.y)
+
+fn mk() {
+    return geo.Point(y: t(2), x: t(1))
+}
+
+val d = mk()
+print(d.x)
+print(d.y)
