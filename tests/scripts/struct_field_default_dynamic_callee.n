@@ -1,0 +1,16 @@
+// Expected:
+// h
+// 3
+
+struct Config {
+    val host
+    var retries = 3
+}
+
+fn make(T) {
+    return T("h")
+}
+
+val c = make(Config)
+print(c.host)
+print(c.retries)

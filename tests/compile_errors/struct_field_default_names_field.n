@@ -1,0 +1,5 @@
+// Expected compile error: 4:17 E0013 Undefined variable 'host'
+struct Config {
+    val host
+    var label = host
+}
