@@ -2270,24 +2270,18 @@ impl SemanticAnalyzer {
             if self.symbol_table.resolve(name).is_none() {
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
-                let native = crate::common::method_registry::get_native_method_index("", name)
-                    .map(|index| (index, None))
-                    .or_else(|| {
-                        // Likewise a builtin type's constructor, e.g. Array(n).
-                        crate::common::method_registry::get_native_method_index(name, "new").map(
-                            |index| {
-                                (
-                                    index,
-                                    Some(crate::common::method_registry::native_arity(index)),
-                                )
-                            },
-                        )
-                    });
-                if let Some((index, constructor_arity)) = native {
+                let function = crate::common::method_registry::get_native_method_index("", name);
+                // Likewise a builtin type's constructor, e.g. Array(n).
+                let constructor = match function {
+                    Some(_) => None,
+                    None => crate::common::method_registry::get_native_method_index(name, "new"),
+                };
+                if let Some(index) = function.or(constructor) {
                     if !named.is_empty() {
                         self.report_named_argument_not_struct(named);
                     }
-                    if let Some(arity) = constructor_arity {
+                    if let Some(index) = constructor {
+                        let arity = crate::common::method_registry::native_arity(index);
                         self.validate_arity("Function", name, arity, arguments.len(), location);
                     }
                     self.resolutions.record_native(id, index);
@@ -2304,26 +2298,22 @@ impl SemanticAnalyzer {
 
         // Validate that callee is a function if it's a variable reference
         if let Expr::Variable { name, .. } = callee {
-            let struct_fields = self
-                .symbol_table
-                .resolve(name)
-                .map(|symbol| match &symbol.kind {
-                    SymbolKind::Struct { fields, .. } => Some(fields.clone()),
-                    _ => None,
-                });
             let skip_arity_check = if named.is_empty() {
                 false
             } else {
-                match struct_fields {
-                    Some(Some(fields)) => self.record_named_struct_arguments(
-                        id,
-                        name,
-                        &fields,
-                        arguments.len(),
-                        named,
-                        location,
-                    ),
-                    Some(None) => {
+                match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
+                    Some(SymbolKind::Struct { fields, .. }) => {
+                        let fields = fields.clone();
+                        self.record_named_struct_arguments(
+                            id,
+                            name,
+                            &fields,
+                            arguments.len(),
+                            named,
+                            location,
+                        )
+                    }
+                    Some(_) => {
                         self.report_named_argument_not_struct(named);
                         true
                     }

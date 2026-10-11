@@ -293,7 +293,8 @@ impl Resolutions {
     }
 
     /// The field position each argument of the struct construction `id`
-    /// fills, in source order, if it uses named arguments.
+    /// fills, in source order. Present only when its named arguments are
+    /// out of field order.
     pub fn struct_argument_fields(&self, id: NodeId) -> Option<&[usize]> {
         self.struct_argument_fields.get(&id).map(Vec::as_slice)
     }
