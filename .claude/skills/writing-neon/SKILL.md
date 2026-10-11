@@ -66,7 +66,11 @@ file.n`; the same hook runs it after the compile check and blocks on an unformat
   allowed in `if`/`while` conditions or a `for ... in` collection —
   parenthesize the call instead.
 - Struct fields are listed one per line as `val x` or `var y`, no commas or
-  types: `struct Point {` / `val x` / `var y` / `}`. Construct with `Point(1, 2)`.
+  types: `struct Point {` / `val x` / `var y` / `}`. Construct with `Point(1, 2)` or by name,
+  in any order: `Point(y: 2, x: 1)`, `geo.Point(x: 1, y: 2)`. Positional arguments
+  come first, then named; every field must be given. Named arguments need a
+  callee that is statically a struct (not a function, method, native, or a struct
+  in a variable; E0062). Arguments evaluate left to right in source order.
   Storing to a `val` field is an error (E0015 at compile time when the receiver
   is a constructor call, `self`, or a `val` bound from one; else at runtime).
 - Methods live in `impl Point { fn len(self) { ... } }`; `self` is an

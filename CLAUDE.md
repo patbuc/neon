@@ -215,7 +215,8 @@ enforces these edges in `cargo test`.
       captures, which declarations are captured, and a `Symbols` table interning every field, method,
       and type name into a `u16` id (more than 65,536 distinct names is a compile error)
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
-      unknown module export, write to an export, module used as a value, wrong-arity export call
+      unknown module export, write to an export, module used as a value, wrong-arity export call,
+      named arguments to a callee that is not statically a struct
     - Each module's exports go into an `ExportTable` (`src/compiler/exports.rs`): name, kind, global
       slot and arity for functions, variables, structs and enums, registry index and arity for a builtin
       module's natives (`Export::Native`, no slot). A `use` binds a compile-time `Module` symbol
