@@ -137,7 +137,9 @@ impl SourceMap {
             | Expr::Match { location, .. } => self.at(location),
             Expr::Binary { left, .. } => self.first_token(left),
             Expr::Range { start, .. } => self.first_token(start),
-            Expr::Call { callee, .. } => self.first_token(callee),
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
+                self.first_token(callee)
+            }
             Expr::GetField { object, .. }
             | Expr::SetField { object, .. }
             | Expr::CompoundAssignField { object, .. }
@@ -174,6 +176,7 @@ impl SourceMap {
                 }) if self.is_block_lambda(fn_location) => self.partner(self.at(fn_location)),
                 _ => self.partner(self.at(location)),
             },
+            Expr::StructUpdate { location, .. } => self.partner(self.at(location)),
             Expr::GetField { location, .. } => self.at(location) + 1,
             Expr::Assign { value, .. }
             | Expr::CompoundAssign { value, .. }

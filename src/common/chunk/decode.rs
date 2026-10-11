@@ -200,6 +200,7 @@ pub(crate) enum Instr {
     EndTry,
     Yield,
     Throw,
+    CheckUpdateBase,
     /// A byte that is no opcode; executing it is a runtime error. Decoding
     /// stops here, since the width of what follows is unknown.
     Invalid(u8),
@@ -319,6 +320,7 @@ impl Instr {
             Instr::EndTry => "EndTry",
             Instr::Yield => "Yield",
             Instr::Throw => "Throw",
+            Instr::CheckUpdateBase => "CheckUpdateBase",
             Instr::Invalid(_) => return None,
         })
     }
@@ -708,6 +710,7 @@ impl Chunk {
                 OpCode::EndTry => (Instr::EndTry, 1),
                 OpCode::Yield => (Instr::Yield, 1),
                 OpCode::Throw => (Instr::Throw, 1),
+                OpCode::CheckUpdateBase => (Instr::CheckUpdateBase, 1),
             };
             if pos + width > bytes.len() {
                 closure_upvalues.truncate(upvalues_start);

@@ -879,6 +879,38 @@ impl<'a> Printer<'a> {
                     self.print_trailing_block(params, body, open, close);
                 }
             }
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                named,
+                location,
+                ..
+            } => {
+                self.print_expr(callee);
+                let open = self.map.at(location);
+                let close = self.map.partner(open);
+                let spans: Vec<(u32, u32)> = std::iter::once(base.as_ref())
+                    .chain(arguments)
+                    .map(|arg| (self.map.first_line(arg), self.map.last_line(arg)))
+                    .collect();
+                let brackets = Brackets {
+                    open: "(",
+                    close: ")",
+                    open_line: self.map.line(open),
+                    close_line: self.map.line(close),
+                };
+                self.bracket_list(brackets, &spans, |printer, i| {
+                    if i == 0 {
+                        printer.write("..");
+                        printer.print_expr(base)
+                    } else {
+                        printer.write(&named[i - 1].0);
+                        printer.write(": ");
+                        printer.print_expr(&arguments[i - 1])
+                    }
+                });
+            }
             Expr::GetField {
                 object,
                 field,

@@ -1249,6 +1249,16 @@ impl SemanticAnalyzer {
             } => {
                 self.resolve_call_expr(*id, callee, arguments, named, *location);
             }
+            Expr::StructUpdate {
+                callee,
+                base,
+                arguments,
+                named,
+                id,
+                location,
+            } => {
+                self.resolve_struct_update(*id, callee, base, arguments, named, *location);
+            }
             Expr::GetField {
                 object,
                 field,
@@ -2333,6 +2343,61 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn resolve_struct_update(
+        &mut self,
+        id: NodeId,
+        callee: &Expr,
+        base: &Expr,
+        arguments: &[Expr],
+        named: &[NamedArgument],
+        location: SourceLocation,
+    ) {
+        let fields = match callee {
+            Expr::GetField {
+                object,
+                field,
+                optional: false,
+                ..
+            } => match object.as_ref() {
+                Expr::Variable {
+                    name,
+                    id: object_id,
+                    ..
+                } if self.module_exports(name).is_some() => {
+                    match self.resolve_module_member(*object_id, name, field, location) {
+                        Some(Export::Struct { fields, .. }) => Some(fields),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            },
+            Expr::Variable { name, .. } => {
+                self.resolve_expr(callee);
+                match self.symbol_table.resolve(name).map(|symbol| &symbol.kind) {
+                    Some(SymbolKind::Struct { fields, .. }) => Some(fields.clone()),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        self.resolve_expr(base);
+        for arg in arguments {
+            self.resolve_expr(arg);
+        }
+        let Some(fields) = fields else {
+            return;
+        };
+        let updates = fields
+            .iter()
+            .map(|field| {
+                self.intern_name(field, location);
+                let argument = named.iter().position(|(name, _)| name == field);
+                (field.clone(), argument)
+            })
+            .collect();
+        self.resolutions.record_struct_update(id, updates);
+    }
+
     fn report_named_argument_not_struct(&mut self, named: &[NamedArgument]) {
         self.push_error(CompilationError::new(
             CompilationPhase::Semantic,
@@ -2798,7 +2863,9 @@ impl SemanticAnalyzer {
     fn match_pattern_location(expr: &Expr) -> SourceLocation {
         match expr {
             Expr::Binary { left, .. } => Self::match_pattern_location(left),
-            Expr::Call { callee, .. } => Self::match_pattern_location(callee),
+            Expr::Call { callee, .. } | Expr::StructUpdate { callee, .. } => {
+                Self::match_pattern_location(callee)
+            }
             Expr::GetField { object, .. }
             | Expr::SetField { object, .. }
             | Expr::CompoundAssignField { object, .. }
@@ -3568,6 +3635,16 @@ fn expr_references_it(expr: &Expr) -> bool {
         Expr::Call {
             callee, arguments, ..
         } => expr_references_it(callee) || arguments.iter().any(expr_references_it),
+        Expr::StructUpdate {
+            callee,
+            base,
+            arguments,
+            ..
+        } => {
+            expr_references_it(callee)
+                || expr_references_it(base)
+                || arguments.iter().any(expr_references_it)
+        }
         Expr::GetField { object, .. } => expr_references_it(object),
         Expr::SetField { object, value, .. } => {
             expr_references_it(object) || expr_references_it(value)

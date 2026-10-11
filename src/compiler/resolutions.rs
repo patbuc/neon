@@ -142,6 +142,10 @@ pub struct Resolutions {
     /// Keyed by the `Expr::Call` node of a struct construction with named
     /// arguments: the field position each argument fills, in source order.
     struct_argument_fields: HashMap<NodeId, Vec<usize>>,
+    /// Keyed by the `Expr::StructUpdate` node: each field of the struct in
+    /// field order, with the named argument that fills it (`None` copies
+    /// the field from the base).
+    struct_updates: HashMap<NodeId, Vec<(String, Option<usize>)>>,
 }
 
 impl Resolutions {
@@ -297,6 +301,18 @@ impl Resolutions {
     /// out of field order.
     pub fn struct_argument_fields(&self, id: NodeId) -> Option<&[usize]> {
         self.struct_argument_fields.get(&id).map(Vec::as_slice)
+    }
+
+    pub(crate) fn record_struct_update(
+        &mut self,
+        id: NodeId,
+        fields: Vec<(String, Option<usize>)>,
+    ) {
+        self.struct_updates.insert(id, fields);
+    }
+
+    pub fn struct_update(&self, id: NodeId) -> Option<&[(String, Option<usize>)]> {
+        self.struct_updates.get(&id).map(Vec::as_slice)
     }
 
     pub(crate) fn record_module_member(&mut self, id: NodeId, slot: u32) {

@@ -1995,6 +1995,24 @@ impl VirtualMachine {
         }
     }
 
+    /// Errors unless the value under the struct on top of the stack is an
+    /// instance of that struct.
+    pub(in crate::vm) fn op_check_update_base(&mut self) -> OpResult {
+        let Value::Struct(expected) = self.peek(0) else {
+            return Err(self.runtime_error("'..' needs a struct.".to_string()));
+        };
+        match self.peek(1) {
+            Value::Instance(instance) if Rc::ptr_eq(&instance.borrow().r#struct, expected) => {
+                Ok(())
+            }
+            other => Err(self.runtime_error(format!(
+                "'..' expects a {} but got {}.",
+                expected.name,
+                other.type_name()
+            ))),
+        }
+    }
+
     /// The "used before initialization" message for `value`, if it's the
     /// uninitialized sentinel. A free function (no `self`) so callers can
     /// build it while still holding an immutable borrow of the stack.
