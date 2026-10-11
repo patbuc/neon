@@ -1,6 +1,8 @@
-// Expected compile error: 6:13 E0031 'Point' has no field 'z'
+// Expected compile error: 7:13 E0031 'Point' has no field 'z'
+// Expected compile error: 8:7 E0031 'Point' has no field 'z'
 struct Point {
     val x
     val y
 }
 Point(x: 1, z: 2)
+Point(z: 2)

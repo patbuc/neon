@@ -2267,14 +2267,14 @@ impl SemanticAnalyzer {
     ) {
         if let Expr::Variable { name, .. } = callee {
             if self.symbol_table.resolve(name).is_none() {
-                if !named.is_empty() {
-                    self.report_named_argument_not_struct(named);
-                }
                 // Nothing resolves this name - a native global function
                 // (e.g. print) is the last resort.
                 if let Some(index) =
                     crate::common::method_registry::get_native_method_index("", name)
                 {
+                    if !named.is_empty() {
+                        self.report_named_argument_not_struct(named);
+                    }
                     self.resolutions.record_native(id, index);
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2288,6 +2288,9 @@ impl SemanticAnalyzer {
                 {
                     let arity = crate::common::method_registry::native_arity(index);
                     self.validate_arity("Function", name, arity, arguments.len(), location);
+                    if !named.is_empty() {
+                        self.report_named_argument_not_struct(named);
+                    }
                     self.resolutions.record_native(id, index);
                     for arg in arguments {
                         self.resolve_expr(arg);
@@ -2315,7 +2318,9 @@ impl SemanticAnalyzer {
                         location,
                     )
                 } else {
-                    self.report_named_argument_not_struct(named);
+                    if self.symbol_table.resolve(name).is_some() {
+                        self.report_named_argument_not_struct(named);
+                    }
                     true
                 }
             };
