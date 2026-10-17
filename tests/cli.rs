@@ -1064,6 +1064,27 @@ fn help_lists_fmt_command() {
 
 #[cfg(not(feature = "disassemble"))]
 #[test]
+fn repl_starts_with_the_logo_banner() {
+    let output = run_repl_with_stdin(b"exit\n");
+
+    assert!(output.status.success());
+    let banner = format!(
+        "╭────────────╮\n\
+         │ █▄  █ ▄▀▀▄ │   neon {}\n\
+         │ █ ▀▄█ █▀▀▀ │   a toy language you didn't wait for\n\
+         ╰────────────╯   Type 'exit' or Ctrl+D to quit\n",
+        env!("NEON_VERSION")
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.starts_with(&banner),
+        "expected stdout to start with the uncolored banner:\n{}",
+        stdout
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
 fn repl_ends_at_eof_without_exit() {
     let output = run_repl_with_stdin(b"print(1)\n");
 
@@ -1097,20 +1118,7 @@ fn repl_exit_stops_before_eof() {
 
 #[cfg(not(feature = "disassemble"))]
 #[test]
-fn repl_banner_is_plain_when_piped() {
-    let output = run_repl_with_stdin(b"exit\n");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.starts_with(&format!(" Ne  neon {} - ", env!("NEON_VERSION"))),
-        "unexpected banner:\n{}",
-        stdout
-    );
-}
-
-#[cfg(not(feature = "disassemble"))]
-#[test]
-fn repl_banner_badge_is_pink_when_colour_is_forced() {
+fn repl_banner_border_is_pink_when_colour_is_forced() {
     let child = spawn_neon_with_stdin(
         |command| {
             command
@@ -1124,8 +1132,8 @@ fn repl_banner_badge_is_pink_when_colour_is_forced() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("48;2;236;89;124"),
-        "expected a #ec597c background on the badge:\n{}",
+        stdout.contains("38;2;236;89;124"),
+        "expected a #ec597c border on the logo:\n{}",
         stdout
     );
 }
