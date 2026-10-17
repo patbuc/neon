@@ -6,7 +6,14 @@
 [![Last commit](https://img.shields.io/github/last-commit/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon/commits)
 [![Code size](https://img.shields.io/github/languages/code-size/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon)
 
-# ✨ Neon
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/svg/neon-logo-dark.svg">
+    <img src="assets/logo/svg/neon-logo-light.svg" alt="Neon logo" width="120">
+  </picture>
+</p>
+
+# Neon
 
 A toy language you didn't wait for
 
