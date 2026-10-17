@@ -24,6 +24,18 @@ fn main() {
     };
     println!("cargo:rustc-env=NEON_VERSION={version}");
 
+    if let Err(err) = embed_resource::compile("assets/logo/windows/neon.rc", embed_resource::NONE)
+        .manifest_required()
+    {
+        panic!("failed to embed the Windows icon: {err}");
+    }
+    for path in [
+        "assets/logo/windows/neon.rc",
+        "assets/logo/windows/neon.ico",
+    ] {
+        println!("cargo:rerun-if-changed={path}");
+    }
+
     for path in ["HEAD", "logs/HEAD"] {
         if let Some(path) = git(&["rev-parse", "--path-format=absolute", "--git-path", path]) {
             println!("cargo:rerun-if-changed={path}");
