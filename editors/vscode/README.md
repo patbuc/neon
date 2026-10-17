@@ -2,7 +2,8 @@
 
 TextMate grammar and language configuration for Neon (`.n` files): keyword,
 string, number, and operator highlighting, comment toggling, and bracket
-matching/auto-closing.
+matching/auto-closing. `.n` files get the Ne icon in the explorer and tabs when the active file
+icon theme has none of its own.
 
 ## Install
 
