@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792229098071,
+  "lastUpdate": 1792250082365,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -29048,6 +29048,350 @@ window.BENCHMARK_DATA = {
             "value": 1.0883065610468083,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "26b2d65b000c2a21ff0b812d38ef2d8047433d29",
+          "message": "Merge pull request #591 from patbuc/repl-logo-banner",
+          "timestamp": "2026-10-17T17:12:30+02:00",
+          "tree_id": "c3edcfe57c3d3be8b0110bfba26189f18b2e0680",
+          "url": "https://github.com/patbuc/neon/commit/26b2d65b000c2a21ff0b812d38ef2d8047433d29"
+        },
+        "date": 1792250080582,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 183.88457400000107,
+            "range": "± 3.413",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 140.81351120000818,
+            "range": "± 1.377",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.3058730830084606,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 136.10491280000474,
+            "range": "± 1.006",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 459.1334465999978,
+            "range": "± 16.41",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.296438679882498,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 153.1976630000088,
+            "range": "± 3.036",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 250.64886359999718,
+            "range": "± 3.342",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.6112042991126113,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 95.31022140000118,
+            "range": "± 3.94",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 162.91411820001258,
+            "range": "± 6.848",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.5850335284200914,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 79.49165320000589,
+            "range": "± 2.228",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 78.18399599999566,
+            "range": "± 0.698",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 1.016725382007979,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 256.14511019999213,
+            "range": "± 2.093",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 390.4330393999942,
+            "range": "± 2.986",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.6560538795426439,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 263.5706289999973,
+            "range": "± 7.968",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 366.3339589999964,
+            "range": "± 18.553",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.7194818348795229,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 183.56923360000224,
+            "range": "± 1.146",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 215.8843635999972,
+            "range": "± 5.854",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.8503127810596313,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 164.23021980000385,
+            "range": "± 1.763",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 208.14529619999007,
+            "range": "± 3.368",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.7890172048000943,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "towers neon (ms)",
+            "value": 518.1190162000007,
+            "range": "± 14.099",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "towers python (ms)",
+            "value": 191.8854510000017,
+            "range": "± 1.311",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "towers neon/python",
+            "value": 2.7001474760063813,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "queens neon (ms)",
+            "value": 485.39732579999963,
+            "range": "± 6.746",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "queens python (ms)",
+            "value": 192.71912620000649,
+            "range": "± 2.148",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "queens neon/python",
+            "value": 2.518677493879086,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "permute neon (ms)",
+            "value": 517.5623341999994,
+            "range": "± 6.28",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "permute python (ms)",
+            "value": 231.20942239999636,
+            "range": "± 1.371",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "permute neon/python",
+            "value": 2.2385001823351627,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "storage neon (ms)",
+            "value": 497.50500579999084,
+            "range": "± 11.026",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "storage python (ms)",
+            "value": 472.4982278000027,
+            "range": "± 5.035",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "storage neon/python",
+            "value": 1.052924596387212,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "bounce neon (ms)",
+            "value": 475.6542179999997,
+            "range": "± 19.957",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "bounce python (ms)",
+            "value": 332.64771320000364,
+            "range": "± 10.729",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "bounce neon/python",
+            "value": 1.4299037664329703,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "list neon (ms)",
+            "value": 490.4790231999982,
+            "range": "± 14.986",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "list python (ms)",
+            "value": 142.82157339998776,
+            "range": "± 1.174",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "list neon/python",
+            "value": 3.43420823285819,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "mandelbrot neon (ms)",
+            "value": 815.0374088000092,
+            "range": "± 7.447",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "mandelbrot python (ms)",
+            "value": 882.8150045999905,
+            "range": "± 6.598",
+            "unit": "ms",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
+          },
+          {
+            "name": "mandelbrot neon/python",
+            "value": 0.9232255960231535,
+            "unit": "ratio",
+            "extra": "CPU: INTEL(R) XEON(R) PLATINUM 8573C"
           }
         ]
       }
