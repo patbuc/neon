@@ -15,7 +15,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() == 1 {
-        print_tagline();
+        print_banner();
         run_repl();
     } else if args.len() >= 2 {
         match args[1].as_str() {
@@ -66,21 +66,27 @@ fn setup_logging() {
 }
 
 #[allow(clippy::print_stdout)]
-fn print_tagline() {
+fn print_banner() {
+    let (r, g, b) = (0xec, 0x59, 0x7c);
+    let side = "│".truecolor(r, g, b);
+    println!("{}", "╭────────────╮".truecolor(r, g, b));
     println!(
-        "{} neon {} - a toy language you didn't wait for",
-        " Ne "
-            .truecolor(0x14, 0x10, 0x16)
-            .on_truecolor(0xec, 0x59, 0x7c)
-            .bold(),
+        "{side}{}{side}   neon {}",
+        " █▄  █ ▄▀▀▄ ".bold(),
         env!("NEON_VERSION")
+    );
+    println!(
+        "{side}{}{side}   a toy language you didn't wait for",
+        " █ ▀▄█ █▀▀▀ ".bold()
+    );
+    println!(
+        "{}   Type 'exit' or Ctrl+D to quit",
+        "╰────────────╯".truecolor(r, g, b)
     );
 }
 
 #[allow(clippy::print_stdout, clippy::print_stderr)]
 fn run_repl() {
-    println!("Type 'exit' or Ctrl+D to quit");
-
     // REPL has no command-line arguments
     let dir = match std::env::current_dir() {
         Ok(dir) => dir,
