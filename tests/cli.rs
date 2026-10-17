@@ -1113,7 +1113,10 @@ fn repl_banner_is_plain_when_piped() {
 fn repl_banner_badge_is_pink_when_colour_is_forced() {
     let child = spawn_neon_with_stdin(
         |command| {
-            command.env_remove("NO_COLOR").env("CLICOLOR_FORCE", "1");
+            command
+                .env_remove("NO_COLOR")
+                .env("CLICOLOR_FORCE", "1")
+                .env("COLORTERM", "truecolor");
         },
         b"exit\n",
     );
