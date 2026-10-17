@@ -12,7 +12,7 @@ tile. Sizes of 32 px and below use a heavier frame and larger letters.
 | `svg/` | Masters. `neon-logo-light.svg` (for light backgrounds), `neon-logo-dark.svg`, `neon-logo-auto.svg` (follows `prefers-color-scheme`). App icon tiles: `neon-icon.svg`, `neon-icon-small.svg` (16–32 px), `neon-icon-full-bleed.svg` (for platforms that apply their own mask). |
 | `logo/` | Logo PNGs at 256, 512 and 1024 px, light and dark. |
 | `macos/` | `neon.icns`, 16–1024 px on Apple's 1024 grid. |
-| `windows/` | `neon.ico` with 16, 20, 24, 32, 40, 48, 64 and 256 px. |
+| `windows/` | `neon.ico` with 16, 20, 24, 32, 40, 48, 64 and 256 px, and `neon.rc`, which `build.rs` compiles into the Windows `neon.exe` as its icon. |
 | `linux/` | freedesktop `hicolor/` theme: 16–512 px PNGs and `scalable/apps/neon.svg`. Install under `/usr/share/icons/`. |
 | `ios/` | `AppIcon-1024.png` and `Contents.json` for an `AppIcon.appiconset`. |
 | `android/` | Adaptive icon (`mipmap-anydpi-v26/ic_launcher.xml`, foreground per density, background colour in `values/`), legacy `ic_launcher.png` per density, `play-store-512.png`. |

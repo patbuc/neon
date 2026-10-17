@@ -68,7 +68,11 @@ fn setup_logging() {
 #[allow(clippy::print_stdout)]
 fn print_tagline() {
     println!(
-        "✨ neon {} - a toy language you didn't wait for",
+        "{} neon {} - a toy language you didn't wait for",
+        " Ne "
+            .truecolor(0x14, 0x10, 0x16)
+            .on_truecolor(0xec, 0x59, 0x7c)
+            .bold(),
         env!("NEON_VERSION")
     );
 }

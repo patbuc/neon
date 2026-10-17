@@ -1097,6 +1097,41 @@ fn repl_exit_stops_before_eof() {
 
 #[cfg(not(feature = "disassemble"))]
 #[test]
+fn repl_banner_is_plain_when_piped() {
+    let output = run_repl_with_stdin(b"exit\n");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.starts_with(&format!(" Ne  neon {} - ", env!("NEON_VERSION"))),
+        "unexpected banner:\n{}",
+        stdout
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn repl_banner_badge_is_pink_when_colour_is_forced() {
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command
+                .env_remove("NO_COLOR")
+                .env("CLICOLOR_FORCE", "1")
+                .env("COLORTERM", "truecolor");
+        },
+        b"exit\n",
+    );
+    let output = wait_with_timeout(child, std::time::Duration::from_secs(5));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("48;2;236;89;124"),
+        "expected a #ec597c background on the badge:\n{}",
+        stdout
+    );
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
 fn repl_keeps_state_across_lines() {
     let output = run_repl_with_stdin(b"var x = 1\nprint(x)\nfn f() { return x + 1 }\nprint(f())\n");
 

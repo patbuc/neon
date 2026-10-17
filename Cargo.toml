@@ -24,6 +24,9 @@ ordered-float = { version = "4.6.0", features = ["serde"] }
 strsim = "0.11"
 indexmap = "2.12.1"
 
+[build-dependencies]
+embed-resource = "3.0.12"
+
 [dev-dependencies]
 datatest-stable = "0.3.3"
 

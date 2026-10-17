@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "publisher": "patbuc",
   "license": "MIT",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/patbuc/neon"
@@ -26,7 +27,11 @@
         "extensions": [
           ".n"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/neon-file.svg",
+          "dark": "./images/neon-file.svg"
+        }
       }
     ],
     "grammars": [
