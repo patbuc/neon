@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792226808052,
+  "lastUpdate": 1792229098071,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -28704,6 +28704,350 @@ window.BENCHMARK_DATA = {
             "value": 0.7668072943376338,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 9V74 80-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c17ba8809523f0667468cb814e7fd29d023fc435",
+          "message": "Merge pull request #590 from patbuc/use-ne-logo\n\nUse the Ne logo across Neon",
+          "timestamp": "2026-10-17T11:23:21+02:00",
+          "tree_id": "e279de0d469ff6f7bf789f1c64e23cd6af385e14",
+          "url": "https://github.com/patbuc/neon/commit/c17ba8809523f0667468cb814e7fd29d023fc435"
+        },
+        "date": 1792229097131,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 139.52880520000122,
+            "range": "± 2.677",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 112.20133159999932,
+            "range": "± 9.978",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.243557480203756,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 90.03112359999932,
+            "range": "± 3.356",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 274.3945669999988,
+            "range": "± 6.697",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.328108258790706,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 105.0694008000022,
+            "range": "± 3.286",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 174.04783119999934,
+            "range": "± 6.94",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.6036811839342391,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 60.8340424000005,
+            "range": "± 0.535",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 111.9149598000007,
+            "range": "± 4.547",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.5435738216652616,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 61.41028860000404,
+            "range": "± 1.187",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 59.172885999998925,
+            "range": "± 1.3",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 1.0378112806599487,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 181.8809802000004,
+            "range": "± 1.858",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 268.814391799998,
+            "range": "± 4.1",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.6766043253194666,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 188.96411279999938,
+            "range": "± 3.19",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 243.244166599996,
+            "range": "± 4.495",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.7768495147953222,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 146.0202416000044,
+            "range": "± 2.204",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 159.3890712000018,
+            "range": "± 5.065",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.9161245529612116,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 118.24590739999792,
+            "range": "± 4.773",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 135.6801995999973,
+            "range": "± 12.535",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.8715045212831501,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "towers neon (ms)",
+            "value": 345.34339500000044,
+            "range": "± 1.709",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "towers python (ms)",
+            "value": 156.23078040000564,
+            "range": "± 10.394",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "towers neon/python",
+            "value": 2.210469627789096,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "queens neon (ms)",
+            "value": 367.1888624000019,
+            "range": "± 5.636",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "queens python (ms)",
+            "value": 161.73311439999338,
+            "range": "± 2.68",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "queens neon/python",
+            "value": 2.2703381664430307,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "permute neon (ms)",
+            "value": 375.3075426000038,
+            "range": "± 8.98",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "permute python (ms)",
+            "value": 164.07856140000092,
+            "range": "± 2.082",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "permute neon/python",
+            "value": 2.2873649025057925,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "storage neon (ms)",
+            "value": 369.23227640000107,
+            "range": "± 2.992",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "storage python (ms)",
+            "value": 321.0020324000027,
+            "range": "± 5.527",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "storage neon/python",
+            "value": 1.150249030012054,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "bounce neon (ms)",
+            "value": 323.177514599999,
+            "range": "± 2.224",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "bounce python (ms)",
+            "value": 242.75623559999815,
+            "range": "± 4.016",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "bounce neon/python",
+            "value": 1.331284091637156,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "list neon (ms)",
+            "value": 374.9136647999961,
+            "range": "± 6.053",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "list python (ms)",
+            "value": 135.06358380000165,
+            "range": "± 0.907",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "list neon/python",
+            "value": 2.775830866113828,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "mandelbrot neon (ms)",
+            "value": 698.4294666000011,
+            "range": "± 11.447",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "mandelbrot python (ms)",
+            "value": 641.7580225999956,
+            "range": "± 18.785",
+            "unit": "ms",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
+          },
+          {
+            "name": "mandelbrot neon/python",
+            "value": 1.0883065610468083,
+            "unit": "ratio",
+            "extra": "CPU: AMD EPYC 9V45 96-Core Processor"
           }
         ]
       }
