@@ -93,7 +93,7 @@ fn heading_section(heading: &str) -> Section {
         other => match other.strip_suffix(" Methods") {
             Some(t) => Section::Types(vec![t.to_string()]),
             None => {
-                panic!("README.md: unrecognized heading '### {other}' in Standard Library section")
+                panic!("docs/reference.md: unrecognized heading '### {other}' in Standard Library section")
             }
         },
     }
@@ -107,7 +107,7 @@ fn process_bullet(lines: &[String], section: &Section, methods: &mut BTreeSet<(S
     };
     match section {
         Section::None => {
-            panic!("README.md: method bullet with no current section type: {joined}")
+            panic!("docs/reference.md: method bullet with no current section type: {joined}")
         }
         Section::Global => {
             for token in backtick_tokens(tokens_region) {
@@ -120,7 +120,7 @@ fn process_bullet(lines: &[String], section: &Section, methods: &mut BTreeSet<(S
                     NATIVE_METHODS
                         .iter()
                         .any(|(t, m, _)| t.is_empty() && *m == name),
-                    "README.md: unexpected Global Functions entry `{token}`"
+                    "docs/reference.md: unexpected Global Functions entry `{token}`"
                 );
             }
         }
@@ -142,7 +142,7 @@ fn flush_pending(
     }
 }
 
-fn parse_readme_methods(text: &str) -> BTreeSet<(String, String)> {
+fn parse_reference_methods(text: &str) -> BTreeSet<(String, String)> {
     let section = section_body(text, "## Standard Library");
     let mut methods = BTreeSet::new();
     let mut current = Section::None;
@@ -236,11 +236,16 @@ fn native_method_docs_match_registry() {
         "/.claude/skills/writing-neon/SKILL.md"
     ))
     .expect("failed to read SKILL.md");
-    let readme = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))
-        .expect("failed to read README.md");
+    let reference =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/docs/reference.md"))
+            .expect("failed to read docs/reference.md");
 
     let mut mismatches = diff("SKILL.md", &parse_skill_methods(&skill), &registry);
-    mismatches.extend(diff("README.md", &parse_readme_methods(&readme), &registry));
+    mismatches.extend(diff(
+        "docs/reference.md",
+        &parse_reference_methods(&reference),
+        &registry,
+    ));
 
     assert!(
         mismatches.is_empty(),
@@ -258,17 +263,17 @@ fn skill_method_not_in_registry() {
 }
 
 #[test]
-fn readme_method_not_in_registry() {
+fn reference_method_not_in_registry() {
     let text = "\n## Standard Library\n\n### Array Methods\n\n\
         * `.bogus()` - x\n- `.wrapped(a)`,\n  `.more(b)` - y\n";
-    let methods = parse_readme_methods(text);
-    let mismatches = diff("README.md", &methods, &BTreeSet::new());
+    let methods = parse_reference_methods(text);
+    let mismatches = diff("docs/reference.md", &methods, &BTreeSet::new());
     assert_eq!(
         mismatches,
         vec![
-            "README.md: Array.bogus not in registry",
-            "README.md: Array.more not in registry",
-            "README.md: Array.wrapped not in registry",
+            "docs/reference.md: Array.bogus not in registry",
+            "docs/reference.md: Array.more not in registry",
+            "docs/reference.md: Array.wrapped not in registry",
         ]
     );
 }
@@ -276,8 +281,8 @@ fn readme_method_not_in_registry() {
 #[test]
 fn registry_method_missing_from_doc() {
     let registry: BTreeSet<_> = [("Array".to_string(), "push".to_string())].into();
-    let mismatches = diff("README.md", &BTreeSet::new(), &registry);
-    assert_eq!(mismatches, vec!["README.md: Array.push missing"]);
+    let mismatches = diff("docs/reference.md", &BTreeSet::new(), &registry);
+    assert_eq!(mismatches, vec!["docs/reference.md: Array.push missing"]);
 }
 
 #[test]
@@ -295,7 +300,7 @@ fn constructor_missing_reported_as_new() {
 
 #[test]
 #[should_panic]
-fn unknown_readme_heading_panics() {
+fn unknown_reference_heading_panics() {
     let text = "\n## Standard Library\n\n### Json\n\n- `.parse(s)` - x\n";
-    parse_readme_methods(text);
+    parse_reference_methods(text);
 }
