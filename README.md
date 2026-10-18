@@ -10,6 +10,19 @@
 
 A toy language you didn't wait for
 
+```neon
+fn fibonacci(n) {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+for i in 0..10 {
+    print(fibonacci(i))
+}
+```
+
 ## Why
 
 Let's be honest — the world doesn't need another programming language.
@@ -18,6 +31,31 @@ I'm building neon for one simple reason: to teach myself a few things.
 - How to build a compiler
 - How to build a virtual machine
 - How to use Rust for this
+
+## Goal
+
+I wanted to make neon self-hosted someday, but I'm not sure anymore. Goals may appear (or disappear) as the project evolves. For now, Neon serves its primary purpose: teaching me how compilers and VMs work.
+
+## Inspiration
+
+This project was inspired by Robert Nystrom's brilliant book [Crafting Interpreters](https://craftinginterpreters.com/).
+It's one of the best reads in tech and I highly recommended it if you're interested in the topic!
+
+Go and get yourself a copy!
+
+That said, neon won't follow Lox, the language developed in the book. It's taking its own path.
+
+## State
+
+Neon is a functional dynamically-typed interpreter with a comprehensive feature set. It's an active learning project and includes:
+
+- Complete lexer, parser, and bytecode compiler
+- Stack-based virtual machine
+- Rich standard library with collection types and methods
+- 200+ integration tests validating all features
+- String interpolation and first-class functions
+
+While Neon is functional for many programs, it remains experimental. Expect rough edges, missing features, and occasional crashes as development continues.
 
 ## Getting Started
 
@@ -50,24 +88,7 @@ cargo run -- --check script.n
 cargo run
 ```
 
-Run with no arguments to start an interactive REPL. It reads one physical line per entry, so a
-`struct`, `enum`, or `impl` body must fit on that line (e.g. `struct P { val x }` or
-`impl P { fn f(self) { return 1 } }`) — it can't be split across multiple lines the way a file can.
-Multiple statements can still share a line wherever the syntax allows it. It keeps state between
-entries:
-
-- A `val`, `var`, `fn`, `struct`, `enum`, or `impl` from an earlier line is visible to later
-  ones.
-- A line that fails to compile leaves earlier definitions untouched and defines nothing of
-  its own.
-- A line that fails at runtime keeps any assignments it made to earlier globals, but drops
-  the names it tried to introduce; re-entering the line works.
-- A later line may redeclare an earlier `val`, `var`, or `fn` — a function defined between
-  the two still sees the value it closed over. Structs and enums can't be redeclared, and
-  an existing method can't be redefined, though `impl` blocks accumulate.
-- Methods persist across lines. A line that fails at runtime adds none of the
-  methods it defined.
-- Type `exit` or press Ctrl+D (EOF) to quit.
+Run with no arguments to start an interactive REPL; see [Using the REPL](#using-the-repl).
 
 ### Hello World
 
@@ -89,39 +110,6 @@ VS Code syntax highlighting for `.n` files ships as a VSIX on the
 [GitHub Releases page](https://github.com/patbuc/neon/releases) — install it with
 `code --install-extension neon-X.Y.Z.vsix`. See
 [editors/vscode/README.md](editors/vscode/README.md) for details.
-
-## Benchmarks
-
-`benches/` holds paired `<name>.n` / `<name>.py` benchmarks (fib, closures, structs, collections, sieve, and more)
-that implement the same algorithm in Neon and in plain Python, so the two can be timed head to head.
-
-```bash
-cargo build --release
-python3 benches/run.py               # all benchmarks
-python3 benches/run.py fib strings   # run a subset by name
-python3 benches/run.py --runs 10     # timed runs per benchmark (default 5)
-```
-
-This prints a table with mean, stddev, min, and median per language plus the Neon/Python ratio, and fails if the two
-implementations disagree on the result. Charts tracking these benchmarks over time are published at
-[patbuc.github.io/neon/dev/bench](https://patbuc.github.io/neon/dev/bench/), updated on every push to `main`.
-
-To add a benchmark, write `benches/<name>.n` and `benches/<name>.py` doing the same work, each reading the problem
-size from the first argument with a small default and printing one integer checksum, then register a driver size for
-it in `BENCHMARKS` in `benches/run.py`. The `.n` file's `// Expected:` checksum, at its default size, runs as part of
-`cargo test`.
-
-## State
-
-Neon is a functional dynamically-typed interpreter with a comprehensive feature set. It's an active learning project and includes:
-
-- Complete lexer, parser, and bytecode compiler
-- Stack-based virtual machine
-- Rich standard library with collection types and methods
-- 200+ integration tests validating all features
-- String interpolation and first-class functions
-
-While Neon is functional for many programs, it remains experimental. Expect rough edges, missing features, and occasional crashes as development continues.
 
 ## Language Features
 
@@ -1024,21 +1012,6 @@ Run it with `cargo run -- examples/modules/main.n`.
 
 ## Code Examples
 
-### Fibonacci
-
-```neon
-fn fibonacci(n) {
-    if n <= 1 {
-        return n
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2)
-}
-
-for i in 0..10 {
-    print(fibonacci(i))
-}
-```
-
 ### Working with Arrays
 
 ```neon
@@ -1518,18 +1491,51 @@ val b = true
 print(b.toString())       // "true"
 ```
 
-## Goal
+## Using the REPL
 
-I wanted to make neon self-hosted someday, but I'm not sure anymore. Goals may appear (or disappear) as the project evolves. For now, Neon serves its primary purpose: teaching me how compilers and VMs work.
+```bash
+cargo run
+```
 
-## Inspiration
+Run with no arguments to start an interactive REPL. It reads one physical line per entry, so a
+`struct`, `enum`, or `impl` body must fit on that line (e.g. `struct P { val x }` or
+`impl P { fn f(self) { return 1 } }`) — it can't be split across multiple lines the way a file can.
+Multiple statements can still share a line wherever the syntax allows it. It keeps state between
+entries:
 
-This project was inspired by Robert Nystrom's brilliant book [Crafting Interpreters](https://craftinginterpreters.com/).
-It's one of the best reads in tech and I highly recommended it if you're interested in the topic!
+- A `val`, `var`, `fn`, `struct`, `enum`, or `impl` from an earlier line is visible to later
+  ones.
+- A line that fails to compile leaves earlier definitions untouched and defines nothing of
+  its own.
+- A line that fails at runtime keeps any assignments it made to earlier globals, but drops
+  the names it tried to introduce; re-entering the line works.
+- A later line may redeclare an earlier `val`, `var`, or `fn` — a function defined between
+  the two still sees the value it closed over. Structs and enums can't be redeclared, and
+  an existing method can't be redefined, though `impl` blocks accumulate.
+- Methods persist across lines. A line that fails at runtime adds none of the
+  methods it defined.
+- Type `exit` or press Ctrl+D (EOF) to quit.
 
-Go and get yourself a copy!
+## Benchmarks
 
-That said, neon won't follow Lox, the language developed in the book. It's taking its own path.
+`benches/` holds paired `<name>.n` / `<name>.py` benchmarks (fib, closures, structs, collections, sieve, and more)
+that implement the same algorithm in Neon and in plain Python, so the two can be timed head to head.
+
+```bash
+cargo build --release
+python3 benches/run.py               # all benchmarks
+python3 benches/run.py fib strings   # run a subset by name
+python3 benches/run.py --runs 10     # timed runs per benchmark (default 5)
+```
+
+This prints a table with mean, stddev, min, and median per language plus the Neon/Python ratio, and fails if the two
+implementations disagree on the result. Charts tracking these benchmarks over time are published at
+[patbuc.github.io/neon/dev/bench](https://patbuc.github.io/neon/dev/bench/), updated on every push to `main`.
+
+To add a benchmark, write `benches/<name>.n` and `benches/<name>.py` doing the same work, each reading the problem
+size from the first argument with a small default and printing one integer checksum, then register a driver size for
+it in `BENCHMARKS` in `benches/run.py`. The `.n` file's `// Expected:` checksum, at its default size, runs as part of
+`cargo test`.
 
 ## License
 
