@@ -1,4 +1,4 @@
-use crate::common::{compare_numeric, f64_fits_i64, Numeric, Value};
+use crate::common::{Numeric, Value, compare_numeric, f64_fits_i64};
 use crate::extract_arg;
 
 fn extract_numeric(

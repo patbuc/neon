@@ -2,16 +2,16 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 
+use crate::common::SourceLocation;
 use crate::common::constants::VARIADIC_ARITY;
 use crate::common::static_type::StaticType;
-use crate::common::SourceLocation;
 /// Semantic analyzer for the multi-pass compiler
 /// Performs semantic analysis on the AST, building symbol tables and validating program semantics,
 /// and resolves every name use to where it lives at runtime.
 use crate::compiler::ast::{
-    default_field_names, positional_minimum, val_field_names, Binding, EnumVariant, Expr,
-    IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, NamedArgument, NodeId,
-    Pattern, Stmt, StructField, UnaryOp,
+    Binding, EnumVariant, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody,
+    MatchPattern, NamedArgument, NodeId, Pattern, Stmt, StructField, UnaryOp, default_field_names,
+    positional_minimum, val_field_names,
 };
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
@@ -768,10 +768,10 @@ impl SemanticAnalyzer {
                 if let Expr::GetField { object, field, .. } = callee.as_ref() {
                     // A constructor call on an exported struct, e.g.
                     // utils.Point(1, 2).
-                    if let Expr::Variable { name, .. } = object.as_ref() {
-                        if let Some(Export::Struct { .. }) = self.module_export(name, field) {
-                            return Some(StaticType::Struct(format!("{}.{}", name, field)));
-                        }
+                    if let Expr::Variable { name, .. } = object.as_ref()
+                        && let Some(Export::Struct { .. }) = self.module_export(name, field)
+                    {
+                        return Some(StaticType::Struct(format!("{}.{}", name, field)));
                     }
                     // This is a method call obj.method(args)
                     let object_type = self.infer_expr_type(object)?;
@@ -1431,9 +1431,10 @@ impl SemanticAnalyzer {
                         "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, an array pattern, or '_'".to_string(),
                         Self::match_pattern_location(expr),
                     ));
-                } else if let Some(access) = self.match_pattern_enum_variant(expr) {
-                    if !access.fields.is_empty() {
-                        self.push_error(CompilationError::new(
+                } else if let Some(access) = self.match_pattern_enum_variant(expr)
+                    && !access.fields.is_empty()
+                {
+                    self.push_error(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::InvalidMatchPattern,
                             format!(
@@ -1442,7 +1443,6 @@ impl SemanticAnalyzer {
                             ),
                             Self::match_pattern_location(expr),
                         ));
-                    }
                 }
             }
             MatchPattern::Array { elements, .. } => {
@@ -1479,11 +1479,10 @@ impl SemanticAnalyzer {
     fn resolve_variant_pattern(&mut self, target: &Expr, fields: &[MatchPattern]) {
         let location = Self::match_pattern_location(target);
         let Some(access) = self.match_pattern_enum_variant(target) else {
-            if let Expr::GetField { object, .. } = target {
-                if matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
-                {
-                    return;
-                }
+            if let Expr::GetField { object, .. } = target
+                && matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+            {
+                return;
             }
             self.push_error(CompilationError::new(
                 CompilationPhase::Semantic,
@@ -2114,13 +2113,9 @@ impl SemanticAnalyzer {
         }
 
         // A static call on an exported enum, e.g. utils.Shape.Circle(2).
-        if !optional {
-            if let Some((_, enum_name, variants)) = self.module_enum(object) {
-                self.resolve_enum_static_call(
-                    id, &enum_name, &variants, method, arguments, location,
-                );
-                return;
-            }
+        if !optional && let Some((_, enum_name, variants)) = self.module_enum(object) {
+            self.resolve_enum_static_call(id, &enum_name, &variants, method, arguments, location);
+            return;
         }
 
         if let Expr::Variable {
@@ -2259,33 +2254,31 @@ impl SemanticAnalyzer {
         }
 
         // A static call on an exported struct, e.g. utils.Point.make().
-        if !optional {
-            if let Expr::GetField {
+        if !optional
+            && let Expr::GetField {
                 object: module,
                 field: struct_field,
                 optional: false,
                 ..
             } = object
-            {
-                if let Expr::Variable { name: module, .. } = module.as_ref() {
-                    let type_name = format!("{}.{}", module, struct_field);
-                    if let Some(members) = self.exported_struct_method_info(&type_name) {
-                        let error = struct_method_call_error(
-                            &type_name,
-                            &members,
-                            method,
-                            arguments.len(),
-                            location,
-                            MethodCallKind::Static,
-                        );
-                        self.resolve_expr(object);
-                        for arg in arguments {
-                            self.resolve_expr(arg);
-                        }
-                        self.push_optional_error(error);
-                        return;
-                    }
+            && let Expr::Variable { name: module, .. } = module.as_ref()
+        {
+            let type_name = format!("{}.{}", module, struct_field);
+            if let Some(members) = self.exported_struct_method_info(&type_name) {
+                let error = struct_method_call_error(
+                    &type_name,
+                    &members,
+                    method,
+                    arguments.len(),
+                    location,
+                    MethodCallKind::Static,
+                );
+                self.resolve_expr(object);
+                for arg in arguments {
+                    self.resolve_expr(arg);
                 }
+                self.push_optional_error(error);
+                return;
             }
         }
 
@@ -2295,15 +2288,10 @@ impl SemanticAnalyzer {
         }
 
         // Instance method call - validate method if we can infer the object's type.
-        if let Some(object_type) = self.infer_expr_type(object) {
-            if !(optional && object_type == StaticType::Nil) {
-                self.validate_instance_method(
-                    object_type.name(),
-                    method,
-                    arguments.len(),
-                    location,
-                );
-            }
+        if let Some(object_type) = self.infer_expr_type(object)
+            && !(optional && object_type == StaticType::Nil)
+        {
+            self.validate_instance_method(object_type.name(), method, arguments.len(), location);
         }
     }
 
@@ -2330,21 +2318,21 @@ impl SemanticAnalyzer {
         named: &[NamedArgument],
         location: SourceLocation,
     ) {
-        if let Expr::Variable { name, .. } = callee {
-            if let Some((index, is_constructor)) = self.native_callee(name) {
-                if !named.is_empty() {
-                    self.report_named_argument_not_struct(named);
-                }
-                if is_constructor {
-                    let arity = crate::common::method_registry::native_arity(index);
-                    self.validate_arity("Function", name, arity, arguments.len(), location);
-                }
-                self.resolutions.record_native(id, index);
-                for arg in arguments {
-                    self.resolve_expr(arg);
-                }
-                return;
+        if let Expr::Variable { name, .. } = callee
+            && let Some((index, is_constructor)) = self.native_callee(name)
+        {
+            if !named.is_empty() {
+                self.report_named_argument_not_struct(named);
             }
+            if is_constructor {
+                let arity = crate::common::method_registry::native_arity(index);
+                self.validate_arity("Function", name, arity, arguments.len(), location);
+            }
+            self.resolutions.record_native(id, index);
+            for arg in arguments {
+                self.resolve_expr(arg);
+            }
+            return;
         }
 
         // Regular call - resolve callee as normal
@@ -2607,11 +2595,9 @@ impl SemanticAnalyzer {
         }
 
         // A variant of an exported enum, e.g. utils.Color.Red.
-        if !optional {
-            if let Some((module_id, enum_name, variants)) = self.module_enum(object) {
-                self.resolve_enum_variant_access(module_id, &enum_name, &variants, field, location);
-                return;
-            }
+        if !optional && let Some((module_id, enum_name, variants)) = self.module_enum(object) {
+            self.resolve_enum_variant_access(module_id, &enum_name, &variants, field, location);
+            return;
         }
 
         self.intern_name(field, location);

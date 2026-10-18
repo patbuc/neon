@@ -85,13 +85,14 @@ fn resolves_sub_slash_b_relative_to_importing_file() {
     let dir = TempDir::new("resolves_sub");
     let deps = dependencies_of_import(&dir, "sub/b");
     assert_eq!(
-        vec![dir
-            .0
-            .join("dir")
-            .join("sub")
-            .join("b.n")
-            .canonicalize()
-            .unwrap()],
+        vec![
+            dir.0
+                .join("dir")
+                .join("sub")
+                .join("b.n")
+                .canonicalize()
+                .unwrap()
+        ],
         deps
     );
 }

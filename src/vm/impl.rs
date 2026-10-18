@@ -1,13 +1,13 @@
 use crate::common::chunk::Instr;
 use crate::common::method_registry::native_method_table;
-use crate::common::runtime_error::{RuntimeError, TraceFrame, TRACE_EDGE_FRAMES};
+use crate::common::runtime_error::{RuntimeError, TRACE_EDGE_FRAMES, TraceFrame};
 use crate::common::{
     CallFrame, Chunk, GeneratorState, ObjClosure, ObjError, ObjFunction, ObjGenerator, Value,
 };
+use crate::compiler::Compiler;
 use crate::compiler::compiler_impl::Compiled;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
-use crate::compiler::Compiler;
 use crate::vm::functions::{Comparison, OpResult};
 use crate::vm::{Handler, InterpretResult, VirtualMachine};
 use crate::{boolean, common, is_false_like, nil};

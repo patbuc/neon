@@ -2,8 +2,8 @@ use super::helpers::{compile, compile_errors, disassemble};
 use super::module_graph::TempDir;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
 use crate::common::{Chunk, Value};
-use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
+use crate::compiler::module_graph::EntryLocation;
 use std::fs;
 
 fn compile_files(

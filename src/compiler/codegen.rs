@@ -954,17 +954,16 @@ impl<'a> CodeGenerator<'a> {
                 location,
             } => {
                 let symbol = self.resolutions.symbol(field);
-                if let Expr::Variable { id, .. } = object.as_ref() {
-                    if let Res::Local(decl) = self.resolutions.res(*id) {
-                        // StoreLocalField reads the local after evaluating the value, so the
-                        // value must not be able to reassign it.
-                        if !self.resolutions.is_checked(*id) && self.resolutions.is_immutable(decl)
-                        {
-                            let slot = self.decl_slot(decl);
-                            self.generate_expr(value);
-                            self.emit_store_local_field(slot, symbol as u32, *location);
-                            return;
-                        }
+                if let Expr::Variable { id, .. } = object.as_ref()
+                    && let Res::Local(decl) = self.resolutions.res(*id)
+                {
+                    // StoreLocalField reads the local after evaluating the value, so the
+                    // value must not be able to reassign it.
+                    if !self.resolutions.is_checked(*id) && self.resolutions.is_immutable(decl) {
+                        let slot = self.decl_slot(decl);
+                        self.generate_expr(value);
+                        self.emit_store_local_field(slot, symbol as u32, *location);
+                        return;
                     }
                 }
                 self.generate_expr(object);
@@ -1817,28 +1816,28 @@ impl<'a> CodeGenerator<'a> {
             self.emit_create_array(access.variants.len() as u16, location);
             return;
         }
-        if let Expr::Variable { id: object_id, .. } = object {
-            if let Some(slot) = self.resolutions.module_member(*object_id) {
-                let call_op = match invoke_op {
-                    OpCode::TailInvoke => OpCode::TailCall,
-                    _ => OpCode::Call,
-                };
-                if let Some(fields) = self.resolutions.struct_argument_fields(id) {
-                    self.generate_reordered_struct_call(
-                        |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
-                        arguments,
-                        fields,
-                        location,
-                    );
-                    return;
-                }
-                self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
-                for arg in arguments {
-                    self.generate_expr(arg);
-                }
-                self.emit_call(call_op, arguments.len() as u8, location);
+        if let Expr::Variable { id: object_id, .. } = object
+            && let Some(slot) = self.resolutions.module_member(*object_id)
+        {
+            let call_op = match invoke_op {
+                OpCode::TailInvoke => OpCode::TailCall,
+                _ => OpCode::Call,
+            };
+            if let Some(fields) = self.resolutions.struct_argument_fields(id) {
+                self.generate_reordered_struct_call(
+                    |this| this.emit_index_op(OpCode::GetGlobal, slot, "globals", location),
+                    arguments,
+                    fields,
+                    location,
+                );
                 return;
             }
+            self.emit_index_op(OpCode::GetGlobal, slot, "globals", location);
+            for arg in arguments {
+                self.generate_expr(arg);
+            }
+            self.emit_call(call_op, arguments.len() as u8, location);
+            return;
         }
         match self.resolutions.native(id) {
             Some(index) => self.generate_native_call_expr(index, arguments, OpCode::Call, location),
@@ -2063,19 +2062,18 @@ impl<'a> CodeGenerator<'a> {
                 }
                 // A variant of an exported enum, e.g. utils.Color.Red: the
                 // access is recorded on the node naming the module.
-                if let Expr::GetField { object: module, .. } = object.as_ref() {
-                    if let Expr::Variable { id, .. } = module.as_ref() {
-                        if let Some(access) = self.resolutions.enum_variant_access(*id) {
-                            self.emit_enum_variant_constant(
-                                &access.enum_name,
-                                &access.variant_name,
-                                access.ordinal,
-                                &access.fields,
-                                *location,
-                            );
-                            return;
-                        }
-                    }
+                if let Expr::GetField { object: module, .. } = object.as_ref()
+                    && let Expr::Variable { id, .. } = module.as_ref()
+                    && let Some(access) = self.resolutions.enum_variant_access(*id)
+                {
+                    self.emit_enum_variant_constant(
+                        &access.enum_name,
+                        &access.variant_name,
+                        access.ordinal,
+                        &access.fields,
+                        *location,
+                    );
+                    return;
                 }
                 let symbol = self.resolutions.symbol(field);
                 self.generate_expr(object);

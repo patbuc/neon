@@ -1,5 +1,5 @@
 use crate::common::method_registry::NATIVE_METHODS;
-use crate::compiler::ast::{default_field_names, val_field_names, EnumVariant, Stmt};
+use crate::compiler::ast::{EnumVariant, Stmt, default_field_names, val_field_names};
 use crate::compiler::resolutions::{DeclId, Resolutions, Symbols};
 use crate::compiler::semantic::MethodSignature;
 use std::collections::HashMap;

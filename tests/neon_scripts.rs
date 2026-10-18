@@ -108,17 +108,16 @@ fn check_script(path: &Path, entry: Option<&Path>, script: &str) -> datatest_sta
         .into());
     }
 
-    let expected_result = match expected_output {
-        Some(expected) => expected,
-        None if !expected_compile_errors.is_empty() => String::new(),
-        None => {
-            return Err(format!(
+    let expected_result =
+        match expected_output {
+            Some(expected) => expected,
+            None if !expected_compile_errors.is_empty() => String::new(),
+            None => return Err(format!(
                 "No expected output found in {}. Add '// Expected:' block at the top of the file.",
                 path.display()
             )
-            .into())
-        }
-    };
+            .into()),
+        };
 
     let mut vm = VirtualMachine::new();
     let result = match entry {

@@ -1,9 +1,9 @@
 use super::helpers::disassemble;
 use super::module_graph::TempDir;
 use crate::common::errors::CompilationErrorKind;
+use crate::compiler::Compiler;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::EntryLocation;
-use crate::compiler::Compiler;
 use std::fs;
 
 #[test]
@@ -145,10 +145,12 @@ fn duplicate_method_across_lines() {
         &env,
     );
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateMethod));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateMethod)
+    );
 }
 
 #[test]
@@ -160,10 +162,12 @@ fn carried_type_rejects_wrong_method() {
 
     let result = compiler.compile_line("s.push(1)\n", &env);
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::UnknownMethod));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::UnknownMethod)
+    );
 }
 
 #[test]
@@ -189,10 +193,12 @@ fn immutable_val_rejected_across_lines() {
 
     let result = compiler.compile_line("x = 2\n", &env);
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment)
+    );
 }
 
 #[test]
@@ -218,10 +224,12 @@ fn redeclare_struct_name_rejected() {
 
     let result = compiler.compile_line("val Point = 1\n", &env);
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol)
+    );
 }
 
 #[test]
@@ -233,10 +241,12 @@ fn same_line_redeclaration_rejected() {
 
     let result = compiler.compile_line("val x = 2\nval x = 3\n", &env);
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol)
+    );
 }
 
 #[test]
@@ -248,10 +258,12 @@ fn second_line_redeclaring_builtin_value_rejected() {
 
     let result = compiler.compile_line("val args = 5\n", &env);
     assert!(result.is_none());
-    assert!(compiler
-        .get_structured_errors()
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert!(
+        compiler
+            .get_structured_errors()
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol)
+    );
 }
 
 #[test]

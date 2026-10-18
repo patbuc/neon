@@ -1,8 +1,8 @@
+use crate::common::Value;
 use crate::common::stdlib::string_functions::{
     native_string_char_code_at, native_string_from_char_code, native_string_last_index_of,
     native_string_pad_start, native_string_repeat,
 };
-use crate::common::Value;
 use crate::string;
 use crate::vm::{InterpretResult, VirtualMachine};
 

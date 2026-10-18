@@ -1,8 +1,8 @@
+use crate::common::SourceLocation;
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 use crate::common::method_registry::builtin_modules;
-use crate::common::SourceLocation;
 use crate::compiler::ast::{NodeId, Stmt};
 use crate::compiler::parser::Parser;
 use std::collections::{HashMap, HashSet};

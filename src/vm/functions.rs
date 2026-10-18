@@ -2,10 +2,10 @@ use crate::common::constants::{MAX_FRAMES, MAX_NATIVE_CALL_DEPTH};
 use crate::common::method_registry::NativeCallable;
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{
-    compare_int_and_float, f64_fits_i64, GeneratorState, MapKey, NativeCallError, NativeContext,
-    ObjError, ObjGenerator, ObjInstance, ObjNativeFunction, ObjStruct, Value,
+    GeneratorState, MapKey, NativeCallError, NativeContext, ObjError, ObjGenerator, ObjInstance,
+    ObjNativeFunction, ObjStruct, Value, compare_int_and_float, f64_fits_i64,
 };
-use crate::common::{find_method_entry, ObjClosure, Upvalue};
+use crate::common::{ObjClosure, Upvalue, find_method_entry};
 use crate::vm::{Handler, VirtualMachine};
 use crate::{boolean, int, is_false_like, number, string};
 use indexmap::IndexMap;
@@ -1572,26 +1572,26 @@ impl VirtualMachine {
     ) -> Result<bool, RuntimeError> {
         let local = self.frame_base + slot as usize;
         let mut overflowed = false;
-        if let Some((top, below)) = self.stack.split_last_mut() {
-            if let Some(Value::Instance(instance)) = below.get(local) {
-                match (top, instance.borrow().field(symbol)) {
-                    (Value::Number(a), Some(&Value::Number(c))) => {
-                        *a = float_op(*a, c);
-                        return Ok(true);
-                    }
-                    (Value::Int(a), Some(&Value::Int(c))) => {
-                        if let Some(int_op) = int_op {
-                            match int_op(*a, c) {
-                                Some(r) => {
-                                    *a = r;
-                                    return Ok(true);
-                                }
-                                None => overflowed = true,
+        if let Some((top, below)) = self.stack.split_last_mut()
+            && let Some(Value::Instance(instance)) = below.get(local)
+        {
+            match (top, instance.borrow().field(symbol)) {
+                (Value::Number(a), Some(&Value::Number(c))) => {
+                    *a = float_op(*a, c);
+                    return Ok(true);
+                }
+                (Value::Int(a), Some(&Value::Int(c))) => {
+                    if let Some(int_op) = int_op {
+                        match int_op(*a, c) {
+                            Some(r) => {
+                                *a = r;
+                                return Ok(true);
                             }
+                            None => overflowed = true,
                         }
                     }
-                    _ => {}
                 }
+                _ => {}
             }
         }
         if overflowed {
@@ -1847,10 +1847,10 @@ impl VirtualMachine {
     /// share writes to it.
     fn capture_upvalue(&mut self, stack_index: usize) -> Rc<RefCell<Upvalue>> {
         for existing in &self.open_upvalues {
-            if let Upvalue::Open(index) = *existing.borrow() {
-                if index == stack_index {
-                    return Rc::clone(existing);
-                }
+            if let Upvalue::Open(index) = *existing.borrow()
+                && index == stack_index
+            {
+                return Rc::clone(existing);
             }
         }
         let upvalue = Rc::new(RefCell::new(Upvalue::Open(stack_index)));
@@ -2314,13 +2314,13 @@ impl VirtualMachine {
         let end = self.range_bound(end_value, "end")?;
 
         let range = Value::new_range(start, end, inclusive);
-        if let Value::Range(r) = &range {
-            if r.len() > Self::MAX_RANGE_BOUND {
-                return Err(self.runtime_error(format!(
-                    "Range must have at most 2^53 elements, got {}",
-                    range
-                )));
-            }
+        if let Value::Range(r) = &range
+            && r.len() > Self::MAX_RANGE_BOUND
+        {
+            return Err(self.runtime_error(format!(
+                "Range must have at most 2^53 elements, got {}",
+                range
+            )));
         }
 
         self.push(range);

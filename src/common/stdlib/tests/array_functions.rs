@@ -1,7 +1,7 @@
+use crate::common::Value;
 use crate::common::stdlib::array_functions::{
     native_array_max, native_array_min, native_array_sort, native_array_sum,
 };
-use crate::common::Value;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================

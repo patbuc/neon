@@ -1,5 +1,5 @@
-use crate::common::errors::CompilationError;
 use crate::common::SourceLocation;
+use crate::common::errors::CompilationError;
 use colored::Colorize;
 use std::collections::HashMap;
 use std::path::PathBuf;

@@ -1,5 +1,5 @@
-use crate::common::static_type::StaticType;
 use crate::common::Value;
+use crate::common::static_type::StaticType;
 use std::rc::Rc;
 
 pub(crate) mod array_functions;

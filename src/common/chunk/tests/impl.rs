@@ -1,5 +1,5 @@
-use crate::common::opcodes::OpCode;
 use crate::common::Chunk;
+use crate::common::opcodes::OpCode;
 use crate::{as_number, number};
 
 #[test]

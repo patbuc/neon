@@ -1,8 +1,8 @@
-use crate::compiler::format;
-use crate::compiler::parser::Parser;
 use crate::compiler::Comment;
 use crate::compiler::CommentKind;
 use crate::compiler::Compiler;
+use crate::compiler::format;
+use crate::compiler::parser::Parser;
 
 /// Asserts `format(input) == Ok(expected)` and that `expected` is already
 /// in canonical form (`format(expected) == Ok(expected)`).

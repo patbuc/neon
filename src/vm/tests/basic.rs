@@ -237,7 +237,10 @@ fn test_logical_operators() {
         ("print(false || false)", "false"),
         ("print(5 > 3 && 10 < 20)", "true"),
         ("val x = 5\nprint(x == 5 && x > 0)", "true"),
-        ("val x = true\nval y = false\nprint(x && y)\nprint(x || y)", "false\ntrue"),
+        (
+            "val x = true\nval y = false\nprint(x && y)\nprint(x || y)",
+            "false\ntrue",
+        ),
         ("print(false || true && false)", "false"),
         ("print(true && false || true)", "true"),
         ("print((false || true) && false)", "false"),
@@ -1887,9 +1890,10 @@ fn wrong_argument_count_through_an_indirect_call_is_runtime_error() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("Expected 1 arguments but got 2"));
+    assert!(
+        vm.get_runtime_errors()
+            .contains("Expected 1 arguments but got 2")
+    );
 }
 
 #[test]
@@ -2003,9 +2007,10 @@ fn top_level_val_using_later_val_is_compile_error() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::CompileError, result);
-    assert!(vm
-        .get_compiler_error()
-        .contains("Cannot use 'b' before its declaration"));
+    assert!(
+        vm.get_compiler_error()
+            .contains("Cannot use 'b' before its declaration")
+    );
 }
 
 #[test]
@@ -2017,9 +2022,10 @@ fn val_reading_itself_in_initializer_is_compile_error() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::CompileError, result);
-    assert!(vm
-        .get_compiler_error()
-        .contains("Cannot read 'x' in its own initializer"));
+    assert!(
+        vm.get_compiler_error()
+            .contains("Cannot read 'x' in its own initializer")
+    );
 }
 
 #[test]
@@ -2031,9 +2037,10 @@ fn tuple_val_reading_itself_in_initializer_is_compile_error() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::CompileError, result);
-    assert!(vm
-        .get_compiler_error()
-        .contains("Cannot read 'b' in its own initializer"));
+    assert!(
+        vm.get_compiler_error()
+            .contains("Cannot read 'b' in its own initializer")
+    );
 }
 
 #[test]

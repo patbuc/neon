@@ -2,7 +2,7 @@
 [![Lint](https://img.shields.io/github/actions/workflow/status/patbuc/neon/lint.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=lint)](https://github.com/patbuc/neon/actions/workflows/lint.yml)
 [![Bench](https://img.shields.io/github/actions/workflow/status/patbuc/neon/bench.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=bench)](https://github.com/patbuc/neon/actions/workflows/bench.yml)
 [![License](https://img.shields.io/github/license/patbuc/neon?style=flat-square)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-2021%20edition-orange?style=flat-square&logo=rust&logoColor=white)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
+[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange?style=flat-square&logo=rust&logoColor=white)](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
 [![Last commit](https://img.shields.io/github/last-commit/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon/commits)
 [![Code size](https://img.shields.io/github/languages/code-size/patbuc/neon?style=flat-square)](https://github.com/patbuc/neon)
 

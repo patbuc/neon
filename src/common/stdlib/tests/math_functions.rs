@@ -1,7 +1,7 @@
+use crate::common::Value;
 use crate::common::stdlib::math_functions::{
     native_math_gcd, native_math_lcm, native_math_mod, native_math_round, native_math_sign,
 };
-use crate::common::Value;
 use crate::vm::{InterpretResult, VirtualMachine};
 
 // ============================================================================

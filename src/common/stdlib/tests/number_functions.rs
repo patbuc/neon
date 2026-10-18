@@ -28,9 +28,10 @@ fn test_number_to_int_out_of_range() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("toInt() result is out of range"));
+    assert!(
+        vm.get_runtime_errors()
+            .contains("toInt() result is out of range")
+    );
 }
 
 #[test]
@@ -43,9 +44,10 @@ fn test_number_to_int_nan() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("toInt() result is out of range"));
+    assert!(
+        vm.get_runtime_errors()
+            .contains("toInt() result is out of range")
+    );
 }
 
 #[test]
@@ -70,9 +72,10 @@ fn test_number_to_float_returns_float_variant() {
     let mut vm = VirtualMachine::new();
     let result = vm.interpret(program.to_string());
     assert_eq!(InterpretResult::RuntimeError, result);
-    assert!(vm
-        .get_runtime_errors()
-        .contains("div() expects two integers, got float"));
+    assert!(
+        vm.get_runtime_errors()
+            .contains("div() expects two integers, got float")
+    );
 }
 
 #[test]
