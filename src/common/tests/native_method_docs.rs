@@ -93,7 +93,9 @@ fn heading_section(heading: &str) -> Section {
         other => match other.strip_suffix(" Methods") {
             Some(t) => Section::Types(vec![t.to_string()]),
             None => {
-                panic!("docs/reference.md: unrecognized heading '### {other}' in Standard Library section")
+                panic!(
+                    "docs/reference.md: unrecognized heading '### {other}' in Standard Library section"
+                )
             }
         },
     }
