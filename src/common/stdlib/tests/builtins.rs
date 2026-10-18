@@ -1,5 +1,5 @@
-use crate::common::stdlib::{create_builtin_objects, BUILTIN_VALUES};
 use crate::common::Value;
+use crate::common::stdlib::{BUILTIN_VALUES, create_builtin_objects};
 
 #[test]
 fn builtin_values_match_created_objects() {

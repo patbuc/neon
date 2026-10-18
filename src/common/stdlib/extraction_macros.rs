@@ -240,9 +240,7 @@ macro_rules! extract_arg {
 /// ```
 #[macro_export]
 macro_rules! extract_string_value {
-    ($args:expr, $idx:expr, $arg_name:expr, $method:expr) => {{
-        extract_arg!($args, $idx, String, $arg_name, $method)?.as_str()
-    }};
+    ($args:expr, $idx:expr, $arg_name:expr, $method:expr) => {{ extract_arg!($args, $idx, String, $arg_name, $method)?.as_str() }};
 }
 
 /// Extract an integer argument (an `Int`, or a `Number` with no fractional
@@ -253,7 +251,7 @@ pub(crate) fn extract_integer_arg(
     arg_name: &str,
     method: &str,
 ) -> Result<i64, String> {
-    use crate::common::{f64_fits_i64, Value};
+    use crate::common::{Value, f64_fits_i64};
     match args.get(idx) {
         Some(Value::Int(i)) => Ok(*i),
         Some(Value::Number(n)) if n.fract() == 0.0 && f64_fits_i64(*n) => Ok(*n as i64),

@@ -1,7 +1,7 @@
+use crate::common::NativeContext;
 use crate::common::stdlib::array_functions;
 use crate::common::stdlib::extraction_macros::extract_integer_arg;
-use crate::common::NativeContext;
-use crate::common::{f64_fits_i64, NativeCallError, Value};
+use crate::common::{NativeCallError, Value, f64_fits_i64};
 use crate::extract_receiver;
 
 /// Rebuilds `args` as `[array, rest...]`, so a materializing method can
@@ -248,7 +248,7 @@ pub fn native_range_zip(args: &[Value]) -> Result<Value, String> {
             return Err(format!(
                 "zip() other must be an array or range, got {}",
                 other.type_name()
-            ))
+            ));
         }
     };
 

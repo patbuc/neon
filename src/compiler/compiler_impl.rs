@@ -2,12 +2,12 @@ use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
 use crate::common::{Chunk, SourceLocation};
+use crate::compiler::Compiler;
 use crate::compiler::codegen::CodeGenerator;
 use crate::compiler::exports::ExportTable;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::{EntryLocation, Module, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
-use crate::compiler::Compiler;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;

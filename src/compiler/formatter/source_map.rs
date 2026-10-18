@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::common::SourceLocation;
+use crate::compiler::Scanner;
 use crate::compiler::ast::{Expr, IfExprElse, Stmt};
 use crate::compiler::token::TokenType;
-use crate::compiler::Scanner;
 
 /// Every real token of a source, re-scanned so the formatter can look up
 /// where an AST node starts and ends.

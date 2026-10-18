@@ -861,8 +861,7 @@ fn test_block_body_recovers_from_multiple_errors() {
 
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware() {
-    let program =
-        "struct P { val x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
+    let program = "struct P { val x }\nimpl P {\n    val junk = { \"a\": 1 }\n    fn len(self) { return self.x }\n}\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
@@ -871,8 +870,7 @@ fn test_impl_body_recovery_is_brace_depth_aware() {
 
 #[test]
 fn test_impl_body_recovery_is_brace_depth_aware_for_set_literals() {
-    let program =
-        "struct P { val x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
+    let program = "struct P { val x }\nimpl P {\n    val junk = #{ 1, 2 }\n    fn len(self) { return self.x }\n}\nprint(1)\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 1, "Should report exactly one error");
     assert_eq!(errors[0].location.line, 3);
@@ -1853,9 +1851,11 @@ fn test_parse_exponent_right_operand_accepts_unary_minus() {
 #[test]
 fn test_parse_assignment_to_expression_is_invalid_target() {
     let errors = compile_errors("1 + x = 5\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 7);
 }
@@ -1863,9 +1863,11 @@ fn test_parse_assignment_to_expression_is_invalid_target() {
 #[test]
 fn test_parse_assignment_to_field_of_expression_is_invalid_target() {
     let errors = compile_errors("1 + a.b = 5\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 9);
 }
@@ -1873,9 +1875,11 @@ fn test_parse_assignment_to_field_of_expression_is_invalid_target() {
 #[test]
 fn test_parse_assignment_to_index_of_expression_is_invalid_target() {
     let errors = compile_errors("1 + a[0] = 5\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
     assert_eq!(errors[0].location.line, 1);
     assert_eq!(errors[0].location.column, 10);
 }
@@ -1964,25 +1968,31 @@ fn test_parse_compound_assignment_to_grouping_is_invalid_target() {
 #[test]
 fn test_parse_assignment_to_call_expression_is_invalid_target() {
     let errors = compile_errors("f() = 1\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
 }
 
 #[test]
 fn test_parse_assignment_to_grouping_is_invalid_target() {
     let errors = compile_errors("(x) = 3\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
 }
 
 #[test]
 fn test_parse_compound_assignment_to_optional_field_is_invalid_target() {
     let errors = compile_errors("a?.b += 1\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
 }
 
 #[test]
@@ -4198,9 +4208,11 @@ fn test_parse_nil_coalesce_binds_tighter_than_ternary() {
 #[test]
 fn test_parse_assignment_to_optional_chained_field_is_invalid_target() {
     let errors = compile_errors("u?.name = 1\n");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Invalid assignment target")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid assignment target"))
+    );
 }
 
 #[test]

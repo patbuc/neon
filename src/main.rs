@@ -284,11 +284,9 @@ fn fmt_command(args: &[String]) {
                     }
                 } else if file == "-" {
                     print!("{}", formatted);
-                } else if changed {
-                    if let Err(err) = fs::write(file, &formatted) {
-                        eprintln!("Failed to write the file {}: {}", file, err);
-                        had_io_error = true;
-                    }
+                } else if changed && let Err(err) = fs::write(file, &formatted) {
+                    eprintln!("Failed to write the file {}: {}", file, err);
+                    had_io_error = true;
                 }
             }
             Err(errors) => {

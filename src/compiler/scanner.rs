@@ -548,13 +548,13 @@ impl Scanner {
         self.advance(); // consume base prefix letter
 
         let c = self.peek();
-        if let Some(invalid_digit) = invalid_digit {
-            if (invalid_digit.matches)(c) {
-                return self.make_error_token(
-                    CompilationErrorKind::InvalidNumberLiteral,
-                    invalid_digit.message,
-                );
-            }
+        if let Some(invalid_digit) = invalid_digit
+            && (invalid_digit.matches)(c)
+        {
+            return self.make_error_token(
+                CompilationErrorKind::InvalidNumberLiteral,
+                invalid_digit.message,
+            );
         }
         if !is_valid_digit(c) {
             return self.make_error_token(

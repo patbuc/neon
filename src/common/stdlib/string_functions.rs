@@ -1,5 +1,5 @@
-use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::Value;
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::string;
 use crate::{extract_arg, extract_receiver, extract_string_value};
 

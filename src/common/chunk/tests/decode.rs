@@ -1136,8 +1136,8 @@ fn a_comparison_followed_by_jump_if_false_decodes_unfused() {
 }
 
 #[test]
-fn get_local_a_number_constant_less_equal_and_pop_jump_if_false_decode_to_local_less_equal_constant_jump_if_false(
-) {
+fn get_local_a_number_constant_less_equal_and_pop_jump_if_false_decode_to_local_less_equal_constant_jump_if_false()
+ {
     for value in [Value::Int(10), Value::Number(2.5)] {
         let mut chunk = Chunk::new("local compare jump");
         chunk.write_indexed(OpCode::GetLocal, 3, 1, 1);

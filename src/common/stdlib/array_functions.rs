@@ -1,6 +1,6 @@
-use crate::common::stdlib::extraction_macros::extract_integer_arg;
 use crate::common::NativeContext;
-use crate::common::{compare_numeric, MapKey, NativeCallError, Numeric, Value};
+use crate::common::stdlib::extraction_macros::extract_integer_arg;
+use crate::common::{MapKey, NativeCallError, Numeric, Value, compare_numeric};
 use crate::{extract_arg, extract_receiver, extract_string_value, is_false_like};
 use indexmap::IndexMap;
 
@@ -677,7 +677,7 @@ pub fn native_array_sum(args: &[Value]) -> Result<Value, String> {
                 return Err(format!(
                     "sum() requires all elements to be numbers, but element at index {} is not",
                     i
-                ))
+                ));
             }
         }
     }
@@ -859,7 +859,7 @@ pub fn native_array_flat_map(
                     "flatMap() callback must return an array, got {}",
                     other.type_name()
                 )
-                .into())
+                .into());
             }
         }
     }

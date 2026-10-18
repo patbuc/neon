@@ -1,9 +1,9 @@
 use crate::common::errors::CompilationErrorKind;
-use crate::compiler::scanner::KEYWORDS;
-use crate::compiler::token::TokenType;
 use crate::compiler::CommentKind;
 use crate::compiler::Scanner;
 use crate::compiler::Token;
+use crate::compiler::scanner::KEYWORDS;
+use crate::compiler::token::TokenType;
 use std::collections::BTreeSet;
 
 fn scan_to_eof(scanner: &mut Scanner) {

@@ -740,9 +740,10 @@ fn test_assign_to_immutable() {
 fn test_compound_assign_to_immutable() {
     let program = "val x = 1\nx += 1\n";
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Cannot assign to immutable variable 'x'")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .contains("Cannot assign to immutable variable 'x'")
+    }));
 }
 
 #[test]
@@ -764,12 +765,16 @@ fn test_compound_assign_both_sides_undefined() {
     let program = "y += z\n";
     let errors = compile_errors(program);
     assert_eq!(errors.len(), 2);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Undefined variable 'y'")));
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Undefined variable 'z'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Undefined variable 'y'"))
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Undefined variable 'z'"))
+    );
 }
 
 #[test]
@@ -787,9 +792,11 @@ fn test_compound_assign_self_reference_before_declaration() {
     // diagnostics - only an identical (same message and location) repeat
     // is deduplicated.
     assert_eq!(errors.len(), 2);
-    assert!(errors
-        .iter()
-        .all(|e| e.message.contains("Cannot use 'g' before its declaration")));
+    assert!(
+        errors
+            .iter()
+            .all(|e| e.message.contains("Cannot use 'g' before its declaration"))
+    );
 }
 
 #[test]
@@ -839,9 +846,11 @@ fn add(a, b) {
 val x = add(1, 2, 3)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("expects 2 arguments but got 3")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("expects 2 arguments but got 3"))
+    );
 }
 
 #[test]
@@ -974,9 +983,11 @@ fn test_typo_on_method_name_suggests_correction() {
 val x = [1, 2, 3].szie()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Did you mean 'size'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Did you mean 'size'"))
+    );
 }
 
 #[test]
@@ -985,9 +996,11 @@ fn test_string_len_suggests_size() {
 val x = "abc".len()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| { e.message == "Type 'String' has no method named 'len'. Did you mean 'size'?" }));
+    assert!(
+        errors.iter().any(|e| {
+            e.message == "Type 'String' has no method named 'len'. Did you mean 'size'?"
+        })
+    );
 }
 
 #[test]
@@ -996,9 +1009,10 @@ fn test_string_char_at_removed() {
 val x = "abc".charAt(0)
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .starts_with("Type 'String' has no method named 'charAt'")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .starts_with("Type 'String' has no method named 'charAt'")
+    }));
 }
 
 #[test]
@@ -1067,9 +1081,11 @@ S(1).len()
 "#;
     let errors = compile_errors(program);
     assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
-    assert!(!errors
-        .iter()
-        .any(|e| e.message.contains("Did you mean 'size'")));
+    assert!(
+        !errors
+            .iter()
+            .any(|e| e.message.contains("Did you mean 'size'"))
+    );
 }
 
 #[test]
@@ -1079,9 +1095,11 @@ val x = 5.len()
 "#;
     let errors = compile_errors(program);
     assert_eq!(errors[0].kind, CompilationErrorKind::UnknownMethod);
-    assert!(!errors
-        .iter()
-        .any(|e| e.message.contains("Did you mean 'size'")));
+    assert!(
+        !errors
+            .iter()
+            .any(|e| e.message.contains("Did you mean 'size'"))
+    );
 }
 
 #[test]
@@ -1127,9 +1145,11 @@ val arr = [1, 2, 3]
 val result = arr.badMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'badMethod'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'badMethod'"))
+    );
 }
 
 #[test]
@@ -1157,9 +1177,11 @@ fn test_invalid_method_on_string_literal() {
 val x = "hello".invalidMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'invalidMethod'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'invalidMethod'"))
+    );
 }
 
 #[test]
@@ -1188,9 +1210,11 @@ fn test_invalid_method_on_map_literal() {
 val result = {"a": 1}.wrongMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'wrongMethod'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'wrongMethod'"))
+    );
 }
 
 #[test]
@@ -1219,9 +1243,11 @@ fn test_invalid_method_on_set_literal() {
 val result = #{1, 2, 3}.invalidMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'invalidMethod'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'invalidMethod'"))
+    );
 }
 
 #[test]
@@ -1251,9 +1277,11 @@ val m = {"a": 1, "b": 2}
 val result = m.keys().invalidMethod()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'invalidMethod'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'invalidMethod'"))
+    );
 }
 
 #[test]
@@ -2095,9 +2123,11 @@ while (true) {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot use 'break' outside of a loop"))
+    );
 }
 
 #[test]
@@ -2111,9 +2141,10 @@ while (true) {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Cannot use 'continue' outside of a loop")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .contains("Cannot use 'continue' outside of a loop")
+    }));
 }
 
 // =============================================================================
@@ -2144,18 +2175,22 @@ fn test_array_as_value_is_undefined_variable() {
 fn test_std_file_open_wrong_arity() {
     let program = "use \"std/file\"\nval f = file.open(\"x.txt\", \"y.txt\")\n";
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("expects 1 arguments but got 2")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("expects 1 arguments but got 2"))
+    );
 }
 
 #[test]
 fn test_calling_std_module_is_not_a_function_error() {
     let program = "use \"std/math\"\nval m = math(1)\n";
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message == "'math' is not a function"));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message == "'math' is not a function")
+    );
 }
 
 #[test]
@@ -2169,9 +2204,11 @@ while (true) {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Cannot use 'break' outside of a loop")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot use 'break' outside of a loop"))
+    );
 }
 
 #[test]
@@ -2185,9 +2222,10 @@ while (true) {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Cannot use 'continue' outside of a loop")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .contains("Cannot use 'continue' outside of a loop")
+    }));
 }
 
 // ===== Issue #98: scoped type environment =====
@@ -2361,9 +2399,11 @@ val p = P(1)
 print(p.y)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("no field named 'y'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("no field named 'y'"))
+    );
 }
 
 #[test]
@@ -2377,9 +2417,11 @@ val p = P(1, 2)
 p.z = 3
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("no field named 'z'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("no field named 'z'"))
+    );
 }
 
 #[test]
@@ -2419,9 +2461,11 @@ struct S {
 S.f(1)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("has no method named 'f'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("has no method named 'f'"))
+    );
 }
 
 #[test]
@@ -2543,9 +2587,11 @@ struct P {
 val p = P(1, 2, 3)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("expects 2 arguments but got 3")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("expects 2 arguments but got 3"))
+    );
 }
 
 #[test]
@@ -2581,10 +2627,12 @@ fn add(a, b) {
 val x = add(1)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::TooFewArguments
-            && e.message.contains("expects 2 arguments but got 1")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::TooFewArguments
+                && e.message.contains("expects 2 arguments but got 1"))
+    );
 }
 
 #[test]
@@ -2596,9 +2644,11 @@ fn add(a, b) {
 val x = add(1, 2, 3)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::TooManyArguments));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::TooManyArguments)
+    );
 }
 
 // ===== Issue #147: impl blocks add methods to structs =====
@@ -2813,9 +2863,11 @@ impl Point {
 Point.len()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("len") && e.message.contains("instance")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("len") && e.message.contains("instance"))
+    );
 }
 
 #[test]
@@ -2834,9 +2886,11 @@ val p = Point(1, 2)
 p.origin()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("origin") && e.message.contains("static")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("origin") && e.message.contains("static"))
+    );
 }
 
 #[test]
@@ -2855,9 +2909,11 @@ val p = Point(1, 2)
 p.len()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("len") && e.message.contains("static")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("len") && e.message.contains("static"))
+    );
 }
 
 #[test]
@@ -2875,9 +2931,11 @@ impl Point {
 Point.make(1)
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("make") && e.message.contains("expects 2 arguments")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("make") && e.message.contains("expects 2 arguments"))
+    );
 }
 
 #[test]
@@ -2906,12 +2964,16 @@ struct Array {
 fn test_duplicate_field_on_reserved_struct_name_reports_both() {
     let program = "struct Array { val x val x }\n";
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateField));
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::ReservedStructName));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateField)
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::ReservedStructName)
+    );
 }
 
 // ===== Issue #149: impl blocks on builtin types =====
@@ -2926,9 +2988,11 @@ impl String {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("size") && e.message.contains("native")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("size") && e.message.contains("native"))
+    );
 }
 
 #[test]
@@ -2953,9 +3017,11 @@ impl Array {
 val x = [1, 2].secnd()
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Did you mean 'second'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Did you mean 'second'"))
+    );
 }
 
 #[test]
@@ -2969,9 +3035,11 @@ impl String {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Did you mean 'size'")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Did you mean 'size'"))
+    );
 }
 
 #[test]
@@ -2984,10 +3052,12 @@ impl Array {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e.message.contains("make")
-        && e.message.contains("self")
-        && e.message
-            .contains("static methods are only supported on structs")));
+    assert!(errors.iter().any(|e| {
+        e.message.contains("make")
+            && e.message.contains("self")
+            && e.message
+                .contains("static methods are only supported on structs")
+    }));
 }
 
 #[test]
@@ -3001,9 +3071,10 @@ impl Map {
 val x = Map.second({})
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Static methods are only supported on structs")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .contains("Static methods are only supported on structs")
+    }));
 }
 
 #[test]
@@ -3023,18 +3094,22 @@ fn test_unknown_static_method_on_builtin_type_is_compile_error() {
 fn test_duplicate_symbol_shadowing_builtin_at_top_level() {
     let program = "val args = 5\n";
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::DuplicateSymbol)
+    );
 }
 
 #[test]
 fn test_assign_to_builtin_at_top_level() {
     let program = "args = 5\n";
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.kind == CompilationErrorKind::ImmutableAssignment)
+    );
 }
 
 // ===== Issue #170: pin native method return-type inference =====
@@ -3111,9 +3186,10 @@ impl Array {
 }
 "#;
     let errors = compile_errors(program);
-    assert!(errors.iter().any(|e| e
-        .message
-        .contains("Type 'Array' has no method named 'bogus'")));
+    assert!(errors.iter().any(|e| {
+        e.message
+            .contains("Type 'Array' has no method named 'bogus'")
+    }));
 }
 
 #[test]
@@ -3125,9 +3201,11 @@ fn forward_use_inside_top_level_block_is_compile_error() {
 val b = 1
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Cannot use 'b' before its declaration")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot use 'b' before its declaration"))
+    );
 }
 
 #[test]
@@ -3153,9 +3231,11 @@ x += 1
 var x = 1
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot use 'x' before its declaration"))
+    );
 }
 
 #[test]
@@ -3165,9 +3245,11 @@ x = 5
 var x = 1
 "#;
     let errors = compile_errors(program);
-    assert!(errors
-        .iter()
-        .any(|e| e.message.contains("Cannot use 'x' before its declaration")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Cannot use 'x' before its declaration"))
+    );
 }
 
 #[test]
@@ -3466,8 +3548,7 @@ fn test_optional_dot_on_struct_type_name_is_compile_error() {
 
 #[test]
 fn test_match_missing_enum_variant_is_compile_error() {
-    let program =
-        "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n";
+    let program = "enum Color {\n    Red\n    Green\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n}\n";
     let errors = compile_errors(program);
     assert!(
         errors

@@ -1,8 +1,8 @@
 use super::helpers::compile_errors;
 use super::module_graph::TempDir;
 use crate::common::errors::{CompilationError, CompilationErrorKind};
-use crate::compiler::module_graph::EntryLocation;
 use crate::compiler::Compiler;
+use crate::compiler::module_graph::EntryLocation;
 use std::fs;
 
 fn source_overflowing_a_codegen_limit() -> String {
@@ -363,8 +363,7 @@ fn every_error_kind_is_produced_by_some_input() {
             assert!(
                 errors
                     .iter()
-                    .any(|e| e.kind == kind
-                        && fragment.is_none_or(|f| e.message.contains(f))),
+                    .any(|e| e.kind == kind && fragment.is_none_or(|f| e.message.contains(f))),
                 "expected {:?} ({}) with message containing {:?} to be produced by:\n{}\ngot errors: {:#?}",
                 kind,
                 kind.code(),

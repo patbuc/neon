@@ -1,4 +1,4 @@
-use crate::common::{f64_fits_i64, Value};
+use crate::common::{Value, f64_fits_i64};
 use crate::{extract_receiver, string};
 
 /// Native implementation of Number.toString()

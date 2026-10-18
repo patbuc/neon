@@ -144,9 +144,10 @@ fn test_priority_queue_constructor_wrong_arg_count() {
         InterpretResult::RuntimeError,
         vm.interpret(program.to_string())
     );
-    assert!(vm
-        .get_runtime_errors()
-        .contains("pq.new() expects 0 arguments, got 1"));
+    assert!(
+        vm.get_runtime_errors()
+            .contains("pq.new() expects 0 arguments, got 1")
+    );
 }
 
 #[test]

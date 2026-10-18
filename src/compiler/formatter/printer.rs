@@ -1,5 +1,5 @@
-use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::common::SourceLocation;
+use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::compiler::ast::{
     BinaryOp, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, Pattern,
     Stmt, UnaryOp,
@@ -157,15 +157,16 @@ impl<'a> Printer<'a> {
             return;
         }
 
-        if let Some(comment) = self.comments.get(self.next_comment) {
-            if comment.kind == CommentKind::Trailing && comment.line == prev {
-                let text = comment.text.trim_end().to_string();
-                if !self.at_line_start {
-                    self.write(" ");
-                }
-                self.write(&text);
-                self.next_comment += 1;
+        if let Some(comment) = self.comments.get(self.next_comment)
+            && comment.kind == CommentKind::Trailing
+            && comment.line == prev
+        {
+            let text = comment.text.trim_end().to_string();
+            if !self.at_line_start {
+                self.write(" ");
             }
+            self.write(&text);
+            self.next_comment += 1;
         }
 
         self.newline();
@@ -662,15 +663,15 @@ impl<'a> Printer<'a> {
             return;
         }
 
-        if open_line == close_line {
-            if let [stmt] = body {
-                self.write("{");
-                self.print_trailing_block_params(params);
-                self.write(" ");
-                self.print_stmt(stmt);
-                self.write(" }");
-                return;
-            }
+        if open_line == close_line
+            && let [stmt] = body
+        {
+            self.write("{");
+            self.print_trailing_block_params(params);
+            self.write(" ");
+            self.print_stmt(stmt);
+            self.write(" }");
+            return;
         }
 
         self.write("{");

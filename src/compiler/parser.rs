@@ -1,8 +1,8 @@
+use crate::common::SourceLocation;
 use crate::common::constants::MAX_PARSER_RECURSION_DEPTH;
 use crate::common::errors::{
     CompilationError, CompilationErrorKind, CompilationPhase, CompilationResult,
 };
-use crate::common::SourceLocation;
 /// AST-building parser for the multi-pass compiler
 /// This parser builds an Abstract Syntax Tree instead of emitting bytecode directly
 use crate::compiler::ast::{
@@ -311,10 +311,10 @@ impl Parser {
             if !parser.check(closing_token.clone()) {
                 loop {
                     // Check max count if specified
-                    if let Some((max, kind, max_count_error)) = max_count {
-                        if items.len() >= max {
-                            parser.report_error_at_current(kind, max_count_error.to_string());
-                        }
+                    if let Some((max, kind, max_count_error)) = max_count
+                        && items.len() >= max
+                    {
+                        parser.report_error_at_current(kind, max_count_error.to_string());
                     }
 
                     // Parse element using provided closure

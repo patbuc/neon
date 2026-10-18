@@ -1,4 +1,4 @@
-use crate::common::method_registry::{NativeMethodTable, BUILTIN_TYPE_NAMES};
+use crate::common::method_registry::{BUILTIN_TYPE_NAMES, NativeMethodTable};
 use crate::common::runtime_error::RuntimeError;
 use crate::common::{CallFrame, Chunk, MethodEntry, ObjStruct, Upvalue, Value};
 use crate::compiler::global_env::GlobalEnv;
