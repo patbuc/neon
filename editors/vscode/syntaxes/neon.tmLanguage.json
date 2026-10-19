@@ -11,68 +11,195 @@
         { "include": "#comments" },
         { "include": "#strings" },
         { "include": "#numbers" },
+        { "include": "#use-statement" },
         { "include": "#fn-declaration" },
+        { "include": "#struct-body" },
+        { "include": "#enum-body" },
         { "include": "#struct-declaration" },
         { "include": "#enum-declaration" },
         { "include": "#impl-declaration" },
         { "include": "#keywords-control" },
         { "include": "#keywords-storage" },
         { "include": "#constants-language" },
+        { "include": "#self" },
+        { "include": "#builtins" },
+        { "include": "#enum-member" },
+        { "include": "#function-call" },
+        { "include": "#named-argument" },
+        { "include": "#block-parameters" },
+        { "include": "#member-access" },
+        { "include": "#constant" },
+        { "include": "#type-name" },
         { "include": "#set-literal" },
         { "include": "#brace-block" },
-        { "include": "#operators" }
+        { "include": "#operators" },
+        { "include": "#punctuation" }
       ]
     },
     "comments": {
       "match": "//.*$",
       "name": "comment.line.double-slash.neon"
     },
+    "use-statement": {
+      "match": "\\b(use)\\s+(\"(?:[^\"\\\\]|\\\\.)*\")(?:\\s+(as)\\s+([A-Za-z_][A-Za-z0-9_]*))?",
+      "captures": {
+        "1": { "name": "keyword.control.import.neon" },
+        "2": { "name": "string.quoted.double.neon" },
+        "3": { "name": "keyword.control.import.neon" },
+        "4": { "name": "entity.name.namespace.neon" }
+      }
+    },
     "keywords-control": {
-      "match": "\\b(break|catch|continue|else|for|if|in|match|pub|return|throw|try|use|while|yield)\\b",
+      "match": "\\b(break|catch|continue|else|for|if|in|match|return|throw|try|while|yield)\\b",
       "name": "keyword.control.neon"
+    },
+    "keywords-storage": {
+      "patterns": [
+        { "match": "\\b(fn|struct|enum|impl|val|var)\\b", "name": "storage.type.neon" },
+        { "match": "\\b(pub)\\b", "name": "storage.modifier.neon" },
+        { "include": "#keywords-import" }
+      ]
+    },
+    "keywords-import": {
+      "match": "\\b(use)\\b",
+      "name": "keyword.control.import.neon"
     },
     "constants-language": {
       "match": "\\b(true|false|nil)\\b",
       "name": "constant.language.neon"
     },
+    "self": {
+      "match": "\\bself\\b",
+      "name": "variable.language.self.neon"
+    },
+    "builtins": {
+      "patterns": [
+        { "match": "\\b(?:print|sleep)\\b(?=\\s*\\()", "name": "support.function.builtin.neon" },
+        { "match": "\\bargs\\b", "name": "variable.language.neon" }
+      ]
+    },
     "fn-declaration": {
-      "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)",
-      "captures": {
+      "begin": "\\b(fn)\\b(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",
+      "beginCaptures": {
         "1": { "name": "storage.type.neon" },
-        "2": { "name": "entity.name.function.neon" }
-      }
+        "2": { "name": "entity.name.function.neon" },
+        "3": { "name": "punctuation.definition.parameters.begin.neon" }
+      },
+      "end": "\\)",
+      "endCaptures": { "0": { "name": "punctuation.definition.parameters.end.neon" } },
+      "name": "meta.function.parameters.neon",
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#self" },
+        {
+          "match": "(?<=[(,])\\s*(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": { "1": { "name": "variable.parameter.neon" } }
+        },
+        { "include": "#parens" },
+        { "include": "#expression" }
+      ]
+    },
+    "parens": {
+      "begin": "\\(",
+      "end": "\\)",
+      "patterns": [ { "include": "#expression" } ]
+    },
+    "struct-body": {
+      "begin": "\\b(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "storage.type.neon" },
+        "2": { "name": "entity.name.type.neon" },
+        "3": { "name": "punctuation.section.block.begin.neon" }
+      },
+      "end": "\\}",
+      "endCaptures": { "0": { "name": "punctuation.section.block.end.neon" } },
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "match": "^\\s*(val|var)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": { "1": { "name": "storage.type.neon" }, "2": { "name": "variable.other.property.neon" } }
+        },
+        { "include": "#expression" }
+      ]
+    },
+    "enum-body": {
+      "begin": "\\b(enum)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "storage.type.neon" },
+        "2": { "name": "entity.name.type.neon" },
+        "3": { "name": "punctuation.section.block.begin.neon" }
+      },
+      "end": "\\}",
+      "endCaptures": { "0": { "name": "punctuation.section.block.end.neon" } },
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "match": "^\\s*([A-Z][A-Za-z0-9_]*)",
+          "captures": { "1": { "name": "variable.other.enummember.neon" } }
+        },
+        { "include": "#expression" }
+      ]
     },
     "struct-declaration": {
       "match": "\\b(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)",
-      "captures": {
-        "1": { "name": "storage.type.neon" },
-        "2": { "name": "entity.name.type.neon" }
-      }
+      "captures": { "1": { "name": "storage.type.neon" }, "2": { "name": "entity.name.type.neon" } }
     },
     "enum-declaration": {
       "match": "\\b(enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
-      "captures": {
-        "1": { "name": "storage.type.neon" },
-        "2": { "name": "entity.name.type.neon" }
-      }
+      "captures": { "1": { "name": "storage.type.neon" }, "2": { "name": "entity.name.type.neon" } }
     },
     "impl-declaration": {
       "match": "\\b(impl)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": { "1": { "name": "storage.type.neon" }, "2": { "name": "entity.name.type.neon" } }
+    },
+    "function-call": {
+      "patterns": [
+        { "match": "\\b([A-Z][A-Za-z0-9_]*)(?=\\s*\\()", "name": "entity.name.type.neon" },
+        {
+          "match": "\\b(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([a-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+          "name": "entity.name.function.neon"
+        },
+        {
+          "match": "\\b(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([a-z_][A-Za-z0-9_]*)(?=\\s*\\{\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*\\s*->|[^}]*\\bit\\b))",
+          "name": "entity.name.function.neon"
+        }
+      ]
+    },
+    "named-argument": {
+      "match": "\\b(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([a-z_][A-Za-z0-9_]*)(?=:\\s)",
+      "name": "variable.parameter.neon"
+    },
+    "block-parameters": {
+      "match": "\\b(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([A-Za-z_][A-Za-z0-9_]*)(?=\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*\\s*)*->)",
+      "name": "variable.parameter.neon"
+    },
+    "enum-member": {
+      "match": "\\b([A-Z][A-Za-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",
       "captures": {
-        "1": { "name": "storage.type.neon" },
-        "2": { "name": "entity.name.type.neon" }
+        "1": { "name": "entity.name.type.neon" },
+        "2": { "name": "punctuation.accessor.neon" },
+        "3": { "name": "variable.other.enummember.neon" }
       }
     },
-    "keywords-storage": {
-      "match": "\\b(fn|struct|enum|impl|val|var)\\b",
-      "name": "storage.type.neon"
+    "member-access": {
+      "match": "(?:(\\?\\.)|(?<!\\.)(\\.))(?!\\.)\\s*(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([a-z_][A-Za-z0-9_]*)\\b(?!\\s*\\()(?!\\s*\\{\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*\\s*->|[^}]*\\bit\\b))",
+      "captures": {
+        "1": { "name": "keyword.operator.optional-chaining.neon" },
+        "2": { "name": "punctuation.accessor.neon" },
+        "3": { "name": "variable.other.property.neon" }
+      }
+    },
+    "constant": {
+      "match": "\\b[A-Z][A-Z0-9_]*[A-Z0-9]\\b(?![a-z])",
+      "name": "variable.other.constant.neon"
+    },
+    "type-name": {
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+      "name": "entity.name.type.neon"
     },
     "numbers": {
       "patterns": [
-        {
-          "match": "\\b0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*\\b",
-          "name": "constant.numeric.neon"
-        },
+        { "match": "\\b0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*\\b", "name": "constant.numeric.neon" },
         { "match": "\\b0[bB][01](?:_?[01])*\\b", "name": "constant.numeric.neon" },
         { "match": "\\b0[oO][0-7](?:_?[0-7])*\\b", "name": "constant.numeric.neon" },
         {
@@ -111,29 +238,27 @@
         { "match": ":", "name": "keyword.operator.colon.neon" }
       ]
     },
+    "punctuation": {
+      "match": ",",
+      "name": "punctuation.separator.comma.neon"
+    },
     "set-literal": {
       "begin": "#\\{",
       "beginCaptures": { "0": { "name": "punctuation.section.set.begin.neon" } },
       "end": "\\}",
       "endCaptures": { "0": { "name": "punctuation.section.set.end.neon" } },
       "name": "meta.set.neon",
-      "patterns": [
-        { "include": "#expression" }
-      ]
+      "patterns": [ { "include": "#expression" } ]
     },
     "brace-block": {
       "begin": "\\{",
       "beginCaptures": { "0": { "name": "punctuation.section.block.begin.neon" } },
       "end": "\\}",
       "endCaptures": { "0": { "name": "punctuation.section.block.end.neon" } },
-      "patterns": [
-        { "include": "#expression" }
-      ]
+      "patterns": [ { "include": "#expression" } ]
     },
     "strings": {
-      "patterns": [
-        { "include": "#string-double" }
-      ]
+      "patterns": [ { "include": "#string-double" } ]
     },
     "string-double": {
       "name": "string.quoted.double.neon",
@@ -143,12 +268,17 @@
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.neon" } },
       "patterns": [
         { "include": "#string-escape" },
+        { "include": "#string-escape-invalid" },
         { "include": "#interpolation" }
       ]
     },
     "string-escape": {
       "match": "\\\\(n|t|r|\\\\|\"|\\$|u\\{[0-9a-fA-F]{1,6}\\})",
       "name": "constant.character.escape.neon"
+    },
+    "string-escape-invalid": {
+      "match": "\\\\.",
+      "name": "invalid.illegal.unknown-escape.neon"
     },
     "interpolation": {
       "begin": "\\$\\{",
@@ -157,9 +287,7 @@
       "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.neon" } },
       "name": "meta.interpolation.neon",
       "contentName": "meta.embedded.line.neon",
-      "patterns": [
-        { "include": "#expression" }
-      ]
+      "patterns": [ { "include": "#expression" } ]
     }
   }
 }

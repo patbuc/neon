@@ -1,0 +1,49 @@
+// SYNTAX TEST "source.neon" "calls, parameters, members, types, and declaration bodies"
+  use "std/math"
+//^^^ keyword.control.import.neon
+//    ^^^^^^^^^^ string.quoted.double.neon
+  use "./geo" as g
+//            ^^ keyword.control.import.neon
+//               ^ entity.name.namespace.neon
+  pub fn add(self, a, b = max(1, 2)) {
+//^^^ storage.modifier.neon
+//    ^^ storage.type.neon
+//       ^^^ entity.name.function.neon
+//           ^^^^ variable.language.self.neon
+//                 ^ variable.parameter.neon
+//                    ^ variable.parameter.neon
+//                        ^^^ entity.name.function.neon
+  val f = fn(x) { x }
+//        ^^ storage.type.neon
+//           ^ variable.parameter.neon
+  struct Point {
+      var y = 3
+//        ^ variable.other.property.neon
+  }
+  enum Shape {
+      Rect(w, h)
+//    ^^^^ variable.other.enummember.neon
+  }
+  print(Point(y: 2), args)
+//^^^^^ support.function.builtin.neon
+//      ^^^^^ entity.name.type.neon
+//            ^ variable.parameter.neon
+//                   ^^^^ variable.language.neon
+  val s = Shape.Rect(1, 2)
+//        ^^^^^ entity.name.type.neon
+//              ^^^^ variable.other.enummember.neon
+  p.x + p.len() + MAX_SIZE
+//  ^ variable.other.property.neon
+//        ^^^ entity.name.function.neon
+//                ^^^^^^^^ variable.other.constant.neon
+  xs.map { it * 2 }.reduce(0) { acc, x -> acc + x }
+//   ^^^ entity.name.function.neon
+//                              ^^^ variable.parameter.neon
+//                                   ^ variable.parameter.neon
+  if a.done { }
+//     ^^^^ variable.other.property.neon
+  var r = 0..n
+//         ^^ keyword.operator.range.neon
+//           ^ - variable.other.property.neon
+  var e = "\q"
+//         ^^ invalid.illegal.unknown-escape.neon
