@@ -3,9 +3,7 @@
   "name": "Neon",
   "scopeName": "source.neon",
   "patterns": [
-    {
-      "include": "#expression"
-    }
+    { "include": "#expression" }
   ],
   "repository": {
     "expression": {
