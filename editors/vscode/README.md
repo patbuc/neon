@@ -1,8 +1,10 @@
 # Neon for VS Code
 
-TextMate grammar and language configuration for Neon (`.n` files): keyword,
-string, number, and operator highlighting, comment toggling, and bracket
-matching/auto-closing. `.n` files get the Ne icon in the explorer and tabs when the active file
+TextMate grammar and language configuration for Neon (`.n` files): highlighting
+for keywords, strings, numbers, and operators, plus function and method calls,
+parameters, `self`, properties, type names, enum variants, struct fields, and
+invalid string escapes; comment toggling, bracket matching/auto-closing, and
+indentation on brackets. `.n` files get the Ne icon in the explorer and tabs when the active file
 icon theme has none of its own.
 
 ## Install
