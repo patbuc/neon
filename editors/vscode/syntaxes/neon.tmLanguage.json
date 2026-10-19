@@ -56,12 +56,12 @@
     "keywords-storage": {
       "patterns": [
         { "match": "\\b(fn|struct|enum|impl|val|var)\\b", "name": "storage.type.neon" },
-        { "match": "\\bpub\\b", "name": "storage.modifier.neon" },
+        { "match": "\\b(pub)\\b", "name": "storage.modifier.neon" },
         { "include": "#keywords-import" }
       ]
     },
     "keywords-import": {
-      "match": "\\buse\\b",
+      "match": "\\b(use)\\b",
       "name": "keyword.control.import.neon"
     },
     "constants-language": {
@@ -74,7 +74,7 @@
     },
     "builtins": {
       "patterns": [
-        { "match": "\\b(print|sleep)\\b(?=\\s*\\()", "name": "support.function.builtin.neon" },
+        { "match": "\\b(?:print|sleep)\\b(?=\\s*\\()", "name": "support.function.builtin.neon" },
         { "match": "\\bargs\\b", "name": "variable.language.neon" }
       ]
     },
