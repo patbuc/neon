@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792448154358,
+  "lastUpdate": 1793745207952,
   "repoUrl": "https://github.com/patbuc/neon",
   "entries": {
     "Benchmark": [
@@ -31112,6 +31112,350 @@ window.BENCHMARK_DATA = {
             "value": 0.9896894017239959,
             "unit": "ratio",
             "extra": "CPU: AMD EPYC 7763 64-Core Processor"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "patricbucher@icloud.com",
+            "name": "Patric Bucher",
+            "username": "patbuc"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74999266142d33d9db1cffa8a850259deb63c422",
+          "message": "Merge pull request #615 from patbuc/fix-brotli-alert\n\nBump brotli to 1.2.1 in logo requirements",
+          "timestamp": "2026-11-03T23:31:07+01:00",
+          "tree_id": "105cba6c16d95852a3f1ac66012094c03f9bb9df",
+          "url": "https://github.com/patbuc/neon/commit/74999266142d33d9db1cffa8a850259deb63c422"
+        },
+        "date": 1793745206717,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fib neon (ms)",
+            "value": 205.53262799999175,
+            "range": "± 7.632",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "fib python (ms)",
+            "value": 163.77416220000782,
+            "range": "± 2.24",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "fib neon/python",
+            "value": 1.2549759085257095,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "loop_arith neon (ms)",
+            "value": 143.90427480000199,
+            "range": "± 0.736",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "loop_arith python (ms)",
+            "value": 505.74946719999616,
+            "range": "± 5.268",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "loop_arith neon/python",
+            "value": 0.28453668097112544,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "closures neon (ms)",
+            "value": 169.0983077999931,
+            "range": "± 1.241",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "closures python (ms)",
+            "value": 305.84241860000816,
+            "range": "± 7.37",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "closures neon/python",
+            "value": 0.5528935736711722,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "structs neon (ms)",
+            "value": 92.05065799999943,
+            "range": "± 2.145",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "structs python (ms)",
+            "value": 190.05196120000392,
+            "range": "± 6.624",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "structs neon/python",
+            "value": 0.4843446887829197,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "nbody neon (ms)",
+            "value": 91.5159564000021,
+            "range": "± 2.905",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "nbody python (ms)",
+            "value": 84.5946683999955,
+            "range": "± 0.427",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "nbody neon/python",
+            "value": 1.081817071109968,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "binary_trees neon (ms)",
+            "value": 327.4204432000033,
+            "range": "± 2.071",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "binary_trees python (ms)",
+            "value": 401.02349740000705,
+            "range": "± 1.332",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "binary_trees neon/python",
+            "value": 0.816461991187047,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "sieve neon (ms)",
+            "value": 273.63506800000437,
+            "range": "± 8.286",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "sieve python (ms)",
+            "value": 410.6515284000011,
+            "range": "± 12.137",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "sieve neon/python",
+            "value": 0.6663437222945537,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "collections neon (ms)",
+            "value": 174.55888879999293,
+            "range": "± 1.383",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "collections python (ms)",
+            "value": 240.74221759999546,
+            "range": "± 3.009",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "collections neon/python",
+            "value": 0.7250863207135142,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "strings neon (ms)",
+            "value": 165.30224880000333,
+            "range": "± 3.186",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "strings python (ms)",
+            "value": 241.0435315999962,
+            "range": "± 6.194",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "strings neon/python",
+            "value": 0.6857775759538612,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "towers neon (ms)",
+            "value": 503.97951539999895,
+            "range": "± 8.734",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "towers python (ms)",
+            "value": 214.58547299999964,
+            "range": "± 1.024",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "towers neon/python",
+            "value": 2.3486189831685382,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "queens neon (ms)",
+            "value": 483.3805400000074,
+            "range": "± 2.092",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "queens python (ms)",
+            "value": 208.96928800000296,
+            "range": "± 1.913",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "queens neon/python",
+            "value": 2.3131654638168673,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "permute neon (ms)",
+            "value": 500.32320920000757,
+            "range": "± 7.541",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "permute python (ms)",
+            "value": 260.97886300000255,
+            "range": "± 2.319",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "permute neon/python",
+            "value": 1.9171024176007798,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "storage neon (ms)",
+            "value": 457.9352658000005,
+            "range": "± 2.769",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "storage python (ms)",
+            "value": 503.96656039999357,
+            "range": "± 3.306",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "storage neon/python",
+            "value": 0.9086620061389421,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "bounce neon (ms)",
+            "value": 486.55747799999745,
+            "range": "± 2.406",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "bounce python (ms)",
+            "value": 366.5145435999989,
+            "range": "± 4.494",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "bounce neon/python",
+            "value": 1.327525705312827,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "list neon (ms)",
+            "value": 648.5145288000069,
+            "range": "± 10.216",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "list python (ms)",
+            "value": 188.9410067999961,
+            "range": "± 0.915",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "list neon/python",
+            "value": 3.4323651587529294,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "mandelbrot neon (ms)",
+            "value": 904.4135892000099,
+            "range": "± 5.687",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "mandelbrot python (ms)",
+            "value": 947.0670560000087,
+            "range": "± 12.449",
+            "unit": "ms",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+          },
+          {
+            "name": "mandelbrot neon/python",
+            "value": 0.9549625694086034,
+            "unit": "ratio",
+            "extra": "CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
           }
         ]
       }
