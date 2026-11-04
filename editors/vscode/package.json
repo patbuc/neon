@@ -62,7 +62,7 @@
           "type": "string",
           "default": "neon",
           "scope": "machine",
-          "description": "Path to the neon binary used to format documents. Resolved on PATH when relative."
+          "description": "Path to the neon binary used to format documents. A bare name is looked up on PATH; a relative path resolves against the document's directory."
         }
       }
     }

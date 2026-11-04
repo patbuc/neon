@@ -41,7 +41,7 @@ const originalLoad = Module._load;
 Module._load = function (request, ...rest) {
   return request === 'vscode' ? fakeVscode : originalLoad.call(this, request, ...rest);
 };
-const { provideDocumentFormattingEdits } = require('../extension.js');
+const { provideDocumentFormattingEdits, resolveNeonPath } = require('../extension.js');
 
 function documentOf(text, uri = { scheme: 'untitled', fsPath: 'Untitled-1' }) {
   return {
@@ -138,4 +138,50 @@ test('ignores a `neon.path` set in workspace settings', () => {
 test('enables format on save for Neon files by default', () => {
   const pkg = require('../package.json');
   assert.strictEqual(pkg.contributes.configurationDefaults['[neon]']['editor.formatOnSave'], true);
+});
+
+test('resolves a bare `neon.path` on PATH', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  const originalPath = process.env.PATH;
+  try {
+    fs.symlinkSync(neonBin, path.join(dir, 'neon'));
+    process.env.PATH = dir + path.delimiter + originalPath;
+    assert.strictEqual(resolveNeonPath('neon', os.tmpdir()), path.join(dir, 'neon'));
+  } finally {
+    process.env.PATH = originalPath;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolves a relative `neon.path` against the document\'s directory', () => {
+  const dir = path.join(os.tmpdir(), 'neon-ext-doc');
+  assert.strictEqual(resolveNeonPath('./neon', dir), path.join(dir, 'neon'));
+});
+
+test('shows the missing-binary notification once per `neon.path` value', async () => {
+  neonPath = path.join(repoRoot, 'target', 'missing-once-a', 'neon');
+  await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+  await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+  assert.strictEqual(errors.length, 1);
+  neonPath = path.join(repoRoot, 'target', 'missing-once-b', 'neon');
+  await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+  assert.strictEqual(errors.length, 2);
+});
+
+test('kills the formatter when the request is cancelled', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = path.join(dir, 'neon');
+    fs.writeFileSync(neonPath, '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+    let listener;
+    const token = { onCancellationRequested: (fn) => (listener = fn) };
+    const started = Date.now();
+    const pending = provideDocumentFormattingEdits(documentOf('print(1)\n'), {}, token);
+    listener();
+    assert.deepStrictEqual(await pending, []);
+    assert.ok(Date.now() - started < 5000);
+    assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
