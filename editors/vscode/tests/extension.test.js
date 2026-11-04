@@ -67,10 +67,24 @@ test('formats an unsaved buffer to the output of `neon fmt -`', async () => {
   assert.deepStrictEqual(edits[0].range.end, new Position(1, 0));
 });
 
-test('leaves the document unchanged when `neon fmt -` exits non-zero', async () => {
+test('stays silent on exit 65', async () => {
   const edits = await provideDocumentFormattingEdits(documentOf('print(\n'));
   assert.deepStrictEqual(edits, []);
   assert.deepStrictEqual(errors, []);
+});
+
+test('shows a notification when the binary exits with a code other than 65', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = path.join(dir, 'neon');
+    fs.writeFileSync(neonPath, '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.deepStrictEqual(edits, []);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /fmt/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('leaves an already-formatted document unchanged', async () => {
@@ -106,7 +120,7 @@ test('survives a binary that exits without reading a large buffer', async () => 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
   try {
     neonPath = path.join(dir, 'neon');
-    fs.writeFileSync(neonPath, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(neonPath, '#!/bin/sh\nexit 65\n', { mode: 0o755 });
     const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'.repeat(500000)));
     assert.deepStrictEqual(edits, []);
     assert.deepStrictEqual(errors, []);
