@@ -1,0 +1,6 @@
+{
+  "scopeName": "text.html.markdown",
+  "patterns": [
+    { "match": ".+", "name": "meta.paragraph.markdown" }
+  ]
+}

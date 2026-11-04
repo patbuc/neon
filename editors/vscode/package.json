@@ -54,6 +54,16 @@
         "language": "neon",
         "scopeName": "source.neon",
         "path": "./syntaxes/neon.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.neon.codeblock",
+        "path": "./syntaxes/neon-markdown.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.neon": "neon"
+        }
       }
     ],
     "snippets": [
@@ -75,7 +85,7 @@
     }
   },
   "scripts": {
-    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js && node --test tests/extension.test.js tests/snippets.test.js"
+    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js && node --test tests/extension.test.js tests/snippets.test.js tests/fences.test.js"
   },
   "devDependencies": {
     "@vscode/vsce": "^4.0.0",
