@@ -11,9 +11,10 @@ Format Document and format on save run `neon fmt` on the buffer. Format on save 
 for Neon files. The binary comes from the `neon.path` setting, which defaults to `neon` on your
 `PATH`. It is a user or machine setting; workspace values are ignored. If `neon fmt` exits 65
 because the file does not parse, the buffer is left unchanged and no message is shown. Any other
-failure shows an error notification: a binary that cannot be run, or one that exits with another
-code, such as a build without `fmt`. It shows once per `neon.path` value and failure, and again
-after a run that started the binary. A cancelled run leaves the document unchanged. The extension
+failure shows an error notification: a binary that cannot be run, one that dies from a signal, or
+one that exits with any other code, which the notification names. It shows once per `neon.path`
+value and failure, and again after a run that formatted the document or reported a parse error
+(exit 0 or 65). A cancelled run leaves the document unchanged. The extension
 does not run in Restricted Mode, but the grammar still colors files.
 
 ## Install

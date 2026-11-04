@@ -4,7 +4,6 @@ const { execFile } = require('child_process');
 const vscode = require('vscode');
 
 const PARSE_ERROR_EXIT = 65;
-const KILLED = -1;
 
 let notified;
 
@@ -19,16 +18,20 @@ function notifyOnce(neonPath, key, message) {
 function runNeonFmt(neonPath, text, token) {
   return new Promise((resolve) => {
     let sub;
+    let cancelled = false;
     const child = execFile(neonPath, ['fmt', '-'], { maxBuffer: 64 * 1024 * 1024 }, (error, stdout) => {
       sub?.dispose();
       if (error && typeof error.code !== 'number' && !error.signal) {
-        resolve({ code: null, stdout: '', error });
+        resolve({ code: null, signal: null, cancelled, stdout: '', error });
       } else {
-        resolve({ code: error ? (error.code ?? -1) : 0, stdout, error: null });
+        resolve({ code: error ? error.code : 0, signal: error?.signal ?? null, cancelled, stdout, error: null });
       }
     });
     if (token) {
-      sub = token.onCancellationRequested(() => child.kill());
+      sub = token.onCancellationRequested(() => {
+        cancelled = true;
+        child.kill();
+      });
     }
     // A child that exits without reading all of stdin fails this write with EPIPE; its exit, reported above, decides the outcome.
     child.stdin.on('error', () => {});
@@ -39,7 +42,7 @@ function runNeonFmt(neonPath, text, token) {
 async function provideDocumentFormattingEdits(document, options, token) {
   const neonPath = vscode.workspace.getConfiguration('neon').get('path');
   const text = document.getText();
-  const { code, stdout, error } = await runNeonFmt(neonPath, text, token);
+  const { code, signal, cancelled, stdout, error } = await runNeonFmt(neonPath, text, token);
   if (error) {
     const message =
       error.code === 'ENOENT'
@@ -50,11 +53,17 @@ async function provideDocumentFormattingEdits(document, options, token) {
     notifyOnce(neonPath, error.code, message);
     return [];
   }
-  if (code !== 0 && code !== PARSE_ERROR_EXIT && code !== KILLED) {
+  if (signal) {
+    if (!cancelled) {
+      notifyOnce(neonPath, signal, `"${neonPath}" was killed by ${signal} while formatting.`);
+    }
+    return [];
+  }
+  if (code !== 0 && code !== PARSE_ERROR_EXIT) {
     notifyOnce(
       neonPath,
       code,
-      `"${neonPath}" does not support \`fmt\` (exit ${code}). Set the neon.path setting to a current neon binary.`,
+      `"${neonPath}" exited with code ${code} while formatting. Check the neon.path setting and the binary.`,
     );
     return [];
   }

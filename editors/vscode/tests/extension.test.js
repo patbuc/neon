@@ -81,7 +81,7 @@ test('shows a notification when the binary exits with a code other than 65', asy
     const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     assert.deepStrictEqual(edits, []);
     assert.strictEqual(errors.length, 1);
-    assert.match(errors[0], /fmt/);
+    assert.match(errors[0], /exited with code 2/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -222,6 +222,61 @@ test('kills the formatter when the request is cancelled', async () => {
     assert.ok(Date.now() - started < 5000);
     assert.ok(disposed);
     assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function stubNeon(dir, name, script) {
+  const stub = path.join(dir, name);
+  fs.writeFileSync(stub, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+  return stub;
+}
+
+test('reports an output over the buffer limit as too large', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', "head -c 70000000 /dev/zero | tr '\\0' x");
+    const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.deepStrictEqual(edits, []);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /too large/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('shows the foreign-exit notification once per `neon.path` value and exit code', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon-a', 'exit 2');
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.strictEqual(errors.length, 1);
+    neonPath = stubNeon(dir, 'neon-b', 'exit 3');
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.strictEqual(errors.length, 2);
+    assert.match(errors[1], /exited with code 3/);
+    neonPath = path.join(dir, 'neon-c');
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.strictEqual(errors.length, 3);
+    stubNeon(dir, 'neon-c', 'exit 2');
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.strictEqual(errors.length, 4);
+    assert.match(errors[3], /exited with code 2/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('reports a formatter that dies from a signal', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'kill -SEGV $$');
+    const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.deepStrictEqual(edits, []);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /SIGSEGV/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
