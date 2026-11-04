@@ -33,9 +33,10 @@ fn main() {
                 print_tokens(&args[2]);
             }
             "--check" => {
-                let json = args.get(2).is_some_and(|arg| arg == "--json");
-                let Some(path) = args.get(if json { 3 } else { 2 }) else {
-                    eprintln!("Usage: neon --check <file>");
+                let json = args[2..].iter().any(|arg| arg == "--json");
+                let paths: Vec<&String> = args[2..].iter().filter(|arg| *arg != "--json").collect();
+                let [path] = paths.as_slice() else {
+                    eprintln!("Usage: neon --check [--json] <file.n | ->");
                     exit(64);
                 };
                 check_file(path, json);
@@ -436,7 +437,7 @@ fn print_help() {
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check [--json] <file.n>  Compile without executing");
-    println!("  neon --check --json -  Check stdin, imports from the current directory");
+    println!("  neon --check --json -    Check stdin, imports from the current directory");
     println!("  neon -e <code> [args...]  Run a snippet");
     println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");

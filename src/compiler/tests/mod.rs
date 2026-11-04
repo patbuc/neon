@@ -1,6 +1,7 @@
 mod ast;
 mod codegen;
 mod error_kinds;
+mod errors_json;
 mod formatter;
 mod formatter_source_map;
 mod helpers;

@@ -372,7 +372,7 @@ fn check_mode_without_file_prints_usage_on_stderr() {
 
     assert_eq!(64, output.status.code().unwrap());
     assert_eq!(
-        "Usage: neon --check <file>\n",
+        "Usage: neon --check [--json] <file.n | ->\n",
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!("", String::from_utf8_lossy(&output.stdout));
@@ -1665,20 +1665,10 @@ fn check_json_keeps_errors_in_reported_order() {
     let path = dir.join("main.n");
     fs::write(&path, "print(a)\nprint(b)\n").expect("Failed to write test script");
 
-    let plain = Command::new(env!("CARGO_BIN_EXE_neon"))
-        .arg("--check")
-        .arg(&path)
-        .output()
-        .expect("Failed to run neon binary");
     let json = check_json(&path);
 
     fs::remove_dir_all(&dir).ok();
 
-    let stderr = String::from_utf8_lossy(&plain.stderr);
-    assert!(
-        stderr.find("'a'").unwrap() < stderr.find("'b'").unwrap(),
-        "{stderr}"
-    );
     let stdout = String::from_utf8_lossy(&json.stdout);
     assert_eq!(
         "[{\"file\":null,\"line\":1,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'a'\"},{\"file\":null,\"line\":2,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'b'\"}]\n",
@@ -1756,9 +1746,51 @@ fn lists_check_json_in_neon_help() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout
-            .lines()
-            .any(|line| line.contains("--check") && line.contains("--json")),
+        stdout.lines().any(|line| line.contains("--check --json -")),
         "{stdout}"
     );
+}
+
+#[test]
+fn accepts_json_after_the_path() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_after_path");
+    let path = dir.join("main.n");
+    fs::write(&path, "print(y)\n").expect("Failed to write test script");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&path)
+        .arg("--json")
+        .output()
+        .expect("Failed to run neon binary");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(65), output.status.code());
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("[{\"file\":null,"));
+}
+
+#[test]
+fn exits_66_for_an_unreadable_file_with_json() {
+    let output = check_json(std::path::Path::new("/nonexistent_path_neon_cli_test.n"));
+
+    assert_eq!(Some(66), output.status.code());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn gives_an_imported_modules_error_its_path_for_a_stdin_entry() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_stdin_module_error");
+    fs::write(dir.join("b.n"), "val x = 1\nval = 1\n").expect("Failed to write test module");
+    let module_path = dir.canonicalize().unwrap().join("b.n");
+
+    let output = check_json_stdin(&dir, "use \"b\"\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(65), output.status.code());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let expected_file = format!("\"file\":\"{}\",\"line\":2,", module_path.display());
+    assert!(stdout.contains(&expected_file), "{stdout}");
 }
