@@ -326,8 +326,27 @@ function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
 }
 
-function fileDocument(fsPath) {
-  return { uri: { scheme: 'file', fsPath }, languageId: 'neon' };
+function fileDocument(fsPath, languageId = 'neon') {
+  const lines = () => fs.readFileSync(fsPath, 'utf8').split('\n');
+  return {
+    uri: { scheme: 'file', fsPath },
+    languageId,
+    get lineCount() {
+      return lines().length;
+    },
+    lineAt: (line) => ({ text: lines()[line] }),
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Runs the real binary, then holds its output for `seconds`; with `firstOnly`, only the first run is held.
+function slowNeon(dir, seconds, firstOnly) {
+  const marker = path.join(dir, 'ran');
+  const hold = firstOnly ? `if [ ! -e "${marker}" ]; then touch "${marker}"; sleep ${seconds}; fi` : `sleep ${seconds}`;
+  return stubNeon(dir, 'slow-neon', `out=$("${neonBin}" "$@")\ncode=$?\n${hold}\nprintf '%s' "$out"\nexit $code`);
 }
 
 test('shows an error diagnostic at the reported line and column on save', async () => {
@@ -424,5 +443,199 @@ test('shows no diagnostics and one error notification when the binary is not fou
     assert.match(errors[0], /neon\.path/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("keeps the newest check's result when an older check finishes later", async () => {
+  const dir = tempDir();
+  try {
+    neonPath = slowNeon(dir, 1, true);
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    const older = listeners.save(fileDocument(file));
+    await sleep(300);
+    fs.writeFileSync(file, 'val x = 1\n');
+    await listeners.save(fileDocument(file));
+    await older;
+    assert.deepStrictEqual(collection.get(file), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('publishes nothing for a file closed while its check runs', async () => {
+  const dir = tempDir();
+  try {
+    neonPath = slowNeon(dir, 0.5, false);
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    const pending = listeners.open(fileDocument(file));
+    await sleep(100);
+    listeners.close(fileDocument(file));
+    await pending;
+    assert.ok(!collection.has(file));
+    assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('ignores untitled and non-neon documents', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    const untitled = { ...fileDocument(file), uri: { scheme: 'untitled', fsPath: file } };
+    await listeners.open(untitled);
+    await listeners.save(untitled);
+    await listeners.open(fileDocument(file, 'plaintext'));
+    await listeners.save(fileDocument(file, 'plaintext'));
+    assert.strictEqual(collection.size, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('checks the documents already open at activation', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    const other = path.join(dir, 'other.txt');
+    fs.writeFileSync(file, 'val x = y\n');
+    fs.writeFileSync(other, 'val x = y\n');
+    fakeVscode.workspace.textDocuments = [fileDocument(file), fileDocument(other, 'plaintext')];
+    activate({ subscriptions: [] });
+    for (let i = 0; i < 100 && !collection.has(file); i++) {
+      await sleep(50);
+    }
+    assert.strictEqual(collection.get(file).length, 1);
+    assert.ok(!collection.has(other));
+  } finally {
+    fakeVscode.workspace.textDocuments = [];
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("clears a module's diagnostics when the file that reported them closes", async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(main, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(lib, 'val x = nope\n');
+    await listeners.open(fileDocument(main));
+    assert.strictEqual(collection.get(lib).length, 1);
+    listeners.close(fileDocument(main));
+    assert.ok(!collection.has(lib));
+    assert.ok(!collection.has(main));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('notifies once when the output is not JSON, and again after a later failure following a success', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = 1\n');
+    const broken = stubNeon(dir, 'broken', 'echo not json');
+    neonPath = broken;
+    await listeners.save(fileDocument(file));
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /not valid JSON/);
+    neonPath = neonBin;
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(errors.length, 1);
+    neonPath = broken;
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(errors.length, 2);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clamps a zero line and column to the first character', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = 1\n');
+    neonPath = stubNeon(
+      dir,
+      'neon',
+      `echo '[{"file":null,"line":0,"column":0,"code":"E0000","message":"m"}]'\nexit 65`,
+    );
+    await listeners.save(fileDocument(file));
+    const [d] = collection.get(file);
+    assert.deepStrictEqual(d.range.start, new Position(0, 0));
+    assert.deepStrictEqual(d.range.end, new Position(0, 1));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clears the previous diagnostics when the binary cannot run', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(collection.get(file).length, 1);
+    neonPath = path.join(dir, 'missing', 'neon');
+    await listeners.save(fileDocument(file));
+    assert.ok(!collection.has(file));
+    assert.strictEqual(errors.length, 1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('names the file when neon cannot read it', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'gone.n');
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].includes(file));
+    assert.match(errors[0], /could not read/);
+    assert.doesNotMatch(errors[0], /neon\.path setting/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('places the marker by UTF-16 units after an emoji on the same line', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val a = "\u{1F600}" + y\n');
+    await listeners.save(fileDocument(file));
+    const [d] = collection.get(file);
+    assert.strictEqual(d.range.start.character, 15);
+    assert.strictEqual(d.range.end.character, 16);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('matches the checked file by its real path', async () => {
+  const base = fs.realpathSync(tempDir());
+  try {
+    const real = path.join(base, 'real');
+    const link = path.join(base, 'link');
+    fs.mkdirSync(real);
+    fs.symlinkSync(real, link);
+    const file = path.join(link, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    neonPath = stubNeon(
+      base,
+      'neon',
+      `echo '[{"file":"${path.join(real, 'main.n')}","line":1,"column":9,"code":"E0013","message":"m"}]'\nexit 65`,
+    );
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(collection.get(file).length, 1);
+    assert.ok(!collection.has(path.join(real, 'main.n')));
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
   }
 });

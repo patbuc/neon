@@ -1,9 +1,11 @@
 'use strict';
 
 const { execFile } = require('child_process');
+const fs = require('fs');
 const vscode = require('vscode');
 
 const PARSE_ERROR_EXIT = 65;
+const UNREADABLE_EXITS = [66, 74];
 
 let notified;
 
@@ -85,27 +87,71 @@ async function provideDocumentFormattingEdits(document, options, token) {
 
 let diagnostics;
 const reported = new Map();
+const generations = new Map();
 
 function isNeonFile(document) {
   return document.uri.scheme === 'file' && document.languageId === 'neon';
 }
 
+function nextGeneration(fsPath) {
+  const generation = (generations.get(fsPath) ?? 0) + 1;
+  generations.set(fsPath, generation);
+  return generation;
+}
+
+function clearReported(fsPath) {
+  for (const uri of (reported.get(fsPath) ?? new Map()).values()) {
+    diagnostics.delete(uri);
+  }
+  reported.delete(fsPath);
+}
+
+function realPathOf(fsPath) {
+  try {
+    return fs.realpathSync.native(fsPath);
+  } catch {
+    return fsPath;
+  }
+}
+
+// neon counts columns in code points, VS Code in UTF-16 units.
+function toPosition(document, line, column) {
+  const row = Math.max(0, line - 1);
+  const col = Math.max(0, column - 1);
+  if (!document || row >= document.lineCount) {
+    return { start: new vscode.Position(row, col), end: new vscode.Position(row, col + 1) };
+  }
+  const points = Array.from(document.lineAt(row).text);
+  const start = points.slice(0, col).join('').length;
+  const end = start + (points[col]?.length ?? 1);
+  return { start: new vscode.Position(row, start), end: new vscode.Position(row, end) };
+}
+
 async function checkDocument(document) {
+  const key = document.uri.fsPath;
+  const generation = nextGeneration(key);
   const neonPath = vscode.workspace.getConfiguration('neon').get('path');
-  const { code, signal, stdout, error } = await runNeon(
-    neonPath,
-    ['--check', '--json', document.uri.fsPath],
-    null,
-  );
+  const { code, signal, stdout, error } = await runNeon(neonPath, ['--check', '--json', key], null);
+  if (generations.get(key) !== generation) {
+    return;
+  }
   if (error) {
+    clearReported(key);
     notifyOnce(neonPath, error.code, startFailureMessage(neonPath, error));
     return;
   }
   if (signal) {
+    clearReported(key);
     notifyOnce(neonPath, signal, `"${neonPath}" was killed by ${signal} while checking.`);
     return;
   }
+  if (code === UNREADABLE_EXITS[0] || code === UNREADABLE_EXITS[1]) {
+    clearReported(key);
+    notifyOnce(neonPath, code, `"${neonPath}" could not read ${key} (exit ${code}).`);
+    return;
+  }
   if (code !== 0 && code !== PARSE_ERROR_EXIT) {
+    clearReported(key);
     notifyOnce(
       neonPath,
       code,
@@ -117,26 +163,26 @@ async function checkDocument(document) {
   try {
     errors = JSON.parse(stdout);
   } catch {
+    clearReported(key);
     notifyOnce(neonPath, 'json', `"${neonPath}" printed output that is not valid JSON while checking.`);
     return;
   }
   notified = undefined;
-  const byFile = new Map([[document.uri.fsPath, { uri: document.uri, list: [] }]]);
+  const realKey = realPathOf(key);
+  const byFile = new Map([[key, { uri: document.uri, list: [] }]]);
   for (const err of errors) {
-    const uri = err.file === null ? document.uri : vscode.Uri.file(err.file);
+    const own = err.file === null || err.file === key || err.file === realKey;
+    const uri = own ? document.uri : vscode.Uri.file(err.file);
     if (!byFile.has(uri.fsPath)) {
       byFile.set(uri.fsPath, { uri, list: [] });
     }
-    const range = new vscode.Range(
-      new vscode.Position(err.line - 1, err.column - 1),
-      new vscode.Position(err.line - 1, err.column),
-    );
-    const diagnostic = new vscode.Diagnostic(range, err.message, vscode.DiagnosticSeverity.Error);
+    const { start, end } = toPosition(own ? document : null, err.line, err.column);
+    const diagnostic = new vscode.Diagnostic(new vscode.Range(start, end), err.message, vscode.DiagnosticSeverity.Error);
     diagnostic.source = 'neon';
     diagnostic.code = err.code;
     byFile.get(uri.fsPath).list.push(diagnostic);
   }
-  for (const [fsPath, uri] of reported.get(document.uri.fsPath) ?? []) {
+  for (const [fsPath, uri] of reported.get(key) ?? []) {
     if (!byFile.has(fsPath)) {
       diagnostics.delete(uri);
     }
@@ -146,7 +192,7 @@ async function checkDocument(document) {
     diagnostics.set(uri, list);
     now.set(fsPath, uri);
   }
-  reported.set(document.uri.fsPath, now);
+  reported.set(key, now);
 }
 
 function checkIfNeon(document) {
@@ -159,16 +205,14 @@ function closeDocument(document) {
   if (!isNeonFile(document)) {
     return;
   }
-  diagnostics.delete(document.uri);
-  for (const uri of (reported.get(document.uri.fsPath) ?? new Map()).values()) {
-    diagnostics.delete(uri);
-  }
-  reported.delete(document.uri.fsPath);
+  nextGeneration(document.uri.fsPath);
+  clearReported(document.uri.fsPath);
 }
 
 function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection('neon');
   reported.clear();
+  generations.clear();
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider('neon', { provideDocumentFormattingEdits }),
     diagnostics,
