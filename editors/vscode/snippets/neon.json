@@ -1,7 +1,7 @@
 {
   "Function": {
     "prefix": "fn",
-    "body": ["fn ${1:name}(${2:x}) {", "    ${0:x}", "}"],
+    "body": ["fn ${1:name}(${2:x}) {", "    ${0:$2}", "}"],
     "description": "Function declaration"
   },
   "Struct": {
@@ -21,22 +21,22 @@
   },
   "Match": {
     "prefix": "match",
-    "body": ["match ${1:1} {", "    ${2:1} -> ${3:print(1)}", "    _ -> ${0:print(0)}", "}"],
+    "body": ["match ${1:value} {", "    ${2:1} -> ${3:print(1)}", "    _ -> ${0:print(0)}", "}"],
     "description": "Match expression"
   },
   "For": {
     "prefix": "for",
-    "body": ["for ${1:item} in ${2:[1, 2]} {", "    ${0:print(item)}", "}"],
+    "body": ["for ${1:item} in ${2:items} {", "    ${0:print($1)}", "}"],
     "description": "For-in loop"
   },
   "While": {
     "prefix": "while",
-    "body": ["while ${1:false} {", "    ${0:print(1)}", "}"],
+    "body": ["while ${1:condition} {", "    ${0:print(1)}", "}"],
     "description": "While loop"
   },
   "Try": {
     "prefix": "try",
-    "body": ["try {", "    ${1:print(1)}", "} catch (${2:e}) {", "    ${0:print(e)}", "}"],
+    "body": ["try {", "    ${1:print(1)}", "} catch (${2:e}) {", "    ${0:print($2)}", "}"],
     "description": "Try/catch"
   },
   "Use": {

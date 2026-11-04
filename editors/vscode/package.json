@@ -1,7 +1,7 @@
 {
   "name": "neon",
   "displayName": "Neon",
-  "description": "Syntax highlighting, formatting and diagnostics for the Neon language",
+  "description": "Syntax highlighting, formatting, snippets and diagnostics for the Neon language",
   "version": "0.1.0",
   "publisher": "patbuc",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "vscode": "^1.75.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Snippets"
   ],
   "capabilities": {
     "untrustedWorkspaces": {

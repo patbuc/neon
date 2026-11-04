@@ -4,8 +4,9 @@ TextMate grammar and language configuration for Neon (`.n` files): highlighting
 for keywords, strings, numbers, and operators, plus function and method calls,
 parameters, `self`, properties, type names, enum variants, struct fields, and
 invalid string escapes; comment toggling, bracket matching/auto-closing, and
-indentation on brackets, and snippets for common forms (`fn`, `struct`, `impl`, `enum`, `match`, `for`, `while`, `try`, `use`). `.n` files get the Ne icon in the explorer and tabs when the active file
-icon theme has none of its own.
+indentation on brackets, and snippets for common forms (`fn`, `struct`, `impl`, `enum`, `match`,
+`for`, `while`, `try`, `use`). `.n` files get the Ne icon in the explorer and tabs when the active
+file icon theme has none of its own.
 
 Format Document and format on save run `neon fmt` on the buffer. Format on save is on by default
 for Neon files. The binary comes from the `neon.path` setting, which defaults to `neon` on your
