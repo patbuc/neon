@@ -13,6 +13,8 @@ function runNeonFmt(neonPath, text, cwd) {
         resolve({ code: error ? error.code : 0, stdout, error: null });
       }
     });
+    // A child that exits without reading all of stdin fails this write with EPIPE; its exit, reported above, decides the outcome.
+    child.stdin.on('error', () => {});
     child.stdin.end(text);
   });
 }
