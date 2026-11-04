@@ -135,6 +135,7 @@ cargo run -- script.n arg1 arg2 # Pass arguments to script
 cargo run -- -e 'print(1 + 2)'  # Run a snippet (also --eval); file imports are an error
 cargo run -- - < script.n       # Run a script read from stdin; file imports are an error
 cargo run -- --check script.n   # Compile without running
+cargo run -- --check --json script.n  # Print compile errors as a JSON array on stdout
 cargo run -- fmt path...         # Format .n files in place, recursing into directories
 cargo run -- fmt --check path... # Print files that would change, exit 1 if any
 cargo run -- fmt -               # Format stdin, write to stdout

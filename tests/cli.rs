@@ -1585,3 +1585,117 @@ fn run_file_reports_a_rethrown_error_at_its_original_throw_site() {
     #[cfg(not(feature = "opcode-stats"))]
     assert_eq!(expected, stderr);
 }
+
+#[allow(clippy::expect_used)]
+fn check_json(path: &std::path::Path) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg("--json")
+        .arg(path)
+        .output()
+        .expect("Failed to run neon binary")
+}
+
+#[test]
+fn check_json_prints_empty_array_and_exits_zero_for_a_file_that_compiles() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_clean");
+    let path = dir.join("main.n");
+    fs::write(&path, "print(\"hi\")\n").expect("Failed to write test script");
+
+    let output = check_json(&path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn check_json_prints_each_compile_error_with_line_column_code_and_message() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_error");
+    let path = dir.join("main.n");
+    fs::write(&path, "val x = 1\nprint(y)\n").expect("Failed to write test script");
+
+    let output = check_json(&path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    assert_eq!(
+        "[{\"file\":null,\"line\":2,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'y'\"}]\n",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn check_json_gives_an_entry_file_error_a_null_file() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_null_file");
+    let path = dir.join("main.n");
+    fs::write(&path, "print(y)\n").expect("Failed to write test script");
+
+    let output = check_json(&path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("[{\"file\":null,"), "{stdout}");
+}
+
+#[test]
+fn check_json_gives_an_error_inside_an_imported_module_that_module_path() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_imported");
+    let main_path = dir.join("main.n");
+    fs::write(&main_path, "use \"b\"\n").expect("Failed to write test script");
+    fs::write(dir.join("b.n"), "val x = 1\nval = 1\n").expect("Failed to write test module");
+    let module_path = dir.canonicalize().unwrap().join("b.n");
+
+    let output = check_json(&main_path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let expected_file = format!("\"file\":\"{}\",\"line\":2,", module_path.display());
+    assert!(stdout.contains(&expected_file), "{stdout}");
+}
+
+#[test]
+fn check_json_keeps_errors_in_reported_order() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_order");
+    let path = dir.join("main.n");
+    fs::write(&path, "print(a)\nprint(b)\n").expect("Failed to write test script");
+
+    let plain = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg(&path)
+        .output()
+        .expect("Failed to run neon binary");
+    let json = check_json(&path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    let stderr = String::from_utf8_lossy(&plain.stderr);
+    assert!(
+        stderr.find("'a'").unwrap() < stderr.find("'b'").unwrap(),
+        "{stderr}"
+    );
+    let stdout = String::from_utf8_lossy(&json.stdout);
+    assert_eq!(
+        "[{\"file\":null,\"line\":1,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'a'\"},{\"file\":null,\"line\":2,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'b'\"}]\n",
+        stdout
+    );
+}
+
+#[test]
+fn check_json_prints_nothing_to_stderr() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_stderr");
+    let path = dir.join("main.n");
+    fs::write(&path, "print(y)\n").expect("Failed to write test script");
+
+    let output = check_json(&path);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(65, output.status.code().unwrap());
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}

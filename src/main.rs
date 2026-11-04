@@ -33,11 +33,12 @@ fn main() {
                 print_tokens(&args[2]);
             }
             "--check" => {
-                if args.len() < 3 {
+                let json = args.get(2).is_some_and(|arg| arg == "--json");
+                let Some(path) = args.get(if json { 3 } else { 2 }) else {
                     eprintln!("Usage: neon --check <file>");
                     exit(64);
-                }
-                check_file(&args[2]);
+                };
+                check_file(path, json);
             }
             "-e" | "--eval" => {
                 if args.len() < 3 {
@@ -209,12 +210,23 @@ fn print_tokens(path: &str) {
     println!("{}", neon::compiler::tokens_to_json(&source));
 }
 
-#[allow(clippy::print_stderr)]
-fn check_file(path: &str) {
+#[allow(clippy::print_stdout, clippy::print_stderr)]
+fn check_file(path: &str, json: bool) {
     let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
-    if vm.check_file(Path::new(path), source) == InterpretResult::CompileError {
+    let result = vm.check_file(Path::new(path), source);
+    if json {
+        println!(
+            "{}",
+            neon::compiler::errors_to_json(vm.get_compile_errors())
+        );
+        if result == InterpretResult::CompileError {
+            exit(65);
+        }
+        return;
+    }
+    if result == InterpretResult::CompileError {
         let formatted_errors = vm.get_formatted_errors(path);
         eprintln!("{}", formatted_errors);
         exit(65);
@@ -413,7 +425,7 @@ fn print_help() {
     println!("Usage:");
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
-    println!("  neon --check <file.n>    Compile without executing");
+    println!("  neon --check [--json] <file.n>  Compile without executing");
     println!("  neon -e <code> [args...]  Run a snippet");
     println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");

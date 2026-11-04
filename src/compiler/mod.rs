@@ -117,6 +117,27 @@ pub fn tokens_to_json(source: &str) -> String {
     out
 }
 
+pub fn errors_to_json(errors: &[crate::common::errors::CompilationError]) -> String {
+    let items: Vec<String> = errors
+        .iter()
+        .map(|e| {
+            let file = match &e.file {
+                Some(path) => json_string(&path.to_string_lossy()),
+                None => "null".to_string(),
+            };
+            format!(
+                "{{\"file\":{},\"line\":{},\"column\":{},\"code\":{},\"message\":{}}}",
+                file,
+                e.location.line,
+                e.location.column,
+                json_string(e.kind.code()),
+                json_string(&e.message)
+            )
+        })
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
 fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
