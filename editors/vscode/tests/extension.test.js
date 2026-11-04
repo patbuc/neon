@@ -134,3 +134,8 @@ test('ignores a `neon.path` set in workspace settings', () => {
   const pkg = require('../package.json');
   assert.strictEqual(pkg.contributes.configuration.properties['neon.path'].scope, 'machine');
 });
+
+test('enables format on save for Neon files by default', () => {
+  const pkg = require('../package.json');
+  assert.strictEqual(pkg.contributes.configurationDefaults['[neon]']['editor.formatOnSave'], true);
+});

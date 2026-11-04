@@ -1,7 +1,7 @@
 {
   "name": "neon",
   "displayName": "Neon",
-  "description": "Syntax highlighting for the Neon language",
+  "description": "Syntax highlighting and formatting for the Neon language",
   "version": "0.1.0",
   "publisher": "patbuc",
   "license": "MIT",
@@ -16,11 +16,21 @@
   "categories": [
     "Programming Languages"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "main": "./extension.js",
   "activationEvents": [
     "onLanguage:neon"
   ],
   "contributes": {
+    "configurationDefaults": {
+      "[neon]": {
+        "editor.formatOnSave": true
+      }
+    },
     "languages": [
       {
         "id": "neon",
