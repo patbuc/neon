@@ -1,7 +1,7 @@
 {
   "name": "neon",
   "displayName": "Neon",
-  "description": "Syntax highlighting for the Neon language",
+  "description": "Syntax highlighting and formatting for the Neon language",
   "version": "0.1.0",
   "publisher": "patbuc",
   "license": "MIT",
@@ -16,7 +16,21 @@
   "categories": [
     "Programming Languages"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:neon"
+  ],
   "contributes": {
+    "configurationDefaults": {
+      "[neon]": {
+        "editor.formatOnSave": true
+      }
+    },
     "languages": [
       {
         "id": "neon",
@@ -40,10 +54,21 @@
         "scopeName": "source.neon",
         "path": "./syntaxes/neon.tmLanguage.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Neon",
+      "properties": {
+        "neon.path": {
+          "type": "string",
+          "default": "neon",
+          "scope": "machine",
+          "description": "Path to the neon binary used to format documents. A bare name is looked up on PATH. A relative path resolves against the extension host's working directory, so use a bare name on PATH or an absolute path."
+        }
+      }
+    }
   },
   "scripts": {
-    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js"
+    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js && node --test tests/extension.test.js"
   },
   "devDependencies": {
     "@vscode/vsce": "^4.0.0",
