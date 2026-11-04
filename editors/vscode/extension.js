@@ -105,7 +105,9 @@ function publish(fsPath) {
     owners.delete(fsPath);
     diagnostics.delete(entry.uri);
   } else {
-    diagnostics.set(entry.uri, [...entry.byReporter.values()].flat());
+    // A file's own check is authoritative for its URI; importers' entries only count while it has none.
+    const own = entry.byReporter.get(fsPath);
+    diagnostics.set(entry.uri, own ?? [...entry.byReporter.values()].flat());
   }
 }
 
@@ -136,22 +138,36 @@ function realPathOf(fsPath) {
   }
 }
 
-function lineOf(document, fsPath, row) {
+function lineOf(document, fsPath, row, fileLines) {
   if (document) {
     return row < document.lineCount ? document.lineAt(row).text : undefined;
   }
-  try {
-    return fs.readFileSync(fsPath, 'utf8').split('\n')[row];
-  } catch {
-    return undefined;
+  if (!fileLines.has(fsPath)) {
+    try {
+      fileLines.set(fsPath, fs.readFileSync(fsPath, 'utf8').split('\n'));
+    } catch {
+      fileLines.set(fsPath, undefined);
+    }
   }
+  return fileLines.get(fsPath)?.[row];
+}
+
+// neon prints canonical module paths; map them back to the URI of an open document, else to the path itself.
+function openUrisByRealPath() {
+  const map = new Map();
+  for (const document of vscode.workspace.textDocuments) {
+    if (isNeonFile(document)) {
+      map.set(realPathOf(document.uri.fsPath), document.uri);
+    }
+  }
+  return map;
 }
 
 // neon counts columns in code points, VS Code in UTF-16 units.
-function toPosition(document, fsPath, line, column) {
+function toPosition(document, fsPath, line, column, fileLines) {
   const row = Math.max(0, line - 1);
   const col = Math.max(0, column - 1);
-  const text = lineOf(document, fsPath, row);
+  const text = lineOf(document, fsPath, row, fileLines);
   if (text === undefined) {
     return { start: new vscode.Position(row, col), end: new vscode.Position(row, col + 1) };
   }
@@ -204,13 +220,16 @@ async function checkDocument(document) {
   notified = undefined;
   const realKey = realPathOf(key);
   const byFile = new Map([[key, { uri: document.uri, list: [] }]]);
+  const openUris = openUrisByRealPath();
+  const fileLines = new Map();
   for (const err of errors) {
     const own = err.file === null || err.file === key || err.file === realKey;
-    const uri = own ? document.uri : vscode.Uri.file(err.file);
+    const plain = own ? null : err.file.replace(/^\\\\\?\\/, '');
+    const uri = own ? document.uri : (openUris.get(plain) ?? vscode.Uri.file(plain));
     if (!byFile.has(uri.fsPath)) {
       byFile.set(uri.fsPath, { uri, list: [] });
     }
-    const { start, end } = toPosition(own ? document : null, uri.fsPath, err.line, err.column);
+    const { start, end } = toPosition(own ? document : null, uri.fsPath, err.line, err.column, fileLines);
     const diagnostic = new vscode.Diagnostic(new vscode.Range(start, end), err.message, vscode.DiagnosticSeverity.Error);
     diagnostic.source = 'neon';
     diagnostic.code = err.code;
