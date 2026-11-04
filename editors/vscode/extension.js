@@ -15,6 +15,16 @@ function notifyOnce(neonPath, key, message) {
   vscode.window.showErrorMessage(message);
 }
 
+function startFailureMessage(neonPath, error) {
+  if (error.code === 'ENOENT') {
+    return `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`;
+  }
+  if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+    return `The output of "${neonPath}" was too large to use.`;
+  }
+  return `Could not run "${neonPath}": ${error.message}`;
+}
+
 function runNeon(neonPath, args, input, token) {
   return new Promise((resolve) => {
     let sub;
@@ -48,13 +58,7 @@ async function provideDocumentFormattingEdits(document, options, token) {
   const text = document.getText();
   const { code, signal, cancelled, stdout, error } = await runNeon(neonPath, ['fmt', '-'], text, token);
   if (error) {
-    const message =
-      error.code === 'ENOENT'
-        ? `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`
-        : error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-          ? `The output of "${neonPath}" was too large to use.`
-          : `Could not run "${neonPath}": ${error.message}`;
-    notifyOnce(neonPath, error.code, message);
+    notifyOnce(neonPath, error.code, startFailureMessage(neonPath, error));
     return [];
   }
   if (signal) {
@@ -94,13 +98,7 @@ async function checkDocument(document) {
     null,
   );
   if (error) {
-    const message =
-      error.code === 'ENOENT'
-        ? `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`
-        : error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-          ? `The output of "${neonPath}" was too large to use.`
-          : `Could not run "${neonPath}": ${error.message}`;
-    notifyOnce(neonPath, error.code, message);
+    notifyOnce(neonPath, error.code, startFailureMessage(neonPath, error));
     return;
   }
   if (signal) {
