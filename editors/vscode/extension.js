@@ -79,10 +79,106 @@ async function provideDocumentFormattingEdits(document, options, token) {
   return [vscode.TextEdit.replace(new vscode.Range(new vscode.Position(0, 0), end), stdout)];
 }
 
-function activate(context) {
-  context.subscriptions.push(
-    vscode.languages.registerDocumentFormattingEditProvider('neon', { provideDocumentFormattingEdits }),
-  );
+let diagnostics;
+const reported = new Map();
+
+function isNeonFile(document) {
+  return document.uri.scheme === 'file' && document.languageId === 'neon';
 }
 
-module.exports = { activate, provideDocumentFormattingEdits };
+async function checkDocument(document) {
+  const neonPath = vscode.workspace.getConfiguration('neon').get('path');
+  const { code, signal, stdout, error } = await runNeon(
+    neonPath,
+    ['--check', '--json', document.uri.fsPath],
+    null,
+  );
+  if (error) {
+    const message =
+      error.code === 'ENOENT'
+        ? `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`
+        : error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
+          ? `The output of "${neonPath}" was too large to use.`
+          : `Could not run "${neonPath}": ${error.message}`;
+    notifyOnce(neonPath, error.code, message);
+    return;
+  }
+  if (signal) {
+    notifyOnce(neonPath, signal, `"${neonPath}" was killed by ${signal} while checking.`);
+    return;
+  }
+  if (code !== 0 && code !== PARSE_ERROR_EXIT) {
+    notifyOnce(
+      neonPath,
+      code,
+      `"${neonPath}" exited with code ${code} while checking. Check the neon.path setting and the binary.`,
+    );
+    return;
+  }
+  let errors;
+  try {
+    errors = JSON.parse(stdout);
+  } catch {
+    notifyOnce(neonPath, 'json', `"${neonPath}" printed output that is not valid JSON while checking.`);
+    return;
+  }
+  notified = undefined;
+  const byFile = new Map([[document.uri.fsPath, { uri: document.uri, list: [] }]]);
+  for (const err of errors) {
+    const uri = err.file === null ? document.uri : vscode.Uri.file(err.file);
+    if (!byFile.has(uri.fsPath)) {
+      byFile.set(uri.fsPath, { uri, list: [] });
+    }
+    const range = new vscode.Range(
+      new vscode.Position(err.line - 1, err.column - 1),
+      new vscode.Position(err.line - 1, err.column),
+    );
+    const diagnostic = new vscode.Diagnostic(range, err.message, vscode.DiagnosticSeverity.Error);
+    diagnostic.source = 'neon';
+    diagnostic.code = err.code;
+    byFile.get(uri.fsPath).list.push(diagnostic);
+  }
+  for (const [fsPath, uri] of reported.get(document.uri.fsPath) ?? []) {
+    if (!byFile.has(fsPath)) {
+      diagnostics.delete(uri);
+    }
+  }
+  const now = new Map();
+  for (const [fsPath, { uri, list }] of byFile) {
+    diagnostics.set(uri, list);
+    now.set(fsPath, uri);
+  }
+  reported.set(document.uri.fsPath, now);
+}
+
+function checkIfNeon(document) {
+  if (isNeonFile(document)) {
+    return checkDocument(document);
+  }
+}
+
+function closeDocument(document) {
+  if (!isNeonFile(document)) {
+    return;
+  }
+  diagnostics.delete(document.uri);
+  for (const uri of (reported.get(document.uri.fsPath) ?? new Map()).values()) {
+    diagnostics.delete(uri);
+  }
+  reported.delete(document.uri.fsPath);
+}
+
+function activate(context) {
+  diagnostics = vscode.languages.createDiagnosticCollection('neon');
+  reported.clear();
+  context.subscriptions.push(
+    vscode.languages.registerDocumentFormattingEditProvider('neon', { provideDocumentFormattingEdits }),
+    diagnostics,
+    vscode.workspace.onDidOpenTextDocument(checkIfNeon),
+    vscode.workspace.onDidSaveTextDocument(checkIfNeon),
+    vscode.workspace.onDidCloseTextDocument(closeDocument),
+  );
+  vscode.workspace.textDocuments.forEach(checkIfNeon);
+}
+
+module.exports = { activate, provideDocumentFormattingEdits, checkDocument };

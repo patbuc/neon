@@ -17,6 +17,10 @@ value and failure, and again after a run that formatted the document or reported
 (exit 0 or 65). A cancelled run leaves the document unchanged. The extension
 does not run in Restricted Mode, but the grammar still colors files.
 
+Compile errors show as diagnostics when a Neon file is opened or saved, each with its error code
+(for example `E0013`). An error inside an imported module appears on that module's file. The check
+runs `neon --check --json` with the same `neon.path` binary and the same failure notifications.
+
 ## Install
 
 Download `neon-X.Y.Z.vsix` from the [GitHub Releases page](https://github.com/patbuc/neon/releases),

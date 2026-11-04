@@ -28,11 +28,43 @@ class Range {
   }
 }
 
+class Diagnostic {
+  constructor(range, message, severity) {
+    this.range = range;
+    this.message = message;
+    this.severity = severity;
+  }
+}
+
+let collection = new Map();
+let deleted = [];
+const listeners = {};
+const fakeCollection = {
+  set: (uri, diagnostics) => collection.set(uri.fsPath, diagnostics),
+  delete: (uri) => {
+    deleted.push(uri.fsPath);
+    collection.delete(uri.fsPath);
+  },
+  dispose() {},
+};
+
 const fakeVscode = {
-  workspace: { getConfiguration: () => ({ get: () => neonPath }) },
+  workspace: {
+    getConfiguration: () => ({ get: () => neonPath }),
+    textDocuments: [],
+    onDidOpenTextDocument: (fn) => ((listeners.open = fn), { dispose() {} }),
+    onDidSaveTextDocument: (fn) => ((listeners.save = fn), { dispose() {} }),
+    onDidCloseTextDocument: (fn) => ((listeners.close = fn), { dispose() {} }),
+  },
   window: { showErrorMessage: (message) => errors.push(message) },
-  languages: { registerDocumentFormattingEditProvider: () => ({ dispose() {} }) },
+  languages: {
+    registerDocumentFormattingEditProvider: () => ({ dispose() {} }),
+    createDiagnosticCollection: () => fakeCollection,
+  },
   TextEdit: { replace: (range, newText) => ({ range, newText }) },
+  Uri: { file: (fsPath) => ({ scheme: 'file', fsPath }) },
+  DiagnosticSeverity: { Error: 0 },
+  Diagnostic,
   Range,
   Position,
 };
@@ -41,7 +73,8 @@ const originalLoad = Module._load;
 Module._load = function (request, ...rest) {
   return request === 'vscode' ? fakeVscode : originalLoad.call(this, request, ...rest);
 };
-const { provideDocumentFormattingEdits } = require('../extension.js');
+const { activate, provideDocumentFormattingEdits } = require('../extension.js');
+activate({ subscriptions: [] });
 
 function documentOf(text, uri = { scheme: 'untitled', fsPath: 'Untitled-1' }) {
   return {
@@ -57,6 +90,8 @@ function documentOf(text, uri = { scheme: 'untitled', fsPath: 'Untitled-1' }) {
 beforeEach(() => {
   neonPath = neonBin;
   errors = [];
+  collection = new Map();
+  deleted = [];
 });
 
 test('formats an unsaved buffer to the output of `neon fmt -`', async () => {
@@ -282,6 +317,111 @@ test('reports a formatter that dies from a signal', async () => {
     assert.deepStrictEqual(edits, []);
     assert.strictEqual(errors.length, 1);
     assert.match(errors[0], /SIGSEGV/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function tempDir() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+}
+
+function fileDocument(fsPath) {
+  return { uri: { scheme: 'file', fsPath }, languageId: 'neon' };
+}
+
+test('shows an error diagnostic at the reported line and column on save', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'print(1)\nval x = y\n');
+    await listeners.save(fileDocument(file));
+    const found = collection.get(file);
+    assert.strictEqual(found.length, 1);
+    assert.strictEqual(found[0].range.start.line, 1);
+    assert.strictEqual(found[0].range.start.character, 8);
+    assert.strictEqual(found[0].range.end.character, 9);
+    assert.strictEqual(found[0].severity, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('shows the error code and message on the diagnostic', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'print(1)\nval x = y\n');
+    await listeners.save(fileDocument(file));
+    const [d] = collection.get(file);
+    assert.strictEqual(d.code, 'E0013');
+    assert.strictEqual(d.source, 'neon');
+    assert.match(d.message, /y/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("puts an imported module's error on that module's file", async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(main, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(lib, 'val x = nope\n');
+    await listeners.save(fileDocument(main));
+    assert.strictEqual(collection.get(lib).length, 1);
+    assert.strictEqual(collection.get(lib)[0].code, 'E0013');
+    assert.deepStrictEqual(collection.get(main), []);
+    fs.writeFileSync(lib, 'val x = 1\n');
+    await listeners.save(fileDocument(main));
+    assert.ok(!collection.has(lib));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clears the diagnostics when a later save compiles cleanly', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(collection.get(file).length, 1);
+    fs.writeFileSync(file, 'val x = 1\n');
+    await listeners.save(fileDocument(file));
+    assert.deepStrictEqual(collection.get(file), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("clears a file's diagnostics when it is closed", async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    await listeners.open(fileDocument(file));
+    assert.strictEqual(collection.get(file).length, 1);
+    listeners.close(fileDocument(file));
+    assert.ok(deleted.includes(file));
+    assert.ok(!collection.has(file));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('shows no diagnostics and one error notification when the binary is not found', async () => {
+  const dir = tempDir();
+  try {
+    neonPath = path.join(dir, 'missing', 'neon');
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    await listeners.save(fileDocument(file));
+    await listeners.save(fileDocument(file));
+    assert.strictEqual(collection.size, 0);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /neon\.path/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
