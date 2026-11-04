@@ -13,7 +13,6 @@ function runNeonFmt(neonPath, text, cwd) {
         resolve({ code: error ? error.code : 0, stdout, error: null });
       }
     });
-    child.stdin.on('error', () => {});
     child.stdin.end(text);
   });
 }
@@ -24,9 +23,11 @@ async function provideDocumentFormattingEdits(document) {
   const cwd = document.uri.scheme === 'file' ? path.dirname(document.uri.fsPath) : undefined;
   const { code, stdout, error } = await runNeonFmt(neonPath, text, cwd);
   if (error) {
-    if (error.code === 'ENOENT') {
-      vscode.window.showErrorMessage(`Could not run "${neonPath}". Set the neon.path setting to the neon binary.`);
-    }
+    const message =
+      error.code === 'ENOENT'
+        ? `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`
+        : `Could not run "${neonPath}": ${error.message}`;
+    vscode.window.showErrorMessage(message);
     return [];
   }
   if (code !== 0 || stdout === text) {
