@@ -3,6 +3,8 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const Module = require('module');
 
 const vscodeDir = path.join(__dirname, '..');
@@ -41,9 +43,9 @@ Module._load = function (request, ...rest) {
 };
 const { provideDocumentFormattingEdits } = require('../extension.js');
 
-function documentOf(text) {
+function documentOf(text, uri = { scheme: 'untitled', fsPath: 'Untitled-1' }) {
   return {
-    uri: { scheme: 'untitled', fsPath: 'Untitled-1' },
+    uri,
     getText: () => text,
     positionAt: (offset) => {
       const lines = text.slice(0, offset).split('\n');
@@ -83,6 +85,36 @@ test('shows one error notification naming the `neon.path` setting when the binar
   assert.strictEqual(errors.length, 1);
   assert.match(errors[0], /neon\.path/);
   assert.ok(errors[0].includes(neonPath));
+});
+
+test('shows an error notification when the binary fails to start', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = path.join(dir, 'neon');
+    fs.writeFileSync(neonPath, '', { mode: 0o644 });
+    const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.deepStrictEqual(edits, []);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].includes(neonPath));
+    assert.match(errors[0], /EACCES/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runs `neon fmt -` from the document\'s directory', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    fs.symlinkSync(neonBin, path.join(dir, 'neon'));
+    neonPath = './neon';
+    const uri = { scheme: 'file', fsPath: path.join(dir, 'main.n') };
+    const edits = await provideDocumentFormattingEdits(documentOf('print(  1+2 )\n', uri));
+    assert.deepStrictEqual(errors, []);
+    assert.strictEqual(edits.length, 1);
+    assert.strictEqual(edits[0].newText, 'print(1 + 2)\n');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('ignores a `neon.path` set in workspace settings', () => {
