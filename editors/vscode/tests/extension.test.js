@@ -724,6 +724,73 @@ test("maps a module's error to the open document behind a symlink", async () => 
   }
 });
 
+test("keeps an importer's report on a module after the module closes", async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(main, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(lib, 'val x = nope\n');
+    await listeners.open(fileDocument(lib));
+    await listeners.open(fileDocument(main));
+    listeners.close(fileDocument(lib));
+    assert.strictEqual(collection.get(lib).length, 1);
+    assert.strictEqual(collection.get(lib)[0].code, 'E0013');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("matches a module's own report behind a symlink", async () => {
+  const base = fs.realpathSync(tempDir());
+  try {
+    const real = path.join(base, 'real');
+    const link = path.join(base, 'link');
+    fs.mkdirSync(real);
+    fs.symlinkSync(real, link);
+    const main = path.join(base, 'main.n');
+    const lib = path.join(link, 'lib.n');
+    fs.writeFileSync(main, 'val x = 1\n');
+    fs.writeFileSync(lib, 'val y = 1\n');
+    neonPath = stubNeon(
+      base,
+      'neon',
+      `echo '[{"file":"${path.join(real, 'lib.n')}","line":1,"column":9,"code":"E0013","message":"m"}]'\nexit 65`,
+    );
+    await listeners.save(fileDocument(main));
+    assert.strictEqual(collection.get(path.join(real, 'lib.n')).length, 1);
+    await listeners.open(fileDocument(lib));
+    assert.strictEqual(collection.get(lib).length, 1);
+    assert.ok(!collection.has(path.join(real, 'lib.n')));
+    stubNeon(base, 'neon', "echo '[]'");
+    await listeners.save(fileDocument(lib));
+    assert.deepStrictEqual(collection.get(lib), []);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('strips the Windows verbatim prefix from module paths', async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    fs.writeFileSync(main, 'val x = 1\n');
+    const report = ['\\\\?\\C:\\proj\\lib.n', '\\\\?\\UNC\\server\\share\\x.n'].map((file) => ({
+      file,
+      line: 1,
+      column: 1,
+      code: 'E0013',
+      message: 'm',
+    }));
+    neonPath = stubNeon(dir, 'neon', `printf '%s\\n' '${JSON.stringify(report)}'\nexit 65`);
+    await listeners.save(fileDocument(main));
+    assert.strictEqual(collection.get('C:\\proj\\lib.n').length, 1);
+    assert.strictEqual(collection.get('\\\\server\\share\\x.n').length, 1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('clears the previous diagnostics on every failed check', async () => {
   const dir = tempDir();
   try {

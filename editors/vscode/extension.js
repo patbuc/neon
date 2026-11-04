@@ -99,30 +99,37 @@ function nextGeneration(fsPath) {
   return generation;
 }
 
-function publish(fsPath) {
-  const entry = owners.get(fsPath);
+function publish(key) {
+  const entry = owners.get(key);
   if (entry.byReporter.size === 0) {
-    owners.delete(fsPath);
+    owners.delete(key);
     diagnostics.delete(entry.uri);
   } else {
     // A file's own check is authoritative for its URI; importers' entries only count while it has none.
-    const own = entry.byReporter.get(fsPath);
+    const own = entry.byReporter.get(key);
     diagnostics.set(entry.uri, own ?? [...entry.byReporter.values()].flat());
   }
 }
 
 function report(reporter, byFile) {
-  for (const [fsPath, entry] of owners) {
-    if (!byFile.has(fsPath) && entry.byReporter.delete(reporter)) {
-      publish(fsPath);
+  for (const [key, entry] of owners) {
+    if (!byFile.has(key) && entry.byReporter.delete(reporter)) {
+      publish(key);
     }
   }
-  for (const [fsPath, { uri, list }] of byFile) {
-    if (!owners.has(fsPath)) {
-      owners.set(fsPath, { uri, byReporter: new Map() });
+  for (const [key, { uri, list }] of byFile) {
+    const entry = owners.get(key);
+    if (!entry) {
+      owners.set(key, { uri, byReporter: new Map([[reporter, list]]) });
+    } else {
+      // The open document's URI wins over the path an importer reported.
+      if (key === reporter && entry.uri.fsPath !== uri.fsPath) {
+        diagnostics.delete(entry.uri);
+        entry.uri = uri;
+      }
+      entry.byReporter.set(reporter, list);
     }
-    owners.get(fsPath).byReporter.set(reporter, list);
-    publish(fsPath);
+    publish(key);
   }
 }
 
@@ -136,6 +143,10 @@ function realPathOf(fsPath) {
   } catch {
     return fsPath;
   }
+}
+
+function stripVerbatimPrefix(file) {
+  return file.replace(/^\\\\\?\\UNC\\/, '\\\\').replace(/^\\\\\?\\/, '');
 }
 
 function lineOf(document, fsPath, row, fileLines) {
@@ -177,11 +188,13 @@ function toPosition(document, fsPath, line, column, fileLines) {
   return { start: new vscode.Position(row, start), end: new vscode.Position(row, end) };
 }
 
+// Both the documents' keys and neon's canonical module paths are real paths, so a symlink cannot split one file in two.
 async function checkDocument(document) {
-  const key = document.uri.fsPath;
+  const path = document.uri.fsPath;
+  const key = realPathOf(path);
   const generation = nextGeneration(key);
   const neonPath = vscode.workspace.getConfiguration('neon').get('path');
-  const { code, signal, stdout, error } = await runNeon(neonPath, ['--check', '--json', key], null);
+  const { code, signal, stdout, error } = await runNeon(neonPath, ['--check', '--json', path], null);
   if (generations.get(key) !== generation) {
     return;
   }
@@ -195,9 +208,9 @@ async function checkDocument(document) {
     notifyOnce(neonPath, signal, `"${neonPath}" was killed by ${signal} while checking.`);
     return;
   }
-  if (code === UNREADABLE_EXITS[0] || code === UNREADABLE_EXITS[1]) {
+  if (UNREADABLE_EXITS.includes(code)) {
     clearReported(key);
-    notifyOnce(neonPath, code, `"${neonPath}" could not read ${key} (exit ${code}).`);
+    notifyOnce(neonPath, code, `"${neonPath}" could not read ${path} (exit ${code}).`);
     return;
   }
   if (code !== 0 && code !== PARSE_ERROR_EXIT) {
@@ -218,22 +231,20 @@ async function checkDocument(document) {
     return;
   }
   notified = undefined;
-  const realKey = realPathOf(key);
   const byFile = new Map([[key, { uri: document.uri, list: [] }]]);
   const openUris = openUrisByRealPath();
   const fileLines = new Map();
   for (const err of errors) {
-    const own = err.file === null || err.file === key || err.file === realKey;
-    const plain = own ? null : err.file.replace(/^\\\\\?\\/, '');
-    const uri = own ? document.uri : (openUris.get(plain) ?? vscode.Uri.file(plain));
-    if (!byFile.has(uri.fsPath)) {
-      byFile.set(uri.fsPath, { uri, list: [] });
+    const own = err.file === null || err.file === path || err.file === key;
+    const file = own ? key : stripVerbatimPrefix(err.file);
+    if (!byFile.has(file)) {
+      byFile.set(file, { uri: openUris.get(file) ?? vscode.Uri.file(file), list: [] });
     }
-    const { start, end } = toPosition(own ? document : null, uri.fsPath, err.line, err.column, fileLines);
+    const { start, end } = toPosition(own ? document : null, file, err.line, err.column, fileLines);
     const diagnostic = new vscode.Diagnostic(new vscode.Range(start, end), err.message, vscode.DiagnosticSeverity.Error);
     diagnostic.source = 'neon';
     diagnostic.code = err.code;
-    byFile.get(uri.fsPath).list.push(diagnostic);
+    byFile.get(file).list.push(diagnostic);
   }
   report(key, byFile);
 }
@@ -248,10 +259,9 @@ function closeDocument(document) {
   if (!isNeonFile(document)) {
     return;
   }
-  const key = document.uri.fsPath;
+  const key = realPathOf(document.uri.fsPath);
   nextGeneration(key);
-  owners.delete(key);
-  diagnostics.delete(document.uri);
+  // Drops the closed document's own report and the entries it reported on other URIs; importers' reports on it stay.
   clearReported(key);
 }
 
@@ -269,4 +279,4 @@ function activate(context) {
   vscode.workspace.textDocuments.forEach(checkIfNeon);
 }
 
-module.exports = { activate, provideDocumentFormattingEdits, checkDocument };
+module.exports = { activate, provideDocumentFormattingEdits };
