@@ -770,6 +770,29 @@ test("matches a module's own report behind a symlink", async () => {
   }
 });
 
+test('clears a document opened through a symlink when it closes', async () => {
+  const base = fs.realpathSync(tempDir());
+  try {
+    const real = path.join(base, 'real');
+    const link = path.join(base, 'link');
+    fs.mkdirSync(real);
+    fs.symlinkSync(real, link);
+    const lib = path.join(link, 'lib.n');
+    fs.writeFileSync(lib, 'val y = 1\n');
+    neonPath = stubNeon(
+      base,
+      'neon',
+      `echo '[{"file":"${path.join(real, 'lib.n')}","line":1,"column":9,"code":"E0013","message":"m"}]'\nexit 65`,
+    );
+    await listeners.open(fileDocument(lib));
+    assert.strictEqual(collection.get(lib).length, 1);
+    listeners.close(fileDocument(lib));
+    assert.ok(!collection.has(lib) || collection.get(lib).length === 0);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('strips the Windows verbatim prefix from module paths', async () => {
   const dir = tempDir();
   try {
