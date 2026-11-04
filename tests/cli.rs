@@ -372,7 +372,24 @@ fn check_mode_without_file_prints_usage_on_stderr() {
 
     assert_eq!(64, output.status.code().unwrap());
     assert_eq!(
-        "Usage: neon --check [--json] <file.n | ->\n",
+        "Usage: neon --check [--json] <file.n>  |  neon --check --json -\n",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn check_mode_rejects_more_than_one_path() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--check")
+        .arg("a.n")
+        .arg("b.n")
+        .output()
+        .expect("Failed to run neon binary");
+
+    assert_eq!(64, output.status.code().unwrap());
+    assert_eq!(
+        "Usage: neon --check [--json] <file.n>  |  neon --check --json -\n",
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!("", String::from_utf8_lossy(&output.stdout));

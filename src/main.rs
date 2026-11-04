@@ -36,7 +36,7 @@ fn main() {
                 let json = args[2..].iter().any(|arg| arg == "--json");
                 let paths: Vec<&String> = args[2..].iter().filter(|arg| *arg != "--json").collect();
                 let [path] = paths.as_slice() else {
-                    eprintln!("Usage: neon --check [--json] <file.n | ->");
+                    eprintln!("Usage: neon --check [--json] <file.n>  |  neon --check --json -");
                     exit(64);
                 };
                 check_file(path, json);
