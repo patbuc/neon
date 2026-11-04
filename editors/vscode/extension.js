@@ -86,7 +86,7 @@ async function provideDocumentFormattingEdits(document, options, token) {
 }
 
 let diagnostics;
-const reported = new Map();
+const owners = new Map();
 const generations = new Map();
 
 function isNeonFile(document) {
@@ -99,11 +99,33 @@ function nextGeneration(fsPath) {
   return generation;
 }
 
-function clearReported(fsPath) {
-  for (const uri of (reported.get(fsPath) ?? new Map()).values()) {
-    diagnostics.delete(uri);
+function publish(fsPath) {
+  const entry = owners.get(fsPath);
+  if (entry.byReporter.size === 0) {
+    owners.delete(fsPath);
+    diagnostics.delete(entry.uri);
+  } else {
+    diagnostics.set(entry.uri, [...entry.byReporter.values()].flat());
   }
-  reported.delete(fsPath);
+}
+
+function report(reporter, byFile) {
+  for (const [fsPath, entry] of owners) {
+    if (!byFile.has(fsPath) && entry.byReporter.delete(reporter)) {
+      publish(fsPath);
+    }
+  }
+  for (const [fsPath, { uri, list }] of byFile) {
+    if (!owners.has(fsPath)) {
+      owners.set(fsPath, { uri, byReporter: new Map() });
+    }
+    owners.get(fsPath).byReporter.set(reporter, list);
+    publish(fsPath);
+  }
+}
+
+function clearReported(reporter) {
+  report(reporter, new Map());
 }
 
 function realPathOf(fsPath) {
@@ -114,14 +136,26 @@ function realPathOf(fsPath) {
   }
 }
 
+function lineOf(document, fsPath, row) {
+  if (document) {
+    return row < document.lineCount ? document.lineAt(row).text : undefined;
+  }
+  try {
+    return fs.readFileSync(fsPath, 'utf8').split('\n')[row];
+  } catch {
+    return undefined;
+  }
+}
+
 // neon counts columns in code points, VS Code in UTF-16 units.
-function toPosition(document, line, column) {
+function toPosition(document, fsPath, line, column) {
   const row = Math.max(0, line - 1);
   const col = Math.max(0, column - 1);
-  if (!document || row >= document.lineCount) {
+  const text = lineOf(document, fsPath, row);
+  if (text === undefined) {
     return { start: new vscode.Position(row, col), end: new vscode.Position(row, col + 1) };
   }
-  const points = Array.from(document.lineAt(row).text);
+  const points = Array.from(text);
   const start = points.slice(0, col).join('').length;
   const end = start + (points[col]?.length ?? 1);
   return { start: new vscode.Position(row, start), end: new vscode.Position(row, end) };
@@ -176,23 +210,13 @@ async function checkDocument(document) {
     if (!byFile.has(uri.fsPath)) {
       byFile.set(uri.fsPath, { uri, list: [] });
     }
-    const { start, end } = toPosition(own ? document : null, err.line, err.column);
+    const { start, end } = toPosition(own ? document : null, uri.fsPath, err.line, err.column);
     const diagnostic = new vscode.Diagnostic(new vscode.Range(start, end), err.message, vscode.DiagnosticSeverity.Error);
     diagnostic.source = 'neon';
     diagnostic.code = err.code;
     byFile.get(uri.fsPath).list.push(diagnostic);
   }
-  for (const [fsPath, uri] of reported.get(key) ?? []) {
-    if (!byFile.has(fsPath)) {
-      diagnostics.delete(uri);
-    }
-  }
-  const now = new Map();
-  for (const [fsPath, { uri, list }] of byFile) {
-    diagnostics.set(uri, list);
-    now.set(fsPath, uri);
-  }
-  reported.set(key, now);
+  report(key, byFile);
 }
 
 function checkIfNeon(document) {
@@ -205,13 +229,16 @@ function closeDocument(document) {
   if (!isNeonFile(document)) {
     return;
   }
-  nextGeneration(document.uri.fsPath);
-  clearReported(document.uri.fsPath);
+  const key = document.uri.fsPath;
+  nextGeneration(key);
+  owners.delete(key);
+  diagnostics.delete(document.uri);
+  clearReported(key);
 }
 
 function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection('neon');
-  reported.clear();
+  owners.clear();
   generations.clear();
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider('neon', { provideDocumentFormattingEdits }),

@@ -608,11 +608,11 @@ test('places the marker by UTF-16 units after an emoji on the same line', async 
   const dir = tempDir();
   try {
     const file = path.join(dir, 'main.n');
-    fs.writeFileSync(file, 'val a = "\u{1F600}" + y\n');
+    fs.writeFileSync(file, 'val a = "\u{1F600}" + \u{1F600}\n');
     await listeners.save(fileDocument(file));
     const [d] = collection.get(file);
     assert.strictEqual(d.range.start.character, 15);
-    assert.strictEqual(d.range.end.character, 16);
+    assert.strictEqual(d.range.end.character, 17);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -637,5 +637,84 @@ test('matches the checked file by its real path', async () => {
     assert.ok(!collection.has(path.join(real, 'main.n')));
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test("keeps a module's own diagnostics when an importer closes", async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(main, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(lib, 'val x = nope\n');
+    await listeners.open(fileDocument(lib));
+    await listeners.open(fileDocument(main));
+    listeners.close(fileDocument(main));
+    assert.strictEqual(collection.get(lib).length, 1);
+    assert.strictEqual(collection.get(lib)[0].code, 'E0013');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("keeps a module's diagnostics reported by another open importer when one importer closes", async () => {
+  const dir = tempDir();
+  try {
+    const a = path.join(dir, 'a.n');
+    const b = path.join(dir, 'b.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(a, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(b, 'use "lib"\nprint(lib.x)\n');
+    fs.writeFileSync(lib, 'val x = nope\n');
+    await listeners.open(fileDocument(a));
+    await listeners.open(fileDocument(b));
+    listeners.close(fileDocument(a));
+    assert.strictEqual(collection.get(lib).length, 1);
+    assert.strictEqual(collection.get(lib)[0].code, 'E0013');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clears the previous diagnostics on every failed check', async () => {
+  const dir = tempDir();
+  try {
+    const file = path.join(dir, 'main.n');
+    fs.writeFileSync(file, 'val x = y\n');
+    const failures = [
+      [stubNeon(dir, 'exits', 'exit 2'), /exited with code 2/],
+      [stubNeon(dir, 'killed', 'kill -SEGV $$'), /SIGSEGV/],
+      [stubNeon(dir, 'unreadable', `exec "${neonBin}" --check --json "${dir}"`), /could not read .* \(exit 74\)/],
+      [stubNeon(dir, 'garbled', 'echo not json'), /not valid JSON/],
+    ];
+    for (const [stub, message] of failures) {
+      neonPath = neonBin;
+      await listeners.save(fileDocument(file));
+      assert.strictEqual(collection.get(file).length, 1);
+      neonPath = stub;
+      errors = [];
+      await listeners.save(fileDocument(file));
+      assert.ok(!collection.has(file));
+      assert.strictEqual(errors.length, 1);
+      assert.match(errors[0], message);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("places a module's marker by UTF-16 units after an emoji", async () => {
+  const dir = tempDir();
+  try {
+    const main = path.join(dir, 'main.n');
+    const lib = path.join(dir, 'lib.n');
+    fs.writeFileSync(main, 'use "lib"\nprint(lib.a)\n');
+    fs.writeFileSync(lib, 'val a = "\u{1F600}" + \u{1F600}\n');
+    await listeners.save(fileDocument(main));
+    const [d] = collection.get(lib);
+    assert.strictEqual(d.range.start.character, 15);
+    assert.strictEqual(d.range.end.character, 17);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
