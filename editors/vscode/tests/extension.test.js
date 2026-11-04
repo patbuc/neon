@@ -102,6 +102,19 @@ test('shows an error notification when the binary fails to start', async () => {
   }
 });
 
+test('survives a binary that exits without reading a large buffer', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = path.join(dir, 'neon');
+    fs.writeFileSync(neonPath, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    const edits = await provideDocumentFormattingEdits(documentOf('print(1)\n'.repeat(500000)));
+    assert.deepStrictEqual(edits, []);
+    assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('runs `neon fmt -` from the document\'s directory', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
   try {
