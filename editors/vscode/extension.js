@@ -15,11 +15,11 @@ function notifyOnce(neonPath, key, message) {
   vscode.window.showErrorMessage(message);
 }
 
-function runNeonFmt(neonPath, text, token) {
+function runNeon(neonPath, args, input, token) {
   return new Promise((resolve) => {
     let sub;
     let cancelled = false;
-    const child = execFile(neonPath, ['fmt', '-'], { maxBuffer: 64 * 1024 * 1024 }, (error, stdout) => {
+    const child = execFile(neonPath, args, { maxBuffer: 64 * 1024 * 1024 }, (error, stdout) => {
       sub?.dispose();
       if (error && typeof error.code !== 'number' && !error.signal) {
         resolve({ code: null, signal: null, cancelled, stdout: '', error });
@@ -35,14 +35,18 @@ function runNeonFmt(neonPath, text, token) {
     }
     // A child that exits without reading all of stdin fails this write with EPIPE; its exit, reported above, decides the outcome.
     child.stdin.on('error', () => {});
-    child.stdin.end(text);
+    if (input === null || input === undefined) {
+      child.stdin.end();
+    } else {
+      child.stdin.end(input);
+    }
   });
 }
 
 async function provideDocumentFormattingEdits(document, options, token) {
   const neonPath = vscode.workspace.getConfiguration('neon').get('path');
   const text = document.getText();
-  const { code, signal, cancelled, stdout, error } = await runNeonFmt(neonPath, text, token);
+  const { code, signal, cancelled, stdout, error } = await runNeon(neonPath, ['fmt', '-'], text, token);
   if (error) {
     const message =
       error.code === 'ENOENT'
