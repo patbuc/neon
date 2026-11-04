@@ -48,6 +48,7 @@ You need a Rust toolchain ([rustup.rs](https://rustup.rs)).
 cargo build --release
 cargo run -- hello.n            # run a script
 cargo run -- --check hello.n    # compile without running
+cargo run -- --check --json - < hello.n  # errors as JSON, source from stdin
 cargo run -- -e 'print(1 + 2)'  # run a snippet
 cargo run                       # start the REPL
 ```

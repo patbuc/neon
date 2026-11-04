@@ -88,6 +88,14 @@ impl VirtualMachine {
         }
     }
 
+    /// Like `check_file`, for a source with no file, resolving its imports relative to `dir`.
+    pub fn check_in(&mut self, dir: &Path, source: String) -> InterpretResult {
+        match self.compile(source, EntryLocation::Directory(dir.to_path_buf())) {
+            Some(_) => InterpretResult::Ok,
+            None => InterpretResult::CompileError,
+        }
+    }
+
     pub fn interpret(&mut self, source: String) -> InterpretResult {
         self.interpret_entry(source, EntryLocation::None)
     }

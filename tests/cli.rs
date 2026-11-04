@@ -1699,3 +1699,66 @@ fn check_json_prints_nothing_to_stderr() {
     assert_eq!(65, output.status.code().unwrap());
     assert_eq!("", String::from_utf8_lossy(&output.stderr));
 }
+
+#[cfg(not(feature = "disassemble"))]
+#[allow(clippy::expect_used)]
+fn check_json_stdin(dir: &std::path::Path, source: &str) -> std::process::Output {
+    spawn_neon_with_stdin(
+        |command| {
+            command.args(["--check", "--json", "-"]).current_dir(dir);
+        },
+        source.as_bytes(),
+    )
+    .wait_with_output()
+    .expect("Failed to wait for neon binary")
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn reads_the_entry_source_from_stdin_when_the_path_is_dash() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_stdin");
+
+    let failing = check_json_stdin(&dir, "val x = 1\nprint(y)\n");
+    let clean = check_json_stdin(&dir, "print(1)\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(65), failing.status.code());
+    assert_eq!(
+        "[{\"file\":null,\"line\":2,\"column\":7,\"code\":\"E0013\",\"message\":\"Undefined variable 'y'\"}]\n",
+        String::from_utf8_lossy(&failing.stdout)
+    );
+    assert_eq!(Some(0), clean.status.code());
+    assert_eq!("[]\n", String::from_utf8_lossy(&clean.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn resolves_imports_from_the_current_directory_for_a_stdin_entry() {
+    let dir = unique_temp_dir("neon_cli_test_check_json_stdin_imports");
+    fs::write(dir.join("utils.n"), "pub fn double(x) { return x * 2 }\n")
+        .expect("Failed to write test module");
+
+    let output = check_json_stdin(&dir, "use \"utils\"\nprint(utils.double(21))\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(0), output.status.code());
+    assert_eq!("[]\n", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn lists_check_json_in_neon_help() {
+    let output = Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("help")
+        .output()
+        .expect("Failed to run neon binary");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout
+            .lines()
+            .any(|line| line.contains("--check") && line.contains("--json")),
+        "{stdout}"
+    );
+}

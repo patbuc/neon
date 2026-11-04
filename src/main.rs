@@ -212,10 +212,20 @@ fn print_tokens(path: &str) {
 
 #[allow(clippy::print_stdout, clippy::print_stderr)]
 fn check_file(path: &str, json: bool) {
-    let source = read_file(path);
     let mut vm = VirtualMachine::new();
 
-    let result = vm.check_file(Path::new(path), source);
+    let result = if json && path == "-" {
+        let source = read_stdin();
+        match std::env::current_dir() {
+            Ok(dir) => vm.check_in(&dir, source),
+            Err(err) => {
+                eprintln!("Failed to get the current directory: {}", err);
+                exit(74);
+            }
+        }
+    } else {
+        vm.check_file(Path::new(path), read_file(path))
+    };
     if json {
         println!(
             "{}",
@@ -426,6 +436,7 @@ fn print_help() {
     println!("  neon                     Start interactive REPL");
     println!("  neon <file.n> [args...]  Interpret source file");
     println!("  neon --check [--json] <file.n>  Compile without executing");
+    println!("  neon --check --json -  Check stdin, imports from the current directory");
     println!("  neon -e <code> [args...]  Run a snippet");
     println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");
