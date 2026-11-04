@@ -55,6 +55,12 @@
         "path": "./syntaxes/neon.tmLanguage.json"
       }
     ],
+    "snippets": [
+      {
+        "language": "neon",
+        "path": "./snippets/neon.json"
+      }
+    ],
     "configuration": {
       "title": "Neon",
       "properties": {
@@ -68,7 +74,7 @@
     }
   },
   "scripts": {
-    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js && node --test tests/extension.test.js"
+    "test": "vscode-tmgrammar-test 'tests/*.test.n' && node tests/differential.js && node --test tests/extension.test.js tests/snippets.test.js"
   },
   "devDependencies": {
     "@vscode/vsce": "^4.0.0",

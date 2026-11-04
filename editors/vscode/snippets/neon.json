@@ -1,0 +1,47 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": ["fn ${1:name}(${2:x}) {", "    ${0:x}", "}"],
+    "description": "Function declaration"
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": ["struct ${1:Name} {", "    val ${0:field}", "}"],
+    "description": "Struct declaration"
+  },
+  "Impl": {
+    "prefix": "impl",
+    "body": ["impl ${1:Name} {", "    fn ${2:method}(self) {", "        ${0:nil}", "    }", "}"],
+    "description": "Impl block with a method"
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": ["enum ${1:Name} {", "    ${0:Variant}", "}"],
+    "description": "Enum declaration"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": ["match ${1:1} {", "    ${2:1} -> ${3:print(1)}", "    _ -> ${0:print(0)}", "}"],
+    "description": "Match expression"
+  },
+  "For": {
+    "prefix": "for",
+    "body": ["for ${1:item} in ${2:[1, 2]} {", "    ${0:print(item)}", "}"],
+    "description": "For-in loop"
+  },
+  "While": {
+    "prefix": "while",
+    "body": ["while ${1:false} {", "    ${0:print(1)}", "}"],
+    "description": "While loop"
+  },
+  "Try": {
+    "prefix": "try",
+    "body": ["try {", "    ${1:print(1)}", "} catch (${2:e}) {", "    ${0:print(e)}", "}"],
+    "description": "Try/catch"
+  },
+  "Use": {
+    "prefix": "use",
+    "body": "use \"${0:std/math}\"",
+    "description": "Import a module"
+  }
+}
