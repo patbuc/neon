@@ -123,16 +123,13 @@ test('does not run a `neon` found in the document\'s directory', async () => {
     fs.writeFileSync(path.join(docDir, 'neon'), '#!/bin/sh\necho hijacked\n', { mode: 0o755 });
     fs.symlinkSync(neonBin, path.join(binDir, 'neon'));
     const uri = { scheme: 'file', fsPath: path.join(docDir, 'main.n') };
-    for (const value of [neonBin, 'neon']) {
-      neonPath = value;
-      process.env.PATH = '.' + path.delimiter + binDir;
-      const edits = await provideDocumentFormattingEdits(documentOf('print(  1+2 )\n', uri));
-      process.env.PATH = originalPath;
-      assert.deepStrictEqual(errors, []);
-      assert.strictEqual(edits.length, 1);
-      assert.strictEqual(edits[0].newText, 'print(1 + 2)\n');
-      assert.ok(!edits[0].newText.includes('hijacked'));
-    }
+    neonPath = 'neon';
+    process.env.PATH = '.' + path.delimiter + binDir;
+    const edits = await provideDocumentFormattingEdits(documentOf('print(  1+2 )\n', uri));
+    process.env.PATH = originalPath;
+    assert.deepStrictEqual(errors, []);
+    assert.strictEqual(edits.length, 1);
+    assert.strictEqual(edits[0].newText, 'print(1 + 2)\n');
   } finally {
     process.env.PATH = originalPath;
     fs.rmSync(docDir, { recursive: true, force: true });

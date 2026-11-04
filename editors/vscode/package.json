@@ -62,7 +62,7 @@
           "type": "string",
           "default": "neon",
           "scope": "machine",
-          "description": "Path to the neon binary used to format documents. A bare name is looked up on PATH."
+          "description": "Path to the neon binary used to format documents. A bare name is looked up on PATH. A relative path resolves against the extension host's working directory, so use a bare name on PATH or an absolute path."
         }
       }
     }

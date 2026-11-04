@@ -9,7 +9,7 @@ function runNeonFmt(neonPath, text, token) {
   return new Promise((resolve) => {
     let sub;
     const child = execFile(neonPath, ['fmt', '-'], { maxBuffer: 64 * 1024 * 1024 }, (error, stdout) => {
-      sub?.dispose?.();
+      sub?.dispose();
       if (error && typeof error.code !== 'number' && !error.signal) {
         resolve({ code: null, stdout: '', error });
       } else {
