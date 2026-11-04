@@ -11,7 +11,8 @@ Format Document and format on save run `neon fmt` on the buffer. Format on save 
 for Neon files. The binary comes from the `neon.path` setting, which defaults to `neon` on your
 `PATH`. It is a user or machine setting; workspace values are ignored. If `neon fmt` exits
 non-zero because the file does not parse, the buffer is left unchanged and no message is shown;
-only a binary that cannot be run shows an error notification. The extension does not run in
+only a binary that cannot be run shows an error notification, once per `neon.path` value. A
+cancelled run leaves the document unchanged. The extension does not run in
 Restricted Mode, but the grammar still colors files.
 
 ## Install
