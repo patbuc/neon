@@ -3,7 +3,18 @@
 const { execFile } = require('child_process');
 const vscode = require('vscode');
 
+const PARSE_ERROR_EXIT = 65;
+const KILLED = -1;
+
 let notified;
+
+function notifyOnce(neonPath, key, message) {
+  if (notified?.path === neonPath && notified.code === key) {
+    return;
+  }
+  notified = { path: neonPath, code: key };
+  vscode.window.showErrorMessage(message);
+}
 
 function runNeonFmt(neonPath, text, token) {
   return new Promise((resolve) => {
@@ -30,15 +41,21 @@ async function provideDocumentFormattingEdits(document, options, token) {
   const text = document.getText();
   const { code, stdout, error } = await runNeonFmt(neonPath, text, token);
   if (error) {
-    if (notified?.path === neonPath && notified.code === error.code) {
-      return [];
-    }
-    notified = { path: neonPath, code: error.code };
     const message =
       error.code === 'ENOENT'
         ? `Could not run "${neonPath}". Set the neon.path setting to the neon binary.`
-        : `Could not run "${neonPath}": ${error.message}`;
-    vscode.window.showErrorMessage(message);
+        : error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
+          ? `The output of "${neonPath}" was too large to use.`
+          : `Could not run "${neonPath}": ${error.message}`;
+    notifyOnce(neonPath, error.code, message);
+    return [];
+  }
+  if (code !== 0 && code !== PARSE_ERROR_EXIT && code !== KILLED) {
+    notifyOnce(
+      neonPath,
+      code,
+      `"${neonPath}" does not support \`fmt\` (exit ${code}). Set the neon.path setting to a current neon binary.`,
+    );
     return [];
   }
   notified = undefined;
