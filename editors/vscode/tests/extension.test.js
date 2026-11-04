@@ -253,17 +253,22 @@ test('shows the foreign-exit notification once per `neon.path` value and exit co
     await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     assert.strictEqual(errors.length, 1);
-    neonPath = stubNeon(dir, 'neon-b', 'exit 3');
+    assert.match(errors[0], /exited with code 2/);
+    stubNeon(dir, 'neon-a', 'exit 3');
     await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     assert.strictEqual(errors.length, 2);
     assert.match(errors[1], /exited with code 3/);
-    neonPath = path.join(dir, 'neon-c');
+    neonPath = stubNeon(dir, 'neon-b', 'exit 3');
     await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     assert.strictEqual(errors.length, 3);
-    stubNeon(dir, 'neon-c', 'exit 2');
+    assert.match(errors[2], /exited with code 3/);
+    neonPath = path.join(dir, 'neon-c');
     await provideDocumentFormattingEdits(documentOf('print(1)\n'));
     assert.strictEqual(errors.length, 4);
-    assert.match(errors[3], /exited with code 2/);
+    stubNeon(dir, 'neon-c', 'exit 2');
+    await provideDocumentFormattingEdits(documentOf('print(1)\n'));
+    assert.strictEqual(errors.length, 5);
+    assert.match(errors[4], /exited with code 2/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
