@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const vsctm = require('vscode-textmate');
-const oniguruma = require('vscode-oniguruma');
+const { loadOnigLib, tokenizeLines } = require('./textmate');
 
 const vscodeDir = path.join(__dirname, '..');
 const repoRoot = path.join(vscodeDir, '..', '..');
@@ -70,15 +70,6 @@ function fail(message) {
   process.exit(1);
 }
 
-function loadOnigLib() {
-  const wasmPath = path.join(path.dirname(require.resolve('vscode-oniguruma')), 'onig.wasm');
-  const wasmBin = fs.readFileSync(wasmPath).buffer;
-  return oniguruma.loadWASM(wasmBin).then(() => ({
-    createOnigScanner: (patterns) => new oniguruma.OnigScanner(patterns),
-    createOnigString: (s) => new oniguruma.OnigString(s),
-  }));
-}
-
 async function loadGrammar() {
   const content = fs.readFileSync(grammarPath, 'utf8');
   const rawGrammar = vsctm.parseRawGrammar(content, grammarPath);
@@ -88,18 +79,6 @@ async function loadGrammar() {
       Promise.resolve(scopeName === rawGrammar.scopeName ? rawGrammar : null),
   });
   return registry.loadGrammar(rawGrammar.scopeName);
-}
-
-function tokenizeLines(grammar, source) {
-  const lines = source.replace(/\r\n/g, '\n').split('\n');
-  const perLine = [];
-  let ruleStack = vsctm.INITIAL;
-  for (const line of lines) {
-    const result = grammar.tokenizeLine(line, ruleStack);
-    perLine.push({ line, tokens: result.tokens });
-    ruleStack = result.ruleStack;
-  }
-  return perLine;
 }
 
 // Converts a 1-based, codepoint-counted column (as the Rust scanner reports
