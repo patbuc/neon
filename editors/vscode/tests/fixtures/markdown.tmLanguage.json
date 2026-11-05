@@ -1,6 +1,11 @@
 {
   "scopeName": "text.html.markdown",
   "patterns": [
+    {
+      "begin": "^(\\s*)(`{3,}|~{3,})\\s*\\S*\\s*$",
+      "end": "^\\s*\\2\\s*$",
+      "name": "markup.fenced_code.block.markdown"
+    },
     { "match": ".+", "name": "meta.paragraph.markdown" }
   ]
 }

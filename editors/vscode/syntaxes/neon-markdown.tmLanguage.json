@@ -1,6 +1,6 @@
 {
   "scopeName": "markdown.neon.codeblock",
-  "injectionSelector": "L:text.html.markdown",
+  "injectionSelector": "L:text.html.markdown - (markup.fenced_code | markup.raw)",
   "patterns": [
     { "include": "#neon-code-block" }
   ],
