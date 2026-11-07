@@ -137,6 +137,7 @@ cargo run -- - < script.n       # Run a script read from stdin; file imports are
 cargo run -- --check script.n   # Compile without running
 cargo run -- --check --json script.n  # Print compile errors as a JSON array on stdout
 cargo run -- --check --json -   # Same, reading the source from stdin; imports resolve from the current directory
+cargo run -- --semantic-tokens script.n  # Print resolved-name tokens as a JSON array; - reads stdin (imports from the current directory); exit 65 if it does not parse or an import fails
 cargo run -- fmt path...         # Format .n files in place, recursing into directories
 cargo run -- fmt --check path... # Print files that would change, exit 1 if any
 cargo run -- fmt -               # Format stdin, write to stdout

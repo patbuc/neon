@@ -1811,3 +1811,120 @@ fn gives_an_imported_modules_error_its_path_for_a_stdin_entry() {
     let expected_file = format!("\"file\":\"{}\",\"line\":2,", module_path.display());
     assert!(stdout.contains(&expected_file), "{stdout}");
 }
+
+#[allow(clippy::expect_used)]
+fn semantic_tokens(args: &[&std::path::Path]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_neon"))
+        .arg("--semantic-tokens")
+        .args(args)
+        .output()
+        .expect("Failed to run neon binary")
+}
+
+#[cfg(not(feature = "disassemble"))]
+fn semantic_tokens_stdin(dir: &std::path::Path, source: &str) -> std::process::Output {
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command.arg("--semantic-tokens").arg("-").current_dir(dir);
+        },
+        source.as_bytes(),
+    );
+    wait_with_timeout(child, std::time::Duration::from_secs(5))
+}
+
+#[test]
+fn semantic_tokens_prints_tokens_sorted_by_position() {
+    let dir = unique_temp_dir("semantic_tokens_sorted");
+    let path = dir.join("main.n");
+    fs::write(&path, "fn add(a, b) = a + b\nval n = add(1, 2)\n").expect("Failed to write script");
+
+    let output = semantic_tokens(&[&path]);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!(
+        "[{\"line\":1,\"column\":4,\"length\":3,\"type\":\"function\",\"modifiers\":[\"declaration\"]},\
+{\"line\":1,\"column\":8,\"length\":1,\"type\":\"parameter\",\"modifiers\":[\"declaration\"]},\
+{\"line\":1,\"column\":11,\"length\":1,\"type\":\"parameter\",\"modifiers\":[\"declaration\"]},\
+{\"line\":1,\"column\":16,\"length\":1,\"type\":\"parameter\",\"modifiers\":[]},\
+{\"line\":1,\"column\":20,\"length\":1,\"type\":\"parameter\",\"modifiers\":[]},\
+{\"line\":2,\"column\":5,\"length\":1,\"type\":\"variable\",\"modifiers\":[\"declaration\",\"readonly\"]},\
+{\"line\":2,\"column\":9,\"length\":3,\"type\":\"function\",\"modifiers\":[]}]\n",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn semantic_tokens_counts_columns_in_characters() {
+    let dir = unique_temp_dir("semantic_tokens_chars");
+    let path = dir.join("main.n");
+    fs::write(&path, "val name = 1\nprint(\"日本é${name}\")\n").expect("Failed to write script");
+
+    let output = semantic_tokens(&[&path]);
+
+    fs::remove_dir_all(&dir).ok();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("{\"line\":2,\"column\":13,\"length\":4,\"type\":\"variable\",\"modifiers\":[\"readonly\"]}"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn semantic_tokens_keeps_resolved_names_and_exits_zero_with_an_undefined_variable() {
+    let dir = unique_temp_dir("semantic_tokens_undefined");
+    let path = dir.join("main.n");
+    fs::write(&path, "val a = 1\nprint(a + missing)\n").expect("Failed to write script");
+
+    let output = semantic_tokens(&[&path]);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"line\":1,\"column\":5"), "{stdout}");
+    assert!(stdout.contains("\"line\":2,\"column\":7"), "{stdout}");
+    assert!(!stdout.contains("\"column\":11"), "{stdout}");
+}
+
+#[test]
+fn semantic_tokens_prints_nothing_and_exits_65_for_a_file_that_does_not_parse() {
+    let dir = unique_temp_dir("semantic_tokens_parse_error");
+    let path = dir.join("main.n");
+    fs::write(&path, "val = \n").expect("Failed to write script");
+
+    let output = semantic_tokens(&[&path]);
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(65), output.status.code());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+    assert_eq!("", String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
+fn semantic_tokens_exits_64_without_exactly_one_path() {
+    assert_eq!(Some(64), semantic_tokens(&[]).status.code());
+    let two = [std::path::Path::new("a.n"), std::path::Path::new("b.n")];
+    assert_eq!(Some(64), semantic_tokens(&two).status.code());
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn semantic_tokens_reads_stdin_and_resolves_imports_from_the_current_directory() {
+    let dir = unique_temp_dir("semantic_tokens_stdin");
+    fs::write(dir.join("m.n"), "pub fn helper() = 1\n").expect("Failed to write module");
+
+    let output = semantic_tokens_stdin(&dir, "use \"./m\"\nm.helper()\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!(
+        "[{\"line\":2,\"column\":1,\"length\":1,\"type\":\"namespace\",\"modifiers\":[]},\
+{\"line\":2,\"column\":3,\"length\":6,\"type\":\"function\",\"modifiers\":[]}]\n",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
