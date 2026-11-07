@@ -28,3 +28,9 @@ test('continues a whole-line comment on Enter', () => {
 test('does not continue a trailing comment on Enter', () => {
   assert.strictEqual(onEnter('val x = 1 // note'), undefined);
 });
+
+test('does not continue outside a comment on Enter', () => {
+  for (const before of ['', '    ', '    /']) {
+    assert.strictEqual(onEnter(before), undefined, JSON.stringify(before));
+  }
+});
