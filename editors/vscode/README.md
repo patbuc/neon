@@ -2,9 +2,9 @@
 
 TextMate grammar and language configuration for Neon (`.n` files): highlighting
 for keywords, strings, numbers, and operators, plus function and method calls,
-parameters, `self`, properties, type names, enum variants, struct fields, and
-invalid string escapes; comment toggling, bracket matching/auto-closing, and
-indentation on brackets, and snippets for common forms (`fn`, `struct`, `impl`, `enum`, `match`,
+parameters, `self`, the implicit `it` of a trailing block, properties, type names, enum variants,
+struct fields, and invalid string escapes; comment toggling, bracket matching/auto-closing,
+indentation on brackets, Enter continuing a whole-line `//` comment, and snippets for common forms (`fn`, `struct`, `impl`, `enum`, `match`,
 `for`, `while`, `try`, `use`). `.n` files get the Ne icon in the explorer and tabs when the active
 file icon theme has none of its own. ```` ```neon ```` fences in Markdown files get Neon highlighting.
 
@@ -56,8 +56,8 @@ scanner (via `neon --tokens`) and the grammar, and fails if a keyword, string, i
 number token lands in the wrong scope. The differential test looks for the Neon binary at
 `target/debug/neon`; set `NEON_BIN` to point at a different build.
 
-`npm test` also runs `tests/extension.test.js` with `node --test`. Like the differential test, the
-extension tests use the binary at `target/debug/neon`, or `NEON_BIN` when set.
+`npm test` also runs the `node --test` suites in `tests/`. Like the differential test, the
+extension tests in `tests/extension.test.js` use the binary at `target/debug/neon`, or `NEON_BIN` when set.
 
 ## Release
 
