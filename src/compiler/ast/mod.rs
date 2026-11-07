@@ -453,8 +453,9 @@ pub enum IfExprElse {
     Block(Stmt),
 }
 
-/// A single declared name: `val x = ...`'s `x`, or one non-`_` slot of a
-/// tuple pattern.
+/// A single declared name: `val x = ...`'s `x`, one non-`_` slot of a tuple
+/// pattern, a function or block parameter, a `for` or `catch` variable, or a
+/// name bound by a `match` pattern.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Binding {
     pub name: String,

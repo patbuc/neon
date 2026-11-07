@@ -1,10 +1,51 @@
 use crate::compiler::ast::{EnumVariant, NodeId};
+use crate::compiler::exports::Export;
+use crate::compiler::symbol_table::SymbolKind;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 /// Identity of a declaration (a `val`/`var`/`fn`/`struct`/loop variable/parameter).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DeclId(pub u32);
+
+/// What a declaration declares, as the semantic pass saw it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclKind {
+    Value,
+    Variable,
+    Function,
+    Struct,
+    Enum,
+    Parameter,
+    Module,
+}
+
+impl DeclKind {
+    /// The kind of a symbol the program declares; `None` for a runtime builtin.
+    pub(crate) fn of(kind: &SymbolKind) -> Option<DeclKind> {
+        match kind {
+            SymbolKind::Value => Some(DeclKind::Value),
+            SymbolKind::Variable => Some(DeclKind::Variable),
+            SymbolKind::Function { .. } => Some(DeclKind::Function),
+            SymbolKind::Struct { .. } => Some(DeclKind::Struct),
+            SymbolKind::Enum { .. } => Some(DeclKind::Enum),
+            SymbolKind::Parameter => Some(DeclKind::Parameter),
+            SymbolKind::Module { .. } => Some(DeclKind::Module),
+            SymbolKind::Builtin { .. } => None,
+        }
+    }
+
+    /// The kind of a module's export. An export doesn't say whether a
+    /// variable is a `val`, and a builtin module's native is a function.
+    pub(crate) fn of_export(export: &Export) -> DeclKind {
+        match export {
+            Export::Function { .. } | Export::Native { .. } => DeclKind::Function,
+            Export::Variable { .. } => DeclKind::Variable,
+            Export::Struct { .. } => DeclKind::Struct,
+            Export::Enum { .. } => DeclKind::Enum,
+        }
+    }
+}
 
 /// Where a name use lives at runtime, from the point of view of the function containing the use.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -125,6 +166,7 @@ pub struct Resolutions {
     uses: HashMap<NodeId, Res>,
     natives: HashMap<NodeId, usize>,
     decls: HashMap<NodeId, DeclId>,
+    decl_kinds: HashMap<DeclId, DeclKind>,
     functions: HashMap<NodeId, FunctionResolution>,
     captured: HashSet<DeclId>,
     checked: HashSet<NodeId>,
@@ -139,6 +181,9 @@ pub struct Resolutions {
     /// Global slot of the export a module member read names, keyed by the
     /// `Expr::Variable` node naming the module in `utils.counter`.
     module_members: HashMap<NodeId, u32>,
+    /// Kind of the export a module member read names, keyed like
+    /// `module_members` but present for exports without a slot too.
+    module_member_kinds: HashMap<NodeId, DeclKind>,
     /// Keyed by the `Expr::Call` node of a struct construction with named
     /// arguments: the field position each argument fills, in source order.
     struct_argument_fields: HashMap<NodeId, Vec<usize>>,
@@ -159,6 +204,10 @@ impl Resolutions {
 
     pub(crate) fn record_decl(&mut self, id: NodeId, decl: DeclId) {
         self.decls.insert(id, decl);
+    }
+
+    pub(crate) fn record_decl_kind(&mut self, decl: DeclId, kind: DeclKind) {
+        self.decl_kinds.insert(decl, kind);
     }
 
     pub(crate) fn record_function(&mut self, id: NodeId, resolution: FunctionResolution) {
@@ -213,6 +262,25 @@ impl Resolutions {
             .uses
             .get(&id)
             .unwrap_or_else(|| panic!("no resolution recorded for {:?}", id))
+    }
+
+    /// Like `res`, but `None` when the node has no resolution (an
+    /// unresolved name, or a call resolved as a native).
+    #[cfg(test)]
+    pub fn try_res(&self, id: NodeId) -> Option<Res> {
+        self.uses.get(&id).copied()
+    }
+
+    /// Like `decl`, but `None` when the node was never declared.
+    #[cfg(test)]
+    pub fn try_decl(&self, id: NodeId) -> Option<DeclId> {
+        self.decls.get(&id).copied()
+    }
+
+    /// What `decl` declares; `None` for a runtime builtin.
+    #[cfg(test)]
+    pub fn decl_kind(&self, decl: DeclId) -> Option<DeclKind> {
+        self.decl_kinds.get(&decl).copied()
     }
 
     /// The `DeclId` a declaration node was assigned.
@@ -317,6 +385,17 @@ impl Resolutions {
 
     pub(crate) fn record_module_member(&mut self, id: NodeId, slot: u32) {
         self.module_members.insert(id, slot);
+    }
+
+    pub(crate) fn record_module_member_kind(&mut self, id: NodeId, kind: DeclKind) {
+        self.module_member_kinds.insert(id, kind);
+    }
+
+    /// The kind of the export `id` (an `Expr::Variable` naming a module)
+    /// reads as the object of a `GetField`, if any.
+    #[cfg(test)]
+    pub fn module_member_kind(&self, id: NodeId) -> Option<DeclKind> {
+        self.module_member_kinds.get(&id).copied()
     }
 
     /// The global slot `id` (an `Expr::Variable` naming a module) reads as

@@ -1,0 +1,2 @@
+// Expected compile error: 2:9 E0012 Symbol 'a' already defined in this scope
+fn f(a, a) {}

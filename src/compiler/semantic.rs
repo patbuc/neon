@@ -16,7 +16,8 @@ use crate::compiler::ast::{
 use crate::compiler::exports::{Export, ExportTable};
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::resolutions::{
-    Capture, DeclId, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res, Resolutions,
+    Capture, DeclId, DeclKind, EnumValuesAccess, EnumVariantAccess, FunctionResolution, Res,
+    Resolutions,
 };
 use crate::compiler::scanner::is_identifier;
 use crate::compiler::symbol_table::{Symbol, SymbolKind, SymbolTable};
@@ -667,6 +668,7 @@ impl SemanticAnalyzer {
     ) -> DeclId {
         let decl_id = self.next_decl_id();
         let depth = self.symbol_table.current_depth();
+        let symbol_kind = kind.clone();
         let symbol = Symbol::new(
             name.clone(),
             kind,
@@ -687,6 +689,9 @@ impl SemanticAnalyzer {
         }
         if !is_mutable {
             self.resolutions.mark_immutable(decl_id);
+        }
+        if let Some(kind) = DeclKind::of(&symbol_kind) {
+            self.resolutions.record_decl_kind(decl_id, kind);
         }
         decl_id
     }
@@ -1783,8 +1788,9 @@ impl SemanticAnalyzer {
         // except a leading `self` inside an impl method, which is typed as
         // the struct being implemented.
         for (i, param) in params.iter().enumerate() {
+            let param_id = param.id;
+            let param_location = param.location;
             let param = &param.name;
-            let param_location = location; // Use function location for params
             let param_type = if i == 0 && param == "self" {
                 self_type.map(StaticType::from_name)
             } else {
@@ -1792,8 +1798,13 @@ impl SemanticAnalyzer {
             };
             let is_typed_self = param_type.is_some();
             self.define_type(param, param_type);
-            let decl_id =
-                self.define_symbol(param.clone(), SymbolKind::Parameter, false, param_location);
+            let decl_id = self.declare_symbol(
+                param_id,
+                param.clone(),
+                SymbolKind::Parameter,
+                false,
+                param_location,
+            );
             if is_typed_self {
                 self.fixed_decls.insert(decl_id);
             }
@@ -2735,6 +2746,8 @@ impl SemanticAnalyzer {
                 if let Some(slot) = export.slot() {
                     self.resolutions.record_module_member(id, slot);
                 }
+                self.resolutions
+                    .record_module_member_kind(id, DeclKind::of_export(&export));
                 Some(export)
             }
             None => {
