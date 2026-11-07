@@ -22,6 +22,16 @@ pub(crate) struct Compiled {
     pub(crate) env: GlobalEnv,
 }
 
+/// The module graph with every imported module compiled, ready for the
+/// entry (the graph's last module) to compile against `env` and `exports`.
+pub(crate) struct CompiledImports {
+    pub(crate) graph: ModuleGraph,
+    pub(crate) env: GlobalEnv,
+    pub(crate) exports: HashMap<PathBuf, ExportTable>,
+    pub(crate) modules: Vec<Chunk>,
+    pub(crate) module_slot_counts: Vec<u32>,
+}
+
 impl Compiler {
     pub fn new() -> Compiler {
         Compiler::default()
@@ -56,14 +66,41 @@ impl Compiler {
         entry: EntryLocation,
         env: &GlobalEnv,
     ) -> Option<Compiled> {
-        // Pass 1: Resolve the module graph (parses every module)
-        // Pass 2: Semantic analysis
-        // Pass 3: Code generation
-
         let entry_file = match &entry {
             EntryLocation::File(path) => Some(Self::file_name(path)),
             EntryLocation::Directory(_) | EntryLocation::None => None,
         };
+        let CompiledImports {
+            graph,
+            env,
+            exports,
+            modules,
+            module_slot_counts,
+        } = self.compile_imports(source, entry, env)?;
+        let (entry_module, _) = Self::split_entry(&graph);
+
+        let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports, entry_file)
+        {
+            Ok(unit) => unit,
+            Err(errors) => return self.fail(errors),
+        };
+        env.modules = exports;
+        Some(Compiled {
+            modules,
+            module_slot_counts,
+            entry,
+            env,
+        })
+    }
+
+    /// Builds the module graph and compiles every imported module against
+    /// `env`, recording the failing module's errors on `self` when one fails.
+    pub(crate) fn compile_imports(
+        &mut self,
+        source: &str,
+        entry: EntryLocation,
+        env: &GlobalEnv,
+    ) -> Option<CompiledImports> {
         self.module_sources.clear();
         let graph = match ModuleGraph::build_with_sources(source, entry, &mut self.module_sources) {
             Ok(graph) => graph,
@@ -77,7 +114,7 @@ impl Compiler {
         let mut exports = std::mem::take(&mut env.modules);
         let mut modules = Vec::new();
         let mut module_slot_counts = Vec::new();
-        let (entry_module, imported) = Self::split_entry(&graph);
+        let (_, imported) = Self::split_entry(&graph);
         for module in imported {
             if exports.contains_key(&module.path) {
                 continue;
@@ -127,17 +164,12 @@ impl Compiler {
             module_slot_counts.push(env.slot_count);
         }
 
-        let (entry, mut env, _) = match self.compile_unit(entry_module, &env, &exports, entry_file)
-        {
-            Ok(unit) => unit,
-            Err(errors) => return self.fail(errors),
-        };
-        env.modules = exports;
-        Some(Compiled {
+        Some(CompiledImports {
+            graph,
+            env,
+            exports,
             modules,
             module_slot_counts,
-            entry,
-            env,
         })
     }
 
