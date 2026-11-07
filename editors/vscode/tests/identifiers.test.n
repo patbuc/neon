@@ -72,7 +72,8 @@
 //    ^^^^ - variable.language.it.neon
   val (a, it) = [1, 2]
 //^^^ storage.type.neon
-//         ^^ - variable.language.it.neon
+//        ^^ - variable.language.it.neon
+//      ^ punctuation.separator.comma.neon
   var (it, b) = [1, 2]
 //^^^ storage.type.neon
 //     ^^ - variable.language.it.neon

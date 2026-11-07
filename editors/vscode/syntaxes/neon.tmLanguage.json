@@ -180,7 +180,7 @@
       "captures": {
         "1": { "name": "storage.type.neon" },
         "2": { "name": "keyword.control.neon" },
-        "4": { "patterns": [{ "match": "\\bit\\b" }] }
+        "4": { "patterns": [{ "include": "#punctuation" }] }
       }
     },
     "implicit-it": {
