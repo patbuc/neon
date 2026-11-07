@@ -725,11 +725,13 @@ impl Parser {
         }
         let path = self.previous_token.token.clone();
         let raw_path = self.previous_token.raw.clone();
+        let mut alias_location = None;
         let alias = if self.check(TokenType::Identifier) && self.current_token.token == "as" {
             self.advance();
             if !self.consume(TokenType::Identifier, "expected a name after as") {
                 return None;
             }
+            alias_location = Some(self.current_location());
             Some(self.previous_token.token.clone())
         } else {
             None
@@ -739,6 +741,7 @@ impl Parser {
             path,
             raw_path,
             alias,
+            alias_location,
             id: self.next_id(),
             location,
         })
@@ -1977,6 +1980,7 @@ impl Parser {
             return None;
         }
         let field = self.previous_token.token.clone();
+        let field_location = self.current_location();
 
         if self.in_match_pattern
             && !optional
@@ -2001,6 +2005,7 @@ impl Parser {
                 field,
                 optional,
                 location,
+                field_location,
             });
         }
 
@@ -2020,6 +2025,7 @@ impl Parser {
                 field,
                 optional,
                 location,
+                field_location,
             };
 
             Some(Self::call_expr(
@@ -2038,6 +2044,7 @@ impl Parser {
                 field,
                 value,
                 location,
+                field_location,
             })
         } else if let Some(operator) = self
             .compound_assign_op()
@@ -2053,6 +2060,7 @@ impl Parser {
                 operator,
                 value,
                 location,
+                field_location,
                 operator_location,
             })
         } else {
@@ -2061,6 +2069,7 @@ impl Parser {
                 field,
                 optional,
                 location,
+                field_location,
             })
         }
     }

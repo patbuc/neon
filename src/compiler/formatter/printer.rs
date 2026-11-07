@@ -940,6 +940,7 @@ impl<'a> Printer<'a> {
                 field,
                 optional,
                 location,
+                ..
             } => {
                 self.print_expr(object);
                 let object_line = self.map.last_line(object);

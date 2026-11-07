@@ -952,6 +952,7 @@ impl<'a> CodeGenerator<'a> {
                 field,
                 value,
                 location,
+                ..
             } => {
                 let symbol = self.resolutions.symbol(field);
                 if let Expr::Variable { id, .. } = object.as_ref()
@@ -978,6 +979,7 @@ impl<'a> CodeGenerator<'a> {
                 value,
                 location,
                 operator_location,
+                ..
             } => {
                 let symbol = self.generate_field_compound_assign_value(
                     object,
@@ -2029,6 +2031,7 @@ impl<'a> CodeGenerator<'a> {
                 field,
                 optional,
                 location,
+                ..
             } => {
                 if *optional {
                     self.generate_expr(object);
@@ -2084,6 +2087,7 @@ impl<'a> CodeGenerator<'a> {
                 field,
                 value,
                 location,
+                ..
             } => {
                 self.generate_expr(object);
                 self.generate_expr(value);
@@ -2097,6 +2101,7 @@ impl<'a> CodeGenerator<'a> {
                 value,
                 location,
                 operator_location,
+                ..
             } => {
                 let symbol = self.generate_field_compound_assign_value(
                     object,

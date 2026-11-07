@@ -205,12 +205,14 @@ pub enum Expr {
         /// `true` for `a?.b`: yields nil without erroring if `object` is nil.
         optional: bool,
         location: SourceLocation,
+        field_location: SourceLocation,
     },
     SetField {
         object: Box<Expr>,
         field: String,
         value: Box<Expr>,
         location: SourceLocation,
+        field_location: SourceLocation,
     },
     /// `object.field op= value`; the VM's `Dup` opcode evaluates `object`
     /// once for both the read and the write. `operator_location` is the
@@ -222,6 +224,7 @@ pub enum Expr {
         operator: BinaryOp,
         value: Box<Expr>,
         location: SourceLocation,
+        field_location: SourceLocation,
         operator_location: SourceLocation,
     },
     Grouping {
@@ -571,6 +574,7 @@ pub enum Stmt {
         path: String,
         raw_path: String,
         alias: Option<String>,
+        alias_location: Option<SourceLocation>,
         id: NodeId,
         location: SourceLocation,
     },

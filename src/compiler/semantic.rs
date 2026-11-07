@@ -1295,6 +1295,7 @@ impl SemanticAnalyzer {
                 field,
                 optional,
                 location,
+                ..
             } => {
                 self.resolve_get_field(object, field, *optional, *location);
             }
@@ -1303,6 +1304,7 @@ impl SemanticAnalyzer {
                 field,
                 value,
                 location,
+                ..
             }
             | Expr::CompoundAssignField {
                 object,
