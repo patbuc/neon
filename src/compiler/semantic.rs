@@ -269,17 +269,30 @@ impl SemanticAnalyzer {
 
     /// Analyze the AST and return the recorded name resolutions if successful
     pub fn analyze(&mut self, statements: &[Stmt]) -> CompilationResult<Resolutions> {
+        let (resolutions, errors) = self.analyze_all(statements);
+        if errors.is_empty() {
+            Ok(resolutions)
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Analyze the AST and return the recorded resolutions together with
+    /// every error.
+    pub(crate) fn analyze_all(
+        &mut self,
+        statements: &[Stmt],
+    ) -> (Resolutions, Vec<CompilationError>) {
         // First: collect all top-level declarations
         self.collect_declarations(statements);
 
         // Then: resolve all references and validate
         self.resolve_statements(statements);
 
-        if self.errors.is_empty() {
-            Ok(std::mem::take(&mut self.resolutions))
-        } else {
-            Err(self.errors.clone())
-        }
+        (
+            std::mem::take(&mut self.resolutions),
+            std::mem::take(&mut self.errors),
+        )
     }
 
     /// Current function-nesting level (0 = the script).
