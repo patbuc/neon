@@ -175,6 +175,12 @@ function openUrisByRealPath() {
 }
 
 // neon counts columns in code points, VS Code in UTF-16 units.
+function utf16Span(text, col, length) {
+  const points = Array.from(text);
+  const start = points.slice(0, col).join('').length;
+  return { start, length: points.slice(col, col + length).join('').length };
+}
+
 function toPosition(document, fsPath, line, column, fileLines) {
   const row = Math.max(0, line - 1);
   const col = Math.max(0, column - 1);
@@ -182,10 +188,9 @@ function toPosition(document, fsPath, line, column, fileLines) {
   if (text === undefined) {
     return { start: new vscode.Position(row, col), end: new vscode.Position(row, col + 1) };
   }
-  const points = Array.from(text);
-  const start = points.slice(0, col).join('').length;
-  const end = start + (points[col]?.length ?? 1);
-  return { start: new vscode.Position(row, start), end: new vscode.Position(row, end) };
+  const span = utf16Span(text, col, 1);
+  const end = span.start + (span.length || 1);
+  return { start: new vscode.Position(row, span.start), end: new vscode.Position(row, end) };
 }
 
 // Both the documents' keys and neon's canonical module paths are real paths, so a symlink cannot split one file in two.
