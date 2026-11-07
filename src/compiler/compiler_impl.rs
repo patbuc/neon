@@ -173,6 +173,22 @@ impl Compiler {
         })
     }
 
+    fn analyzer(
+        module: &Module,
+        env: &GlobalEnv,
+        exports: &HashMap<PathBuf, ExportTable>,
+    ) -> SemanticAnalyzer {
+        let imports = module
+            .imports
+            .iter()
+            .filter_map(|(id, path)| Some((*id, exports.get(path)?.clone())))
+            .collect();
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.seed(env);
+        analyzer.seed_imports(imports);
+        analyzer
+    }
+
     fn compile_unit(
         &mut self,
         module: &Module,
@@ -180,16 +196,8 @@ impl Compiler {
         exports: &HashMap<PathBuf, ExportTable>,
         file: Option<Rc<str>>,
     ) -> CompilationResult<(Chunk, GlobalEnv, ExportTable)> {
-        let imports = module
-            .imports
-            .iter()
-            .filter_map(|(id, path)| Some((*id, exports.get(path)?.clone())))
-            .collect();
-
         // Phase 2: Semantic analysis
-        let mut analyzer = SemanticAnalyzer::new();
-        analyzer.seed(env);
-        analyzer.seed_imports(imports);
+        let mut analyzer = Self::analyzer(module, env, exports);
         let resolutions = analyzer.analyze(&module.ast)?;
 
         // Phase 3: Code generation
