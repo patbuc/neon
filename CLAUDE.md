@@ -213,9 +213,12 @@ enforces these edges in `cargo test`.
     - Resolves every name once, using scoped symbol tables (`src/compiler/symbol_table.rs`) for
       lexical scoping — including which calls dispatch to a native
     - Returns `Resolutions` (`src/compiler/resolutions.rs`): a `Res` per name-use node (keyed by the
-      parser-assigned `NodeId`), native-call entries, declarations, per-function params and upvalue
-      captures, which declarations are captured, and a `Symbols` table interning every field, method,
+      parser-assigned `NodeId`), native-call entries, declarations and their `DeclKind`, the kind of
+      each module member used, per-function params and upvalue captures, which declarations are
+      captured, and a `Symbols` table interning every field, method,
       and type name into a `u16` id (more than 65,536 distinct names is a compile error)
+    - `analyze_all` keeps the `Resolutions` alongside any errors; `src/compiler/semantic_tokens.rs`
+      walks the entry's AST with them for `--semantic-tokens`
     - Owns these diagnostics: undefined variable, break/continue outside a loop, postfix operand,
       unknown module export, write to an export, module used as a value, wrong-arity export call,
       named arguments to a callee that is not statically a struct

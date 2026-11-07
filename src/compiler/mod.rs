@@ -12,6 +12,7 @@ pub(crate) mod parser;
 pub(crate) mod resolutions;
 mod scanner;
 pub(crate) mod semantic;
+pub(crate) mod semantic_tokens;
 pub(crate) mod symbol_table;
 mod token;
 
@@ -115,6 +116,15 @@ pub fn tokens_to_json(source: &str) -> String {
     }
     out.push(']');
     out
+}
+
+/// The semantic tokens of the entry module as a JSON array, or `None` when
+/// it or one of its imports does not compile as far as name resolution. A
+/// semantic error in the entry still yields the tokens of the names that
+/// resolved.
+pub fn semantic_tokens_to_json(source: &str, entry: module_graph::EntryLocation) -> Option<String> {
+    let tokens = Compiler::new().semantic_tokens(source, entry)?;
+    Some(semantic_tokens::to_json(&tokens))
 }
 
 pub fn errors_to_json(errors: &[crate::common::errors::CompilationError]) -> String {

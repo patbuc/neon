@@ -8,6 +8,7 @@ use crate::compiler::exports::ExportTable;
 use crate::compiler::global_env::GlobalEnv;
 use crate::compiler::module_graph::{EntryLocation, Module, ModuleGraph};
 use crate::compiler::semantic::SemanticAnalyzer;
+use crate::compiler::semantic_tokens::{self, SemanticToken};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -171,6 +172,25 @@ impl Compiler {
             modules,
             module_slot_counts,
         })
+    }
+
+    /// The semantic tokens of the entry module, analyzed after its imports
+    /// compile. Semantic errors in the entry are ignored.
+    pub(crate) fn semantic_tokens(
+        &mut self,
+        source: &str,
+        entry: EntryLocation,
+    ) -> Option<Vec<SemanticToken>> {
+        let CompiledImports {
+            graph,
+            env,
+            exports,
+            ..
+        } = self.compile_imports(source, entry, &GlobalEnv::default())?;
+        let (entry_module, _) = Self::split_entry(&graph);
+        let mut analyzer = Self::analyzer(entry_module, &env, &exports);
+        let (resolutions, _) = analyzer.analyze_all(&entry_module.ast);
+        Some(semantic_tokens::compute(&entry_module.ast, &resolutions))
     }
 
     fn analyzer(

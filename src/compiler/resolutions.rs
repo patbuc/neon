@@ -266,21 +266,23 @@ impl Resolutions {
 
     /// Like `res`, but `None` when the node has no resolution (an
     /// unresolved name, or a call resolved as a native).
-    #[cfg(test)]
     pub fn try_res(&self, id: NodeId) -> Option<Res> {
         self.uses.get(&id).copied()
     }
 
     /// Like `decl`, but `None` when the node was never declared.
-    #[cfg(test)]
     pub fn try_decl(&self, id: NodeId) -> Option<DeclId> {
         self.decls.get(&id).copied()
     }
 
     /// What `decl` declares; `None` for a runtime builtin.
-    #[cfg(test)]
     pub fn decl_kind(&self, decl: DeclId) -> Option<DeclKind> {
         self.decl_kinds.get(&decl).copied()
+    }
+
+    /// Like `function`, but `None` when the node is not a resolved function.
+    pub fn try_function(&self, id: NodeId) -> Option<&FunctionResolution> {
+        self.functions.get(&id)
     }
 
     /// The `DeclId` a declaration node was assigned.
@@ -393,7 +395,6 @@ impl Resolutions {
 
     /// The kind of the export `id` (an `Expr::Variable` naming a module)
     /// reads as the object of a `GetField`, if any.
-    #[cfg(test)]
     pub fn module_member_kind(&self, id: NodeId) -> Option<DeclKind> {
         self.module_member_kinds.get(&id).copied()
     }

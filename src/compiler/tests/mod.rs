@@ -12,6 +12,7 @@ mod repl_line;
 mod resolutions;
 mod scanner;
 mod semantic;
+mod semantic_tokens;
 mod symbol_table;
 mod test_args_global;
 mod tokens_json;
