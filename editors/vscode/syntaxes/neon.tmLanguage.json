@@ -18,6 +18,7 @@
         { "include": "#struct-declaration" },
         { "include": "#enum-declaration" },
         { "include": "#impl-declaration" },
+        { "include": "#declared-it" },
         { "include": "#keywords-control" },
         { "include": "#keywords-storage" },
         { "include": "#constants-language" },
@@ -28,6 +29,7 @@
         { "include": "#named-argument" },
         { "include": "#block-parameters" },
         { "include": "#member-access" },
+        { "include": "#implicit-it" },
         { "include": "#constant" },
         { "include": "#type-name" },
         { "include": "#set-literal" },
@@ -172,6 +174,17 @@
     "block-parameters": {
       "match": "\\b(?!(?:break|catch|continue|else|enum|false|fn|for|if|impl|in|match|nil|pub|return|struct|throw|true|try|use|val|var|while|yield)\\b)([A-Za-z_][A-Za-z0-9_]*)(?=\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*\\s*)*->)",
       "name": "variable.parameter.neon"
+    },
+    "declared-it": {
+      "match": "\\b(?:(val|var)|(for))\\s+(it)\\b",
+      "captures": {
+        "1": { "name": "storage.type.neon" },
+        "2": { "name": "keyword.control.neon" }
+      }
+    },
+    "implicit-it": {
+      "match": "\\bit\\b",
+      "name": "variable.language.it.neon"
     },
     "enum-member": {
       "match": "\\b([A-Z][A-Za-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",

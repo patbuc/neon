@@ -47,3 +47,20 @@
 //           ^ - variable.other.property.neon
   var e = "\q"
 //         ^^ invalid.illegal.unknown-escape.neon
+  xs.map { it * 2 }
+//         ^^ variable.language.it.neon
+  val it = 1
+//    ^^ - variable.language.it.neon
+  var it = 2
+//    ^^ - variable.language.it.neon
+  fn f(it) { it }
+//     ^^ - variable.language.it.neon
+//           ^^ variable.language.it.neon
+  val g = fn(it) { 1 }
+//           ^^ - variable.language.it.neon
+  xs.map { it -> it }
+//         ^^ variable.parameter.neon
+//         ^^ - variable.language.it.neon
+//               ^^ variable.language.it.neon
+  for it in xs { }
+//    ^^ - variable.language.it.neon
