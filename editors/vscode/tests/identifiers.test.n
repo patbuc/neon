@@ -64,3 +64,22 @@
 //               ^^ variable.language.it.neon
   for it in xs { }
 //    ^^ - variable.language.it.neon
+  val items = 1
+//    ^^^^^ - variable.language.it.neon
+  val x = items
+//        ^^^^^ - variable.language.it.neon
+  val iter = 1
+//    ^^^^ - variable.language.it.neon
+  val (a, it) = [1, 2]
+//^^^ storage.type.neon
+//         ^^ - variable.language.it.neon
+  var (it, b) = [1, 2]
+//^^^ storage.type.neon
+//     ^^ - variable.language.it.neon
+  for (k, it) in m { }
+//^^^ keyword.control.neon
+//        ^^ - variable.language.it.neon
+  try { } catch (it) { it }
+//        ^^^^^ keyword.control.neon
+//               ^^ - variable.language.it.neon
+//                     ^^ variable.language.it.neon

@@ -176,10 +176,11 @@
       "name": "variable.parameter.neon"
     },
     "declared-it": {
-      "match": "\\b(?:(val|var)|(for))\\s+(it)\\b",
+      "match": "\\b(?:(val|var)|(for|catch))(?:\\s+(it)\\b|\\s*\\(([^)]*)\\))",
       "captures": {
         "1": { "name": "storage.type.neon" },
-        "2": { "name": "keyword.control.neon" }
+        "2": { "name": "keyword.control.neon" },
+        "4": { "patterns": [{ "match": "\\bit\\b" }] }
       }
     },
     "implicit-it": {
