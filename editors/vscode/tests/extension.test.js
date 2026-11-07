@@ -241,7 +241,7 @@ test('kills the formatter when the request is cancelled', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
   try {
     neonPath = path.join(dir, 'neon');
-    fs.writeFileSync(neonPath, '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+    fs.writeFileSync(neonPath, '#!/bin/sh\nexec sleep 30\n', { mode: 0o755 });
     let listener;
     let disposed = false;
     const token = {
