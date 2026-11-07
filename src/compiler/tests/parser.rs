@@ -616,7 +616,8 @@ fn test_parse_call_with_trailing_block_lambda() {
             assert_eq!(arguments.len(), 2);
             match &arguments[1] {
                 Expr::Function { params, .. } => {
-                    assert_eq!(params, &vec!["x".to_string()]);
+                    let names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
+                    assert_eq!(names, ["x"]);
                 }
                 _ => panic!("Expected Function expression as last argument"),
             }

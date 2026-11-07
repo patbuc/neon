@@ -1,8 +1,8 @@
 use crate::common::SourceLocation;
 use crate::common::errors::{CompilationError, CompilationErrorKind, CompilationPhase};
 use crate::compiler::ast::{
-    BinaryOp, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern, Pattern,
-    Stmt, UnaryOp,
+    BinaryOp, Binding, Expr, IfExprElse, InterpolationPart, MatchArm, MatchArmBody, MatchPattern,
+    Pattern, Stmt, UnaryOp,
 };
 use crate::compiler::formatter::source_map::SourceMap;
 use crate::compiler::{Comment, CommentKind, Trivia};
@@ -616,7 +616,7 @@ impl<'a> Printer<'a> {
         );
     }
 
-    fn print_params(&mut self, location: &SourceLocation, params: &[String]) {
+    fn print_params(&mut self, location: &SourceLocation, params: &[Binding]) {
         let fn_tokens = self.map.fn_tokens(location);
         let spans: Vec<(u32, u32)> = self
             .map
@@ -630,7 +630,9 @@ impl<'a> Printer<'a> {
             open_line: self.map.line(fn_tokens.params_open),
             close_line: self.map.line(fn_tokens.params_close),
         };
-        self.bracket_list(brackets, &spans, |printer, i| printer.write(&params[i]));
+        self.bracket_list(brackets, &spans, |printer, i| {
+            printer.write(&params[i].name)
+        });
     }
 
     fn print_body(&mut self, location: &SourceLocation, body: &[Stmt]) {
@@ -645,7 +647,7 @@ impl<'a> Printer<'a> {
     /// like `braced_lines`; anything else stays multi-line.
     fn print_trailing_block(
         &mut self,
-        params: &[String],
+        params: &[Binding],
         body: &[Stmt],
         open: usize,
         close: usize,
@@ -691,10 +693,11 @@ impl<'a> Printer<'a> {
         self.write("}");
     }
 
-    fn print_trailing_block_params(&mut self, params: &[String]) {
+    fn print_trailing_block_params(&mut self, params: &[Binding]) {
         if !params.is_empty() {
             self.write(" ");
-            self.write(&params.join(", "));
+            let names: Vec<&str> = params.iter().map(|param| param.name.as_str()).collect();
+            self.write(&names.join(", "));
             self.write(" ->");
         }
     }

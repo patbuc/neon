@@ -344,7 +344,18 @@ impl Parser {
         self.parse_comma_separated_list(closing_token, max_count, |parser| parser.expression(false))
     }
 
-    fn parse_parameter_list(&mut self) -> Option<Vec<String>> {
+    fn parse_parameter_binding(&mut self) -> Option<Binding> {
+        if !self.consume(TokenType::Identifier, "Expect parameter name.") {
+            return None;
+        }
+        Some(Binding {
+            name: self.previous_token.token.clone(),
+            id: self.next_id(),
+            location: self.current_location(),
+        })
+    }
+
+    fn parse_parameter_list(&mut self) -> Option<Vec<Binding>> {
         self.parse_comma_separated_list(
             TokenType::RightParen,
             Some((
@@ -352,12 +363,7 @@ impl Parser {
                 CompilationErrorKind::TooManyParameters,
                 "Can't have more than 255 parameters.",
             )),
-            |parser| {
-                if !parser.consume(TokenType::Identifier, "Expect parameter name.") {
-                    return None;
-                }
-                Some(parser.previous_token.token.clone())
-            },
+            Self::parse_parameter_binding,
         )
     }
 
@@ -2190,7 +2196,7 @@ impl Parser {
     /// Parses the optional `name, name ->` header of a trailing block,
     /// looked ahead for with `looks_like_block_lambda_params` so a body
     /// that happens to start with an identifier isn't mistaken for one.
-    fn parse_block_lambda_params(&mut self) -> Option<Vec<String>> {
+    fn parse_block_lambda_params(&mut self) -> Option<Vec<Binding>> {
         if !self
             .scanner
             .looks_like_block_lambda_params(self.current_token.offset)
@@ -2200,10 +2206,7 @@ impl Parser {
 
         let mut params = Vec::new();
         loop {
-            if !self.consume(TokenType::Identifier, "Expect parameter name.") {
-                return None;
-            }
-            params.push(self.previous_token.token.clone());
+            params.push(self.parse_parameter_binding()?);
             if !self.match_token(TokenType::Comma) {
                 break;
             }

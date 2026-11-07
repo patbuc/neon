@@ -55,7 +55,14 @@ fn test_stmt_val() {
 fn test_stmt_fn() {
     let stmt = Stmt::Fn {
         name: "foo".to_string(),
-        params: vec!["a".to_string(), "b".to_string()],
+        params: ["a", "b"]
+            .into_iter()
+            .map(|name| Binding {
+                name: name.to_string(),
+                id: NodeId(0),
+                location: dummy_location(),
+            })
+            .collect(),
         body: vec![],
         id: NodeId(0),
         location: dummy_location(),

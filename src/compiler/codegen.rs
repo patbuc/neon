@@ -305,7 +305,7 @@ impl<'a> CodeGenerator<'a> {
                             self.emit_variable_get(*type_id, *location);
                         }
                         self.generate_closure(*id, name, body, *location);
-                        let takes_self = params.first().map(String::as_str) == Some("self");
+                        let takes_self = params.first().map(|p| p.name.as_str()) == Some("self");
                         let op_code = if is_builtin_type {
                             OpCode::DefineBuiltinMethod
                         } else {

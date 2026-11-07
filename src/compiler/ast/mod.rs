@@ -272,7 +272,7 @@ pub enum Expr {
         location: SourceLocation,
     },
     Function {
-        params: Vec<String>,
+        params: Vec<Binding>,
         body: Vec<Stmt>,
         id: NodeId,
         location: SourceLocation,
@@ -494,7 +494,7 @@ pub enum Stmt {
     },
     Fn {
         name: String,
-        params: Vec<String>,
+        params: Vec<Binding>,
         body: Vec<Stmt>,
         id: NodeId,
         location: SourceLocation,

@@ -587,7 +587,7 @@ impl SemanticAnalyzer {
                 continue;
             }
 
-            let takes_self = params.first().map(String::as_str) == Some("self");
+            let takes_self = params.first().map(|p| p.name.as_str()) == Some("self");
             if is_builtin_type && !takes_self {
                 self.push_error(CompilationError::new(
                     CompilationPhase::Semantic,
@@ -1689,7 +1689,7 @@ impl SemanticAnalyzer {
     fn resolve_function_declaration(
         &mut self,
         id: NodeId,
-        params: &[String],
+        params: &[Binding],
         body: &[Stmt],
         location: SourceLocation,
     ) {
@@ -1736,7 +1736,7 @@ impl SemanticAnalyzer {
     fn resolve_function_body(
         &mut self,
         id: NodeId,
-        params: &[String],
+        params: &[Binding],
         body: &[Stmt],
         location: SourceLocation,
         self_type: Option<&str>,
@@ -1768,6 +1768,7 @@ impl SemanticAnalyzer {
         // except a leading `self` inside an impl method, which is typed as
         // the struct being implemented.
         for (i, param) in params.iter().enumerate() {
+            let param = &param.name;
             let param_location = location; // Use function location for params
             let param_type = if i == 0 && param == "self" {
                 self_type.map(StaticType::from_name)
@@ -3663,8 +3664,8 @@ fn unknown_method_error(
 
 /// True when `params`/`implicit_it` make a function own the name `it` in
 /// its own scope, hiding any enclosing block's `it` from its body.
-fn owns_it(params: &[String], implicit_it: bool) -> bool {
-    implicit_it || params.iter().any(|param| param == "it")
+fn owns_it(params: &[Binding], implicit_it: bool) -> bool {
+    implicit_it || params.iter().any(|param| param.name == "it")
 }
 
 /// Whether a trailing block's own body - not a nested block's or function's,
