@@ -43,13 +43,19 @@ fn main() {
                 check_file(path, json);
             }
             "--semantic-tokens" => {
-                let [_, _, path] = args.as_slice() else {
-                    eprintln!(
-                        "Usage: neon --semantic-tokens <file.n>  |  neon --semantic-tokens -"
-                    );
-                    exit(64);
+                let (path, stdin_path) = match &args[2..] {
+                    [path] if path != "--stdin-path" => (path, None),
+                    [dash, flag, file] if dash == "-" && flag == "--stdin-path" => {
+                        (dash, Some(file))
+                    }
+                    _ => {
+                        eprintln!(
+                            "Usage: neon --semantic-tokens <file.n>  |  neon --semantic-tokens - [--stdin-path <file.n>]"
+                        );
+                        exit(64);
+                    }
                 };
-                print_semantic_tokens(path);
+                print_semantic_tokens(path, stdin_path);
             }
             "-e" | "--eval" => {
                 if args.len() < 3 {
@@ -222,8 +228,17 @@ fn print_tokens(path: &str) {
 }
 
 #[allow(clippy::print_stdout, clippy::print_stderr)]
-fn print_semantic_tokens(path: &str) {
-    let (source, entry) = if path == "-" {
+fn print_semantic_tokens(path: &str, stdin_path: Option<&String>) {
+    let (source, entry) = if let (true, Some(file)) = (path == "-", stdin_path) {
+        let file = Path::new(file);
+        let entry = if file.exists() {
+            EntryLocation::File(file.to_path_buf())
+        } else {
+            let dir = file.parent().filter(|dir| !dir.as_os_str().is_empty());
+            EntryLocation::Directory(dir.unwrap_or(Path::new(".")).to_path_buf())
+        };
+        (read_stdin(), entry)
+    } else if path == "-" {
         let source = read_stdin();
         match std::env::current_dir() {
             Ok(dir) => (source, EntryLocation::Directory(dir)),
@@ -473,6 +488,9 @@ fn print_help() {
     println!("  neon --check --json -    Check stdin, imports from the current directory");
     println!("  neon --semantic-tokens <file.n>  Print resolved-name tokens as JSON");
     println!("  neon --semantic-tokens -  Same, from stdin, imports from the current directory");
+    println!(
+        "  neon --semantic-tokens - --stdin-path <file.n>  Same, imports from beside <file.n>"
+    );
     println!("  neon -e <code> [args...]  Run a snippet");
     println!("  neon - [args...]         Run a script read from stdin");
     println!("  neon fmt [--check] <paths...>  Format .n files in place");

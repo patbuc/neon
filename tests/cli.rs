@@ -1928,3 +1928,111 @@ fn semantic_tokens_reads_stdin_and_resolves_imports_from_the_current_directory()
         String::from_utf8_lossy(&output.stdout)
     );
 }
+
+#[cfg(not(feature = "disassemble"))]
+fn semantic_tokens_stdin_path(
+    cwd: &std::path::Path,
+    file: &std::path::Path,
+    source: &str,
+) -> std::process::Output {
+    let child = spawn_neon_with_stdin(
+        |command| {
+            command
+                .args(["--semantic-tokens", "-", "--stdin-path"])
+                .arg(file)
+                .current_dir(cwd);
+        },
+        source.as_bytes(),
+    );
+    wait_with_timeout(child, std::time::Duration::from_secs(5))
+}
+
+const IMPORT_TOKENS: &str = "[{\"line\":2,\"column\":1,\"length\":1,\"type\":\"namespace\",\"modifiers\":[]},\
+{\"line\":2,\"column\":3,\"length\":6,\"type\":\"function\",\"modifiers\":[]}]\n";
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn semantic_tokens_stdin_path_resolves_imports_beside_the_file() {
+    let dir = unique_temp_dir("semantic_tokens_stdin_path");
+    let elsewhere = unique_temp_dir("semantic_tokens_stdin_path_cwd");
+    fs::write(dir.join("m.n"), "pub fn helper() = 1\n").expect("Failed to write module");
+    fs::write(dir.join("main.n"), "val on_disk = 1\n").expect("Failed to write script");
+
+    let output =
+        semantic_tokens_stdin_path(&elsewhere, &dir.join("main.n"), "use \"./m\"\nm.helper()\n");
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&elsewhere).ok();
+
+    assert!(output.status.success());
+    assert_eq!(IMPORT_TOKENS, String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn semantic_tokens_stdin_path_falls_back_to_the_directory_of_a_missing_file() {
+    let dir = unique_temp_dir("semantic_tokens_stdin_path_missing");
+    let elsewhere = unique_temp_dir("semantic_tokens_stdin_path_missing_cwd");
+    fs::write(dir.join("m.n"), "pub fn helper() = 1\n").expect("Failed to write module");
+
+    let output = semantic_tokens_stdin_path(
+        &elsewhere,
+        &dir.join("unsaved.n"),
+        "use \"./m\"\nm.helper()\n",
+    );
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&elsewhere).ok();
+
+    assert!(output.status.success());
+    assert_eq!(IMPORT_TOKENS, String::from_utf8_lossy(&output.stdout));
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn semantic_tokens_stdin_path_tokenizes_the_stdin_source_not_the_file() {
+    let dir = unique_temp_dir("semantic_tokens_stdin_path_buffer");
+    fs::write(dir.join("main.n"), "val a = 1\nval b = 2\nval c = 3\n")
+        .expect("Failed to write script");
+
+    let output = semantic_tokens_stdin_path(&dir, &dir.join("main.n"), "val z = 1\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert!(output.status.success());
+    assert_eq!(
+        "[{\"line\":1,\"column\":5,\"length\":1,\"type\":\"variable\",\"modifiers\":[\"declaration\",\"readonly\"]}]\n",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn semantic_tokens_stdin_path_misuse_exits_64() {
+    let p = std::path::Path::new;
+    let cases: [&[&std::path::Path]; 5] = [
+        &[p("--stdin-path"), p("a.n")],
+        &[p("a.n"), p("--stdin-path"), p("b.n")],
+        &[p("-"), p("-"), p("--stdin-path"), p("b.n")],
+        &[p("-"), p("--stdin-path")],
+        &[p("-"), p("--stdin-path"), p("a.n"), p("b.n")],
+    ];
+    for args in cases {
+        assert_eq!(Some(64), semantic_tokens(args).status.code(), "{args:?}");
+    }
+}
+
+#[cfg(not(feature = "disassemble"))]
+#[test]
+fn semantic_tokens_stdin_path_resolves_an_import_cycle_through_the_entry_file() {
+    let dir = unique_temp_dir("semantic_tokens_stdin_path_cycle");
+    fs::write(dir.join("main.n"), "pub fn x() = 1\n").expect("Failed to write script");
+    fs::write(dir.join("m.n"), "use \"./main\"\npub fn helper() = 1\n")
+        .expect("Failed to write module");
+
+    let output = semantic_tokens_stdin_path(&dir, &dir.join("main.n"), "use \"./m\"\nm.helper()\n");
+
+    fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(Some(65), output.status.code());
+    assert_eq!("", String::from_utf8_lossy(&output.stdout));
+}

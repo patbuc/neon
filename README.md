@@ -50,6 +50,7 @@ cargo run -- hello.n            # run a script
 cargo run -- --check hello.n    # compile without running
 cargo run -- --check --json - < hello.n  # errors as JSON, source from stdin
 cargo run -- --semantic-tokens hello.n  # resolved-name tokens as JSON
+cargo run -- --semantic-tokens - --stdin-path hello.n < hello.n  # same, source from stdin
 cargo run -- -e 'print(1 + 2)'  # run a snippet
 cargo run                       # start the REPL
 ```
