@@ -22,6 +22,13 @@ Compile errors show as diagnostics when a Neon file is opened or saved, each wit
 (for example `E0013`). An error inside an imported module appears on that module's file. The check
 runs `neon --check --json` with the same `neon.path` binary and the same failure notifications.
 
+Semantic highlighting colors names by what the compiler resolves them to: functions, parameters,
+variables (with declaration and read-only modifiers), structs, enums, enum members, modules, and
+built-in names. It runs `neon --semantic-tokens` on the buffer with the same `neon.path` binary and
+is on by default for Neon files. If the buffer does not parse, the last colors stay in place; any
+other failure keeps them too and shows the formatter's error notification. The TextMate grammar
+colors everything else.
+
 ## Install
 
 Download `neon-X.Y.Z.vsix` from the [GitHub Releases page](https://github.com/patbuc/neon/releases),

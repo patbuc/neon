@@ -1,7 +1,7 @@
 {
   "name": "neon",
   "displayName": "Neon",
-  "description": "Syntax highlighting, formatting, snippets and diagnostics for the Neon language",
+  "description": "Syntax and semantic highlighting, formatting, snippets and diagnostics for the Neon language",
   "version": "0.1.0",
   "publisher": "patbuc",
   "license": "MIT",
@@ -29,7 +29,8 @@
   "contributes": {
     "configurationDefaults": {
       "[neon]": {
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "languages": [

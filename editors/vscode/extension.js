@@ -85,6 +85,58 @@ async function provideDocumentFormattingEdits(document, options, token) {
   return [vscode.TextEdit.replace(new vscode.Range(new vscode.Position(0, 0), end), stdout)];
 }
 
+const legend = new vscode.SemanticTokensLegend(
+  ['function', 'parameter', 'variable', 'struct', 'enum', 'enumMember', 'namespace'],
+  ['declaration', 'readonly', 'defaultLibrary'],
+);
+
+async function provideDocumentSemanticTokens(document, token) {
+  const neonPath = vscode.workspace.getConfiguration('neon').get('path');
+  const text = document.getText();
+  const args = ['--semantic-tokens', '-'];
+  if (document.uri.scheme === 'file') {
+    args.push('--stdin-path', document.uri.fsPath);
+  }
+  const { code, signal, cancelled, stdout, error } = await runNeon(neonPath, args, text, token);
+  if (error) {
+    notifyOnce(neonPath, error.code, startFailureMessage(neonPath, error));
+    throw new vscode.CancellationError();
+  }
+  if (signal) {
+    if (!cancelled) {
+      notifyOnce(neonPath, signal, `"${neonPath}" was killed by ${signal} while highlighting.`);
+    }
+    throw new vscode.CancellationError();
+  }
+  if (code !== 0) {
+    if (code !== PARSE_ERROR_EXIT) {
+      notifyOnce(
+        neonPath,
+        code,
+        `"${neonPath}" exited with code ${code} while highlighting. Check the neon.path setting and the binary.`,
+      );
+    }
+    throw new vscode.CancellationError();
+  }
+  let tokens;
+  try {
+    tokens = JSON.parse(stdout);
+  } catch {
+    notifyOnce(neonPath, 'json', `"${neonPath}" printed output that is not valid JSON while highlighting.`);
+    throw new vscode.CancellationError();
+  }
+  notified = undefined;
+  // The buffer may have changed during the run, so columns convert against the text that was sent.
+  const lines = text.split('\n');
+  const builder = new vscode.SemanticTokensBuilder(legend);
+  for (const { line, column, length, type, modifiers } of tokens) {
+    const span = utf16Span(lines[line - 1], column - 1, length);
+    const modifierBits = modifiers.reduce((bits, name) => bits | (1 << legend.tokenModifiers.indexOf(name)), 0);
+    builder.push(line - 1, span.start, span.length, legend.tokenTypes.indexOf(type), modifierBits);
+  }
+  return builder.build();
+}
+
 let diagnostics;
 const owners = new Map();
 const generations = new Map();
@@ -276,6 +328,7 @@ function activate(context) {
   generations.clear();
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider('neon', { provideDocumentFormattingEdits }),
+    vscode.languages.registerDocumentSemanticTokensProvider('neon', { provideDocumentSemanticTokens }, legend),
     diagnostics,
     vscode.workspace.onDidOpenTextDocument(checkIfNeon),
     vscode.workspace.onDidSaveTextDocument(checkIfNeon),
@@ -284,4 +337,4 @@ function activate(context) {
   vscode.workspace.textDocuments.forEach(checkIfNeon);
 }
 
-module.exports = { activate, provideDocumentFormattingEdits };
+module.exports = { activate, legend, provideDocumentFormattingEdits, provideDocumentSemanticTokens };

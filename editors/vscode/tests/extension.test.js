@@ -48,6 +48,28 @@ const fakeCollection = {
   dispose() {},
 };
 
+class SemanticTokensLegend {
+  constructor(tokenTypes, tokenModifiers) {
+    this.tokenTypes = tokenTypes;
+    this.tokenModifiers = tokenModifiers;
+  }
+}
+
+class SemanticTokensBuilder {
+  constructor(legend) {
+    this.legend = legend;
+    this.tokens = [];
+  }
+  push(line, character, length, tokenType, tokenModifiers) {
+    this.tokens.push({ line, character, length, tokenType, tokenModifiers });
+  }
+  build() {
+    return this;
+  }
+}
+
+class CancellationError extends Error {}
+
 const fakeVscode = {
   workspace: {
     getConfiguration: () => ({ get: () => neonPath }),
@@ -59,6 +81,7 @@ const fakeVscode = {
   window: { showErrorMessage: (message) => errors.push(message) },
   languages: {
     registerDocumentFormattingEditProvider: () => ({ dispose() {} }),
+    registerDocumentSemanticTokensProvider: () => ({ dispose() {} }),
     createDiagnosticCollection: () => fakeCollection,
   },
   TextEdit: { replace: (range, newText) => ({ range, newText }) },
@@ -67,13 +90,16 @@ const fakeVscode = {
   Diagnostic,
   Range,
   Position,
+  SemanticTokensLegend,
+  SemanticTokensBuilder,
+  CancellationError,
 };
 
 const originalLoad = Module._load;
 Module._load = function (request, ...rest) {
   return request === 'vscode' ? fakeVscode : originalLoad.call(this, request, ...rest);
 };
-const { activate, provideDocumentFormattingEdits } = require('../extension.js');
+const { activate, legend, provideDocumentFormattingEdits, provideDocumentSemanticTokens } = require('../extension.js');
 activate({ subscriptions: [] });
 
 function documentOf(text, uri = { scheme: 'untitled', fsPath: 'Untitled-1' }) {
@@ -855,4 +881,173 @@ test("places a module's marker by UTF-16 units after an emoji", async () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('declares a legend with the compiler\'s token types and modifiers', () => {
+  assert.deepStrictEqual(legend.tokenTypes, [
+    'function',
+    'parameter',
+    'variable',
+    'struct',
+    'enum',
+    'enumMember',
+    'namespace',
+  ]);
+  assert.deepStrictEqual(legend.tokenModifiers, ['declaration', 'readonly', 'defaultLibrary']);
+});
+
+test('colors an unsaved buffer from `neon --semantic-tokens -`', async () => {
+  const result = await provideDocumentSemanticTokens(documentOf('val a = 1\nprint(a)\n'));
+  const variable = legend.tokenTypes.indexOf('variable');
+  const declaration = 1 << legend.tokenModifiers.indexOf('declaration');
+  const readonly = 1 << legend.tokenModifiers.indexOf('readonly');
+  assert.deepStrictEqual(result.tokens[0], {
+    line: 0,
+    character: 4,
+    length: 1,
+    tokenType: variable,
+    tokenModifiers: declaration | readonly,
+  });
+  assert.ok(result.tokens.some((t) => t.line === 1 && t.character === 6 && t.tokenType === variable));
+});
+
+test('places a token after an emoji at its UTF-16 column', async () => {
+  const result = await provideDocumentSemanticTokens(documentOf('val s = "x"\nprint("\u{1F600}" + s)\n'));
+  const last = result.tokens[result.tokens.length - 1];
+  assert.strictEqual(last.line, 1);
+  assert.strictEqual(last.character, 'print("\u{1F600}" + '.length);
+  assert.strictEqual(last.length, 1);
+});
+
+test('keeps the previous colors when neon exits non-zero', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'exit 65');
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(\n')), CancellationError);
+    assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('notifies when highlighting exits with a code other than 65', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'exit 64');
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /exited with code 64 while highlighting/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('notifies when highlighting dies from a signal', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'kill -SEGV $$');
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /SIGSEGV/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('stays silent when highlighting is cancelled', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'exec sleep 30');
+    let listener;
+    const token = { onCancellationRequested: (fn) => ((listener = fn), { dispose() {} }) };
+    const pending = provideDocumentSemanticTokens(documentOf('print(1)\n'), token);
+    listener();
+    await assert.rejects(pending, CancellationError);
+    assert.deepStrictEqual(errors, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rejects on exit 65 even when neon printed an empty token list', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'echo "[]"; exit 65');
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(\n')), CancellationError);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolves imports beside a saved file without a working directory', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'm.n'), 'pub fn helper() = 1\n');
+    const uri = { scheme: 'file', fsPath: path.join(dir, 'main.n') };
+    const result = await provideDocumentSemanticTokens(documentOf('use "./m"\nm.helper()\n', uri));
+    const namespace = legend.tokenTypes.indexOf('namespace');
+    assert.ok(result.tokens.some((t) => t.line === 1 && t.character === 0 && t.tokenType === namespace));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('converts columns against the text sent, even if the document changes during the run', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(
+      dir,
+      'neon',
+      'cat >/dev/null; sleep 0.2; echo \'[{"line":2,"column":13,"length":1,"type":"variable","modifiers":[]}]\'',
+    );
+    let text = 'val s = "x"\nprint("\u{1F600}" + s)\n';
+    const document = { ...documentOf(text), getText: () => text };
+    const pending = provideDocumentSemanticTokens(document);
+    text = '';
+    const result = await pending;
+    assert.strictEqual(result.tokens[0].character, 'print("\u{1F600}" + '.length);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('notifies once and rejects when neon prints output that is not JSON', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-ext-'));
+  try {
+    neonPath = stubNeon(dir, 'neon', 'echo nope');
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+    await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /not valid JSON/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('notifies again for the same failure after a successful run', async () => {
+  neonPath = path.join(repoRoot, 'target', 'missing-reset', 'neon');
+  await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+  const missing = neonPath;
+  neonPath = neonBin;
+  await provideDocumentSemanticTokens(documentOf('print(1)\n'));
+  neonPath = missing;
+  await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+  assert.strictEqual(errors.length, 2);
+});
+
+test('adds no semantic colors and no extra notification when the binary is not found', async () => {
+  neonPath = path.join(repoRoot, 'target', 'missing-semantic', 'neon');
+  await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+  assert.strictEqual(errors.length, 1);
+  await assert.rejects(provideDocumentSemanticTokens(documentOf('print(1)\n')), CancellationError);
+  assert.strictEqual(errors.length, 1);
+});
+
+test('enables semantic highlighting for Neon files by default', () => {
+  const pkg = require('../package.json');
+  assert.strictEqual(pkg.contributes.configurationDefaults['[neon]']['editor.semanticHighlighting.enabled'], true);
+});
+
+test('lists semantic highlighting in the README', () => {
+  assert.match(fs.readFileSync(path.join(vscodeDir, 'README.md'), 'utf8'), /Semantic highlighting/);
 });
