@@ -52,9 +52,6 @@ pub(crate) struct MethodSignature {
     takes_self: bool,
 }
 
-/// An enum variant a match pattern names. `enum_display` is the enum as the
-/// pattern writes it (`Color`, `utils.Color`); `access.enum_name` is the
-/// bare name.
 struct MatchVariant {
     access: EnumVariantAccess,
     enum_display: Rc<str>,
@@ -3122,7 +3119,7 @@ impl SemanticAnalyzer {
                 let MatchPattern::Expr(expr) = pattern else {
                     continue;
                 };
-                if !self.is_valid_match_pattern(expr) {
+                if !self.is_valid_match_pattern(expr) || matches!(expr, Expr::GetField { .. }) {
                     continue;
                 }
                 self.push_error(CompilationError::new(

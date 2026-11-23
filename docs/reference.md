@@ -549,6 +549,9 @@ arm's value.
   and `..` is not allowed inside. Unguarded, a variant pattern whose
   sub-patterns are all bindings or `_` covers its variant; one with a
   refutable sub-pattern covers nothing.
+- A module's enum variant is a pattern too: `utils.Color.Red`,
+  `u.Shape.Circle(r)`. The enum is identified as written, so `utils.Color`,
+  `u.Color` and a local `Color` are different enums in one match.
 - An arm's body is an expression, or a `{ ... }` block whose value is its
   last expression statement.
 - A match whose patterns include an enum variant is an enum match: every
@@ -898,6 +901,9 @@ print(math.square(5))     // 25
 - Exports are reached as `utils.name`. They are read-only from outside:
   `utils.counter = 5` and `utils.counter += 1` are compile errors. They are
   live, so `utils.counter` sees the updates the module makes.
+- A module's enum is matched with `utils.Color.Red ->` or `u.Shape.Circle(r) ->`.
+  Reached through `utils`, through an alias, or by its bare name, it counts as a
+  different enum in a match, so don't mix the spellings.
 - A module is not a value: `val m = utils` is a compile error. So is an unknown
   export (`utils.nope`), or a call with the wrong number of arguments.
 - Each module runs once, before the files that import it, in dependency order.

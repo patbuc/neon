@@ -1,0 +1,10 @@
+pub enum Color {
+    Red
+    Green
+    Blue
+}
+
+pub enum Shape {
+    Circle(r)
+    Rect(w, h)
+}
