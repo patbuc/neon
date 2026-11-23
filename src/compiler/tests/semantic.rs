@@ -3969,6 +3969,19 @@ fn test_match_unknown_unit_variant_pattern_reports_only_no_such_variant() {
 }
 
 #[test]
+fn test_match_unknown_variant_beside_known_reports_only_no_such_variant() {
+    let program = "enum Color {\n    Red\n}\nval c = Color.Red\nval x = match c {\n    Color.Red -> 1\n    Color.Purple -> 2\n    _ -> 0\n}\n";
+    let errors: Vec<String> = compile_errors(program)
+        .into_iter()
+        .map(|e| e.message)
+        .collect();
+    assert_eq!(
+        errors,
+        vec!["Enum 'Color' has no variant named 'Purple'".to_string()]
+    );
+}
+
+#[test]
 fn test_compiler_resolves_imports_before_semantic_analysis() {
     let errors = compile_errors("val x = 1\nuse \"b\"\n");
     assert_eq!(errors.len(), 1);

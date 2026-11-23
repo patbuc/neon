@@ -902,8 +902,6 @@ print(math.square(5))     // 25
   `utils.counter = 5` and `utils.counter += 1` are compile errors. They are
   live, so `utils.counter` sees the updates the module makes.
 - A module's enum is matched with `utils.Color.Red ->` or `u.Shape.Circle(r) ->`.
-  Reached through `utils`, through an alias, or by its bare name, it counts as a
-  different enum in a match, so don't mix the spellings.
 - A module is not a value: `val m = utils` is a compile error. So is an unknown
   export (`utils.nope`), or a call with the wrong number of arguments.
 - Each module runs once, before the files that import it, in dependency order.
