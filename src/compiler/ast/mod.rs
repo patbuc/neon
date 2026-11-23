@@ -377,6 +377,23 @@ impl PathStep {
 }
 
 impl MatchPattern {
+    /// The node an enum variant pattern's access is recorded on: the
+    /// variable naming the enum, or for `module.Enum.Variant` the one
+    /// naming the module.
+    pub fn variant_access_node(target: &Expr) -> Option<NodeId> {
+        let Expr::GetField { object, .. } = target else {
+            return None;
+        };
+        match object.as_ref() {
+            Expr::Variable { id, .. } => Some(*id),
+            Expr::GetField { object: module, .. } => match module.as_ref() {
+                Expr::Variable { id, .. } => Some(*id),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     /// Whether the pattern matches any value: `_`, a name, or a rest.
     pub fn is_irrefutable(&self) -> bool {
         matches!(
@@ -408,17 +425,11 @@ impl MatchPattern {
                 }
             }
             MatchPattern::Variant { target, fields } => {
-                let Expr::GetField { object, .. } = target else {
-                    return;
-                };
-                let Expr::Variable { id, .. } = object.as_ref() else {
+                let Some(id) = Self::variant_access_node(target) else {
                     return;
                 };
                 for (index, field) in fields.iter().enumerate() {
-                    path.push(PathStep::Field {
-                        variant: *id,
-                        index,
-                    });
+                    path.push(PathStep::Field { variant: id, index });
                     field.collect_bindings(path, found);
                     path.pop();
                 }
