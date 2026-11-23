@@ -2587,16 +2587,13 @@ impl<'a> CodeGenerator<'a> {
                 );
             }
             MatchPattern::Variant { target, fields } => {
-                let Expr::GetField {
-                    object, location, ..
-                } = target
-                else {
+                let Expr::GetField { location, .. } = target else {
                     unreachable!("a variant pattern's target is an enum variant access")
                 };
-                let Expr::Variable { id, .. } = object.as_ref() else {
+                let Some(id) = MatchPattern::variant_access_node(target) else {
                     unreachable!("a variant pattern's target is an enum variant access")
                 };
-                let Some(access) = self.resolutions.enum_variant_access(*id).cloned() else {
+                let Some(access) = self.resolutions.enum_variant_access(id).cloned() else {
                     unreachable!("a variant pattern resolves to an enum variant")
                 };
                 self.emit_match_subject(hidden_slot, path, *location);
@@ -2609,10 +2606,7 @@ impl<'a> CodeGenerator<'a> {
                 let index = self.add_constant(template);
                 self.emit_index_op(OpCode::IsVariant, index, "constants", *location);
                 let steps: Vec<PathStep> = (0..fields.len())
-                    .map(|index| PathStep::Field {
-                        variant: *id,
-                        index,
-                    })
+                    .map(|index| PathStep::Field { variant: id, index })
                     .collect();
                 self.generate_match_element_tests(hidden_slot, path, &steps, fields, *location);
             }

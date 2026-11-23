@@ -52,6 +52,12 @@ pub(crate) struct MethodSignature {
     takes_self: bool,
 }
 
+struct MatchVariant {
+    access: EnumVariantAccess,
+    enum_display: Rc<str>,
+    variants: Vec<EnumVariant>,
+}
+
 /// The methods and fields of a struct, local or exported.
 struct StructMembers<'a> {
     methods: Option<&'a HashMap<String, MethodSignature>>,
@@ -1431,15 +1437,15 @@ impl SemanticAnalyzer {
                         "Invalid match pattern: expected a literal, an integer range, an enum variant, a name, an array pattern, or '_'".to_string(),
                         Self::match_pattern_location(expr),
                     ));
-                } else if let Some(access) = self.match_pattern_enum_variant(expr)
-                    && !access.fields.is_empty()
+                } else if let Some(variant) = self.match_pattern_enum_variant(expr)
+                    && !variant.access.fields.is_empty()
                 {
                     self.push_error(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::InvalidMatchPattern,
                             format!(
                                 "Invalid match pattern: payload variant {}.{} must be matched with its fields",
-                                access.enum_name, access.variant_name
+                                variant.enum_display, variant.access.variant_name
                             ),
                             Self::match_pattern_location(expr),
                         ));
@@ -1478,9 +1484,9 @@ impl SemanticAnalyzer {
 
     fn resolve_variant_pattern(&mut self, target: &Expr, fields: &[MatchPattern]) {
         let location = Self::match_pattern_location(target);
-        let Some(access) = self.match_pattern_enum_variant(target) else {
+        let Some(variant) = self.match_pattern_enum_variant(target) else {
             if let Expr::GetField { object, .. } = target
-                && matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+                && self.names_enum(object)
             {
                 return;
             }
@@ -1492,15 +1498,16 @@ impl SemanticAnalyzer {
             ));
             return;
         };
+        let access = &variant.access;
         let message = if access.fields.is_empty() {
             Some(format!(
                 "Invalid match pattern: unit variant {}.{} takes no parentheses",
-                access.enum_name, access.variant_name
+                variant.enum_display, access.variant_name
             ))
         } else if access.fields.len() != fields.len() {
             Some(format!(
                 "Invalid match pattern: {}.{} has {} fields but the pattern has {}",
-                access.enum_name,
+                variant.enum_display,
                 access.variant_name,
                 access.fields.len(),
                 fields.len()
@@ -2921,21 +2928,44 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// If `pattern` is `Enum.Variant`, already resolved by `resolve_expr` as
-    /// an enum-variant access, its recorded access.
-    fn match_pattern_enum_variant(&self, expr: &Expr) -> Option<EnumVariantAccess> {
+    /// Whether `object` names an enum, a local one or `module.Enum`.
+    fn names_enum(&self, object: &Expr) -> bool {
+        matches!(object, Expr::Variable { name, .. } if self.enum_variants(name).is_some())
+            || self.module_enum(object).is_some()
+    }
+
+    /// If `expr` is `Enum.Variant` or `module.Enum.Variant`, already
+    /// resolved by `resolve_expr` as an enum-variant access, that access.
+    fn match_pattern_enum_variant(&self, expr: &Expr) -> Option<MatchVariant> {
         let Expr::GetField { object, .. } = expr else {
             return None;
         };
-        let Expr::Variable { id, .. } = object.as_ref() else {
-            return None;
+        let (node, enum_display, variants) = match object.as_ref() {
+            Expr::Variable { name, id, .. } => (*id, name.clone(), self.enum_variants(name)?),
+            Expr::GetField {
+                object: module,
+                field,
+                ..
+            } => {
+                let Expr::Variable { name, .. } = module.as_ref() else {
+                    return None;
+                };
+                let (id, _, variants) = self.module_enum(object)?;
+                (id, format!("{}.{}", name, field), variants)
+            }
+            _ => return None,
         };
-        self.resolutions.enum_variant_access(*id).cloned()
+        let access = self.resolutions.enum_variant_access(node)?.clone();
+        Some(MatchVariant {
+            access,
+            enum_display: Rc::from(enum_display),
+            variants,
+        })
     }
 
     /// The variant a pattern names, as `Enum.Variant` or `Enum.Variant(..)`,
     /// and whether it matches every value of that variant.
-    fn match_pattern_variant(&self, pattern: &MatchPattern) -> Option<(EnumVariantAccess, bool)> {
+    fn match_pattern_variant(&self, pattern: &MatchPattern) -> Option<(MatchVariant, bool)> {
         match pattern {
             MatchPattern::Expr(expr) => Some((self.match_pattern_enum_variant(expr)?, true)),
             MatchPattern::Variant { target, fields } => Some((
@@ -2990,9 +3020,7 @@ impl SemanticAnalyzer {
             Expr::Range { start, end, .. } => {
                 Self::match_pattern_int(start).is_some() && Self::match_pattern_int(end).is_some()
             }
-            Expr::GetField { object, .. } => {
-                matches!(object.as_ref(), Expr::Variable { name, .. } if self.enum_variants(name).is_some())
-            }
+            Expr::GetField { object, .. } => self.names_enum(object),
             _ => Self::match_pattern_number(expr).is_some(),
         }
     }
@@ -3022,13 +3050,18 @@ impl SemanticAnalyzer {
                 if *inclusive { "..=" } else { ".." },
                 Self::match_pattern_display(end)
             ),
-            Expr::GetField { object, field, .. } => {
-                if let Expr::Variable { name, .. } = object.as_ref() {
-                    format!("{}.{}", name, field)
-                } else {
-                    field.clone()
-                }
-            }
+            Expr::GetField { object, field, .. } => match object.as_ref() {
+                Expr::Variable { name, .. } => format!("{}.{}", name, field),
+                Expr::GetField {
+                    object: module,
+                    field: enum_name,
+                    ..
+                } => match module.as_ref() {
+                    Expr::Variable { name, .. } => format!("{}.{}.{}", name, enum_name, field),
+                    _ => field.clone(),
+                },
+                _ => field.clone(),
+            },
             _ => "<pattern>".to_string(),
         }
     }
@@ -3036,16 +3069,12 @@ impl SemanticAnalyzer {
     /// An enum match - one whose patterns include at least one
     /// `Enum.Variant` or `Enum.Variant(..)` - must have every non-wildcard pattern belong to that
     /// enum, and (absent a wildcard) cover every one of its variants.
-    #[allow(clippy::expect_used)]
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm], match_location: SourceLocation) {
         let mut enum_identity: Option<(Rc<str>, Vec<EnumVariant>)> = None;
         for arm in arms {
             for pattern in &arm.patterns {
-                if let Some((access, _)) = self.match_pattern_variant(pattern) {
-                    let variants = self
-                        .enum_variants(&access.enum_name)
-                        .expect("a resolved enum variant access names a declared enum");
-                    enum_identity = Some((access.enum_name, variants));
+                if let Some((variant, _)) = self.match_pattern_variant(pattern) {
+                    enum_identity = Some((variant.enum_display, variant.variants));
                     break;
                 }
             }
@@ -3067,14 +3096,15 @@ impl SemanticAnalyzer {
                     has_wildcard |= arm.guard.is_none();
                     continue;
                 }
-                if let Some((access, matches_all)) = self.match_pattern_variant(pattern) {
-                    if access.enum_name != enum_name {
+                if let Some((variant, matches_all)) = self.match_pattern_variant(pattern) {
+                    let access = variant.access;
+                    if variant.enum_display != enum_name {
                         self.push_error(CompilationError::new(
                             CompilationPhase::Semantic,
                             CompilationErrorKind::PatternNotInEnum,
                             format!(
                                 "Pattern {}.{} does not belong to enum {}",
-                                access.enum_name, access.variant_name, enum_name
+                                variant.enum_display, access.variant_name, enum_name
                             ),
                             Self::pattern_location(pattern),
                         ));
@@ -3089,7 +3119,7 @@ impl SemanticAnalyzer {
                 let MatchPattern::Expr(expr) = pattern else {
                     continue;
                 };
-                if !self.is_valid_match_pattern(expr) {
+                if !self.is_valid_match_pattern(expr) || matches!(expr, Expr::GetField { .. }) {
                     continue;
                 }
                 self.push_error(CompilationError::new(
@@ -3177,9 +3207,9 @@ impl SemanticAnalyzer {
                 let end = Self::match_pattern_int(end)?;
                 Some(MatchPatternKey::Range(start, end, *inclusive))
             }
-            _ => self
-                .match_pattern_enum_variant(expr)
-                .map(|access| MatchPatternKey::Enum(access.enum_name, access.variant_name)),
+            _ => self.match_pattern_enum_variant(expr).map(|variant| {
+                MatchPatternKey::Enum(variant.enum_display, variant.access.variant_name)
+            }),
         }
     }
 
@@ -3196,9 +3226,12 @@ impl SemanticAnalyzer {
                     MatchPattern::Expr(expr) => self.match_pattern_key(expr),
                     MatchPattern::Variant { .. } => {
                         self.match_pattern_variant(pattern)
-                            .map(|(access, matches_all)| {
+                            .map(|(variant, matches_all)| {
                                 covers = matches_all;
-                                MatchPatternKey::Enum(access.enum_name, access.variant_name)
+                                MatchPatternKey::Enum(
+                                    variant.enum_display,
+                                    variant.access.variant_name,
+                                )
                             })
                     }
                     _ => None,

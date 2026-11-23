@@ -1,0 +1,40 @@
+// Expected compile error: 13:5 E0047 match on utils.Color is missing Blue
+// Expected compile error: 22:9 E0048 Pattern Color.Red does not belong to enum utils.Color
+// Expected compile error: 30:20 E0041 Enum 'Color' has no variant named 'Purple'
+// Expected compile error: 37:9 E0050 Invalid match pattern: payload variant utils.Shape.Circle must be matched with its fields
+
+use "utils"
+
+enum Color {
+    Red
+}
+
+fn missing(c) {
+    match c {
+        utils.Color.Red -> 1
+        utils.Color.Green -> 2
+    }
+}
+
+fn mixed(c) {
+    match c {
+        utils.Color.Red -> 1
+        Color.Red -> 2
+        _ -> 3
+    }
+}
+
+fn unknown(c) {
+    match c {
+        utils.Color.Red -> 1
+        utils.Color.Purple -> 2
+        _ -> 3
+    }
+}
+
+fn payload(s) {
+    match s {
+        utils.Shape.Circle -> 1
+        _ -> 2
+    }
+}

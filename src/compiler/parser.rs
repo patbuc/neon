@@ -1974,7 +1974,15 @@ impl Parser {
 
         if self.in_match_pattern
             && !optional
-            && matches!(object, Expr::Variable { .. })
+            && match &object {
+                Expr::Variable { .. } => true,
+                Expr::GetField {
+                    object: module,
+                    optional: false,
+                    ..
+                } => matches!(module.as_ref(), Expr::Variable { .. }),
+                _ => false,
+            }
             && self.match_token(TokenType::LeftParen)
         {
             self.in_match_pattern = false;

@@ -1,0 +1,39 @@
+// Expected:
+// red
+// other
+// 6
+// 12
+// green
+// blue
+
+use "utils"
+use "utils" as u
+
+fn name(c) {
+    match c {
+        utils.Color.Red -> "red"
+        utils.Color.Green, utils.Color.Blue -> "other"
+    }
+}
+
+fn area(s) {
+    match s {
+        utils.Shape.Circle(r) -> r * 2
+        utils.Shape.Rect(w, h) -> w * h
+    }
+}
+
+fn alias(c) {
+    match c {
+        u.Color.Red -> "red"
+        u.Color.Green -> "green"
+        _ -> "blue"
+    }
+}
+
+print(name(utils.Color.Red))
+print(name(utils.Color.Blue))
+print(area(utils.Shape.Circle(3)))
+print(area(u.Shape.Rect(3, 4)))
+print(alias(u.Color.Green))
+print(alias(u.Color.Blue))
